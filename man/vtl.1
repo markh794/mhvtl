@@ -1,0 +1,101 @@
+.TH vtl "1" "April 2006" "vtl 0.10" "User Commands"
+.SH NAME
+vtl \- Virtual Tape Library
+
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Virtual Tape Library consists of several components.
+.PP
+A LLD kernel driver -
+.BR vtl
+.PP
+Target devices - Daemons
+.BR vtltape(1)
+ and
+.BR vtllibrary(1)
+which implement SCSI target device(s) in user-space.
+.PP
+Utility commands
+.BR mktape(1),
+.BR vtlcmd(1)
+.PP
+And startup scripts /etc/init.d/vtl, 
+.BR build_library_config(1),
+.BR make_vtl_devices(1)
+.PP
+The LLD kernel module is based on the scsi_debug kernel module
+.BR (http://www.torque.net/sg/sdebug26.html).
+vtl is a pseudo HBA (LLD) reporting 1 x SMC target (StorageTek L700) and
+8 x SSC targets (2 x Sony SDX-900V, 3 x IBM Ultrium-TD3 and 3 x Quantum SuperDLT600) attached.
+.PP
+A char device back-end has been add to the vtl LLD driver.
+This allows data and SCSI commands to be passed from the LLD driver to
+user-mode daemons (SCSI targets) via the /dev/vtl?? device nodes.
+The target drivers
+constently poll the driver and process any SCSI commands/data passed to them.
+.PP
+.BR vtltape(1)
+write/read data to data files in the /opt/vtl directory
+ (if a virtual tape has been loaded). The virtual tape files include a
+Medium Auxiliary Memory (MAM) data structure to store persistent data (number
+of tape loads, total data written/read, media type etc).
+.PP
+.BR vtllibrary(1)
+reads its configuration file /etc/vtl/library_contents at startup.
+The number of storage slots are built dynamically when the daemon starts.
+Hence changing the number of storage slots and media access slots are a matter
+of modifing the file contents and restarting the
+.BR vtllibrary(1)
+daemon.
+All
+\'library\' commands are performed on data structures in memory ONLY.
+.PP
+A message queue (key 0x4d61726b) is used to pass messages between
+.BR vtltape(1),
+.BR vtllibrary(1)
+and
+.BR vtlcmd(1)
+.PP
+When a SCSI move medium from a storage slot to a tape drive is requested, the
+media location is updated in
+.BR vtllibrary(1)
+data structures, and the barcode of the media id is passed via the message
+queue to the
+.BR vtltape(1)
+daemon in question. A file open of the barcode is attempted in the
+/opt/vtl directory and if successful, the
+.BR vtltape(1)
+daemon will now return a ASC/ASCQ 0x0/0x0 to any Test Unit Ready requests.
+An unload SCSI command to the tape drive will close the data file.
+.PP
+Media can be moved out of the VTL via the Media Access Port. Once media is
+logically moved into the MAP slots, the MAP entries can be cleared using the
+.BR "vtlcmd library empty map".
+
+
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+.SH TODO
+Does not implement the complete SCSI command set.
+.PP
+Kernel module only written for Linux 2.6.x kernel series.
+.PP
+Data is copied from kernel buffers to/from user-space buffers. Should
+use pointers to buffers, not copy each block.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR build_library_config(1),
+.BR library_contents(5),
+.BR make_vtl_devices(1),
+.BR mktape(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

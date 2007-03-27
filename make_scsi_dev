@@ -1,0 +1,61 @@
+#!/usr/bin/perl -w
+#
+# * perl replacement for the VERITAS /usr/openv/volmgr/bin/make_scsi_dev
+# *
+# * Re-creates the /dev/sg/ & /dev/st/ symlinks back to the native linux
+# * device nodes.
+# *
+# *
+# * $Id: make_scsi_dev,v 1.2.2.1 2006-08-06 07:58:44 markh Exp $
+# *
+# * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
+# *                                mark dot harvey at veritas dot com
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+use strict;
+
+my $line;
+my $type;
+my $hba;
+my $bus;
+my $target;
+my $lun;
+my $path;
+my $st;
+my $sg;
+
+system("rm -f /dev/st/*");
+system("rm -f /dev/sg/*");
+
+open(D, "lsscsi -g|") || die "Could not execute \'lsscsi -g\'\n";
+while($line = <D>) {
+	chomp $line;
+	next unless ($line =~ /tape|mediumx/);
+#	print "$line\n";
+	($hba,$bus,$target,$lun,$type) = ($line =~ /(\d+):(\d+):(\d+):(\d+)]\s+([a-z]*)/);
+#	print "HBA: $hba, BUS: $bus, ID: $target, LUN: $lun\n";
+	$path = "h" . $hba . "c" . $bus . "t" . $target . "l" . $lun;
+	($st) = ($line =~ /\/dev\/(st\d+)/);
+	($sg) = ($line =~ /\/dev\/(sg\d+)/);
+	if($type =~ /tape/) {
+		system("ln -s /dev/$st /dev/st/$path");
+		system("ln -s /dev/n$st /dev/st/n$path");
+	}
+	system("ln -s /dev/$sg /dev/sg/$path");
+}
+close (D);
+

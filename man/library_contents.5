@@ -1,0 +1,48 @@
+.TH library_contents "5" "April 2006" "vtl 0.10" "User Commands"
+.SH NAME
+library_contents \- Configuration file for
+.BR vtllibrary(1)
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Configuration file for vtllibrary daemon (part of Virtual Tape Library)
+One line per entry.
+Contains the following sections, Only the 'Slot' section should be populated. The other
+sections are used as place holders. e.g. If the number of MAP slots are to be changed
+within the VTL, change the number of entries in this configuration file.
+.IP "Drive #:"
+.IP "Picker #:"
+.IP "MAP #:"
+.IP "Slot #: [Barcode]"
+Where [Barcode] can be any ASCII string from 1 to 12 chars in length. If there is no Barcode
+defined for the Slot number, the slot is taken to be empty.
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+.RS
+This man page.
+.RE
+.RS
+No version information.
+.RE
+.RS
+Config file not xml.
+.RE
+.RS
+.BR vtllibrary(1)
+needs to be restarted to read any changes made.
+.RE
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR build_library_config(1),
+.BR mktape(1),
+.BR vtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

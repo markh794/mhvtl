@@ -1,0 +1,46 @@
+.TH mktape "1" "April 2006" "vtl 0.10" "User Commands"
+.SH NAME
+mktape \- Utility to create new/blank virtual media for the VTL.
+.SH SYNOPSIS
+.B mktape
+.B [ \-h ]
+.B [ \fIoptions \fR]
+.B ...
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Create and initialise new media for the Virtual Tape Library. Media is created in the
+/opt/vtl/ directory. This path is hard coded.
+.SH OPTIONS
+.TP
+\fB\-h\fR
+display this help and exit
+.TP
+\fB\-m PCL\fR
+where PCL is the Physical Cartridge Label (barcode).
+.TP
+\fB\-s size\fR
+where size is the capacity of the virtual media - Size is defined in 'megabytes'.
+.TP
+\fB\-t type\fR
+The media 'type' which can be: "data" , "WORM" (Write Once Read Many) or
+"clean" (cleaning cartridge)
+
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Needs to be made user friendly.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR build_library_config(1),
+.BR library_contents(5),
+.BR vtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

@@ -1,0 +1,184 @@
+
+vxtape virtual tape & library system.
+
+markh794 at gmail dot com
+mark_harvey at symantec dot com
+
+Instructions assume reader is familiar with the kernel build process.
+
+To compile and install:
+
+Extract the source:
+ tar xvfz vx-YYYY-MM-DD.tgz
+
+
+Kernel module vtl : 
+The new way.....
+RedHat AS 4:
+Make sure the kernel-devel package to match your running kernel is installed.
+e.g.
+# rpm -qa|grep kernel
+kernel-2.6.9-34.0.1.EL
+kernel-devel-2.6.9-34.0.1.EL
+kernel-2.6.9-5.EL
+kernel-devel-2.6.9-5.EL
+kernel-utils-2.4-13.1.80
+
+
+SLES 9:
+make cloneconfig
+cd kernel-driver/linux-2.6
+make
+make install
+
+cd kernel-driver/linux-2.6
+make
+make install
+
+
+The old way.....
+1. Copy from vx/kernel-driver/ the
+   vtl.c vtl.h to <kernel source>/drivers/scsi/
+
+NOTE: If kernel is 2,6,0 -> 2.6.9 inclusive, please apply
+vtl-pre-2.6.10.diff to vtl.c before step 2. Also copy kfifo.h
+to the <kernel source>/drivers/scsi directory.
+
+2. Modify the Makefile in <kernel source>/drivers/scsi/Makefile so as
+   the line: (I am piggy backing this module on the CONFIG_SCSI_DEBUG)
+     obj-$(CONFIG_SCSI_DEBUG) += scsi_debug.o
+   reads
+     obj-$(CONFIG_SCSI_DEBUG) += scsi_debug.o vtl.o
+
+3. make config|menuconfig|xconfig and confirm the scsi_debug driver is
+   included.
+
+4. make modules && make modules_install
+
+5. Build module dependencies:
+ # /sbin/depmod -ae
+
+6. Install kernel module:
+ # modprobe vtl
+
+7. Check /proc/scsi/scsi for your newly 'discovered' SCSI L700 + 8 drives.
+   Or use the "lsscsi -g" command.
+
+
+
+User space daemons:
+
+Please install lsscsi (http://www.torque.net/scsi/lsscsi.html) package. 
+
+To build an RPM :
+ cp vtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
+ cd /usr/src/packages/SOURCE
+ rpmbuild -tb --target=i686 vtl-YYYY-MM-DD.tar.gz
+ <wait for rpm build to complete>
+ rpm -Uvh /usr/src/packages/RPMS/i686/vtl-x.y-z.i686.rpm
+ (The rpm install will create system group & accounts vtl)
+
+To build from tar archive:
+
+To limit damage that may occur by wayward daemons, I highly recommend creating
+a group and user called 'vtl'
+# /usr/sbin/groupadd --system vtl
+# /usr/sbin/useradd --system -c "Vitrual Tape Library" -d /opt/vtl -g vtl -m vtl
+
+Now build user space daemons:
+From the parent directory where you extracted the source.
+ cd vx
+
+Build the binaries
+ make
+
+Install the rc script into /etc/init.d/ and binaries to /usr/local/bin/
+ make install
+
+Make config directory :
+mkdir /etc/vtl
+chown vtl:vtl /etc/vtl
+chmod 770 /etc/vtl
+
+Copy the library_contents.sample to /etc/vtl/library_contents
+Edit the /etc/vtl/library_contents to suite your environment.
+Note: If changing Storage slots, stop and re-start daemons via the rc script:
+ /etc/init.d/vtl
+Part of the rc scripts job is to create 'blank' media in the /opt/vtl/
+directory and dynamically build the robot contents.
+
+There is no way of HUPing the daemons to re-read the configuration file contents.
+
+
+Start daemons:
+/etc/init.d/vtl start
+
+Test:
+Note: Make sure the 'mtx' & 'lsscsi' utilities are installed
+e.g.
+# lsscsi -g
+[0:0:0:0]    mediumx STK      L700             vtl0  -         /dev/sg0
+[0:0:0:1]    tape    SONY     SDX-900V         5400  /dev/st0  /dev/sg1
+[0:0:0:2]    tape    SONY     SDX-900V         5400  /dev/st1  /dev/sg2
+[0:0:0:3]    tape    QUANTUM  SDLT600          5400  /dev/st2  /dev/sg3
+[0:0:0:4]    tape    QUANTUM  SDLT600          5400  /dev/st3  /dev/sg4
+[0:0:0:5]    tape    QUANTUM  SDLT600          5400  /dev/st4  /dev/sg5
+[0:0:0:6]    tape    IBM      ULT3580-TD3      5400  /dev/st5  /dev/sg6
+[0:0:0:7]    tape    IBM      ULT3580-TD3      5400  /dev/st6  /dev/sg7
+[0:0:0:8]    tape    IBM      ULT3580-TD3      5400  /dev/st7  /dev/sg8
+
+
+# mtx -f /dev/sg0
+  Storage Changer /dev/sg0:8 Drives, 36 Slots ( 4 Import/Export )
+Data Transfer Element 0:Empty
+Data Transfer Element 1:Empty
+Data Transfer Element 2:Empty
+Data Transfer Element 3:Empty
+Data Transfer Element 4:Empty
+Data Transfer Element 5:Empty
+Data Transfer Element 6:Empty
+Data Transfer Element 7:Empty
+      Storage Element 1:Full :VolumeTag=ULT001L1
+      Storage Element 2:Full :VolumeTag=ULT002L1
+      Storage Element 3:Full :VolumeTag=ULT003L1
+      Storage Element 4:Full :VolumeTag=ULT004L1
+      Storage Element 5:Full :VolumeTag=ULT005L1
+      Storage Element 6:Full :VolumeTag=ULT006L1
+      Storage Element 7:Full :VolumeTag=ULT007L1
+      Storage Element 8:Full :VolumeTag=ULT008L1
+      Storage Element 9:Full :VolumeTag=ULT009L1
+      Storage Element 10:Full :VolumeTag=ULT010L1
+      Storage Element 11:Full :VolumeTag=SDLT01L1
+      Storage Element 12:Full :VolumeTag=SDLT02L1
+      Storage Element 13:Full :VolumeTag=SDLT03L1
+      Storage Element 14:Full :VolumeTag=SDLT04L1
+      Storage Element 15:Full :VolumeTag=SDLT05L1
+      Storage Element 16:Full :VolumeTag=SDLT06L1
+      Storage Element 17:Full :VolumeTag=SDLT07L1
+      Storage Element 18:Full :VolumeTag=SDLT08L1
+      Storage Element 19:Full :VolumeTag=SDLT09L1
+      Storage Element 20:Full :VolumeTag=SDLT10L1
+      Storage Element 21:Empty
+      Storage Element 22:Empty
+      Storage Element 23:Empty
+      Storage Element 24:Empty
+      Storage Element 25:Empty
+      Storage Element 26:Empty
+      Storage Element 27:Empty
+      Storage Element 28:Empty
+      Storage Element 29:Empty
+      Storage Element 30:Empty
+      Storage Element 31:Full :VolumeTag=CLN001L1
+      Storage Element 32:Full :VolumeTag=CLN002L1
+      Storage Element 33 IMPORT/EXPORT:Empty
+      Storage Element 34 IMPORT/EXPORT:Empty
+      Storage Element 35 IMPORT/EXPORT:Empty
+      Storage Element 36 IMPORT/EXPORT:Empty
+
+
+Enjoy.
+
+Please feel free in letting me know if this works for you.
+
+Bug fixes and suggestions always welcome.
+

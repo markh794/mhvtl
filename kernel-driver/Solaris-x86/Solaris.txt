@@ -1,0 +1,43 @@
+To access user-space from a kernel module use:
+	ddi_copyin(9f)
+	ddi_copyout(9f)
+
+Need to look at mmap(2) & devmap(9e) system calls.
+
+Driver config file:
+ddi_prop_get_int(9f) & ddi_prop_lookup(9f) to read config file.
+See driver.conf(4)
+
+
+Compile options:
+
+64bit Sparc
+cc -D_KERNEL -xarch=v9 -c <driver.c>
+ld -r -o <driver> <driver.o>
+
+64bit x86
+cc -D_KERNEL -xarch=amd64 -c <driver.c>
+ld -r -o <driver> <driver.o>
+
+32bit systems
+cc -D_KERNEL -c <driver.c>
+ld -r -o <driver> <driver.o>
+
+Ref: cc(1B) ld(1)
+
+
+Using gcc:
+
+64bit Sparc
+cc -D_KERNEL -m64 -mcpu=v9 -mcmodel=medlow -fno-pic -mno-fpu -ffreestanding -nodefaultlibs -c <driver.c>
+ld -r -o <driver> <driver.o>
+
+64bit x86
+cc -D_KERNEL -m64 -mcmodel=kernel -mno-red-zone -ffreestanding -nodefaultlibs -c <driver.c>
+ld -r -o <driver> <driver.o>
+
+
+32bit
+cc -D_KERNEL -ffreestanding -nodefaultlibs -c <driver.c>
+ld -r -o <driver> <driver.o>
+

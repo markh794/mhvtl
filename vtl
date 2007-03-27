@@ -1,0 +1,193 @@
+#! /bin/bash
+# Copyright (c) 2005 Mark Harvey
+# All rights reserved.
+#
+# Author: Mark Harvey, 2005
+#	  mark794 at gmail dot com
+#	  mark dot harvey at veritas dot com
+#
+# /etc/init.d/vtl
+#
+# Script to start vtl kernel module & vxtape userspace daemon
+#
+# Virtual tape & library system
+#
+# $Id: vtl,v 1.12.2.3 2006-08-30 06:35:01 markh Exp $
+#
+### BEGIN INIT INFO
+# Provides:       vtl
+# Required-Start: syslog
+# Required-Stop:
+# Default-Start:  2 3 5
+# Default-Stop: 0 1 6
+# Description:    Script to start/stop vtl kernel modules & vxtape userspace daemons
+### END INIT INFO
+
+USER=vtl
+
+OPTIONS=
+# OPTIONS=" -v"
+
+export PATH=$PATH:/usr/bin
+
+if [ -f /etc/rc.status ]; then
+	. /etc/rc.status
+	rc_reset
+fi
+
+case "$1" in
+    start)
+	load_vtl=`grep " vtl$" /proc/devices|awk '{print $2}'`
+	if [ "X$load_vtl" == "X" ]; then
+        	echo "Initializing vtl kernel module"
+		modprobe vtl
+		echo
+	fi
+
+	vtlVersion=`grep version /proc/scsi/vtl/* |awk '{print $5}'|awk -F. '{print $3}'`
+	if [ "X$vtlVersion" == "X" ]; then
+		echo "Incorrect kernel module for these daemons."
+		echo "Need at least 0.12.10"
+		exit 1
+	elif [ "X$vtlVersion" != "X11" ]; then
+		echo "Incorrect kernel module for these daemons."
+		echo "Need at least 0.12.11 and $vtlVersion is loaded."
+		exit 1
+	fi
+
+	if [ ! -c /dev/vtl0 ]; then
+		make_vtl_devices > /dev/null
+	fi
+
+	# Make the kernel driver quieter...
+	echo 0 > /sys/bus/pseudo/drivers/vtl/opts
+
+	# Load sg driver if not already loaded..
+	sg=`grep " sg$" /proc/devices | awk '{print $2}'`
+	if [ "X$sg" == "X" ]; then
+		/sbin/modprobe sg
+	fi
+
+	if [ ! -f /etc/vtl/library_contents ]; then
+		echo
+		echo "Could not locate library config file: /etc/vtl/library_contents"
+		echo
+		echo "Creating a default one"
+		echo "Please stop vtl & edit /etc/vtl/library_contents to suit your requirements"
+		mkdir -p /etc/vtl
+		cat > /etc/vtl/library_contents << CONF_SAMPLE
+Drive 1:
+Drive 2:
+Drive 3:
+Drive 4:
+Drive 5:
+Drive 6:
+Drive 7:
+Drive 8:
+
+Picker 1:
+
+MAP 1:
+MAP 2:
+MAP 3:
+MAP 4:
+
+Slot 1: SDLT01L1
+Slot 2: SDLT02L1
+Slot 3: SDLT03L1
+Slot 4: SDLT04L1
+Slot 5: SDLT05L1
+Slot 6: SDLT06L1
+Slot 7: SDLT07L1
+Slot 8: SDLT08L1
+Slot 9: SDLT09L1
+Slot 10:
+Slot 11: ULT001L1
+Slot 12: ULT002L1
+Slot 13: ULT003L1
+Slot 14: ULT004L1
+Slot 15: ULT005L1
+Slot 16: ULT006L1
+Slot 17: ULT007L1
+Slot 18: ULT008L1
+Slot 19: ULT009L1
+Slot 20:
+Slot 21: 8MM001
+Slot 22: 8MM002
+Slot 23: 8MM003
+Slot 24: 8MM004
+Slot 25:
+Slot 26:
+Slot 27:
+Slot 28:
+Slot 29:
+Slot 30:
+Slot 31: CLN001L1
+Slot 32: CLN002L1
+Slot 33: CLN003L1
+CONF_SAMPLE
+		chmod 750 /etc/vtl
+		touch /etc/vtl/vxlib.conf
+		chown -R $USER:$USER /etc/vtl /dev/vtl[0-9]
+		mkdir -p /opt/vtl
+		chmod 770 /opt/vtl
+	fi
+
+	# Build Library config - No. of drives & serial Nos etc..
+	# This also loads each tape daemon.
+	build_library_config $USER
+
+	# Now correct file permissions..
+	chown -R $USER:$USER /opt/vtl
+
+	# Start the vxlibrary daemon
+	su $USER -c "vtllibrary $OPTIONS"
+
+	if [ -f /etc/rc.status ]; then
+		rc_status -v
+	fi
+	;;
+    stop)
+        echo "shutdown of vxtape daemons"
+	for a in `ps -ef|grep ^vtl | grep "\-q"|awk '{print $10}'`
+	do
+		echo "   Sending exit to $a"
+		vtlcmd $a exit
+		usleep 100
+	done
+
+	# Send library daemon exit msg..
+	vtlcmd library  exit
+
+	if [ -f /etc/rc.status ]; then
+		rc_status -v
+	fi
+	;;
+    shutdown)
+	# Remove kernel moduel (vtl) along with messageQ key.
+        echo "Removing vtl kernel module"
+	for a in `ps -ef|grep ^vtl | grep "\-q"|awk '{print $10}'`
+	do
+		echo "   Sending exit to $a"
+		vtlcmd $a exit
+		usleep 100
+	done
+
+	# Send library daemon exit msg..
+	vtlcmd library  exit
+	rmmod vtl
+	Q_EXISTS=`ipcs -q|grep 4d61726b|awk '{print $2}'`
+	if [ "X$Q_EXISTS" != "X" ]; then
+		ipcrm -q $Q_EXISTS
+	fi
+	if [ -f /etc/rc.status ]; then
+		rc_status -v
+	fi
+	;;
+    *)
+	echo "Usage: $0 {start|stop|shutdown}"
+	exit 1
+esac
+if [ -f /etc/rc.status ]; then
+	rc_exit
+fi

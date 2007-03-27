@@ -1,0 +1,43 @@
+.TH vtltape "1" "April 2006" "vtl 0.10" "User Commands"
+.SH NAME
+vtltape \- user space daemon to handle SCSI SSC commands for Virtual Tape Library.
+.SH SYNOPSIS
+.B vtltape #
+[\fI-v|-d\fR]... [ \fI\-f FILE \fR]
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Where '#' is the message Q number used for this daemon.
+The first daemon started would normally use queue no. 1,
+2nd daemon started would use message Q no. 2 etc.
+A message Q number is equivelent to the drive slot number within the virtual
+robot. Media files are located in the /opt/vtl directory. The media
+files need to exist and be in correct format before attempting to mount.
+Media files can be created using
+.BR mktape(1)
+.TP
+\fB\-h\fR
+display this help and exit
+.TP
+\fB\-d\fR
+Enable debug logging (to stdout). Do not backgound the process.
+.TP
+\fB\-v\fR
+Enable verbose logging (to syslog)
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Does not implement the complete SCSI SSC-3 command set.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR mktape(1),
+.BR vtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),

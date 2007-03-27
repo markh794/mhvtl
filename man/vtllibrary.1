@@ -1,0 +1,48 @@
+.TH vtllibrary "1" "April 2006" "vtl 0.10" "User Commands"
+.SH NAME
+vtllibrary \- user space daemon to handle SCSI SMC commands for Virtual Tape Library.
+.SH SYNOPSIS
+.B vtllibrary
+[\fI-v|-d\fR]
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+The vtllibrary daemon should (needs) to be started AFTER
+.BR vtltape(1)
+daemons. The vtllibrary registers each
+.BR vtltape(1)
+via message queue. The vtllibrary reads /opt/vtl/library.contents
+and dynamically buils an internal structure of Storage slots and Media Access slots.
+All media movement is performed on internal structures only. The configuration file
+is never changed. i.e. A re-start of the daemon will result in the loss of any
+previous media movements.
+When media is moved to/from a "Data transfer element" (tape drive), a (un)load message is sent
+via the drive 'slot number' message Q number to load/unload the barcode.
+.TP
+\fB\-h\fR
+display this help and exit
+.TP
+\fB\-d\fR
+Enable debug logging (to stdout). Do not backgound the process.
+.TP
+\fB\-v\fR
+Enable verbose logging (to syslog)
+.SH FILES
+/etc/vtl/library_config
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Does not implement the complete SCSI SMC-2 command set.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR mktape(1),
+.BR vtl(1),
+.BR vtlcmd(1),
+.BR vtltape(1)

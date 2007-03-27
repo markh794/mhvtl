@@ -1,0 +1,35 @@
+#!/usr/bin/bash
+
+A=`echo $PATH | grep SUNWspro`
+if [ X"$A" == "X" ]; then
+	export PATH=$PATH:/opt/SUNWspro/bin
+else
+	echo "Path for cc already set"
+fi
+
+A=`echo $PATH | grep ccs`
+if [ X"$A" == "X" ]; then
+	export PATH=/usr/ccs/bin:$PATH
+else
+	echo "Path for make already set"
+fi
+
+cc -D_KERNEL -DDEBUG -I/d/01/sol10/usr/src/uts/common -c vx_tape.c
+cc -D_KERNEL -DDEBUG -I/d/01/sol10/usr/src/uts/common -c vx_tape_bsd.c
+ld -r -o vx_tape vx_tape.o vx_tape_bsd.o
+
+cat << _EOF_
+
+To install:
+ su -
+ cp vx_tape /usr/kernel/drv
+ add_drv vx_tape
+
+Check /var/adm/messages for any load errors
+
+To remove driver
+ su -
+ rem_drv vx_tape
+
+_EOF_
+

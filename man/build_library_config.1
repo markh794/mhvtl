@@ -1,0 +1,34 @@
+.TH build_library_config "1" "April 2006" "vtl 0.10" "User Commands"
+.SH NAME
+build_library_config \- Part of helper scripts to start VTL subsystem.
+.SH SYNOPSIS
+.B build_library_config userName
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Invoked from /etc/init.d/vtl. Should not be run manually.
+Responsible for creating any new media files. Currently hard-coded rules:
+.IP "If barcode starts with W"
+Create as Write Once Read Many (WORM) media type.
+.IP "if barcode starts with CLN"
+Create media type as cleaning cartridge.
+.IP "Otherwise"
+Create the media as a data cartridge.
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Not documented.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR mktape(1),
+.BR vtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

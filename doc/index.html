@@ -1,0 +1,917 @@
+<html>
+<!-- phpmyvisites -->
+<a href="http://www.phpmyvisites.net/" title="phpMyVisites | Open source web analytics"
+onclick="window.open(this.href);return(false);">
+<script type="text/javascript">
+<!--
+var a_vars = Array();
+var pagename='';
+
+var phpmyvisitesSite = 1;
+var phpmyvisitesURL = "http://sydsup.veritas.com/~mharvey/phpmv2/phpmyvisites.php";
+//-->
+</script>
+<script language=javascript src="http://sydsup.veritas.com/~mharvey/phpmv2/phpmyvisites.js" type="text/javascript"></script>
+<noscript>
+<p>phpMyVisites | Open source web analytics
+<img src="http://sydsup.veritas.com/~mharvey/phpmv2/phpmyvisites.php" alt="phpMyVisites" style="border:0" />
+</p>
+</noscript>
+</a>
+<!-- /phpmyvisites --> 
+
+<h1 align="center">Welcome to Mark Harvey's home page</h1>
+
+<hr width="80%">
+
+<h2 align="center">Current projects:</h2>
+	<ul>
+	<li><a href="#collect-linux-info">collect-linux-info</a>
+		<ul>
+		<li><a href="#collect-linux-info-intro">Description</a>
+		<li><a href="#collect-linux-info-download">Download</a>
+		</ul>
+	<li><a href="#vtl">Virtual Tape Library</a>
+		<ul>
+		<li><a href="#vtl-intro">Introduction</a>
+		<li><a href="#vtl-vxtape">vxtape daemon</a>
+		<li><a href="#vtl-vxlibrary">vxlibrary daemon</a>
+		<li><a href="#vtl-vtlcmd">vtlcmd control utility</a>
+		<li><a href="#vtl-examples-lsscsi">Operational examples (lsscsi -g)</a>
+		<li><a href="#vtl-examples-tpautoconf">Operational examples (tpautoconf)</a>
+		<li><a href="#vtl-examples-robtest">Operational examples (robtest)</a>
+		<li><a href="#vtl-examples-TapeAlert">TapeAlert examples</a>
+		<li><a href="#vtl-download">Download</a>
+		</ul>
+	</ul>
+
+<hr width="80%">
+
+<h2 align="left"><a NAME="collect-linux-info"></a>Collect Linux Info:</h2>
+<a NAME="collect-linux-info-intro"></a>
+<p>
+A small shell script which is a 'nbsupport' for Linux platforms.
+It has been left as uncomplicated as possible so the customer can feel
+confident in running a 'foreign' script on their box.
+If 'uuencode' is found on the host, the log will be uuencoded
+ready for email.
+</p>
+<p>
+The log file name will be displayed at the end of the run of the
+collect-linux-info.
+</p>
+
+<a NAME="collect-linux-info-download"></a>
+<hr width="80%">
+<a href=http://sydsup.veritas.com/~mharvey/collect-linux-info>download here</a>
+
+<hr width="80%">
+
+<a NAME="vtl-intro"></a>
+	<h2 align="left">Virtual Tape Library:</h2>
+	<p>Virtual Tape Library consists of several components.</p>
+
+	<ul>
+	<li>LLD - A low level driver implemented as a kernel module - vx_tape</li>
+	<li>Target devices - Daemons <b>vxtape(1)</b> and <b>vxlibrary(1)</b> which implement SCSI target device(s) in user-space</li>
+	<li>Utility commands <b>mktape(1)</b>, <b>vtlcmd(1)</b></li>
+	<li>And startup scripts <b>build_library_config(1)</b>, <b>make_vx_devices(1)</b></li>
+	</ul>
+
+
+<p>
+The kernel module is based on the scsi_debug kernel module
+(<a href=http://www.torque.net/sg/sdebug26.html>http://www.torque.net/sg/sdebug26.html</a>).
+vx_tape is a pseudo HBA (LLD) reporting it has 1 x SMC target (StorageTek L700)
+and 8 x SSC targets (4 x IBM Ultrium-TD3 and 4 x Quantum SuperDLT600)
+attached.
+</p>
+
+<p>
+A char device back-end has been included with the vx_tape LLD
+driver This allows data and SCSI commands to be passed from the LLD
+to user-mode daemons (SCSI targets) which constently poll the driver
+and process any outstanding SCSI commands.
+<p>
+
+<p>
+<a NAME="vtl-vxtape"></a>
+<h3>vxtape</h3>
+<b>vxtape(1)</b> is the usermode SSC target daemon which writes/reads
+ data to data files in the /opt/vtl directory
+(if  a virtual tape has been loaded). The virtual tape files include a
+Medium Auxiliary Memory (MAM) data structure to store  persistent  data
+(number of tape loads, total data written/read, media type etc).
+</p>
+
+<p>
+<a NAME="vtl-vxlibrary"></a>
+<h3>vxlibrary</h3>
+<b>vxlibrary(1)</b> is the usermode SMC target daemon which reads its
+configuration from the file /etc/vtl/<b>library_contents(5)</b>
+at startup. The number of storage slots are built dynamically
+when the daemon starts. Hence changing the number of storage slots and
+media access slots are a matter of modifing the file contents and
+restarting  the  vxlibrary(1)  daemon. All 'library' commands are
+performed on data structures in memory ONLY.
+</p>
+
+<p>
+<a NAME="vtl-vtlcmd"></a>
+<h3>vtlcmd</h3>
+A utility <b>vtlcmd(1)</b> is used to administrator the daemons <b>vxtape(1)</b>
+and <b>vxlibrary</b>.<br>
+Message queue (key 0x4d61726b) is used to pass messages between
+<b>vtlcmd(1)</b>, <b>vxlibrary(1)</b> and <b>vxtape(1)</b>
+</p>
+
+<p>
+When a SCSI 'move medium' from a storage slot to a tape drive is requested,
+the media location is updated in vxlibrary(1) data structures, and  the
+barcode  of  the  media  id  is  passed  via  the  message queue to the
+vxtape(1) daemon in question. A file open of the barcode  is  attempted
+in  the /opt/vtl directory and if successful, the vxtape(1) daemon
+will now return a ASC/ASCQ 0x0/0x0 to any Test Unit Ready requests.  An
+unload SCSI command to the tape drive will close the data file.
+</p>
+
+<p>
+Media can be moved out of the VTL via the Media Access Port. Once media
+is logically moved into the MAP slots, the MAP entries can  be  cleared
+using the vtlcmd:
+</p>
+
+<pre>
+# vtlcmd library empty map
+</pre>
+
+<a NAME="vtl-examples-lsscsi"></a>
+<h4>Examples</h4>
+
+vx_tape is registered as HBA #3:
+<pre>
+# lsscsi -g
+[0:0:0:0]    disk    MAXTOR   ATLAS10K4_36SCA  DFM0  /dev/sda  /dev/sg0
+[0:0:6:0]    process PE/PV    1x3 SCSI BP      1.1   -         /dev/sg1
+[2:0:0:0]    disk    SEAGATE  ST336607FC       0003  /dev/sdb  /dev/sg2
+[2:0:1:0]    disk    SEAGATE  ST336607FC       0003  /dev/sdc  /dev/sg3
+[2:0:2:0]    mediumx ATL      1500             6.0   -         /dev/sg4
+[2:0:2:1]    tape    QUANTUM  SuperDLT1        2323  /dev/st0  /dev/sg5
+[2:0:2:2]    tape    QUANTUM  SuperDLT1        2323  /dev/st1  /dev/sg6
+[2:0:2:3]    process ATTO     310-LV           1.42  -         /dev/sg7
+[3:0:0:0]    mediumx STK      L700             vx_0  -         /dev/sg8
+[3:0:0:1]    tape    IBM      ULT3580-TD3      5400  /dev/st2  /dev/sg9
+[3:0:0:2]    tape    IBM      ULT3580-TD3      5400  /dev/st3  /dev/sg10
+[3:0:0:3]    tape    IBM      ULT3580-TD3      5400  /dev/st4  /dev/sg11
+[3:0:0:4]    tape    IBM      ULT3580-TD3      5400  /dev/st5  /dev/sg12
+[3:0:0:5]    tape    QUANTUM  SDLT600          5400  /dev/st6  /dev/sg13
+[3:0:0:6]    tape    QUANTUM  SDLT600          5400  /dev/st7  /dev/sg14
+[3:0:0:7]    tape    QUANTUM  SDLT600          5400  /dev/st8  /dev/sg15
+[3:0:0:8]    tape    QUANTUM  SDLT600          5400  /dev/st9  /dev/sg16
+</pre>
+
+<a NAME="vtl-examples-tpautoconf"></a>
+NetBackup Utilities:
+<pre>
+# tpautoconf -r
+TPAC45 STK     L700            vx_0 8000 -1 -1 -1 -1 /dev/sg/h3c0t0l0 - -
+
+# tpautoconf -t
+TPAC45 IBM     ULT3580-TD3     5400 8001 -1 -1 -1 -1 /dev/st/nh3c0t0l1 - TapeAlert enabled
+TPAC45 IBM     ULT3580-TD3     5400 8002 -1 -1 -1 -1 /dev/st/nh3c0t0l2 - TapeAlert enabled
+TPAC45 IBM     ULT3580-TD3     5400 8003 -1 -1 -1 -1 /dev/st/nh3c0t0l3 - TapeAlert enabled
+TPAC45 IBM     ULT3580-TD3     5400 8004 -1 -1 -1 -1 /dev/st/nh3c0t0l4 - TapeAlert enabled
+TPAC45 QUANTUM SDLT600         5400 8005 -1 -1 -1 -1 /dev/st/nh3c0t0l5 - TapeAlert enabled
+TPAC45 QUANTUM SDLT600         5400 8006 -1 -1 -1 -1 /dev/st/nh3c0t0l6 - TapeAlert enabled
+TPAC45 QUANTUM SDLT600         5400 8007 -1 -1 -1 -1 /dev/st/nh3c0t0l7 - TapeAlert enabled
+TPAC45 QUANTUM SDLT600         5400 8008 -1 -1 -1 -1 /dev/st/nh3c0t0l8 - TapeAlert enabled
+
+</pre>
+
+<p>
+ <a href=http://sydsup.veritas.com/~mharvey/scan.txt>volmgr/bin/scan output</a> </p>
+
+<a NAME="vtl-examples-robtest"></a>
+<h4>Robot Inventory:</h4>
+
+<p> <a href=http://sydsup.veritas.com/~mharvey/mtx.txt>Using mtx</a> </p>
+<p> <a href=http://sydsup.veritas.com/~mharvey/robtest.txt>Using robtest</a> </p>
+
+A sample /etc/vtl/library_contents can be <a href=http://sydsup.veritas.com/~mharvey/library_contents.txt>viewed via this link.</a>
+
+
+<a NAME="vtl-examples-TapeAlert"></a>
+<h3>TapeAlert</h3>
+<p>TapeAlert flags can be set using the <b>vtlcmd(1)</b></p>
+<p>e.g. vtlcmd [index|library] TapeAlert [flags]</p>
+<p>Where index is the message Q offset (or string 'library') associated with the drive.</p>
+<p>e.g. To set flag 14h (Clean now) the 20th bit (14h) needs to be set:<br>
+Pull out the binary to decimal calculator<br>
+1000 0000 0000 0000 0000 (20 bits) =&gt hex =&gt 80000</p>
+<pre># vtlcmd 1 TapeAlert 80000</pre>
+<p>A listing of TapeAlert flags can be found at <a href=http://www.t10.org/ftp/t10/drafts/ssc3/ssc3r01e.pdf>t10 home page for SSC devices</a>
+Annex A.</p>
+
+<table border="3">
+<tr>
+<th>Code</th>
+<th>vtlcmd value</th>
+<th>Flag</th>
+<th>Type</th>
+<th>Flag Type</th>
+<th>Recommended application client message</th>
+<th>Probable cause</th>
+</tr>
+
+<tr>
+<td align="center">01h</td>
+<td align="right">1</td>
+<td>Read warning</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive is having problems reading data. No data has been lost, but there has been a reduction in the performance of the tape.</td>
+<td>The drive is having severe trouble reading.</td>
+</tr>
+
+<tr>
+<td align="center">02h</td>
+<td align="right">2</td>
+<td>Write warning</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive is having problems writing data. No
+data has been lost, but there has been a reduction in
+the capacity of the tape.</td>
+<td>The drive is having severe trouble writing.</td>
+</tr>
+
+<tr>
+<td align="center">03h</td>
+<td align="right">4</td>
+<td>Hard error</td>
+<td align="center">M</td>
+<td align="center">W</td>
+<td>The operation has stopped because an error has
+occurred while reading or writing data that the drive
+cannot correct.</td>
+<td>The drive had a hard
+read or write error.</td>
+</tr>
+
+<tr>
+<td align="center">04h</td>
+<td align="right">8</td>
+<td>Media</td>
+<td align="center">M</td>
+<td align="center">C</td>
+<td>Your data is at risk:
+<ol>
+<li>Copy any data you require from this tape.<br>
+<li>Do not use this tape again.<br>
+<li>Restart the operation with a different tape.</td>
+</ol>
+<td>Media can no longer be written/read, or performance is severely degraded.</td>
+</tr>
+
+<tr>
+<td align="center">05h</td>
+<td align="right">10</td>
+<td>Read failure</td>
+<td align="center">M</td>
+<td align="center">C</td>
+<td>The tape is damaged or the drive is faulty. Call the tape drive supplier help line.</td>
+
+<td>The drive can no longer read data from the tape.</td>
+</tr>
+
+<tr>
+<td align="center">06h</td>
+<td align="right">20</td>
+<td>Write failure</td>
+<td align="center">M</td>
+<td align="center">C</td>
+<td>The tape is from a faulty batch or the tape drive is
+faulty:<br>
+<ol>
+<li>Use a good tape to test the drive.<br>
+<li>If the problem persists, call the tape drive supplier help line.</td>
+</ol>
+
+<td>The drive can no longer write data to the tape.</td>
+</tr>
+<tr>
+<td align="center">07h</td>
+<td align="right">40</td>
+<td>Media life</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape cartridge has reached the end of its calculated useful life:
+<ol>
+<li>Copy any data you need to another tape.<br>
+<li>Discard the old tape.</td>
+</ol>
+<td>The media has exceeded its specified life.</td>
+</tr>
+<tr>
+<td align="center">08h</td>
+<td align="right">80</td>
+<td>Not data grade</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The cartridge is not data-grade. Any data you write to the tape is at risk. Replace the cartridge with a data-grade tape.</td>
+<td>The drive has not been able to read the MRSa stripes.</td>
+</tr>
+
+<tr>
+<td align="center">09h</td>
+<td align="right">100</td>
+<td>Write protect</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>You are trying to write to a write protected cartridge.  Remove the write protection or use another tape.</td>
+<td>Write command is attempted to a write protected tape.</td>
+</tr>
+
+<tr>
+<td align="center">0Ah</td>
+<td align="right">200</td>
+<td>No removal</td>
+<td align="center">O</td>
+<td align="center">I</td>
+<td>You cannot eject the cartridge because the tape drive is in use. Wait until the operation is complete before ejecting the cartridge.</td>
+<td>Manual or software unload attempted when prevent media removal is on.</td>
+</tr>
+
+<tr>
+<td align="center">0Bh</td>
+<td align="right">400</td>
+<td>Cleaning media</td>
+<td align="center">O</td>
+<td align="center">I</td>
+<td>The tape in the drive is a cleaning cartridge. Cleaning tape loaded into drive.</td>
+</tr>
+
+<tr>
+<td align="center">0Ch</td>
+<td align="right">800</td>
+<td>Unsupported format</td>
+<td align="center">O</td>
+<td align="center">I</td>
+<td>You have tried to load a cartridge of a type that is not
+supported by this drive.</td>
+<td>Attempted load of unsupported tape format (e.g., DDS2 in DDS1 drive).</td>
+</tr>
+
+<tr>
+<td align="center">0Dh</td>
+<td align="right">1000</td>
+<td>Recoverable mechanical cartridge failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The operation has failed because the tape in the
+drive has experienced a mechanical failure:<br>
+<ol>
+<li>Discard the old tape.<br>
+<li>Restart the operation with a different tape.</td>
+</ol>
+<td>Tape snapped/cut or other cartridge mechanical failure in the drive where medium can be de-mounted.</td>
+</tr>
+
+<tr>
+<td align="center">0Eh</td>
+<td align="right">2000</td>
+<td>Unrecoverable mechanical cartridge failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The operation has failed because the tape in the
+drive has experienced a mechanical failure:<br>
+<ol>
+<li>Do not attempt to extract the tape cartridge.<br>
+<li>Call the tape drive supplier help line.</td>
+</ol>
+<td>Tape snapped/cut or other cartridge mechanical failure in the drive where medium cannot be de-mounted.</td>
+</tr>
+
+<tr>
+<td align="center">0Fh</td>
+<td align="right">4000</td>
+<td>Memory chip in cartridge failure</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The memory in the tape cartridge has failed, which reduces performance. Do not use the cartridge for further write operations.</td>
+<td>Memory chip failed in cartridge.</td>
+</tr>
+
+<td align="center">10h</td>
+<td align="right">8000</td>
+<td>Forced eject</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The operation has failed because the tape cartridge was manually de-mounted while the tape drive was actively writing or reading.</td>
+<td>Manual or forced eject while drive actively writing or reading.</td>
+</tr>
+
+<tr>
+<td align="center">11h</td>
+<td align="right">10000</td>
+<td>Read only format</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>You have loaded a cartridge of a type that is read-only in this drive. The cartridge will appear as write protected.</td>
+<td>Media loaded that is read-only format.</td>
+</tr>
+
+<tr>
+<td align="center">12h</td>
+<td align="right">20000</td>
+<td>Tape directory corrupted on load</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape directory on the tape cartridge has been corrupted. File search performance will be degraded.  The tape directory can be rebuilt by reading all the data on the cartridge.</td>
+<td>Tape drive powered down with tape loaded, or permanent error prevented the tape directory being updated.</td>
+</tr>
+
+<tr>
+<td align="center">13h</td>
+<td align="right">40000</td>
+<td>Nearing media life</td>
+<td align="center">O</td>
+<td align="center">I</td>
+<td>The tape cartridge is nearing the end of its calculated life. It is recommended that you:<br>
+<ol>
+<li>Use another tape cartridge for your next backup.<br>
+<li>Store this tape cartridge in a safe place in case you need to restore data from it.</td>
+</ol>
+<td>Media may have exceeded its specified number of passes.</td>
+</tr>
+
+<tr>
+<td align="center">14h</td>
+<td align="right">80000</td>
+<td>Clean now</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The tape drive needs cleaning:<br>
+<ol>
+<li>If the operation has stopped, eject the tape and
+clean the drive.
+<li>If the operation has not stopped, wait for it to finish
+and then clean the drive.
+</ol>
+Check the tape drive users manual for device specific
+cleaning instructions.</td>
+<td>The drive thinks it has a head clog or needs cleaning.</td>
+</tr>
+
+<tr>
+<td align="center">15h</td>
+<td align="right">100000</td>
+<td>Clean periodic</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive is due for routine cleaning:
+<ol>
+<li>Wait for the current operation to finish.
+<li>Then use a cleaning cartridge.
+</ol></td>
+<td>Check the tape drive users manual for device specific cleaning instructions.
+The drive is ready for a periodic cleaning.</td>
+</tr>
+
+<tr>
+<td align="center">16h</td>
+<td align="right">200000</td>
+<td>Expired cleaning media</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The last cleaning cartridge used in the tape drive has worn out:<br>
+<ol>
+<li>Discard the worn out cleaning cartridge.<br>
+<li>Wait for the current operation to finish.<br>
+<li>Then use a new cleaning cartridge.
+</ol></td>
+<td>The cleaning tape has expired.</td>
+</tr>
+
+<tr>
+<td align="center">17h</td>
+<td align="right">400000</td>
+<td>Invalid cleaning tape</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The last cleaning cartridge used in the tape drive was
+an invalid type:<br>
+<ol>
+<li>Do not use this cleaning cartridge in this drive.<br>
+<li>Wait for the current operation to finish.<br>
+<li>Then use a valid cleaning cartridge.
+</ol></td>
+<td>Invalid cleaning tape type used.</td>
+</tr>
+
+<tr>
+<td align="center">18h</td>
+<td align="right">800000</td>
+<td>Retension requested</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive has requested a retension operation.</td>
+<td>The drive is having severe trouble reading or writing, that will be resolved by a retension cycle.</td>
+</tr>
+
+<tr>
+<td align="center">19h</td>
+<td align="right">1000000</td>
+<td>Dual-port interface error</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>A redundant interface port on the tape drive has failed.</td>
+<td>Failure of one interface port in a dual-port configuration (i.e., Fibre Channel)</td>
+</tr>
+
+<tr>
+<td align="center">1Ah</td>
+<td align="right">2000000</td>
+<td>Cooling fan failure</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>A tape drive cooling fan has failed.</td>
+<td>Fan failure inside tape drive mechanism or tape drive enclosure.</td>
+</tr>
+
+<tr>
+<td align="center">1Bh</td>
+<td align="right">4000000</td>
+<td>Power supply failure</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>A redundant power supply has failed inside the tape drive enclosure. Check the enclosure users manual for instructions on replacing the failed power supply.</td>
+<td>Redundant PSU failure inside the tape drive enclosure or rack subsystem.</td>
+</tr>
+
+<tr>
+<td align="center">1Ch</td>
+<td align="right">8000000</td>
+<td>Power consumption</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive power consumption is outside the specified range.</td>
+<td>Power consumption of the tape drive is outside specified range.</td>
+</tr>
+
+<tr>
+<td align="center">1Dh</td>
+<td align="right">10000000</td>
+<td>Drive maintenance</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>Preventive maintenance of the tape drive is required.  Check the tape drive users manual for device specific preventive maintenance tasks or call the tape drive supplier help line.</td>
+<td>The drive requires preventive maintenance (not cleaning).</td>
+</tr>
+
+<td align="center">1Eh</td>
+<td align="right">20000000</td>
+<td>Hardware A</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The tape drive has a hardware fault:
+<ol>
+<li>Eject the tape or magazine.
+<li>Reset the drive.
+<li>Restart the operation.
+</ol>
+</td>
+<td>The drive has a hardware fault that requires reset to recover.</td>
+</tr>
+
+<tr>
+<td align="center">1Fh</td>
+<td align="right">40000000</td>
+<td>Hardware B</td>
+<td align="center">M</td>
+<td align="center">C</td>
+<td>The tape drive has a hardware fault:
+<ol>
+<li>Turn the tape drive off and then on again.
+<li>Restart the operation.
+<li>If the problem persists, call the tape drive supplier help line.
+</ol></td>
+<td>The drive has a hardware fault that is not read/write related or requires a power cycle to recover.</td>
+</tr>
+
+<tr>
+<td align="center">20h</td>
+<td align="right">80000000</td>
+<td>Interface</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive has a problem with the application client interface:
+<ol>
+<li>Check the cables and cable connections.
+<li>Restart the operation.
+</ol>
+</td>
+<td>The drive has identified an interface fault.</td>
+</tr>
+
+<tr>
+<td align="center">21h</td>
+<td align="right">100000000</td>
+<td>Eject media</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The operation has failed:
+<ol>
+<li>Eject the tape or magazine.
+<li>Insert the tape or magazine again.
+<li>Restart the operation.
+</ol>
+</td>
+<td>Error recovery action.</td>
+</tr>
+
+<tr>
+<td align="center">22h</td>
+<td align="right">200000000</td>
+<td>Download fail</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The firmware download has failed because you have
+tried to use the incorrect firmware for this tape drive.
+Obtain the correct firmware and try again.</td>
+<td>Firmware download failed.</td>
+</tr>
+
+<tr>
+<td align="center">23h</td>
+<td align="right">400000000</td>
+<td>Drive humidity</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>Environmental conditions inside the tape drive are
+outside the specified humidity range.</td>
+<td>Drive humidity limits exceeded.</td>
+</tr>
+
+<tr>
+<td align="center">24h</td>
+<td align="right">800000000</td>
+<td>Drive temperature</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>Environmental conditions inside the tape drive are
+outside the specified temperature range.</td>
+<td>Cooling problem.</td>
+</tr>
+
+<tr>
+<td align="center">25h</td>
+<td align="right">1000000000</td>
+<td>Drive voltage</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The voltage supply to the tape drive is outside the specified range.</td>
+<td>Drive voltage limits exceeded.</td>
+</tr>
+
+<tr>
+<td align="center">26h</td>
+<td align="right">2000000000</td>
+<td>Predictive failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>A hardware failure of the tape drive is predicted. Call the tape drive supplier help line.</td>
+<td>Predictive failure of drive hardware.</td>
+</tr>
+
+<tr>
+<td align="center">27h</td>
+<td align="right">4000000000</td>
+<td>Diagnostics required</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive may have a hardware fault. Run
+extended diagnostics to verify and diagnose the
+problem. Check the tape drive users manual for
+device specific instructions on running extended
+diagnostic tests.</td>
+<td>The drive may have a hardware fault that may be identified by
+extended diagnostics (i.e., SEND DIAGNOSTIC command).</td>
+</tr>
+
+<tr>
+<td align="center">28h - 2Eh</td>
+<td>Obsolete</td>
+</tr>
+
+<tr>
+<td align="center">2Fh - 31h</td>
+<td>Rsvd</td>
+</tr>
+
+<tr>
+<td align="center">32h</td>
+<td align="right">4000000000000</td>
+<td>Lost statistics
+<td align="center">O</td>
+<td align="center">W</td>
+<td>Media statistics have been lost at some time in the past.</td>
+<td>Drive or library powered on with tape loaded.</td>
+</tr>
+
+<tr>
+<td align="center">33h</td>
+<td align="right">8000000000000</td>
+<td>Tape directory invalid at unload</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape directory on the tape cartridge just unloaded
+has been corrupted. File search performance will be
+degraded. The tape directory can be rebuilt by reading
+all the data. </td>
+<td>Error preventing the tape directory being updated on unload.</td>
+</tr>
+
+<tr>
+<td align="center">34h</td>
+<td align="right">10000000000000</td>
+<td>Tape system area write failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The tape just unloaded could not write its system
+area successfully:
+<ol>
+<li>Copy data to another tape cartridge.
+<li>Discard the old cartridge.
+</ol>
+</td>
+<td>Write errors while writing the system area on unload.</td>
+</tr>
+
+<tr>
+<td align="center">35h</td>
+<td align="right">20000000000000</td>
+<td>Tape system area read failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The tape system area could not be read successfully
+at load time:
+<ol>
+<li>Copy data to another tape cartridge.</td>
+</ol>
+<td>Read errors while reading the system area on load.</td>
+</tr>
+
+<tr>
+<td align="center">36h</td>
+<td align="right">40000000000000</td>
+<td>No start of data</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The start of data could not be found on the tape:
+1. Check that you are using the correct format tape.
+2. Discard the tape or return the tape to your supplier.
+</td>
+<td>Tape damaged, bulk erased, or incorrect format.</td>
+</tr>
+
+<tr>
+<td align="center">37h</td>
+<td align="right">80000000000000</td>
+<td>Loading failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The operation has failed because the media cannot be loaded and threaded.
+<ol>
+<li>Remove the cartridge, inspect it as specified in the
+product manual, and retry the operation.
+<li>If the problem persists, call the tape drive supplier help line.
+</ol>
+</td>
+<td>The drive is unable to load the media and thread the tape.</td>
+</tr>
+
+<tr>
+<td align="center">38h</td>
+<td align="right">100000000000000</td>
+<td>Unrecoverable unload failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The operation has failed because the medium cannot be unloaded:
+<ol>
+<li>Do not attempt to extract the tape cartridge.
+<li>Call the tape driver supplier help line.
+</ol>
+</td>
+<td>The drive is unable to unload the medium.</td>
+</tr>
+
+<tr>
+<td align="center">39h</td>
+<td align="right">200000000000000</td>
+<td>Automation interface failure</td>
+<td align="center">O</td>
+<td align="center">C</td>
+<td>The tape drive has a problem with the automation interface:
+<ol>
+<li>Check the power to the automation system.
+<li>Check the cables and cable connections.
+<li>Call the supplier help line if problem persists.
+</ol>
+</td>
+<td>The drive has identified an interface fault.</td>
+</tr>
+
+<tr>
+<td align="center">3Ah</td>
+<td align="right">400000000000000</td>
+<td>Firmware failure</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive has reset itself due to a detected firmware
+fault. If problem persists, call the supplier help line.</td>
+<td>Firmware bug.</td>
+</tr>
+
+<tr>
+<td align="center">3Bh</td>
+<td align="right">800000000000000</td>
+<td>WORM Medium - Integrity Check Failed</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>The tape drive has detected an inconsistency during
+the WORM medium integrity checks. Someone may
+have tampered with the cartridge.  </td>
+<td>Someone has tampered with the WORM medium.</td>
+</tr>
+
+<tr>
+<td align="center">3Ch</td>
+<td align="right">1000000000000000</td>
+<td>WORM Medium - Overwrite Attempted</td>
+<td align="center">O</td>
+<td align="center">W</td>
+<td>An attempt had been made to overwrite user data on a WORM medium:
+<ol>
+<li>If a WORM medium was used inadvertently, replace
+it with a normal data medium.
+<li>If a WORM medium was used intentionally:<br>
+a) Check that the software application is compatible
+with the WORM medium format you are using.<br>
+b) Check that the medium is bar-coded correctly for WORM.
+<ol>
+</td>
+<td>The application software does not recognize the medium as WORM.</td>
+</tr>
+
+<tr>
+<td align="center">3Dh</td>
+<td>Rsvd</td>
+</tr>
+<tr>
+<td align="center">3Eh</td>
+<td>Rsvd</td>
+</tr>
+<tr>
+<td align="center">3Fh</td>
+<td>Rsvd</td>
+</tr>
+<tr>
+<td align="center">40h</td>
+<td>Rsvd</td>
+</tr>
+
+</table>
+
+<a NAME="vtl-download"></a>
+<hr width="80%">
+<h3>Download</h3>
+
+<p>
+A Complete SLES9 SP2 VMWare disk image with the vtl already built, installed
+and configured
+<a href=http://sydsup.veritas.com/~mharvey/sles9.tar.gz>sles.tar.gz</a> or
+<a href=http://sydsup.veritas.com/~mharvey/sles9.zip>sles9.zip</a>
+ (~650Mbytes)
+</p>
+
+<p>
+Just the user-mode utilities packaged as an RPM:
+<a href=http://sydsup.veritas.com/~mharvey/vtl-0.8-4.i686.rpm>vtl-0.8-4.i686.rpm
+</a> (~50Kbytes)</p>
+<p>Source code for user-mode utilities + kernel module:
+<a href=http://sydsup.veritas.com/~mharvey/vtl-0.8-4.src.rpm>vtl-0.8-4.src.rpm
+</a> (~100Kbytes)
+</p>
+
+<hr width="80%">
+
+<p align="center">
+Please email 
+<a href=mailto:mark_harvey@symantec.com>Mark Harvey</a>
+any questions and/or corrections.
+</p>
+<p align="center">
+$Id: index.html,v 1.9.2.1 2006-08-06 07:58:54 markh Exp $
+</p>
+</html>
