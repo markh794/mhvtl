@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 18
-Source: vtl-2007-03-28.tgz
+Release: 19
+Source: vtl-2007-03-31.tgz
 # Patch: vtl-x86_64.patch
 License: GPL
 Group: System/Kernel
@@ -42,9 +42,15 @@ make RPM_OPT_FLAGS="$RPM_OPT_FLAGS"
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
 mkdir -p $RPM_BUILD_ROOT/etc/vtl
 mkdir -p $RPM_BUILD_ROOT/usr/bin
-mkdir -p $RPM_BUILD_ROOT/usr/lib
 mkdir -p $RPM_BUILD_ROOT/usr/share/man/man1
 mkdir -p $RPM_BUILD_ROOT/usr/share/man/man5
+
+%ifarch x86_64 amd64
+mkdir -p $RPM_BUILD_ROOT/usr/lib64
+%else
+mkdir -p $RPM_BUILD_ROOT/usr/lib
+%endif
+
 install -m 750 vtl $RPM_BUILD_ROOT/etc/init.d/vtl
 install -m 750 -s vtltape $RPM_BUILD_ROOT/usr/bin/vtltape
 install -m 750 -s vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
@@ -52,7 +58,12 @@ install -m 750 vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
 install -m 750 mktape $RPM_BUILD_ROOT/usr/bin/mktape
 install -m 700 build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
 install -m 700 make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
+
+%ifarch x86_64 amd64
+install -m 755 libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
+%else
 install -m 755 libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
+%endif
 
 install -m 644 man/build_library_config.1 $RPM_BUILD_ROOT/usr/share/man/man1/build_library_config.1
 install -m 644 man/make_vtl_devices.1 $RPM_BUILD_ROOT/usr/share/man/man1/make_vtl_devices.1
@@ -116,7 +127,11 @@ fi
 %{_prefix}/bin/mktape
 %{_prefix}/bin/build_library_config
 %{_prefix}/bin/make_vtl_devices
+%ifarch x86_64 amd64
+%{_prefix}/lib64/libvtlscsi.so
+%else
 %{_prefix}/lib/libvtlscsi.so
+%endif
 %doc %{_prefix}/share/man/man1/build_library_config.1.gz
 %doc %{_prefix}/share/man/man1/make_vtl_devices.1.gz
 %doc %{_prefix}/share/man/man1/mktape.1.gz
@@ -127,6 +142,11 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Sat Mar 31 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-19
+- Added conditional x86_64/amd64 to vtl.spec so it builds correctly on x86_64
+  platforms.
+
 * Wed Mar 28 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-18
 - Improved (slightly) checking of MAM header on media open.
