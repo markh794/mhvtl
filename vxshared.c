@@ -835,6 +835,9 @@ chrdev_open(char *name, uint8_t minor) {
 /*
  * Pinched straight from SCSI tgt code
  * Thanks guys..
+ *
+ * Modified to always return success. Earlier kernels don't have oom_adjust
+ * 'feature' so don't fail if we can't find it..
  */
 int
 oom_adjust(void) {
@@ -845,9 +848,10 @@ oom_adjust(void) {
 	sprintf(path, "/proc/%d/oom_adj", getpid());
 	fd = open(path, O_WRONLY);
 	if(fd < 0) {
-		fprintf(stderr, "Can't open oom-killer's pardon %s, %m\n",
+		syslog(LOG_DAEMON|LOG_WARNING,
+				"Can't open oom-killer's pardon %s, %m\n",
 				path);
-		return errno;
+		return 0;
 	}
 	err = write(fd, "-17\n", 4);
 	if(err < 0) {

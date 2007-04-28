@@ -1,9 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 19
-Source: vtl-2007-03-31.tgz
-# Patch: vtl-x86_64.patch
+Release: 20
+Source: vtl-2007-04-07.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -28,10 +27,6 @@ Note: Currently, the kernel module needs to be built separately. For
 
 %prep
 %setup
-
-# %ifarch x86_64 amd64
-# %patch -p1
-# %endif
 
 %build
 make RPM_OPT_FLAGS="$RPM_OPT_FLAGS"
@@ -142,6 +137,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Sat Apr 07 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-20
+- Calls to tune kernel behaviour of out-of-memory always return 'success'.
+  Found out the hard way, earlier kernel versions do not support this feature.
+- Added check for return status from build_library_config in rc script
+
 * Sat Mar 31 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-19
 - Added conditional x86_64/amd64 to vtl.spec so it builds correctly on x86_64
