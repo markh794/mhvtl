@@ -2111,7 +2111,6 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	unsigned int minor = iminor(inode);
 	struct sdebug_queued_cmd * sqcp = NULL;
 	unsigned int  k;
-	unsigned long iflags;
 	unsigned char s[4];	/* Serial Number & sense data buffer */
 	unsigned char valid_sense;
 	unsigned long serial_no;
@@ -2208,7 +2207,6 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 							devp[minor]->rw_buf_sz);
 		}
 
-//		spin_lock_irqsave(&queued_arr_lock, iflags);
 		for (k = 0; k < VTL_CANQUEUE; ++k) {
 			sqcp = &queued_arr[k];
 			if (sqcp->in_use)
@@ -2216,7 +2214,6 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 					break;
 		}
 		if (k >= VTL_CANQUEUE) {
-//			spin_unlock_irqrestore(&queued_arr_lock, iflags);
 			printk(KERN_WARNING "c_ioctl: callback function not"
 						" found.: k = %d\n", k);
 			return 1;	/* report busy to mid level */
@@ -2252,7 +2249,6 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 						" callback => NULL\n",
 						__FUNCTION__, __LINE__);
 		}
-//		spin_unlock_irqrestore(&queued_arr_lock, iflags);
 		devp[minor]->status = 0;
 		break;
 
@@ -2261,10 +2257,8 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	 *		 SCSI cmnd
 	 */
 	case 0x185:	/* VX_ACK_SCSI_CDB */
-//		spin_lock_irqsave(&queued_arr_lock, iflags);
 		get_user(devp[minor]->status_argv, (unsigned int *)arg);
 		devp[minor]->status = 0;
-//		spin_unlock_irqrestore(&queued_arr_lock, iflags);
 		break;
 
 	/*
@@ -2273,11 +2267,9 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	 * extra copy of data)
 	 */
 	case 0x200:	/* VTL_GET_HEADER - Read SCSI header + S/No. */
-//		spin_lock_irqsave(&queued_arr_lock, iflags);
 		vheadp = (struct vtl_header *)devp[minor]->vtl_header;
 		if(copy_to_user((u8 *)arg,(u8 *)vheadp,sizeof(struct vtl_header)))
 			return -EFAULT;
-//		spin_unlock_irqrestore(&queued_arr_lock, iflags);
 		break;
 	default:
 		return -ENOTTY;
