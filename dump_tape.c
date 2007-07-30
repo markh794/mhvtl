@@ -45,7 +45,7 @@ int debug;
 struct blk_header current_position;
 
 void
-print_current_header() {
+print_current_header(void) {
 	printf("Hdr:");
 	switch(current_position.blk_type) {
 		case B_UNCOMPRESS_DATA:

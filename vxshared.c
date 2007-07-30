@@ -21,8 +21,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-const char * Version_1 = "$Id: vxshared.c,v 1.33.2.3 2006-08-30 06:35:01 markh Exp $";
-
 #include <stdint.h>
 
 #ifndef Solaris
@@ -226,10 +224,10 @@ resp_allow_prevent_removal(u8 * SCpnt, u8 * sense_flg) {
  *
  * Currently a no-op
  */
-char LOG_SELECT_00[] = "Current threshold values";
-char LOG_SELECT_01[] = "Current cumulative values";
-char LOG_SELECT_10[] = "Default threshold values";
-char LOG_SELECT_11[] = "Default cumulative values";
+static char LOG_SELECT_00[] = "Current threshold values";
+static char LOG_SELECT_01[] = "Current cumulative values";
+static char LOG_SELECT_10[] = "Default threshold values";
+static char LOG_SELECT_11[] = "Default cumulative values";
 
 void
 resp_log_select(u8 * SCpnt, u8 * sense_flg) {
@@ -392,8 +390,7 @@ find_pcode(u8 pcode, struct mode *m) {
  * Add data for pcode to buffer pointed to by p
  * Return: Number of chars moved.
  */
-s32
-add_pcode(struct mode *m, u8 *p) {
+static s32 add_pcode(struct mode *m, u8 *p) {
 	memcpy(p, m->pcodePointer, m->pcodeSize);
 	return(m->pcodeSize);
 }

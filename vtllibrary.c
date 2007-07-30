@@ -6,8 +6,6 @@
  *   a kernel module (vlt.ko) - Currently on 2.6.x Linux kernel support.
  *   SCSI target daemons for both SMC and SSC devices.
  *
- * $Id: vtllibrary.c,v 1.12.2.4 2006-08-30 06:35:01 markh Exp $
- *
  * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *
@@ -33,7 +31,7 @@
  *          and leaverage the hosts native iSCSI initiator.
  */
 
-const char * Version = "$Id: vtllibrary.c,v 1.12.2.4 2006-08-30 06:35:01 markh Exp $";
+static const char * Version = "$Id: vtllibrary.c,v 1.13 2007-07-28 06:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -57,7 +55,7 @@ const char * Version = "$Id: vtllibrary.c,v 1.12.2.4 2006-08-30 06:35:01 markh E
  * or DEFINE TO 1 to make the -d (debug operation) mode more chatty
  */
 
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG
 
@@ -81,16 +79,16 @@ const char * Version = "$Id: vtllibrary.c,v 1.12.2.4 2006-08-30 06:35:01 markh E
  *   Some of the logic in this source depends on it.
  */
 #define START_DRIVE	0x0001
-int NUM_DRIVES = 4;
+static int NUM_DRIVES = 4;
 
 #define START_PICKER	0x0100
-int NUM_PICKER = 1;
+static int NUM_PICKER = 1;
 
 #define START_MAP	0x0200
-int NUM_MAP = 0x0020;
+static int NUM_MAP = 0x0020;
 
 #define START_STORAGE	0x0400
-int NUM_STORAGE = 0x0800;
+static int NUM_STORAGE = 0x0800;
 
 // Element type codes
 #define ANY			0
@@ -103,23 +101,23 @@ int bufsize = 0;
 int verbose = 0;
 int debug = 0;
 long	capacity;	/* Max capacity of media */
-int libraryOnline = 1;	/* Default to Off-line */
+static int libraryOnline = 1;	/* Default to Off-line */
 int reset = 1;		/* Poweron reset */
-u8 request_sense = 0; /* Non-zero if Sense-data is valid */
+static uint8_t request_sense = 0; /* Non-zero if Sense-data is valid */
 
-u8 sense[SENSE_BUF_SIZE]; /* Request sense buffer */
+uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 
-struct s_info { /* Slot Info */
-	u8 cart_type; // 0 = Unknown, 1 = Data medium, 2 = Cleaning
-	u8 barcode[11];
-	u32  slot_location;
-	u32  last_location;
-	u8	status;	// Used for MAP status.
-	u8	asc;	// Additional Sense Code
-	u8	ascq;	// Additional Sense Code Qualifier
+static struct s_info { /* Slot Info */
+	uint8_t cart_type; // 0 = Unknown, 1 = Data medium, 2 = Cleaning
+	uint8_t barcode[11];
+	uint32_t  slot_location;
+	uint32_t  last_location;
+	uint8_t	status;	// Used for MAP status.
+	uint8_t	asc;	// Additional Sense Code
+	uint8_t	ascq;	// Additional Sense Code Qualifier
 };
 
-struct d_info {	/* Drive Info */
+static struct d_info {	/* Drive Info */
 	char inq_vendor_id[8];
 	char inq_product_id[16];
 	char inq_product_rev[4];
@@ -132,19 +130,18 @@ struct d_info {	/* Drive Info */
 	struct s_info * slot;
 };
 
-struct d_info * drive_info;
-struct s_info * storage_info;
-struct s_info * map_info;
-struct s_info * picker_info;
-struct s_info * drive_s_info;
+static struct d_info * drive_info;
+static struct s_info * storage_info;
+static struct s_info * map_info;
+static struct s_info * picker_info;
 
 /* Log pages */
-struct	Temperature_page Temperature_pg = {
+static struct	Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
 	{ 0x00, 0x00, 0x60, 0x02, }, 0x00, 	// Temperature
 	};
 
-struct TapeAlert_page	TapeAlert = {
+static struct TapeAlert_page	TapeAlert = {
 	{ TAPE_ALERT, 0x00, 100, },
 	{ 0x00, 1, 0xc0, 1, }, 0x00,
 	{ 0x00, 2, 0xc0, 1, }, 0x00,
@@ -216,7 +213,7 @@ struct TapeAlert_page	TapeAlert = {
  * Mode Pages defined for SMC-3 devices..
  */
 
-struct mode sm[] = {
+static struct mode sm[] = {
 //	Page,  subpage, len, 'pointer to data struct'
 	{0x02, 0x00, 0x00, NULL, }, // Disconnect Reconnect - SPC3
 	{0x0a, 0x00, 0x00, NULL, }, // Control Extension - SPC3
@@ -228,9 +225,9 @@ struct mode sm[] = {
 	{0x00, 0x00, 0x00, NULL, }, // NULL terminator
 	};
 
-u8 blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0, };
+uint8_t blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0, };
 
-void usage(char *progname) {
+static void usage(char *progname) {
 	printf("Usage: %s [-d] [-v]\n", progname);
 	printf("      Where file == data file\n");
 	printf("             'd' == debug -> Don't run as daemon\n");
@@ -241,11 +238,61 @@ void usage(char *progname) {
  int ioctl(int, int, void *);
 #endif
 
+
+static void dump_element_desc(uint8_t *p, int voltag, int len)
+{
+	int i;
+
+	printf("  Element Address             : %d\n", (p[0] << 8) | p[1]);
+	printf("  Status                      : 0x%02x\n", p[2]);
+	printf("  Medium type                 : %d\n", p[9] & 0x7);
+	if (p[9] & 0x80)
+		printf("  Source Address              : %d\n", (p[10] << 8) | p[11]);
+	i = 12;
+	if (voltag) {
+		i += 36;
+		printf(" Need to print Voltag info\n");
+	}
+	printf(" Identification Descriptor\n");
+	printf("  Code Set                     : 0x%02x\n", p[i] & 0xf);
+	printf("  Identifier type              : 0x%02x\n", p[i + 1] & 0xf);
+	printf("  Identifier length            : %d\n", p[i + 3]);
+	printf("  ASCII data                   : %s\n", &p[i + 4]);
+	printf("  ASCII data                   : %s\n", &p[i + 12]);
+	printf("  ASCII data                   : %s\n", &p[i + 28]);
+}
+
+static void decode_element_status(uint8_t *p)
+{
+	int voltag;
+	int len;
+
+	printf("Element Status Data\n");
+	printf("  First element reported       : %d\n", (p[0] << 8) | p[1]);
+	printf("  Number of elements available : %d\n", (p[2] << 8) | p[3]);
+	printf("  Byte count of report         : %d\n",
+				(p[5] << 16) | (p[6] << 8) | p[7]);
+	printf("Element Status Page\n");
+	printf("  Element Type code            : %d\n", p[8]);
+	printf("  Primary Vol Tag              : %s\n", (p[9] & 0x80) ? "Yes" : "No");
+	voltag = (p[9] & 0x80) ? 1 : 0;
+	printf("  Alt Vol Tag                  : %s\n", (p[9] & 0x40) ? "Yes" : "No");
+	printf("  Element descriptor length    : %d\n", (p[10] << 8) | p[11]);
+	printf("  Byte count of descriptor data: %d\n",
+				(p[13] << 16) | (p[14] << 8) | p[15]);
+	len = (p[13] << 16) | (p[14] << 8) | p[15];
+
+	printf("Element Descriptor(s)\n");
+	dump_element_desc(&p[16], voltag, len);
+
+	fflush(NULL);
+}
+
+
 /*
  * Simple function to read 'count' bytes from the chardev into 'buf'.
  */
-int
-retreive_CDB_data(int cdev, u8 *buf, u32 count) {
+static int retreive_CDB_data(int cdev, uint8_t *buf, uint32_t count) {
 
 	return (read(cdev, buf, bufsize));
 }
@@ -253,8 +300,7 @@ retreive_CDB_data(int cdev, u8 *buf, u32 count) {
 /*
  * Process the MODE_SELECT command
  */
-int
-resp_mode_select(int cdev, u8 *cmd, u8 *buf) {
+static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf) {
 	int alloc_len;
 	DEB( int k; )
 
@@ -263,7 +309,7 @@ resp_mode_select(int cdev, u8 *cmd, u8 *buf) {
 	retreive_CDB_data(cdev, buf, alloc_len);
 
 	DEBC(	for(k = 0; k < alloc_len; k++)
-			printf("%02x ", (u32)buf[k]);
+			printf("%02x ", (uint32_t)buf[k]);
 		printf("\n");
 	)
 
@@ -273,8 +319,7 @@ resp_mode_select(int cdev, u8 *cmd, u8 *buf) {
 /*
  * Takes a slot number and returns a struct pointer to the slot
  */
-struct s_info *
-slot2struct(int addr) {
+static struct s_info * slot2struct(int addr) {
 	if((addr >= START_MAP) && (addr <= (START_MAP + NUM_MAP))) {
 		addr -= START_MAP;
 		DEBC(	printf("slot2struct: MAP %d\n", addr); )
@@ -303,21 +348,18 @@ return NULL;
 /*
  * Takes a Drive number and returns a struct pointer to the drive
  */
-struct d_info *
-drive2struct(int addr) {
+static struct d_info * drive2struct(int addr) {
 	addr -= START_DRIVE;
 	return &drive_info[addr];
 }
 
 /* Returns true if slot has media in it */
-int
-slotOccupied(struct s_info * s) {
+static int slotOccupied(struct s_info * s) {
 	return(s->status & 0x01);
 }
 
 /* Returns true if drive has media in it */
-int
-driveOccupied(struct d_info *d) {
+static int driveOccupied(struct d_info *d) {
 	return(slotOccupied(d->slot));
 }
 
@@ -326,8 +368,7 @@ driveOccupied(struct d_info *d) {
  * to the handler is denied; a value of 1 indicates that the movement
  * is permitted.
  */
-void
-setInEnableStatus(struct s_info *s, int flg) {
+static void setInEnableStatus(struct s_info *s, int flg) {
 	if(flg)	// Set Full bit
 		s->status |= 0x20;
 	else		// Set Full bit to 0
@@ -339,8 +380,7 @@ setInEnableStatus(struct s_info *s, int flg) {
  * from the handler to the I/O port is denied. A value of 1 indicates that
  * movement is permitted.
  */
-void
-setExEnableStatus(struct s_info *s, int flg) {
+static void setExEnableStatus(struct s_info *s, int flg) {
 	if(flg)	// Set Full bit
 		s->status |= 0x10;
 	else		// Set Full bit to 0
@@ -351,8 +391,7 @@ setExEnableStatus(struct s_info *s, int flg) {
  * A value of 1 indicates that a cartridge may be moved to/from
  * the drive (but not both).
  */
-void
-setAccessStatus(struct s_info *s, int flg) {
+static void setAccessStatus(struct s_info *s, int flg) {
 	if(flg)	// Set Full bit
 		s->status |= 0x08;
 	else		// Set Full bit to 0
@@ -364,8 +403,7 @@ setAccessStatus(struct s_info *s, int flg) {
  * condition exists. An exception indicates the libary is uncertain of an
  * elements status.
  */
-void
-setExceptStatus(struct s_info *s, int flg) {
+static void setExceptStatus(struct s_info *s, int flg) {
 	if(flg)	// Set Full bit
 		s->status |= 0x04;
 	else		// Set Full bit to 0
@@ -376,8 +414,7 @@ setExceptStatus(struct s_info *s, int flg) {
  * If set(1) then cartridge placed by operator
  * If clear(0), placed there by handler.
  */
-void
-setImpExpStatus(struct s_info *s, int flg) {
+static void setImpExpStatus(struct s_info *s, int flg) {
 	if(flg)	// Set Full bit
 		s->status |= 0x02;
 	else		// Set Full bit to 0
@@ -387,39 +424,33 @@ setImpExpStatus(struct s_info *s, int flg) {
 /*
  * Sets the 'Full' bit true/false in the status field
  */
-void
-setFullStatus(struct s_info *s, int flg) {
+static void setFullStatus(struct s_info *s, int flg) {
 	if(flg)	// Set Full bit
 		s->status |= 0x01;
 	else		// Set Full bit to 0
 		s->status &= 0xfe;
 }
 
-void
-setSlotEmpty(struct s_info *s) {
+static void setSlotEmpty(struct s_info *s) {
 	setFullStatus(s, 0);
 }
 
-void
-setDriveEmpty(struct d_info *d) {
+static void setDriveEmpty(struct d_info *d) {
 	setFullStatus(d->slot, 0);
 }
 
-void
-setSlotFull(struct s_info *s) {
+static void setSlotFull(struct s_info *s) {
 	setFullStatus(s, 1);
 }
 
-void
-setDriveFull(struct d_info *d) {
+static void setDriveFull(struct d_info *d) {
 	setFullStatus(d->slot, 1);
 }
 
 /*
  * Logically move information from 'src' address to 'dest' address
  */
-void
-move_cart(struct s_info *src, struct s_info *dest) {
+static void move_cart(struct s_info *src, struct s_info *dest) {
 
 	dest->cart_type = src->cart_type;
 	memcpy(dest->barcode, src->barcode, 10);
@@ -433,8 +464,7 @@ move_cart(struct s_info *src, struct s_info *dest) {
 }
 
 /* Move media in drive 'src_addr' to drive 'dest_addr' */
-int
-move_drive2drive(int src_addr, int dest_addr, u8 *sense_flg) {
+static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	struct d_info *src;
 	struct d_info *dest;
 	char   cmd[128];
@@ -479,8 +509,7 @@ move_drive2drive(int src_addr, int dest_addr, u8 *sense_flg) {
 return 0;
 }
 
-int
-move_drive2slot(int src_addr, int dest_addr, u8 *sense_flg) {
+static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	struct d_info *src;
 	struct s_info *dest;
 
@@ -500,12 +529,12 @@ move_drive2slot(int src_addr, int dest_addr, u8 *sense_flg) {
 	send_msg("unload", src->slot->slot_location);
 
 	move_cart(src->slot, dest);
+	setDriveEmpty(src);
 
 return 0;
 }
 
-int
-move_slot2drive(int src_addr, int dest_addr, u8 *sense_flg) {
+static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	struct s_info *src;
 	struct d_info *dest;
 	char   cmd[128];
@@ -524,6 +553,7 @@ move_slot2drive(int src_addr, int dest_addr, u8 *sense_flg) {
 	}
 
 	move_cart(src, dest->slot);
+	setDriveFull(dest);
 
 	sprintf(cmd, "lload %s", dest->slot->barcode);
 	/* Remove traling spaces */
@@ -540,8 +570,7 @@ move_slot2drive(int src_addr, int dest_addr, u8 *sense_flg) {
 return 0;
 }
 
-int
-move_slot2slot(int src_addr, int dest_addr, u8 *sense_flg) {
+static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	struct s_info *src;
 	struct s_info *dest;
 
@@ -567,8 +596,7 @@ move_slot2slot(int src_addr, int dest_addr, u8 *sense_flg) {
 }
 
 /* Return OK if 'addr' is within either a MAP, Drive or Storage slot */
-int
-valid_slot(int addr) {
+static int valid_slot(int addr) {
 
 	int maxDrive = START_DRIVE + NUM_DRIVES;
 	int maxStorage = START_STORAGE + NUM_STORAGE;
@@ -583,20 +611,19 @@ valid_slot(int addr) {
 }
 
 /* Move a piece of medium from one slot to another */
-int
-resp_move_medium(u8 *cmd, u8 *buf, u8 *sense_flg) {
+static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	int transport_addr;
 	int src_addr;
 	int dest_addr;
 	int maxDrive = START_DRIVE + NUM_DRIVES;
 	int retVal = 0;	// Return a success status
-	u16 *sp;
+	uint16_t *sp;
 
-	sp = (u16 *)&cmd[2];
+	sp = (uint16_t *)&cmd[2];
 	transport_addr = ntohs(*sp);
-	sp = (u16 *)&cmd[4];
+	sp = (uint16_t *)&cmd[4];
 	src_addr  = ntohs(*sp);
-	sp = (u16 *)&cmd[6];
+	sp = (uint16_t *)&cmd[6];
 	dest_addr = ntohs(*sp);
 
 	if(verbose) {
@@ -664,14 +691,13 @@ return(retVal);
  *
  * Returns number of bytes in element data.
  */
-int
-skel_element_descriptor(u8 *p, struct s_info *s, int volTag) {
+static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag) {
 	int j = 0;
-	u16 *sp;
+	uint16_t *sp;
 
 	if(debug)
 		printf("Slot location: %d\n", s->slot_location);
-	sp = (u16 *)&p[j];
+	sp = (uint16_t *)&p[j];
 	*sp = htons(s->slot_location);
 	j += 2;
 	p[j++] = s->status;
@@ -689,12 +715,12 @@ skel_element_descriptor(u8 *p, struct s_info *s, int volTag) {
 	p[j++] |= (s->cart_type & 0x0f);
 
 	/* Source Storage Element Address */
-	sp = (u16 *)&p[j];
+	sp = (uint16_t *)&p[j];
 	*sp = htons(s->last_location);
 	j += 2;
 
-	if(volTag) {
-		DEBC( printf("volTag set\n"); )
+	if(voltag) {
+		DEBC( printf("voltag set\n"); )
 
 		if(s->status & 0x01) /* Barcode with trailing space(s) */
 			snprintf((char *)&p[j], 32, "%-32s", s->barcode);
@@ -705,7 +731,7 @@ skel_element_descriptor(u8 *p, struct s_info *s, int volTag) {
 		j += 8;		/* Reserved */
 	} else {
 		j += 4;		/* Reserved */
-		DEBC( printf("volTag cleared => no barcode\n"); )
+		DEBC( printf("voltag cleared => no barcode\n"); )
 	}
 
 return j;
@@ -717,15 +743,14 @@ return j;
  *
  * Returns number of bytes used to fill in all details.
  */
-int
-fill_element_detail(u8 *p, struct s_info * slot, int slot_count, int volTag) {
+static int fill_element_detail(uint8_t *p, struct s_info * slot, int slot_count, int voltag) {
 	int k;
 	int j;
 
 	/**** For each Storage Element ****/
 	for (k = 0, j = 0; j < slot_count; j++, slot++) {
 		DEBC( printf("Slot: %d, k = %d\n", slot->slot_location, k); )
-		k += skel_element_descriptor( (u8 *)&p[k], slot, volTag);
+		k += skel_element_descriptor( (uint8_t *)&p[k], slot, voltag);
 	}
 	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__, k); ) ;
 
@@ -737,14 +762,13 @@ return (k);
  *
  * Return number of bytes in element.
  */
-int
-fill_data_transfer_element(u8 *p, struct d_info *d, u8 dvcid, u8 volTag ) {
+static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvcid, uint8_t voltag ) {
 	int j = 0;
 	int m;
 	char s[128];
-	u16 *sp;
+	uint16_t *sp;
 
-	sp = (u16 *)&p[j];
+	sp = (uint16_t *)&p[j];
 	*sp = htons(d->slot->slot_location);
 	j+=2;
 	p[j++] = d->slot->status;
@@ -773,22 +797,26 @@ fill_data_transfer_element(u8 *p, struct d_info *d, u8 dvcid, u8 volTag ) {
 		p[j++] = 0x80;
 
 		/* Source Storage Element Address */
-		sp = (u16 *)&p[j];
+		sp = (uint16_t *)&p[j];
 		*sp = htons(d->slot->last_location);
-		j+=2;
+		j += 2;
 	} else {
 		j += 3;
 	}
 
+/*	syslog(LOG_DAEMON|LOG_WARNING, "DVCID: %d, VOLTAG: %d, Index: %d\n",
+			dvcid, voltag, j);
+*/
+
 	// Tidy up messy if/then/else into a 'case'
-	m = dvcid + dvcid + volTag;
+	m = dvcid + dvcid + voltag;
 	switch(m) {
 	case 0:
-		DEBC( printf("volTag & DVCID both not set\n"); )
+		DEBC( printf("voltag & DVCID both not set\n"); )
 		j += 4;
 		break;
 	case 1:
-		DEBC( printf("volTag set, DVCID not set\n"); )
+		DEBC( printf("voltag set, DVCID not set\n"); )
 		if(d->slot->status & 0x01) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
@@ -801,7 +829,7 @@ fill_data_transfer_element(u8 *p, struct d_info *d, u8 dvcid, u8 volTag ) {
 		j += 8;		/* Reserved */
 		break;
 	case 2:
-		DEBC( printf("volTag not set, DVCID set\n"); )
+		DEBC( printf("voltag not set, DVCID set\n"); )
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
 		j++;		/* Reserved */
@@ -826,7 +854,7 @@ fill_data_transfer_element(u8 *p, struct d_info *d, u8 dvcid, u8 volTag ) {
 		j += 10;
 		break;
 	case 3:
-		DEBC( printf("volTag set, DVCID set\n"); )
+		DEBC( printf("voltag set, DVCID set\n"); )
 		if(d->slot->status & 0x01) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
@@ -862,7 +890,9 @@ fill_data_transfer_element(u8 *p, struct d_info *d, u8 dvcid, u8 volTag ) {
 		j += 10;
 		break;
 	}
-
+/*
+	syslog(LOG_DAEMON|LOG_WARNING, "Index: %d\n", j);
+*/
 	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__, j); )
 
 return j;
@@ -871,10 +901,9 @@ return j;
 /*
  * Calculate length of one element
  */
-int
-determine_element_sz(u8 dvcid, u8 volTag) {
+static int determine_element_sz(uint8_t dvcid, uint8_t voltag) {
 
-	if(volTag) /* If volTag bit is set */
+	if(voltag) /* If voltag bit is set */
 		return  (dvcid == 0) ? 52 : 86;
 	else
 		return  (dvcid == 0) ? 16 : 50;
@@ -883,29 +912,30 @@ determine_element_sz(u8 dvcid, u8 volTag) {
 /*
  * Fill in element status page Header (8 bytes)
  */
-int
-fill_element_status_page(u8 *p, u16 start, u16 element_count, u8 dvcid,
-						 u8 volTag, u8 typeCode) {
+static int fill_element_status_page(uint8_t *p, uint16_t start,
+					uint16_t element_count, uint8_t dvcid,
+					uint8_t voltag, uint8_t typeCode)
+{
 	int	element_sz;
-	u32	element_len;
-	u16	*sp;
-	u32	*sl;
+	uint32_t	element_len;
+	uint16_t	*sp;
+	uint32_t	*sl;
 
-	element_sz = determine_element_sz(dvcid, volTag);
+	element_sz = determine_element_sz(dvcid, voltag);
 
 	p[0] = typeCode;		/* Element type Code */
 
 	/* Primary Volume Tag set - Returning Barcode info */
-	p[1] = (volTag == 0) ? 0 : 0x80;
+	p[1] = (voltag == 0) ? 0 : 0x80;
 
 	/* Number of bytes per element */
-	sp = (u16 *)&p[2];
+	sp = (uint16_t *)&p[2];
 	*sp = htons(element_sz);
 
 	element_len = element_sz * element_count;
 
 	/* Total number of bytes in all element descriptors */
-	sl = (u32 *)&p[4];
+	sl = (uint32_t *)&p[4];
 	*sl = htonl(element_len & 0xffffff);
 	/* Reserved */
 	p[4] = 0;	// Above mask should have already set this to 0...
@@ -928,14 +958,14 @@ return(8);	// Always 8 bytes in header
  * Build the initial ELEMENT STATUS HEADER
  * 
  */
-int
-element_status_hdr(u8 *p, u8 dvcid, u8 volTag, int start, int count) {
-	u32	byte_count;
+static int
+element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int count) {
+	uint32_t	byte_count;
 	int	element_sz;
-	u32	*lp;
-	u16	*sp;
+	uint32_t	*lp;
+	uint16_t	*sp;
 
-	element_sz = determine_element_sz(dvcid, volTag);
+	element_sz = determine_element_sz(dvcid, voltag);
 
 	DEBC(	printf("Building READ ELEMENT STATUS Header struct\n");
 		printf(" Starting slot: %d, number of configured slots: %d\n",
@@ -943,10 +973,10 @@ element_status_hdr(u8 *p, u8 dvcid, u8 volTag, int start, int count) {
 	)
 
 	/* Start of ELEMENT STATUS DATA */
-	sp = (u16 *)&p[0];
+	sp = (uint16_t *)&p[0];
 	*sp = htons(start);
 
-	sp = (u16 *)&p[2];
+	sp = (uint16_t *)&p[2];
 	*sp = htons(count);
 
 	/* The byte_count should be the length required to return all of
@@ -954,18 +984,18 @@ element_status_hdr(u8 *p, u8 dvcid, u8 volTag, int start, int count) {
 	 * The 'allocated length' indicates how much data can be returned.
 	 */
 	byte_count = 8 + (count * element_sz);
-	lp = (u32 *)&p[4];
+	lp = (uint32_t *)&p[4];
 	*lp = htonl(byte_count & 0xffffff);
 
 	DEBC(	printf(" Element Status Data HEADER: "
 			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
-		sp = (u16 *)&p[0];
+		sp = (uint16_t *)&p[0];
 		printf(" Decoded:\n");
 		printf("  First element Address    : %d\n", ntohs(*sp));
-		sp = (u16 *)&p[2];
+		sp = (uint16_t *)&p[2];
 		printf("  Number elements reported : %d\n", ntohs(*sp));
-		lp = (u32 *)&p[4];
+		lp = (uint32_t *)&p[4];
 		printf("  Total byte count         : %d\n", ntohl(*lp));
 	) ;
 
@@ -982,8 +1012,7 @@ return 8;	// Header is 8 bytes in size..
  * We return the first valid slot number which matches.
  * or zero on no matching slots..
  */
-int
-find_first_matching_element(u16 start, u8 typeCode) {
+static int find_first_matching_element(uint16_t start, uint8_t typeCode) {
 
 	switch(typeCode) {
 	case ANY:	// Don't care what 'type'
@@ -1052,23 +1081,24 @@ return 0;
  *
  * Returns number of bytes used to fill in data
  */
-int
-medium_transport_descriptor(u8 * p, u16 start, u16 count, u8 dvcid, u8 volTag) {
-	u16	len;
-	u16	begin;
+static int medium_transport_descriptor(uint8_t * p, uint16_t start,
+				uint16_t count, uint8_t dvcid, uint8_t voltag)
+{
+	uint16_t	len;
+	uint16_t	begin;
 
 	// Find first valid slot.
 	begin = find_first_matching_element(start, MEDIUM_TRANSPORT);
 
 	// Create Element Status Page Header.
 	len = 
-	  fill_element_status_page(p,begin,count,dvcid,volTag,MEDIUM_TRANSPORT);
+	  fill_element_status_page(p,begin,count,dvcid,voltag,MEDIUM_TRANSPORT);
 
 	begin -= START_PICKER;	// Array starts at [0]
 	count = NUM_PICKER - begin;
 
 	// Now loop over each picker slot and fill in details.
-	len += fill_element_detail(&p[len], &picker_info[begin], count, volTag);
+	len += fill_element_detail(&p[len], &picker_info[begin], count, voltag);
 
 return len;
 }
@@ -1078,20 +1108,21 @@ return len;
  *
  * Returns number of bytes used to fill in data
  */
-int
-storage_element_descriptor(u8 * p, u16 start, u16 count, u8 dvcid, u8 volTag) {
-	u16	len;
-	u16	begin;
+static int storage_element_descriptor(uint8_t * p, uint16_t start,
+				uint16_t count, uint8_t dvcid, uint8_t voltag)
+{
+	uint16_t	len;
+	uint16_t	begin;
 
 	begin = find_first_matching_element(start, STORAGE_ELEMENT);
 	len =
-	  fill_element_status_page(p,begin,count,dvcid,volTag,STORAGE_ELEMENT);
+	  fill_element_status_page(p,begin,count,dvcid,voltag,STORAGE_ELEMENT);
 
 	begin -= START_STORAGE;	// Array starts at [0]
 	count = NUM_STORAGE - begin;
 
 	// Now loop over each picker slot and fill in details.
-	len += fill_element_detail(&p[len],&storage_info[begin],count,volTag);
+	len += fill_element_detail(&p[len],&storage_info[begin],count,voltag);
 
 return len;
 }
@@ -1101,20 +1132,21 @@ return len;
  *
  * Returns number of bytes used to fill in data
  */
-int
-map_element_descriptor(u8 * p, u16 start, u16 count, u8 dvcid, u8 volTag) {
-	u16	len;
-	u16	begin;
+static int map_element_descriptor(uint8_t * p, uint16_t start, uint16_t count,
+						uint8_t dvcid, uint8_t voltag)
+{
+	uint16_t	len;
+	uint16_t	begin;
 
 	begin = find_first_matching_element(start, MAP_ELEMENT);
 	len =
-	    fill_element_status_page(p,begin,count,dvcid,volTag,MAP_ELEMENT);
+	    fill_element_status_page(p,begin,count,dvcid,voltag,MAP_ELEMENT);
 
 	begin -= START_MAP;	// Array starts at [0]
 	count = NUM_MAP - begin;
 
 	// Now loop over each picker slot and fill in details.
-	len += fill_element_detail(&p[len], &map_info[begin], count, volTag);
+	len += fill_element_detail(&p[len], &map_info[begin], count, voltag);
 
 return len;
 }
@@ -1124,29 +1156,32 @@ return len;
  *
  * Returns number of bytes used to fill in data
  */
-int
-data_transfer_descriptor(u8 * p, u16 start, u16 count, u8 dvcid, u8 volTag) {
-	u32	len;
-	u16	drive;
+static int data_transfer_descriptor(uint8_t * p, uint16_t start,
+				uint16_t count, uint8_t dvcid, uint8_t voltag)
+{
+	uint32_t	len;
+	uint16_t	drive;
 
 	drive = find_first_matching_element(start, DATA_TRANSFER);
 	len =
-	    fill_element_status_page(p,drive,count,dvcid,volTag,DATA_TRANSFER);
+	    fill_element_status_page(p,drive,count,dvcid,voltag,DATA_TRANSFER);
 
 	drive -= START_DRIVE;	// Array starts at [0]
 
 	DEBC(	printf("Starting at drive: %d, count %d\n", drive + 1, count);
 		printf("Element Length: %d for drive: %d\n",
-				determine_element_sz(dvcid, volTag),
+				determine_element_sz(dvcid, voltag),
 				drive); )
 
+	syslog(LOG_DAEMON|LOG_WARNING, "Len: %d\n", len);
 	/**** For each Data Transfer Element ****/
 	count += drive; // We want 'count' number of drive entries returned
 	for (; drive < count; drive++) {
 		DEBC(	printf("Processing drive %d, stopping after %d\n",
 					drive + 1, count);	) ;
 		len += fill_data_transfer_element( &p[len],
-					&drive_info[drive], dvcid, volTag);
+					&drive_info[drive], dvcid, voltag);
+		syslog(LOG_DAEMON|LOG_WARNING, "Len: %d\n", len);
 	}
 
 	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__, len); )
@@ -1159,22 +1194,27 @@ return len;
  *
  * Returns number of bytes to xfer back to host.
  */
-int
-resp_read_element_status(u8 *cdb, u8 *buf, u8 *sense_flg) {
-	u16	* sp;
-	u32	* sl;
-	u8	* p;
-	u8	typeCode = cdb[1] & 0x0f;
-	u8	volTag = (cdb[1] & 0x10) >> 4;
-	sp = (u16 *)&cdb[2];
-	u16	req_start_elem = ntohs(*sp);
-	sp = (u16 *)&cdb[4];
-	u16	number = ntohs(*sp);
-	u8	dvcid = cdb[6] & 0x01;	/* Device ID */
-	sl = (u32 *)&cdb[6];
-	u32	alloc_len = 0xffffff & ntohl(*sl);
-	u16	start;	// First valid slot location
-	u16	len = 0;
+static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
+							uint8_t *sense_flg)
+{
+	uint16_t *sp;
+	uint32_t *sl;
+	uint8_t	*p;
+	uint8_t	typeCode = cdb[1] & 0x0f;
+	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
+	uint16_t req_start_elem;
+	uint16_t number;
+	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
+	uint32_t alloc_len;
+	uint16_t start;	// First valid slot location
+	uint16_t len = 0;
+
+	sp = (uint16_t *)&cdb[2];
+	req_start_elem = ntohs(*sp);
+	sp = (uint16_t *)&cdb[4];
+	number = ntohs(*sp);
+	sl = (uint32_t *)&cdb[6];
+	alloc_len = 0xffffff & ntohl(*sl);
 
 	DEBC(	printf("Element type (%d) => ", typeCode);
 		switch(typeCode) {
@@ -1200,9 +1240,9 @@ resp_read_element_status(u8 *cdb, u8 *buf, u8 *sense_flg) {
 		printf("  Starting Element Address: %d\n", req_start_elem);
 		printf("  Number of Elements      : %d\n", number);
 		printf("  Allocation length       : %d\n", alloc_len);
-		printf("  Device ID: %s, volTag: %s\n",
+		printf("  Device ID: %s, voltag: %s\n",
 					(dvcid == 0) ? "No" :  "Yes",
-					(volTag == 0) ? "No" :  "Yes" );
+					(voltag == 0) ? "No" :  "Yes" );
 	)
 	if (verbose) {
 		switch(typeCode) {
@@ -1232,9 +1272,9 @@ resp_read_element_status(u8 *cdb, u8 *buf, u8 *sense_flg) {
 			"  Number of Elements      : %d\n",number);
 		syslog(LOG_DAEMON|LOG_INFO,
 			"  Allocation length       : %d\n",alloc_len);
-		syslog(LOG_DAEMON|LOG_INFO, "  Device ID: %s, volTag: %s\n",
+		syslog(LOG_DAEMON|LOG_INFO, "  Device ID: %s, voltag: %s\n",
 					(dvcid == 0) ? "No" :  "Yes",
-					(volTag == 0) ? "No" :  "Yes" );
+					(voltag == 0) ? "No" :  "Yes" );
 	}
 
 	/* Set alloc_len to smallest value */
@@ -1262,34 +1302,34 @@ resp_read_element_status(u8 *cdb, u8 *buf, u8 *sense_flg) {
 	switch(typeCode) {
 	case MEDIUM_TRANSPORT:
 		len =
-		  medium_transport_descriptor(p, start, number, dvcid, volTag);
+		  medium_transport_descriptor(p, start, number, dvcid, voltag);
 		break;
 	case STORAGE_ELEMENT:
 		len =
-		  storage_element_descriptor(p, start, number, dvcid, volTag);
+		  storage_element_descriptor(p, start, number, dvcid, voltag);
 		break;
 	case MAP_ELEMENT:
 		len =
-		  map_element_descriptor(p, start, number, dvcid, volTag);
+		  map_element_descriptor(p, start, number, dvcid, voltag);
 		break;
 	case DATA_TRANSFER:
 		len =
-		  data_transfer_descriptor(p, start, number, dvcid, volTag);
+		  data_transfer_descriptor(p, start, number, dvcid, voltag);
 		break;
 	case ANY:
 		if(start >= START_STORAGE) {
 			len = storage_element_descriptor(p, start, number,
-								dvcid, volTag);
+								dvcid, voltag);
 //			number = start - START_STORAGE;
 		} else if (start >= START_MAP) {
 			len = map_element_descriptor(p, start, number,
-								dvcid, volTag);
+								dvcid, voltag);
 		} else if (start >= START_PICKER) {
 			len = medium_transport_descriptor(p, start, number,
-								dvcid, volTag);
+								dvcid, voltag);
 		} else {	// Must start reading with drives.
 			len = data_transfer_descriptor(p, start, number,
-								dvcid, volTag);
+								dvcid, voltag);
 		}
 		break;
 	default:	// Illegal descriptor type.
@@ -1299,12 +1339,14 @@ resp_read_element_status(u8 *cdb, u8 *buf, u8 *sense_flg) {
 	}
 
 	// Now populate the 'main' header structure with byte count..
-	len += element_status_hdr(&buf[0], dvcid, volTag, start, number);
+	len += element_status_hdr(&buf[0], dvcid, voltag, start, number);
 
 	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__,
 		((len < alloc_len) ? len : alloc_len));
 
 		hex_dump(buf, (len < alloc_len) ? len : alloc_len);
+
+		decode_element_status(buf);
 	)
 
 	/* Return the smallest number */
@@ -1317,13 +1359,12 @@ resp_read_element_status(u8 *cdb, u8 *buf, u8 *sense_flg) {
  * Temperature page & tape alert pages only...
  */
 #define TAPE_ALERT 0x2e
-int
-resp_log_sense(u8 *SCpnt, u8 *buf) {
-	u8	*b = buf;
+static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
+	uint8_t	*b = buf;
 	int	retval = 0;
-	u16	*sp;
+	uint16_t	*sp;
 
-	u8 supported_pages[] = {	0x00, 0x00, 0x00, 0x04,
+	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x04,
 					0x00,
 					TEMPERATURE_PAGE,
 					TAPE_ALERT
@@ -1334,7 +1375,7 @@ resp_log_sense(u8 *SCpnt, u8 *buf) {
 		if(verbose)
 			syslog(LOG_DAEMON|LOG_WARNING, "%s",
 						"Sending supported pages");
-		sp = (u16 *)&supported_pages[2];
+		sp = (uint16_t *)&supported_pages[2];
 		*sp = htons(sizeof(supported_pages) - 4);
 		b = memcpy(b, supported_pages, sizeof(supported_pages));
 		retval = sizeof(supported_pages);
@@ -1384,12 +1425,11 @@ resp_log_sense(u8 *SCpnt, u8 *buf) {
  * Return:
  *	total number of bytes to send back to vtl device
  */
-u32
-processCommand(int cdev, u8 *SCpnt,
-		u8 *buf, u8 *sense_flg)
+static uint32_t processCommand(int cdev, uint8_t *SCpnt,
+					uint8_t *buf, uint8_t *sense_flg)
 {
-	u32	block_size = 0L;
-	u32	ret = 5L;	// At least 4 bytes for Sense & 4 for S/No.
+	uint32_t	block_size = 0L;
+	uint32_t	ret = 5L;	// At least 4 bytes for Sense & 4 for S/No.
 	int	k = 0;
 	struct	mode *smp = sm;
 
@@ -1532,34 +1572,10 @@ processCommand(int cdev, u8 *SCpnt,
 	return ret;
 }
 
-/* Strip (recover) the 'Physical Cartridge Label'
- *   Well at least the data filename which relates to the same thing
- */
-char *
-strip_PCL(char *p) {
-	char *q;
-
-	/* p += 4 (skip over 'load' string)
-	 * Then keep going until '*p' is a space or NULL
-	 */
-	for(p += 4; *p == ' '; p++)
-		if('\0' == *p)
-			break;
-	q = p;	// Set end-of-word marker to start of word.
-	for(q = p; *q != '\0'; q++)
-		if(*q == ' ' || *q == '\t')
-			break;
-	*q = '\0';	// Set null terminated string
-//	printf(":\nmedia ID:%s, p: %lx, q: %lx\n", p, &p, &q);
-
-return p;
-}
-
 /*
  * Respond to messageQ 'list map' by sending a list of PCLs to messageQ
  */
-void
-listMap(void) {
+static void listMap(void) {
 	struct s_info *sp;
 	int	a;
 	char msg[MAXOBN];
@@ -1582,15 +1598,15 @@ listMap(void) {
 	send_msg(msg, LIBRARY_Q + 1);
 }
 
-void
-loadMap(void) {
+static void loadMap(void)
+{
 }
 
 /*
  * Respond to messageQ 'empty map' by clearing 'ocuplied' status in map slots.
  */
-void
-emptyMap(void) {
+static void emptyMap(void)
+{
 	struct s_info *sp;
 	int	a;
 
@@ -1608,8 +1624,7 @@ emptyMap(void) {
 /*
  * Return 1, exit program
  */
-int
-processMessageQ(char *mtext) {
+static int processMessageQ(char *mtext) {
 
 	syslog(LOG_DAEMON|LOG_NOTICE, "Q msg : %s", mtext);
 
@@ -1634,7 +1649,7 @@ processMessageQ(char *mtext) {
 	if(! strncmp(mtext, "online", 6))
 		libraryOnline = 1;
 	if(! strncmp(mtext, "TapeAlert", 9)) {
-		u64 flg = 0L;
+		uint64_t flg = 0L;
 		sscanf(mtext, "TapeAlert %" PRIx64, &flg);
 		setTapeAlert(&TapeAlert, flg);
 	}
@@ -1661,11 +1676,10 @@ init_queue(void) {
 return (queue_id);
 }
 
-void
-init_mode_pages(struct mode *m) {
+static void init_mode_pages(struct mode *m) {
 
 	struct mode *mp;
-	u16 *sp;
+	uint16_t *sp;
 
 	// Disconnect-Reconnect: SPC-3 7.4.8
 	if((mp = alloc_mode_page(2, m, 16))) {
@@ -1706,7 +1720,7 @@ init_mode_pages(struct mode *m) {
 
 	// Element Address Assignment mode page: SMC-3 7.3.3
 	if((mp = alloc_mode_page(0x1d, m, 20))) {
-		sp = (u16 *)mp->pcodePointer;
+		sp = (uint16_t *)mp->pcodePointer;
 		sp++;
 		*sp = htons(START_PICKER);	// First medium transport
 		sp++;
@@ -1736,8 +1750,7 @@ init_mode_pages(struct mode *m) {
  * Allocate enough storage for (size) drives & init to zero
  * - Returns pointer or NULL on error
  */
-struct d_info *
-init_d_struct(int size) {
+static struct d_info * init_d_struct(int size) {
 	struct d_info d_info;
 	struct d_info *dp;
 
@@ -1752,8 +1765,7 @@ return dp;
  * Allocate enough storage for (size) elements & init to zero
  * - Returns pointer or NULL on error
  */
-struct s_info *
-init_s_struct(int size) {
+static struct s_info * init_s_struct(int size) {
 	struct s_info s_info;
 	struct s_info *sp;
 
@@ -1773,8 +1785,7 @@ return sp;
  * Return 1 = Data cartridge
  *        2 = Cleaning cartridge
  */
-int
-cart_type(char *barcode) {
+static int cart_type(char *barcode) {
 	int retval = 0;
 
 	retval = (strncmp(barcode, "CLN", 3)) ? 1 : 2;
@@ -1789,8 +1800,7 @@ return(retval);
  * Read config file and populate d_info struct with library's drives
  */
 #define MALLOC_SZ 1024
-void
-init_tape_info(void) {
+static void init_tape_info(void) {
 	char * conf="/etc/vtl/vxlib.conf";
 	FILE * ctrl;
 	struct d_info *dp = NULL;
@@ -1986,18 +1996,17 @@ init_tape_info(void) {
  *
  * e'nuf sed
  */
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int cdev, k;
 	int ret;
 	int vx_status;
 	int q_priority = 0;
 	int exit_status = 0;
-	u32 serialNo = 0L;
-	u32	byteCount;
-	u8 *buf;
-	u8 * SCpnt;
+	uint32_t serialNo = 0L;
+	uint32_t	byteCount;
+	uint8_t *buf;
+	uint8_t * SCpnt;
 
 	struct d_info *dp;
 	char s[100];
@@ -2073,7 +2082,7 @@ main(int argc, char *argv[])
 		exit(1);
 	} else {
 		syslog(LOG_DAEMON|LOG_INFO, "Size of kfifo is %d", bufsize);
-		buf = (u8 *)malloc(bufsize);
+		buf = (uint8_t *)malloc(bufsize);
 		if(NULL == buf) {
 			perror("Problems allocating memory");
 			exit(1);
@@ -2172,7 +2181,7 @@ main(int argc, char *argv[])
 				 * - Returns SCSI command S/No. */
 				getCommand(cdev, &vtl_head, vx_status);
 
-				SCpnt = (u8 *)&vtl_head.cdb;
+				SCpnt = (uint8_t *)&vtl_head.cdb;
 				serialNo = htonl(vtl_head.serialNo);
 
 				/* Interpret the SCSI command & process

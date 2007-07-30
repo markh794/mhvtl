@@ -45,9 +45,9 @@
  *	next_blk	-> Allow quick seek
  */
 struct blk_header {
-	u32		blk_type;
-	u32		blk_size;
-	u32		disk_blk_size;
+	uint32_t	blk_type;
+	uint32_t	blk_size;
+	uint32_t	disk_blk_size;
 	loff_t		blk_number;
 	loff_t		prev_blk;
 	loff_t		curr_blk;

@@ -43,7 +43,7 @@
  *          This means I don't have to do any kernel level drivers
  *          and leaverage the hosts native iSCSI initiator.
  */
-const char * Version = "$Id: vtltape.c,v 1.10.2.5 2006-08-30 06:35:01 markh Exp $";
+static const char * Version = "$Id: vtltape.c 1.11 2007-07-28 06:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -102,41 +102,42 @@ const char * Version = "$Id: vtltape.c,v 1.10.2.5 2006-08-30 06:35:01 markh Exp 
 #endif
 
 int send_msg(char *, int);
-void logSCSICommand(u8 *);
+void logSCSICommand(uint8_t *);
 
-int bufsize = 0;
 int verbose = 0;
 int debug = 0;
 int reset = 1;		/* Tape drive has been 'reset' */
-loff_t	max_tape_capacity;	/* Max capacity of media */
-int tapeLoaded = 0;	/* Default to Off-line */
-int inLibrary = 0;	/* Default to stand-alone drive */
-int datafile;		/* Global file handle - This goes against the grain,
-			   however the handle is passed to every function
-			   anyway. */
-char	* currentMedia;	/* filename of 'datafile' */
-u8	request_sense = 0; /* Non-zero if Sense-data is valid */
-u8	MediaType = 0;	// 0 = Data, 1 WORM, 6 = Cleaning.
-int	OK_to_write = 1; // True if in correct position to start writing
-int	compressionFactor = 0;
 
-u8	* rw_buf;	// Data buffer (malloc'ed memory)
+static int bufsize = 0;
+static loff_t max_tape_capacity;	/* Max capacity of media */
+static int tapeLoaded = 0;	/* Default to Off-line */
+static int inLibrary = 0;	/* Default to stand-alone drive */
+static int datafile;		/* Global file handle - This goes against the
+			grain, however the handle is passed to every function
+			anyway. */
+static char *currentMedia;	/* filename of 'datafile' */
+static uint8_t request_sense = 0;	/* Non-zero if Sense-data is valid */
+static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
+static int OK_to_write = 1;	// True if in correct position to start writing
+static int compressionFactor = 0;
 
-u64 bytesRead = 0;
-u64 bytesWritten = 0;
-unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
+static uint8_t *rw_buf;	// Data buffer (malloc'ed memory)
 
-u8 sense[SENSE_BUF_SIZE]; /* Request sense buffer */
+static u64 bytesRead = 0;
+static u64 bytesWritten = 0;
+static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
 
-struct MAM mam;
+uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
+
+static struct MAM mam;
 
 /* Log pages */
-struct	Temperature_page Temperature_pg = {
+static struct	Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
 	{ 0x00, 0x00, 0x60, 0x02, }, 0x00, 	// Temperature
 	};
 
-struct error_counter pg_write_err_counter = {
+static struct error_counter pg_write_err_counter = {
 	{ WRITE_ERROR_COUNTER, 0x00, 0x00, },
 	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, // Errors corrected with/o delay
 	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, // Errors corrected with delay
@@ -150,7 +151,7 @@ struct error_counter pg_write_err_counter = {
 	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, // Total dropout error count
 	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, // Total servo tracking
 	};
-struct error_counter pg_read_err_counter = {
+static struct error_counter pg_read_err_counter = {
 	{ READ_ERROR_COUNTER, 0x00, 0x00, },
 	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, // Errors corrected with/o delay
 	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, // Errors corrected with delay
@@ -165,7 +166,7 @@ struct error_counter pg_read_err_counter = {
 	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, // Total servo tracking
 	};
 
-struct seqAccessDevice seqAccessDevice = {
+static struct seqAccessDevice seqAccessDevice = {
 	{ SEQUENTIAL_ACCESS_DEVICE, 0x00, 0x54, },
 	{ 0x00, 0x00, 0x40, 0x08, }, 0x00,	// Write data b4 compression
 	{ 0x00, 0x01, 0x40, 0x08, }, 0x00,	// Write data after compression
@@ -177,7 +178,7 @@ struct seqAccessDevice seqAccessDevice = {
 	{ 0x80, 0x02, 0x40, 0x04, }, 0x00,	// Lifetime cleaning cycles
 	};
 
-struct TapeAlert_page	TapeAlert = {
+static struct TapeAlert_page	TapeAlert = {
 	{ TAPE_ALERT, 0x00, 100, },
 	{ 0x00, 1, 0xc0, 1, }, 0x00,	// Read warning
 	{ 0x00, 2, 0xc0, 1, }, 0x00,	// Write warning
@@ -245,7 +246,7 @@ struct TapeAlert_page	TapeAlert = {
 	{ 0x00, 0x40, 0xc0, 1, }, 0x00,	// reserved
 	};
 
-struct DataCompression DataCompression = {
+static struct DataCompression DataCompression = {
 	{ DATA_COMPRESSION, 0x00, 0x54, },
 	{ 0x00, 0x00, 0x40, 0x02, }, 0x00,	// Read Compression Ratio
 	{ 0x00, 0x00, 0x40, 0x02, }, 0x00,	// Write Compression Ratio
@@ -259,7 +260,7 @@ struct DataCompression DataCompression = {
 	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// Bytes written to tape
 	};
 
-struct TapeUsage TapeUsage = {
+static struct TapeUsage TapeUsage = {
 	{ TAPE_USAGE, 0x00, 0x54, },
 	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00,	// Thread count
 	{ 0x00, 0x02, 0xc0, 0x08, }, 0x00,	// Total data sets written
@@ -274,7 +275,7 @@ struct TapeUsage TapeUsage = {
 	{ 0x00, 0x0b, 0xc0, 0x02, }, 0x00,	// Total Fatal suspended reads
 	};
 
-struct TapeCapacity TapeCapacity = {
+static struct TapeCapacity TapeCapacity = {
 	{ TAPE_CAPACITY, 0x00, 0x54, },
 	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00,	// main partition remaining cap
 	{ 0x00, 0x02, 0xc0, 0x04, }, 0x00,	// Alt. partition remaining cap
@@ -282,7 +283,7 @@ struct TapeCapacity TapeCapacity = {
 	{ 0x00, 0x04, 0xc0, 0x04, }, 0x00,	// Alt. partition max cap
 	};
 
-struct report_luns report_luns = {
+static struct report_luns report_luns = {
 	0x00, 0x00, 0x00, 			// 16 bytes in length..
 	};
 
@@ -292,9 +293,9 @@ struct report_luns report_luns = {
  */
 
 // Used by Mode Sense - if set, return block descriptor
-u8 blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0, };
+uint8_t blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0, };
 
-struct mode sm[] = {
+static struct mode sm[] = {
 //	Page,  subpage, len, 'pointer to data struct'
 	{0x01, 0x00, 0x00, NULL, },	// RW error recovery - SSC3-8.3.5
 	{0x02, 0x00, 0x00, NULL, },	// Disconnect Reconnect - SPC3
@@ -309,10 +310,10 @@ struct mode sm[] = {
 	};
 
 
-loff_t	currentPosition = 0;
-struct blk_header c_pos;
+//static loff_t	currentPosition = 0;
+static struct blk_header c_pos;
 
-void usage(char *progname) {
+static void usage(char *progname) {
 	printf("Usage: %s -q <Q number> [-d] [-v] [-f file]\n",
 						 progname);
 	printf("       Where file == data file\n");
@@ -321,10 +322,9 @@ void usage(char *progname) {
 	printf("              'v' == verbose\n");
 }
 
-void
-print_header(struct blk_header *h) {
+DEB(
+static void print_header(struct blk_header *h) {
 
-DEBC(
 	/* It should only be called in 'debug' mode */
 	if( ! debug)
 		return;
@@ -373,12 +373,12 @@ DEBC(
 			h->prev_blk,
 			h->curr_blk,
 			h->next_blk);
+}
 // END of DEBC macro - compile this section out !
 )
-}
 
-void
-mk_sense_short_block(u32 requested, u32 processed, u8 *sense_valid) {
+static void
+mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid) {
 	u32 difference = requested - processed;
 	u32 * lp;
 
@@ -399,8 +399,7 @@ mk_sense_short_block(u32 requested, u32 processed, u8 *sense_valid) {
 	*lp = htonl(difference);
 }
 
-loff_t
-read_header(struct blk_header *h, int size, u8 *sense_flg) {
+static loff_t read_header(struct blk_header *h, int size, uint8_t *sense_flg) {
 	loff_t nread;
 
 	nread = read(datafile, h, size);
@@ -414,13 +413,11 @@ read_header(struct blk_header *h, int size, u8 *sense_flg) {
 	return nread;
 }
 
-loff_t
-position_to_curr_header(u8 * sense_flg) {
+static loff_t position_to_curr_header(uint8_t * sense_flg) {
 	return (lseek64(datafile, c_pos.curr_blk, SEEK_SET));
 }
 
-int
-skipToNextHeader(u8 * sense_flg) {
+static int skipToNextHeader(uint8_t * sense_flg) {
 	loff_t nread;
 
 	if(c_pos.blk_type == B_EOD) {
@@ -463,8 +460,7 @@ skipToNextHeader(u8 * sense_flg) {
 	return 0;
 }
 
-int
-skip_to_prev_header(u8 * sense_flg) {
+static int skip_to_prev_header(uint8_t * sense_flg) {
 	loff_t nread;
 
 	// Position to previous header
@@ -522,8 +518,7 @@ skip_to_prev_header(u8 * sense_flg) {
 /*
  * Create & write a new block header
  */
-int
-mkNewHeader(char type, int size, int comp_size, u8 * sense_flg) {
+static int mkNewHeader(char type, int size, int comp_size, uint8_t * sense_flg) {
 	struct blk_header h;
 	loff_t nwrite;
 
@@ -589,8 +584,7 @@ mkNewHeader(char type, int size, int comp_size, u8 * sense_flg) {
 	return nwrite;
 }
 
-int
-mkEODHeader(u8 *sense_flg) {
+static int mkEODHeader(uint8_t *sense_flg) {
 	loff_t nwrite;
 
 	nwrite = mkNewHeader(B_EOD, sizeof(c_pos), sizeof(c_pos), sense_flg);
@@ -616,8 +610,7 @@ mkEODHeader(u8 *sense_flg) {
 /*
  * Simple function to read 'count' bytes from the chardev into 'buf'.
  */
-int
-retrieve_CDB_data(int cdev, u8 *buf, int count) {
+static int retrieve_CDB_data(int cdev, uint8_t *buf, int count) {
 
 	if(verbose > 2)
 		syslog(LOG_DAEMON|LOG_INFO,
@@ -631,8 +624,7 @@ retrieve_CDB_data(int cdev, u8 *buf, int count) {
  *
  */
 
-int
-skip_prev_filemark(u8 *sense_flg) {
+static int skip_prev_filemark(uint8_t *sense_flg) {
 
 	DEBC(
 		printf("  skip_prev_filemark()\n");
@@ -659,8 +651,7 @@ skip_prev_filemark(u8 *sense_flg) {
 /*
  *
  */
-int
-skip_next_filemark(u8 *sense_flg) {
+static int skip_next_filemark(uint8_t *sense_flg) {
 
 	DEBC(
 		printf("  skip_next_filemark()\n");
@@ -694,7 +685,7 @@ skip_next_filemark(u8 *sense_flg) {
 /*
  * Set TapeAlert status in seqAccessDevice
  */
-void
+static void
 setSeqAccessDevice(struct seqAccessDevice * seqAccessDevice, u64 flg) {
 
 	seqAccessDevice->TapeAlert = htonll(flg);
@@ -704,8 +695,7 @@ setSeqAccessDevice(struct seqAccessDevice * seqAccessDevice, u64 flg) {
  * Check for any write restrictions - e.g. WORM, or Clean Cartridge mounted.
  * Return 1 = OK to write, zero -> Can't write.
  */
-int
-checkRestrictions(u8 *sense_flg) {
+static int checkRestrictions(uint8_t *sense_flg) {
 
 	// Check that there is a piece of media loaded..
 	if(! tapeLoaded) {
@@ -746,16 +736,15 @@ checkRestrictions(u8 *sense_flg) {
 /*
  * Set WORM mode sense flg
  */
-void
-setWORM() {
+static void setWORM(void) {
 	struct mode *m;
-	u8 *p;
+	uint8_t *p;
 
 	// Find pointer to Medium Configuration Page
 	m = find_pcode(0x1d, sm);
 	if(m) {
 		p = m->pcodePointer;
-		p[2] = 1;
+		p[2] = 1;	/* Set WORMM bit */
 		if(verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "WORM mode page set");
 	}
@@ -764,10 +753,9 @@ setWORM() {
 /*
  * Clears WORM mode sense flg
  */
-void
-clearWORM() {
+static void clearWORM(void) {
 	struct mode *m;
-	u8 *p;
+	uint8_t *p;
 
 	// Find pointer to Medium Configuration Page
 	m = find_pcode(0x1d, sm);
@@ -787,8 +775,7 @@ clearWORM() {
 // FIXME: Need to grab info from MAM !!!
 
 #define REPORT_DENSITY_LEN 56
-int
-resp_report_density(u8 media, int len, u8 *buf, u8 *sense_flg) {
+static int resp_report_density(uint8_t media, int len, uint8_t *buf, uint8_t *sense_flg) {
 	u16	*sp;
 	u32	*lp;
 	u32	t;
@@ -840,8 +827,7 @@ return(REPORT_DENSITY_LEN);
 /*
  * Process the MODE_SELECT command
  */
-int
-resp_mode_select(int cdev, u8 *cmd, u8 *buf, u8 *sense_flg) {
+static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	int alloc_len;
 	int k;
 
@@ -865,13 +851,12 @@ resp_mode_select(int cdev, u8 *cmd, u8 *buf, u8 *sense_flg) {
 }
 
 
-int
-resp_log_sense(u8 *SCpnt, u8 *buf) {
-	u8	*b = buf;
+static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
+	uint8_t	*b = buf;
 	int	retval = 0;
 	u16	*sp;
 
-	u8 supported_pages[] = {	0x00, 0x00, 0x00, 0x08,
+	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x08,
 					0x00,
 					WRITE_ERROR_COUNTER,
 					READ_ERROR_COUNTER,
@@ -958,7 +943,7 @@ resp_log_sense(u8 *SCpnt, u8 *buf) {
 		b = memcpy(b, &TapeUsage, sizeof(TapeUsage));
 		retval += sizeof(TapeUsage);
 		break;
-	case TAPE_CAPACITY:	/* Data Compression page */
+	case TAPE_CAPACITY:	/* Tape Capacity page */
 		if(verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 					"LOG SENSE: Tape Capacity page");
@@ -994,43 +979,11 @@ resp_log_sense(u8 *SCpnt, u8 *buf) {
 }
 
 /*
- * Send back 'SCSI Inquiry' data
- *
- * Work in progress...
- */
-int
-resp_inquiry(u8 *SCpnt, u8 *buf, u8 *sense_flg) {
-	u8 arr[MAX_INQ_ARR_SZ];
-	int alloc_len;
-
-	alloc_len = (SCpnt[3] << 8) | SCpnt[4];
-
-	memset(arr, 0, MAX_INQ_ARR_SZ);
-
-	if(SCpnt[1] & 0x2) {	/* Obsolete bit set */
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
-		return CHECK_CONDITION;
-	} else if(SCpnt[1] & 0x1) { /* EVPD flag set */
-	}
-	/* Drops thru here for a standard inquiry */
-	arr[0] = TYPE_TAPE;
-	arr[1] = 0x80;	// Removable
-	arr[2] = 0x5;	// 3 = SPC, 4 = SPC-2, 5 = SPC-3 standards
-	arr[3] = 0x2;	// Response data fmt. Values < 2 obsolete, > 3 reserved.
-	snprintf((char *)&arr[4], 8, "%-8s", "IBM");
-	snprintf((char *)&arr[12], 16, "%-16s", "ULT2580-TD1");
-	snprintf((char *)&arr[28], 8, "%-8s", "123455");
-
-return(0);
-}
-
-/*
  * Read Attribute
  *
  * Fill in 'buf' with data and return number of bytes
  */
-int
-resp_read_attribute(u8 * SCpnt, u8 * buf, u8 * sense_flg) {
+static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_flg) {
 	u16	*sp;
 	u16	attribute;
 	u32	*lp;
@@ -1083,10 +1036,9 @@ return ret_val;
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
-int
-readBlock(int cdev, u8 * buf, u8 * sense_flg, u32 request_sz) {
+static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_sz) {
 	loff_t	nread = 0;
-	u8	*comp_buf;
+	uint8_t	*comp_buf;
 	uLongf	uncompress_sz;
 	uLongf	comp_buf_sz;
 	int	z;
@@ -1129,7 +1081,7 @@ readBlock(int cdev, u8 * buf, u8 * sense_flg, u32 request_sz) {
 			}
 		}
 		comp_buf_sz = c_pos.disk_blk_size + 80;
-		comp_buf = (u8 *)malloc(comp_buf_sz);
+		comp_buf = (uint8_t *)malloc(comp_buf_sz);
 		uncompress_sz = bufsize;
 		if(NULL == comp_buf) {
 			syslog(LOG_DAEMON|LOG_WARNING,
@@ -1152,7 +1104,7 @@ readBlock(int cdev, u8 * buf, u8 * sense_flg, u32 request_sz) {
 			free(comp_buf);
 			return 0;
 		}
-		z = uncompress((u8 *)buf,&uncompress_sz, comp_buf, nread);
+		z = uncompress((uint8_t *)buf,&uncompress_sz, comp_buf, nread);
 		if(z != Z_OK) {
 			mkSenseBuf(MEDIUM_ERROR,E_DECOMPRESSION_CRC,sense_flg);
 			if(z == Z_MEM_ERROR)
@@ -1224,8 +1176,7 @@ readBlock(int cdev, u8 * buf, u8 * sense_flg, u32 request_sz) {
 /*
  * Return number of bytes written to 'file'
  */
-int
-writeBlock(u8 * src_buf, u32 src_sz,  u8 * sense_flg) {
+static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
 	loff_t	nwrite = 0;
 	Bytef	* dest_buf = src_buf;
 	uLong	dest_len = src_sz;
@@ -1298,8 +1249,7 @@ writeBlock(u8 * src_buf, u32 src_sz,  u8 * sense_flg) {
 /*
  * Rewind 'tape'.
  */
-void
-rawRewind(u8 *sense_flg) {
+static void rawRewind(uint8_t *sense_flg) {
 
 	// Start at beginning of datafile..
 	lseek64(datafile, 0L, SEEK_SET);
@@ -1314,8 +1264,7 @@ rawRewind(u8 *sense_flg) {
 /*
  * Rewind to beginning of data file and the position to first data header.
  */
-void
-respRewind(u8 * sense_flg) {
+static void respRewind(uint8_t * sense_flg) {
 
 	rawRewind(sense_flg);
 
@@ -1372,8 +1321,7 @@ respRewind(u8 * sense_flg) {
 /*
  * Space over (to) x filemarks. Setmarks not supported as yet.
  */
-void
-resp_space(u32 count, int code, u8 *sense_flg) {
+static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 
 	switch(code) {
 	// Space 'count' blocks
@@ -1435,8 +1383,7 @@ resp_space(u32 count, int code, u8 *sense_flg) {
  * Writes data in struct mam back to beginning of datafile..
  * Returns 0 if nothing written or -1 on error
  */
-int
-rewriteMAM(struct MAM *mamp, u8 *sense_flg) {
+static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg) {
 	loff_t nwrite = 0;
 
 	// Start at beginning of datafile..
@@ -1465,8 +1412,7 @@ rewriteMAM(struct MAM *mamp, u8 *sense_flg) {
 /*
  * Update MAM contents with current counters
  */
-void
-updateMAM(struct MAM *mamp, u8 *sense_flg, int loadCount) {
+static void updateMAM(struct MAM *mamp, uint8_t *sense_flg, int loadCount) {
 	u64 bw;		// Bytes Written
 	u64 br;		// Bytes Read
 	u64 load;	// load count
@@ -1510,8 +1456,7 @@ updateMAM(struct MAM *mamp, u8 *sense_flg, int loadCount) {
  * Return:
  *	total number of bytes to send back to vtl device
  */
-u32
-processCommand(int cdev, u8 *SCpnt, u8 *buf, u8 *sense_flg)
+static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense_flg)
 {
 	u32	block_size = 0L;
 	u32	count;
@@ -1784,8 +1729,12 @@ processCommand(int cdev, u8 *SCpnt, u8 *buf, u8 *sense_flg)
 
 		// Rewind and postition just after the first header.
 		respRewind(sense_flg);
+
+		ftruncate(datafile, c_pos.curr_blk);
+
 		// Position to just before first header.
 		position_to_curr_header(sense_flg);
+
 		// Write EOD header
 		mkEODHeader(sense_flg);
 		sleep(2);
@@ -1930,8 +1879,7 @@ processCommand(int cdev, u8 *SCpnt, u8 *buf, u8 *sense_flg)
  * Return 0 on failure, 1 on success
  */
 
-int
-load_tape(char *PCL, u8 *sense_flg) {
+static int load_tape(char *PCL, uint8_t *sense_flg) {
 	loff_t nread;
 	u64 fg = 0;	// TapeAlert flags
 
@@ -2032,8 +1980,7 @@ return 1;	// Return successful load
 /* Strip (recover) the 'Physical Cartridge Label'
  *   Well at least the data filename which relates to the same thing
  */
-char *
-strip_PCL(char *p, int start) {
+static char * strip_PCL(char *p, int start) {
 	char *q;
 
 	/* p += 4 (skip over 'load' string)
@@ -2052,8 +1999,7 @@ strip_PCL(char *p, int start) {
 return p;
 }
 
-int
-processMessageQ(char *mtext, u8 *sense_flg) {
+static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 	char * pcl;
 	char s[128];
 
@@ -2151,8 +2097,7 @@ processMessageQ(char *mtext, u8 *sense_flg) {
 return 0;
 }
 
-int
-init_queue(void) {
+int init_queue(void) {
 	int	queue_id;
 
 	/* Attempt to create or open message queue */
@@ -2171,8 +2116,7 @@ return (queue_id);
  * Return void  - Nothing
  */
 #define COMPRESSION_TYPE 0x10
-void
-init_mode_pages(struct mode *m) {
+static void init_mode_pages(struct mode *m) {
 	struct mode *mp;
 	u32	*lp;
 
@@ -2214,6 +2158,8 @@ init_mode_pages(struct mode *m) {
 		mp->pcodePointer[10] = 0x18;
 		// Select Data Compression
 		mp->pcodePointer[14] = 0x01;
+		// WTRE (WORM handling)
+		mp->pcodePointer[15] = 0x80;
 	}
 
 	// Medium Partition: SSC-3 8.3.4
@@ -2252,8 +2198,8 @@ main(int argc, char *argv[])
 	u32 pollInterval = 50000;
 	u32 serialNo = 0L;
 	u32  byteCount;
-	u8 * buf;
-	u8 * SCpnt;
+	uint8_t * buf;
+	uint8_t * SCpnt;
 	struct vtl_header vtl_head;
 
 	pid_t pid;
@@ -2335,7 +2281,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	rw_buf = (u8 *)malloc(1024 * 1024 * 1);	// 1M
+	rw_buf = (uint8_t *)malloc(1024 * 1024 * 1);	// 1M
 	if(NULL == rw_buf) {
 		perror("Could not alloc memory -- exiting");
 		exit(1);
@@ -2354,7 +2300,7 @@ main(int argc, char *argv[])
 		exit(1);
 	} else {
 		syslog(LOG_DAEMON|LOG_INFO, "Size of kfifo is %d", bufsize);
-		buf = (u8 *)malloc(bufsize);
+		buf = (uint8_t *)malloc(bufsize);
 		if(NULL == buf) {
 			perror("Problems allocating memory");
 			exit(1);
@@ -2428,7 +2374,7 @@ main(int argc, char *argv[])
 				 * - Returns SCSI command S/No. */
 				getCommand(cdev, &vtl_head, vx_status);
 
-				SCpnt = (u8 *)&vtl_head.cdb;
+				SCpnt = (uint8_t *)&vtl_head.cdb;
 				serialNo = htonl(vtl_head.serialNo);
 
 				/* Interpret the SCSI command & process

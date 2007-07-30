@@ -133,8 +133,8 @@ main(int argc, char *argv[]) {
 	mam.MAMSpaceRemaining = htonll(sizeof(mam.VendorUnique));
 	mam.MediumLength = htonl(384);	// 384 tracks
 	mam.MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-	memcpy(&mam.MediumManufacturer, "IBM     ", 8);
-	memcpy(&mam.ApplicationVendor, "IBM     ", 8);
+	memcpy(&mam.MediumManufacturer, "Mark    ", 8);
+	memcpy(&mam.ApplicationVendor, "Harvey  ", 8);
 
 	if(! strncmp("clean", mediaType, 5)) {
 		mam.MediumType = MEDIA_TYPE_CLEAN; // Cleaning cart
