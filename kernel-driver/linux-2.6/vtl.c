@@ -92,7 +92,7 @@
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.12.12"
-static const char * vtl_version_date = "20070407-0";
+static const char * vtl_version_date = "20070801-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
