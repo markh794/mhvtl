@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 21
-Source: vtl-2007-08-01.tgz
+Release: 22
+Source: vtl-2007-08-24.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -94,6 +94,9 @@ r=`/sbin/chkconfig --list|grep vtl|awk '{print $1}'`
 if [ "X"$r == "X" ]; then
 	/sbin/chkconfig --add vtl
 fi
+mkdir /opt/vtl
+chown vtl:vtl /opt/vtl
+chmod 770 /opt/vtl
 
 %preun
 if [ -x /etc/init.d/vtl ]; then
@@ -137,7 +140,13 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Fri Aug 24 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-22
+- Set correct directory ownership and permissions at post install time
+  for /opt/vtl
+
 * Wed Aug 01 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-21
 - Corrected warnings identified by sparse
 
 * Sat Apr 07 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>

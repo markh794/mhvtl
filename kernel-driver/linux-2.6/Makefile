@@ -10,10 +10,10 @@ obj-m	:= vtl.o
 # KDIR	:= /usr/src/linux/
 
 # Suitable for RedHat 4 & SLES 9
-#KDIR	:= /lib/modules/$(shell uname -r)/build
+KDIR	:= /lib/modules/$(shell uname -r)/build
 
 # For Ubuntu 6.06
-KDIR	:= /usr/src/linux-headers-$(shell uname -r)/
+#KDIR	:= /usr/src/linux-headers-$(shell uname -r)/
 # KDIR	:= /usr/src/linux-headers-2.6.15-26-686/
 PWD	:= $(shell pwd)
 
