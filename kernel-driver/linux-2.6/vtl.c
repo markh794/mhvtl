@@ -93,7 +93,7 @@
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.12.13"
-static const char * vtl_version_date = "20070920-0";
+static const char * vtl_version_date = "20070920-3";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -1322,6 +1322,8 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 		/* Make the current pointer to the start */
 		open_devip->spin_in_progress = SPIN_LOCK_UNLOCKED;
 
+		init_MUTEX(&open_devip->lock);
+
 		if (VTL_OPT_NOISE & vtl_opts)
 			printk("vtl: Allocated %ld bytes for fifo buffer\n",
 								 (long)sz);
@@ -2114,6 +2116,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	unsigned int minor = iminor(inode);
 	struct sdebug_queued_cmd * sqcp = NULL;
 	unsigned int  k;
+	int ret = 0;
 	unsigned char s[4];	/* Serial Number & sense data buffer */
 	unsigned char valid_sense;
 	unsigned long serial_no;
@@ -2128,6 +2131,11 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		return -ENODEV;
 	}
 
+	if (down_interruptible(&devp[minor]->lock))
+		return -ERESTARTSYS;
+
+	ret = 0;
+
 	switch (cmd) {
 	/* Online */
 	case 0x80:
@@ -2136,7 +2144,8 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		if (devp[minor]->status_argv != devp[minor]->ptype) {
 			printk("devp[%d]->ptype: %d\n",
 					 	minor, devp[minor]->ptype);
-			return -ENODEV;
+			ret = -ENODEV;
+			goto give_up;
 		}
 		devp[minor]->device_offline = 0;
 		printk(KERN_INFO "vtl%d: Online ptype(%d)\n",
@@ -2163,7 +2172,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 			- which this ioctl passes to user space
 		*/
 		put_user(devp[minor]->status_argv, (unsigned int *)arg);
-		return devp[minor]->status;
+		ret = devp[minor]->status;
 		break;
 
 	/* Ack status poll */
@@ -2204,8 +2213,10 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 			/* Free old buffer */
 			vfree(devp[minor]->rw_buf);
 			devp[minor]->rw_buf = vmalloc(devp[minor]->rw_buf_sz);
-			if (NULL == devp[minor]->rw_buf)
-				return -ENOMEM;
+			if (NULL == devp[minor]->rw_buf) {
+				ret = -ENOMEM;
+				goto give_up;
+			}
 			printk("New read/write buffer size: %d\n",
 							devp[minor]->rw_buf_sz);
 		}
@@ -2219,7 +2230,8 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		if (k >= VTL_CANQUEUE) {
 			printk(KERN_WARNING "c_ioctl: callback function not"
 						" found.: k = %d\n", k);
-			return 1;	/* report busy to mid level */
+			ret = 1;	/* report busy to mid level */
+			goto give_up;
 		}
 		if (NULL == sqcp) {
 			printk("FATAL %s, line %d: sqcp is NULL\n",
@@ -2271,13 +2283,19 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	 */
 	case 0x200:	/* VTL_GET_HEADER - Read SCSI header + S/No. */
 		vheadp = (struct vtl_header *)devp[minor]->vtl_header;
-		if (copy_to_user((u8 *)arg,(u8 *)vheadp,sizeof(struct vtl_header)))
-			return -EFAULT;
+		if (copy_to_user((u8 *)arg,(u8 *)vheadp,sizeof(struct vtl_header))) {
+			ret = -EFAULT;
+			goto give_up;
+		}
 		break;
 	default:
-		return -ENOTTY;
+		ret = -ENOTTY;
+		goto give_up;
 	}
-return 0;
+
+give_up:
+	up(&devp[minor]->lock);
+	return ret;
 }
 
 static ssize_t vtl_read(struct file *filp, char *buf, size_t count,
