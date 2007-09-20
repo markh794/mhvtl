@@ -16,8 +16,8 @@ static int vtl_device_reset(struct scsi_cmnd *);
 static int vtl_host_reset(struct scsi_cmnd *);
 static int vtl_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
 static const char * vtl_info(struct Scsi_Host *);
-static ssize_t vtl_read(struct file *, char *, size_t, loff_t *);
-static ssize_t vtl_write(struct file *, const char *, size_t, loff_t *);
+static ssize_t vtl_read(struct file *filp, char __user *buf, size_t count, loff_t *offp);
+static ssize_t vtl_write(struct file *filp, const char __user *buf, size_t count, loff_t *offp);
 static int vtl_open(struct inode *, struct file *);
 static int vtl_release(struct inode *, struct file *);
 

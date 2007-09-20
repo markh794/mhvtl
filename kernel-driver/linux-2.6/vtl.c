@@ -62,6 +62,7 @@
 #include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
+#include <asm/uaccess.h>
 
 #include <linux/blkdev.h>
 #include <linux/cdev.h>
@@ -91,8 +92,8 @@
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.12.12"
-static const char * vtl_version_date = "20070801-0";
+#define VTL_VERSION "0.12.13"
+static const char * vtl_version_date = "20070920-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -217,6 +218,8 @@ struct sdebug_dev_info {
 	unsigned char * rw_buf;
 	int		rw_buf_sz;
 	struct kfifo * fifo;
+
+	struct semaphore lock;
 
 	spinlock_t spin_in_progress;
 
@@ -451,7 +454,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
 		len = (req_len < max_arr_len) ? req_len : max_arr_len;
-		if(NULL == arr)
+		if (NULL == arr)
 			kfifo_put(fifo, scp->request_buffer, len);
 		else
 			memcpy(arr, scp->request_buffer, len);
@@ -468,7 +471,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 			len = max_arr_len - req_len;
 			fin = 1;
 		}
-		if(NULL == arr)
+		if (NULL == arr)
 			kfifo_put(fifo, kaddr_off, len);
 		else
 			memcpy(arr + req_len, kaddr_off, len);
@@ -577,7 +580,7 @@ static int q_cmd(struct scsi_cmnd * scp,
 	struct vtl_header * vheadp;
 
 	/* No user space daemon talking to us */
-	if(devip->device_offline) {
+	if (devip->device_offline) {
 		printk("Offline: No user-space daemons registered\n");
 		return resp_becomming_ready(devip);
 	}
@@ -587,7 +590,7 @@ static int q_cmd(struct scsi_cmnd * scp,
 	/*
 	 * Check fifo is empty, return error if not
 	 */
-	if(kfifo_len(devip->fifo) != 0) {
+	if (kfifo_len(devip->fifo) != 0) {
 		printk("%s, line %d: kfifo not empty, len %d"
 			", reset fifo, S/No %ld"
 			", target: %d, lun: %d\n",
@@ -600,7 +603,7 @@ static int q_cmd(struct scsi_cmnd * scp,
 
 	/* Return error if we could not add SCSI cmd
 	   to the queued_arr[] */
-	if(add_q_cmd(scp, done))
+	if (add_q_cmd(scp, done))
 		return schedule_resp(scp, NULL, done,
 					DID_NO_CONNECT << 16, 0);
 
@@ -638,7 +641,7 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 		return 0;	/* assume mid level reprocessing command */
 
 	if ((VTL_OPT_NOISE & vtl_opts) && cmd) {
-		if(TEST_UNIT_READY != cmd[0]) {	// Skip TUR *
+		if (TEST_UNIT_READY != cmd[0]) {	// Skip TUR *
 			printk(KERN_INFO "vtl: cmd ");
 			for (k = 0, num = SCpnt->cmd_len; k < num; ++k)
 				printk("%02x ", (int)cmd[k]);
@@ -646,7 +649,7 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 		}
 	}
 
-	if(target == sdebug_driver_template.this_id) {
+	if (target == sdebug_driver_template.this_id) {
 		printk(KERN_INFO "vtl: initiator's id used as "
 		       "target!\n");
 		return schedule_resp(SCpnt, NULL, done,
@@ -674,22 +677,22 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 
 	switch (*cmd) {
 	case INQUIRY:		/* mandatory, ignore unit attention */
-//		if(devip->device_offline)
+//		if (devip->device_offline)
 			errsts = resp_inquiry(SCpnt, target, devip);
 //		else {	/* Go to user space for info */
 //			errsts = q_cmd(SCpnt, done, devip);
-//			if(errsts == 0)
+//			if (errsts == 0)
 //				return 0;
 //		}
 		break;
 	case REQUEST_SENSE:	/* mandatory, ignore unit attention */
-		if(devip->device_offline) {
+		if (devip->device_offline) {
 			/* internal REQUEST SENSE routine */
 			errsts = resp_requests(SCpnt, devip);
 		} else {
 			/* User space REQUEST SENSE */
 			errsts = q_cmd(SCpnt, done, devip);
-			if(errsts == 0)
+			if (errsts == 0)
 				return 0;
 		}
 		break;
@@ -697,7 +700,7 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 	case MODE_SENSE_10:
 		/* User space REQUEST SENSE */
 		errsts = q_cmd(SCpnt, done, devip);
-		if(errsts == 0)
+		if (errsts == 0)
 			return 0;
 		break;
 	case READ_BLOCK_LIMITS:
@@ -718,7 +721,7 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 		num   = cmd[4];
 
 		errsts = q_cmd(SCpnt, done, devip);
-		if(errsts == 0)
+		if (errsts == 0)
 			return resp_write_to_user(SCpnt, devip, num);
 		break;
 	case MODE_SELECT_10:
@@ -726,7 +729,7 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 			 cmd[8];
 
 		errsts = q_cmd(SCpnt, done, devip);
-		if(errsts == 0)
+		if (errsts == 0)
 			return resp_write_to_user(SCpnt, devip, num);
 		break;
 	case WRITE_16:
@@ -752,7 +755,7 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 				 cmd[4];
 
 			errsts = q_cmd(SCpnt, done, devip);
-			if(errsts == 0)
+			if (errsts == 0)
 				return resp_write_to_user(SCpnt, devip, num);
 		} else {	/* Fail any thing other than a WRITE_6 */
 			printk("Fixed block Writes: not supported **");
@@ -768,13 +771,13 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 			(cmd[12] <<  8) +
 			 cmd[13];
 		// Check for buffer overflow..
-		if(num > devip->rw_buf_sz) {
+		if (num > devip->rw_buf_sz) {
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
 					 	INVALID_FIELD_IN_CDB,0);
 			errsts = check_condition_result;
 		}
 		errsts = q_cmd(SCpnt, done, devip);
-		if(errsts == 0)
+		if (errsts == 0)
 			return resp_write_to_user(SCpnt, devip, num);
 		break;
 
@@ -782,7 +785,7 @@ static int vtl_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 		if ((errsts = check_reset(SCpnt, devip)))
 			break;
 		errsts = q_cmd(SCpnt, done, devip);
-		if(errsts == 0)
+		if (errsts == 0)
 			return 0;
 		break;
 	}
@@ -832,7 +835,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
 		act_len = (req_len < arr_len) ? req_len : arr_len;
-		if(NULL == arr)
+		if (NULL == arr)
 			__kfifo_get(fifo, scp->request_buffer, act_len);
 		else
 			memcpy(scp->request_buffer, arr, act_len);
@@ -853,7 +856,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 				active = 0;
 				len = arr_len - req_len;
 			}
-			if(NULL == arr)
+			if (NULL == arr)
 				__kfifo_get(fifo, kaddr_off, len);
 			else
 				memcpy(kaddr_off, arr + req_len, len);
@@ -894,7 +897,7 @@ static int inquiry_evpd_83(unsigned char * arr, int dev_id_num,
 	arr[0] = 0x2;	/* ASCII */
 	arr[1] = 0x1;
 	arr[2] = 0x0;
-	if(devip->ptype == TYPE_TAPE) {
+	if (devip->ptype == TYPE_TAPE) {
 		switch(devip->lun) {
 		case 0:
 		case 1:
@@ -966,14 +969,14 @@ static int resp_inquiry(struct scsi_cmnd * scp, int target,
 			     (devip->target * 1000) + devip->lun;
 		len = scnprintf(dev_id_str, 6, "%d", dev_id_num);
 		if (0 == cmd[2]) { /* supported vital product data pages */
-			if(devip->lun > 0)
+			if (devip->lun > 0)
 				arr[3] = 5;
 			else
 				arr[3] = 3;
 			arr[4] = 0x0; /* this page */
 			arr[5] = 0x80; /* unit serial number */
 			arr[6] = 0x83; /* device identification */
-			if(devip->lun > 0) {
+			if (devip->lun > 0) {
 				arr[7] = 0xb0;	// SSC VPD page code
 				arr[8] = 0xc0;	// F/w build information page
 			}
@@ -1019,7 +1022,7 @@ static int resp_inquiry(struct scsi_cmnd * scp, int target,
 	/* arr[6] |= 0x40; ... claim: EncServ (enclosure services) */
 //	arr[7] = 0x3a; /* claim: WBUS16, SYNC, LINKED + CMDQUE */
 	arr[7] = 0x32; /* claim: WBUS16, SYNC, CMDQUE */
-	if(devip->ptype == TYPE_TAPE) {
+	if (devip->ptype == TYPE_TAPE) {
 		switch(devip->lun) {
 		case 0:
 		case 1:
@@ -1228,7 +1231,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 	if (devip)
 		return devip;
 	sdbg_host = *(struct sdebug_host_info **) sdev->host->hostdata;
-	if(! sdbg_host) {
+	if (! sdbg_host) {
 		printk(KERN_ERR "Host info NULL\n");
 		return NULL;
 	}
@@ -1264,7 +1267,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 		open_devip->used = 1;
 		/* Unit not ready by default */
 		open_devip->device_offline = 1;
-		if(open_devip->minor == 0) {
+		if (open_devip->minor == 0) {
 			/* Set unit type up as Library */
 			open_devip->ptype = TYPE_MEDIUM_CHANGER;
 			sz = MEDIUM_CHANGER_SZ;	/* 512k buffer */
@@ -1297,7 +1300,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 		}
 		/* Allocate memory for header buffer */
 		open_devip->vtl_header = vmalloc(sizeof(struct vtl_header));
-		if(NULL == open_devip->vtl_header) {
+		if (NULL == open_devip->vtl_header) {
 			printk(KERN_ERR
                	"vtl_init: out of memory, Can not allocate header buffer\n");
 			return NULL;
@@ -1319,7 +1322,7 @@ static struct sdebug_dev_info * devInfoReg(struct scsi_device * sdev)
 		/* Make the current pointer to the start */
 		open_devip->spin_in_progress = SPIN_LOCK_UNLOCKED;
 
-		if(VTL_OPT_NOISE & vtl_opts)
+		if (VTL_OPT_NOISE & vtl_opts)
 			printk("vtl: Allocated %ld bytes for fifo buffer\n",
 								 (long)sz);
 
@@ -1815,7 +1818,7 @@ static int allocate_minor_no(struct sdebug_dev_info *devip)
 	int a = 0;
 
 	for(a=0; a < DEF_MAX_MINOR_NO; a++) {
-		if(devp[a] == 0) {
+		if (devp[a] == 0) {
 			devp[a] = devip;
 			break;
 		}
@@ -1830,7 +1833,7 @@ static int __init vtl_init(void)
 	int	ret;
 
 	vtl_Major = register_chrdev(vtl_Major, "vtl", &vtl_fops);
-	if(vtl_Major < 0) {
+	if (vtl_Major < 0) {
 		printk(KERN_WARNING "vtl: can't get major number\n");
 		return vtl_Major;
 	}
@@ -1838,22 +1841,22 @@ static int __init vtl_init(void)
 	init_all_queued();
 
 	ret = device_register(&pseudo_primary);
-	if(ret < 0) {
+	if (ret < 0) {
 		printk(KERN_WARNING "vtl: device_register error: %d\n", ret);
 		goto dev_unreg;
 	}
 	ret = bus_register(&pseudo_lld_bus);
-	if(ret < 0) {
+	if (ret < 0) {
 		printk(KERN_WARNING "vtl: bus_register error: %d\n", ret);
 		goto bus_unreg;
 	}
 	ret = driver_register(&sdebug_driverfs_driver);
-	if(ret < 0) {
+	if (ret < 0) {
 		printk(KERN_WARNING "vtl: driver_register error: %d\n", ret);
 		goto driver_unreg;
 	}
 	ret = do_create_driverfs_files();
-	if(ret < 0) {
+	if (ret < 0) {
 		printk(KERN_WARNING "vtl: driver_create_file error: %d\n", ret);
 		goto del_files;
 	}
@@ -2117,11 +2120,11 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	unsigned int  count;
 	struct vtl_header * vheadp;
 
-	if(minor > DEF_MAX_MINOR_NO) {	/* Check limit minor no. */
+	if (minor > DEF_MAX_MINOR_NO) {	/* Check limit minor no. */
 		return -ENODEV;
 	}
 
-	if(NULL == devp[minor]) {
+	if (NULL == devp[minor]) {
 		return -ENODEV;
 	}
 
@@ -2130,7 +2133,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	case 0x80:
 		get_user(devp[minor]->status_argv, (unsigned int *)arg);
 		/* Only like types (SSC / medium changer) */
-		if(devp[minor]->status_argv != devp[minor]->ptype) {
+		if (devp[minor]->status_argv != devp[minor]->ptype) {
 			printk("devp[%d]->ptype: %d\n",
 					 	minor, devp[minor]->ptype);
 			return -ENODEV;
@@ -2193,7 +2196,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		count -= 5;
 
 		/* While size of SCSI read is larger than our buffer */
-		if(count > devp[minor]->rw_buf_sz) {
+		if (count > devp[minor]->rw_buf_sz) {
 			while(count > devp[minor]->rw_buf_sz)
 				/* Double size */
 			       devp[minor]->rw_buf_sz += devp[minor]->rw_buf_sz;
@@ -2201,7 +2204,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 			/* Free old buffer */
 			vfree(devp[minor]->rw_buf);
 			devp[minor]->rw_buf = vmalloc(devp[minor]->rw_buf_sz);
-			if(NULL == devp[minor]->rw_buf)
+			if (NULL == devp[minor]->rw_buf)
 				return -ENOMEM;
 			printk("New read/write buffer size: %d\n",
 							devp[minor]->rw_buf_sz);
@@ -2210,7 +2213,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		for (k = 0; k < VTL_CANQUEUE; ++k) {
 			sqcp = &queued_arr[k];
 			if (sqcp->in_use)
-				if(sqcp->a_cmnd->serial_number == serial_no)
+				if (sqcp->a_cmnd->serial_number == serial_no)
 					break;
 		}
 		if (k >= VTL_CANQUEUE) {
@@ -2218,11 +2221,11 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 						" found.: k = %d\n", k);
 			return 1;	/* report busy to mid level */
 		}
-		if(NULL == sqcp) {
+		if (NULL == sqcp) {
 			printk("FATAL %s, line %d: sqcp is NULL\n",
 							__FUNCTION__, __LINE__);
 		} else {
-			if(count)
+			if (count)
 				fill_from_dev_buffer(sqcp->a_cmnd, NULL, count,
 							devp[minor]->fifo);
 			del_timer_sync(&sqcp->cmnd_timer);
@@ -2232,7 +2235,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 				printk("%s(), line %d: auto sense: %s\n",
 						__FUNCTION__, __LINE__,
 						(valid_sense) ? "Yes" : "No");
-			if(valid_sense) {
+			if (valid_sense) {
 				sqcp->a_cmnd->result = check_condition_result;
 				// Automagically grab SENSE data
 				__kfifo_get(devp[minor]->fifo,
@@ -2242,7 +2245,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 				sqcp->a_cmnd->result = DID_OK << 16;
 			}
 
-			if(NULL != sqcp->done_funct)
+			if (NULL != sqcp->done_funct)
 				sqcp->done_funct(sqcp->a_cmnd);
 			else
 				printk("FATAL %s, line %d: SCSI done_funct"
@@ -2268,7 +2271,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	 */
 	case 0x200:	/* VTL_GET_HEADER - Read SCSI header + S/No. */
 		vheadp = (struct vtl_header *)devp[minor]->vtl_header;
-		if(copy_to_user((u8 *)arg,(u8 *)vheadp,sizeof(struct vtl_header)))
+		if (copy_to_user((u8 *)arg,(u8 *)vheadp,sizeof(struct vtl_header)))
 			return -EFAULT;
 		break;
 	default:
@@ -2286,13 +2289,19 @@ static ssize_t vtl_read(struct file *filp, char *buf, size_t count,
 	struct kfifo *p;
 
 	p = devp[minor]->fifo;
+	if (down_interruptible(&devp[minor]->lock))
+		return -ERESTARTSYS;
+
 	while(cnt < count &&
 		(kfifo_get(p, &c, sizeof(c)) == sizeof(c))) {
 // FIXME: Should use 'copy_from_user()/copy_to_user() instead of char at a time
-			if (put_user(c, buf++))
+			if (put_user(c, buf++)) {
+				up(&devp[minor]->lock);
 				return -EFAULT;
+			}
 		cnt++;
 	}
+	up(&devp[minor]->lock);
 	return cnt;
 }
 
@@ -2304,14 +2313,20 @@ static ssize_t vtl_write(struct file *filp, const char *buf, size_t count,
 	unsigned char c;
 	int	ret;
 
+	if (down_interruptible(&devp[minor]->lock))
+		return -ERESTARTSYS;
+
 	while(cnt < count) {
 		if (get_user(c, buf++))
 			return -EFAULT;
 		ret = kfifo_put(devp[minor]->fifo, &c, sizeof(c));
-		if(ret != sizeof(c))
+		if (ret != sizeof(c)) {
+			up(&devp[minor]->lock);
 			return -EFAULT;
+		}
 		cnt++;
 	}
+	up(&devp[minor]->lock);
 	return cnt;
 }
 
@@ -2326,13 +2341,11 @@ static int vtl_release(struct inode *inode, struct file *filp)
 static int vtl_open(struct inode *inode, struct file *filp)
 {
 	unsigned int minor = iminor(inode);
-	if(devp[minor] == 0) {
+	if (devp[minor] == 0) {
 		printk("Attempt to open vtl%d failed: No such device\n", minor);
 		return -EBUSY;
-	} else {
-		printk("vtl%d: Opened OK\n", minor);
+	} else
 		return 0;
-	}
 }
 
 
