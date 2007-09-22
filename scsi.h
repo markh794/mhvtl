@@ -91,6 +91,7 @@
 #define	RESERVE			0x16
 #define	RESERVE_10		0x56
 #define	REZERO_UNIT		0x01
+#define SEND_DIAGNOSTIC		0x1d
 #define	SPACE			0x11
 #define	START_STOP		0x1b
 #define	TEST_UNIT_READY		0x00

@@ -2,7 +2,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
 Release: 23
-Source: vtl-2007-09-20.tgz
+Source: vtl-2007-09-21.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -94,7 +94,10 @@ r=`/sbin/chkconfig --list|grep vtl|awk '{print $1}'`
 if [ "X"$r == "X" ]; then
 	/sbin/chkconfig --add vtl
 fi
-mkdir /opt/vtl
+
+if [ ! -d /opt/vtl ]; then
+	mkdir /opt/vtl
+fi
 chown vtl:vtl /opt/vtl
 chmod 770 /opt/vtl
 
@@ -140,7 +143,7 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
-* Thu Sep 20 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Fri Sep 21 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-23
 - vtl kernel module bug fix - resolved a race condition with my usage of
   copy_to_user()/copy_from_user() and c_ioctl() routines.

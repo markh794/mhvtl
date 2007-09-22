@@ -280,8 +280,6 @@ static struct scsi_host_template sdebug_driver_template = {
 	.module =		THIS_MODULE,
 };
 
-//static unsigned char * fake_storep;	/* ramdisk storage */
-
 static int num_aborts = 0;
 static int num_dev_resets = 0;
 static int num_bus_resets = 0;
@@ -420,14 +418,10 @@ static int schedule_resp(struct scsi_cmnd * cmnd,
 }
 
 /*
- * This is so common, that I'm making it a function..
- *
  * The SCSI error code when the user space daemon is not connected.
  */
 static int resp_becomming_ready(struct sdebug_dev_info * devip) {
-	mk_sense_buffer(devip, NOT_READY,
-			NOT_SELF_CONFIGURED,
-			NO_ADDED_SENSE);
+	mk_sense_buffer(devip, NOT_READY, NOT_SELF_CONFIGURED, NO_ADDED_SENSE);
 	return check_condition_result;
 }
 
@@ -486,27 +480,6 @@ static int fetch_to_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 /**********************************************************************
  *                SCSI data handling routines
  **********************************************************************/
-/*
- * Writes any data to the 'device' which in this case is a user-space
- * daemon.
- *
- * In upper layers of this driver, we save SCSI pointer & number of
- * bytes we want to xfer.
- * The user-daemon will send an ioctl (VTL_GET_DATA), where the c_ioctl
- * portion of this driver will run thru the user_put_data()
- */
-/*
-static int resp_write_to_user(struct scsi_cmnd * SCpnt,
-			  struct sdebug_dev_info * devip, int count)
-{
-	write_lock_irqsave(&atomic_rw, iflags);
-	devip->SCpnt = SCpnt;	// Save SCSI command struct for ioctl routines
-	devip->count = count;	// And save number of bytes we need to send.
-	write_unlock_irqrestore(&atomic_rw, iflags);
-	return 0;
-}
-*/
-
 static int resp_write_to_user(struct scsi_cmnd * SCpnt,
 			  struct sdebug_dev_info * devip, int count)
 {

@@ -1,9 +1,6 @@
 /*
  * mktape
  *
- * Takes one arg, the barcode label.
- *
- * $Id: mktape.c,v 1.14.2.2 2006-08-06 07:58:44 markh Exp $
  */
 
 #include <unistd.h>
@@ -21,7 +18,7 @@
 #include "vtltape.h"
 #include "vxshared.h"
 
-const char *mktapeVersion = "$Id: mktape.c,v 1.14.2.2 2006-08-06 07:58:44 markh Exp $";
+const char *mktapeVersion = "$Id: mktape.c,v 1.15.0.0 2007-09-21 07:58:44 markh Exp $";
 
 #ifndef Solaris
   loff_t lseek64(int, loff_t, int);
@@ -33,7 +30,7 @@ int debug = 0;
 void
 usage(char *progname) {
 
-	printf("Usage: %s -m PCL -s size -t type -w\n", progname);
+	printf("Usage: %s -m PCL -s size -t type\n", progname);
 	printf("       Where 'size' is in Megabytes\n");
 	printf("             'type' is data | clean | WORM\n");
 	printf("             'PCL' is Physical Cartridge Label (barcode)\n\n");
@@ -52,21 +49,20 @@ main(int argc, char *argv[]) {
 	char	*mediaCapacity = NULL;
 	u32	size;
 
-	if(argc < 2) {
+	if (argc < 2) {
 		usage(progname);
 		exit(1);
 	}
 
 	while(argc > 0) {
-		if(argv[0][0] == '-') {
+		if (argv[0][0] == '-') {
 			switch (argv[0][1]) {
 			case 'd':
 				debug++;
 				verbose = 9;	// If debug, make verbose...
 				break;
 			case 'm':
-				if(argc > 1) {
-//					printf("argv: -m %s\n", argv[1]);
+				if (argc > 1) {
 					pcl = argv[1];
 				} else {
 					puts("    More args needed for -m\n");
@@ -74,7 +70,7 @@ main(int argc, char *argv[]) {
 				}
 				break;
 			case 's':
-				if(argc > 1) {
+				if (argc > 1) {
 					mediaCapacity = argv[1];
 				} else {
 					puts("    More args needed for -s\n");
@@ -82,7 +78,7 @@ main(int argc, char *argv[]) {
 				}
 				break;
 			case 't':
-				if(argc > 1) {
+				if (argc > 1) {
 					mediaType = argv[1];
 				} else {
 					puts("    More args needed for -t\n");
@@ -102,21 +98,21 @@ main(int argc, char *argv[]) {
 		argc--;
 	}
 
-	if(pcl == NULL) {
+	if (pcl == NULL) {
 		usage(progname);
 		exit(1);
 	}
-	if(mediaCapacity == NULL) {
+	if (mediaCapacity == NULL) {
 		usage(progname);
 		exit(1);
 	}
-	if(mediaType == NULL) {
+	if (mediaType == NULL) {
 		usage(progname);
 		exit(1);
 	}
 
 	sscanf(mediaCapacity, "%d", &size);
-	if(size == 0)
+	if (size == 0)
 		size = 8000;
 
 	h.blk_type = B_BOT;
@@ -136,7 +132,7 @@ main(int argc, char *argv[]) {
 	memcpy(&mam.MediumManufacturer, "Mark    ", 8);
 	memcpy(&mam.ApplicationVendor, "Harvey  ", 8);
 
-	if(! strncmp("clean", mediaType, 5)) {
+	if (! strncmp("clean", mediaType, 5)) {
 		mam.MediumType = MEDIA_TYPE_CLEAN; // Cleaning cart
 		mam.MediumTypeInformation = 20;	// Max cleaning loads
 	} else if (! strncmp("WORM", mediaType, 4)) {
@@ -150,17 +146,17 @@ main(int argc, char *argv[]) {
 
 	sprintf((char *)currentMedia, "%s/%s", HOME_PATH, pcl);
 	syslog(LOG_DAEMON|LOG_INFO, "%s being created", currentMedia);
-	if((file = creat((char *)currentMedia,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) == -1) {
+	if ((file = creat((char *)currentMedia,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) == -1) {
 		perror("Failed creating file");
 		exit(2);
 	}
 	nwrite = write(file, &h, sizeof(h));
-	if(nwrite <= 0) {
+	if (nwrite <= 0) {
 		perror("Unable to write header");
 		exit(1);
 	}
 	nwrite = write(file, &mam, sizeof(mam));
-	if(nwrite <= 0) {
+	if (nwrite <= 0) {
 		perror("Unable to write MAM");
 		exit(1);
 	}
@@ -172,7 +168,7 @@ main(int argc, char *argv[]) {
 	h.next_blk = h.curr_blk;
 
 	nwrite = write(file, &h, sizeof(h));
-	if(nwrite <= 0) {
+	if (nwrite <= 0) {
 		perror("Unable to write header");
 		exit(1);
 	}
