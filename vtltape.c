@@ -43,7 +43,7 @@
  *          This means I don't have to do any kernel level drivers
  *          and leaverage the hosts native iSCSI initiator.
  */
-static const char * Version = "$Id: vtltape.c 1.14 2007-08-24 06:35:01 markh Exp $";
+static const char * Version = "$Id: vtltape.c 1.15 2007-09-23 06:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -1273,6 +1273,7 @@ static void rawRewind(uint8_t *sense_flg) {
  * Rewind to beginning of data file and the position to first data header.
  */
 static void respRewind(uint8_t * sense_flg) {
+	loff_t nread = 0;
 
 	rawRewind(sense_flg);
 
@@ -1280,7 +1281,20 @@ static void respRewind(uint8_t * sense_flg) {
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
 		DEBC( print_header(&c_pos);) ;
 	}
-	read(datafile, &mam, c_pos.blk_size);
+	nread = read(datafile, &mam, sizeof(struct MAM));
+	if (nread != sizeof(struct MAM)) {
+		syslog(LOG_DAEMON|LOG_INFO, "read MAM short - corrupt");
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		memset(&mam, 0, sizeof(struct MAM));
+		DEBC( print_header(&c_pos);) ;
+	}
+
+	if (mam.tape_fmt_version != TAPE_FMT_VERIONS) {
+		syslog(LOG_DAEMON|LOG_INFO, "Incorrect media format");
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		DEBC( print_header(&c_pos);) ;
+	}
+
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "MAM: media S/No. %s",
 							mam.MediumSerialNumber);
@@ -1873,10 +1887,18 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 
 	case SEND_DIAGNOSTIC:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic**");
+			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
 		break;
+
+	case PERSISTENT_RESERVE_IN:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Persistent reserve in - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+
 	default:
-		syslog(LOG_DAEMON|LOG_ERR, "*** Unsupported command %d ***",
+		syslog(LOG_DAEMON|LOG_ERR, "*** Unsupported command 0x%02x ***",
 				SCpnt[0]);
 		logSCSICommand(SCpnt);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);

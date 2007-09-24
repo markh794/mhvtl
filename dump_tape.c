@@ -79,7 +79,7 @@ print_current_header(void) {
 			printf("      Unknown type");
 			break;
 	}
-	if(current_position.blk_type == B_BOT)
+	if (current_position.blk_type == B_BOT)
 		printf("(%d), Capacity %" PRId64 ", Blk No.: %" PRId64
 		", prev %" PRId64 ", curr %" PRId64 ", next %" PRId64 "\n",
 			current_position.blk_type,
@@ -103,12 +103,12 @@ int
 skip_to_next_header(int datafile, char * sense_flg) {
 	loff_t nread;
 
-	if(current_position.next_blk != lseek64(datafile, current_position.next_blk, SEEK_SET)) {
+	if (current_position.next_blk != lseek64(datafile, current_position.next_blk, SEEK_SET)) {
 		printf("Error reading datafile while forward SPACEing!!\n");
 		return -1;
 	}
 	nread = read(datafile, &current_position, sizeof(current_position));
-	if(nread <= 0) {
+	if (nread <= 0) {
 		printf("Error reading datafile while forward SPACEing!!\n");
 		return -1;
 	}
@@ -123,20 +123,20 @@ main(int argc, char *argv[])
 	char sense_flg;
 	loff_t	nread;
 
-	if(argc < 2) {
+	if (argc < 2) {
 		printf("Usage: dump_file -f <media>\n");
 		exit(1);
 	}
 
 	while(argc > 0) {
-		if(argv[0][0] == '-') {
+		if (argv[0][0] == '-') {
 			switch (argv[0][1]) {
 			case 'd':
 				debug++;
 				verbose = 9;	// If debug, make verbose...
 				break;
 			case 'f':
-				if(argc > 1) {
+				if (argc > 1) {
 					printf("argv: -f %s\n", argv[1]);
 					dataFile = argv[1];
 				} else {
@@ -155,7 +155,7 @@ main(int argc, char *argv[])
 
 	printf("Data file is : %s\n", dataFile);
 
-	if((ofp = open(dataFile, O_RDWR|O_LARGEFILE)) == -1) {
+	if ((ofp = open(dataFile, O_RDWR|O_LARGEFILE)) == -1) {
 		fprintf(stderr, "%s, ", dataFile);
 		perror("Could not open");
 		exit(1);
@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 	print_current_header();
 	while (current_position.blk_type != B_EOD) {
 		nread = skip_to_next_header(ofp, &sense_flg);
-		if(nread == -1)
+		if (nread == -1)
 			break;
 		else
 			print_current_header();

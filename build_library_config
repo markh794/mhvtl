@@ -36,7 +36,7 @@ TMP=/var/tmp/_build.$$
 CONFIG=/etc/vtl/vxlib.conf
 LIBCONTENTS=/etc/vtl/library_contents
 OPTIONS=""
-# OPTIONS=" -v"
+# OPTIONS=" -v -v"
 
 if [ -x /usr/bin/lsscsi ]; then
 	LSSCSI=/usr/bin/lsscsi

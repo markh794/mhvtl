@@ -36,7 +36,7 @@ init_queue(void) {
 int	queue_id;
 
 /* Attempt to create or open message queue */
-if( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
+if ( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
 	perror("msgget failed");
 
 return (queue_id);
@@ -47,17 +47,17 @@ main(int argc, char **argv) {
 int	mlen, r_qid;
 struct q_entry r_entry;
 
-	if(argc != 2) {
+	if (argc != 2) {
 		fprintf(stderr, "Usage: %s MessageQ.\n", argv[0]);
 		exit(1);
 	}
 
 	/* Initialize message queue as nessary */
-	if( (r_qid = init_queue()) == -1)
+	if ( (r_qid = init_queue()) == -1)
 		return (-1);
 
 	mlen = msgrcv(r_qid, &r_entry, MAXOBN, 0, IPC_NOWAIT);
-	if(mlen > 0) {
+	if (mlen > 0) {
 		r_entry.mtext[mlen] = '\0';
 		printf("Message : %s\n", r_entry.mtext);
 	} else {

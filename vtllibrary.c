@@ -31,7 +31,7 @@
  *          and leaverage the hosts native iSCSI initiator.
  */
 
-static const char * Version = "$Id: vtllibrary.c,v 1.14 2007-08-24 06:35:01 markh Exp $";
+static const char * Version = "$Id: vtllibrary.c,v 1.15 2007-09-23 06:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -308,7 +308,7 @@ static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf) {
 
 	retreive_CDB_data(cdev, buf, alloc_len);
 
-	DEBC(	for(k = 0; k < alloc_len; k++)
+	DEBC(	for (k = 0; k < alloc_len; k++)
 			printf("%02x ", (uint32_t)buf[k]);
 		printf("\n");
 	)
@@ -320,24 +320,24 @@ static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf) {
  * Takes a slot number and returns a struct pointer to the slot
  */
 static struct s_info * slot2struct(int addr) {
-	if((addr >= START_MAP) && (addr <= (START_MAP + NUM_MAP))) {
+	if ((addr >= START_MAP) && (addr <= (START_MAP + NUM_MAP))) {
 		addr -= START_MAP;
 		DEBC(	printf("slot2struct: MAP %d\n", addr); )
 		return &map_info[addr];
 	}
-	if((addr >= START_STORAGE) && (addr <= (START_STORAGE + NUM_STORAGE))) {
+	if ((addr >= START_STORAGE) && (addr <= (START_STORAGE + NUM_STORAGE))) {
 		addr -= START_STORAGE;
 		DEBC(	printf("slot2struct: Storage %d\n", addr); )
 		return &storage_info[addr];
 	}
-	if((addr >= START_PICKER) && (addr <= (START_PICKER + NUM_PICKER))) {
+	if ((addr >= START_PICKER) && (addr <= (START_PICKER + NUM_PICKER))) {
 		addr -= START_PICKER;
 		DEBC(	printf("slot2struct: Picker %d\n", addr); )
 		return &picker_info[addr];
 	}
 
 // Should NEVER get here as we have performed bounds checking b4
-	if(verbose)
+	if (verbose)
 		syslog(LOG_DAEMON|LOG_ERR, "Arrr... slot2struct returning NULL\n");
 
 	syslog(LOG_DAEMON|LOG_ERR, "%s",  "Fatal: slot2struct() returned NULL");
@@ -369,7 +369,7 @@ static int driveOccupied(struct d_info *d) {
  * is permitted.
  */
 static void setInEnableStatus(struct s_info *s, int flg) {
-	if(flg)	// Set Full bit
+	if (flg)	// Set Full bit
 		s->status |= 0x20;
 	else		// Set Full bit to 0
 		s->status &= 0xdf;
@@ -381,7 +381,7 @@ static void setInEnableStatus(struct s_info *s, int flg) {
  * movement is permitted.
  */
 static void setExEnableStatus(struct s_info *s, int flg) {
-	if(flg)	// Set Full bit
+	if (flg)	// Set Full bit
 		s->status |= 0x10;
 	else		// Set Full bit to 0
 		s->status &= 0xef;
@@ -392,7 +392,7 @@ static void setExEnableStatus(struct s_info *s, int flg) {
  * the drive (but not both).
  */
 static void setAccessStatus(struct s_info *s, int flg) {
-	if(flg)	// Set Full bit
+	if (flg)	// Set Full bit
 		s->status |= 0x08;
 	else		// Set Full bit to 0
 		s->status &= 0xf7;
@@ -404,7 +404,7 @@ static void setAccessStatus(struct s_info *s, int flg) {
  * elements status.
  */
 static void setExceptStatus(struct s_info *s, int flg) {
-	if(flg)	// Set Full bit
+	if (flg)	// Set Full bit
 		s->status |= 0x04;
 	else		// Set Full bit to 0
 		s->status &= 0xfb;
@@ -415,7 +415,7 @@ static void setExceptStatus(struct s_info *s, int flg) {
  * If clear(0), placed there by handler.
  */
 static void setImpExpStatus(struct s_info *s, int flg) {
-	if(flg)	// Set Full bit
+	if (flg)	// Set Full bit
 		s->status |= 0x02;
 	else		// Set Full bit to 0
 		s->status &= 0xfd;
@@ -425,7 +425,7 @@ static void setImpExpStatus(struct s_info *s, int flg) {
  * Sets the 'Full' bit true/false in the status field
  */
 static void setFullStatus(struct s_info *s, int flg) {
-	if(flg)	// Set Full bit
+	if (flg)	// Set Full bit
 		s->status |= 0x01;
 	else		// Set Full bit to 0
 		s->status &= 0xfe;
@@ -473,11 +473,11 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	src  = drive2struct(src_addr);
 	dest = drive2struct(dest_addr);
 
-	if( ! driveOccupied(src) ) {
+	if ( ! driveOccupied(src) ) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
 		return 1;
 	}
-	if( driveOccupied(dest) ) {
+	if ( driveOccupied(dest) ) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
 		return 1;
 	}
@@ -490,8 +490,8 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	sprintf(cmd, "lload %s", dest->slot->barcode);
 
 	/* Remove traling spaces */
-	for(x = 6; x < 16; x++)
-		if(cmd[x] == ' ') {
+	for (x = 6; x < 16; x++)
+		if (cmd[x] == ' ') {
 			cmd[x] = '\0';
 			break;
 		}
@@ -499,7 +499,7 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 					cmd, dest->slot->slot_location);
 	)
 
-	if(verbose)
+	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
 				"About to send cmd: \'%s\' to drive %d\n",
 					cmd, dest->slot->slot_location);
@@ -516,11 +516,11 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	src  = drive2struct(src_addr);
 	dest = slot2struct(dest_addr);
 
-	if( ! driveOccupied(src)) {
+	if ( ! driveOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
 		return 1;
 	}
-	if( slotOccupied(dest)) {
+	if ( slotOccupied(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
 		return 1;
 	}
@@ -543,11 +543,11 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	src  = slot2struct(src_addr);
 	dest = drive2struct(dest_addr);
 
-	if( ! slotOccupied(src)) {
+	if ( ! slotOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
 		return 1;
 	}
-	if( driveOccupied(dest)) {
+	if ( driveOccupied(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
 		return 1;
 	}
@@ -557,8 +557,8 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 
 	sprintf(cmd, "lload %s", dest->slot->barcode);
 	/* Remove traling spaces */
-	for(x = 6; x < 16; x++)
-		if(cmd[x] == ' ') {
+	for (x = 6; x < 16; x++)
+		if (cmd[x] == ' ') {
 			cmd[x] = '\0';
 			break;
 		}
@@ -577,15 +577,15 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	src  = slot2struct(src_addr);
 	dest = slot2struct(dest_addr);
 
-	if(debug)
+	if (debug)
 		printf("Moving from slot %d to slot %d\n",
 				src->slot_location, dest->slot_location);
 
-	if(! slotOccupied(src)) {
+	if (! slotOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
 		return 1;
 	}
-	if(slotOccupied(dest)) {
+	if (slotOccupied(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
 		return 1;
 	}
@@ -602,7 +602,7 @@ static int valid_slot(int addr) {
 	int maxStorage = START_STORAGE + NUM_STORAGE;
 	int maxMAP   = START_MAP + NUM_MAP;
 
-	if(((addr >= START_DRIVE)   && (addr <= maxDrive)) ||
+	if (((addr >= START_DRIVE)   && (addr <= maxDrive)) ||
 	   ((addr >= START_MAP)     && (addr <= maxMAP))   ||
 	   ((addr >= START_STORAGE) && (addr <= maxStorage)))
 		return 1;
@@ -626,8 +626,8 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	sp = (uint16_t *)&cmd[6];
 	dest_addr = ntohs(*sp);
 
-	if(verbose) {
-		if(cmd[11] && 0xc0)
+	if (verbose) {
+		if (cmd[11] && 0xc0)
 			syslog(LOG_DAEMON|LOG_INFO, "%s",
 				(cmd[11] & 0x80) ? "  Retract I/O port" :
 						   "  Extend I/O port");
@@ -638,47 +638,47 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 					(cmd[10]) ? "yes" : "no");
 	}
 
-	if(cmd[10] != 0) {	/* Can not Invert media */
+	if (cmd[10] != 0) {	/* Can not Invert media */
                 mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		return -1;
 	}
-	if(cmd[11] == 0xc0) {	// Invalid combo of Extend/retract I/O port
+	if (cmd[11] == 0xc0) {	// Invalid combo of Extend/retract I/O port
                 mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		return -1;
 	}
-	if(cmd[11]) // Must be an Extend/Retract I/O port cmd.. NO-OP
+	if (cmd[11]) // Must be an Extend/Retract I/O port cmd.. NO-OP
 		return 0;
 
-	if(transport_addr == 0)
+	if (transport_addr == 0)
 		transport_addr = START_PICKER;
-	if(transport_addr > (START_PICKER + NUM_PICKER)) {
+	if (transport_addr > (START_PICKER + NUM_PICKER)) {
                 mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		retVal = -1;
 	}
-	if(! valid_slot(src_addr)) {
+	if (! valid_slot(src_addr)) {
                 mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		retVal = -1;
 	}
-	if(! valid_slot(dest_addr)) {
+	if (! valid_slot(dest_addr)) {
                 mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		retVal = -1;
 	}
 
-	if(retVal == 0) {
+	if (retVal == 0) {
 
 	/* WWR - The following depends on Drive 1 being in the lowest slot */
-		if((src_addr < maxDrive) && (dest_addr < maxDrive)) {
+		if ((src_addr < maxDrive) && (dest_addr < maxDrive)) {
 			/* Move between drives */
-			if(move_drive2drive(src_addr, dest_addr, sense_flg))
+			if (move_drive2drive(src_addr, dest_addr, sense_flg))
 				retVal = -1;
-		} else if(src_addr < maxDrive) {
-			if(move_drive2slot(src_addr, dest_addr, sense_flg))
+		} else if (src_addr < maxDrive) {
+			if (move_drive2slot(src_addr, dest_addr, sense_flg))
 				retVal = -1;
-		} else if(dest_addr < maxDrive) {
-			if(move_slot2drive(src_addr, dest_addr, sense_flg))
+		} else if (dest_addr < maxDrive) {
+			if (move_slot2drive(src_addr, dest_addr, sense_flg))
 				retVal = -1;
 		} else {   // Move between (non-drive) slots
-			if(move_slot2slot(src_addr, dest_addr, sense_flg))
+			if (move_slot2slot(src_addr, dest_addr, sense_flg))
 				retVal = -1;
 		}
 	}
@@ -695,7 +695,7 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag) {
 	int j = 0;
 	uint16_t *sp;
 
-	if(debug)
+	if (debug)
 		printf("Slot location: %d\n", s->slot_location);
 	sp = (uint16_t *)&p[j];
 	*sp = htons(s->slot_location);
@@ -719,10 +719,10 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag) {
 	*sp = htons(s->last_location);
 	j += 2;
 
-	if(voltag) {
+	if (voltag) {
 		DEBC( printf("voltag set\n"); )
 
-		if(s->status & 0x01) /* Barcode with trailing space(s) */
+		if (s->status & 0x01) /* Barcode with trailing space(s) */
 			snprintf((char *)&p[j], 32, "%-32s", s->barcode);
 		else
 			memset(&p[j], 0, 32);
@@ -792,7 +792,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 	p[j++] = 0;	/* SCSI ID bit not-valid */
 	p[j++] = d->SCSI_ID;
 	j++;		/* Reserved */
-	if(d->slot->last_location > 0) {
+	if (d->slot->last_location > 0) {
 		/* bit 8 set if Source Storage Element is valid */
 		p[j++] = 0x80;
 
@@ -817,7 +817,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		break;
 	case 1:
 		DEBC( printf("voltag set, DVCID not set\n"); )
-		if(d->slot->status & 0x01) {
+		if (d->slot->status & 0x01) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
   			/* Barcode with trailing space(s) */
@@ -855,7 +855,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		break;
 	case 3:
 		DEBC( printf("voltag set, DVCID set\n"); )
-		if(d->slot->status & 0x01) {
+		if (d->slot->status & 0x01) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
   			/* Barcode with trailing space(s) */
@@ -903,7 +903,7 @@ return j;
  */
 static int determine_element_sz(uint8_t dvcid, uint8_t voltag) {
 
-	if(voltag) /* If voltag bit is set */
+	if (voltag) /* If voltag bit is set */
 		return  (dvcid == 0) ? 52 : 86;
 	else
 		return  (dvcid == 0) ? 16 : 50;
@@ -946,7 +946,7 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 
 	) ;
 
-	if(verbose > 2)
+	if (verbose > 2)
 		syslog(LOG_DAEMON|LOG_INFO, "Element Status Page: "
 			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
@@ -999,7 +999,7 @@ element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int cou
 		printf("  Total byte count         : %d\n", ntohl(*lp));
 	) ;
 
-	if(verbose > 2)
+	if (verbose > 2)
 		syslog(LOG_DAEMON|LOG_INFO, "Element Status Data Header: "
 			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
@@ -1022,54 +1022,54 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode) {
 		 * See WWR: near top of this file !!
 		 */
 		// Check we are within a storage slot range.
-		if((start >= START_STORAGE) &&
+		if ((start >= START_STORAGE) &&
 		   (start <= (START_STORAGE + NUM_STORAGE)))
 			return(start);
 		// If we are above I/O Range -> return START_STORAGE
-		if(start > (START_MAP + NUM_MAP))
+		if (start > (START_MAP + NUM_MAP))
 			return(START_STORAGE);
 		// Must be within the I/O Range..
-		if(start >= START_MAP)
+		if (start >= START_MAP)
 			return(start);
 		// If we are above the Picker range -> Return I/O Range..
-		if(start > (START_PICKER + NUM_PICKER))
+		if (start > (START_PICKER + NUM_PICKER))
 			return START_MAP;
 		// Must be a valid picker slot..
-		if(start >= START_PICKER)
+		if (start >= START_PICKER)
 			return (start);
 		// If we are starting above the valid drives, return Picker..
-		if(start > (START_DRIVE + NUM_DRIVES))
+		if (start > (START_DRIVE + NUM_DRIVES))
 			return(START_PICKER);
 		// Must be a valid drive
-		if(start >= START_DRIVE)
+		if (start >= START_DRIVE)
 			return(start);
 		break;
 	case MEDIUM_TRANSPORT:	// Medium Transport.
-		if((start >= START_PICKER) &&
+		if ((start >= START_PICKER) &&
 		   (start <= (START_PICKER + NUM_PICKER)))
 			return start;
-		if(start < START_PICKER)
+		if (start < START_PICKER)
 			return START_PICKER;
 		break;
 	case STORAGE_ELEMENT:	// Storage Slots
-		if((start >= START_STORAGE) &&
+		if ((start >= START_STORAGE) &&
 		   (start <= (START_STORAGE + NUM_STORAGE)))
 			return start;
-		if(start < START_STORAGE)
+		if (start < START_STORAGE)
 			return START_STORAGE;
 		break;
 	case MAP_ELEMENT:	// Import/Export
-		if((start >= START_MAP) &&
+		if ((start >= START_MAP) &&
 		   (start <= (START_MAP + NUM_MAP)))
 			return start;
-		if(start < START_MAP)
+		if (start < START_MAP)
 			return START_MAP;
 		break;
 	case DATA_TRANSFER:	// Data transfer
-		if((start >= START_DRIVE) &&
+		if ((start >= START_DRIVE) &&
 		   (start <= (START_DRIVE + NUM_DRIVES)))
 			return start;
-		if(start < START_DRIVE)
+		if (start < START_DRIVE)
 			return START_DRIVE;
 		break;
 	}
@@ -1284,14 +1284,14 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	/* Init buffer */
 	memset(buf, 0, alloc_len);
 
-	if(cdb[11] != 0x0) {	// Reserved byte..
+	if (cdb[11] != 0x0) {	// Reserved byte..
                	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
 		return(0);
 	}
 
 	// Find first matching slot number which matches the typeCode.
 	start = find_first_matching_element(req_start_elem, typeCode);
-	if(start == 0) {	// Nothing found..
+	if (start == 0) {	// Nothing found..
                	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
 		return(0);
 	}
@@ -1317,7 +1317,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		  data_transfer_descriptor(p, start, number, dvcid, voltag);
 		break;
 	case ANY:
-		if(start >= START_STORAGE) {
+		if (start >= START_STORAGE) {
 			len = storage_element_descriptor(p, start, number,
 								dvcid, voltag);
 //			number = start - START_STORAGE;
@@ -1372,7 +1372,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 
 	switch (SCpnt[2] & 0x3f) {
 	case 0:	/* Send supported pages */
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING, "%s",
 						"Sending supported pages");
 		sp = (uint16_t *)&supported_pages[2];
@@ -1381,7 +1381,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 		retval = sizeof(supported_pages);
 		break;
 	case TEMPERATURE_PAGE:	/* Temperature page */
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 						"LOG SENSE: Temperature page");
 		Temperature_pg.pcode_head.len = htons(sizeof(Temperature_pg) -
@@ -1391,7 +1391,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 		retval += sizeof(Temperature_pg);
 		break;
 	case TAPE_ALERT:	/* TapeAlert page */
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,"LOG SENSE: TapeAlert page");
 		TapeAlert.pcode_head.len = htons(sizeof(TapeAlert) -
 					sizeof(TapeAlert.pcode_head));
@@ -1400,7 +1400,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 		setTapeAlert(&TapeAlert, 0);	// Clear flags after value read.
 		break;
 	default:
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 			"Unknown log sense code: 0x%x", SCpnt[2] & 0x3f);
 		else
@@ -1436,65 +1436,65 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 	switch(SCpnt[0]) {
 	case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
 	case INITIALIZE_ELEMENT_STATUS:
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s",
 						"INITIALIZE ELEMENT **");
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		sleep(1);
 		break;
 
 	case LOG_SELECT:	// Set or reset LOG stats.
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		resp_log_select(SCpnt, sense_flg);
 		break;
 	case LOG_SENSE:
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "LOG SENSE **");
 		ret += resp_log_sense(SCpnt, buf);
 		break;
 
 	case MODE_SELECT:
 	case MODE_SELECT_10:
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SELECT **");
 		ret += resp_mode_select(cdev, SCpnt, buf);
 		break;
 
 	case MODE_SENSE:
 	case MODE_SENSE_10:
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SENSE **");
 		DEBC( printf("MODE SENSE\n"); )
 		ret += resp_mode_sense(SCpnt, buf, smp, sense_flg);
 		break;
 
 	case MOVE_MEDIUM:
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "MOVE MEDIUM **");
 		DEBC( printf("MOVE MEDIUM\n"); )
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		k = resp_move_medium(SCpnt, buf, sense_flg);
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		resp_allow_prevent_removal(SCpnt, sense_flg);
 		break;
 	case READ_ELEMENT_STATUS:
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s",
 						 "READ ELEMENT STATUS **");
 		DEBC(	printf("READ ELEMENT STATUS\n"); )
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		ret += resp_read_element_status(SCpnt, buf, sense_flg);
 		break;
 
 	case REQUEST_SENSE:
-		if(verbose) {
+		if (verbose) {
 			syslog(LOG_DAEMON|LOG_INFO, "%s",
 						"SCSI REQUEST SENSE **");
 			syslog(LOG_DAEMON|LOG_INFO,
@@ -1517,41 +1517,41 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 	case RESERVE_10:
 	case RELEASE:
 	case RELEASE_10:
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
-		if(verbose) 
+		if (verbose) 
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "Rewinding **");
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		sleep(1);
 		break;
 
 	case START_STOP:	// Load/Unload cmd
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
-		if(SCpnt[4] && 0x1) {
+		if (SCpnt[4] && 0x1) {
 			libraryOnline = 1;
-			if(verbose) 
+			if (verbose) 
 				syslog(LOG_DAEMON|LOG_INFO, "%s",
 							"Library online **");
 		} else {
 			libraryOnline = 0;
-			if(verbose)
+			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO, "%s",
 							"Library offline **");
 		}
 		break;
 	case TEST_UNIT_READY:	// Return OK by default
-		if(verbose)
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s %s",
 					"Test Unit Ready :",
 					(libraryOnline == 0) ? "No" : "Yes");
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
-		if( ! libraryOnline)
+		if ( ! libraryOnline)
 			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sense_flg);
 		break;
 
@@ -1561,7 +1561,7 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 		DEBC( printf("0x%02x : Unsupported command ************\n", SCpnt[0]); )
 
 		logSCSICommand(SCpnt);
-		if(check_reset(sense_flg))
+		if (check_reset(sense_flg))
 			break;
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
@@ -1582,9 +1582,9 @@ static void listMap(void) {
 	char *c = msg;
 	*c = '\0';
 
-	for(a = START_MAP; a < START_MAP + NUM_MAP; a++) {
+	for (a = START_MAP; a < START_MAP + NUM_MAP; a++) {
 		sp = slot2struct(a);
-		if(slotOccupied(sp)) {
+		if (slotOccupied(sp)) {
 			strncat(c, (char *)sp->barcode, 10);
 			syslog(LOG_DAEMON|LOG_NOTICE, "MAP slot %d full",
 					a - START_MAP);
@@ -1593,7 +1593,7 @@ static void listMap(void) {
 					a - START_MAP);
 		}
 	}
-	if(verbose)
+	if (verbose)
 		syslog(LOG_DAEMON|LOG_NOTICE, "map contents: %s", msg);
 	send_msg(msg, LIBRARY_Q + 1);
 }
@@ -1610,11 +1610,11 @@ static void emptyMap(void)
 	struct s_info *sp;
 	int	a;
 
-	for(a = START_MAP; a < START_MAP + NUM_MAP; a++) {
+	for (a = START_MAP; a < START_MAP + NUM_MAP; a++) {
 		sp = slot2struct(a);
-		if(slotOccupied(sp)) {
+		if (slotOccupied(sp)) {
 			setSlotEmpty(sp);
-			if(verbose)
+			if (verbose)
 				syslog(LOG_DAEMON|LOG_NOTICE,
 					"MAP slot %d emptied", a - START_MAP);
 		}
@@ -1628,33 +1628,33 @@ static int processMessageQ(char *mtext) {
 
 	syslog(LOG_DAEMON|LOG_NOTICE, "Q msg : %s", mtext);
 
-	if(! strncmp(mtext, "debug", 5)) {
-		if(debug) {
+	if (! strncmp(mtext, "debug", 5)) {
+		if (debug) {
 			debug--;
 		} else {
 			debug++;
 			verbose = 2;
 		}
 	}
-	if(! strncmp(mtext, "empty map", 9))
+	if (! strncmp(mtext, "empty map", 9))
 		emptyMap();
-	if(! strncmp(mtext, "exit", 4))
+	if (! strncmp(mtext, "exit", 4))
 		return 1;
-	if(! strncmp(mtext, "list map", 8))
+	if (! strncmp(mtext, "list map", 8))
 		listMap();
-	if(! strncmp(mtext, "load map", 8))
+	if (! strncmp(mtext, "load map", 8))
 		loadMap();
-	if(! strncmp(mtext, "offline", 7))
+	if (! strncmp(mtext, "offline", 7))
 		libraryOnline = 0;
-	if(! strncmp(mtext, "online", 6))
+	if (! strncmp(mtext, "online", 6))
 		libraryOnline = 1;
-	if(! strncmp(mtext, "TapeAlert", 9)) {
+	if (! strncmp(mtext, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
 		sscanf(mtext, "TapeAlert %" PRIx64, &flg);
 		setTapeAlert(&TapeAlert, flg);
 	}
-	if(! strncmp(mtext, "verbose", 7)) {
-		if(verbose)
+	if (! strncmp(mtext, "verbose", 7)) {
+		if (verbose)
 			verbose--;
 		else
 			verbose = 3;
@@ -1670,7 +1670,7 @@ init_queue(void) {
 	int	queue_id;
 
 	/* Attempt to create or open message queue */
-	if( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
+	if ( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
 		syslog(LOG_DAEMON|LOG_ERR, "%s %m", "msgget failed");
 
 return (queue_id);
@@ -1682,28 +1682,28 @@ static void init_mode_pages(struct mode *m) {
 	uint16_t *sp;
 
 	// Disconnect-Reconnect: SPC-3 7.4.8
-	if((mp = alloc_mode_page(2, m, 16))) {
+	if ((mp = alloc_mode_page(2, m, 16))) {
 		mp->pcodePointer[2] = 50;	// Buffer full ratio
 		mp->pcodePointer[3] = 50;	// Buffer empty ratio
 	}
 
 	// Control: SPC-3 7.4.6
-	if((mp = alloc_mode_page(0x0a, m, 12))) {
+	if ((mp = alloc_mode_page(0x0a, m, 12))) {
 		// Init rest of page data..
 	}
 
 	// Power condition: SPC-3 7.4.12
-	if((mp = alloc_mode_page(0x1a, m, 12))) {
+	if ((mp = alloc_mode_page(0x1a, m, 12))) {
 		// Init rest of page data..
 	}
 
 	// Informational Exception Control: SPC-3 7.4.11 (TapeAlert)
-	if((mp = alloc_mode_page(0x1c, m, 12))) {
+	if ((mp = alloc_mode_page(0x1c, m, 12))) {
 		mp->pcodePointer[2] = 0x08;
 	}
 
 	// Device Capabilities mode page: SMC-3 7.3.2
-	if((mp = alloc_mode_page(0x1f, m, 20))) {
+	if ((mp = alloc_mode_page(0x1f, m, 20))) {
 		mp->pcodePointer[2] = 0x0f;
 		mp->pcodePointer[3] = 0x07;
 		mp->pcodePointer[4] = 0x0f;
@@ -1719,7 +1719,7 @@ static void init_mode_pages(struct mode *m) {
 	}
 
 	// Element Address Assignment mode page: SMC-3 7.3.3
-	if((mp = alloc_mode_page(0x1d, m, 20))) {
+	if ((mp = alloc_mode_page(0x1d, m, 20))) {
 		sp = (uint16_t *)mp->pcodePointer;
 		sp++;
 		*sp = htons(START_PICKER);	// First medium transport
@@ -1740,7 +1740,7 @@ static void init_mode_pages(struct mode *m) {
 	}
 
 	// Transport Geometry Parameters mode page: SMC-3 7.3.4
-	if((mp = alloc_mode_page(0x1e, m, 4))) {
+	if ((mp = alloc_mode_page(0x1e, m, 4))) {
 		// Both bytes set to zero...
 	}
 
@@ -1754,7 +1754,7 @@ static struct d_info * init_d_struct(int size) {
 	struct d_info d_info;
 	struct d_info *dp;
 
-	if((dp = (struct d_info *)malloc(size * sizeof(d_info))) == NULL)
+	if ((dp = (struct d_info *)malloc(size * sizeof(d_info))) == NULL)
 		syslog(LOG_DAEMON|LOG_ERR, "d_struct() Malloc failed: %m");
 	else
 		memset(dp, 0, sizeof(size * sizeof(d_info)));
@@ -1769,7 +1769,7 @@ static struct s_info * init_s_struct(int size) {
 	struct s_info s_info;
 	struct s_info *sp;
 
-	if((sp = (struct s_info *)malloc(size * sizeof(s_info))) == NULL)
+	if ((sp = (struct s_info *)malloc(size * sizeof(s_info))) == NULL)
 		syslog(LOG_DAEMON|LOG_ERR, "s_struct() Malloc failed: %m");
 	else {
 		memset(sp, 0, sizeof(size * sizeof(s_info)));
@@ -1789,7 +1789,7 @@ static int cart_type(char *barcode) {
 	int retval = 0;
 
 	retval = (strncmp(barcode, "CLN", 3)) ? 1 : 2;
-	if(verbose)
+	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "%s cart found: %s",
 				(retval == 1) ? "Data" : "Cleaning", barcode);
 		
@@ -1811,86 +1811,86 @@ static void init_tape_info(void) {
 	int slt;
 	int x;
 
-	if((ctrl = fopen(conf , "r")) == NULL) {
+	if ((ctrl = fopen(conf , "r")) == NULL) {
 		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
 								conf);
 		exit(1);
 	}
 
 	// Grab a couple of generic MALLOC_SZ buffers..
-	if((s = malloc(MALLOC_SZ)) == NULL) {
+	if ((s = malloc(MALLOC_SZ)) == NULL) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	if((b = malloc(MALLOC_SZ)) == NULL) {
+	if ((b = malloc(MALLOC_SZ)) == NULL) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
 
 	/* While read in a line */
 	while( fgets(b, MALLOC_SZ, ctrl) != NULL) {
-		if(b[0] == '#')	/* Ignore comments */
+		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		if(sscanf(b, "NumberDrives: %d", &slt) > 0)
+		if (sscanf(b, "NumberDrives: %d", &slt) > 0)
 			NUM_DRIVES = slt;
-		if(sscanf(b, "NumberSlots: %d", &slt) > 0)
+		if (sscanf(b, "NumberSlots: %d", &slt) > 0)
 			NUM_STORAGE = slt;
-		if(sscanf(b, "NumberMAP: %d", &slt) > 0)
+		if (sscanf(b, "NumberMAP: %d", &slt) > 0)
 			NUM_MAP = slt;
-		if(sscanf(b, "NumberPicker: %d", &slt) > 0)
+		if (sscanf(b, "NumberPicker: %d", &slt) > 0)
 			NUM_PICKER = slt;
 	}
 	rewind(ctrl);
 
-	if(debug)
+	if (debug)
 	printf("%d Drives, %d Storage slots\n", NUM_DRIVES, NUM_STORAGE);
 	else
 		syslog(LOG_DAEMON|LOG_INFO, "%d Drives, %d Storage slots\n",
 						NUM_DRIVES, NUM_STORAGE);
 
 	/* Allocate enough memory for drives */
-	if((drive_info = init_d_struct(NUM_DRIVES + 1)) == NULL) 
+	if ((drive_info = init_d_struct(NUM_DRIVES + 1)) == NULL) 
 		exit(1);
 	else {	/* Now allocate each 'slot' within each drive struct */
-		for(x = 0; x < NUM_DRIVES; x++) {
+		for (x = 0; x < NUM_DRIVES; x++) {
 			dp = &drive_info[x];
-			if((dp->slot = init_s_struct(1)) == NULL)
+			if ((dp->slot = init_s_struct(1)) == NULL)
 				exit(1);
 		}
 	}
 
 	/* Allocate enough memory for storage slots */
-	if((storage_info = init_s_struct(NUM_STORAGE + 1)) == NULL) 
+	if ((storage_info = init_s_struct(NUM_STORAGE + 1)) == NULL) 
 		exit(1);
 
 	/* Allocate enough memory for MAP slots */
-	if((map_info = init_s_struct(NUM_MAP + 1)) == NULL) 
+	if ((map_info = init_s_struct(NUM_MAP + 1)) == NULL) 
 		exit(1);
 
 	/* Allocate enough memory for picker slots */
-	if((picker_info = init_s_struct(NUM_PICKER + 1)) == NULL) 
+	if ((picker_info = init_s_struct(NUM_PICKER + 1)) == NULL) 
 		exit(1);
 
 	/* While read in a line */
 	while( fgets(b, MALLOC_SZ, ctrl) != NULL) {
-		if(b[0] == '#')	/* Ignore comments */
+		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		if(sscanf(b, "Drive: %d", &slt) > 0)
+		if (sscanf(b, "Drive: %d", &slt) > 0)
 			dp = &drive_info[slt - 1];
-		if(sscanf(b, " Unit serial number: %s", s) > 0)
+		if (sscanf(b, " Unit serial number: %s", s) > 0)
 			strncpy(dp->inq_product_sno, s, 10);
-//		if(sscanf(b, " Product serial number: %s", s) > 0)
+//		if (sscanf(b, " Product serial number: %s", s) > 0)
 //			strncpy(dp->inq_product_sno, s, 10);
-		if(sscanf(b, " Product identification: %s", s) > 0)
+		if (sscanf(b, " Product identification: %s", s) > 0)
 			strncpy(dp->inq_product_id, s, 16);
-		if(sscanf(b, " Product revision level: %s", s) > 0)
+		if (sscanf(b, " Product revision level: %s", s) > 0)
 			strncpy(dp->inq_product_rev, s, 4);
-		if(sscanf(b, " Vendor identification: %s", s) > 0)
+		if (sscanf(b, " Vendor identification: %s", s) > 0)
 			strncpy(dp->inq_vendor_id, s, 8);
 	}
 	fclose(ctrl);
 
-	if((ctrl = fopen("/etc/vtl/library_contents", "r")) == NULL) {
+	if ((ctrl = fopen("/etc/vtl/library_contents", "r")) == NULL) {
 		printf("Can not open config file %s\n",
 					"/etc/vtl/library_contents");
 		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
@@ -1899,19 +1899,19 @@ static void init_tape_info(void) {
 	}
 	barcode = s;
 	while( fgets(b, MALLOC_SZ, ctrl) != NULL) {
-		if(b[0] == '#')	/* Ignore comments */
+		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		barcode[0] = '\0';
-		if((x = (sscanf(b, "Drive %d: %s", &slt, barcode))) > 0) {
+		if ((x = (sscanf(b, "Drive %d: %s", &slt, barcode))) > 0) {
 			dp = &drive_info[slt - 1];
-			if(slt > NUM_DRIVES)
+			if (slt > NUM_DRIVES)
 				syslog(LOG_DAEMON|LOG_ERR, "Too many drives");
 			else if (x == 1) {
 				dp->slot->slot_location = slt + START_DRIVE - 1;
 				dp->slot->status = 0x08;
 				dp->slot->cart_type = 0;
 			} else {
-				if(debug)
+				if (debug)
 					printf("Barcode %s in drive %d\n",
 								barcode, slt);
 				snprintf((char *)dp->slot->barcode,10,"%-10s",barcode);
@@ -1923,16 +1923,16 @@ static void init_tape_info(void) {
 				dp->slot->slot_location = slt + START_DRIVE - 1;
 			}
 		}
-		if((x = (sscanf(b, "MAP %d: %s", &slt, barcode))) > 0) {
+		if ((x = (sscanf(b, "MAP %d: %s", &slt, barcode))) > 0) {
 			sp = &map_info[slt - 1];
-			if(slt > NUM_MAP)
+			if (slt > NUM_MAP)
 				syslog(LOG_DAEMON|LOG_ERR, "Too many MAPs");
-			else if(x == 1) {
+			else if (x == 1) {
 				sp->slot_location = slt + START_MAP - 1;
 				sp->status = 0x3a;
 				sp->cart_type = 0;
 			} else {
-				if(debug)
+				if (debug)
 					printf("Barcode %s in MAP %d\n",
 								barcode, slt);
 				snprintf((char *)sp->barcode, 10, "%-10s", barcode);
@@ -1943,16 +1943,16 @@ static void init_tape_info(void) {
 				sp->slot_location = slt + START_MAP - 1;
 			}
 		}
-		if((x = (sscanf(b, "Picker %d: %s", &slt, barcode))) > 0) {
+		if ((x = (sscanf(b, "Picker %d: %s", &slt, barcode))) > 0) {
 			sp = &picker_info[slt - 1];
-			if(slt > NUM_PICKER)
+			if (slt > NUM_PICKER)
 				syslog(LOG_DAEMON|LOG_ERR, "Too many pickers");
-			else if(x == 1) {
+			else if (x == 1) {
 				sp->slot_location = slt + START_PICKER - 1;
 				sp->cart_type = 0;
 				sp->status = 0;
 			} else {
-				if(debug)
+				if (debug)
 					printf("Barcode %s in Picker %d\n",
 								barcode, slt);
 				snprintf((char *)sp->barcode, 10, "%-10s", barcode);
@@ -1963,17 +1963,17 @@ static void init_tape_info(void) {
 				sp->status = 0x01;
 			}
 		}
-		if((x = (sscanf(b, "Slot %d: %s", &slt, barcode))) > 0) {
+		if ((x = (sscanf(b, "Slot %d: %s", &slt, barcode))) > 0) {
 			sp = &storage_info[slt - 1];
-			if(slt > NUM_STORAGE)
+			if (slt > NUM_STORAGE)
 				syslog(LOG_DAEMON|LOG_ERR,
 					"Storage slot %d out of range", slt);
-			else if(x == 1) {
+			else if (x == 1) {
 				sp->slot_location = slt + START_STORAGE - 1;
 				sp->status = 0;
 				sp->cart_type = 0x08;
 			} else {
-				if(debug)
+				if (debug)
 					printf("Barcode %s in slot %d\n",
 								 barcode, slt);
 				snprintf((char *)sp->barcode, 10, "%-10s", barcode);
@@ -2025,7 +2025,7 @@ int main(int argc, char *argv[])
 	struct vtl_header vtl_head;
 
 	while(argc > 0) {
-		if(argv[0][0] == '-') {
+		if (argv[0][0] == '-') {
 			switch (argv[0][1]) {
 			case 'd':
 				debug++;
@@ -2035,7 +2035,7 @@ int main(int argc, char *argv[])
 				verbose++;
 				break;
 			case 'q':
-				if(argc > 1)
+				if (argc > 1)
 					q_priority = atoi(argv[1]);
 				break;
 			default:
@@ -2049,7 +2049,7 @@ int main(int argc, char *argv[])
 		argc--;
 	}
 
-	if(q_priority != 0) {
+	if (q_priority != 0) {
 		usage(progname);
 		printf("    queue prority must be 0\n");
 		exit(1);
@@ -2061,7 +2061,7 @@ int main(int argc, char *argv[])
 	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, Version);
 	printf("%s: version %s\n", progname, Version);
 
-	if((cdev = chrdev_open(name, minor)) == -1) {
+	if ((cdev = chrdev_open(name, minor)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
 				"Could not open /dev/%s%d: %m", name, minor);
 		fflush(NULL);
@@ -2083,7 +2083,7 @@ int main(int argc, char *argv[])
 	} else {
 		syslog(LOG_DAEMON|LOG_INFO, "Size of kfifo is %d", bufsize);
 		buf = (uint8_t *)malloc(bufsize);
-		if(NULL == buf) {
+		if (NULL == buf) {
 			perror("Problems allocating memory");
 			exit(1);
 		}
@@ -2094,7 +2094,7 @@ int main(int argc, char *argv[])
 	reset = 1;
 
 	/* Initialise message queue as necessary */
-	if((r_qid = init_queue()) == -1) {
+	if ((r_qid = init_queue()) == -1) {
 		printf("Could not initialise message queue\n");
 		exit(1);
 	}
@@ -2106,10 +2106,10 @@ int main(int argc, char *argv[])
 	/* Send a message to each tape drive so they know the
 	 * controlling library's message Q id
 	 */
-	for(a = 0; a < NUM_DRIVES; a++) {
+	for (a = 0; a < NUM_DRIVES; a++) {
 		send_msg("Register", a + 1);
 
-		if(debug) {
+		if (debug) {
 			dp = &drive_info[a];
 
 			printf("\nDrive %d\n", a);
@@ -2137,7 +2137,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* If debug, don't fork/run in background */
-	if( ! debug) {
+	if ( ! debug) {
 		switch(pid = fork()) {
 		case 0:         /* Child */
                 	break;
@@ -2150,25 +2150,25 @@ int main(int argc, char *argv[])
         	}
  
 		/* Time for the parent to terminate */
-		if(pid != 0)
+		if (pid != 0)
         		exit(pid != -1 ? 0 : 1);
 	}
 
 	oom_adjust();
 	
-	for(;;) {
+	for (;;) {
 		/* Check for any messages */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
-		if(mlen > 0) {
+		if (mlen > 0) {
 			r_entry.mtext[mlen] = '\0';
 			exit_status = processMessageQ(r_entry.mtext);
 		} else if (mlen < 0) {
-                        if((r_qid = init_queue()) == -1) {
+                        r_qid = init_queue();
+                        if (r_qid == -1)
                                 syslog(LOG_DAEMON|LOG_ERR,
                                         "Can not open message queue: %m");
-			}
 		}
-		if(exit_status)	// Process a 'exit' messageQ
+		if (exit_status)	// Process a 'exit' messageQ
 			goto exit;
 
 		if ((ret = ioctl(cdev, VX_TAPE_POLL_STATUS, &vx_status)) < 0) {

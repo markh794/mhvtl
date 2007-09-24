@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 23
-Source: vtl-2007-09-21.tgz
+Release: 24
+Source: vtl-2007-09-23.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -143,10 +143,15 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Sat Sep 22 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-24
+- On corrupt media load, return NOT READY/MEDIUM FORMAT CORRUPT
+
 * Fri Sep 21 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-23
 - vtl kernel module bug fix - resolved a race condition with my usage of
   copy_to_user()/copy_from_user() and c_ioctl() routines.
+  Thanks to Ray Schafer for finding and being able to reproduce race.
 
 * Fri Aug 24 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-22

@@ -41,6 +41,7 @@ case "$1" in
 	if [ "X$load_vtl" == "X" ]; then
         	echo "Initializing vtl kernel module"
 		modprobe vtl
+		sleep 1
 		echo
 	fi
 
@@ -66,6 +67,7 @@ case "$1" in
 	sg=`grep " sg$" /proc/devices | awk '{print $2}'`
 	if [ "X$sg" == "X" ]; then
 		/sbin/modprobe sg
+		sleep 1
 	fi
 
 	if [ ! -f /etc/vtl/library_contents ]; then

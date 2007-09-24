@@ -76,6 +76,7 @@
 #define SEEK_10			0x2b
 #define	LOG_SELECT		0x4c
 #define	LOG_SENSE		0x4d
+#define PERSISTENT_RESERVE_IN	0x5e
 #define	READ_6			0x08
 #define	READ_10			0x28
 #define	READ_12			0xa8

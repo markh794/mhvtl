@@ -124,7 +124,7 @@ main(int argc, char *argv[]) {
 
 	memset((u8 *)&mam, 0, sizeof(mam));
 
-	mam.tape_fmt_version = 1;
+	mam.tape_fmt_version = TAPE_FMT_VERIONS;
 	mam.max_capacity = htonll(size * 1048576);
 	mam.MAMSpaceRemaining = htonll(sizeof(mam.VendorUnique));
 	mam.MediumLength = htonl(384);	// 384 tracks

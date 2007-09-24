@@ -75,10 +75,10 @@ checkMessageQ(struct q_entry *r_entry, int q_prority, int * r_qid) {
 	int mlen = 0;
 
 	mlen = msgrcv(*r_qid, r_entry, MAXOBN, q_prority, IPC_NOWAIT);
-	if(mlen > 0) {
+	if (mlen > 0) {
 		r_entry->mtext[mlen] = '\0';
 	} else if (mlen < 0) {
-		if((*r_qid = init_queue()) == -1) {
+		if ((*r_qid = init_queue()) == -1) {
 			syslog(LOG_DAEMON|LOG_ERR,
 				"Can not open message queue: %m");
 			mlen = -2;
@@ -93,13 +93,13 @@ displayResponse(void) {
 	struct	q_entry	r_entry;
 	int	r_qid = 0;
 
-	if((r_qid = init_queue()) == -1) {
+	if ((r_qid = init_queue()) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,"Could not initialise message queue");
 		return;
 	}
 
 	while((ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid)) < 0) {
-		if(ret == -2)
+		if (ret == -2)
 			break;	// Opening messageQ problem..
 		sleep(1);
 	}
@@ -115,27 +115,27 @@ main(int argc, char **argv) {
 	char buf[1024];
 	char *p;
 
-	if((argc < 2) || (argc > 6)) {
+	if ((argc < 2) || (argc > 6)) {
 		usage(argv[0]);
 		exit(1);
 	}
 
-	if(! strncmp(argv[1], "-h", 2)) {
+	if (! strncmp(argv[1], "-h", 2)) {
 		usage(argv[0]);
 		exit(1);
 	}
-	if(! strncmp(argv[1], "-help", 5)) {
+	if (! strncmp(argv[1], "-help", 5)) {
 		usage(argv[0]);
 		exit(1);
 	}
 
 	p = buf;
 	buf[0] = '\0';
-	if(! strncmp(argv[1], "library", 7)) {
+	if (! strncmp(argv[1], "library", 7)) {
 		driveNo = LIBRARY_Q;
 	} else {
 		driveNo = atoi(argv[1]);
-		if((driveNo <= 0) || (driveNo > LIBRARY_Q)) {
+		if ((driveNo <= 0) || (driveNo > LIBRARY_Q)) {
 			printf("Invalid drive number\n");
 			exit(1);
 		}
@@ -146,19 +146,19 @@ main(int argc, char **argv) {
 	p = buf;
 	buf[0] = '\0';
 
-	for(count = 2; count < argc; count++) {
+	for (count = 2; count < argc; count++) {
 		strcat(p, argv[count]);
 		p += strlen(argv[count]);
 		strcat(p, " ");
 		p += strlen(" ");
 	}
 
-	if(send_msg(buf, driveNo) < 0) {
+	if (send_msg(buf, driveNo) < 0) {
 		printf("Enter failure\n");
 		exit(1);
 	}
 
-	if(! strncmp(argv[2], "list", 4))
+	if (! strncmp(argv[2], "list", 4))
 		displayResponse();
 
 exit(0);
@@ -170,18 +170,18 @@ send_msg(char *objname, int priority) {
 	struct q_entry s_entry;	/* Structure to hold message */
 
 	/* Validate name length, priority level */
-	if((len = strlen(objname)) > MAXOBN) {
+	if ((len = strlen(objname)) > MAXOBN) {
 		printf("Name too long\n");
 		return (-1);
 	}
 
-	if(priority > LIBRARY_Q || priority < 0) {
+	if (priority > LIBRARY_Q || priority < 0) {
 		printf("Invalid priority level\n");
 		return(-1);
 	}
 
 	/* Initialize message queue as nessary */
-	if( (s_qid = init_queue()) == -1)
+	if ((s_qid = init_queue()) == -1)
 		return (-1);
 
 	/* Initialize s_entry */
@@ -189,7 +189,7 @@ send_msg(char *objname, int priority) {
 	strncpy(s_entry.mtext, objname, MAXOBN);
 
 	/* Send message, waiting if nessary */
-	if(msgsnd(s_qid, &s_entry, len, 0) == -1) {
+	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
 		perror("msgsnd failed");
 		return (-1);
 	} else {
