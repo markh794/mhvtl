@@ -18,7 +18,7 @@
 #include "vtltape.h"
 #include "vxshared.h"
 
-const char *mktapeVersion = "$Id: mktape.c,v 1.15.0.0 2007-09-21 07:58:44 markh Exp $";
+const char *mktapeVersion = "$Id: mktape.c,v 1.16.0.0 2007-09-26 07:58:44 markh Exp $";
 
 #ifndef Solaris
   loff_t lseek64(int, loff_t, int);

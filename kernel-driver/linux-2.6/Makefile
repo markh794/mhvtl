@@ -14,7 +14,7 @@ KDIR	:= /lib/modules/$(shell uname -r)/build
 
 # For Ubuntu 6.06
 #KDIR	:= /usr/src/linux-headers-$(shell uname -r)/
-# KDIR	:= /usr/src/linux-headers-2.6.15-26-686/
+
 PWD	:= $(shell pwd)
 
 default:

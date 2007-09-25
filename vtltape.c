@@ -43,7 +43,7 @@
  *          This means I don't have to do any kernel level drivers
  *          and leaverage the hosts native iSCSI initiator.
  */
-static const char * Version = "$Id: vtltape.c 1.15 2007-09-23 06:35:01 markh Exp $";
+static const char * Version = "$Id: vtltape.c 1.16 2007-09-26 06:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
