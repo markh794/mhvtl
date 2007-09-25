@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 24
-Source: vtl-2007-09-23.tgz
+Release: 26
+Source: vtl-2007-09-25.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -143,6 +143,17 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Tue Sep 25 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-26
+- vtl kernel module: - bumped to 0.12.14 20070925-2
+  Moved memory alloc from devInfoReg() to vtl_slave_alloc() - I now don't get
+  those horrible "Debug: sleeping function called from invalid context"
+
+* Tue Sep 25 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-25
+- Resolved an issue where virtual media was being corrupted when performing
+  erase operation.
+
 * Sat Sep 22 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-24
 - On corrupt media load, return NOT READY/MEDIUM FORMAT CORRUPT

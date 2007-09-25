@@ -45,14 +45,14 @@ case "$1" in
 		echo
 	fi
 
-	vtlVersion=`grep version /proc/scsi/vtl/* |awk '{print $5}'|awk -F. '{print $3}'`
+	vtlVersion=`grep version /proc/scsi/vtl/* 2> /dev/null|awk '{print $5}'|awk -F. '{print $3}'`
 	if [ "X$vtlVersion" == "X" ]; then
-		echo "Incorrect kernel module for these daemons."
-		echo "Need at least 0.12.10"
+		echo "Incorrect (or no) kernel module loaded for these daemons."
+		echo "Need at least 0.12.12"
 		exit 1
-	elif [ "$vtlVersion" -lt "11" ]; then
+	elif [ "$vtlVersion" -lt "12" ]; then
 		echo "Incorrect kernel module for these daemons."
-		echo "Need at least 0.12.11 and $vtlVersion is loaded."
+		echo "Need at least 0.12.12 and 0.12.$vtlVersion is loaded."
 		exit 1
 	fi
 

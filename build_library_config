@@ -43,7 +43,7 @@ if [ -x /usr/bin/lsscsi ]; then
 elif [ -x /bin/lsscsi ]; then
 	LSSCSI=/bin/lsscsi
 else
-	echo "Can not find \'lsscsi\' - Aborting...."
+	echo "Can not find 'lsscsi' - Aborting...."
 	exit 1
 fi
 
