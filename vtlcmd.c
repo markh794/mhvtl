@@ -26,7 +26,7 @@
  *
  */
 
-const char *Version = "$Id: vtlcmd.c,v 1.1.2.1 2006-08-06 07:58:44 markh Exp $";
+static const char *Version = "$Id: vtlcmd.c,v 1.15 2007-09-26 07:58:44 markh Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +37,7 @@ const char *Version = "$Id: vtlcmd.c,v 1.1.2.1 2006-08-06 07:58:44 markh Exp $";
 void
 usage(char *progname) {
 	fprintf(stderr, "Usage: %s DriveNo. <command>\n", progname);
+	fprintf(stderr, "       %s\n", Version);
 	fprintf(stderr, "       Where 'DriveNo' is the messageQ number"
 			" associated with tape daemon\n");
 	fprintf(stderr, "       Where 'command' can be:\n");
@@ -56,8 +57,6 @@ usage(char *progname) {
 	fprintf(stderr, "           list map  -> To list map contents\n");
 	fprintf(stderr, "           empty map # "
 			"-> To remove media from map number #\n");
-//	fprintf(stderr, "           load map # barcode "
-//			"-> To add media 'barcode' to map number #\n");
 	fprintf(stderr, "           TapeAlert # "
 			"-> 64bit TapeAlert mask\n");
 	fprintf(stderr, "           exit      -> To shutdown library daemon\n");

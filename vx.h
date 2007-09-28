@@ -116,9 +116,9 @@ typedef char		s8;
 #define MEDIA_TYPE_CLEAN 6
 
 struct	vtl_header {
-	u32	serialNo;
-	u8	cdb[16];
-	u8	* buf;
+	u32 serialNo;
+	u8 cdb[16];
+	u8 *buf;
 };
 
 

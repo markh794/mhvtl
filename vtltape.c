@@ -178,73 +178,7 @@ static struct seqAccessDevice seqAccessDevice = {
 	{ 0x80, 0x02, 0x40, 0x04, }, 0x00,	// Lifetime cleaning cycles
 	};
 
-static struct TapeAlert_page	TapeAlert = {
-	{ TAPE_ALERT, 0x00, 100, },
-	{ 0x00, 1, 0xc0, 1, }, 0x00,	// Read warning
-	{ 0x00, 2, 0xc0, 1, }, 0x00,	// Write warning
-	{ 0x00, 3, 0xc0, 1, }, 0x00,	// Hard error
-	{ 0x00, 4, 0xc0, 1, }, 0x00,	// Media
-	{ 0x00, 5, 0xc0, 1, }, 0x00,	// Read failure
-	{ 0x00, 6, 0xc0, 1, }, 0x00,	// Write failure
-	{ 0x00, 7, 0xc0, 1, }, 0x00,	// Tape has reached EOL
-	{ 0x00, 8, 0xc0, 1, }, 0x00,	// Not data grade
-	{ 0x00, 9, 0xc0, 1, }, 0x00,	// Write protect
-	{ 0x00, 0xa, 0xc0, 1, }, 0x00,	// No removal
-	{ 0x00, 0xb, 0xc0, 1, }, 0x00,	// Cleaning media
-	{ 0x00, 0xc, 0xc0, 1, }, 0x00,	// Unsupported format
-	{ 0x00, 0xd, 0xc0, 1, }, 0x00,	// Recoverable mechanical cart failure
-	{ 0x00, 0xe, 0xc0, 1, }, 0x00,	// Unrecoverable mechanical cart failure
-	{ 0x00, 0xf, 0xc0, 1, }, 0x00,	// Memory chip in cart failure
-	{ 0x00, 0x10, 0xc0, 1, }, 0x00,	// Forced eject
-	{ 0x00, 0x11, 0xc0, 1, }, 0x00,	// Read only format
-	{ 0x00, 0x12, 0xc0, 1, }, 0x00,	// Tape directory corrupted on load
-	{ 0x00, 0x13, 0xc0, 1, }, 0x00,	// Nearing EOL
-	{ 0x00, 0x14, 0xc0, 1, }, 0x00,	// Clean now
-	{ 0x00, 0x15, 0xc0, 1, }, 0x00,	// Clean periodic
-	{ 0x00, 0x16, 0xc0, 1, }, 0x00,	// Expired cleaning media
-	{ 0x00, 0x17, 0xc0, 1, }, 0x00,	// Invalid cleaning tpae
-	{ 0x00, 0x18, 0xc0, 1, }, 0x00,	// Retention requested
-	{ 0x00, 0x19, 0xc0, 1, }, 0x00,	// Dual port interface failure
-	{ 0x00, 0x1a, 0xc0, 1, }, 0x00,	// Cooling fan failure
-	{ 0x00, 0x1b, 0xc0, 1, }, 0x00,	// PSU failure
-	{ 0x00, 0x1c, 0xc0, 1, }, 0x00,	// Power consumption
-	{ 0x00, 0x1d, 0xc0, 1, }, 0x00,	// Drive maintenance - PM required
-	{ 0x00, 0x1e, 0xc0, 1, }, 0x00,	// Hardware A
-	{ 0x00, 0x1f, 0xc0, 1, }, 0x00,	// Hardware B
-	{ 0x00, 0x20, 0xc0, 1, }, 0x00,	// Interface problems.
-	{ 0x00, 0x21, 0xc0, 1, }, 0x00,	// Eject media (failed)
-	{ 0x00, 0x22, 0xc0, 1, }, 0x00,	// Download failed
-	{ 0x00, 0x23, 0xc0, 1, }, 0x00,	// Drive humidity
-	{ 0x00, 0x24, 0xc0, 1, }, 0x00,	// Drive temperature
-	{ 0x00, 0x25, 0xc0, 1, }, 0x00,	// Drive voltage
-	{ 0x00, 0x26, 0xc0, 1, }, 0x00,	// Predictive failure
-	{ 0x00, 0x27, 0xc0, 1, }, 0x00,	// Diagnostics required
-	{ 0x00, 0x28, 0xc0, 1, }, 0x00,	// Obsolete
-	{ 0x00, 0x29, 0xc0, 1, }, 0x00,	// Obsolete
-	{ 0x00, 0x2a, 0xc0, 1, }, 0x00,	// Obsolete
-	{ 0x00, 0x2b, 0xc0, 1, }, 0x00,	// Obsolete
-	{ 0x00, 0x2c, 0xc0, 1, }, 0x00,	// Obsolete
-	{ 0x00, 0x2d, 0xc0, 1, }, 0x00,	// Obsolete
-	{ 0x00, 0x2e, 0xc0, 1, }, 0x00,	// Obsolete
-	{ 0x00, 0x2f, 0xc0, 1, }, 0x00,	// reserved
-	{ 0x00, 0x30, 0xc0, 1, }, 0x00,	// reserved
-	{ 0x00, 0x31, 0xc0, 1, }, 0x00,	// reserved
-	{ 0x00, 0x32, 0xc0, 1, }, 0x00,	// Lost statistics
-	{ 0x00, 0x33, 0xc0, 1, }, 0x00,	// Tape directory invalid at unload
-	{ 0x00, 0x34, 0xc0, 1, }, 0x00,	// Tape system area write failure
-	{ 0x00, 0x35, 0xc0, 1, }, 0x00,	// Tape system area read failure
-	{ 0x00, 0x36, 0xc0, 1, }, 0x00,	// No start of data
-	{ 0x00, 0x37, 0xc0, 1, }, 0x00,	// Loading failure
-	{ 0x00, 0x38, 0xc0, 1, }, 0x00,	// Unrecoverable unload failure
-	{ 0x00, 0x39, 0xc0, 1, }, 0x00,	// Automation interface failure
-	{ 0x00, 0x3a, 0xc0, 1, }, 0x00,	// firmware failure
-	{ 0x00, 0x3b, 0xc0, 1, }, 0x00,	// WORM Medium integerity check failed
-	{ 0x00, 0x3c, 0xc0, 1, }, 0x00,	// WORM overwrite attempted
-	{ 0x00, 0x3d, 0xc0, 1, }, 0x00,	// reserved
-	{ 0x00, 0x3e, 0xc0, 1, }, 0x00,	// reserved
-	{ 0x00, 0x3f, 0xc0, 1, }, 0x00,	// reserved
-	{ 0x00, 0x40, 0xc0, 1, }, 0x00,	// reserved
-	};
+static struct TapeAlert_page TapeAlert;
 
 static struct DataCompression DataCompression = {
 	{ DATA_COMPRESSION, 0x00, 0x54, },
@@ -861,8 +795,9 @@ static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf, uint8_t *sense
 
 static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 	uint8_t	*b = buf;
-	int	retval = 0;
-	u16	*sp;
+	int retval = 0;
+	uint16_t *sp;
+	uint16_t alloc_len = (SCpnt[7] << 8) | SCpnt[8];
 
 	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x08,
 					0x00,
@@ -939,8 +874,14 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 					sizeof(TapeAlert.pcode_head));
 		b = memcpy(b, &TapeAlert, sizeof(TapeAlert));
 		retval += sizeof(TapeAlert);
-		setTapeAlert(&TapeAlert, 0);	// Clear flags after value read.
-		setSeqAccessDevice(&seqAccessDevice, 0);
+		/* Clear flags after value read. */
+		if (alloc_len > 4) {
+			setTapeAlert(&TapeAlert, 0);
+			setSeqAccessDevice(&seqAccessDevice, 0);
+		} else
+			syslog(LOG_DAEMON|LOG_INFO,
+				"TapeAlert : Alloc len short -"
+				" Not clearing TapeAlert flags.\n");
 		break;
 	case TAPE_USAGE:	/* Tape Usage Log */
 		if (verbose)
@@ -2368,6 +2309,7 @@ main(int argc, char *argv[])
 	reset = 1;
 
 	init_mode_pages(sm);
+	initTapeAlert(&TapeAlert);
 
 	/* Initialise message queue as necessary */
 	if ((r_qid = init_queue()) == -1) {
@@ -2379,19 +2321,19 @@ main(int argc, char *argv[])
 	if ( ! debug) {
 		switch(pid = fork()) {
 		case 0:         /* Child */
-                	break;
-        	case -1:
-                	printf("Failed to fork daemon\n");
-                	break;
-        	default:
+			break;
+		case -1:
+			printf("Failed to fork daemon\n");
+			break;
+		default:
 			if (verbose)
-                		printf("vtltape process PID is %d\n", (int)pid);
-                	break;
-        	}
+				printf("vtltape process PID is %d\n", (int)pid);
+			break;
+		}
  
 		/* Time for the parent to terminate */
 		if (pid != 0)
-        		exit(pid != -1 ? 0 : 1);
+			exit(pid != -1 ? 0 : 1);
 
 	}
 

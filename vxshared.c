@@ -586,83 +586,37 @@ s32 resp_write_attribute(u8 *buf, u64 len, struct MAM *mam, u8 *sense_flg)
 return 0;
 }
 
-void setTapeAlert(struct TapeAlert_page * ta, u64 flg)
+void initTapeAlert(struct TapeAlert_page *ta)
 {
+	int a;
 
-	ta->value01 = (flg & 1) ? 1 : 0;
-	ta->value02 = (flg & 2) ? 1 : 0;
-	ta->value03 = (flg & 4) ? 1 : 0;
-	ta->value04 = (flg & 8) ? 1 : 0;
-	ta->value05 = (flg & 0x10) ? 1 : 0;
-	ta->value06 = (flg & 0x20) ? 1 : 0;
-	ta->value07 = (flg & 0x40) ? 1 : 0;
-	ta->value08 = (flg & 0x80) ? 1 : 0;
+	ta->pcode_head.pcode = TAPE_ALERT;
+	ta->pcode_head.res = 0;
+	ta->pcode_head.len = 100;
+	for (a = 0; a < 64; a++) {
+		ta->TapeAlert[a].flag.head0 = 0;
+		ta->TapeAlert[a].flag.head1 = a + 1;
+		ta->TapeAlert[a].flag.flags = 0xc0;
+		ta->TapeAlert[a].flag.len = 1;
+		ta->TapeAlert[a].value = 0;
+	}
+}
 
-	ta->value09 = (flg & 0x100) ? 1 : 0;
-	ta->value0a = (flg & 0x200) ? 1 : 0;
-	ta->value0b = (flg & 0x400) ? 1 : 0;
-	ta->value0c = (flg & 0x800) ? 1 : 0;
-	ta->value0d = (flg & 0x1000) ? 1 : 0;
-	ta->value0e = (flg & 0x2000) ? 1 : 0;
-	ta->value0f = (flg & 0x4000) ? 1 : 0;
-	ta->value10 = (flg & 0x8000) ? 1 : 0;
+void setTapeAlert(struct TapeAlert_page *ta, u64 flg)
+{
+	if (verbose > 1)
+		syslog(LOG_DAEMON|LOG_INFO,
+				"Setting TapeAlert flags 0x%llx", flg);
 
-	ta->value11 = (flg & 0x10000) ? 1 : 0;
-	ta->value12 = (flg & 0x20000) ? 1 : 0;
-	ta->value13 = (flg & 0x40000) ? 1 : 0;
-	ta->value14 = (flg & 0x80000) ? 1 : 0;
-	ta->value15 = (flg & 0x100000) ? 1 : 0;
-	ta->value16 = (flg & 0x200000) ? 1 : 0;
-	ta->value17 = (flg & 0x400000) ? 1 : 0;
-	ta->value18 = (flg & 0x800000) ? 1 : 0;
-	ta->value19 = (flg & 0x1000000) ? 1 : 0;
-	ta->value1a = (flg & 0x2000000) ? 1 : 0;
-	ta->value1b = (flg & 0x4000000) ? 1 : 0;
-	ta->value1c = (flg & 0x8000000) ? 1 : 0;
-	ta->value1d = (flg & 0x10000000) ? 1 : 0;
-	ta->value1e = (flg & 0x20000000) ? 1 : 0;
-	ta->value1f = (flg & 0x40000000) ? 1 : 0;
-	ta->value20 = (flg & 0x80000000) ? 1 : 0;
-
-	ta->value21 = (flg & 0x100000000ull) ? 1 : 0;
-	ta->value22 = (flg & 0x200000000ull) ? 1 : 0;
-	ta->value23 = (flg & 0x400000000ull) ? 1 : 0;
-	ta->value24 = (flg & 0x800000000ull) ? 1 : 0;
-	ta->value25 = (flg & 0x1000000000ull) ? 1 : 0;
-	ta->value26 = (flg & 0x2000000000ull) ? 1 : 0;
-	ta->value27 = (flg & 0x4000000000ull) ? 1 : 0;
-	ta->value28 = (flg & 0x8000000000ull) ? 1 : 0;
-	ta->value29 = (flg & 0x10000000000ull) ? 1 : 0;
-	ta->value2a = (flg & 0x20000000000ull) ? 1 : 0;
-	ta->value2b = (flg & 0x40000000000ull) ? 1 : 0;
-	ta->value2c = (flg & 0x80000000000ull) ? 1 : 0;
-	ta->value2d = (flg & 0x100000000000ull) ? 1 : 0;
-	ta->value2e = (flg & 0x200000000000ull) ? 1 : 0;
-	ta->value2f = (flg & 0x400000000000ull) ? 1 : 0;
-	ta->value30 = (flg & 0x800000000000ull) ? 1 : 0;
-
-	ta->value31 = (flg & 0x1000000000000ull) ? 1 : 0;
-	ta->value32 = (flg & 0x2000000000000ull) ? 1 : 0;
-	ta->value33 = (flg & 0x2000000000000ull) ? 1 : 0;
-	ta->value34 = (flg & 0x4000000000000ull) ? 1 : 0;
-	ta->value35 = (flg & 0x8000000000000ull) ? 1 : 0;
-	ta->value36 = (flg & 0x10000000000000ull) ? 1 : 0;
-	ta->value37 = (flg & 0x20000000000000ull) ? 1 : 0;
-	ta->value38 = (flg & 0x40000000000000ull) ? 1 : 0;
-	ta->value39 = (flg & 0x80000000000000ull) ? 1 : 0;
-	ta->value3a = (flg & 0x100000000000000ull) ? 1 : 0;
-	ta->value3b = (flg & 0x200000000000000ull) ? 1 : 0;
-	ta->value3c = (flg & 0x400000000000000ull) ? 1 : 0;
-	ta->value3d = (flg & 0x1000000000000000ull) ? 1 : 0;
-	ta->value3e = (flg & 0x2000000000000000ull) ? 1 : 0;
-	ta->value3f = (flg & 0x4000000000000000ull) ? 1 : 0;
-	ta->value40 = (flg & 0x8000000000000000ull) ? 1 : 0;
-
-	if (flg)
-		if (verbose > 1)
+	int a;
+	for (a = 0; a < 64; a++) {
+		ta->TapeAlert[a].value = (flg & (1ull << a)) ? 1 : 0;
+		if (verbose > 2)
 			syslog(LOG_DAEMON|LOG_INFO,
-					" Setting TapeAlert flags 0x%llx",
-								flg);
+				"TapeAlert flag %016llx : %s\n",
+				1ull << a,
+				(ta->TapeAlert[a].value) ? "set" : "unset");
+	}
 
 }
 

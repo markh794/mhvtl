@@ -31,7 +31,7 @@
  *          and leaverage the hosts native iSCSI initiator.
  */
 
-static const char * Version = "$Id: vtllibrary.c,v 1.16 2007-09-26 06:35:01 markh Exp $";
+static const char *Version = "$Id: vtllibrary.c,v 1.16 2007-09-26 06:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -97,10 +97,10 @@ static int NUM_STORAGE = 0x0800;
 #define MAP_ELEMENT		3
 #define DATA_TRANSFER		4
 
-int bufsize = 0;
+static int bufsize = 0;
 int verbose = 0;
 int debug = 0;
-long	capacity;	/* Max capacity of media */
+static long	capacity;	/* Max capacity of media */
 static int libraryOnline = 1;	/* Default to Off-line */
 int reset = 1;		/* Poweron reset */
 static uint8_t request_sense = 0; /* Non-zero if Sense-data is valid */
@@ -127,13 +127,13 @@ static struct d_info {	/* Drive Info */
 	int  SCSI_ID;
 	int  SCSI_LUN;
 	char tapeLoaded;	// Tape is 'loaded' by drive
-	struct s_info * slot;
+	struct s_info *slot;
 };
 
-static struct d_info * drive_info;
-static struct s_info * storage_info;
-static struct s_info * map_info;
-static struct s_info * picker_info;
+static struct d_info *drive_info;
+static struct s_info *storage_info;
+static struct s_info *map_info;
+static struct s_info *picker_info;
 
 /* Log pages */
 static struct	Temperature_page Temperature_pg = {
@@ -141,73 +141,8 @@ static struct	Temperature_page Temperature_pg = {
 	{ 0x00, 0x00, 0x60, 0x02, }, 0x00, 	// Temperature
 	};
 
-static struct TapeAlert_page	TapeAlert = {
-	{ TAPE_ALERT, 0x00, 100, },
-	{ 0x00, 1, 0xc0, 1, }, 0x00,
-	{ 0x00, 2, 0xc0, 1, }, 0x00,
-	{ 0x00, 3, 0xc0, 1, }, 0x00,
-	{ 0x00, 4, 0xc0, 1, }, 0x00,
-	{ 0x00, 5, 0xc0, 1, }, 0x00,
-	{ 0x00, 6, 0xc0, 1, }, 0x00,
-	{ 0x00, 7, 0xc0, 1, }, 0x00,
-	{ 0x00, 8, 0xc0, 1, }, 0x00,
-	{ 0x00, 9, 0xc0, 1, }, 0x00,
-	{ 0x00, 10, 0xc0, 1, }, 0x00,
-	{ 0x00, 11, 0xc0, 1, }, 0x00,
-	{ 0x00, 12, 0xc0, 1, }, 0x00,
-	{ 0x00, 13, 0xc0, 1, }, 0x00,
-	{ 0x00, 14, 0xc0, 1, }, 0x00,
-	{ 0x00, 15, 0xc0, 1, }, 0x00,
-	{ 0x00, 16, 0xc0, 1, }, 0x00,
-	{ 0x00, 17, 0xc0, 1, }, 0x00,
-	{ 0x00, 18, 0xc0, 1, }, 0x00,
-	{ 0x00, 19, 0xc0, 1, }, 0x00,
-	{ 0x00, 20, 0xc0, 1, }, 0x00,
-	{ 0x00, 21, 0xc0, 1, }, 0x00,
-	{ 0x00, 22, 0xc0, 1, }, 0x00,
-	{ 0x00, 23, 0xc0, 1, }, 0x00,
-	{ 0x00, 24, 0xc0, 1, }, 0x00,
-	{ 0x00, 25, 0xc0, 1, }, 0x00,
-	{ 0x00, 26, 0xc0, 1, }, 0x00,
-	{ 0x00, 27, 0xc0, 1, }, 0x00,
-	{ 0x00, 28, 0xc0, 1, }, 0x00,
-	{ 0x00, 29, 0xc0, 1, }, 0x00,
-	{ 0x00, 30, 0xc0, 1, }, 0x00,
-	{ 0x00, 31, 0xc0, 1, }, 0x00,
-	{ 0x00, 32, 0xc0, 1, }, 0x00,
-	{ 0x00, 33, 0xc0, 1, }, 0x00,
-	{ 0x00, 34, 0xc0, 1, }, 0x00,
-	{ 0x00, 35, 0xc0, 1, }, 0x00,
-	{ 0x00, 36, 0xc0, 1, }, 0x00,
-	{ 0x00, 37, 0xc0, 1, }, 0x00,
-	{ 0x00, 38, 0xc0, 1, }, 0x00,
-	{ 0x00, 39, 0xc0, 1, }, 0x00,
-	{ 0x00, 40, 0xc0, 1, }, 0x00,
-	{ 0x00, 41, 0xc0, 1, }, 0x00,
-	{ 0x00, 42, 0xc0, 1, }, 0x00,
-	{ 0x00, 43, 0xc0, 1, }, 0x00,
-	{ 0x00, 44, 0xc0, 1, }, 0x00,
-	{ 0x00, 45, 0xc0, 1, }, 0x00,
-	{ 0x00, 46, 0xc0, 1, }, 0x00,
-	{ 0x00, 47, 0xc0, 1, }, 0x00,
-	{ 0x00, 48, 0xc0, 1, }, 0x00,
-	{ 0x00, 49, 0xc0, 1, }, 0x00,
-	{ 0x00, 50, 0xc0, 1, }, 0x00,
-	{ 0x00, 51, 0xc0, 1, }, 0x00,
-	{ 0x00, 52, 0xc0, 1, }, 0x00,
-	{ 0x00, 53, 0xc0, 1, }, 0x00,
-	{ 0x00, 54, 0xc0, 1, }, 0x00,
-	{ 0x00, 55, 0xc0, 1, }, 0x00,
-	{ 0x00, 56, 0xc0, 1, }, 0x00,
-	{ 0x00, 57, 0xc0, 1, }, 0x00,
-	{ 0x00, 58, 0xc0, 1, }, 0x00,
-	{ 0x00, 59, 0xc0, 1, }, 0x00,
-	{ 0x00, 60, 0xc0, 1, }, 0x00,
-	{ 0x00, 61, 0xc0, 1, }, 0x00,
-	{ 0x00, 62, 0xc0, 1, }, 0x00,
-	{ 0x00, 63, 0xc0, 1, }, 0x00,
-	{ 0x00, 64, 0xc0, 1, }, 0x00,
-	};
+static struct TapeAlert_page	TapeAlert;
+
 
 /*
  * Mode Pages defined for SMC-3 devices..
@@ -319,7 +254,7 @@ static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf) {
 /*
  * Takes a slot number and returns a struct pointer to the slot
  */
-static struct s_info * slot2struct(int addr) {
+static struct s_info *slot2struct(int addr) {
 	if ((addr >= START_MAP) && (addr <= (START_MAP + NUM_MAP))) {
 		addr -= START_MAP;
 		DEBC(	printf("slot2struct: MAP %d\n", addr); )
@@ -348,13 +283,13 @@ return NULL;
 /*
  * Takes a Drive number and returns a struct pointer to the drive
  */
-static struct d_info * drive2struct(int addr) {
+static struct d_info *drive2struct(int addr) {
 	addr -= START_DRIVE;
 	return &drive_info[addr];
 }
 
 /* Returns true if slot has media in it */
-static int slotOccupied(struct s_info * s) {
+static int slotOccupied(struct s_info *s) {
 	return(s->status & 0x01);
 }
 
@@ -639,11 +574,11 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	}
 
 	if (cmd[10] != 0) {	/* Can not Invert media */
-                mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		return -1;
 	}
 	if (cmd[11] == 0xc0) {	// Invalid combo of Extend/retract I/O port
-                mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		return -1;
 	}
 	if (cmd[11]) // Must be an Extend/Retract I/O port cmd.. NO-OP
@@ -652,15 +587,15 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	if (transport_addr == 0)
 		transport_addr = START_PICKER;
 	if (transport_addr > (START_PICKER + NUM_PICKER)) {
-                mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		retVal = -1;
 	}
 	if (! valid_slot(src_addr)) {
-                mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		retVal = -1;
 	}
 	if (! valid_slot(dest_addr)) {
-                mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
 		retVal = -1;
 	}
 
@@ -743,7 +678,7 @@ return j;
  *
  * Returns number of bytes used to fill in all details.
  */
-static int fill_element_detail(uint8_t *p, struct s_info * slot, int slot_count, int voltag) {
+static int fill_element_detail(uint8_t *p, struct s_info *slot, int slot_count, int voltag) {
 	int k;
 	int j;
 
@@ -820,7 +755,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		if (d->slot->status & 0x01) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
-  			/* Barcode with trailing space(s) */
+			/* Barcode with trailing space(s) */
 			snprintf((char *)&p[j], 32, "%-32s", s);
 		} else {
 			memset(&p[j], 0, 32);
@@ -858,7 +793,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		if (d->slot->status & 0x01) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
-  			/* Barcode with trailing space(s) */
+			/* Barcode with trailing space(s) */
 			snprintf((char *)&p[j], 32, "%-32s", s);
 		} else {
 			memset(&p[j], 0, 32);
@@ -932,7 +867,7 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 	sp = (uint16_t *)&p[2];
 	*sp = htons(element_sz);
 
-	element_len = element_sz * element_count;
+	element_len = element_sz *element_count;
 
 	/* Total number of bytes in all element descriptors */
 	sl = (uint32_t *)&p[4];
@@ -1081,7 +1016,7 @@ return 0;
  *
  * Returns number of bytes used to fill in data
  */
-static int medium_transport_descriptor(uint8_t * p, uint16_t start,
+static int medium_transport_descriptor(uint8_t *p, uint16_t start,
 				uint16_t count, uint8_t dvcid, uint8_t voltag)
 {
 	uint16_t	len;
@@ -1108,7 +1043,7 @@ return len;
  *
  * Returns number of bytes used to fill in data
  */
-static int storage_element_descriptor(uint8_t * p, uint16_t start,
+static int storage_element_descriptor(uint8_t *p, uint16_t start,
 				uint16_t count, uint8_t dvcid, uint8_t voltag)
 {
 	uint16_t	len;
@@ -1132,7 +1067,7 @@ return len;
  *
  * Returns number of bytes used to fill in data
  */
-static int map_element_descriptor(uint8_t * p, uint16_t start, uint16_t count,
+static int map_element_descriptor(uint8_t *p, uint16_t start, uint16_t count,
 						uint8_t dvcid, uint8_t voltag)
 {
 	uint16_t	len;
@@ -1156,7 +1091,7 @@ return len;
  *
  * Returns number of bytes used to fill in data
  */
-static int data_transfer_descriptor(uint8_t * p, uint16_t start,
+static int data_transfer_descriptor(uint8_t *p, uint16_t start,
 				uint16_t count, uint8_t dvcid, uint8_t voltag)
 {
 	uint32_t	len;
@@ -1285,14 +1220,14 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	memset(buf, 0, alloc_len);
 
 	if (cdb[11] != 0x0) {	// Reserved byte..
-               	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
 		return(0);
 	}
 
 	// Find first matching slot number which matches the typeCode.
 	start = find_first_matching_element(req_start_elem, typeCode);
 	if (start == 0) {	// Nothing found..
-               	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
 		return(0);
 	}
 
@@ -1333,7 +1268,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		}
 		break;
 	default:	// Illegal descriptor type.
-               	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
 		return(0);
 		break;
 	}
@@ -1750,7 +1685,7 @@ static void init_mode_pages(struct mode *m) {
  * Allocate enough storage for (size) drives & init to zero
  * - Returns pointer or NULL on error
  */
-static struct d_info * init_d_struct(int size) {
+static struct d_info *init_d_struct(int size) {
 	struct d_info d_info;
 	struct d_info *dp;
 
@@ -1765,7 +1700,7 @@ return dp;
  * Allocate enough storage for (size) elements & init to zero
  * - Returns pointer or NULL on error
  */
-static struct s_info * init_s_struct(int size) {
+static struct s_info *init_s_struct(int size) {
 	struct s_info s_info;
 	struct s_info *sp;
 
@@ -1801,8 +1736,8 @@ return(retval);
  */
 #define MALLOC_SZ 1024
 static void init_tape_info(void) {
-	char * conf="/etc/vtl/vxlib.conf";
-	FILE * ctrl;
+	char *conf="/etc/vtl/vxlib.conf";
+	FILE *ctrl;
 	struct d_info *dp = NULL;
 	struct s_info *sp = NULL;
 	char *b;	/* Read from file into this buffer */
@@ -2006,7 +1941,7 @@ int main(int argc, char *argv[])
 	uint32_t serialNo = 0L;
 	uint32_t	byteCount;
 	uint8_t *buf;
-	uint8_t * SCpnt;
+	uint8_t *SCpnt;
 
 	struct d_info *dp;
 	char s[100];
@@ -2014,8 +1949,8 @@ int main(int argc, char *argv[])
 
 	pid_t pid;
 
-	char * progname = argv[0];
-	char * name = "vtl";
+	char *progname = argv[0];
+	char *name = "vtl";
 	uint8_t	minor = 0;
 
 	/* Message Q */
@@ -2102,6 +2037,7 @@ int main(int argc, char *argv[])
 	init_tape_info();
 
 	init_mode_pages(sm);
+	initTapeAlert(&TapeAlert);
 
 	/* Send a message to each tape drive so they know the
 	 * controlling library's message Q id
@@ -2140,18 +2076,18 @@ int main(int argc, char *argv[])
 	if ( ! debug) {
 		switch(pid = fork()) {
 		case 0:         /* Child */
-                	break;
-        	case -1:
-                	printf("Failed to fork daemon\n");
-                	break;
-        	default:
-                	printf("%s process PID is %d\n", progname, (int)pid);
-                	break;
-        	}
+			break;
+		case -1:
+			printf("Failed to fork daemon\n");
+			break;
+		default:
+			printf("%s process PID is %d\n", progname, (int)pid);
+			break;
+		}
  
 		/* Time for the parent to terminate */
 		if (pid != 0)
-        		exit(pid != -1 ? 0 : 1);
+			exit(pid != -1 ? 0 : 1);
 	}
 
 	oom_adjust();
@@ -2163,10 +2099,10 @@ int main(int argc, char *argv[])
 			r_entry.mtext[mlen] = '\0';
 			exit_status = processMessageQ(r_entry.mtext);
 		} else if (mlen < 0) {
-                        r_qid = init_queue();
-                        if (r_qid == -1)
-                                syslog(LOG_DAEMON|LOG_ERR,
-                                        "Can not open message queue: %m");
+			r_qid = init_queue();
+			if (r_qid == -1)
+				syslog(LOG_DAEMON|LOG_ERR,
+					"Can not open message queue: %m");
 		}
 		if (exit_status)	// Process a 'exit' messageQ
 			goto exit;
