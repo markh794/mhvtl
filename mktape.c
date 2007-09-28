@@ -38,16 +38,16 @@ usage(char *progname) {
 
 int
 main(int argc, char *argv[]) {
-	int	file;
-	struct	blk_header h;
-	struct	MAM mam;
-	u8	currentMedia[1024];
-	long	nwrite;
-	char	*progname = argv[0];
-	char	*pcl = NULL;
-	char	*mediaType = NULL;
-	char	*mediaCapacity = NULL;
-	u32	size;
+	int file;
+	struct blk_header h;
+	struct MAM mam;
+	uint8_t currentMedia[1024];
+	long nwrite;
+	char *progname = argv[0];
+	char *pcl = NULL;
+	char *mediaType = NULL;
+	char *mediaCapacity = NULL;
+	uint32_t size;
 
 	if (argc < 2) {
 		usage(progname);
@@ -146,7 +146,8 @@ main(int argc, char *argv[]) {
 
 	sprintf((char *)currentMedia, "%s/%s", HOME_PATH, pcl);
 	syslog(LOG_DAEMON|LOG_INFO, "%s being created", currentMedia);
-	if ((file = creat((char *)currentMedia,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)) == -1) {
+	file = creat((char *)currentMedia,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	if (file == -1) {
 		perror("Failed creating file");
 		exit(2);
 	}

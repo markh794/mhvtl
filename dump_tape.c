@@ -42,12 +42,11 @@
 int verbose;
 int debug;
 
-struct blk_header current_position;
+struct blk_header current_pos;
 
-void
-print_current_header(void) {
+void print_current_header(void) {
 	printf("Hdr:");
-	switch(current_position.blk_type) {
+	switch(current_pos.blk_type) {
 		case B_UNCOMPRESS_DATA:
 			printf(" Uncompressed data");
 			break;
@@ -72,42 +71,31 @@ print_current_header(void) {
 		case B_NOOP:
 			printf("      No Operation");
 			break;
-//		case B_CLEANING:
-//			printf("     Cleaning Tape");
-//			break;
 		default:
 			printf("      Unknown type");
 			break;
 	}
-	if (current_position.blk_type == B_BOT)
-		printf("(%d), Capacity %" PRId64 ", Blk No.: %" PRId64
-		", prev %" PRId64 ", curr %" PRId64 ", next %" PRId64 "\n",
-			current_position.blk_type,
-			((loff_t)current_position.blk_size * (loff_t)1048576),
-			current_position.blk_number,
-			current_position.prev_blk,
-			current_position.curr_blk,
-			current_position.next_blk);
-	else
-		printf("(%d), sz %d, Blk No.: %" PRId64 ", prev %" PRId64
+	printf("(%d), %s %d, Blk No.: %" PRId64 ", prev %" PRId64
 			", cur %" PRId64 ", next %" PRId64 "\n",
-			current_position.blk_type,
-			current_position.blk_size,
-			(loff_t)current_position.blk_number,
-			current_position.prev_blk,
-			current_position.curr_blk,
-			current_position.next_blk);
+			current_pos.blk_type,
+			(current_pos.blk_type == B_BOT) ? "Capacity" : "sz",
+			current_pos.blk_size,
+			(loff_t)current_pos.blk_number,
+			current_pos.prev_blk,
+			current_pos.curr_blk,
+			current_pos.next_blk);
 }
 
-int
-skip_to_next_header(int datafile, char * sense_flg) {
+int skip_to_next_header(int datafile, char * sense_flg) {
 	loff_t nread;
+	loff_t pos;
 
-	if (current_position.next_blk != lseek64(datafile, current_position.next_blk, SEEK_SET)) {
+	pos = lseek64(datafile, current_pos.next_blk, SEEK_SET);
+	if (pos != current_pos.next_blk) {
 		printf("Error reading datafile while forward SPACEing!!\n");
 		return -1;
 	}
-	nread = read(datafile, &current_position, sizeof(current_position));
+	nread = read(datafile, &current_pos, sizeof(current_pos));
 	if (nread <= 0) {
 		printf("Error reading datafile while forward SPACEing!!\n");
 		return -1;
@@ -115,13 +103,12 @@ skip_to_next_header(int datafile, char * sense_flg) {
 	return 0;
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int ofp;
 	char *dataFile = HOME_PATH;
 	char sense_flg;
-	loff_t	nread;
+	loff_t nread;
 
 	if (argc < 2) {
 		printf("Usage: dump_file -f <media>\n");
@@ -160,9 +147,9 @@ main(int argc, char *argv[])
 		perror("Could not open");
 		exit(1);
 	}
-	nread = read(ofp, &current_position, sizeof(current_position));
+	nread = read(ofp, &current_pos, sizeof(current_pos));
 	print_current_header();
-	while (current_position.blk_type != B_EOD) {
+	while (current_pos.blk_type != B_EOD) {
 		nread = skip_to_next_header(ofp, &sense_flg);
 		if (nread == -1)
 			break;
