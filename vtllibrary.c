@@ -2036,8 +2036,16 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	init_tape_info();
+	/* Clear out message Q by reading anthing there.. */
+	mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
+	while (mlen > 0) {
+		r_entry.mtext[mlen] = '\0';
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"Found \"%s\" still in message Q\n", r_entry.mtext);
+		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
+	}
 
+	init_tape_info();
 	init_mode_pages(sm);
 	initTapeAlert(&TapeAlert);
 
