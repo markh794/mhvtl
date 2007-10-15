@@ -93,7 +93,7 @@
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.12.14"
-static const char *vtl_version_date = "20070926-0";
+static const char *vtl_version_date = "20071015-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -427,12 +427,13 @@ static int resp_becomming_ready(struct sdebug_dev_info *devip)
 }
 
 /*
- * Copy data from SCSI command buffer to device buffer or kfifo (user space)
+ * Copy data from SCSI command buffer to device buffer
+ *  (SCSI command buffer -> kfifo -> user space)
  *
  * Returns number of bytes fetched into 'arr'/FIFO or -1 if error.
  */
-static int fetch_to_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
-		       int max_arr_len, struct kfifo *fifo)
+static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
+		       int max_arr_len)
 {
 	int k, req_len, len, fin;
 	void *kaddr;
@@ -443,16 +444,18 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 		return 0;
 	if (NULL == scp->request_buffer)
 		return -1;
+	if (NULL == fifo) {
+		printk("%s, kfifo is NULL\n", __FUNCTION__);
+		WARN_ON(1);
+	}
+
 	if (! ((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
 	      (scp->sc_data_direction == DMA_TO_DEVICE)))
 		return -1;
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
 		len = (req_len < max_arr_len) ? req_len : max_arr_len;
-		if (NULL == arr)
-			kfifo_put(fifo, scp->request_buffer, len);
-		else
-			memcpy(arr, scp->request_buffer, len);
+		kfifo_put(fifo, scp->request_buffer, len);
 		return len;
 	}
 	sgpnt = (struct scatterlist *)scp->request_buffer;
@@ -466,10 +469,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 			len = max_arr_len - req_len;
 			fin = 1;
 		}
-		if (NULL == arr)
-			kfifo_put(fifo, kaddr_off, len);
-		else
-			memcpy(arr + req_len, kaddr_off, len);
+		kfifo_put(fifo, kaddr_off, len);
 		kunmap_atomic(kaddr, KM_USER0);
 		if (fin)
 			return req_len + len;
@@ -488,7 +488,7 @@ static int resp_write_to_user(struct scsi_cmnd *SCpnt,
 	unsigned long iflags = 0;
 
 	write_lock_irqsave(&atomic_rw, iflags);
-	fetched = fetch_to_dev_buffer(SCpnt, NULL, count, devip->fifo);
+	fetched = fetch_to_dev_buffer(SCpnt, devip->fifo, count);
 	write_unlock_irqrestore(&atomic_rw, iflags);
 
 	if (-1 == fetched) {
@@ -734,7 +734,7 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		} else {	/* Fail any thing other than a WRITE_6 */
 			printk("Fixed block Writes: not supported **");
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
-					 INVALID_FIELD_IN_CDB,0);
+					 INVALID_FIELD_IN_CDB, 0);
 			errsts = check_condition_result;
 		}
 		break;
@@ -810,7 +810,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 		req_len = scp->request_bufflen;
 		act_len = (req_len < arr_len) ? req_len : arr_len;
 		if (NULL == arr)
-			__kfifo_get(fifo, scp->request_buffer, act_len);
+			kfifo_get(fifo, scp->request_buffer, act_len);
 		else
 			memcpy(scp->request_buffer, arr, act_len);
 		scp->resid = req_len - act_len;
@@ -831,7 +831,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 				len = arr_len - req_len;
 			}
 			if (NULL == arr)
-				__kfifo_get(fifo, kaddr_off, len);
+				kfifo_get(fifo, kaddr_off, len);
 			else
 				memcpy(kaddr_off, arr + req_len, len);
 			kunmap_atomic(kaddr, KM_USER0);
@@ -871,6 +871,7 @@ static int inquiry_evpd_83(unsigned char *arr, int dev_id_num,
 	arr[0] = 0x2;	/* ASCII */
 	arr[1] = 0x1;
 	arr[2] = 0x0;
+
 	if (devip->ptype == TYPE_TAPE) {
 		switch(devip->lun) {
 		case 0:
@@ -972,7 +973,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "26-09-2007 10:21:00", 20);
+			strncpy(&arr[20], "15-10-2007 16:21:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
@@ -2245,7 +2246,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 			if (valid_sense) {
 				sqcp->a_cmnd->result = check_condition_result;
 				// Automagically grab SENSE data
-				__kfifo_get(devp[minor]->fifo,
+				kfifo_get(devp[minor]->fifo,
 						sqcp->a_cmnd->sense_buffer,
 						SENSE_BUF_SIZE);
 			} else {

@@ -108,6 +108,10 @@ int verbose = 0;
 int debug = 0;
 int reset = 1;		/* Tape drive has been 'reset' */
 
+#define TAPE_UNLOADED 0
+#define TAPE_LOADED 1
+#define TAPE_LOAD_BAD 2
+
 static int bufsize = 0;
 static loff_t max_tape_capacity;	/* Max capacity of media */
 static int tapeLoaded = 0;	/* Default to Off-line */
@@ -633,14 +637,16 @@ static int checkRestrictions(uint8_t *sense_flg) {
 
 	// Check that there is a piece of media loaded..
 	switch (tapeLoaded) {
-	case 1:	/* Do nothing */
+	case TAPE_LOADED:	/* Do nothing */
 		break;
-	case 0:
+	case TAPE_UNLOADED:
 		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sense_flg);
+		OK_to_write = 0;
 		return 1;
 		break;
 	default:
 		mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		OK_to_write = 0;
 		return 1;
 		break;
 	}
@@ -898,7 +904,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 					"LOG SENSE: Tape Capacity page");
 		TapeCapacity.pcode_head.len = htons(sizeof(TapeCapacity) -
 					sizeof(TapeCapacity.pcode_head));
-		if (tapeLoaded) {
+		if (tapeLoaded == TAPE_LOADED) {
 			TapeCapacity.value01 =
 				htonl(max_tape_capacity - c_pos.curr_blk);
 			TapeCapacity.value03 = htonl(max_tape_capacity);
@@ -1212,8 +1218,12 @@ static void rawRewind(uint8_t *sense_flg) {
 
 /*
  * Rewind to beginning of data file and the position to first data header.
+ *
+ * Return 0 -> Not loaded.
+ *        1 -> Load OK
+ *        2 -> format corrupt.
  */
-static void respRewind(uint8_t * sense_flg) {
+static int respRewind(uint8_t * sense_flg) {
 	loff_t nread = 0;
 
 	rawRewind(sense_flg);
@@ -1221,6 +1231,7 @@ static void respRewind(uint8_t * sense_flg) {
 	if (c_pos.blk_type != B_BOT) {
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
 		DEBC( print_header(&c_pos);) ;
+		return 2;
 	}
 	nread = read(datafile, &mam, sizeof(struct MAM));
 	if (nread != sizeof(struct MAM)) {
@@ -1228,19 +1239,22 @@ static void respRewind(uint8_t * sense_flg) {
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
 		memset(&mam, 0, sizeof(struct MAM));
 		DEBC( print_header(&c_pos);) ;
+		return 2;
 	}
 
 	if (mam.tape_fmt_version != TAPE_FMT_VERIONS) {
 		syslog(LOG_DAEMON|LOG_INFO, "Incorrect media format");
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
 		DEBC( print_header(&c_pos);) ;
+		return 2;
 	}
 
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "MAM: media S/No. %s",
 							mam.MediumSerialNumber);
 
-	skipToNextHeader(sense_flg);
+	if (skipToNextHeader(sense_flg))
+		return 2;
 
 	MediaType = mam.MediumType;
 	switch(MediaType) {
@@ -1279,6 +1293,8 @@ static void respRewind(uint8_t * sense_flg) {
 		syslog(LOG_DAEMON|LOG_INFO,
 				" media is %s",
 				(OK_to_write) ? "writable" : "not writable");
+
+	return 1;
 }
 
 /*
@@ -1455,10 +1471,6 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case FORMAT_UNIT:	// That's FORMAT_MEDIUM for an SSC device...
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Format Medium **");
-		if (! tapeLoaded) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
-			break;
-		}
 
 		if (! checkRestrictions(sense_flg))
 			break;
@@ -1553,7 +1565,9 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			reset = 0;
 			break;
 		}
-		if (tapeLoaded) {
+		if (tapeLoaded == TAPE_UNLOADED) {
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+		} else if (tapeLoaded == TAPE_LOADED) {
 			if (MediaType == MEDIA_TYPE_CLEAN) {
 				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
 								sense_flg);
@@ -1563,7 +1577,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			  pg_read_err_counter.bytesProcessed = bytesRead;
 			}
 		} else
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
 
 		ret += retval;
 		break;
@@ -1571,8 +1585,11 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case READ_ATTRIBUTE:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Read Attribute**");
-		if (! tapeLoaded) {
+		if (tapeLoaded == TAPE_UNLOADED) {
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+			break;
+		} else if (tapeLoaded > TAPE_LOADED) {
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
 			break;
 		}
 		if (SCpnt[1]) { // Only support Service Action - Attribute Values
@@ -1597,13 +1614,15 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case READ_MEDIA_SERIAL_NUMBER:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Read Medium Serial No.**");
-		if (tapeLoaded)
+		if (tapeLoaded == TAPE_UNLOADED)
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+		else if (tapeLoaded == TAPE_LOADED) {
 			ret += resp_read_media_serial(mediaSerialNo, buf,
 								sense_flg);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO, "   %d", ret);
-		else
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+		} else
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
 		break;
 
 	case READ_POSITION:
@@ -1719,16 +1738,15 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 
 	case START_STOP:	// Load/Unload cmd
 		if (SCpnt[4] && 0x1) {
-			tapeLoaded = 1;
 			if (verbose) 
 				syslog(LOG_DAEMON|LOG_INFO, "Loading Tape **");
-			respRewind(sense_flg);
+			tapeLoaded = respRewind(sense_flg);
 		} else {
 			mam.record_dirty = 0;
 			// Don't update load count on unload -done at load time
 			updateMAM(&mam, sense_flg, 0);
 			close(datafile);
-			tapeLoaded = 0;
+			tapeLoaded = TAPE_UNLOADED;
 			OK_to_write = 0;
 			clearWORM();
 			if (verbose)
@@ -1740,9 +1758,11 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case TEST_UNIT_READY:	// Return OK by default
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Test Unit Ready : %s",
-					(tapeLoaded == 0) ? "No" : "Yes");
-		if ( ! tapeLoaded)
+				(tapeLoaded == TAPE_UNLOADED) ? "No" : "Yes");
+		if (tapeLoaded == TAPE_UNLOADED)
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+		if (tapeLoaded > TAPE_LOADED)
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
 
 		break;
 
@@ -1755,8 +1775,6 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		if (verbose) 
 			syslog(LOG_DAEMON|LOG_INFO, "Write: %d bytes **",
 								block_size);
-		if (! checkRestrictions(sense_flg))
-			break;
 
 		// FIXME: should handle this test in a nicer way...
 		if (block_size > bufsize)
@@ -1773,21 +1791,26 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		if (! checkRestrictions(sense_flg))
 			break;
 
-		if (tapeLoaded) {
+		if (OK_to_write) {
 			retval = writeBlock(buf, block_size, sense_flg);
 			bytesWritten += retval;
 			pg_write_err_counter.bytesProcessed = bytesWritten;
-		} else
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+		}
+
 		break;
 
 	case WRITE_ATTRIBUTE:
 		if (verbose) 
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "Write Attributes**");
-		if (! tapeLoaded) {
+
+		if (tapeLoaded == TAPE_UNLOADED) {
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
 			break;
+		} else if (tapeLoaded > TAPE_LOADED) {
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
+			break;
 		}
+
 		lp = (u32 *)&SCpnt[10];
 		count = htonl(*lp);
 		// Read '*lp' bytes from char device...
@@ -1805,20 +1828,15 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		break;
 
 	case WRITE_FILEMARKS:
-		if (! tapeLoaded) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
-			break;
-		}
-
-		if (! checkRestrictions(sense_flg))
-			break;
-
 		block_size = 	(SCpnt[2] << 16) +
 				(SCpnt[3] << 8) +
 				 SCpnt[4];
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Write %d filemarks **",
 								block_size);
+		if (! checkRestrictions(sense_flg))
+			break;
+
 		while(block_size > 0) {
 			block_size--;
 			mkNewHeader(B_FILEMARK, 0, 0, sense_flg);
@@ -1998,13 +2016,13 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 			return (0);
 		}
 
-		if (tapeLoaded) {
+		if (tapeLoaded != TAPE_UNLOADED) {
 			syslog(LOG_DAEMON|LOG_NOTICE, "Tape already mounted");
 			send_msg("Load failed", LIBRARY_Q);
 		} else {
 			pcl = strip_PCL(mtext, 6); // 'lload ' => offset of 6
 			tapeLoaded = load_tape(pcl, sense_flg);
-			if (tapeLoaded)
+			if (tapeLoaded == TAPE_LOADED)
 				sprintf(s, "Loaded OK: %s\n", pcl);
 			else
 				sprintf(s, "Load failed: %s\n", pcl);
@@ -2017,7 +2035,7 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 		if (inLibrary)
 			syslog(LOG_DAEMON|LOG_WARNING,
 					"Warn: Tape assigned to library");
-		if (tapeLoaded) {
+		if (tapeLoaded != TAPE_LOADED) {
 			syslog(LOG_DAEMON|LOG_NOTICE, "Tape already mounted");
 		} else {
 			pcl = strip_PCL(mtext, 4);
@@ -2027,14 +2045,13 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 
 	if (! strncmp(mtext, "unload", 6)) {
 		switch (tapeLoaded) {
-		case 1:
+		case TAPE_LOADED:
 			mam.record_dirty = 0;
 			// Don't update load count on unload -done at load time
 			updateMAM(&mam, sense_flg, 0);
 			/* Fall thru to case 2: */
-		case 2:
-			close(datafile);
-			tapeLoaded = 0;
+		case TAPE_LOAD_BAD:
+			tapeLoaded = TAPE_UNLOADED;
 			OK_to_write = 0;
 			clearWORM();
 			syslog(LOG_DAEMON|LOG_INFO,
@@ -2043,7 +2060,7 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 			break;
 		default:
 			syslog(LOG_DAEMON|LOG_NOTICE, "Tape not mounted");
-			tapeLoaded = 0;
+			tapeLoaded = TAPE_UNLOADED;
 			break;
 		}
 	}

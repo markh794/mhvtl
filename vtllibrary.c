@@ -1335,11 +1335,13 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 		setTapeAlert(&TapeAlert, 0);	// Clear flags after value read.
 		break;
 	default:
-		if (verbose)
+		if (debug)
+			printf(
+				"Unknown log sense code: 0x%x\n",
+							SCpnt[2] & 0x3f);
+		else if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-			"Unknown log sense code: 0x%x", SCpnt[2] & 0x3f);
-		else
-			printf("Unknown log sense code: 0x%x\n",
+				"Unknown log sense code: 0x%x\n",
 							SCpnt[2] & 0x3f);
 		retval = 2;
 		break;

@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 26
-Source: vtl-2007-09-26.tgz
+Release: 29
+Source: vtl-2007-10-16.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -143,6 +143,17 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Tue Oct 16 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-29
+- vtl kernel module: - bumped to 0.12.14 20071015-0
+- Another bug fix in the kernel module. This time copying data from user-space
+  in an unsafe manner. Last reason for kernel oops ??
+
+* Wed Oct 10 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-28
+- vtl kernel module: - bumped to 0.12.14 20071010-0
+- Many updates to error handling condition.
+
 * Wed Sep 26 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-26
 - vtl kernel module: - bumped to 0.12.14 20070926-0
