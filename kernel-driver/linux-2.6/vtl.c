@@ -93,7 +93,7 @@
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.12.14"
-static const char *vtl_version_date = "20071015-0";
+static const char *vtl_version_date = "20071208-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -973,7 +973,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "15-10-2007 16:21:00", 20);
+			strncpy(&arr[20], "08-12-2007 07:21:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
@@ -1272,7 +1272,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		}
 		return 0;
 	}
-	return 0;
+	return -1;
 }
 
 static int vtl_slave_configure(struct scsi_device *sdp)
@@ -1305,7 +1305,6 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 		/* A little work to clean up after kfifo allocation */
 		vfree(devip->fifo->buffer);
 		kfree(devip->fifo);
-
 		vfree(devip->vtl_header);
 
 		devip->used = 0;

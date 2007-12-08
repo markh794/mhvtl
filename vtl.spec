@@ -1,12 +1,12 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 30
-Source: vtl-2007-10-16.tgz
+Release: 31
+Source: vtl-2007-12-08.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
-URL: http://sydsup.veritas.com/~mharvey/
+URL: http://linuxvtl.googlepages.com/
 
 %description
 A Virtual tape library and tape drives:
@@ -144,6 +144,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Tue Oct 16 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-31
+- No code changes. As sysdup has crashed and management have decided not to
+  replaced the two failed drives in the RAID 5 system, I've changed the
+  home of this project to my google homepage.
+
 * Tue Oct 16 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-30
 - vtl kernel module: - bumped to 0.12.14 20071015-0
