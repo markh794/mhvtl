@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 31
-Source: vtl-2007-12-08.tgz
+Release: 32
+Source: vtl-2007-12-19.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -79,7 +79,7 @@ if ! getent group vtl > /dev/null 2>&1; then
 fi
 if ! getent passwd vtl > /dev/null 2>&1; then
  if [ -f /etc/SuSE-release ]; then
-   useradd --system -g vtl -c "VTL daemon" -s /bin/bash vtl
+   useradd --system -g vtl -c "VTL daemon" -d /opt/vtl -m -s /bin/bash vtl
  else
    useradd -g vtl -c "VTL daemon" -s /bin/bash vtl
  fi
@@ -144,6 +144,15 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Wed Dec 19 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-32
+- Changed user 'vtl' home directory to /opt/vtl
+  Otherwise there can be problems starting the vtl s/w if /home is an
+  automount and can't mount /home.
+- Changed kernel module Makefile
+  To compile on Debian or Ubuntu systems "make ubuntu=1"
+  To compile on SuSE or RedHat systems "make"
+
 * Tue Oct 16 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-31
 - No code changes. As sysdup has crashed and management have decided not to
