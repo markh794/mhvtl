@@ -22,6 +22,12 @@
 # * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
 
+if [ $# != 1 ]; then
+	echo "Usage: $0 username"
+	exit 1
+fi
+
+USER=$1
 MAJOR=`grep " vtl$" /proc/devices|awk '{print $1}'`
 
 umask 002
@@ -40,7 +46,7 @@ for (( a=0 ; a < $count ; a++)); do
 		rm -f /dev/vtl$a
 	fi
 	mknod -m 660 /dev/vtl$a c $MAJOR $a
-	chown vtl:vtl /dev/vtl$a
+	chown $USER:$USER /dev/vtl$a
 	chmod 660 /dev/vtl$a
 	echo "Made node for /dev/vtl$a"
 done

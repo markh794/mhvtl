@@ -45,20 +45,22 @@ case "$1" in
 		echo
 	fi
 
-	vtlVersion=`grep version /proc/scsi/vtl/* 2> /dev/null|awk '{print $5}'|awk -F. '{print $3}'`
-	if [ "X$vtlVersion" == "X" ]; then
+	hba=`ls /proc/scsi/vtl|tail -1`
+	if [ "X$hba" == "X" ]; then
 		echo "Incorrect (or no) kernel module loaded for these daemons."
-		echo "Need at least 0.12.12"
+		echo "Need vtl kernel module version later then 0.12.12"
+		echo "Please see http://linuxvtl.googlepages.com"
 		exit 1
-	elif [ "$vtlVersion" -lt "12" ]; then
+	fi
+	vtlVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $3}'`
+	if test $vtlVersion -lt 12; then
 		echo "Incorrect kernel module for these daemons."
 		echo "Need at least 0.12.12 and 0.12.$vtlVersion is loaded."
+		echo "Please see http://linuxvtl.googlepages.com"
 		exit 1
 	fi
 
-	if [ ! -c /dev/vtl0 ]; then
-		make_vtl_devices > /dev/null
-	fi
+	make_vtl_devices $USER > /dev/null
 
 	# Make the kernel driver quieter...
 	echo 0 > /sys/bus/pseudo/drivers/vtl/opts

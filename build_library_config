@@ -66,6 +66,9 @@ if test $addDevices -eq 0; then
 	fi
 
 	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
+
+	# Give time for devices to settle
+	sleep 2
 fi
 
 count=0
