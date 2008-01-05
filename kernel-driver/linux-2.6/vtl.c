@@ -92,8 +92,8 @@
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.12.14"
-static const char *vtl_version_date = "20071208-0";
+#define VTL_VERSION "0.12.15"
+static const char *vtl_version_date = "20080105-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -117,25 +117,15 @@ static const char *vtl_version_date = "20071208-0";
 
 #define SDEBUG_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 
-/*
- * With these defaults, this driver will make 1 host with 1 target
- * (id 0) containing 9 logical unit (lun 0, 1, 2, 3, 4, 5, 6, 7 & 8).
- * Hard-coded is the medium_changer at LUN 0, others are of type 'PTYPE'
- * First 2 tape drives report as SONY SDX-900V (LUN 1 & 2)
- * The next 3 as QUANTUM SDLT 600 (LUN 3,4,5)
- * and any others as IBM ULTRIUM-TD3
- */
-
 /* Default values for driver parameters */
 #define DEF_NUM_HOST   1
 #define DEF_NUM_TGTS   1
-#define DEF_MAX_LUNS   9
+#define DEF_MAX_LUNS   1
 #define DEF_DELAY   1
 #define DEF_EVERY_NTH   0
 #define DEF_NUM_PARTS   0
 #define DEF_OPTS   0		/* Default to quiet logging */
 #define DEF_SCSI_LEVEL   5	/* INQUIRY, byte2 [5->SPC-3] */
-#define DEF_PTYPE   1
 #define DEF_D_SENSE   0
 
 // FIXME: Currently needs to be manually kept in sync with vx.h
@@ -874,18 +864,18 @@ static int inquiry_evpd_83(unsigned char *arr, int dev_id_num,
 
 	if (devip->ptype == TYPE_TAPE) {
 		switch(devip->lun) {
-		case 0:
-		case 1:
-		case 2:
-			memcpy(&arr[4], inq_vendor2_id_1, 8);
-			memcpy(&arr[12], inq_product2_id_1, 16);
-			memcpy(&arr[28], dev_id_str, dev_id_str_len);
-			break;
 		case 3:
 		case 4:
 		case 5:
 			memcpy(&arr[4], inq_vendor1_id_1, 8);
 			memcpy(&arr[12], inq_product1_id_1, 16);
+			memcpy(&arr[28], dev_id_str, dev_id_str_len);
+			break;
+		case 6:
+		case 7:
+		case 8:
+			memcpy(&arr[4], inq_vendor2_id_1, 8);
+			memcpy(&arr[12], inq_product2_id_1, 16);
 			memcpy(&arr[28], dev_id_str, dev_id_str_len);
 			break;
 		default:
@@ -999,19 +989,19 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 	arr[7] = 0x32; /* claim: WBUS16, SYNC, CMDQUE */
 	if (devip->ptype == TYPE_TAPE) {
 		switch(devip->lun) {
-		case 0:
-		case 1:
-		case 2:
-			memcpy(&arr[8], inq_vendor2_id_1, 8);
-			memcpy(&arr[16], inq_product2_id_1, 16);
-			memcpy(&arr[32], inq_product2_rev_1, 4);
-			break;
 		case 3:
 		case 4:
 		case 5:
 			memcpy(&arr[8], inq_vendor1_id_1, 8);
 			memcpy(&arr[16], inq_product1_id_1, 16);
 			memcpy(&arr[32], inq_product1_rev_1, 4);
+			break;
+		case 6:
+		case 7:
+		case 8:
+			memcpy(&arr[8], inq_vendor2_id_1, 8);
+			memcpy(&arr[16], inq_product2_id_1, 16);
+			memcpy(&arr[32], inq_product2_rev_1, 4);
 			break;
 		default:
 			memcpy(&arr[8], inq_vendor_id_1, 8);
@@ -1512,7 +1502,6 @@ MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
 MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
 MODULE_PARM_DESC(num_tgts, "number of SCSI targets per host to simulate");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
-MODULE_PARM_DESC(ptype, "SCSI peripheral type(def=1[tape])");
 MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=5[SPC-3])");
 
 

@@ -135,6 +135,9 @@ CONF_SAMPLE
 		chmod 770 /opt/vtl
 	fi
 
+	# Now correct file permissions..
+	chown -R $USER:$USER /opt/vtl
+
 	# Build Library config - No. of drives & serial Nos etc..
 	# This also loads each tape daemon.
 	build_library_config $USER
@@ -142,9 +145,6 @@ CONF_SAMPLE
 		echo "build_library_config failed.."
 		exit 1
 	fi
-
-	# Now correct file permissions..
-	chown -R $USER:$USER /opt/vtl
 
 	# Start the vxlibrary daemon
 	su $USER -c "vtllibrary $OPTIONS"

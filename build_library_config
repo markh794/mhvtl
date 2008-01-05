@@ -35,6 +35,7 @@ USER=$1
 TMP=/var/tmp/_build.$$
 CONFIG=/etc/vtl/vxlib.conf
 LIBCONTENTS=/etc/vtl/library_contents
+USE_MIXED_DRIVES=1
 OPTIONS=""
 # OPTIONS=" -v -v"
 
@@ -47,12 +48,28 @@ else
 	exit 1
 fi
 
-count=0
-
 echo "# Config file build `date`" > $CONFIG
 
-# Change 'SDLT 320' to 'SDLT_320' so the columns line up for awk...
-for a in `$LSSCSI -g | grep tape | grep 5400 | sed -e 's/SDLT 320/SDLT_320/' | awk '{print $7}'`
+count=`grep Drive $LIBCONTENTS|wc -l`
+
+# If we can't find any existing devices, then add '$count` devices
+# If USE_MIXED_DRIVES is set to 0, then all drives will be of same type
+addDevices=`$LSSCSI -g | grep tape | grep 5400 | wc -l`
+if test $addDevices -eq 0; then
+	# Use num_tgts for a library full of IBM drives
+	#echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
+	# else use max_luns for a library with mixed drive types
+	if test $USE_MIXED_DRIVES -eq 0; then
+		echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
+	else
+		echo $count > /sys/bus/pseudo/drivers/vtl/max_luns
+
+	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
+fi
+
+count=0
+
+for a in `$LSSCSI -g | grep tape | grep 5400 | awk '{print $7}'`
 do
 	count=`expr $count + 1`
 	# Start the vxtape daemon...

@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 32
-Source: vtl-2007-12-19.tgz
+Release: 34
+Source: vtl-2008-01-05.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -14,7 +14,7 @@ A Virtual tape library and tape drives:
 Used to emulate hardware robot & tape drives.
 
 VTL consists of a pseudo HBA kernel driver which reports it has
-8 SSC targets (tape drives) and 1 SMC target (robot) attached.
+one SMC target (robot) attached and  a number of SSC targets (tape drives).
 
 User-space daemon(s) act as the target devices. Communication between
 the kernel module and the daemons is achieved via /dev/vtl? device nodes.
@@ -144,6 +144,19 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Sat Jan 05 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-34
+  Changes to kernel module & rc scripts.
+- Default kernel module load reporting the library only.
+- The rc scripts now update the number of required tape devices depending on
+  the contents of /etc/vtl/library_contents
+- Using the max_luns or num_tgts the library can consist of different drives
+  or all the same drive type.
+
+* Fri Jan 04 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Reserved vers 0.12-33
+  A special build with only 5 IBM drives.
+
 * Wed Dec 19 2007 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-32
 - Changed user 'vtl' home directory to /opt/vtl
