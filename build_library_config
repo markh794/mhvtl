@@ -63,6 +63,7 @@ if test $addDevices -eq 0; then
 		echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
 	else
 		echo $count > /sys/bus/pseudo/drivers/vtl/max_luns
+	fi
 
 	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
 fi
