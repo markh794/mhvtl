@@ -2,7 +2,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
 Release: 34
-Source: vtl-2008-01-05.tgz
+Source: vtl-2008-01-08.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -144,7 +144,7 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
-* Sat Jan 05 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Sat Jan 08 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-34
   Changes to kernel module & rc scripts.
 - Default kernel module load reporting the library only.

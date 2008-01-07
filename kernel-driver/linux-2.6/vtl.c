@@ -963,7 +963,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "08-12-2007 07:21:00", 20);
+			strncpy(&arr[20], "08-01-2008 07:21:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
