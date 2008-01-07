@@ -152,6 +152,7 @@ fi
   the contents of /etc/vtl/library_contents
 - Using the max_luns or num_tgts the library can consist of different drives
   or all the same drive type.
+- Deleted x86_64 patch as it is no longer needed.
 
 * Fri Jan 04 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Reserved vers 0.12-33
