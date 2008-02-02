@@ -189,7 +189,7 @@ struct vtl_header {
 	u8 *buf;
 };
 
-struct sdebug_dev_info {
+struct vtl_dev_info {
 	struct list_head dev_list;
 	unsigned char sense_buff[SDEBUG_SENSE_LEN];	/* weak nexus */
 	unsigned int channel;
@@ -221,7 +221,7 @@ struct sdebug_dev_info {
 	int count;
 };
 
-static struct sdebug_dev_info *devp[DEF_MAX_MINOR_NO];
+static struct vtl_dev_info *devp[DEF_MAX_MINOR_NO];
 
 struct sdebug_host_info {
 	struct list_head host_list;
@@ -296,27 +296,27 @@ static const int check_condition_result =
 
 /* function declarations */
 static int resp_inquiry(struct scsi_cmnd *SCpnt, int target,
-			struct sdebug_dev_info *devip);
+			struct vtl_dev_info *devip);
 static int resp_requests(struct scsi_cmnd *SCpnt,
-			 struct sdebug_dev_info *devip);
+			 struct vtl_dev_info *devip);
 static int resp_readblocklimits(struct scsi_cmnd *SCpnt,
-			struct sdebug_dev_info *devip);
+			struct vtl_dev_info *devip);
 static int resp_report_luns(struct scsi_cmnd *SCpnt,
-			    struct sdebug_dev_info *devip);
+			    struct vtl_dev_info *devip);
 static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 				int arr_len, struct kfifo *fifo);
 static void timer_intr_handler(unsigned long);
-static struct sdebug_dev_info *devInfoReg(struct scsi_device *sdev);
-static void mk_sense_buffer(struct sdebug_dev_info *devip, int key,
+static struct vtl_dev_info *devInfoReg(struct scsi_device *sdev);
+static void mk_sense_buffer(struct vtl_dev_info *devip, int key,
 			    int asc, int asq);
 static int check_reset(struct scsi_cmnd *SCpnt,
-		       struct sdebug_dev_info *devip);
+		       struct vtl_dev_info *devip);
 static void __init init_all_queued(void);
 static void stop_all_queued(void);
 static int stop_queued_cmnd(struct scsi_cmnd *cmnd);
 static int inquiry_evpd_83(unsigned char *arr, int dev_id_num,
 				const char *dev_id_str, int dev_id_str_len,
-				struct sdebug_dev_info *devip);
+				struct vtl_dev_info *devip);
 static int do_create_driverfs_files(void);
 static void do_remove_driverfs_files(void);
 
@@ -324,7 +324,7 @@ static int sdebug_add_adapter(void);
 static void sdebug_remove_adapter(void);
 static void sdebug_max_tgts_luns(void);
 
-static int allocate_minor_no(struct sdebug_dev_info *);
+static int allocate_minor_no(struct vtl_dev_info *);
 
 static struct device pseudo_primary;
 static struct bus_type pseudo_lld_bus;
@@ -351,7 +351,7 @@ static struct file_operations vtl_fops = {
  *                   will use this.
  */
 static int schedule_resp(struct scsi_cmnd *cmnd,
-			 struct sdebug_dev_info *devip,
+			 struct vtl_dev_info *devip,
 			 done_funct_t done, int scsi_result, int delta_jiff)
 {
 	if ((VTL_OPT_NOISE & vtl_opts) && cmnd) {
@@ -410,7 +410,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd,
 /*
  * The SCSI error code when the user space daemon is not connected.
  */
-static int resp_becomming_ready(struct sdebug_dev_info *devip)
+static int resp_becomming_ready(struct vtl_dev_info *devip)
 {
 	mk_sense_buffer(devip, NOT_READY, NOT_SELF_CONFIGURED, NO_ADDED_SENSE);
 	return check_condition_result;
@@ -472,7 +472,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
  *                SCSI data handling routines
  **********************************************************************/
 static int resp_write_to_user(struct scsi_cmnd *SCpnt,
-			  struct sdebug_dev_info *devip, int count)
+			  struct vtl_dev_info *devip, int count)
 {
 	int fetched;
 	unsigned long iflags = 0;
@@ -538,7 +538,7 @@ static int add_q_cmd(struct scsi_cmnd *SCpnt, done_funct_t done)
  */
 static int q_cmd(struct scsi_cmnd *scp,
 				done_funct_t done,
-				struct sdebug_dev_info *devip)
+				struct vtl_dev_info *devip)
 {
 	unsigned long iflags;
 	struct vtl_header *vheadp;
@@ -598,7 +598,7 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 	int k;
 	int errsts = 0;
 	int target = SCpnt->device->id;
-	struct sdebug_dev_info *devip = NULL;
+	struct vtl_dev_info *devip = NULL;
 	int inj_recovered = 0;
 
 	if (done == NULL)
@@ -767,7 +767,7 @@ static int vtl_b_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 	return -ENOTTY; // correct return but upsets fdisk */
 }
 
-static int check_reset(struct scsi_cmnd *SCpnt, struct sdebug_dev_info *devip)
+static int check_reset(struct scsi_cmnd *SCpnt, struct vtl_dev_info *devip)
 {
 	if (devip->reset) {
 		if (VTL_OPT_NOISE & vtl_opts)
@@ -852,7 +852,7 @@ static const char *inq_product_rev_8 = "vtl0";
 
 static int inquiry_evpd_83(unsigned char *arr, int dev_id_num,
 				const char *dev_id_str, int dev_id_str_len,
-				struct sdebug_dev_info *devip)
+				struct vtl_dev_info *devip)
 {
 	int num;
 
@@ -912,7 +912,7 @@ static int inquiry_evpd_83(unsigned char *arr, int dev_id_num,
 #define SDEBUG_MAX_INQ_ARR_SZ 128
 
 static int resp_inquiry(struct scsi_cmnd *scp, int target,
-			struct sdebug_dev_info *devip)
+			struct vtl_dev_info *devip)
 {
 	unsigned char pq_pdt;
 	unsigned char arr[SDEBUG_MAX_INQ_ARR_SZ];
@@ -1027,7 +1027,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 }
 
 static int resp_requests(struct scsi_cmnd *scp,
-			 struct sdebug_dev_info *devip)
+			 struct vtl_dev_info *devip)
 {
 	unsigned char *sbuff;
 	unsigned char *cmd = (unsigned char *)scp->cmnd;
@@ -1053,7 +1053,7 @@ static int resp_requests(struct scsi_cmnd *scp,
 
 #define SDEBUG_READBLOCKLIMITS_ARR_SZ 6
 static int resp_readblocklimits(struct scsi_cmnd *scp,
-			struct sdebug_dev_info *devip)
+			struct vtl_dev_info *devip)
 {
 	unsigned char arr[SDEBUG_READBLOCKLIMITS_ARR_SZ];
 	int errsts;
@@ -1074,7 +1074,7 @@ static int resp_readblocklimits(struct scsi_cmnd *scp,
 #define SDEBUG_RLUN_ARR_SZ 128
 
 static int resp_report_luns(struct scsi_cmnd *scp,
-			    struct sdebug_dev_info *devip)
+			    struct vtl_dev_info *devip)
 {
 	unsigned int alloc_len;
 	int lun_cnt, i, upper;
@@ -1140,9 +1140,9 @@ static void timer_intr_handler(unsigned long indx)
 static int vtl_slave_alloc(struct scsi_device *sdp)
 {
 	struct sdebug_host_info *sdbg_host;
-	struct sdebug_dev_info *open_devip = NULL;
-	struct sdebug_dev_info *devip =
-			(struct sdebug_dev_info *)sdp->hostdata;
+	struct vtl_dev_info *open_devip = NULL;
+	struct vtl_dev_info *devip =
+			(struct vtl_dev_info *)sdp->hostdata;
 	unsigned long sz = 0;
 	unsigned char *base_p;
 	struct kfifo *base_fifo = NULL;
@@ -1267,7 +1267,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 
 static int vtl_slave_configure(struct scsi_device *sdp)
 {
-	struct sdebug_dev_info *devip;
+	struct vtl_dev_info *devip;
 
 	if (VTL_OPT_NOISE & vtl_opts)
 		printk(KERN_INFO "vtl: slave_configure <%u %u %u %u>\n",
@@ -1284,8 +1284,8 @@ static int vtl_slave_configure(struct scsi_device *sdp)
 
 static void vtl_slave_destroy(struct scsi_device *sdp)
 {
-	struct sdebug_dev_info *devip =
-				(struct sdebug_dev_info *)sdp->hostdata;
+	struct vtl_dev_info *devip =
+				(struct vtl_dev_info *)sdp->hostdata;
 
 	if (VTL_OPT_NOISE & vtl_opts)
 		printk(KERN_INFO "vtl: slave_destroy <%u %u %u %u>\n",
@@ -1302,11 +1302,11 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 	}
 }
 
-static struct sdebug_dev_info *devInfoReg(struct scsi_device *sdev)
+static struct vtl_dev_info *devInfoReg(struct scsi_device *sdev)
 {
 	struct sdebug_host_info *sdbg_host;
-	struct sdebug_dev_info *devip =
-			(struct sdebug_dev_info *)sdev->hostdata;
+	struct vtl_dev_info *devip =
+			(struct vtl_dev_info *)sdev->hostdata;
 
 	if (devip)
 		return devip;
@@ -1327,7 +1327,7 @@ static struct sdebug_dev_info *devInfoReg(struct scsi_device *sdev)
 	return NULL;
 }
 
-static void mk_sense_buffer(struct sdebug_dev_info *devip, int key,
+static void mk_sense_buffer(struct vtl_dev_info *devip, int key,
 			    int asc, int asq)
 {
 	unsigned char *sbuff;
@@ -1362,7 +1362,7 @@ static int vtl_abort(struct scsi_cmnd *SCpnt)
 
 static int vtl_device_reset(struct scsi_cmnd *SCpnt)
 {
-	struct sdebug_dev_info *devip;
+	struct vtl_dev_info *devip;
 
 	if (VTL_OPT_NOISE & vtl_opts)
 		printk(KERN_INFO "vtl: device_reset\n");
@@ -1380,7 +1380,7 @@ static int vtl_device_reset(struct scsi_cmnd *SCpnt)
 static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 {
 	struct sdebug_host_info *sdbg_host;
-	struct sdebug_dev_info *dev_info;
+	struct vtl_dev_info *dev_info;
 	struct scsi_device *sdp;
 	struct Scsi_Host *hp;
 
@@ -1402,7 +1402,7 @@ static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 static int vtl_host_reset(struct scsi_cmnd *SCpnt)
 {
 	struct sdebug_host_info *sdbg_host;
-	struct sdebug_dev_info *dev_info;
+	struct vtl_dev_info *dev_info;
 
 	if (VTL_OPT_NOISE & vtl_opts)
 	printk(KERN_INFO "vtl: host_reset\n");
@@ -1800,7 +1800,7 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_add_host);
 }
 
-static int allocate_minor_no(struct sdebug_dev_info *devip)
+static int allocate_minor_no(struct vtl_dev_info *devip)
 {
 	int a = 0;
 
@@ -1930,7 +1930,7 @@ static int sdebug_add_adapter(void)
 	int k, devs_per_host;
 	int error = 0;
 	struct sdebug_host_info *sdbg_host;
-	struct sdebug_dev_info *sdbg_devinfo;
+	struct vtl_dev_info *sdbg_devinfo;
 	struct list_head *lh, *lh_sf;
 
 	sdbg_host = kmalloc(sizeof(*sdbg_host),GFP_KERNEL);
@@ -1978,7 +1978,7 @@ static int sdebug_add_adapter(void)
 
 	clean:
 	list_for_each_safe(lh, lh_sf, &sdbg_host->dev_info_list) {
-		sdbg_devinfo = list_entry(lh, struct sdebug_dev_info, dev_list);
+		sdbg_devinfo = list_entry(lh, struct vtl_dev_info, dev_list);
 		list_del(&sdbg_devinfo->dev_list);
 		kfree(sdbg_devinfo);
 	}
@@ -2044,7 +2044,7 @@ static int vtl_driver_remove(struct device *dev)
 {
 	struct list_head *lh, *lh_sf;
 	struct sdebug_host_info *sdbg_host;
-	struct sdebug_dev_info *sdbg_devinfo;
+	struct vtl_dev_info *sdbg_devinfo;
 
 	sdbg_host = to_sdebug_host(dev);
 
@@ -2057,7 +2057,7 @@ static int vtl_driver_remove(struct device *dev)
 	scsi_remove_host(sdbg_host->shost);
 
 	list_for_each_safe(lh, lh_sf, &sdbg_host->dev_info_list) {
-		sdbg_devinfo = list_entry(lh, struct sdebug_dev_info,
+		sdbg_devinfo = list_entry(lh, struct vtl_dev_info,
 					dev_list);
 		list_del(&sdbg_devinfo->dev_list);
 		kfree(sdbg_devinfo);
