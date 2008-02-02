@@ -197,7 +197,7 @@ struct vtl_dev_info {
 	unsigned int lun;
 	unsigned int minor;
 	unsigned int ptype;
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 
 	char reset;
 	char used;
@@ -223,7 +223,7 @@ struct vtl_dev_info {
 
 static struct vtl_dev_info *devp[DEF_MAX_MINOR_NO];
 
-struct sdebug_host_info {
+struct vtl_host_info {
 	struct list_head host_list;
 	struct Scsi_Host *shost;
 	struct device dev;
@@ -231,7 +231,7 @@ struct sdebug_host_info {
 };
 
 #define to_sdebug_host(d)	\
-	container_of(d, struct sdebug_host_info, dev)
+	container_of(d, struct vtl_host_info, dev)
 
 static LIST_HEAD(sdebug_host_list);
 static spinlock_t sdebug_host_list_lock = SPIN_LOCK_UNLOCKED;
@@ -1139,7 +1139,7 @@ static void timer_intr_handler(unsigned long indx)
 
 static int vtl_slave_alloc(struct scsi_device *sdp)
 {
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct vtl_dev_info *open_devip = NULL;
 	struct vtl_dev_info *devip =
 			(struct vtl_dev_info *)sdp->hostdata;
@@ -1154,7 +1154,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 	if (devip)
 		return 0;
 
-	sdbg_host = *(struct sdebug_host_info **) sdp->host->hostdata;
+	sdbg_host = *(struct vtl_host_info **) sdp->host->hostdata;
 	if (! sdbg_host) {
 		printk(KERN_ERR "Host info NULL\n");
 		return 0;
@@ -1304,14 +1304,14 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 
 static struct vtl_dev_info *devInfoReg(struct scsi_device *sdev)
 {
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct vtl_dev_info *devip =
 			(struct vtl_dev_info *)sdev->hostdata;
 
 	if (devip)
 		return devip;
 
-	sdbg_host = *(struct sdebug_host_info **) sdev->host->hostdata;
+	sdbg_host = *(struct vtl_host_info **) sdev->host->hostdata;
 	if (!sdbg_host) {
 		printk(KERN_ERR "Host info NULL\n");
 		return NULL;
@@ -1379,7 +1379,7 @@ static int vtl_device_reset(struct scsi_cmnd *SCpnt)
 
 static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 {
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct vtl_dev_info *dev_info;
 	struct scsi_device *sdp;
 	struct Scsi_Host *hp;
@@ -1388,7 +1388,7 @@ static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 		printk(KERN_INFO "vtl: bus_reset\n");
 	++num_bus_resets;
 	if (SCpnt && ((sdp = SCpnt->device)) && ((hp = sdp->host))) {
-		sdbg_host = *(struct sdebug_host_info **) hp->hostdata;
+		sdbg_host = *(struct vtl_host_info **) hp->hostdata;
 		if (sdbg_host) {
 			list_for_each_entry(dev_info,
 						&sdbg_host->dev_info_list,
@@ -1401,7 +1401,7 @@ static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 
 static int vtl_host_reset(struct scsi_cmnd *SCpnt)
 {
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct vtl_dev_info *dev_info;
 
 	if (VTL_OPT_NOISE & vtl_opts)
@@ -1919,7 +1919,7 @@ static struct bus_type pseudo_lld_bus = {
 
 static void sdebug_release_adapter(struct device *dev)
 {
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 
 	sdbg_host = to_sdebug_host(dev);
 	kfree(sdbg_host);
@@ -1929,7 +1929,7 @@ static int sdebug_add_adapter(void)
 {
 	int k, devs_per_host;
 	int error = 0;
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct vtl_dev_info *sdbg_devinfo;
 	struct list_head *lh, *lh_sf;
 
@@ -1989,12 +1989,12 @@ static int sdebug_add_adapter(void)
 
 static void sdebug_remove_adapter(void)
 {
-	struct sdebug_host_info *sdbg_host = NULL;
+	struct vtl_host_info *sdbg_host = NULL;
 
 	spin_lock(&sdebug_host_list_lock);
 	if (!list_empty(&sdebug_host_list)) {
 		sdbg_host = list_entry(sdebug_host_list.prev,
-					struct sdebug_host_info, host_list);
+					struct vtl_host_info, host_list);
 		list_del(&sdbg_host->host_list);
 	}
 	spin_unlock(&sdebug_host_list_lock);
@@ -2009,7 +2009,7 @@ static void sdebug_remove_adapter(void)
 static int vtl_driver_probe(struct device *dev)
 {
 	int error = 0;
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct Scsi_Host *hpnt;
 
 	sdbg_host = to_sdebug_host(dev);
@@ -2022,7 +2022,7 @@ static int vtl_driver_probe(struct device *dev)
 	}
 
 	sdbg_host->shost = hpnt;
-	*((struct sdebug_host_info **)hpnt->hostdata) = sdbg_host;
+	*((struct vtl_host_info **)hpnt->hostdata) = sdbg_host;
 	if ((hpnt->this_id >= 0) && (vtl_num_tgts > hpnt->this_id))
 		hpnt->max_id = vtl_num_tgts + 1;
 	else
@@ -2043,7 +2043,7 @@ static int vtl_driver_probe(struct device *dev)
 static int vtl_driver_remove(struct device *dev)
 {
 	struct list_head *lh, *lh_sf;
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct vtl_dev_info *sdbg_devinfo;
 
 	sdbg_host = to_sdebug_host(dev);
@@ -2069,7 +2069,7 @@ static int vtl_driver_remove(struct device *dev)
 
 static void sdebug_max_tgts_luns(void)
 {
-	struct sdebug_host_info *sdbg_host;
+	struct vtl_host_info *sdbg_host;
 	struct Scsi_Host *hpnt;
 
 	spin_lock(&sdebug_host_list_lock);
