@@ -54,8 +54,8 @@ count=`grep Drive $LIBCONTENTS|wc -l`
 
 # If we can't find any existing devices, then add '$count` devices
 # If USE_MIXED_DRIVES is set to 0, then all drives will be of same type
-addDevices=`$LSSCSI -g | grep tape | grep 5400 | wc -l`
-if test $addDevices -eq 0; then
+countDevices=`$LSSCSI -g | grep tape | grep 5400 | wc -l`
+if test $countDevices -eq 0; then
 	# Use num_tgts for a library full of IBM drives
 	#echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
 	# else use max_luns for a library with mixed drive types
@@ -68,7 +68,11 @@ if test $addDevices -eq 0; then
 	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
 
 	# Give time for devices to settle
-	sleep 2
+	if test $count -gt 8
+		sleep 5
+	else
+		sleep 2
+	fi
 fi
 
 count=0

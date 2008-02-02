@@ -83,5 +83,5 @@ install:
 	install -m 700 vtl /etc/init.d/
 
 tar:
-	(cd ..;  tar cvfz /home/markh/vtl-`date +%F`.tgz  --exclude=.git vtl-0.12/man vtl-0.12/doc vtl-0.12/kernel-driver vtl-0.12/*.[ch] vtl-0.12/Makefile vtl-0.12/README vtl-0.12/INSTALL vtl-0.12/build_library_config vtl-0.12/library_contents.sample vtl-0.12/make_vtl_devices vtl-0.12/vtl.spec)
+	(cd ..;  tar cvfz /home/markh/vtl-`date +%F`.tgz  --exclude=.git vtl-0.12/man vtl-0.12/doc vtl-0.12/kernel-driver vtl-0.12/*.[ch] vtl-0.12/Makefile vtl-0.12/README vtl-0.12/INSTALL vtl-0.12/build_library_config vtl-0.12/library_contents.sample vtl-0.12/make_vtl_devices vtl-0.12/vtl.spec vtl-0.12/vtl)
 

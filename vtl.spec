@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 34
-Source: vtl-2008-01-08.tgz
+Release: 35
+Source: vtl-2008-02-02.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -109,8 +109,13 @@ fi
 
 %postun
 /sbin/ldconfig
-userdel vtl
-groupdel vtl
+if getent passwd vtl > /dev/null 2>&1; then
+ userdel vtl
+fi
+
+if getent group vtl > /dev/null 2>&1; then
+ groupdel vtl
+fi
 
 %clean
 if [ "$RPM_BUILD_ROOT" == "/" ];then
@@ -144,6 +149,11 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Sat Feb 02 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12-35
+- Fix post uninstall
+  check for group & passwd entries before attempting to run groupdel/userdel
+
 * Sat Jan 08 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-34
   Changes to kernel module & rc scripts.
