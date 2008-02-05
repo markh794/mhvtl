@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 35
-Source: vtl-2008-02-02.tgz
+Release: 36
+Source: vtl-2008-02-06.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -149,6 +149,13 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Wed Feb 06 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12.36
+- Added another config file /etc/vtl/vtl.conf
+- Added ability to set a serial number prefix for devices.
+- Added ability to set the buffer size used by SSC devices.
+- Added ability to set/clear logging levels within vtl.conf
+
 * Sat Feb 02 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12-35
 - Fix post uninstall

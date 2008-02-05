@@ -92,8 +92,8 @@
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.12.15"
-static const char *vtl_version_date = "20080108-0";
+#define VTL_VERSION "0.12.20"
+static const char *vtl_version_date = "20080206-2";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -162,7 +162,7 @@ static int vtl_Major = 0;
 #define DEF_MAX_MINOR_NO 256	/* Max number of minor nos. this driver will handle */
 
 static int vtl_add_host = DEF_NUM_HOST;
-static int vtl_add_target = DEF_NUM_HOST;
+static int vtl_set_serial_num = DEF_NUM_HOST;
 static int vtl_delay = DEF_DELAY;
 static int vtl_every_nth = DEF_EVERY_NTH;
 static int vtl_max_luns = DEF_MAX_LUNS;
@@ -170,6 +170,8 @@ static int vtl_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int vtl_opts = DEF_OPTS;
 static int vtl_scsi_level = DEF_SCSI_LEVEL;
 static int vtl_dsense = DEF_D_SENSE;
+static int vtl_ssc_buffer_sz = TAPE_BUFFER_SZ;
+static char *vtl_serial_prefix = NULL;
 
 static int vtl_cmnd_count = 0;
 
@@ -927,12 +929,19 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 		mk_sense_buffer(devip,ILLEGAL_REQUEST,INVALID_FIELD_IN_CDB,0);
 		return check_condition_result;
 	} else if (0x1 & cmd[1]) {  /* EVPD bit set */
-		int dev_id_num, len;
+		int dev_id_num, len, host;
 		char dev_id_str[6];
-		
-		dev_id_num = ((devip->sdbg_host->shost->host_no + 1) * 2000) +
-			     (devip->target * 1000) + devip->lun;
-		len = scnprintf(dev_id_str, 6, "%d", dev_id_num);
+
+		host = devip->sdbg_host->shost->host_no;
+		dev_id_num = host * 2000 + (devip->target * 1000) + devip->lun;
+		len = scnprintf(dev_id_str, 10, "%3s%06d",
+				(vtl_serial_prefix) ? vtl_serial_prefix : "SN",
+				dev_id_num);
+/*		printk("dev_id_num %d, serial number: %s\n", dev_id_num,
+				dev_id_str);
+		printk("Host: %d, target: %d, lun: %d\n",
+				host, devip->target, devip->lun);
+*/
 		if (0 == cmd[2]) { /* supported vital product data pages */
 			if (devip->lun > 0)
 				arr[3] = 5;
@@ -963,7 +972,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "08-01-2008 07:21:00", 20);
+			strncpy(&arr[20], "06-02-2008 07:21:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
@@ -1057,7 +1066,7 @@ static int resp_readblocklimits(struct scsi_cmnd *scp,
 {
 	unsigned char arr[SDEBUG_READBLOCKLIMITS_ARR_SZ];
 	int errsts;
-	unsigned long size = TAPE_BUFFER_SZ;
+	unsigned long size = vtl_ssc_buffer_sz;
 
 	if ((errsts = check_reset(scp, devip)))
 		return errsts;
@@ -1073,8 +1082,7 @@ static int resp_readblocklimits(struct scsi_cmnd *scp,
 
 #define SDEBUG_RLUN_ARR_SZ 128
 
-static int resp_report_luns(struct scsi_cmnd *scp,
-			    struct vtl_dev_info *devip)
+static int resp_report_luns(struct scsi_cmnd *scp, struct vtl_dev_info *devip)
 {
 	unsigned int alloc_len;
 	int lun_cnt, i, upper;
@@ -1141,8 +1149,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 {
 	struct vtl_host_info *sdbg_host;
 	struct vtl_dev_info *open_devip = NULL;
-	struct vtl_dev_info *devip =
-			(struct vtl_dev_info *)sdp->hostdata;
+	struct vtl_dev_info *devip = (struct vtl_dev_info *)sdp->hostdata;
 	unsigned long sz = 0;
 	unsigned char *base_p;
 	struct kfifo *base_fifo = NULL;
@@ -1199,7 +1206,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		} else {
 			/* Set unit type up as Tape */
 			open_devip->ptype = TYPE_TAPE;
-			sz = TAPE_BUFFER_SZ;	/* 256k buffer */
+			sz = vtl_ssc_buffer_sz;	/* 256k buffer */
 		}
 		open_devip->status = 0;
 		open_devip->status_argv = 0;
@@ -1235,10 +1242,6 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		"vtl_init: out of memory, Can not allocate read buffer\n");
 			return -1;
 		}
-/*
-		printk("%s(): Line %d : finished vmalloc(%d) rw buffer\n",
-			__FUNCTION__, __LINE__, open_devip->rw_buf_sz);
-*/
 
 		/* Now set the storage pointer in the struct */
 		open_devip->fifo = base_fifo;
@@ -1480,7 +1483,8 @@ static void __init init_all_queued(void)
  * Sysfs parameters defined explicitly below.
  */
 module_param_named(add_host, vtl_add_host, int, 0); /* perm=0644 */
-module_param_named(add_target, vtl_add_target, int, 0); /* perm=0644 */
+module_param_named(set_serial, vtl_set_serial_num, int, 0); /* perm=0644 */
+module_param_named(ssc_buffer_sz, vtl_ssc_buffer_sz, int, 0); /* perm=0644 */
 module_param_named(delay, vtl_delay, int, 0); /* perm=0644 */
 module_param_named(dsense, vtl_dsense, int, 0);
 module_param_named(every_nth, vtl_every_nth, int, 0);
@@ -1495,7 +1499,8 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(VTL_VERSION);
 
 MODULE_PARM_DESC(add_host, "0..127 hosts allowed(def=1)");
-MODULE_PARM_DESC(add_target, "HBA BUS ID LUN");
+MODULE_PARM_DESC(set_serial, "num SerialNum");
+MODULE_PARM_DESC(ssc_buffer_sz, "ssc buffer size(def=262144)");
 MODULE_PARM_DESC(delay, "# of jiffies to delay response(def=1)");
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def: fixed)");
 MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
@@ -1698,44 +1703,67 @@ static ssize_t sdebug_scsi_level_show(struct device_driver *ddp, char *buf)
 }
 DRIVER_ATTR(scsi_level, S_IRUGO, sdebug_scsi_level_show, NULL);
 
-static ssize_t vtl_add_target_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_show_ssc_buffer_sz(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", "1 0 0 1");
+	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_ssc_buffer_sz);
 }
-
-static ssize_t vtl_add_target_store(struct device_driver *ddp,
+static ssize_t vtl_set_ssc_buffer_sz(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
-	int delta_hosts;
+	int buffer_sz;
+	int retval;
+
+	retval = sscanf(buf, "%d", &buffer_sz);
+
+	if (retval == 1) {
+		if ((buffer_sz < 65536) || (buffer_sz > 512000)) {
+			printk("Buffersize out of range: %d", buffer_sz);
+			return -EINVAL;
+		}
+		printk("Setting buffer size %d\n", buffer_sz);
+		vtl_ssc_buffer_sz = buffer_sz;
+		return count;
+	}
+	return -EINVAL;
+}
+DRIVER_ATTR(ssc_buffer_sz, S_IRUGO | S_IWUSR, vtl_show_ssc_buffer_sz, 
+	    vtl_set_ssc_buffer_sz);
+
+
+static ssize_t vtl_serial_num_show(struct device_driver *ddp, char *buf)
+{
+	if (vtl_serial_prefix)
+		return scnprintf(buf, PAGE_SIZE, "%s\n", vtl_serial_prefix);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", "Dynamic");
+}
+
+static ssize_t vtl_serial_num_store(struct device_driver *ddp,
+				     const char *buf, size_t count)
+{
+	int retval;
 	char work[20];
 
-	printk("Received : %s via sysfs\n", buf);
-
-	if (1 != sscanf(buf, "%10s", work))
+	if (count > 20) {
+		printk("Serial number too long\n");
 		return -EINVAL;
-	{	/* temporary hack around sscanf() problem with -ve nums */
-		int neg = 0;
+	}
 
-		if ('-' == *work)
-			neg = 1;
-		if (1 != sscanf(work + neg, "%d", &delta_hosts))
+	retval = sscanf(buf, "%10s", work);
+
+	if (retval == 1) {
+		if (vtl_serial_prefix) {
+			printk("Serial prefix already set to %s\n",
+							vtl_serial_prefix);
 			return -EINVAL;
-		if (neg)
-			delta_hosts = -delta_hosts;
+		}
+		vtl_serial_prefix = kmalloc(strlen(work) + 1, GFP_KERNEL);
+		strcpy(vtl_serial_prefix, work);
+		return count;
 	}
-	if (delta_hosts > 0) {
-		do {
-//			sdebug_add_adapter();
-		} while (--delta_hosts);
-	} else if (delta_hosts < 0) {
-		do {
-//			sdebug_remove_adapter();
-		} while (++delta_hosts);
-	}
-	return count;
+	return -EINVAL;
 }
-DRIVER_ATTR(add_target, S_IRUGO | S_IWUSR, vtl_add_target_show, 
-	    vtl_add_target_store);
+DRIVER_ATTR(serial_prefix, S_IRUGO | S_IWUSR, vtl_serial_num_show, 
+	    vtl_serial_num_store);
 
 static ssize_t sdebug_add_host_show(struct device_driver *ddp, char *buf)
 {
@@ -1778,7 +1806,8 @@ static int do_create_driverfs_files(void)
 {
 	int	ret;
 	ret = driver_create_file(&sdebug_driverfs_driver, &driver_attr_add_host);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_add_target);
+	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_serial_prefix);
+	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_ssc_buffer_sz);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_delay);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
@@ -1796,7 +1825,10 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_delay);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_add_target);
+	kfree(vtl_serial_prefix);
+	vtl_serial_prefix = NULL;
+	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_ssc_buffer_sz);
+	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_serial_prefix);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_add_host);
 }
 

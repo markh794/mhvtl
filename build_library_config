@@ -31,13 +31,20 @@ if [ $# != 1 ]; then
 	exit 1
 fi
 
+# USE_MIXED_DRIVES=0 will bring all the SSC devices up as the same type
+# (IBM ULTRIUM 3)
+# USE_MIXED_DRIVES=1 will bring the first three drives as IBM Ultrium 3
+# The next three as SDLT600 and the following 3 as Sony AIT-4. Any others
+# will be IBM Ultrium 3.
+USE_MIXED_DRIVES=1
+
 USER=$1
 TMP=/var/tmp/_build.$$
 CONFIG=/etc/vtl/vxlib.conf
 LIBCONTENTS=/etc/vtl/library_contents
-USE_MIXED_DRIVES=1
 OPTIONS=""
 # OPTIONS=" -v -v"
+. /etc/vtl/vtl.conf
 
 if [ -x /usr/bin/lsscsi ]; then
 	LSSCSI=/usr/bin/lsscsi
@@ -49,6 +56,11 @@ else
 fi
 
 echo "# Config file build `date`" > $CONFIG
+
+if [ ! -d /sys/bus/pseudo/drivers/vtl ]; then
+	echo "vtl kernel module not loaded - Exiting..."
+	exit 1
+fi
 
 count=`grep Drive $LIBCONTENTS|wc -l`
 
@@ -64,15 +76,35 @@ if test $countDevices -eq 0; then
 	else
 		echo $count > /sys/bus/pseudo/drivers/vtl/max_luns
 	fi
+fi
 
-	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
+# Set up SSC (Tape drive) params...
+#
+# Set up a 128k buffer size.
+if [ -f /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz ]; then
+	echo $SSC_BUFFER_SZ > /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz
+fi
 
-	# Give time for devices to settle
-	if test $count -gt 8
-		sleep 5
-	else
-		sleep 2
+if [ "X$SERIAL_PREFIX" != "X" ]; then
+	if [ -f /sys/bus/pseudo/drivers/vtl/serial_prefix ]; then
+		echo "Setting serialnum to $SERIAL_PREFIX"
+		echo $SERIAL_PREFIX > /sys/bus/pseudo/drivers/vtl/serial_prefix
 	fi
+fi
+
+# OK -> Now load the new 'host' with the SSC devices attached...
+echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
+
+# Give time for SSC devices to settle
+if [ $count -gt 12 ]; then
+	echo "Sleeping $count"
+	sleep $count
+elif [ $count -gt 8 ]; then
+	echo "Sleeping 5 seconds"
+	sleep 5
+else
+	echo "Sleeping 2 seconds"
+	sleep 2
 fi
 
 count=0

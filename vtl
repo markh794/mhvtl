@@ -35,6 +35,10 @@ if [ -f /etc/rc.status ]; then
 	rc_reset
 fi
 
+if [ -f /etc/vtl/vtl.conf ]; then
+	. /etc/vtl/vtl.conf
+fi
+
 case "$1" in
     start)
 	load_vtl=`grep " vtl$" /proc/devices|awk '{print $2}'`
@@ -53,9 +57,9 @@ case "$1" in
 		exit 1
 	fi
 	vtlVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $3}'`
-	if test $vtlVersion -lt 12; then
+	if test $vtlVersion -lt 20; then
 		echo "Incorrect kernel module for these daemons."
-		echo "Need at least 0.12.12 and 0.12.$vtlVersion is loaded."
+		echo "Need at least 0.12.20 and 0.12.$vtlVersion is loaded."
 		echo "Please see http://linuxvtl.googlepages.com"
 		exit 1
 	fi
@@ -63,13 +67,46 @@ case "$1" in
 	make_vtl_devices $USER > /dev/null
 
 	# Make the kernel driver quieter...
-	echo 0 > /sys/bus/pseudo/drivers/vtl/opts
+	if [ "X$VTL_DEBUG" != "X" ]; then
+		echo $VTL_DEBUG > /sys/bus/pseudo/drivers/vtl/opts
+	fi
 
 	# Load sg driver if not already loaded..
 	sg=`grep " sg$" /proc/devices | awk '{print $2}'`
 	if [ "X$sg" == "X" ]; then
 		/sbin/modprobe sg
 		sleep 1
+	fi
+
+	if [ ! -f /etc/vtl/vtl.conf ]; then
+		echo
+		echo "Could not locate /etc/vtl/vtl.conf"
+		echo
+		echo Creating a default one.
+		mkdir -p /etc/vtl
+		cat > /etc/vtl/vtl.conf << VTL_CONF
+
+# If vtl kernel module > 0.12.14, then we have the ability to either bring
+# the vtl up with all the same type of drive or mixed drive combo.
+# defaults to mixed drive combo.
+#USE_MIXED_DRIVES=0
+USE_MIXED_DRIVES=1
+
+# if vtl kernel module > 0.12.20, then we can preset the SSC serial numbers
+# with the following prefix.
+SERIAL_PREFIX=XYZ
+
+# If vtl kernel module > 0.12.20, then we have the ability to preset the
+# max buffer size used by the SSC devices within the kernel module. Old default
+# is 512k. Example here is 256k
+SSC_BUFFER_SZ=262144
+
+# Set default verbosity [0|1|2|3]
+VERBOSE=0
+
+# Set kernel module debuging [0|1]
+VTL_DEBUG=0
+VTL_CONF
 	fi
 
 	if [ ! -f /etc/vtl/library_contents ]; then
