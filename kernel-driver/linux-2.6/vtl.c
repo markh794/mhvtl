@@ -235,8 +235,8 @@ struct vtl_host_info {
 #define to_vtl_host(d)	\
 	container_of(d, struct vtl_host_info, dev)
 
-static LIST_HEAD(sdebug_host_list);
-static spinlock_t sdebug_host_list_lock = SPIN_LOCK_UNLOCKED;
+static LIST_HEAD(vtl_host_list);
+static spinlock_t vtl_host_list_lock = SPIN_LOCK_UNLOCKED;
 
 typedef void (* done_funct_t) (struct scsi_cmnd *);
 
@@ -1410,13 +1410,13 @@ static int vtl_host_reset(struct scsi_cmnd *SCpnt)
 	if (VTL_OPT_NOISE & vtl_opts)
 	printk(KERN_INFO "vtl: host_reset\n");
 	++num_host_resets;
-	spin_lock(&sdebug_host_list_lock);
-	list_for_each_entry(vtl_host, &sdebug_host_list, host_list) {
+	spin_lock(&vtl_host_list_lock);
+	list_for_each_entry(vtl_host, &vtl_host_list, host_list) {
 		list_for_each_entry(dev_info, &vtl_host->dev_info_list,
 							dev_list)
 		dev_info->reset = 1;
 	}
-	spin_unlock(&sdebug_host_list_lock);
+	spin_unlock(&vtl_host_list_lock);
 	stop_all_queued();
 	return SUCCESS;
 }
@@ -1991,9 +1991,9 @@ static int sdebug_add_adapter(void)
 						&vtl_host->dev_info_list);
 	}
 
-	spin_lock(&sdebug_host_list_lock);
-	list_add_tail(&vtl_host->host_list, &sdebug_host_list);
-	spin_unlock(&sdebug_host_list_lock);
+	spin_lock(&vtl_host_list_lock);
+	list_add_tail(&vtl_host->host_list, &vtl_host_list);
+	spin_unlock(&vtl_host_list_lock);
 
 	vtl_host->dev.bus = &pseudo_lld_bus;
 	vtl_host->dev.parent = &pseudo_primary;
@@ -2023,13 +2023,13 @@ static void sdebug_remove_adapter(void)
 {
 	struct vtl_host_info *vtl_host = NULL;
 
-	spin_lock(&sdebug_host_list_lock);
-	if (!list_empty(&sdebug_host_list)) {
-		vtl_host = list_entry(sdebug_host_list.prev,
+	spin_lock(&vtl_host_list_lock);
+	if (!list_empty(&vtl_host_list)) {
+		vtl_host = list_entry(vtl_host_list.prev,
 					struct vtl_host_info, host_list);
 		list_del(&vtl_host->host_list);
 	}
-	spin_unlock(&sdebug_host_list_lock);
+	spin_unlock(&vtl_host_list_lock);
 
 	if (!vtl_host)
 		return;
@@ -2104,8 +2104,8 @@ static void sdebug_max_tgts_luns(void)
 	struct vtl_host_info *vtl_host;
 	struct Scsi_Host *hpnt;
 
-	spin_lock(&sdebug_host_list_lock);
-	list_for_each_entry(vtl_host, &sdebug_host_list, host_list) {
+	spin_lock(&vtl_host_list_lock);
+	list_for_each_entry(vtl_host, &vtl_host_list, host_list) {
 		hpnt = vtl_host->shost;
 		if ((hpnt->this_id >= 0) &&
 		    (vtl_num_tgts > hpnt->this_id))
@@ -2114,7 +2114,7 @@ static void sdebug_max_tgts_luns(void)
 			hpnt->max_id = vtl_num_tgts;
 		hpnt->max_lun = vtl_max_luns;
 	}
-	spin_unlock(&sdebug_host_list_lock);
+	spin_unlock(&vtl_host_list_lock);
 }
 
 /*
