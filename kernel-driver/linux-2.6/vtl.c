@@ -232,7 +232,7 @@ struct vtl_host_info {
 	struct list_head dev_info_list;
 };
 
-#define to_sdebug_host(d)	\
+#define to_vtl_host(d)	\
 	container_of(d, struct vtl_host_info, dev)
 
 static LIST_HEAD(sdebug_host_list);
@@ -1953,7 +1953,7 @@ static void sdebug_release_adapter(struct device *dev)
 {
 	struct vtl_host_info *vtl_host;
 
-	vtl_host = to_sdebug_host(dev);
+	vtl_host = to_vtl_host(dev);
 	kfree(vtl_host);
 }
 
@@ -2044,7 +2044,7 @@ static int vtl_driver_probe(struct device *dev)
 	struct vtl_host_info *vtl_host;
 	struct Scsi_Host *hpnt;
 
-	vtl_host = to_sdebug_host(dev);
+	vtl_host = to_vtl_host(dev);
 
 	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(vtl_host));
 	if (NULL == hpnt) {
@@ -2078,7 +2078,7 @@ static int vtl_driver_remove(struct device *dev)
 	struct vtl_host_info *vtl_host;
 	struct vtl_dev_info *vtl_devinfo;
 
-	vtl_host = to_sdebug_host(dev);
+	vtl_host = to_vtl_host(dev);
 
 	if (!vtl_host) {
 		printk(KERN_ERR "%s: Unable to locate host info\n",
