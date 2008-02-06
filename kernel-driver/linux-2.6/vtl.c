@@ -1510,14 +1510,14 @@ MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
 MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=5[SPC-3])");
 
 
-static char sdebug_info[256];
+static char vtl_parm_info[256];
 
 static const char *vtl_info(struct Scsi_Host *shp)
 {
-	sprintf(sdebug_info, "vtl: version %s [%s], "
+	sprintf(vtl_parm_info, "vtl: version %s [%s], "
 		"opts=0x%x", VTL_VERSION,
 		vtl_version_date, vtl_opts);
-	return sdebug_info;
+	return vtl_parm_info;
 }
 
 /* vtl_proc_info
@@ -1592,12 +1592,12 @@ static ssize_t vtl_delay_store(struct device_driver *ddp,
 DRIVER_ATTR(delay, S_IRUGO | S_IWUSR, vtl_delay_show,
 	    vtl_delay_store);
 
-static ssize_t sdebug_opts_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_opts_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", vtl_opts);
 }
 
-static ssize_t sdebug_opts_store(struct device_driver *ddp,
+static ssize_t vtl_opts_store(struct device_driver *ddp,
 				 const char *buf, size_t count)
 {
 	int opts;
@@ -1618,14 +1618,14 @@ opts_done:
 	vtl_cmnd_count = 0;
 	return count;
 }
-DRIVER_ATTR(opts, S_IRUGO | S_IWUSR, sdebug_opts_show,
-	    sdebug_opts_store);
+DRIVER_ATTR(opts, S_IRUGO | S_IWUSR, vtl_opts_show,
+	    vtl_opts_store);
 
-static ssize_t sdebug_dsense_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_dsense_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_dsense);
 }
-static ssize_t sdebug_dsense_store(struct device_driver *ddp,
+static ssize_t vtl_dsense_store(struct device_driver *ddp,
 				  const char *buf, size_t count)
 {
 	int n;
@@ -1636,14 +1636,14 @@ static ssize_t sdebug_dsense_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(dsense, S_IRUGO | S_IWUSR, sdebug_dsense_show,
-	    sdebug_dsense_store);
+DRIVER_ATTR(dsense, S_IRUGO | S_IWUSR, vtl_dsense_show,
+	    vtl_dsense_store);
 
-static ssize_t sdebug_num_tgts_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_num_tgts_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_num_tgts);
 }
-static ssize_t sdebug_num_tgts_store(struct device_driver *ddp,
+static ssize_t vtl_num_tgts_store(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
 	int n;
@@ -1655,15 +1655,15 @@ static ssize_t sdebug_num_tgts_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(num_tgts, S_IRUGO | S_IWUSR, sdebug_num_tgts_show,
-	    sdebug_num_tgts_store);
+DRIVER_ATTR(num_tgts, S_IRUGO | S_IWUSR, vtl_num_tgts_show,
+	    vtl_num_tgts_store);
 
 
-static ssize_t sdebug_every_nth_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_every_nth_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_every_nth);
 }
-static ssize_t sdebug_every_nth_store(struct device_driver *ddp,
+static ssize_t vtl_every_nth_store(struct device_driver *ddp,
 				      const char *buf, size_t count)
 {
 	int nth;
@@ -1675,14 +1675,14 @@ static ssize_t sdebug_every_nth_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(every_nth, S_IRUGO | S_IWUSR, sdebug_every_nth_show,
-	    sdebug_every_nth_store);
+DRIVER_ATTR(every_nth, S_IRUGO | S_IWUSR, vtl_every_nth_show,
+	    vtl_every_nth_store);
 
-static ssize_t sdebug_max_luns_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_max_luns_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_max_luns);
 }
-static ssize_t sdebug_max_luns_store(struct device_driver *ddp,
+static ssize_t vtl_max_luns_store(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
 	int n;
@@ -1694,14 +1694,14 @@ static ssize_t sdebug_max_luns_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(max_luns, S_IRUGO | S_IWUSR, sdebug_max_luns_show,
-	    sdebug_max_luns_store);
+DRIVER_ATTR(max_luns, S_IRUGO | S_IWUSR, vtl_max_luns_show,
+	    vtl_max_luns_store);
 
-static ssize_t sdebug_scsi_level_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_scsi_level_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_scsi_level);
 }
-DRIVER_ATTR(scsi_level, S_IRUGO, sdebug_scsi_level_show, NULL);
+DRIVER_ATTR(scsi_level, S_IRUGO, vtl_scsi_level_show, NULL);
 
 static ssize_t vtl_show_ssc_buffer_sz(struct device_driver *ddp, char *buf)
 {
@@ -1765,12 +1765,12 @@ static ssize_t vtl_serial_num_store(struct device_driver *ddp,
 DRIVER_ATTR(serial_prefix, S_IRUGO | S_IWUSR, vtl_serial_num_show, 
 	    vtl_serial_num_store);
 
-static ssize_t sdebug_add_host_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_add_host_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_add_host);
 }
 
-static ssize_t sdebug_add_host_store(struct device_driver *ddp,
+static ssize_t vtl_add_host_store(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
 	int delta_hosts;
@@ -1799,8 +1799,8 @@ static ssize_t sdebug_add_host_store(struct device_driver *ddp,
 	}
 	return count;
 }
-DRIVER_ATTR(add_host, S_IRUGO | S_IWUSR, sdebug_add_host_show, 
-	    sdebug_add_host_store);
+DRIVER_ATTR(add_host, S_IRUGO | S_IWUSR, vtl_add_host_show, 
+	    vtl_add_host_store);
 
 static int do_create_driverfs_files(void)
 {
@@ -1949,7 +1949,7 @@ static struct bus_type pseudo_lld_bus = {
 	.match = pseudo_lld_bus_match,
 };
 
-static void sdebug_release_adapter(struct device *dev)
+static void vtl_release_adapter(struct device *dev)
 {
 	struct vtl_host_info *vtl_host;
 
@@ -1997,7 +1997,7 @@ static int vtl_add_adapter(void)
 
 	vtl_host->dev.bus = &pseudo_lld_bus;
 	vtl_host->dev.parent = &pseudo_primary;
-	vtl_host->dev.release = &sdebug_release_adapter;
+	vtl_host->dev.release = &vtl_release_adapter;
 	sprintf(vtl_host->dev.bus_id, "adapter%d", vtl_add_host);
 
 	error = device_register(&vtl_host->dev);
