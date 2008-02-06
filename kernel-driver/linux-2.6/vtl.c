@@ -1570,12 +1570,12 @@ static int vtl_proc_info(struct Scsi_Host *host, char *buffer,
 	return len;
 }
 
-static ssize_t sdebug_delay_show(struct device_driver *ddp, char *buf)
+static ssize_t vtl_delay_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_delay);
 }
 
-static ssize_t sdebug_delay_store(struct device_driver *ddp,
+static ssize_t vtl_delay_store(struct device_driver *ddp,
 				  const char *buf, size_t count)
 {
 	int delay;
@@ -1589,8 +1589,8 @@ static ssize_t sdebug_delay_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(delay, S_IRUGO | S_IWUSR, sdebug_delay_show,
-	    sdebug_delay_store);
+DRIVER_ATTR(delay, S_IRUGO | S_IWUSR, vtl_delay_show,
+	    vtl_delay_store);
 
 static ssize_t sdebug_opts_show(struct device_driver *ddp, char *buf)
 {
