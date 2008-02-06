@@ -286,7 +286,7 @@ static int vtl_driver_probe(struct device *);
 static int vtl_driver_remove(struct device *);
 static struct bus_type pseudo_lld_bus;
 
-static struct device_driver sdebug_driverfs_driver = {
+static struct device_driver vtl_driverfs_driver = {
 	.name 		= vtl_driver_name,
 	.bus		= &pseudo_lld_bus,
 	.probe          = vtl_driver_probe,
@@ -1805,31 +1805,31 @@ DRIVER_ATTR(add_host, S_IRUGO | S_IWUSR, sdebug_add_host_show,
 static int do_create_driverfs_files(void)
 {
 	int	ret;
-	ret = driver_create_file(&sdebug_driverfs_driver, &driver_attr_add_host);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_serial_prefix);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_ssc_buffer_sz);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_delay);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_num_tgts);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_opts);
-	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_scsi_level);
+	ret = driver_create_file(&vtl_driverfs_driver, &driver_attr_add_host);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_serial_prefix);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_ssc_buffer_sz);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_delay);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_every_nth);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_max_luns);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_opts);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_scsi_level);
 	return ret;
 }
 
 static void do_remove_driverfs_files(void)
 {
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_scsi_level);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_opts);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_num_tgts);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_delay);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_scsi_level);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_opts);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_max_luns);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_every_nth);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_delay);
 	kfree(vtl_serial_prefix);
 	vtl_serial_prefix = NULL;
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_ssc_buffer_sz);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_serial_prefix);
-	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_add_host);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_ssc_buffer_sz);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_serial_prefix);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_host);
 }
 
 static int allocate_minor_no(struct vtl_dev_info *devip)
@@ -1869,7 +1869,7 @@ static int __init vtl_init(void)
 		printk(KERN_WARNING "vtl: bus_register error: %d\n", ret);
 		goto bus_unreg;
 	}
-	ret = driver_register(&sdebug_driverfs_driver);
+	ret = driver_register(&vtl_driverfs_driver);
 	if (ret < 0) {
 		printk(KERN_WARNING "vtl: driver_register error: %d\n", ret);
 		goto driver_unreg;
@@ -1901,7 +1901,7 @@ static int __init vtl_init(void)
 del_files:
 	do_remove_driverfs_files();
 driver_unreg:
-	driver_unregister(&sdebug_driverfs_driver);
+	driver_unregister(&vtl_driverfs_driver);
 bus_unreg:
 	bus_unregister(&pseudo_lld_bus);
 dev_unreg:
@@ -1918,7 +1918,7 @@ static void __exit vtl_exit(void)
 	for (; k; k--)
 		sdebug_remove_adapter();
 	do_remove_driverfs_files();
-	driver_unregister(&sdebug_driverfs_driver);
+	driver_unregister(&vtl_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
 	device_unregister(&pseudo_primary);
 	unregister_chrdev(vtl_Major, "vtl");
