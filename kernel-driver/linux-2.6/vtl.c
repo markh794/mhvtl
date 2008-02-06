@@ -249,7 +249,7 @@ struct vtl_queued_cmd {
 };
 static struct vtl_queued_cmd queued_arr[VTL_CANQUEUE];
 
-static struct scsi_host_template sdebug_driver_template = {
+static struct scsi_host_template vtl_driver_template = {
 	.proc_info =		vtl_proc_info,
 	.name =			"VTL",
 	.info =			vtl_info,
@@ -615,7 +615,7 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		}
 	}
 
-	if (target == sdebug_driver_template.this_id) {
+	if (target == vtl_driver_template.this_id) {
 		printk(KERN_INFO "vtl: initiator's id used as "
 		       "target!\n");
 		return schedule_resp(SCpnt, NULL, done,
@@ -1880,7 +1880,7 @@ static int __init vtl_init(void)
 		goto del_files;
 	}
 
-	sdebug_driver_template.proc_name = (char *)vtl_driver_name;
+	vtl_driver_template.proc_name = (char *)vtl_driver_name;
 
 	host_to_add = vtl_add_host;
 	vtl_add_host = 0;
@@ -2046,7 +2046,7 @@ static int vtl_driver_probe(struct device *dev)
 
 	vtl_host = to_vtl_host(dev);
 
-	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(vtl_host));
+	hpnt = scsi_host_alloc(&vtl_driver_template, sizeof(vtl_host));
 	if (NULL == hpnt) {
 		printk(KERN_ERR "%s: scsi_register failed\n", __FUNCTION__);
 		error = -ENODEV;
