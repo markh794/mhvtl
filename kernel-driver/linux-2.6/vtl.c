@@ -322,8 +322,8 @@ static int inquiry_evpd_83(unsigned char *arr, int dev_id_num,
 static int do_create_driverfs_files(void);
 static void do_remove_driverfs_files(void);
 
-static int sdebug_add_adapter(void);
-static void sdebug_remove_adapter(void);
+static int vtl_add_adapter(void);
+static void vtl_remove_adapter(void);
 static void sdebug_max_tgts_luns(void);
 
 static int allocate_minor_no(struct vtl_dev_info *);
@@ -1790,11 +1790,11 @@ static ssize_t sdebug_add_host_store(struct device_driver *ddp,
 	}
 	if (delta_hosts > 0) {
 		do {
-			sdebug_add_adapter();
+			vtl_add_adapter();
 		} while (--delta_hosts);
 	} else if (delta_hosts < 0) {
 		do {
-			sdebug_remove_adapter();
+			vtl_remove_adapter();
 		} while (++delta_hosts);
 	}
 	return count;
@@ -1886,9 +1886,9 @@ static int __init vtl_init(void)
 	vtl_add_host = 0;
 
 	for (k = 0; k < host_to_add; k++) {
-		if (sdebug_add_adapter()) {
+		if (vtl_add_adapter()) {
 			printk(KERN_ERR "vtl_init: "
-				"sdebug_add_adapter failed k=%d\n", k);
+				"vtl_add_adapter failed k=%d\n", k);
 			break;
 		}
 	}
@@ -1916,7 +1916,7 @@ static void __exit vtl_exit(void)
 
 	stop_all_queued();
 	for (; k; k--)
-		sdebug_remove_adapter();
+		vtl_remove_adapter();
 	do_remove_driverfs_files();
 	driver_unregister(&vtl_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
@@ -1957,7 +1957,7 @@ static void sdebug_release_adapter(struct device *dev)
 	kfree(vtl_host);
 }
 
-static int sdebug_add_adapter(void)
+static int vtl_add_adapter(void)
 {
 	int k, devs_per_host;
 	int error = 0;
@@ -2019,7 +2019,7 @@ static int sdebug_add_adapter(void)
 	return error;
 }
 
-static void sdebug_remove_adapter(void)
+static void vtl_remove_adapter(void)
 {
 	struct vtl_host_info *vtl_host = NULL;
 
