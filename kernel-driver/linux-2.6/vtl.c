@@ -240,14 +240,14 @@ static spinlock_t vtl_host_list_lock = SPIN_LOCK_UNLOCKED;
 
 typedef void (* done_funct_t) (struct scsi_cmnd *);
 
-struct sdebug_queued_cmd {
+struct vtl_queued_cmd {
 	int in_use;
 	struct timer_list cmnd_timer;
 	done_funct_t done_funct;
 	struct scsi_cmnd *a_cmnd;
 	int scsi_result;
 };
-static struct sdebug_queued_cmd queued_arr[VTL_CANQUEUE];
+static struct vtl_queued_cmd queued_arr[VTL_CANQUEUE];
 
 static struct scsi_host_template sdebug_driver_template = {
 	.proc_info =		vtl_proc_info,
@@ -381,7 +381,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd,
 	} else {
 		unsigned long iflags;
 		int k;
-		struct sdebug_queued_cmd *sqcp = NULL;
+		struct vtl_queued_cmd *sqcp = NULL;
 
 		spin_lock_irqsave(&queued_arr_lock, iflags);
 		for (k = 0; k < VTL_CANQUEUE; ++k) {
@@ -508,7 +508,7 @@ static int add_q_cmd(struct scsi_cmnd *SCpnt, done_funct_t done)
 {
 	int k;
 	unsigned long iflags;
-	struct sdebug_queued_cmd *sqcp;
+	struct vtl_queued_cmd *sqcp;
 
 	spin_lock_irqsave(&queued_arr_lock, iflags);
 	for (k = 0; k < VTL_CANQUEUE; ++k) {
@@ -1120,7 +1120,7 @@ static int resp_report_luns(struct scsi_cmnd *scp, struct vtl_dev_info *devip)
 /* When timer goes off this function is called. */
 static void timer_intr_handler(unsigned long indx)
 {
-	struct sdebug_queued_cmd *sqcp;
+	struct vtl_queued_cmd *sqcp;
 	unsigned long iflags;
 
 	if (indx >= VTL_CANQUEUE) {
@@ -1426,7 +1426,7 @@ static int stop_queued_cmnd(struct scsi_cmnd *cmnd)
 {
 	unsigned long iflags;
 	int k;
-	struct sdebug_queued_cmd *sqcp;
+	struct vtl_queued_cmd *sqcp;
 
 	spin_lock_irqsave(&queued_arr_lock, iflags);
 	for (k = 0; k < VTL_CANQUEUE; ++k) {
@@ -1447,7 +1447,7 @@ static void stop_all_queued(void)
 {
 	unsigned long iflags;
 	int k;
-	struct sdebug_queued_cmd *sqcp;
+	struct vtl_queued_cmd *sqcp;
 
 	spin_lock_irqsave(&queued_arr_lock, iflags);
 	for (k = 0; k < VTL_CANQUEUE; ++k) {
@@ -1466,7 +1466,7 @@ static void __init init_all_queued(void)
 {
 	unsigned long iflags;
 	int k;
-	struct sdebug_queued_cmd *sqcp;
+	struct vtl_queued_cmd *sqcp;
 
 	spin_lock_irqsave(&queued_arr_lock, iflags);
 	for (k = 0; k < VTL_CANQUEUE; ++k) {
@@ -2130,7 +2130,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
 	unsigned int minor = iminor(inode);
-	struct sdebug_queued_cmd *sqcp = NULL;
+	struct vtl_queued_cmd *sqcp = NULL;
 	unsigned int  k;
 	int ret = 0;
 	unsigned char s[4];	/* Serial Number & sense data buffer */
