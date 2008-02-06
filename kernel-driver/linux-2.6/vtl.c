@@ -324,7 +324,7 @@ static void do_remove_driverfs_files(void);
 
 static int vtl_add_adapter(void);
 static void vtl_remove_adapter(void);
-static void sdebug_max_tgts_luns(void);
+static void vtl_max_tgts_luns(void);
 
 static int allocate_minor_no(struct vtl_dev_info *);
 
@@ -1650,7 +1650,7 @@ static ssize_t sdebug_num_tgts_store(struct device_driver *ddp,
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
 		vtl_num_tgts = n;
-		sdebug_max_tgts_luns();
+		vtl_max_tgts_luns();
 		return count;
 	}
 	return -EINVAL;
@@ -1689,7 +1689,7 @@ static ssize_t sdebug_max_luns_store(struct device_driver *ddp,
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
 		vtl_max_luns = n;
-		sdebug_max_tgts_luns();
+		vtl_max_tgts_luns();
 		return count;
 	}
 	return -EINVAL;
@@ -2099,7 +2099,7 @@ static int vtl_driver_remove(struct device *dev)
 	return 0;
 }
 
-static void sdebug_max_tgts_luns(void)
+static void vtl_max_tgts_luns(void)
 {
 	struct vtl_host_info *vtl_host;
 	struct Scsi_Host *hpnt;
