@@ -43,7 +43,7 @@
  *          This means I don't have to do any kernel level drivers
  *          and leaverage the hosts native iSCSI initiator.
  */
-static const char * Version = "$Id: vtltape.c 2008-01-08 06:35:01 markh Exp $";
+static const char * Version = "$Id: vtltape.c 2008-02-08 06:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -2177,7 +2177,8 @@ static void init_mode_pages(struct mode *m) {
 	// Extended Device (Type Specific): SPC-3 - Not used here
 
 	// Power condition: SPC-3 7.4.12
-	if ((mp = alloc_mode_page(0x1a, m, 12))) {
+	mp = alloc_mode_page(0x1a, m, 12);
+	if (mp) {
 		// Init rest of page data..
 	}
 
@@ -2193,8 +2194,7 @@ static void init_mode_pages(struct mode *m) {
 	}
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	int cdev, k;
 	int ret;

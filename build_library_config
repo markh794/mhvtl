@@ -87,7 +87,6 @@ fi
 
 if [ "X$SERIAL_PREFIX" != "X" ]; then
 	if [ -f /sys/bus/pseudo/drivers/vtl/serial_prefix ]; then
-		echo "Setting serialnum to $SERIAL_PREFIX"
 		echo $SERIAL_PREFIX > /sys/bus/pseudo/drivers/vtl/serial_prefix
 	fi
 fi
@@ -97,13 +96,13 @@ echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
 
 # Give time for SSC devices to settle
 if [ $count -gt 12 ]; then
-	echo "Sleeping $count"
+#	echo "Sleeping $count"
 	sleep $count
 elif [ $count -gt 8 ]; then
-	echo "Sleeping 5 seconds"
+#	echo "Sleeping 5 seconds"
 	sleep 5
 else
-	echo "Sleeping 2 seconds"
+#	echo "Sleeping 2 seconds"
 	sleep 2
 fi
 
@@ -112,6 +111,11 @@ count=0
 for a in `$LSSCSI -g | grep tape | grep 5400 | awk '{print $7}'`
 do
 	count=`expr $count + 1`
+	# Set serial number of each device...
+	if [ -x /usr/bin/vtl_set_sn ]; then
+		/usr/bin/vtl_set_sn -q $count
+	fi
+	su $USER -c "vtltape -q $count $OPTIONS"
 	# Start the vxtape daemon...
 	su $USER -c "vtltape -q $count $OPTIONS"
 	echo "Drive: $count"

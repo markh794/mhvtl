@@ -26,7 +26,8 @@ CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
 
 CLFLAGS=-shared
 
-all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape vtllibrary
+all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
+	vtllibrary vtl_set_sn
 
 libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
 	$(CC) $(CFLAGS) -c -fpic vxshared.c
@@ -34,6 +35,9 @@ libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
 
 dump_messageQ:	dump_messageQ.c q.h
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.c
+
+vtl_set_sn:	vtl_set_sn.o
+	$(CC) $(CFLAGS) -o vtl_set_sn vtl_set_sn.o -L. -lvtlscsi
 
 vtlcmd:	vtlcmd.o q.o q.h
 	$(CC) $(CFLAGS) -o vtlcmd q.o vtlcmd.o
@@ -55,7 +59,8 @@ vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
-		vxshared.o libvtlscsi.so z.o vtllibrary.o
+		vxshared.o libvtlscsi.so z.o vtllibrary.o \
+		vtl_set_sn.o
 
 tags:
 	etags *.c *.h
@@ -65,6 +70,7 @@ distclean:
 	dump_tape.o dump_tape \
 	q.o q \
 	vtlcmd.o vtlcmd \
+	vtl_set_sn.o vtl_set_sn \
 	dump_messageQ.o dump_messageQ \
 	core mktape mktape.o \
 	vxshared.o libvtlscsi.so \
@@ -77,6 +83,7 @@ install:
 	install -o vtl -g vtl -m 750 vtltape /usr/bin/
 	install -o vtl -g vtl -m 750 vtllibrary /usr/bin/
 	install -o vtl -g vtl -m 750 vtlcmd /usr/bin/
+	install -o vtl -g vtl -m 750 vtl_set_sn /usr/bin/
 	install -o vtl -g vtl -m 750 mktape /usr/bin/
 	install -m 700 build_library_config /usr/bin/
 	install -m 700 make_vtl_devices /usr/bin/

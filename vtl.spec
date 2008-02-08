@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.12
-Release: 36
-Source: vtl-2008-02-06.tgz
+Release: 37
+Source: vtl-2008-02-08.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -50,6 +50,7 @@ install -m 750 vtl $RPM_BUILD_ROOT/etc/init.d/vtl
 install -m 750 -s vtltape $RPM_BUILD_ROOT/usr/bin/vtltape
 install -m 750 -s vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
 install -m 750 vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
+install -m 750 vtl_set_sn $RPM_BUILD_ROOT/usr/bin/vtl_set_sn
 install -m 750 mktape $RPM_BUILD_ROOT/usr/bin/mktape
 install -m 700 build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
 install -m 700 make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
@@ -129,6 +130,7 @@ fi
 %doc INSTALL README library_contents.sample
 /etc/init.d/vtl
 %{_prefix}/bin/vtlcmd
+%{_prefix}/bin/vtl_set_sn
 %{_prefix}/bin/vtltape
 %{_prefix}/bin/vtllibrary
 %{_prefix}/bin/mktape
@@ -149,6 +151,17 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Fri Feb 08 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped vers to 0.12.37
+- Added ability to set serial number via new utility 'vtl_set_sn -q X'
+  The serial number is read from /etc/vtl/library_config for each 'Drive X:'
+  e.g.
+   Drive 2: SN20034
+   Drive 3: SN20035
+  If there is no serial number defined in library_config file, and the
+  serial prefix has been set, then this will be used. Otherwise the old &
+  trusted method of calculating based on HBA#, ID# & LUN.
+
 * Wed Feb 06 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12.36
 - Added another config file /etc/vtl/vtl.conf

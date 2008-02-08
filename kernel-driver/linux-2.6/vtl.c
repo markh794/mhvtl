@@ -93,7 +93,7 @@
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.12.20"
-static const char *vtl_version_date = "20080206-2";
+static const char *vtl_version_date = "20080208-2";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -115,7 +115,7 @@ static const char *vtl_version_date = "20080206-2";
 /* Additional Sense Code Qualfier (ASCQ) used */
 #define PROCESS_OF_BECOMMING_READY 0x01
 
-#define SDEBUG_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
+#define VTL_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 
 /* Default values for driver parameters */
 #define DEF_NUM_HOST   1
@@ -199,6 +199,7 @@ struct vtl_dev_info {
 	unsigned int lun;
 	unsigned int minor;
 	unsigned int ptype;
+	char *serial_no;
 	struct vtl_host_info *vtl_host;
 
 	char reset;
@@ -299,8 +300,7 @@ static const int check_condition_result =
 /* function declarations */
 static int resp_inquiry(struct scsi_cmnd *SCpnt, int target,
 			struct vtl_dev_info *devip);
-static int resp_requests(struct scsi_cmnd *SCpnt,
-			 struct vtl_dev_info *devip);
+static int resp_requests(struct scsi_cmnd *SCpnt, struct vtl_dev_info *devip);
 static int resp_readblocklimits(struct scsi_cmnd *SCpnt,
 			struct vtl_dev_info *devip);
 static int resp_report_luns(struct scsi_cmnd *SCpnt,
@@ -311,8 +311,7 @@ static void timer_intr_handler(unsigned long);
 static struct vtl_dev_info *devInfoReg(struct scsi_device *sdev);
 static void mk_sense_buffer(struct vtl_dev_info *devip, int key,
 			    int asc, int asq);
-static int check_reset(struct scsi_cmnd *SCpnt,
-		       struct vtl_dev_info *devip);
+static int check_reset(struct scsi_cmnd *SCpnt, struct vtl_dev_info *devip);
 static void __init init_all_queued(void);
 static void stop_all_queued(void);
 static int stop_queued_cmnd(struct scsi_cmnd *cmnd);
@@ -932,16 +931,23 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 		int dev_id_num, len, host;
 		char dev_id_str[6];
 
-		host = devip->vtl_host->shost->host_no;
-		dev_id_num = host * 2000 + (devip->target * 1000) + devip->lun;
-		len = scnprintf(dev_id_str, 10, "%3s%06d",
+		if (devip->serial_no) {
+			dev_id_num = 0;
+			len = strlen(devip->serial_no);
+			strncpy(dev_id_str, devip->serial_no, 10);
+		} else {
+			host = devip->vtl_host->shost->host_no;
+			dev_id_num = host * 2000 + (devip->target * 1000)
+						+ devip->lun;
+			len = scnprintf(dev_id_str, 10, "%3s%06d",
 				(vtl_serial_prefix) ? vtl_serial_prefix : "SN",
 				dev_id_num);
-/*		printk("dev_id_num %d, serial number: %s\n", dev_id_num,
-				dev_id_str);
-		printk("Host: %d, target: %d, lun: %d\n",
+			printk("Host: %d, target: %d, lun: %d\n",
 				host, devip->target, devip->lun);
-*/
+		}
+		printk("dev_id_num %d, serial number: %s\n", dev_id_num,
+				dev_id_str);
+
 		if (0 == cmd[2]) { /* supported vital product data pages */
 			if (devip->lun > 0)
 				arr[3] = 5;
@@ -972,7 +978,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "06-02-2008 07:21:00", 20);
+			strncpy(&arr[20], "08-02-2008 07:21:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
@@ -1210,6 +1216,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		}
 		open_devip->status = 0;
 		open_devip->status_argv = 0;
+		open_devip->serial_no = (char *)NULL;
 
 		base_p = vmalloc(sz);
 		if (NULL == base_p) {
@@ -1280,7 +1287,7 @@ static int vtl_slave_configure(struct scsi_device *sdp)
 	devip = devInfoReg(sdp);
 	sdp->hostdata = devip;
 	if (sdp->host->cmd_per_lun)
-		scsi_adjust_queue_depth(sdp, SDEBUG_TAGGED_QUEUING,
+		scsi_adjust_queue_depth(sdp, VTL_TAGGED_QUEUING,
 					sdp->host->cmd_per_lun);
 	return 0;
 }
@@ -1296,6 +1303,7 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 	if (devip) {
 		/* make this slot avaliable for re-use */
 		/* A little work to clean up after kfifo allocation */
+		vfree(devip->serial_no);
 		vfree(devip->fifo->buffer);
 		kfree(devip->fifo);
 		vfree(devip->vtl_header);
@@ -2137,6 +2145,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	unsigned char valid_sense;
 	unsigned long serial_no;
 	unsigned int  count;
+	char *sn;
 	struct vtl_header *vheadp;
 
 	if (minor > DEF_MAX_MINOR_NO) {	/* Check limit minor no. */
@@ -2299,10 +2308,27 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	 */
 	case 0x200:	/* VTL_GET_HEADER - Read SCSI header + S/No. */
 		vheadp = (struct vtl_header *)devp[minor]->vtl_header;
-		if (copy_to_user((u8 *)arg,(u8 *)vheadp,sizeof(struct vtl_header))) {
+		if (copy_to_user((u8 *)arg, (u8 *)vheadp,
+					 sizeof(struct vtl_header))) {
 			ret = -EFAULT;
 			goto give_up;
 		}
+		break;
+	case 0x202:	/* Copy 'Serial Number' from userspace */
+		sn = vmalloc(32);
+		if (!sn) {
+			printk("%s out of memory\n", __FUNCTION__);
+			ret = -ENOMEM;
+			goto give_up;
+		}
+		vfree(devp[minor]->serial_no);
+		devp[minor]->serial_no = sn;
+		if (copy_from_user(sn, (u8 *)arg, 32)) {
+			ret = -EFAULT;
+			goto give_up;
+		}
+		if (VTL_OPT_NOISE & vtl_opts)
+			printk("Setting serial number to %s\n", sn);
 		break;
 	default:
 		ret = -ENOTTY;
@@ -2367,7 +2393,8 @@ static ssize_t vtl_write(struct file *filp, const char *buf, size_t count,
 static int vtl_release(struct inode *inode, struct file *filp)
 {
 	unsigned int minor = iminor(inode);
-	printk("vtl%d: Release\n", minor);
+	if (VTL_OPT_NOISE & vtl_opts)
+		printk("vtl%d: Release\n", minor);
 	devp[minor]->device_offline = 1;
 	return 0;
 }
