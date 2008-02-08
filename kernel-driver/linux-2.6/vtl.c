@@ -93,7 +93,7 @@
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.12.20"
-static const char *vtl_version_date = "20080208-2";
+static const char *vtl_version_date = "20080208-3";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -2326,6 +2326,11 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		if (copy_from_user(sn, (u8 *)arg, 32)) {
 			ret = -EFAULT;
 			goto give_up;
+		}
+		if (strlen(sn) < 2) {
+			printk("Serial number too short. Removing\n");
+			vfree(sn);
+			devp[minor]->serial_no = (char *)NULL;
 		}
 		if (VTL_OPT_NOISE & vtl_opts)
 			printk("Setting serial number to %s\n", sn);
