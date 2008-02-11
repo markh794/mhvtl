@@ -33,6 +33,8 @@ distclean:
 	rm -f vtl.o vtl.ko \
 	vtl.mod.o \
 	vtl.mod.c \
+	Modules.symvers \
+	Module.symvers \
 	.vtl.ko.cmd \
 	.vtl.mod.o.cmd \
 	.vtl.o.cmd

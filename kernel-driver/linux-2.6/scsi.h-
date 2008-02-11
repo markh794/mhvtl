@@ -1,1 +1,0 @@
-/usr/src/linux/drivers/scsi/scsi.h

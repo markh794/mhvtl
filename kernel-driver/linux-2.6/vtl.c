@@ -76,7 +76,22 @@
 #include <linux/version.h>
 #endif
 
-#include "scsi.h"
+#ifndef _SCSI_H
+#define _SCSI_H
+
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_tcq.h>
+#include <scsi/scsi.h>
+
+struct Scsi_Host;
+struct scsi_cmnd;
+struct scsi_device;
+struct scsi_target;
+struct scatterlist;
+
+#endif /* _SCSI_H */
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,9)
 #include <linux/kfifo.h>

@@ -1839,6 +1839,9 @@ static void init_tape_info(void) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		barcode[0] = '\0';
+		/* Using the "Drive x: SerialNo" syntax means this section 
+		 * is unneeded...
+		 *
 		if ((x = (sscanf(b, "Drive %d: %s", &slt, barcode))) > 0) {
 			dp = &drive_info[slt - 1];
 			if (slt > NUM_DRIVES)
@@ -1860,6 +1863,7 @@ static void init_tape_info(void) {
 				dp->slot->slot_location = slt + START_DRIVE - 1;
 			}
 		}
+		*/
 		if ((x = (sscanf(b, "MAP %d: %s", &slt, barcode))) > 0) {
 			sp = &map_info[slt - 1];
 			if (slt > NUM_MAP)
