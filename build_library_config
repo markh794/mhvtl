@@ -3,10 +3,8 @@
 # Parse lsscsi -g o/p to build a drive/library config for the 'vxlibrary'
 # daemon.
 #
-# I would normally expect this to be run out of an rc script.
+# Designed to be called from vtl rc script
 #
-# * $Id: build_library_config,v 1.16.2.1 2006-08-06 07:58:44 markh Exp $
-# *
 # * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
 # *                                mark_harvey at symantec dot com
 # *
@@ -43,8 +41,14 @@ TMP=/var/tmp/_build.$$
 CONFIG=/etc/vtl/vxlib.conf
 LIBCONTENTS=/etc/vtl/library_contents
 OPTIONS=""
-# OPTIONS=" -v -v"
-. /etc/vtl/vtl.conf
+
+if [ -f /etc/vtl/vtl.conf ]; then
+	. /etc/vtl/vtl.conf
+fi
+
+if [ $VERBOSE -gt 0 ];then
+	OPTIONS="-v"
+fi
 
 if [ -x /usr/bin/lsscsi ]; then
 	LSSCSI=/usr/bin/lsscsi
@@ -75,8 +79,13 @@ if [ $VERBOSE -gt 0 ]; then
 fi
 
 if [ $countDevices -lt $count ]; then
-	count = expr $count - $countDevices
-	echo "Adding $count more devices..."
+	count=`expr $count - $countDevices`
+	if [ $count -lt 0 ]; then
+		$count=0
+	fi
+	if [ $VERBOSE -gt 0 ]; then
+		echo "Adding $count more devices..."
+	fi
 
 	if [ $USE_MIXED_DRIVES -eq 0 ]; then
 		echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
@@ -114,9 +123,9 @@ if [ $countDevices -lt $count ]; then
 		sleep 5
 	else
 		if [ $VERBOSE -gt 0 ];then
-			echo "Sleeping 2 seconds"
+			echo "Sleeping 3 seconds"
 		fi
-		sleep 2
+		sleep 3
 	fi
 fi
 

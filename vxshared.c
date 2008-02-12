@@ -1,9 +1,7 @@
 /*
  * Shared routines between vxtape & vxlibrary
  *
- * $Id: vxshared.c,v 1.33.2.3 2006-08-30 06:35:01 markh Exp $
- *
- * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
+ * Copyright (C) 2005 - 2008 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *
  * This program is free software; you can redistribute it and/or modify

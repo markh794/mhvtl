@@ -2,9 +2,7 @@
  * vxcmd - A utility to send a message queue to the vxtape/vxlibrary
  *	   userspace daemons
  *
- * $Id: vtlcmd.c,v 1.1.2.1 2006-08-06 07:58:44 markh Exp $
- *
- * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
+ * Copyright (C) 2005 - 2008 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,7 +24,7 @@
  *
  */
 
-static const char *Version = "$Id: vtlcmd.c 2008-02-08 07:58:44 markh Exp $";
+static const char *Version = "$Id: vtlcmd.c 2008-02-12 19:58:44 markh Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>

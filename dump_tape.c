@@ -1,9 +1,7 @@
 /*
  *	Dump headers of 'tape' datafile
  *
- * $Id: dump_tape.c,v 1.8.2.2 2006-08-06 07:58:44 markh Exp $
- *
- * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
+ * Copyright (C) 2005 - 2008 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *
  * This program is free software; you can redistribute it and/or modify

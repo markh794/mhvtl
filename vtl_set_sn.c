@@ -6,7 +6,7 @@
  *   SCSI target daemons for both SMC and SSC devices.
  *
  *
- * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
+ * Copyright (C) 2005 - 2008 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *
  * This program is free software; you can redistribute it and/or modify
@@ -189,11 +189,13 @@ int main(int argc, char *argv[])
 	if (verbose)
 		printf("Serial Number: %s\n", sn);
 
-	if (ioctl(cdev, VTL_SET_SERIAL, sn) < 0) {
-		perror("Failed setting serial number");
-		exit(1);
-	} else {
-		syslog(LOG_DAEMON|LOG_INFO, "Setting serial: %s", sn);
+	if (strlen(sn) > 1) {
+		if (ioctl(cdev, VTL_SET_SERIAL, sn) < 0) {
+			perror("Failed setting serial number");
+			exit(1);
+		} else {
+			syslog(LOG_DAEMON|LOG_INFO, "Setting serial: %s", sn);
+		}
 	}
 
 	close(cdev);

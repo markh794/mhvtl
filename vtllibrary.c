@@ -6,7 +6,7 @@
  *   a kernel module (vlt.ko) - Currently on 2.6.x Linux kernel support.
  *   SCSI target daemons for both SMC and SSC devices.
  *
- * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
+ * Copyright (C) 2005 - 2008 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,7 @@
  *          and leaverage the hosts native iSCSI initiator.
  */
 
-static const char *Version = "$Id: vtllibrary.c 2008-02-08 06:35:01 markh Exp $";
+static const char *Version = "$Id: vtllibrary.c 2008-02-12 19:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>

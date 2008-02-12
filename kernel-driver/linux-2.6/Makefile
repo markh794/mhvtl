@@ -38,7 +38,7 @@ distclean:
 	.vtl.ko.cmd \
 	.vtl.mod.o.cmd \
 	.vtl.o.cmd
-	rm -r .tmp_versions
+	rm -rf .tmp_versions
 	rm -f TAGS
 
 install:

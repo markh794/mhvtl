@@ -108,7 +108,7 @@ struct scatterlist;
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.12.20"
-static const char *vtl_version_date = "20080208-3";
+static const char *vtl_version_date = "20080212-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -957,11 +957,14 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			len = scnprintf(dev_id_str, 10, "%3s%06d",
 				(vtl_serial_prefix) ? vtl_serial_prefix : "SN",
 				dev_id_num);
-			printk("Host: %d, target: %d, lun: %d\n",
-				host, devip->target, devip->lun);
+			if (VTL_OPT_NOISE & vtl_opts)
+				printk("Host: %d, target: %d, lun: %d"
+					" => SN: %s\n",
+						host,
+						devip->target,
+						devip->lun,
+						dev_id_str);
 		}
-		printk("dev_id_num %d, serial number: %s\n", dev_id_num,
-				dev_id_str);
 
 		if (0 == cmd[2]) { /* supported vital product data pages */
 			if (devip->lun > 0)
@@ -993,7 +996,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "08-02-2008 07:21:00", 20);
+			strncpy(&arr[20], "12-02-2008 19:38:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
