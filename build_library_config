@@ -63,47 +63,61 @@ if [ ! -d /sys/bus/pseudo/drivers/vtl ]; then
 fi
 
 count=`grep Drive $LIBCONTENTS|wc -l`
+if [ $VERBOSE -gt 0 ];then
+	echo "Found $count drives in library contents file /etc/vtl/library_contents"
+fi
 
 # If we can't find any existing devices, then add '$count` devices
 # If USE_MIXED_DRIVES is set to 0, then all drives will be of same type
 countDevices=`$LSSCSI -g | grep tape | grep 5400 | wc -l`
-if test $countDevices -eq 0; then
-	# Use num_tgts for a library full of IBM drives
-	#echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
-	# else use max_luns for a library with mixed drive types
-	if test $USE_MIXED_DRIVES -eq 0; then
+if [ $VERBOSE -gt 0 ]; then
+	echo "Found $countDevices tape drives already.."
+fi
+
+if [ $countDevices -lt $count ]; then
+	count = expr $count - $countDevices
+	echo "Adding $count more devices..."
+
+	if [ $USE_MIXED_DRIVES -eq 0 ]; then
 		echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
 	else
 		echo $count > /sys/bus/pseudo/drivers/vtl/max_luns
 	fi
-fi
 
-# Set up SSC (Tape drive) params...
-#
-# Set up a 128k buffer size.
-if [ -f /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz ]; then
-	echo $SSC_BUFFER_SZ > /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz
-fi
-
-if [ "X$SERIAL_PREFIX" != "X" ]; then
-	if [ -f /sys/bus/pseudo/drivers/vtl/serial_prefix ]; then
-		echo $SERIAL_PREFIX > /sys/bus/pseudo/drivers/vtl/serial_prefix
+	# Set up SSC (Tape drive) params...
+	#
+	# Set up a 128k buffer size.
+	if [ -f /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz ]; then
+		echo $SSC_BUFFER_SZ > /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz
 	fi
-fi
 
-# OK -> Now load the new 'host' with the SSC devices attached...
-echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
+	if [ $countDevices -eq 0 ]; then
+		if [ "X$SERIAL_PREFIX" != "X" ]; then
+			if [ -f /sys/bus/pseudo/drivers/vtl/serial_prefix ]; then
+				echo $SERIAL_PREFIX > /sys/bus/pseudo/drivers/vtl/serial_prefix
+			fi
+		fi
+	fi
 
-# Give time for SSC devices to settle
-if [ $count -gt 12 ]; then
-#	echo "Sleeping $count"
-	sleep $count
-elif [ $count -gt 8 ]; then
-#	echo "Sleeping 5 seconds"
-	sleep 5
-else
-#	echo "Sleeping 2 seconds"
-	sleep 2
+	# OK -> Now load the new 'host' with the SSC devices attached...
+	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
+	# Give time for SSC devices to settle
+	if [ $count -gt 12 ]; then
+		if [ $VERBOSE -gt 0 ];then
+			echo "Sleeping $count"
+		fi
+		sleep $count
+	elif [ $count -gt 8 ]; then
+		if [ $VERBOSE -gt 0 ];then
+			echo "Sleeping 5 seconds"
+		fi
+		sleep 5
+	else
+		if [ $VERBOSE -gt 0 ];then
+			echo "Sleeping 2 seconds"
+		fi
+		sleep 2
+	fi
 fi
 
 count=0
@@ -115,7 +129,6 @@ do
 	if [ -x /usr/bin/vtl_set_sn ]; then
 		/usr/bin/vtl_set_sn -q $count
 	fi
-	su $USER -c "vtltape -q $count $OPTIONS"
 	# Start the vxtape daemon...
 	su $USER -c "vtltape -q $count $OPTIONS"
 	echo "Drive: $count"
