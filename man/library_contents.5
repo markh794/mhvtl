@@ -10,7 +10,9 @@ One line per entry.
 Contains the following sections, Only the 'Slot' section should be populated. The other
 sections are used as place holders. e.g. If the number of MAP slots are to be changed
 within the VTL, change the number of entries in this configuration file.
-.IP "Drive #:"
+.IP "Drive #: [Serial Number]"
+Set the [Serial Number] to define the devices serial number at load time.
+If the serial number is not defined, one will be calculated based on HBA#, SCSI ID and LUN
 .IP "Picker #:"
 .IP "MAP #:"
 .IP "Slot #: [Barcode]"

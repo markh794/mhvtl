@@ -25,8 +25,6 @@
  *	  or
  *	Current employ address: mark_harvey at symantec dot com
  *
- *  $Id: vtl.c,v 1.8.2.12 2006-08-30 06:35:14 markh Exp $
- *
  *	Pinched wholesale from scsi_debug.[ch]
  *
  *	Hacked to represent SCSI tape drives & Library.
@@ -107,8 +105,8 @@ struct scatterlist;
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.12.20"
-static const char *vtl_version_date = "20080212-0";
+#define VTL_VERSION "0.14.0"
+static const char *vtl_version_date = "20080214-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -996,7 +994,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "12-02-2008 19:38:00", 20);
+			strncpy(&arr[20], "14-02-2008 19:38:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,

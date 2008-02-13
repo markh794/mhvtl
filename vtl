@@ -56,12 +56,17 @@ case "$1" in
 		echo "Please see http://linuxvtl.googlepages.com"
 		exit 1
 	fi
-	vtlVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $3}'`
-	if test $vtlVersion -lt 20; then
-		echo "Incorrect kernel module for these daemons."
-		echo "Need at least 0.12.20 and 0.12.$vtlVersion is loaded."
+	vtlMidVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $2}'`
+	if [ $vtlMidVersion -lt 14 ]; then
+		vtlMinVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $3}'`
+		if [ $vtlMinVersion -lt 20 ]; then
+			echo "Incorrect kernel module for these daemons."
+			echo "Need at least 0.12.20 and 0.12.$vtlMinVersion is loaded."
+			echo "Please see http://linuxvtl.googlepages.com"
+			exit 1
+		fi
+		echo "Note: kernel version 0.14 is available."
 		echo "Please see http://linuxvtl.googlepages.com"
-		exit 1
 	fi
 
 	make_vtl_devices $USER > /dev/null
@@ -101,7 +106,7 @@ SERIAL_PREFIX=XYZ
 # is 512k. Example here is 256k
 SSC_BUFFER_SZ=262144
 
-# Set default verbosity [0|1|2|3]
+# Set default verbosity [0|1]
 VERBOSE=0
 
 # Set kernel module debuging [0|1]

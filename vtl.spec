@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
-Version: 0.12
-Release: 37
-Source: vtl-2008-02-12.tgz
+Version: 0.14
+Release: 0
+Source: vtl-2008-02-14.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -151,6 +151,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu Feb 14 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.14.0
+- With the ability to define device serial numbers, I thought it was time
+  to increase vers from 0.12 to 0.14
+- Cleaned up helper scripts.
+
 * Fri Feb 08 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped vers to 0.12.37
 - Added ability to set serial number via new utility 'vtl_set_sn -q X'

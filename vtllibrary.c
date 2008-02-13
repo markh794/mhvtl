@@ -24,6 +24,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * See comments in vtltape.c for a more complete version release...
+ *
+ * 0.14 13 Feb 2008
+ * 	Since ability to define device serial number, increased ver from
+ * 	0.12 to 0.14
+ *
  * v0.12 -> Forked into 'stable' (0.12) and 'devel' (0.13).
  *          My current thinking : This is a dead end anyway.
  *          An iSCSI target done in user-space is now my perferred solution.
@@ -31,7 +36,7 @@
  *          and leaverage the hosts native iSCSI initiator.
  */
 
-static const char *Version = "$Id: vtllibrary.c 2008-02-12 19:35:01 markh Exp $";
+static const char *Version = "$Id: vtllibrary.c 2008-02-14 19:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -2000,7 +2005,8 @@ int main(int argc, char *argv[])
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, Version);
-	printf("%s: version %s\n", progname, Version);
+	if (verbose)
+		printf("%s: version %s\n", progname, Version);
 
 	if ((cdev = chrdev_open(name, minor)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,

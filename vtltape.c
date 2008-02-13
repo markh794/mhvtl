@@ -39,8 +39,12 @@
  *          An iSCSI target done in user-space is now my perferred solution.
  *          This means I don't have to do any kernel level drivers
  *          and leaverage the hosts native iSCSI initiator.
+ * 0.14 13 Feb 2008
+ * 	Since ability to define device serial number, increased ver from
+ * 	0.12 to 0.14
+ *
  */
-static const char * Version = "$Id: vtltape.c 2008-02-12 19:35:01 markh Exp $";
+static const char * Version = "$Id: vtltape.c 2008-02-14 19:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -721,9 +725,9 @@ static void clearWORM(void) {
 
 #define REPORT_DENSITY_LEN 56
 static int resp_report_density(uint8_t media, int len, uint8_t *buf, uint8_t *sense_flg) {
-	u16	*sp;
-	u32	*lp;
-	u32	t;
+	u16 *sp;
+	u32 *lp;
+	u32 t;
 
 	// Zero out buf
 	memset(buf, 0, len);
@@ -936,11 +940,11 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
  * Fill in 'buf' with data and return number of bytes
  */
 static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_flg) {
-	u16	*sp;
-	u16	attribute;
-	u32	*lp;
-	u32	alloc_len;
-	int	ret_val = 0;
+	u16 *sp;
+	u16 attribute;
+	u32 *lp;
+	u32 alloc_len;
+	int ret_val = 0;
 
 	sp = (u16 *)&SCpnt[8];
 	attribute = ntohs(*sp);
@@ -1102,7 +1106,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			return nread;
 		} else if (nread < 0) {	// Error
 			syslog(LOG_DAEMON|LOG_ERR, "%m");
-			mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,sense_flg);
+			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sense_flg);
 			return 0;
 		} else if (nread != request_sz) {
 			// requested block and actual block size different
@@ -1554,25 +1558,25 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			break;
 		}
 		/* This driver does not support fixed blocks at the moment */
-		if ((SCpnt[1] & FIXED) == FIXED) {
+		if (SCpnt[1] & FIXED) {
 			syslog(LOG_DAEMON|LOG_WARNING,
-					"Fixed block read not supported");
+					"\"Fixed block read\" not supported");
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sense_flg);
 			reset = 0;
 			break;
 		}
-		if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
-		} else if (tapeLoaded == TAPE_LOADED) {
+		if (tapeLoaded == TAPE_LOADED) {
 			if (MediaType == MEDIA_TYPE_CLEAN) {
 				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
 								sense_flg);
-			} else {
-			  retval = readBlock(cdev, buf, sense_flg, block_size);
-			  bytesRead += retval;
-			  pg_read_err_counter.bytesProcessed = bytesRead;
+				break;
 			}
+			retval = readBlock(cdev, buf, sense_flg, block_size);
+			bytesRead += retval;
+			pg_read_err_counter.bytesProcessed = bytesRead;
+		} else if (tapeLoaded == TAPE_UNLOADED) {
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
 		} else
 			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
 
@@ -2200,7 +2204,7 @@ int main(int argc, char *argv[])
 	int exit_status = 0;
 	u32 pollInterval = 50000;
 	u32 serialNo = 0L;
-	u32  byteCount;
+	u32 byteCount;
 	uint8_t * buf;
 	uint8_t * SCpnt;
 	struct vtl_header vtl_head;

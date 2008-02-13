@@ -8,15 +8,6 @@
 # 	all 	to build all utilities
 # 	clean	to clean up all intermediate files
 #
-# CC must be set to the Ansi-C compiler installed on the target
-# system, e.g. CC=/opt/ansic/bin/cc
-#
-# $Id: Makefile,v 1.23.2.4 2006-08-30 06:35:01 markh Exp $
-#
-
-# Solaris
-# CC= /usr/local/bin/gcc
-# CFLAGS=-O2 -Wall -DSolaris
 
 # Linux
 CC= /usr/bin/gcc
@@ -90,5 +81,5 @@ install:
 	install -m 700 vtl /etc/init.d/
 
 tar:
-	(cd ..;  tar cvfz /home/markh/vtl-`date +%F`.tgz  --exclude=.git vtl-0.12/man vtl-0.12/doc vtl-0.12/kernel-driver vtl-0.12/*.[ch] vtl-0.12/Makefile vtl-0.12/README vtl-0.12/INSTALL vtl-0.12/build_library_config vtl-0.12/library_contents.sample vtl-0.12/make_vtl_devices vtl-0.12/vtl.spec vtl-0.12/vtl)
+	(cd ..;  tar cvfz /home/markh/vtl-`date +%F`.tgz  --exclude=.git vtl-0.14/man vtl-0.14/doc vtl-0.14/kernel-driver vtl-0.14/*.[ch] vtl-0.14/Makefile vtl-0.14/README vtl-0.14/INSTALL vtl-0.14/build_library_config vtl-0.14/library_contents.sample vtl-0.14/make_vtl_devices vtl-0.14/vtl.spec vtl-0.14/vtl)
 

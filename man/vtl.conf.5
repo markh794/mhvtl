@@ -1,0 +1,67 @@
+.TH vtl.conf "5" "February 2008" "vtl 0.14" "User Commands"
+.SH NAME
+vtl.conf \- Configuration file for
+.BR vtllibrary(1)
+and
+.BR vtltape(1)
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Configuration file to define startup behaviour of the vtl.
+.IP
+USE_MIXED_DRIVES = [0|1]
+
+If USE_MIXED_DRIVES is set to 1, then the first three drives will be IBM
+Ultrium, the next three will be QUANTUM SDLT600 and the following three
+will be AIT-4. If USE_MIXED_DRIVES is set to 0, all tape drives will be IBM
+Ultrium.
+
+.IP
+SSC_BUFFER_SZ = 262144
+
+Define buffer size used by each SSC (tape) device within the kernel.
+
+.IP
+SERIAL_PREFIX = XYZ
+
+Define a serial number prefix for each SSC device. If each device s/no. has
+not been defined in
+.BR library_contents(5)
+then this prefix is used to generate each devices serial number.
+
+.IP
+VERBOSE = [0|1] Enable verbose logging at startup.
+
+.IP
+DEBUG = [0|1] Enable debug logging
+
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+.RS
+This man page.
+.RE
+.RS
+No version information.
+.RE
+.RS
+Config file not xml.
+.RE
+.RS
+.BR vtllibrary(1)
+needs to be restarted to read any changes made.
+.RE
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR build_library_config(1),
+.BR mktape(1),
+.BR vtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

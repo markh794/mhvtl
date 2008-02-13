@@ -24,7 +24,7 @@
  *
  */
 
-static const char *Version = "$Id: vtlcmd.c 2008-02-12 19:58:44 markh Exp $";
+static const char *Version = "$Id: vtlcmd.c 2008-02-14 19:58:44 markh Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>
