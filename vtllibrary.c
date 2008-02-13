@@ -115,8 +115,8 @@ uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 static struct s_info { /* Slot Info */
 	uint8_t cart_type; // 0 = Unknown, 1 = Data medium, 2 = Cleaning
 	uint8_t barcode[11];
-	uint32_t  slot_location;
-	uint32_t  last_location;
+	uint32_t slot_location;
+	uint32_t last_location;
 	uint8_t	status;	// Used for MAP status.
 	uint8_t	asc;	// Additional Sense Code
 	uint8_t	ascq;	// Additional Sense Code Qualifier
@@ -128,9 +128,9 @@ static struct d_info {	/* Drive Info */
 	char inq_product_rev[4];
 	char inq_product_sno[10];
 	char online;		// Physical status of drive
-	int  SCSI_BUS;
-	int  SCSI_ID;
-	int  SCSI_LUN;
+	int SCSI_BUS;
+	int SCSI_ID;
+	int SCSI_LUN;
 	char tapeLoaded;	// Tape is 'loaded' by drive
 	struct s_info *slot;
 };
@@ -141,12 +141,12 @@ static struct s_info *map_info;
 static struct s_info *picker_info;
 
 /* Log pages */
-static struct	Temperature_page Temperature_pg = {
+static struct Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
 	{ 0x00, 0x00, 0x60, 0x02, }, 0x00, 	// Temperature
 	};
 
-static struct TapeAlert_page	TapeAlert;
+static struct TapeAlert_page TapeAlert;
 
 
 /*
@@ -1113,7 +1113,8 @@ static int data_transfer_descriptor(uint8_t *p, uint16_t start,
 				determine_element_sz(dvcid, voltag),
 				drive); )
 
-	syslog(LOG_DAEMON|LOG_WARNING, "Len: %d\n", len);
+	if (verbose > 2)
+		syslog(LOG_DAEMON|LOG_INFO, "Len: %d\n", len);
 	/**** For each Data Transfer Element ****/
 	count += drive; // We want 'count' number of drive entries returned
 	for (; drive < count; drive++) {
@@ -1121,7 +1122,8 @@ static int data_transfer_descriptor(uint8_t *p, uint16_t start,
 					drive + 1, count);	) ;
 		len += fill_data_transfer_element( &p[len],
 					&drive_info[drive], dvcid, voltag);
-		syslog(LOG_DAEMON|LOG_WARNING, "Len: %d\n", len);
+		if (verbose > 2)
+			syslog(LOG_DAEMON|LOG_INFO, "Len: %d\n", len);
 	}
 
 	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__, len); )
@@ -1785,7 +1787,8 @@ static void init_tape_info(void) {
 	rewind(ctrl);
 
 	if (debug)
-	printf("%d Drives, %d Storage slots\n", NUM_DRIVES, NUM_STORAGE);
+		printf("%d Drives, %d Storage slots\n",
+						NUM_DRIVES, NUM_STORAGE);
 	else
 		syslog(LOG_DAEMON|LOG_INFO, "%d Drives, %d Storage slots\n",
 						NUM_DRIVES, NUM_STORAGE);
@@ -1844,9 +1847,6 @@ static void init_tape_info(void) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		barcode[0] = '\0';
-		/* Using the "Drive x: SerialNo" syntax means this section 
-		 * is unneeded...
-		 *
 		if ((x = (sscanf(b, "Drive %d: %s", &slt, barcode))) > 0) {
 			dp = &drive_info[slt - 1];
 			if (slt > NUM_DRIVES)
@@ -1856,6 +1856,7 @@ static void init_tape_info(void) {
 				dp->slot->status = 0x08;
 				dp->slot->cart_type = 0;
 			} else {
+			/*
 				if (debug)
 					printf("Barcode %s in drive %d\n",
 								barcode, slt);
@@ -1867,8 +1868,12 @@ static void init_tape_info(void) {
 				dp->slot->status = 0x09;
 				dp->slot->slot_location = slt + START_DRIVE - 1;
 			}
+			*/
+				dp->slot->cart_type = 0;
+				dp->slot->status = 0x08;
+				dp->slot->slot_location = slt + START_DRIVE - 1;
+			}
 		}
-		*/
 		if ((x = (sscanf(b, "MAP %d: %s", &slt, barcode))) > 0) {
 			sp = &map_info[slt - 1];
 			if (slt > NUM_MAP)
