@@ -110,26 +110,21 @@ if [ $countDevices -lt $count ]; then
 
 	# OK -> Now load the new 'host' with the SSC devices attached...
 	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
-	# Give time for SSC devices to settle
-	if [ $count -gt 12 ]; then
-		if [ $VERBOSE -gt 0 ];then
-			echo "Sleeping $count"
-		fi
-		sleep $count
-	elif [ $count -gt 8 ]; then
-		if [ $VERBOSE -gt 0 ];then
-			echo "Sleeping 5 seconds"
-		fi
-		sleep 5
-	else
-		if [ $VERBOSE -gt 0 ];then
-			echo "Sleeping 3 seconds"
-		fi
-		sleep 3
-	fi
 fi
 
 count=0
+
+# Wait for devices to be registered with kernel and sg devices to be setup..
+RDY=1
+while [ $RDY -gt 0 ]; do
+	RDY=`$LSSCSI -g|grep tape|grep 5400|awk '{print $7}'|grep -v dev|wc -l`
+	if [ $RDY -gt 0 ]; then
+		if [ $VERBOSE -gt 0 ]; then
+			echo "Waiting for devices to be setup"
+		fi
+		sleep 1
+	fi
+done
 
 for a in `$LSSCSI -g | grep tape | grep 5400 | awk '{print $7}'`
 do
