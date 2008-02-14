@@ -23,17 +23,17 @@
 
 // Log Page header
 struct	log_pg_header {
-	u8 pcode;
-	u8 res;
-	u16 len;
+	uint8_t pcode;
+	uint8_t res;
+	uint16_t len;
 	};
 
 // Page Code header struct.
 struct	pc_header {
-	u8 head0;
-	u8 head1;
-	u8 flags;
-	u8 len;
+	uint8_t head0;
+	uint8_t head1;
+	uint8_t flags;
+	uint8_t len;
 	};
 
 // Vendor Specific : 0x32 (Taken from IBM Ultrium doco)
@@ -41,26 +41,26 @@ struct	DataCompression {
 	struct log_pg_header pcode_head;
 
 	struct pc_header h_ReadCompressionRatio;
-	u16 ReadCompressionRatio;
+	uint16_t ReadCompressionRatio;
 	struct pc_header h_WriteCompressionRatio;
-	u16 WriteCompressionRatio;
+	uint16_t WriteCompressionRatio;
 	struct pc_header h_MBytesToServer;
-	u32 MBytesToServer;
+	uint32_t MBytesToServer;
 	struct pc_header h_BytesToServer;
-	u32 BytesToServer;
+	uint32_t BytesToServer;
 	struct pc_header h_MBytesReadFromTape;
-	u32 MBytesReadFromTape;
+	uint32_t MBytesReadFromTape;
 	struct pc_header h_BytesReadFromTape;
-	u32 BytesReadFromTape;
+	uint32_t BytesReadFromTape;
 
 	struct pc_header h_MBytesFromServer;
-	u32 MBytesFromServer;
+	uint32_t MBytesFromServer;
 	struct pc_header h_BytesFromServer;
-	u32 BytesFromServer;
+	uint32_t BytesFromServer;
 	struct pc_header h_MBytesWrittenToTape;
-	u32 MBytesWrittenToTape;
+	uint32_t MBytesWrittenToTape;
 	struct pc_header h_BytesWrittenToTape;
-	u32 BytesWrittenToTape;
+	uint32_t BytesWrittenToTape;
 	};
 
 // Buffer Under/Over Run log page - 0x01 : SPC-3 (7.2.3)
@@ -71,39 +71,39 @@ struct	BufferUnderOverRun {
 struct	TapeUsage {
 	struct log_pg_header pcode_head;
 	struct pc_header flagNo01;
-	u32 value01;
+	uint32_t value01;
 	struct pc_header flagNo02;
-	u64 value02;
+	uint64_t value02;
 	struct pc_header flagNo03;
-	u32 value03;
+	uint32_t value03;
 	struct pc_header flagNo04;
-	u16 value04;
+	uint16_t value04;
 	struct pc_header flagNo05;
-	u16 value05;
+	uint16_t value05;
 	struct pc_header flagNo06;
-	u16 value06;
+	uint16_t value06;
 	struct pc_header flagNo07;
-	u64 value07;
+	uint64_t value07;
 	struct pc_header flagNo08;
-	u32 value08;
+	uint32_t value08;
 	struct pc_header flagNo09;
-	u16 value09;
+	uint16_t value09;
 	struct pc_header flagNo10;
-	u16 value10;
+	uint16_t value10;
 	struct pc_header flagNo11;
-	u16 value11;
+	uint16_t value11;
 	};
 
 struct	TapeCapacity {
 	struct log_pg_header pcode_head;
 	struct pc_header flagNo01;
-	u32 value01;
+	uint32_t value01;
 	struct pc_header flagNo02;
-	u32 value02;
+	uint32_t value02;
 	struct pc_header flagNo03;
-	u32 value03;
+	uint32_t value03;
 	struct pc_header flagNo04;
-	u32 value04;
+	uint32_t value04;
 	};
 
 struct TapeAlert_pg {
@@ -122,7 +122,7 @@ struct	TapeAlert_page {
 struct	Temperature_page {
 	struct log_pg_header pcode_head;
 	struct pc_header header;
-	u16 temperature;
+	uint16_t temperature;
 	};
 
 // Write/Read/Read Reverse
@@ -131,27 +131,27 @@ struct	error_counter {
 	struct log_pg_header pcode_head;
 
 	struct pc_header h_err_correctedWODelay;
-	u32 err_correctedWODelay;
+	uint32_t err_correctedWODelay;
 	struct pc_header h_err_correctedWDelay;
-	u32 err_correctedWDelay;
+	uint32_t err_correctedWDelay;
 	struct pc_header h_totalReTry;
-	u32 totalReTry;
+	uint32_t totalReTry;
 	struct pc_header h_totalErrorsCorrected;
-	u32 totalErrorsCorrected;
+	uint32_t totalErrorsCorrected;
 	struct pc_header h_correctAlgorithm;
-	u32 correctAlgorithm;
+	uint32_t correctAlgorithm;
 	struct pc_header h_bytesProcessed;
-	u64 bytesProcessed;
+	uint64_t bytesProcessed;
 	struct pc_header h_uncorrectedErrors;
-	u32 uncorrectedErrors;
+	uint32_t uncorrectedErrors;
 	struct pc_header h_readErrorsSinceLast;
-	u32 readErrorsSinceLast;
+	uint32_t readErrorsSinceLast;
 	struct pc_header h_totalRawReadError;
-	u32 totalRawReadError;
+	uint32_t totalRawReadError;
 	struct pc_header h_totalDropoutError;
-	u32 totalDropoutError;
+	uint32_t totalDropoutError;
 	struct pc_header h_totalServoTracking;
-	u32 totalServoTracking;
+	uint32_t totalServoTracking;
 	};
 
 // Sequential-Access
@@ -160,112 +160,112 @@ struct	seqAccessDevice {
 	struct log_pg_header	pcode_head;
 
 	struct pc_header h_writeDataB4;
-	u64 writeDataB4Compression;
+	uint64_t writeDataB4Compression;
 	struct pc_header h_writeData_Af;
-	u64 writeDataAfCompression;
+	uint64_t writeDataAfCompression;
 
 	struct pc_header h_readData_b4;
-	u64 readDataB4Compression;
+	uint64_t readDataB4Compression;
 	struct pc_header h_readData_Af;
-	u64 readDataAfCompression;
+	uint64_t readDataAfCompression;
 
 	struct pc_header h_cleaning;
-	u64 TapeAlert;
+	uint64_t TapeAlert;
 
 	struct pc_header h_mbytes_processed;
-	u32 mbytes_processed;
+	uint32_t mbytes_processed;
 
 	struct pc_header h_load_cycle;
-	u32 load_cycle;
+	uint32_t load_cycle;
 
 	struct pc_header h_clean;	// Header of clean
-	u32 clean_cycle;
+	uint32_t clean_cycle;
 
 	};
 
 
 struct report_luns {
-	u32 size;
-	u32 reserved;
-	u32 LUN_0;
+	uint32_t size;
+	uint32_t reserved;
+	uint32_t LUN_0;
 	};
 
 struct mode {
-	u8 pcode;		// Page code
-	u8 subpcode;	// Sub page code
-	s32 pcodeSize;	// Size of page code data.
-	u8 *pcodePointer;	// Pointer to page code - NULL end of array..
+	uint8_t pcode;		// Page code
+	uint8_t subpcode;	// Sub page code
+	int32_t pcodeSize;	// Size of page code data.
+	uint8_t *pcodePointer;	// Pointer to page code - NULL end of array..
 	};
 
 /* v2 of the tape media
  * Between BOT & blk #1, is the MAM (Medium Auxiliary Memory)
  */
 struct MAM {
-	u32 tape_fmt_version;
-	u8 spare;
+	uint32_t tape_fmt_version;
+	uint8_t spare;
 
-	u64 remaining_capacity;
-	u64 max_capacity;
-	u64 TapeAlert;
-	u64 LoadCount;
-	u64 MAMSpaceRemaining;
-	u8 AssigningOrganization_1[8];
-	u8 FormattedDensityCode;
-	u8 InitializationCount[2];
-	u8 DevMakeSerialLastLoad[40];
-	u8 DevMakeSerialLastLoad1[40];
-	u8 DevMakeSerialLastLoad2[40];
-	u8 DevMakeSerialLastLoad3[40];
-	u64 WrittenInMediumLife;
-	u64 ReadInMediumLife;
-	u64 WrittenInLastLoad;
-	u64 ReadInLastLoad;
+	uint64_t remaining_capacity;
+	uint64_t max_capacity;
+	uint64_t TapeAlert;
+	uint64_t LoadCount;
+	uint64_t MAMSpaceRemaining;
+	uint8_t AssigningOrganization_1[8];
+	uint8_t FormattedDensityCode;
+	uint8_t InitializationCount[2];
+	uint8_t DevMakeSerialLastLoad[40];
+	uint8_t DevMakeSerialLastLoad1[40];
+	uint8_t DevMakeSerialLastLoad2[40];
+	uint8_t DevMakeSerialLastLoad3[40];
+	uint64_t WrittenInMediumLife;
+	uint64_t ReadInMediumLife;
+	uint64_t WrittenInLastLoad;
+	uint64_t ReadInLastLoad;
 
-	u8 MediumManufacturer[8];
-	u8 MediumSerialNumber[32];
-	u32 MediumLength;
-	u32 MediumWidth;
-	u8 AssigningOrganization_2[8];
-	u8 MediumDensityCode;
-	u8 MediumManufactureDate[8];
-	u64 MAMCapacity;
-	u8 MediumType;	// 0 -> Data, 1, WORM, 6 -> Clean
-	u16 MediumTypeInformation;	// If Clean, max mount
+	uint8_t MediumManufacturer[8];
+	uint8_t MediumSerialNumber[32];
+	uint32_t MediumLength;
+	uint32_t MediumWidth;
+	uint8_t AssigningOrganization_2[8];
+	uint8_t MediumDensityCode;
+	uint8_t MediumManufactureDate[8];
+	uint64_t MAMCapacity;
+	uint8_t MediumType;	// 0 -> Data, 1, WORM, 6 -> Clean
+	uint16_t MediumTypeInformation;	// If Clean, max mount
 
-	u8 ApplicationVendor[8];
-	u8 ApplicationName[32];
-	u8 ApplicationVersion[8];
-	u8 UserMediumTextLabel[160];
-	u8 DateTimeLastWritten[12];
-	u8 LocalizationIdentifier;
-	u8 Barcode[32];
-	u8 OwningHostTextualName[80];
-	u8 MediaPool[160];
+	uint8_t ApplicationVendor[8];
+	uint8_t ApplicationName[32];
+	uint8_t ApplicationVersion[8];
+	uint8_t UserMediumTextLabel[160];
+	uint8_t DateTimeLastWritten[12];
+	uint8_t LocalizationIdentifier;
+	uint8_t Barcode[32];
+	uint8_t OwningHostTextualName[80];
+	uint8_t MediaPool[160];
 
-	u8 VendorUnique[256];
+	uint8_t VendorUnique[256];
 
 	// 0 = Record clean, non-zero umount failed.
-	u8 record_dirty;
+	uint8_t record_dirty;
 };
 
-s32 send_msg(s8 *, s32);
-void logSCSICommand(u8 *);
-s32 check_reset(u8 *);
-void mkSenseBuf(u8, u32, u8 *);
-void resp_allow_prevent_removal(u8 *, u8 *);
-void resp_log_select(u8 *, u8 *);
-s32 resp_read_position_long(loff_t, u8 *, u8 *);
-s32 resp_read_position(loff_t, u8 *, u8 *);
-s32 resp_report_lun(struct report_luns *, u8 *, u8 *);
-s32 resp_read_media_serial(u8 *, u8 *, u8 *);
-s32 resp_mode_sense(u8 *, u8 *, struct mode *, u8 *);
-s32 resp_write_attribute(u8 *, u64, struct MAM *, u8 *);
-struct mode *find_pcode(u8, struct mode *);
-struct mode *alloc_mode_page(u8, struct mode *, s32);
+int32_t send_msg(s8 *, int32_t);
+void logSCSICommand(uint8_t *);
+int32_t check_reset(uint8_t *);
+void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
+void resp_allow_prevent_removal(uint8_t *, uint8_t *);
+void resp_log_select(uint8_t *, uint8_t *);
+int32_t resp_read_position_long(loff_t, uint8_t *, uint8_t *);
+int32_t resp_read_position(loff_t, uint8_t *, uint8_t *);
+int32_t resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
+int32_t resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
+int32_t resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t *);
+int32_t resp_write_attribute(uint8_t *, uint64_t, struct MAM *, uint8_t *);
+struct mode *find_pcode(uint8_t, struct mode *);
+struct mode *alloc_mode_page(uint8_t, struct mode *, int32_t);
 
-void setTapeAlert(struct TapeAlert_page *, u64);
+void setTapeAlert(struct TapeAlert_page *, uint64_t);
 void initTapeAlert(struct TapeAlert_page *);
 
-void hex_dump(u8 *, int);
+void hex_dump(uint8_t *, int);
 int chrdev_open(char *name, uint8_t);
 int oom_adjust(void);

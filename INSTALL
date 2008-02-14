@@ -14,7 +14,7 @@ Extract the source:
 
 Kernel module vtl : 
 The new way.....
-RedHat AS 4:
+RedHat AS 4 & 5:
 Make sure the kernel-devel package to match your running kernel is installed.
 e.g.
 # rpm -qa|grep kernel
@@ -25,7 +25,7 @@ kernel-devel-2.6.9-5.EL
 kernel-utils-2.4-13.1.80
 
 
-SLES 9:
+SLES 9 & 10:
 make cloneconfig
 cd kernel-driver/linux-2.6
 make
@@ -36,49 +36,22 @@ make
 make install
 
 
-The old way.....
-1. Copy from vx/kernel-driver/ the
-   vtl.c vtl.h to <kernel source>/drivers/scsi/
-
-NOTE: If kernel is 2,6,0 -> 2.6.9 inclusive, please apply
-vtl-pre-2.6.10.diff to vtl.c before step 2. Also copy kfifo.h
-to the <kernel source>/drivers/scsi directory.
-
-2. Modify the Makefile in <kernel source>/drivers/scsi/Makefile so as
-   the line: (I am piggy backing this module on the CONFIG_SCSI_DEBUG)
-     obj-$(CONFIG_SCSI_DEBUG) += scsi_debug.o
-   reads
-     obj-$(CONFIG_SCSI_DEBUG) += scsi_debug.o vtl.o
-
-3. make config|menuconfig|xconfig and confirm the scsi_debug driver is
-   included.
-
-4. make modules && make modules_install
-
-5. Build module dependencies:
- # /sbin/depmod -ae
-
-6. Install kernel module:
- # modprobe vtl
-
-7. Check /proc/scsi/scsi for your newly 'discovered' SCSI L700 + 8 drives.
-   Or use the "lsscsi -g" command.
-
-
-
 User space daemons:
 
 Please install lsscsi (http://www.torque.net/scsi/lsscsi.html) package. 
+Please install sg3 utils (http://www.torque.net/sg/) package. 
 
 To build an RPM :
  cp vtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
  cd /usr/src/packages/SOURCE
- rpmbuild -tb --target=i686 vtl-YYYY-MM-DD.tar.gz
+ rpmbuild -tb vtl-YYYY-MM-DD.tar.gz
  <wait for rpm build to complete>
- rpm -Uvh /usr/src/packages/RPMS/i686/vtl-x.y-z.i686.rpm
+ rpm -Uvh /usr/src/packages/RPMS/<cpu type>/vtl-0.y-z.<cpu type>.rpm
  (The rpm install will create system group & accounts vtl)
 
-To build from tar archive:
+To build from tar archive (Debian / Ubuntu):
+ apt-get install lsscsi
+ apt-get install sg3_utils
 
 To limit damage that may occur by wayward daemons, I highly recommend creating
 a group and user called 'vtl'
@@ -87,7 +60,7 @@ a group and user called 'vtl'
 
 Now build user space daemons:
 From the parent directory where you extracted the source.
- cd vx
+ cd vtl-0.14
 
 Build the binaries
  make

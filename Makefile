@@ -27,7 +27,7 @@ libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
 dump_messageQ:	dump_messageQ.c q.h
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.c
 
-vtl_set_sn:	vtl_set_sn.o
+vtl_set_sn:	vtl_set_sn.o vxshared.h vx.h scsi.h
 	$(CC) $(CFLAGS) -o vtl_set_sn vtl_set_sn.o -L. -lvtlscsi
 
 vtlcmd:	vtlcmd.o q.o q.h

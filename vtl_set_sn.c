@@ -36,9 +36,7 @@
 #include <syslog.h>
 #include <inttypes.h>
 #include "scsi.h"
-#include "q.h"
 #include "vx.h"
-#include "vtltape.h"
 #include "vxshared.h"
 
 /*

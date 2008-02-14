@@ -9,8 +9,8 @@
 	<li><a href="#vtl">Virtual Tape Library</a>
 		<ul>
 		<li><a href="#vtl-intro">Introduction</a>
-		<li><a href="#vtl-vxtape">vxtape daemon</a>
-		<li><a href="#vtl-vxlibrary">vxlibrary daemon</a>
+		<li><a href="#vtl-vtltape">vtltape daemon</a>
+		<li><a href="#vtl-vtllibrary">vtllibrary daemon</a>
 		<li><a href="#vtl-vtlcmd">vtlcmd control utility</a>
 		<li><a href="#vtl-examples-lsscsi">Operational examples (lsscsi -g)</a>
 		<li><a href="#vtl-examples-tpautoconf">Operational examples (tpautoconf)</a>
@@ -28,9 +28,9 @@
 
 	<ul>
 	<li>LLD - A low level driver implemented as a kernel module - vx_tape</li>
-	<li>Target devices - Daemons <b>vxtape(1)</b> and <b>vxlibrary(1)</b> which implement SCSI target device(s) in user-space</li>
+	<li>Target devices - Daemons <b>vtltape(1)</b> and <b>vtllibrary(1)</b> which implement SCSI target device(s) in user-space</li>
 	<li>Utility commands <b>mktape(1)</b>, <b>vtlcmd(1)</b></li>
-	<li>And startup scripts <b>build_library_config(1)</b>, <b>make_vx_devices(1)</b></li>
+	<li>And startup scripts <b>build_library_config(1)</b>, <b>make_vtl_devices(1)</b></li>
 	</ul>
 
 
@@ -50,9 +50,9 @@ and process any outstanding SCSI commands.
 <p>
 
 <p>
-<a NAME="vtl-vxtape"></a>
-<h3>vxtape</h3>
-<b>vxtape(1)</b> is the usermode SSC target daemon which writes/reads
+<a NAME="vtl-vtltape"></a>
+<h3>vtltape</h3>
+<b>vtltape(1)</b> is the usermode SSC target daemon which writes/reads
  data to data files in the /opt/vtl directory
 (if  a virtual tape has been loaded). The virtual tape files include a
 Medium Auxiliary Memory (MAM) data structure to store  persistent  data
@@ -60,32 +60,32 @@ Medium Auxiliary Memory (MAM) data structure to store  persistent  data
 </p>
 
 <p>
-<a NAME="vtl-vxlibrary"></a>
-<h3>vxlibrary</h3>
-<b>vxlibrary(1)</b> is the usermode SMC target daemon which reads its
+<a NAME="vtl-vtllibrary"></a>
+<h3>vtllibrary</h3>
+<b>vtllibrary(1)</b> is the usermode SMC target daemon which reads its
 configuration from the file /etc/vtl/<b>library_contents(5)</b>
 at startup. The number of storage slots are built dynamically
 when the daemon starts. Hence changing the number of storage slots and
 media access slots are a matter of modifing the file contents and
-restarting  the  vxlibrary(1)  daemon. All 'library' commands are
+restarting  the  vtllibrary(1)  daemon. All 'library' commands are
 performed on data structures in memory ONLY.
 </p>
 
 <p>
 <a NAME="vtl-vtlcmd"></a>
 <h3>vtlcmd</h3>
-A utility <b>vtlcmd(1)</b> is used to administrator the daemons <b>vxtape(1)</b>
-and <b>vxlibrary</b>.<br>
+A utility <b>vtlcmd(1)</b> is used to administrator the daemons <b>vtltape(1)</b>
+and <b>vtllibrary</b>.<br>
 Message queue (key 0x4d61726b) is used to pass messages between
-<b>vtlcmd(1)</b>, <b>vxlibrary(1)</b> and <b>vxtape(1)</b>
+<b>vtlcmd(1)</b>, <b>vtllibrary(1)</b> and <b>vtltape(1)</b>
 </p>
 
 <p>
 When a SCSI 'move medium' from a storage slot to a tape drive is requested,
-the media location is updated in vxlibrary(1) data structures, and  the
+the media location is updated in vtllibrary(1) data structures, and  the
 barcode  of  the  media  id  is  passed  via  the  message queue to the
-vxtape(1) daemon in question. A file open of the barcode  is  attempted
-in  the /opt/vtl directory and if successful, the vxtape(1) daemon
+vtltape(1) daemon in question. A file open of the barcode  is  attempted
+in  the /opt/vtl directory and if successful, the vtltape(1) daemon
 will now return a ASC/ASCQ 0x0/0x0 to any Test Unit Ready requests.  An
 unload SCSI command to the tape drive will close the data file.
 </p>
