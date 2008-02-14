@@ -59,9 +59,6 @@
 #endif
 
 #ifndef Solaris
-  /* I'm sure there must be a header where lseek64() is defined */
-  loff_t lseek64(int, loff_t, int);
-//  int open64(char *, int);
   int ioctl(int, int, void *);
 #endif
 
