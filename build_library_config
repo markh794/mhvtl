@@ -163,7 +163,7 @@ rm -f $TMP
 umask 002
 
 # Cleaning carts
-for a in `cat $LIBCONTENTS|grep ":"|awk '{print $3}'|grep ^CLN|sort -u`
+for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^CLN|sort -u`
 do
 	if [ ! -f /opt/vtl/$a ]; then
 		su $USER -c "mktape -s 500 -t clean -m $a"
@@ -171,7 +171,7 @@ do
 done
 
 # WORM media
-for a in `cat $LIBCONTENTS|grep ":"|awk '{print $3}'|grep ^W|sort -u`
+for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^W|sort -u`
 do
 	if [ ! -f /opt/vtl/$a ]; then
 		su $USER -c "mktape -s 500 -t WORM -m $a"
@@ -179,7 +179,7 @@ do
 done
 
 # Rest must be Data
-for a in `cat $LIBCONTENTS|grep ":"|awk '{print $3}'|sort -u`
+for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|sort -u`
 do
 	if [ ! -f /opt/vtl/$a ]; then
 		su $USER -c "mktape -s 500 -t data -m $a"
