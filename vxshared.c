@@ -552,7 +552,7 @@ s32 resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
  *         or 1 if MAM needs to be written.
  *         or -1 on failure.
  */
-s32 resp_write_attribute(u8 *buf, u64 len, struct MAM *mam, u8 *sense_flg)
+s32 resp_write_attribute(uint8_t *buf, uint64_t len, struct MAM *mam, uint8_t *sense_flg)
 {
 	s32 a;
 
@@ -600,18 +600,18 @@ void initTapeAlert(struct TapeAlert_page *ta)
 	}
 }
 
-void setTapeAlert(struct TapeAlert_page *ta, u64 flg)
+void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 {
 	if (verbose > 1)
 		syslog(LOG_DAEMON|LOG_INFO,
-				"Setting TapeAlert flags 0x%llx", flg);
+				"Setting TapeAlert flags 0x%" PRIx64 "\n", flg);
 
 	int a;
 	for (a = 0; a < 64; a++) {
 		ta->TapeAlert[a].value = (flg & (1ull << a)) ? 1 : 0;
 		if (verbose > 2)
 			syslog(LOG_DAEMON|LOG_INFO,
-				"TapeAlert flag %016llx : %s\n",
+				"TapeAlert flag %016" PRIx64 " : %s\n",
 				1ull << a,
 				(ta->TapeAlert[a].value) ? "set" : "unset");
 	}

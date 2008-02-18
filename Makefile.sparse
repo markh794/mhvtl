@@ -28,7 +28,8 @@ CLFLAGS=-shared
 
 CHECK=sparse
 
-all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape vtllibrary
+all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
+	vtllibrary vtl_set_sn
 
 libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
 	$(CHECK) $(CFLAGS) -c -fpic vxshared.c
@@ -38,6 +39,10 @@ libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
 dump_messageQ:	dump_messageQ.c q.h
 	$(CHECK) $(CFLAGS) dump_messageQ.c
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.c
+
+vtl_set_sn:	vtl_set_sn.o vxshared.h vx.h scsi.h
+	$(CHECK) $(CFLAGS) vtl_set_sn.c
+	$(CC) $(CFLAGS) -o vtl_set_sn vtl_set_sn.o -L. -lvtlscsi
 
 vtlcmd:	vtlcmd.o q.o q.h
 	$(CHECK) $(CFLAGS) -c vtlcmd.c
@@ -64,7 +69,8 @@ vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
-		vxshared.o libvtlscsi.so z.o vtllibrary.o
+		vxshared.o libvtlscsi.so z.o vtllibrary.o \
+		vtl_set_sn.o
 
 tags:
 	etags *.c *.h
@@ -74,6 +80,7 @@ distclean:
 	dump_tape.o dump_tape \
 	q.o q \
 	vtlcmd.o vtlcmd \
+	vtl_set_sn.o vtl_set_sn \
 	dump_messageQ.o dump_messageQ \
 	core mktape mktape.o \
 	vxshared.o libvtlscsi.so \
@@ -86,11 +93,12 @@ install:
 	install -o vtl -g vtl -m 750 vtltape /usr/bin/
 	install -o vtl -g vtl -m 750 vtllibrary /usr/bin/
 	install -o vtl -g vtl -m 750 vtlcmd /usr/bin/
+	install -o vtl -g vtl -m 750 vtl_set_sn /usr/bin/
 	install -o vtl -g vtl -m 750 mktape /usr/bin/
 	install -m 700 build_library_config /usr/bin/
 	install -m 700 make_vtl_devices /usr/bin/
 	install -m 700 vtl /etc/init.d/
 
 tar:
-	(cd ..;  tar cvfz /home/markh/vtl-`date +%F`.tgz  --exclude=.git vtl-0.12/man vtl-0.12/doc vtl-0.12/kernel-driver vtl-0.12/*.[ch] vtl-0.12/Makefile vtl-0.12/README vtl-0.12/INSTALL vtl-0.12/build_library_config vtl-0.12/library_contents.sample vtl-0.12/make_vtl_devices vtl-0.12/vtl.spec vtl-0.12/vtl vtl-0.12/vtl-x86_64.patch)
+	(cd ..;  tar cvfz /home/markh/vtl-`date +%F`.tgz  --exclude=.git vtl-0.14/man vtl-0.14/doc vtl-0.14/kernel-driver vtl-0.14/*.[ch] vtl-0.14/Makefile vtl-0.14/README vtl-0.14/INSTALL vtl-0.14/build_library_config vtl-0.14/library_contents.sample vtl-0.14/make_vtl_devices vtl-0.14/vtl.spec vtl-0.14/vtl)
 
