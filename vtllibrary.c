@@ -105,14 +105,16 @@ static int NUM_STORAGE = 0x0800;
 static int bufsize = 0;
 int verbose = 0;
 int debug = 0;
-static long	capacity;	/* Max capacity of media */
 static int libraryOnline = 1;	/* Default to Off-line */
 int reset = 1;		/* Poweron reset */
 static uint8_t request_sense = 0; /* Non-zero if Sense-data is valid */
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 
-static struct s_info { /* Slot Info */
+// If I leave this as 'static struct', the I get a gcc warning
+// " warning: useless storage class specifier in empty declaration"
+// static struct s_info { /* Slot Info */
+struct s_info { /* Slot Info */
 	uint8_t cart_type; // 0 = Unknown, 1 = Data medium, 2 = Cleaning
 	uint8_t barcode[11];
 	uint32_t slot_location;
@@ -122,7 +124,10 @@ static struct s_info { /* Slot Info */
 	uint8_t	ascq;	// Additional Sense Code Qualifier
 };
 
-static struct d_info {	/* Drive Info */
+// If I leave this as 'static struct', the I get a gcc warning
+// " warning: useless storage class specifier in empty declaration"
+// static struct d_info {	/* Drive Info */
+struct d_info {	/* Drive Info */
 	char inq_vendor_id[8];
 	char inq_product_id[16];
 	char inq_product_rev[4];
@@ -308,58 +313,68 @@ static int driveOccupied(struct d_info *d) {
  * to the handler is denied; a value of 1 indicates that the movement
  * is permitted.
  */
+/*
 static void setInEnableStatus(struct s_info *s, int flg) {
 	if (flg)	// Set Full bit
 		s->status |= 0x20;
 	else		// Set Full bit to 0
 		s->status &= 0xdf;
 }
+*/
 
 /*
  * A value of 0 in the Export Enable field indicates that media movement
  * from the handler to the I/O port is denied. A value of 1 indicates that
  * movement is permitted.
  */
+/*
 static void setExEnableStatus(struct s_info *s, int flg) {
 	if (flg)	// Set Full bit
 		s->status |= 0x10;
 	else		// Set Full bit to 0
 		s->status &= 0xef;
 }
+*/
 
 /*
  * A value of 1 indicates that a cartridge may be moved to/from
  * the drive (but not both).
  */
+/*
 static void setAccessStatus(struct s_info *s, int flg) {
 	if (flg)	// Set Full bit
 		s->status |= 0x08;
 	else		// Set Full bit to 0
 		s->status &= 0xf7;
 }
+*/
 
 /*
  * Reset to 0 indicates it is in normal state, set to 1 indicates an Exception
  * condition exists. An exception indicates the libary is uncertain of an
  * elements status.
  */
+/*
 static void setExceptStatus(struct s_info *s, int flg) {
 	if (flg)	// Set Full bit
 		s->status |= 0x04;
 	else		// Set Full bit to 0
 		s->status &= 0xfb;
 }
+*/
 
 /*
  * If set(1) then cartridge placed by operator
  * If clear(0), placed there by handler.
  */
+/*
 static void setImpExpStatus(struct s_info *s, int flg) {
 	if (flg)	// Set Full bit
 		s->status |= 0x02;
 	else		// Set Full bit to 0
 		s->status &= 0xfd;
 }
+*/
 
 /*
  * Sets the 'Full' bit true/false in the status field
