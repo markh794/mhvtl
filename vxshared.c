@@ -612,7 +612,7 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 		if (verbose > 2)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"TapeAlert flag %016" PRIx64 " : %s\n",
-				1ull << a,
+				(uint64_t)1ull << a,
 				(ta->TapeAlert[a].value) ? "set" : "unset");
 	}
 

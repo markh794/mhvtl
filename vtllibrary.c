@@ -450,13 +450,13 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 			cmd[x] = '\0';
 			break;
 		}
-	DEBC(	printf("About to send cmd: \'%s\' to drive %d\n",
+	DEBC(	printf("Sending cmd: \'%s\' to drive %d\n",
 					cmd, dest->slot->slot_location);
 	)
 
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
-				"About to send cmd: \'%s\' to drive %d\n",
+				"Sending cmd: \'%s\' to drive %d\n",
 					cmd, dest->slot->slot_location);
 
 	send_msg(cmd, dest->slot->slot_location);
@@ -1732,7 +1732,10 @@ static struct s_info *init_s_struct(int size) {
 		syslog(LOG_DAEMON|LOG_ERR, "s_struct() Malloc failed: %m");
 	else {
 		memset(sp, 0, sizeof(size * sizeof(s_info)));
-		DEBC( printf("init s_struct(%d)\n", size * sizeof(s_info)); ) ;
+		DEBC(
+			printf("init s_struct(%d)\n",
+					(int)(size * sizeof(s_info)));
+		) ;
 	}
 return sp;
 }

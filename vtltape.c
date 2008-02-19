@@ -417,7 +417,7 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 	}
 	// Read in header
 	if (debug)
-		printf("Reading in header: %d bytes\n", sizeof(c_pos));
+		printf("Reading in header: %d bytes\n", (int)sizeof(c_pos));
 
 	nread = read_header(&c_pos, sizeof(c_pos), sense_flg);
 	if (nread == 0) {
@@ -1206,15 +1206,18 @@ static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
  * Rewind 'tape'.
  */
 static void rawRewind(uint8_t *sense_flg) {
+	loff_t retval;
+
+	// FIXME: Do something on error....
 
 	// Start at beginning of datafile..
-	lseek64(datafile, 0L, SEEK_SET);
+	retval = lseek64(datafile, 0L, SEEK_SET);
 
 	/*
 	 * Read header..
 	 * If this is not the BOT header we are in trouble
 	 */
-	read(datafile, &c_pos, sizeof(c_pos));
+	retval = read(datafile, &c_pos, sizeof(c_pos));
 }
 
 /*
@@ -1713,7 +1716,9 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		// Rewind and postition just after the first header.
 		respRewind(sense_flg);
 
-		ftruncate(datafile, c_pos.curr_blk);
+		if (ftruncate(datafile, c_pos.curr_blk))
+			syslog(LOG_DAEMON|LOG_ERR,
+					"Failed to truncate datafile");
 
 		// Position to just before first header.
 		position_to_curr_header(sense_flg);
@@ -1916,7 +1921,7 @@ static int load_tape(char *PCL, uint8_t *sense_flg) {
 		syslog(LOG_DAEMON|LOG_ERR,
 			"MAM size incorrect, load failed"
 			" - Expected size: %d, size found: %" PRId64,
-				sizeof(struct blk_header) + sizeof(struct MAM),
+			(int)(sizeof(struct blk_header) + sizeof(struct MAM)),
 				c_pos.next_blk);
 		close(datafile);
 		return 0;	// Unsuccessful load
@@ -2087,7 +2092,7 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 	}
 
 	if (! strncmp(mtext, "TapeAlert", 9)) {
-		u64 flg = 0L;
+		uint64_t flg = 0L;
 		sscanf(mtext, "TapeAlert %" PRIx64, &flg);
 		setTapeAlert(&TapeAlert, flg);
 		setSeqAccessDevice(&seqAccessDevice, flg);

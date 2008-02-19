@@ -56,6 +56,7 @@ elif [ -x /bin/lsscsi ]; then
 	LSSCSI=/bin/lsscsi
 else
 	echo "Can not find 'lsscsi' - Aborting...."
+	echo " Please visit http://www.torque.net/scsi/lsscsi.html"
 	exit 1
 fi
 

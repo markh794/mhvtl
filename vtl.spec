@@ -1,12 +1,13 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: vtl
 Version: 0.14
-Release: 0
-Source: vtl-2008-02-14.tgz
+Release: 1
+Source: vtl-2008-02-19.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
 URL: http://linuxvtl.googlepages.com/
+requires: sg_utils zlib
 
 %description
 A Virtual tape library and tape drives:
@@ -151,6 +152,11 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Tue Feb 19 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.14.1
+  Cleaned up compile time warnings on x86_64 platform.
+  Added sg_utils and zlib as RPM 'requires' packages.
+
 * Thu Feb 14 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.14.0
 - With the ability to define device serial numbers, I thought it was time
