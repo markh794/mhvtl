@@ -1,3 +1,6 @@
+# Define how many tape drives you want in the vtl..
+# The 'XYZZY_...' is the serial number assigned to
+# this tape device.
 
 Drive 1: XYZZY_1
 Drive 2: XYZZY_2
@@ -8,13 +11,20 @@ Drive 6: XYZZY_6
 Drive 7: XYZZY_7
 Drive 8: XYZZY_8
 
+# Place holder for the robotic arm. Not really used.
 Picker 1: 
 
+# Media Access Port
+# (mailslots, Cartridge Access Port, <insert your favourate name here>)
+# Again, define how many MAPs this vtl will contain.
 MAP 1:
 MAP 2:
 MAP 3:
 MAP 4:
 
+# And the 'big' on, define your media and in which slot contains media.
+# When the rc script is started, all media listed here will be created
+# using the default media capacity.
 Slot 1:	ULT001L1
 Slot 2: ULT002L1
 Slot 3: ULT003L1

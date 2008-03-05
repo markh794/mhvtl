@@ -115,14 +115,14 @@ vx_tape is registered as HBA #3:
 [2:0:2:2]    tape    QUANTUM  SuperDLT1        2323  /dev/st1  /dev/sg6
 [2:0:2:3]    process ATTO     310-LV           1.42  -         /dev/sg7
 [3:0:0:0]    mediumx STK      L700             vx_0  -         /dev/sg8
-[3:0:0:1]    tape    IBM      ULT3580-TD3      5400  /dev/st2  /dev/sg9
-[3:0:0:2]    tape    IBM      ULT3580-TD3      5400  /dev/st3  /dev/sg10
-[3:0:0:3]    tape    IBM      ULT3580-TD3      5400  /dev/st4  /dev/sg11
-[3:0:0:4]    tape    IBM      ULT3580-TD3      5400  /dev/st5  /dev/sg12
-[3:0:0:5]    tape    QUANTUM  SDLT600          5400  /dev/st6  /dev/sg13
-[3:0:0:6]    tape    QUANTUM  SDLT600          5400  /dev/st7  /dev/sg14
-[3:0:0:7]    tape    QUANTUM  SDLT600          5400  /dev/st8  /dev/sg15
-[3:0:0:8]    tape    QUANTUM  SDLT600          5400  /dev/st9  /dev/sg16
+[4:0:0:0]    tape    IBM      ULT3580-TD3      5400  /dev/st2  /dev/sg9
+[4:0:0:1]    tape    IBM      ULT3580-TD3      5400  /dev/st3  /dev/sg10
+[4:0:0:2]    tape    IBM      ULT3580-TD3      5400  /dev/st4  /dev/sg11
+[4:0:0:3]    tape    IBM      ULT3580-TD3      5400  /dev/st5  /dev/sg12
+[4:0:0:4]    tape    QUANTUM  SDLT600          5400  /dev/st6  /dev/sg13
+[4:0:0:5]    tape    QUANTUM  SDLT600          5400  /dev/st7  /dev/sg14
+[4:0:0:6]    tape    QUANTUM  SDLT600          5400  /dev/st8  /dev/sg15
+[4:0:0:7]    tape    QUANTUM  SDLT600          5400  /dev/st9  /dev/sg16
 </pre>
 
 <a NAME="vtl-examples-tpautoconf"></a>
@@ -843,19 +843,11 @@ b) Check that the medium is bar-coded correctly for WORM.
 <h3>Download</h3>
 
 <p>
-A Complete SLES9 SP2 VMWare disk image with the vtl already built, installed
-and configured
-<a href=http://linuxvtl.googlepages.com/sles9.tar.gz>sles.tar.gz</a> or
-<a href=http://linuxvtl.googlepages.com/sles9.zip>sles9.zip</a>
- (~650Mbytes)
-</p>
-
-<p>
 Just the user-mode utilities packaged as an RPM:
-<a href=http://linuxvtl.googlepages.com/vtl-0.8-4.i686.rpm>vtl-0.8-4.i686.rpm
+<a href=http://linuxvtl.googlepages.com/mhvtl-0.15-0.i686.rpm>vtl-0.15-0.i686.rpm
 </a> (~50Kbytes)</p>
 <p>Source code for user-mode utilities + kernel module:
-<a href=http://linuxvtl.googlepages.com/vtl-0.8-4.src.rpm>vtl-0.8-4.src.rpm
+<a href=http://linuxvtl.googlepages.com/mhvtl-0.15-0.src.rpm>vtl-0.15-0.src.rpm
 </a> (~100Kbytes)
 </p>
 
@@ -867,6 +859,6 @@ Please email
 any questions and/or corrections.
 </p>
 <p align="center">
-$Id: index.html,v 1.9.2.1 2006-08-06 07:58:54 markh Exp $
+$Id: index.html,v 1.9.2.1 2008-03-06 07:28:54 markh Exp $
 </p>
 </html>

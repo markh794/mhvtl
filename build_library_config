@@ -46,6 +46,11 @@ if [ -f /etc/vtl/vtl.conf ]; then
 	. /etc/vtl/vtl.conf
 fi
 
+# Set default capacity to 500M if not defined.
+if [ $CAPACITY -eq 0 ]; then
+	CAPACITY=500
+fi
+
 if [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"
 fi
@@ -167,7 +172,7 @@ umask 002
 for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^CLN|sort -u`
 do
 	if [ ! -f /opt/vtl/$a ]; then
-		su $USER -c "mktape -s 500 -t clean -m $a"
+		su $USER -c "mktape -s $CAPACITY -t clean -m $a"
 	fi
 done
 
@@ -175,7 +180,7 @@ done
 for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^W|sort -u`
 do
 	if [ ! -f /opt/vtl/$a ]; then
-		su $USER -c "mktape -s 500 -t WORM -m $a"
+		su $USER -c "mktape -s $CAPACITY -t WORM -m $a"
 	fi
 done
 
@@ -183,7 +188,7 @@ done
 for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|sort -u`
 do
 	if [ ! -f /opt/vtl/$a ]; then
-		su $USER -c "mktape -s 500 -t data -m $a"
+		su $USER -c "mktape -s $CAPACITY -t data -m $a"
 	fi
 done
 

@@ -1776,6 +1776,7 @@ static void init_tape_info(void) {
 	if ((ctrl = fopen(conf , "r")) == NULL) {
 		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
 								conf);
+		printf("Can not open config file %s : %m\n", conf);
 		exit(1);
 	}
 
@@ -2034,6 +2035,7 @@ int main(int argc, char *argv[])
 	if ((cdev = chrdev_open(name, minor)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
 				"Could not open /dev/%s%d: %m", name, minor);
+		printf("Could not open /dev/%s%d: %m", name, minor);
 		fflush(NULL);
 		exit(1);
 	}

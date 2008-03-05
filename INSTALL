@@ -1,22 +1,18 @@
 
-vxtape virtual tape & library system.
+mh virtual tape & library system.
 
-markh794 at gmail dot com
-mark_harvey at symantec dot com
 
 Instructions assume reader is familiar with the kernel build process.
 
-To compile and install:
+There are two sections of code to build.
+- The kernel module
+- The user-space daemons.
 
-Extract the source:
- tar xvfz vx-YYYY-MM-DD.tgz
-
-
-Kernel module vtl : 
-The new way.....
-RedHat AS 4 & 5:
-Make sure the kernel-devel package to match your running kernel is installed.
+Kernel module vtl: 
+==================
+1) Make sure the kernel-devel package to match your running kernel is installed.
 e.g.
+RedHat AS 4 & 5:
 # rpm -qa|grep kernel
 kernel-2.6.9-34.0.1.EL
 kernel-devel-2.6.9-34.0.1.EL
@@ -24,32 +20,40 @@ kernel-2.6.9-5.EL
 kernel-devel-2.6.9-5.EL
 kernel-utils-2.4-13.1.80
 
-
 SLES 9 & 10:
-make cloneconfig
-cd kernel-driver/linux-2.6
-make
-make install
+# rpm -qa|grep kernel
 
-cd kernel-driver/linux-2.6
-make
-make install
+
+2) Extract the mhvtl source code.
+# tar xvfz mhvtl-2008-03-05.tgz
+
+3) Change directory into the kernel driver source.
+# cd mhvtl-0.15/kernel-driver/linux-2.6
+# make
+# make install
+
 
 
 User space daemons:
+===================
+Pre-req for a running vtl
+- lsscsi (http://www.torque.net/scsi/lsscsi.html)
+- sg3_utils (http://www.torque.net/sg/)
 
-Please install lsscsi (http://www.torque.net/scsi/lsscsi.html) package. 
-Please install sg3 utils (http://www.torque.net/sg/) package. 
+Pre-req to build/compile userspace:
+- zlib-devel
 
-To build an RPM :
+* To build an RPM 
+  ===============
  cp vtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
  cd /usr/src/packages/SOURCE
  rpmbuild -tb vtl-YYYY-MM-DD.tar.gz
  <wait for rpm build to complete>
- rpm -Uvh /usr/src/packages/RPMS/<cpu type>/vtl-0.y-z.<cpu type>.rpm
+ rpm -Uvh /usr/src/packages/RPMS/<cpu type>/mhvtl-0.15-z.<cpu type>.rpm
  (The rpm install will create system group & accounts vtl)
 
-To build from tar archive (Debian / Ubuntu):
+* To build from tar archive (Debian / Ubuntu):
+  ============================================
  apt-get install lsscsi
  apt-get install sg3_utils
 
@@ -60,13 +64,13 @@ a group and user called 'vtl'
 
 Now build user space daemons:
 From the parent directory where you extracted the source.
- cd vtl-0.14
+# cd mhvtl-0.15
 
 Build the binaries
- make
+# make
 
 Install the rc script into /etc/init.d/ and binaries to /usr/local/bin/
- make install
+# make install
 
 Make config directory :
 mkdir /etc/vtl
@@ -91,14 +95,14 @@ Note: Make sure the 'mtx' & 'lsscsi' utilities are installed
 e.g.
 # lsscsi -g
 [0:0:0:0]    mediumx STK      L700             vtl0  -         /dev/sg0
-[0:0:0:1]    tape    SONY     SDX-900V         5400  /dev/st0  /dev/sg1
-[0:0:0:2]    tape    SONY     SDX-900V         5400  /dev/st1  /dev/sg2
-[0:0:0:3]    tape    QUANTUM  SDLT600          5400  /dev/st2  /dev/sg3
-[0:0:0:4]    tape    QUANTUM  SDLT600          5400  /dev/st3  /dev/sg4
-[0:0:0:5]    tape    QUANTUM  SDLT600          5400  /dev/st4  /dev/sg5
-[0:0:0:6]    tape    IBM      ULT3580-TD3      5400  /dev/st5  /dev/sg6
-[0:0:0:7]    tape    IBM      ULT3580-TD3      5400  /dev/st6  /dev/sg7
-[0:0:0:8]    tape    IBM      ULT3580-TD3      5400  /dev/st7  /dev/sg8
+[1:0:0:0]    tape    SONY     SDX-900V         5400  /dev/st0  /dev/sg1
+[1:0:0:1]    tape    SONY     SDX-900V         5400  /dev/st1  /dev/sg2
+[1:0:0:2]    tape    QUANTUM  SDLT600          5400  /dev/st2  /dev/sg3
+[1:0:0:3]    tape    QUANTUM  SDLT600          5400  /dev/st3  /dev/sg4
+[1:0:0:4]    tape    QUANTUM  SDLT600          5400  /dev/st4  /dev/sg5
+[1:0:0:5]    tape    IBM      ULT3580-TD3      5400  /dev/st5  /dev/sg6
+[1:0:0:6]    tape    IBM      ULT3580-TD3      5400  /dev/st6  /dev/sg7
+[1:0:0:7]    tape    IBM      ULT3580-TD3      5400  /dev/st7  /dev/sg8
 
 
 # mtx -f /dev/sg0
@@ -154,4 +158,7 @@ Enjoy.
 Please feel free in letting me know if this works for you.
 
 Bug fixes and suggestions always welcome.
+
+markh794@gmail.com
+mark_harvey@symantec.com
 

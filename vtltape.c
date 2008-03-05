@@ -2405,7 +2405,7 @@ int main(int argc, char *argv[])
 						byteCount);	// total xfer
 
 				/* Something to do, reduce poll time */
-				pollInterval = 1000;
+				pollInterval = 10;
 				break;
 
 			case STATUS_OK:
@@ -2413,7 +2413,7 @@ int main(int argc, char *argv[])
 				 * time we sleep before polling again.
 				 */
 				if (pollInterval < 1000000)
-					pollInterval += 1000;
+					pollInterval += 100;
 
 				usleep(pollInterval);
 				break;

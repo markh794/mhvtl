@@ -152,8 +152,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu Mar 06 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.15.1
+  Ability to define default media size in /etc/vtl/vtl.conf
+
 * Wed Mar 05 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Name change as 'vtl' is too generic.
+- Name change as 'vtl' is was deemed too generic.
   Renamed to 'mhvtl' as this is being used by Symantec's Roseville office and
   is as good a name as any.
 - With the new name comes a new version 0.15.0

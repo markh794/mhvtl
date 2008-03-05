@@ -106,7 +106,7 @@ struct scatterlist;
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.14.0"
-static const char *vtl_version_date = "20080214-0";
+static const char *vtl_version_date = "20080310-1";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -140,6 +140,7 @@ static const char *vtl_version_date = "20080214-0";
 #define DEF_OPTS   0		/* Default to quiet logging */
 #define DEF_SCSI_LEVEL   5	/* INQUIRY, byte2 [5->SPC-3] */
 #define DEF_D_SENSE   0
+#define DEF_RETRY_REQUEUE 4	/* How many times to re-try a cmd requeue */
 
 // FIXME: Currently needs to be manually kept in sync with vx.h
 #define SENSE_BUF_SIZE	38
@@ -290,6 +291,7 @@ static int num_aborts = 0;
 static int num_dev_resets = 0;
 static int num_bus_resets = 0;
 static int num_host_resets = 0;
+static int num_requeue = 0;
 
 static spinlock_t queued_arr_lock = SPIN_LOCK_UNLOCKED;
 static rwlock_t atomic_rw = RW_LOCK_UNLOCKED;
@@ -568,7 +570,7 @@ static int q_cmd(struct scsi_cmnd *scp,
 	/*
 	 * Check fifo is empty, return error if not
 	 */
-	if (kfifo_len(devip->fifo) != 0) {
+	if (kfifo_len(devip->fifo)) {
 		printk("%s, line %d: kfifo not empty, len %d"
 			", reset fifo, S/No %ld"
 			", target: %d, lun: %d\n",
@@ -576,8 +578,17 @@ static int q_cmd(struct scsi_cmnd *scp,
 				kfifo_len(devip->fifo),
 				scp->serial_number,
 				devip->target, devip->lun);
+		num_requeue++;
 		kfifo_reset(devip->fifo);
+		if (num_requeue > DEF_RETRY_REQUEUE) {
+			printk("%s : Giving up, resetting fifo\n",
+							__FUNCTION__);
+			num_requeue = 0;
+			return schedule_resp(scp, NULL, done, DID_ERROR << 16, 0);
+		}
+		return schedule_resp(scp, NULL, done, DID_REQUEUE << 16, 0);
 	}
+	num_requeue = 0;
 
 	/* Return error if we could not add SCSI cmd
 	   to the queued_arr[] */
@@ -994,7 +1005,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			// Reserved, however SDLT seem to take this as 'WORM'
 			arr[2] = 1;
 			arr[3] = 0x28;	// Page len
-			strncpy(&arr[20], "14-02-2008 19:38:00", 20);
+			strncpy(&arr[20], "10-03-2008 19:38:00", 20);
 		} else {
 			/* Illegal request, invalid field in cdb */
 			mk_sense_buffer(devip, ILLEGAL_REQUEST,
