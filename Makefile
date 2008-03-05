@@ -81,5 +81,5 @@ install:
 	install -m 700 vtl /etc/init.d/
 
 tar:
-	(cd ..;  tar cvfz /home/markh/vtl-`date +%F`.tgz  --exclude=.git vtl-0.14/man vtl-0.14/doc vtl-0.14/kernel-driver vtl-0.14/*.[ch] vtl-0.14/Makefile vtl-0.14/README vtl-0.14/INSTALL vtl-0.14/build_library_config vtl-0.14/library_contents.sample vtl-0.14/make_vtl_devices vtl-0.14/vtl.spec vtl-0.14/vtl)
+	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`.tgz  --exclude=.git mhvtl-0.15/man mhvtl-0.15/doc mhvtl-0.15/kernel-driver mhvtl-0.15/*.[ch] mhvtl-0.15/Makefile mhvtl-0.15/README mhvtl-0.15/INSTALL mhvtl-0.15/build_library_config mhvtl-0.15/library_contents.sample mhvtl-0.15/make_vtl_devices mhvtl-0.15/mhvtl.spec mhvtl-0.15/vtl)
 

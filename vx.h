@@ -74,6 +74,7 @@ typedef char		s8;
 #define VTL_GET_HEADER		0x200
 #define VTL_GET_DATA		0x201
 #define VTL_SET_SERIAL		0x202
+#define VTL_PUT_DATA		0x203
 
 #define STATUS_OK 0
 

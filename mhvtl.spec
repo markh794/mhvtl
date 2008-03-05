@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
-Name: vtl
-Version: 0.14
-Release: 1
-Source: vtl-2008-02-19.tgz
+Name: mhvtl
+Version: 0.15
+Release: 0
+Source: mhvtl-2008-03-05.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -152,6 +152,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Wed Mar 05 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Name change as 'vtl' is too generic.
+  Renamed to 'mhvtl' as this is being used by Symantec's Roseville office and
+  is as good a name as any.
+- With the new name comes a new version 0.15.0
+
 * Tue Feb 19 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.14.1
   Cleaned up compile time warnings on x86_64 platform.

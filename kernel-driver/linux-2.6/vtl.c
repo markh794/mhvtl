@@ -2330,6 +2330,9 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 			goto give_up;
 		}
 		break;
+	case 0x201:	/* VTL_GET_DATA */
+		ret = -ENOTTY;
+		goto give_up;
 	case 0x202:	/* Copy 'Serial Number' from userspace */
 		sn = vmalloc(32);
 		if (!sn) {
@@ -2351,6 +2354,9 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		if (VTL_OPT_NOISE & vtl_opts)
 			printk("Setting serial number to %s\n", sn);
 		break;
+	case 0x203:	/* VTL_PUT_DATA */
+		ret = -ENOTTY;
+		goto give_up;
 	default:
 		ret = -ENOTTY;
 		goto give_up;
