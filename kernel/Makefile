@@ -11,6 +11,7 @@
 CC=/usr/bin/gcc
 
 obj-m	:= vtl.o
+vtl-objs := mhvtl.o event.o
 
 # Custom kernel build..
 KDIR	:= /usr/src/linux/
@@ -31,13 +32,15 @@ clean:
 
 distclean:
 	rm -f vtl.o vtl.ko \
-	vtl.mod.o \
+	*.o \
+	*.o.d \
 	vtl.mod.c \
 	Modules.symvers \
 	Module.symvers \
 	.vtl.ko.cmd \
-	.vtl.mod.o.cmd \
-	.vtl.o.cmd
+	.mhvtl.mod.o.cmd \
+	.event.o.d \
+	.mhvtl.o.cmd
 	rm -rf .tmp_versions
 	rm -f TAGS
 
