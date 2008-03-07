@@ -31,17 +31,8 @@ clean:
 	rm -f usr/*.o
 
 distclean:
-	rm -f usr/*.o \
-	usr/vtltape \
-	usr/dump_tape \
-	usr/vtlcmd \
-	usr/vtl_set_sn \
-	usr/dump_messageQ \
-	usr/mktape mktape.o \
-	usr/libvtlscsi.so \
-	usr/z \
-	usr/TAGS \
-	usr/vtllibrary
+	$(MAKE) -C usr distclean
+	$(MAKE) -C kernel distclean
 
 install:
 	install -o root -g bin -m 755 usr/libvtlscsi.so /usr/lib/

@@ -177,6 +177,7 @@ static int vtl_Major = 0;
 
 static int vtl_add_host = DEF_NUM_HOST;
 static int vtl_set_serial_num = DEF_NUM_HOST;
+static int vtl_set_firmware = DEF_NUM_HOST;
 static int vtl_delay = DEF_DELAY;
 static int vtl_every_nth = DEF_EVERY_NTH;
 static int vtl_max_luns = DEF_MAX_LUNS;
@@ -186,6 +187,7 @@ static int vtl_scsi_level = DEF_SCSI_LEVEL;
 static int vtl_dsense = DEF_D_SENSE;
 static int vtl_ssc_buffer_sz = TAPE_BUFFER_SZ;
 static char *vtl_serial_prefix = NULL;
+static char *vtl_firmware = NULL;
 
 static int vtl_cmnd_count = 0;
 
@@ -861,19 +863,16 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 /* evpd => Enable Vital product Data */
 static const char *inq_vendor_id_1 = "IBM     ";
 static const char *inq_product_id_1 = "ULT3580-TD3     ";
-static const char *inq_product_rev_1 = "5400";
+static const char *inq_product_rev = "5400";
 
 static const char *inq_vendor1_id_1 = "QUANTUM ";
 static const char *inq_product1_id_1 = "SDLT600         ";
-static const char *inq_product1_rev_1 = "5400";
 
 static const char *inq_vendor2_id_1 = "SONY    ";
 static const char *inq_product2_id_1 = "SDX-900V        ";
-static const char *inq_product2_rev_1 = "5400";
 
 static const char *inq_vendor_id_8 = "STK     ";
 static const char *inq_product_id_8 = "L700            ";
-static const char *inq_product_rev_8 = "vtl0";
 
 static int inquiry_evpd_83(unsigned char *arr, int dev_id_num,
 				const char *dev_id_str, int dev_id_str_len,
@@ -1036,26 +1035,28 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 		case 5:
 			memcpy(&arr[8], inq_vendor1_id_1, 8);
 			memcpy(&arr[16], inq_product1_id_1, 16);
-			memcpy(&arr[32], inq_product1_rev_1, 4);
 			break;
 		case 6:
 		case 7:
 		case 8:
 			memcpy(&arr[8], inq_vendor2_id_1, 8);
 			memcpy(&arr[16], inq_product2_id_1, 16);
-			memcpy(&arr[32], inq_product2_rev_1, 4);
 			break;
 		default:
 			memcpy(&arr[8], inq_vendor_id_1, 8);
 			memcpy(&arr[16], inq_product_id_1, 16);
-			memcpy(&arr[32], inq_product_rev_1, 4);
 			break;
 		}
 	} else {
 		memcpy(&arr[8], inq_vendor_id_8, 8);
 		memcpy(&arr[16], inq_product_id_8, 16);
-		memcpy(&arr[32], inq_product_rev_8, 4);
 	}
+	/* Add devices will have the same product revision... */
+	if (vtl_firmware)
+		memcpy(&arr[32], vtl_firmware, 4);
+	else
+		memcpy(&arr[32], inq_product_rev, 4);
+
 	/* version descriptors (2 bytes each) follow */
 	arr[58] = 0x0; arr[59] = 0x40; /* SAM-2 */
 	arr[60] = 0x3; arr[61] = 0x0;  /* SPC-3 */
@@ -1519,6 +1520,7 @@ static void __init init_all_queued(void)
  */
 module_param_named(add_host, vtl_add_host, int, 0); /* perm=0644 */
 module_param_named(set_serial, vtl_set_serial_num, int, 0); /* perm=0644 */
+module_param_named(set_firmware, vtl_set_firmware, int, 0); /* perm=0644 */
 module_param_named(ssc_buffer_sz, vtl_ssc_buffer_sz, int, 0); /* perm=0644 */
 module_param_named(delay, vtl_delay, int, 0); /* perm=0644 */
 module_param_named(dsense, vtl_dsense, int, 0);
@@ -1535,6 +1537,7 @@ MODULE_VERSION(VTL_VERSION);
 
 MODULE_PARM_DESC(add_host, "0..127 hosts allowed(def=1)");
 MODULE_PARM_DESC(set_serial, "num SerialNum");
+MODULE_PARM_DESC(set_firmware, "num firmware");
 MODULE_PARM_DESC(ssc_buffer_sz, "ssc buffer size(def=262144)");
 MODULE_PARM_DESC(delay, "# of jiffies to delay response(def=1)");
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def: fixed)");
@@ -1800,6 +1803,41 @@ static ssize_t vtl_serial_num_store(struct device_driver *ddp,
 DRIVER_ATTR(serial_prefix, S_IRUGO | S_IWUSR, vtl_serial_num_show, 
 	    vtl_serial_num_store);
 
+static ssize_t vtl_firmware_show(struct device_driver *ddp, char *buf)
+{
+	if (vtl_firmware)
+		return scnprintf(buf, PAGE_SIZE, "%s\n", vtl_firmware);
+	return scnprintf(buf, 4, "%s\n", inq_product_rev);
+}
+
+static ssize_t vtl_firmware_store(struct device_driver *ddp,
+				     const char *buf, size_t count)
+{
+	int retval;
+	char work[8];
+
+	if (count > 6) {
+		printk("Firmware number too long\n");
+		return -EINVAL;
+	}
+
+	retval = sscanf(buf, "%6s", work);
+
+	if (retval == 1) {
+		if (vtl_firmware) {
+			printk("Serial prefix already set to %s\n",
+							vtl_firmware);
+			return -EINVAL;
+		}
+		vtl_firmware = kmalloc(strlen(work) + 1, GFP_KERNEL);
+		strcpy(vtl_firmware, work);
+		return count;
+	}
+	return -EINVAL;
+}
+DRIVER_ATTR(firmware, S_IRUGO | S_IWUSR, vtl_firmware_show, 
+	    vtl_firmware_store);
+
 static ssize_t vtl_add_host_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_add_host);
@@ -1841,6 +1879,7 @@ static int do_create_driverfs_files(void)
 {
 	int	ret;
 	ret = driver_create_file(&vtl_driverfs_driver, &driver_attr_add_host);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_firmware);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_serial_prefix);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_ssc_buffer_sz);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_delay);
@@ -1860,10 +1899,13 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_every_nth);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_delay);
+	kfree(vtl_firmware);
 	kfree(vtl_serial_prefix);
+	vtl_firmware = NULL;
 	vtl_serial_prefix = NULL;
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_ssc_buffer_sz);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_serial_prefix);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_firmware);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_host);
 }
 

@@ -13,7 +13,8 @@
 EXTRA_CFLAGS += -I$(SRC)/../include
 
 obj-m	:= vtl.o
-vtl-objs := mhvtl.o event.o
+vtl-objs := mhvtl.o
+# vtl-objs := mhvtl.o event.o
 
 # Custom kernel build..
 KDIR	:= /usr/src/linux/
@@ -40,7 +41,9 @@ distclean:
 	Modules.symvers \
 	Module.symvers \
 	.vtl.ko.cmd \
+	.vtl.o.cmd \
 	.mhvtl.mod.o.cmd \
+	.vtl.mod.o.cmd \
 	.event.o.d \
 	.mhvtl.o.cmd
 	rm -rf .tmp_versions

@@ -51,6 +51,10 @@ if [ $CAPACITY -eq 0 ]; then
 	CAPACITY=500
 fi
 
+if [ $FIRMWARE -eq 0 ]; then
+	FIRMWARE=5400
+fi
+
 if [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"
 fi
@@ -79,7 +83,7 @@ fi
 
 # If we can't find any existing devices, then add '$count` devices
 # If USE_MIXED_DRIVES is set to 0, then all drives will be of same type
-countDevices=`$LSSCSI -g | grep tape | grep 5400 | wc -l`
+countDevices=`$LSSCSI -g | grep tape | grep $FIRMWARE | wc -l`
 if [ $VERBOSE -gt 0 ]; then
 	echo "Found $countDevices tape drives already.."
 fi
@@ -105,6 +109,9 @@ if [ $countDevices -lt $count ]; then
 	if [ -f /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz ]; then
 		echo $SSC_BUFFER_SZ > /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz
 	fi
+	if [ -f /sys/bus/pseudo/drivers/vtl/firmware ]; then
+		echo $FIRMWARE > /sys/bus/pseudo/drivers/vtl/firmware
+	fi
 
 	if [ $countDevices -eq 0 ]; then
 		if [ "X$SERIAL_PREFIX" != "X" ]; then
@@ -123,7 +130,7 @@ count=0
 # Wait for devices to be registered with kernel and sg devices to be setup..
 RDY=1
 while [ $RDY -gt 0 ]; do
-	RDY=`$LSSCSI -g|grep tape|grep 5400|awk '{print $7}'|grep -v dev|wc -l`
+	RDY=`$LSSCSI -g|grep tape|grep $FIRMWARE|awk '{print $7}'|grep -v dev|wc -l`
 	if [ $RDY -gt 0 ]; then
 		if [ $VERBOSE -gt 0 ]; then
 			echo "Waiting for devices to be setup"
@@ -132,7 +139,7 @@ while [ $RDY -gt 0 ]; do
 	fi
 done
 
-for a in `$LSSCSI -g | grep tape | grep 5400 | awk '{print $7}'`
+for a in `$LSSCSI -g | grep tape | grep $FIRMWARE | awk '{print $7}'`
 do
 	count=`expr $count + 1`
 	# Set serial number of each device...
