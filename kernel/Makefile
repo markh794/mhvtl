@@ -8,7 +8,9 @@
 # make
 #
 
-CC=/usr/bin/gcc
+# CC=/usr/bin/gcc
+#
+EXTRA_CFLAGS += -I$(SRC)/../include
 
 obj-m	:= vtl.o
 vtl-objs := mhvtl.o event.o

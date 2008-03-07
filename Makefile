@@ -18,16 +18,17 @@ all:	usr
 usr:	patch
 	$(MAKE) -C usr
 
-patch:
-
-clean:
-	rm -f usr/*.o
-
 kernel: patch
 	$(MAKE) -C kernel
 
 tags:
 	$(MAKE) -C usr tags
+	$(MAKE) -C kernel tags
+
+patch:
+
+clean:
+	rm -f usr/*.o
 
 distclean:
 	rm -f usr/*.o \
@@ -54,12 +55,15 @@ install:
 	install -m 700 etc/vtl /etc/init.d/
 
 tar:
+	$(MAKE) distclean
+	$(MAKE) -C kernel distclean
 	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`.tgz  --exclude=.git \
 		 mhvtl-0.15/man \
 		 mhvtl-0.15/doc \
 		 mhvtl-0.15/kernel \
 		 mhvtl-0.15/usr \
 		 mhvtl-0.15/etc \
+		 mhvtl-0.15/include \
 		 mhvtl-0.15/Makefile \
 		 mhvtl-0.15/README \
 		 mhvtl-0.15/INSTALL \

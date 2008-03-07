@@ -9,12 +9,7 @@
 # 	clean	to clean up all intermediate files
 #
 
-# Linux
-CC= /usr/bin/gcc
-# CFLAGS=-O2 -Wall -mcpu=pentium4 -march=i686
-#CFLAGS=-O2 -Wall
-CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
-
+CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../include
 CLFLAGS=-shared
 
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
