@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 1
-Source: mhvtl-2008-03-06.tgz
+Release: 2
+Source: mhvtl-2008-03-07.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -30,7 +30,7 @@ Note: Currently, the kernel module needs to be built separately. For
 %setup
 
 %build
-make RPM_OPT_FLAGS="$RPM_OPT_FLAGS"
+make RPM_OPT_FLAGS="$RPM_OPT_FLAGS" usr
 
 %install
 [ "%{buildroot}" != "/" ] && rm -rf %[buildroot}
@@ -47,19 +47,19 @@ mkdir -p $RPM_BUILD_ROOT/usr/lib64
 mkdir -p $RPM_BUILD_ROOT/usr/lib
 %endif
 
-install -m 750 vtl $RPM_BUILD_ROOT/etc/init.d/vtl
-install -m 750 -s vtltape $RPM_BUILD_ROOT/usr/bin/vtltape
-install -m 750 -s vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
-install -m 750 vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
-install -m 750 vtl_set_sn $RPM_BUILD_ROOT/usr/bin/vtl_set_sn
-install -m 750 mktape $RPM_BUILD_ROOT/usr/bin/mktape
-install -m 700 build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
-install -m 700 make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
+install -m 750 etc/vtl $RPM_BUILD_ROOT/etc/init.d/vtl
+install -m 750 -s usr/vtltape $RPM_BUILD_ROOT/usr/bin/vtltape
+install -m 750 -s usr/vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
+install -m 750 usr/vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
+install -m 750 usr/vtl_set_sn $RPM_BUILD_ROOT/usr/bin/vtl_set_sn
+install -m 750 usr/mktape $RPM_BUILD_ROOT/usr/bin/mktape
+install -m 700 usr/build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
+install -m 700 usr/make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
 
 %ifarch x86_64 amd64
-install -m 755 libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
+install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
 %else
-install -m 755 libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
+install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
 %endif
 
 install -m 644 man/build_library_config.1 $RPM_BUILD_ROOT/usr/share/man/man1/build_library_config.1
@@ -152,6 +152,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Fri Mar 07 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.15.2
+  Re-org of the source code.
+  - Placed user-space code in 'usr'
+  - Moved kernel drivers from kernel-driver/linux-2.6 to 'kernel'
+
 * Thu Mar 06 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.15.1
   Ability to define default media size in /etc/vtl/vtl.conf
