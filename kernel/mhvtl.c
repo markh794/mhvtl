@@ -105,7 +105,7 @@ struct scatterlist;
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.14.0"
+#define VTL_VERSION "0.15.0"
 static const char *vtl_version_date = "20080310-1";
 
 /* SCSI command definations not covered in default scsi.h */
@@ -142,6 +142,8 @@ static const char *vtl_version_date = "20080310-1";
 #define DEF_D_SENSE   0
 #define DEF_RETRY_REQUEUE 4	/* How many times to re-try a cmd requeue */
 
+#define VTL_FIRMWARE 5400
+
 // FIXME: Currently needs to be manually kept in sync with vx.h
 #define SENSE_BUF_SIZE	38
 
@@ -177,7 +179,6 @@ static int vtl_Major = 0;
 
 static int vtl_add_host = DEF_NUM_HOST;
 static int vtl_set_serial_num = DEF_NUM_HOST;
-static int vtl_set_firmware = DEF_NUM_HOST;
 static int vtl_delay = DEF_DELAY;
 static int vtl_every_nth = DEF_EVERY_NTH;
 static int vtl_max_luns = DEF_MAX_LUNS;
@@ -187,7 +188,9 @@ static int vtl_scsi_level = DEF_SCSI_LEVEL;
 static int vtl_dsense = DEF_D_SENSE;
 static int vtl_ssc_buffer_sz = TAPE_BUFFER_SZ;
 static char *vtl_serial_prefix = NULL;
+static int vtl_set_firmware = VTL_FIRMWARE;
 static char *vtl_firmware = NULL;
+static char inq_product_rev[6];
 
 static int vtl_cmnd_count = 0;
 
@@ -282,7 +285,7 @@ static struct scsi_host_template vtl_driver_template = {
 	.can_queue =		VTL_CANQUEUE,
 	.this_id =		7,
 	.sg_tablesize =		64,
-	.cmd_per_lun =		3,
+	.cmd_per_lun =		1,
 	.max_sectors =		4096,
 	.unchecked_isa_dma = 	0,
 	.use_clustering = 	DISABLE_CLUSTERING,
@@ -586,9 +589,9 @@ static int q_cmd(struct scsi_cmnd *scp,
 			printk("%s : Giving up, resetting fifo\n",
 							__FUNCTION__);
 			num_requeue = 0;
-			return schedule_resp(scp, NULL, done, DID_ERROR << 16, 0);
+			return schedule_resp(scp, NULL, done, DID_RESET << 16, 0);
 		}
-		return schedule_resp(scp, NULL, done, DID_REQUEUE << 16, 0);
+		return schedule_resp(scp, NULL, done, DID_SOFT_ERROR << 16, 0);
 	}
 	num_requeue = 0;
 
@@ -863,7 +866,6 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 /* evpd => Enable Vital product Data */
 static const char *inq_vendor_id_1 = "IBM     ";
 static const char *inq_product_id_1 = "ULT3580-TD3     ";
-static const char *inq_product_rev = "5400";
 
 static const char *inq_vendor1_id_1 = "QUANTUM ";
 static const char *inq_product1_id_1 = "SDLT600         ";
@@ -1589,13 +1591,15 @@ static int vtl_proc_info(struct Scsi_Host *host, char *buffer,
 	    "%s [%s]\n"
 	    "num_tgts=%d, opts=0x%x, "
 	    "every_nth=%d(curr:%d)\n"
-	    "delay=%d, max_luns=%d, scsi_level=%d\n"
+	    "delay=%d, max_luns=%d\n"
+            "firmware=%d, scsi_level=%d\n"
 	    "number of aborts=%d, device_reset=%d, bus_resets=%d, "
 	    "host_resets=%d\n",
 	    VTL_VERSION, vtl_version_date, vtl_num_tgts,
 	    vtl_opts, vtl_every_nth,
 	    vtl_cmnd_count, vtl_delay,
-	    vtl_max_luns, vtl_scsi_level,
+	    vtl_max_luns,
+	    vtl_set_firmware, vtl_scsi_level,
 	    num_aborts, num_dev_resets, num_bus_resets, num_host_resets);
 	if (pos < offset) {
 		len = 0;
@@ -1962,6 +1966,11 @@ static int __init vtl_init(void)
 	host_to_add = vtl_add_host;
 	vtl_add_host = 0;
 
+	if (vtl_set_firmware > 0xffff) {
+		printk(KERN_ERR "VTL Firmware larger the 0xffff - setting to default\n");
+		vtl_set_firmware = VTL_FIRMWARE;
+	}
+	snprintf(inq_product_rev, 5, "%04x", vtl_set_firmware);
 	for (k = 0; k < host_to_add; k++) {
 		if (vtl_add_adapter()) {
 			printk(KERN_ERR "vtl_init: "

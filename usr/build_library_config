@@ -29,30 +29,18 @@ if [ $# != 1 ]; then
 	exit 1
 fi
 
-# USE_MIXED_DRIVES=0 will bring all the SSC devices up as the same type
-# (IBM ULTRIUM 3)
-# USE_MIXED_DRIVES=1 will bring the first three drives as IBM Ultrium 3
-# The next three as SDLT600 and the following 3 as Sony AIT-4. Any others
-# will be IBM Ultrium 3.
-USE_MIXED_DRIVES=1
-
 USER=$1
 TMP=/var/tmp/_build.$$
 CONFIG=/etc/vtl/vxlib.conf
 LIBCONTENTS=/etc/vtl/library_contents
 OPTIONS=""
 
-if [ -f /etc/vtl/vtl.conf ]; then
-	. /etc/vtl/vtl.conf
-fi
+# rc script will make sure this exists...
+. /etc/vtl/vtl.conf
 
 # Set default capacity to 500M if not defined.
 if [ $CAPACITY -eq 0 ]; then
 	CAPACITY=500
-fi
-
-if [ $FIRMWARE -eq 0 ]; then
-	FIRMWARE=5400
 fi
 
 if [ $VERBOSE -gt 0 ];then
