@@ -2,7 +2,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
 Release: 2
-Source: mhvtl-2008-03-08.tgz
+Source: mhvtl-2008-03-10.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -128,7 +128,7 @@ fi
 
 %files
 %defattr(-,vtl,vtl)
-%doc INSTALL README library_contents.sample
+%doc INSTALL README etc/library_contents.sample
 /etc/init.d/vtl
 %{_prefix}/bin/vtlcmd
 %{_prefix}/bin/vtl_set_sn
@@ -152,11 +152,11 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
-* Fri Mar 07 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Mon Mar 10 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.15.2
   Re-org of the source code.
-  - Placed user-space code in 'usr'
-  - Moved kernel drivers from kernel-driver/linux-2.6 to 'kernel'
+  - Placed user-space code in directory ./usr
+  - Moved kernel drivers from ./kernel-driver/linux-2.6 to ./kernel
   Yet another 'tunable' option. Set the firmware release to "string" by
   # echo "5400" > /sys/bus/pseudo/drivers/vtl/firmware
 

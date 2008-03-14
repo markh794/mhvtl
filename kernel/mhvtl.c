@@ -105,8 +105,8 @@ struct scatterlist;
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.15.0"
-static const char *vtl_version_date = "20080310-1";
+#define VTL_VERSION "0.15.2"
+static const char *vtl_version_date = "20080310-2";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -142,7 +142,7 @@ static const char *vtl_version_date = "20080310-1";
 #define DEF_D_SENSE   0
 #define DEF_RETRY_REQUEUE 4	/* How many times to re-try a cmd requeue */
 
-#define VTL_FIRMWARE 5400
+#define VTL_FIRMWARE 0x5400
 
 // FIXME: Currently needs to be manually kept in sync with vx.h
 #define SENSE_BUF_SIZE	38

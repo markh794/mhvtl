@@ -42,8 +42,9 @@ distclean:
 	Module.symvers \
 	.vtl.ko.cmd \
 	.vtl.o.cmd \
-	.mhvtl.mod.o.cmd \
 	.vtl.mod.o.cmd \
+	.mhvtl.mod.o.cmd \
+	.event.o.cmd \
 	.event.o.d \
 	.mhvtl.o.cmd
 	rm -rf .tmp_versions

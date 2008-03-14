@@ -79,6 +79,15 @@ fi
 
 . /etc/vtl/vtl.conf
 
+# Earlier versions of vtl.conf may not contain the 'CAPACITY' string.
+# Update if nessessary..
+EXIST=`grep CAPACITY /etc/vtl/vtl.conf|wc -l`
+if [ $EXIST -eq 0 ]; then
+	echo "" >> /etc/vtl/vtl.conf
+	echo "# Default media capacity" >> /etc/vtl/vtl.conf
+	echo CAPACITY=500 >> /etc/vtl/vtl.conf
+fi
+
 # Earlier versions of vtl.conf may not contain the 'FIRMWARE' string.
 # Update if nessessary..
 EXIST=`grep FIRMWARE /etc/vtl/vtl.conf|wc -l`
