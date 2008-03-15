@@ -53,5 +53,8 @@ distclean:
 install:
 	install -o root -g bin -m 755 vtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/
 
+install-bkup:
+	cp vtl.ko ~/vtl-`uname -r`_`uname -m`.ko
+
 tags:
 	etags *.c *.h
