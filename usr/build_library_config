@@ -64,7 +64,7 @@ if [ ! -d /sys/bus/pseudo/drivers/vtl ]; then
 	exit 1
 fi
 
-count=`grep Drive $LIBCONTENTS|wc -l`
+count=`grep ^Drive $LIBCONTENTS|wc -l`
 if [ $VERBOSE -gt 0 ];then
 	echo "Found $count drives in library contents file /etc/vtl/library_contents"
 fi
