@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 2
-Source: mhvtl-2008-03-10.tgz
+Release: 3
+Source: mhvtl-2008-03-28.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -152,6 +152,10 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Fri Mar 28 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.15.3
+- Return 'block descriptor data' on a MODE SENSE 'page 0' instead of an error.
+
 * Mon Mar 10 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.15.2
   Re-org of the source code.
