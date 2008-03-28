@@ -498,7 +498,9 @@ s32 resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
 	if (debug)
 		printf("pcode: 0x%02x\n", pcode);
 
-	if (0x3f == pcode) {	/* Return all pages */
+	if (0x0 == pcode) {
+		len = 0;
+	} else if (0x3f == pcode) {	/* Return all pages */
 		for (a = 1; a < 0x3f; a++) { /* Walk thru all possibilities */
 			smp = find_pcode(a, m);
 			if (smp)
