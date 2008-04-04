@@ -47,7 +47,6 @@ install:
 
 tar:
 	$(MAKE) distclean
-	$(MAKE) -C kernel distclean
 	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`.tgz  --exclude=.git \
 		 mhvtl-0.15/man \
 		 mhvtl-0.15/doc \

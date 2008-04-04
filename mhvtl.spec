@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 3
-Source: mhvtl-2008-03-28.tgz
+Release: 4
+Source: mhvtl-2008-04-04.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -152,6 +152,13 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Fri Apr 04 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.15.4
+- Kernel module change. Default type is SDLT600 instead of IBM TD3 as there is
+  confusion on the windows side of things regarding IBM Drivers vs IBM for Tivoli
+  vs Symantec Tape Drivers. Maybe the QUANTUM SDLT600 will behave better ??
+  Only time will tell...
+
 * Fri Mar 28 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.15.3
 - Return 'block descriptor data' on a MODE SENSE 'page 0' instead of an error.

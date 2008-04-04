@@ -355,7 +355,7 @@ struct mode *find_pcode(u8 pcode, struct mode *m)
 {
 	s32 a;
 
-	DEBC(	 printf("Entered: %s(0x%x)\n", __FUNCTION__, pcode);
+	DEBC(	 printf("Entered: %s(0x%x)\n", __func__, pcode);
 		fflush(NULL);
 	)
 
@@ -365,20 +365,20 @@ struct mode *find_pcode(u8 pcode, struct mode *m)
 		if (m->pcode == pcode) {
 			if (debug)
 				printf("%s(0x%x): match pcode %d\n",
-					__FUNCTION__, pcode, m->pcode);
+					__func__, pcode, m->pcode);
 			else if (verbose > 1)
 				syslog(LOG_DAEMON|LOG_WARNING,
 					"%s(0x%x): match pcode %d",
-					__FUNCTION__, pcode, m->pcode);
+					__func__, pcode, m->pcode);
 			return m;
 		}
 	}
 
 	if (debug)
-		printf("%s: page code 0x%x not found\n", __FUNCTION__, pcode);
+		printf("%s: page code 0x%x not found\n", __func__, pcode);
 	else if (verbose > 2)
 		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: page code 0x%x not found\n", __FUNCTION__, pcode);
+			"%s: page code 0x%x not found\n", __func__, pcode);
 
 	return NULL;
 }

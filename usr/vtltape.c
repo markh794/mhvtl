@@ -393,7 +393,7 @@ static int skipToNextHeader(uint8_t * sense_flg) {
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING,
 			"%s: Error positing in datafile, byte offset: %" PRId64,
-				__FUNCTION__, c_pos.curr_blk);
+				__func__, c_pos.curr_blk);
 		return -1;
 	}
 	return 0;
@@ -412,7 +412,7 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING,
 					"%s: Error position in datafile !!",
-					__FUNCTION__);
+					__func__);
 		return -1;
 	}
 	// Read in header
@@ -443,7 +443,7 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR,sense_flg);
 		syslog(LOG_DAEMON|LOG_WARNING,
 				"%s: Error position in datafile !!",
-				__FUNCTION__);
+				__func__);
 		return -1;
 	}
 	DEBC(
@@ -539,7 +539,7 @@ static int mkEODHeader(uint8_t *sense_flg) {
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING,
 				"%s: Error position in datafile!!",
-				__FUNCTION__);
+				__func__);
 		return -1;
 	}
 

@@ -456,7 +456,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
 	if (NULL == scp->request_buffer)
 		return -1;
 	if (NULL == fifo) {
-		printk("%s, kfifo is NULL\n", __FUNCTION__);
+		printk("%s, kfifo is NULL\n", __func__);
 		WARN_ON(1);
 	}
 
@@ -579,7 +579,7 @@ static int q_cmd(struct scsi_cmnd *scp,
 		printk("%s, line %d: kfifo not empty, len %d"
 			", reset fifo, S/No %ld"
 			", target: %d, lun: %d\n",
-				__FUNCTION__, __LINE__,
+				__func__, __LINE__,
 				kfifo_len(devip->fifo),
 				scp->serial_number,
 				devip->target, devip->lun);
@@ -587,7 +587,7 @@ static int q_cmd(struct scsi_cmnd *scp,
 		kfifo_reset(devip->fifo);
 		if (num_requeue > DEF_RETRY_REQUEUE) {
 			printk("%s : Giving up, resetting fifo\n",
-							__FUNCTION__);
+							__func__);
 			num_requeue = 0;
 			return schedule_resp(scp, NULL, done, DID_RESET << 16, 0);
 		}
@@ -864,11 +864,11 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 }
 
 /* evpd => Enable Vital product Data */
-static const char *inq_vendor_id_1 = "IBM     ";
-static const char *inq_product_id_1 = "ULT3580-TD3     ";
+static const char *inq_vendor_id_1 = "QUANTUM ";
+static const char *inq_product_id_1 = "SDLT600         ";
 
-static const char *inq_vendor1_id_1 = "QUANTUM ";
-static const char *inq_product1_id_1 = "SDLT600         ";
+static const char *inq_vendor1_id_1 = "IBM     ";
+static const char *inq_product1_id_1 = "ULT3580-TD3     ";
 
 static const char *inq_vendor2_id_1 = "SONY    ";
 static const char *inq_product2_id_1 = "SDX-900V        ";
@@ -1217,7 +1217,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		open_devip = kmalloc(sizeof(*open_devip),GFP_KERNEL);
 		if (NULL == open_devip) {
 			printk(KERN_ERR "%s(): out of memory at line %d\n",
-				__FUNCTION__, __LINE__);
+				__func__, __LINE__);
 			return -1;
 		}
 		memset(open_devip, 0, sizeof(*open_devip));
@@ -1252,7 +1252,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		if (NULL == base_p) {
 			printk(KERN_ERR
 			"%s(): Allocate %ldbytes failed, out of memory\n",
-					__FUNCTION__, (unsigned long)sz);
+					__func__, (unsigned long)sz);
 			return -1;
 		}
 		memset(base_p, 0, sz);
@@ -1261,7 +1261,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		if (IS_ERR(base_fifo)) {
 			printk(KERN_ERR
 			"%s: Can not initialise kfifo memory at line %d\n",
-				__FUNCTION__, __LINE__);
+				__func__, __LINE__);
 			return -1;
 		}
 		/* Allocate memory for header buffer */
@@ -2055,7 +2055,7 @@ static int vtl_add_adapter(void)
 
 	if (NULL == vtl_host) {
 		printk(KERN_ERR "%s: out of memory at line %d\n",
-						__FUNCTION__, __LINE__);
+						__func__, __LINE__);
 	return -ENOMEM;
 	}
 
@@ -2067,7 +2067,7 @@ static int vtl_add_adapter(void)
 		vtl_devinfo = kmalloc(sizeof(*vtl_devinfo),GFP_KERNEL);
 		if (NULL == vtl_devinfo) {
 			printk(KERN_ERR "%s: out of memory at line %d\n",
-						__FUNCTION__, __LINE__);
+						__func__, __LINE__);
 			error = -ENOMEM;
 			goto clean;
 		}
@@ -2134,7 +2134,7 @@ static int vtl_driver_probe(struct device *dev)
 
 	hpnt = scsi_host_alloc(&vtl_driver_template, sizeof(vtl_host));
 	if (NULL == hpnt) {
-		printk(KERN_ERR "%s: scsi_register failed\n", __FUNCTION__);
+		printk(KERN_ERR "%s: scsi_register failed\n", __func__);
 		error = -ENODEV;
 		return error;
 	}
@@ -2149,7 +2149,7 @@ static int vtl_driver_probe(struct device *dev)
 
 	error = scsi_add_host(hpnt, &vtl_host->dev);
 	if (error) {
-		printk(KERN_ERR "%s: scsi_add_host failed\n", __FUNCTION__);
+		printk(KERN_ERR "%s: scsi_add_host failed\n", __func__);
 		error = -ENODEV;
 		scsi_host_put(hpnt);
 	} else
@@ -2168,7 +2168,7 @@ static int vtl_driver_remove(struct device *dev)
 
 	if (!vtl_host) {
 		printk(KERN_ERR "%s: Unable to locate host info\n",
-		       __FUNCTION__);
+		       __func__);
 		return -ENODEV;
 	}
 
@@ -2338,7 +2338,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		}
 		if (NULL == sqcp) {
 			printk("FATAL %s, line %d: sqcp is NULL\n",
-							__FUNCTION__, __LINE__);
+							__func__, __LINE__);
 		} else {
 			if (count)
 				fill_from_dev_buffer(sqcp->a_cmnd, NULL, count,
@@ -2348,7 +2348,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 
 			if (VTL_OPT_NOISE & vtl_opts)
 				printk("%s(), line %d: auto sense: %s\n",
-						__FUNCTION__, __LINE__,
+						__func__, __LINE__,
 						(valid_sense) ? "Yes" : "No");
 			if (valid_sense) {
 				sqcp->a_cmnd->result = check_condition_result;
@@ -2365,7 +2365,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 			else
 				printk("FATAL %s, line %d: SCSI done_funct"
 						" callback => NULL\n",
-						__FUNCTION__, __LINE__);
+						__func__, __LINE__);
 		}
 		devp[minor]->status = 0;
 		break;
@@ -2398,7 +2398,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	case 0x202:	/* Copy 'Serial Number' from userspace */
 		sn = vmalloc(32);
 		if (!sn) {
-			printk("%s out of memory\n", __FUNCTION__);
+			printk("%s out of memory\n", __func__);
 			ret = -ENOMEM;
 			goto give_up;
 		}

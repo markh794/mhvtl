@@ -707,7 +707,7 @@ static int fill_element_detail(uint8_t *p, struct s_info *slot, int slot_count, 
 		DEBC( printf("Slot: %d, k = %d\n", slot->slot_location, k); )
 		k += skel_element_descriptor( (uint8_t *)&p[k], slot, voltag);
 	}
-	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__, k); ) ;
+	DEBC( printf("%s() returning %d bytes\n", __func__, k); ) ;
 
 return (k);
 }
@@ -848,7 +848,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 /*
 	syslog(LOG_DAEMON|LOG_WARNING, "Index: %d\n", j);
 */
-	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__, j); )
+	DEBC( printf("%s() returning %d bytes\n", __func__, j); )
 
 return j;
 }
@@ -1141,7 +1141,7 @@ static int data_transfer_descriptor(uint8_t *p, uint16_t start,
 			syslog(LOG_DAEMON|LOG_INFO, "Len: %d\n", len);
 	}
 
-	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__, len); )
+	DEBC( printf("%s() returning %d bytes\n", __func__, len); )
 
 return len;
 }
@@ -1298,7 +1298,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	// Now populate the 'main' header structure with byte count..
 	len += element_status_hdr(&buf[0], dvcid, voltag, start, number);
 
-	DEBC( printf("%s() returning %d bytes\n", __FUNCTION__,
+	DEBC( printf("%s() returning %d bytes\n", __func__,
 		((len < alloc_len) ? len : alloc_len));
 
 		hex_dump(buf, (len < alloc_len) ? len : alloc_len);
@@ -1526,7 +1526,7 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 		break;
 	}
 	DEBC(
-		printf("%s returning %d bytes\n\n", __FUNCTION__, ret);
+		printf("%s returning %d bytes\n\n", __func__, ret);
 	)
 	return ret;
 }

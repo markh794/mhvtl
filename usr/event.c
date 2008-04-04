@@ -96,7 +96,7 @@ retry:
 			session_remove(session);
 		break;
 	default:
-		log_warning("%s(%d) %u\n", __FUNCTION__, __LINE__, event.state);
+		log_warning("%s(%d) %u\n", __func__, __LINE__, event.state);
 		exit(-1);
 		break;
 	}
@@ -108,7 +108,7 @@ int nl_open(void)
 
 	nl_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_IET);
 	if (nl_fd == -1) {
-		log_error("%s %d\n", __FUNCTION__, errno);
+		log_error("%s %d\n", __func__, errno);
 		return -1;
 	}
 
@@ -124,7 +124,7 @@ int nl_open(void)
 
 	res = nl_write(nl_fd, NULL, 0);
 	if (res < 0) {
-		log_error("%s %d\n", __FUNCTION__, res);
+		log_error("%s %d\n", __func__, res);
 		return res;
 	}
 
