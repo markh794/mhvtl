@@ -446,10 +446,10 @@ static int resp_becomming_ready(struct vtl_dev_info *devip)
 static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
 		       int max_arr_len)
 {
-	int k, req_len, len, fin;
+	int k, req_len, act_len, len, active;
 	void *kaddr;
 	void *kaddr_off;
-	struct scatterlist *sgpnt;
+	struct scatterlist *sg;
 
 	if (0 == scp->request_bufflen)
 		return 0;
@@ -465,28 +465,56 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
 		return -1;
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
-		len = (req_len < max_arr_len) ? req_len : max_arr_len;
-		kfifo_put(fifo, scp->request_buffer, len);
-		return len;
+		act_len = (req_len < max_arr_len) ? req_len : max_arr_len;
+		kfifo_put(fifo, scp->request_buffer, act_len);
+		return act_len;
 	}
-	sgpnt = (struct scatterlist *)scp->request_buffer;
-	for (k = 0, req_len = 0, fin = 0; k < scp->use_sg; ++k, ++sgpnt) {
-		kaddr = (unsigned char *)kmap_atomic(sgpnt->page, KM_USER0);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+	active = 1;
+	req_len = act_len = 0;
+	scsi_for_each_sg(scp, sg, scp->use_sg, k) {
+		if (active) {
+			kaddr = (unsigned char *)
+				kmap_atomic(sg_page(sg), KM_USER0);
+			if (NULL == kaddr)
+				return (DID_ERROR << 16);
+			kaddr_off = (unsigned char *)kaddr + sg->offset;
+			len = sg->length;
+			if ((req_len + len) > max_arr_len) {
+				active = 0;
+				len = max_arr_len - req_len;
+			}
+			kfifo_put(fifo, kaddr_off, len);
+			kunmap_atomic(kaddr, KM_USER0);
+			act_len += len;
+		}
+		req_len += sg->length;
+	}
+	if (scp->resid)
+		scp->resid -= act_len;
+	else
+		scp->resid = req_len - act_len;
+	return 0;
+#else
+	sg = (struct scatterlist *)scp->request_buffer;
+	for (k = 0, req_len = 0, active = 0; k < scp->use_sg; ++k, ++sg) {
+		kaddr = (unsigned char *)kmap_atomic(sg->page, KM_USER0);
 		if (NULL == kaddr)
 			return -1;
-		kaddr_off = (unsigned char *)kaddr + sgpnt->offset;
-		len = sgpnt->length;
+		kaddr_off = (unsigned char *)kaddr + sg->offset;
+		len = sg->length;
 		if ((req_len + len) > max_arr_len) {
 			len = max_arr_len - req_len;
-			fin = 1;
+			active = 1;
 		}
 		kfifo_put(fifo, kaddr_off, len);
 		kunmap_atomic(kaddr, KM_USER0);
-		if (fin)
+		if (active)
 			return req_len + len;
-		req_len += sgpnt->length;
+		req_len += sg->length;
 	}
 	return req_len;
+#endif
 }
 
 /**********************************************************************
@@ -817,7 +845,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 	int k, req_len, act_len, len, active;
 	void *kaddr;
 	void *kaddr_off;
-	struct scatterlist *sgpnt;
+	struct scatterlist *sg;
 
 	if (0 == scp->request_bufflen)
 		return 0;
@@ -836,16 +864,17 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 		scp->resid = req_len - act_len;
 		return 0;
 	}
-	sgpnt = (struct scatterlist *)scp->request_buffer;
 	active = 1;
-	for (k = 0, req_len = 0, act_len = 0; k < scp->use_sg; ++k, ++sgpnt) {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+	req_len = act_len = 0;
+	scsi_for_each_sg(scp, sg, scp->use_sg, k) {
 		if (active) {
 			kaddr = (unsigned char *)
-				kmap_atomic(sgpnt->page, KM_USER0);
+				kmap_atomic(sg_page(sg), KM_USER0);
 			if (NULL == kaddr)
 				return (DID_ERROR << 16);
-			kaddr_off = (unsigned char *)kaddr + sgpnt->offset;
-			len = sgpnt->length;
+			kaddr_off = (unsigned char *)kaddr + sg->offset;
+			len = sg->length;
 			if ((req_len + len) > arr_len) {
 				active = 0;
 				len = arr_len - req_len;
@@ -857,9 +886,39 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 			kunmap_atomic(kaddr, KM_USER0);
 			act_len += len;
 		}
-		req_len += sgpnt->length;
+		req_len += sg->length;
+	}
+	if (scp->resid)
+		scp->resid -= act_len;
+	else
+		scp->resid = req_len - act_len;
+
+#else
+	sg = (struct scatterlist *)scp->request_buffer;
+	for (k = 0, req_len = 0, act_len = 0; k < scp->use_sg; ++k, ++sg) {
+		if (active) {
+			kaddr = (unsigned char *)
+				kmap_atomic(sg->page, KM_USER0);
+			if (NULL == kaddr)
+				return (DID_ERROR << 16);
+			kaddr_off = (unsigned char *)kaddr + sg->offset;
+			len = sg->length;
+			if ((req_len + len) > arr_len) {
+				active = 0;
+				len = arr_len - req_len;
+			}
+			if (NULL == arr)
+				kfifo_get(fifo, kaddr_off, len);
+			else
+				memcpy(kaddr_off, arr + req_len, len);
+			kunmap_atomic(kaddr, KM_USER0);
+			act_len += len;
+		}
+		req_len += sg->length;
 	}
 	scp->resid = req_len - act_len;
+#endif
+
 	return 0;
 }
 
