@@ -44,7 +44,7 @@
  * 	0.12 to 0.14
  *
  */
-static const char * Version = "$Id: vtltape.c 2008-02-14 19:35:01 markh Exp $";
+static const char * Version = "$Id: vtltape.c 2008-11-14 19:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>

@@ -36,7 +36,7 @@
  *          and leaverage the hosts native iSCSI initiator.
  */
 
-static const char *Version = "$Id: vtllibrary.c 2008-02-14 19:35:01 markh Exp $";
+static const char *Version = "$Id: vtllibrary.c 2008-11-14 19:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
