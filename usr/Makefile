@@ -73,7 +73,7 @@ install:
 	install -o vtl -g vtl -m 750 mktape /usr/bin/
 	install -m 700 build_library_config /usr/bin/
 	install -m 700 make_vtl_devices /usr/bin/
-	install -m 700 vtl /etc/init.d/
+	install -m 700 ../etc/vtl /etc/init.d/
 
 tar:
 	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`.tgz  --exclude=.git mhvtl-0.15/man mhvtl-0.15/doc mhvtl-0.15/kernel-driver mhvtl-0.15/*.[ch] mhvtl-0.15/Makefile mhvtl-0.15/README mhvtl-0.15/INSTALL mhvtl-0.15/build_library_config mhvtl-0.15/library_contents.sample mhvtl-0.15/make_vtl_devices mhvtl-0.15/mhvtl.spec mhvtl-0.15/vtl)

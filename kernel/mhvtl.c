@@ -7,7 +7,7 @@
  *  anything out of the ordinary is seen.
  * ^^^^^^^^^^^^^^^^^^^^^^^ Original ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  *
- *  For documentation see http://www.torque.net/sg/sdebug25.html
+ *  For documentation see http://sg.danny.cz/sg/sdebug26.html
  *
  *   D. Gilbert (dpg) work for Magneto-Optical device test [20010421]
  *   dpg: work for devfs large number of disks [20010809]
@@ -21,9 +21,9 @@
  *
  *	Mark Harvey 2005-6-1
  * 
- *	markh794 at gmail dot com
+ *	markh794@gmail.com
  *	  or
- *	Current employ address: mark_harvey at symantec dot com
+ *	Current employ address: mark_harvey@symantec.com
  *
  *	Pinched wholesale from scsi_debug.[ch]
  *

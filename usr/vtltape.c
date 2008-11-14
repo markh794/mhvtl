@@ -6,8 +6,8 @@
  *   a kernel module (vlt.ko) - Currently on 2.6.x Linux kernel support.
  *   SCSI target daemons for both SMC and SSC devices.
  *
- * Copyright (C) 2005 - 2008 Mark Harvey markh794 at gmail dot com
- *                                mark_harvey at symantec dot com
+ * Copyright (C) 2005 - 2008 Mark Harvey       markh794@gmail.com
+ *                                          mark_harvey@symantec.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1590,13 +1590,20 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Read Attribute**");
 		if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"Failed due to \"no media\"");
+			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sense_flg);
 			break;
 		} else if (tapeLoaded > TAPE_LOADED) {
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"Failed due to \"media corrupt\"");
 			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
 			break;
 		}
-		if (SCpnt[1]) { // Only support Service Action - Attribute Values
+		/* Only support Service Action - Attribute Values */
+		if (SCpnt[1]) {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sense_flg);
 			break;
@@ -1818,7 +1825,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		}
 
 		lp = (u32 *)&SCpnt[10];
-		count = htonl(*lp);
+		count = ntohl(*lp);
 		// Read '*lp' bytes from char device...
 		block_size = retrieve_CDB_data(cdev, buf, count);
 		if (verbose)
@@ -1859,6 +1866,20 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"Persistent reserve in - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+
+	case SECURITY_PROTOCOL_IN:
+		syslog(LOG_DAEMON|LOG_ERR,
+			"*** Unsupported command SECURITY PROTOCOL IN ***");
+		logSCSICommand(SCpnt);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+
+	case SECURITY_PROTOCOL_OUT:
+		syslog(LOG_DAEMON|LOG_ERR,
+			"*** Unsupported command SECURITY PROTOCOL OUT ***");
+		logSCSICommand(SCpnt);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
 
