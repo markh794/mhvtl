@@ -46,6 +46,8 @@
  */
 static const char * Version = "$Id: vtltape.c 2008-11-14 19:35:01 markh Exp $";
 
+#define _XOPEN_SOURCE 500
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -356,7 +358,7 @@ static loff_t position_to_curr_header(uint8_t * sense_flg) {
 	return (lseek64(datafile, c_pos.curr_blk, SEEK_SET));
 }
 
-static int skipToNextHeader(uint8_t * sense_flg) {
+static int skip_to_next_header(uint8_t * sense_flg) {
 	loff_t nread;
 
 	if (c_pos.blk_type == B_EOD) {
@@ -431,7 +433,7 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 		if (debug)
 			printf("Found Beginning Of Tape, "
 				"Skipping to next header..\n");
-		skipToNextHeader(sense_flg);
+		skip_to_next_header(sense_flg);
 		DEBC( print_header(&c_pos);) ;
 		mkSenseBuf(MEDIUM_ERROR, E_BOM, sense_flg);
 		syslog(LOG_DAEMON|LOG_WARNING, "Found BOT!!");
@@ -609,11 +611,11 @@ static int skip_next_filemark(uint8_t *sense_flg) {
 				OK_to_write = 1;
 			return -1;
 		}
-		if (skipToNextHeader(sense_flg))
+		if (skip_to_next_header(sense_flg))
 			return -1;	// On error
 	}
 	// Position to header AFTER the FILEMARK..
-	if (skipToNextHeader(sense_flg))
+	if (skip_to_next_header(sense_flg))
 		return -1;
 
 	return 0;
@@ -1020,7 +1022,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 		return nread;
 		break;
 	case B_BOT:
-		skipToNextHeader(sense_flg);
+		skip_to_next_header(sense_flg);
 		// Re-exec function.
 		return readBlock(cdev, buf, sense_flg, request_sz);
 		break;
@@ -1123,7 +1125,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 		break;
 	}
 	// Now read in subsequent header
-	skipToNextHeader(sense_flg);
+	skip_to_next_header(sense_flg);
 
 	return nread;
 }
@@ -1227,7 +1229,7 @@ static void rawRewind(uint8_t *sense_flg) {
  *        1 -> Load OK
  *        2 -> format corrupt.
  */
-static int respRewind(uint8_t * sense_flg) {
+static int resp_rewind(uint8_t * sense_flg) {
 	loff_t nread = 0;
 
 	rawRewind(sense_flg);
@@ -1257,7 +1259,7 @@ static int respRewind(uint8_t * sense_flg) {
 		syslog(LOG_DAEMON|LOG_INFO, "MAM: media S/No. %s",
 							mam.MediumSerialNumber);
 
-	if (skipToNextHeader(sense_flg))
+	if (skip_to_next_header(sense_flg))
 		return 2;
 
 	MediaType = mam.MediumType;
@@ -1279,14 +1281,14 @@ static int respRewind(uint8_t * sense_flg) {
 		// Check that this header is a filemark and the next header
 		//  is End of Data. If it is, we are OK to write
 		if (c_pos.blk_type == B_FILEMARK) {
-			skipToNextHeader(sense_flg);
+			skip_to_next_header(sense_flg);
 			if (c_pos.blk_type == B_EOD)
 				OK_to_write = 1;
 		}
 		// Now we have to go thru thru the rewind again..
 		rawRewind(sense_flg);
 		// No need to do all previous error checking...
-		skipToNextHeader(sense_flg);
+		skip_to_next_header(sense_flg);
 		break;
 	case MEDIA_TYPE_DATA:
 		OK_to_write = 1;	// Reset flag to OK.
@@ -1321,7 +1323,7 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 					return;
 		} else {
 			for (;count > 0; count--)
-				if (skipToNextHeader(sense_flg))
+				if (skip_to_next_header(sense_flg))
 					return;
 		}
 		break;
@@ -1349,7 +1351,7 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 			syslog(LOG_DAEMON|LOG_NOTICE, "%s",
 				"SCSI space to end-of-data **");
 		while(c_pos.blk_type != B_EOD)
-			if (skipToNextHeader(sense_flg)) {
+			if (skip_to_next_header(sense_flg)) {
 				if (MediaType == MEDIA_TYPE_WORM)
 					OK_to_write = 1;
 				return;
@@ -1369,22 +1371,12 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg) {
 	loff_t nwrite = 0;
 
-	// Start at beginning of datafile..
-	lseek64(datafile, 0L, SEEK_SET);
-
-	/* Update the c_pos data struct.
-	 * If this is not the BOT header we are in trouble
-	 * Just using this to position to MAM
-	 */
-	nwrite = read(datafile, &c_pos, sizeof(c_pos));
-	if (nwrite != sizeof(c_pos)) {
-		mkSenseBuf(MEDIUM_ERROR, E_UNKNOWN_FORMAT, sense_flg);
-		return -1;
-	}
-
 	// Rewrite MAM data
-	nwrite = write(datafile, mamp, sizeof(mam));
+	nwrite = pwrite(datafile, mamp, sizeof(mam), sizeof(struct blk_header));
 	if (nwrite != sizeof(mam)) {
+		syslog(LOG_DAEMON|LOG_ERR, "Could not rewrite MAM"
+				" pwrite returned %d, should have been %d : %m",
+				(int)nwrite, (int)sizeof(mam));
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
 		return -1;
 	}
@@ -1502,7 +1494,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			"Current blk: %" PRId64 ", seek: %d",c_pos.blk_number,count);
 		if (((u32)(count - c_pos.blk_number) > count) &&
 						(count < c_pos.blk_number)) {
-			respRewind(sense_flg);
+			resp_rewind(sense_flg);
 		}
 		if (MediaType == MEDIA_TYPE_WORM)
 			OK_to_write = 0;
@@ -1511,7 +1503,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 				if (skip_to_prev_header(sense_flg) == -1)
 					break;
 			} else {
-				if (skipToNextHeader(sense_flg) == -1)
+				if (skip_to_next_header(sense_flg) == -1)
 					break;
 			}
 		}
@@ -1709,7 +1701,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		if (verbose) 
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "Rewinding **");
 
-		respRewind(sense_flg);
+		resp_rewind(sense_flg);
 		sleep(1);
 		break;
 
@@ -1721,7 +1713,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			break;
 
 		// Rewind and postition just after the first header.
-		respRewind(sense_flg);
+		resp_rewind(sense_flg);
 
 		if (ftruncate(datafile, c_pos.curr_blk))
 			syslog(LOG_DAEMON|LOG_ERR,
@@ -1753,7 +1745,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		if (SCpnt[4] && 0x1) {
 			if (verbose) 
 				syslog(LOG_DAEMON|LOG_INFO, "Loading Tape **");
-			tapeLoaded = respRewind(sense_flg);
+			tapeLoaded = resp_rewind(sense_flg);
 		} else {
 			mam.record_dirty = 0;
 			// Don't update load count on unload -done at load time
@@ -1833,9 +1825,10 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 				"  --> Expected to read %d bytes"
 				", read %d", count, block_size);
 		if (resp_write_attribute(buf, count, &mam, sense_flg) == 1) {
+			count = c_pos.blk_number;
 			rewriteMAM(&mam, sense_flg);
-			// respRewind() will clean up for us..
-			respRewind(sense_flg);
+			// resp_rewind() will clean up for us..
+			resp_rewind(sense_flg);
 		}
 
 		break;
@@ -2005,10 +1998,10 @@ static int load_tape(char *PCL, uint8_t *sense_flg) {
 	// Increment load count
 	updateMAM(&mam, sense_flg, 1);
 
-	/* respRewind() will clean up for us..
+	/* resp_rewind() will clean up for us..
 	 * - It also set up media type & if we can write to media
 	 */
-	respRewind(sense_flg);
+	resp_rewind(sense_flg);
 
 	strncpy((char *)mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
