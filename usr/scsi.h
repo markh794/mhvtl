@@ -64,8 +64,13 @@
  */
 
 #define	ALLOW_MEDIUM_REMOVAL	0x1e
-#define FORMAT_UNIT		0x04
+#define ACCESS_CONTROL_IN	0x86
+#define ACCESS_CONTROL_OUT	0x87
+#define EXTENDED_COPY		0x83
+#define A3_SA			0xa3
+#define A4_SA			0xa4
 #define ERASE_6			0x19
+#define FORMAT_UNIT		0x04
 #define INITIALIZE_ELEMENT_STATUS	0x07
 #define INITIALIZE_ELEMENT_STATUS_WITH_RANGE 0xE7
 #define MODE_SENSE		0x1a
@@ -77,6 +82,7 @@
 #define	LOG_SELECT		0x4c
 #define	LOG_SENSE		0x4d
 #define PERSISTENT_RESERVE_IN	0x5e
+#define PERSISTENT_RESERVE_OUT	0x5f
 #define	READ_6			0x08
 #define	READ_10			0x28
 #define	READ_12			0xa8
@@ -103,6 +109,12 @@
 #define	WRITE_12		0xaa
 #define WRITE_ATTRIBUTE		0x8d
 #define	WRITE_FILEMARKS		0x10
+
+/* Service codes */
+#define MANAGEMENT_PROTOCOL_IN	0x10
+#define MANAGEMENT_PROTOCOL_OUT	0x10
+#define CHANGE_ALIASES		0x0b
+#define REPORT_ALIASES		0x0b
 
 /* No Sense Errors */
 #define NO_ADDITIONAL_SENSE		0x0000

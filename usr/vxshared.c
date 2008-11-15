@@ -819,3 +819,43 @@ int oom_adjust(void)
 	return 0;
 }
 
+int resp_a3_service_action(uint8_t *cdb, uint8_t *sense_flg)
+{
+	uint8_t sa = cdb[1];
+	switch(sa) {
+	case MANAGEMENT_PROTOCOL_IN:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Management protocol in - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+	case REPORT_ALIASES:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Report Aliases - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+	}
+	return 0;
+}
+
+int resp_a4_service_action(uint8_t *cdb, uint8_t *sense_flg)
+{
+	uint8_t sa = cdb[1];
+
+	switch(sa) {
+	case MANAGEMENT_PROTOCOL_OUT:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Management protocol out - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+	case CHANGE_ALIASES:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Change Aliases - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+	}
+	return 0;
+}

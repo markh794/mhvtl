@@ -1592,7 +1592,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		if (tapeLoaded == TAPE_UNLOADED) {
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO,
-					"Failed due to \"no media\"");
+					"Failed due to \"no media loaded\"");
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sense_flg);
 			break;
 		} else if (tapeLoaded > TAPE_LOADED) {
@@ -1862,10 +1862,46 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
 		break;
 
+	case ACCESS_CONTROL_IN:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Access control in - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+
+	case ACCESS_CONTROL_OUT:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Access control out - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+
+	case EXTENDED_COPY:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Extended copy - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+
+	case A3_SA:
+		resp_a3_service_action(SCpnt, sense_flg);
+		break;
+
+	case A4_SA:
+		resp_a4_service_action(SCpnt, sense_flg);
+		break;
+
 	case PERSISTENT_RESERVE_IN:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"Persistent reserve in - Unsupported **");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		break;
+
+	case PERSISTENT_RESERVE_OUT:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Persistent reserve out - Unsupported **");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
 

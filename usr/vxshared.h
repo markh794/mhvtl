@@ -269,3 +269,6 @@ void initTapeAlert(struct TapeAlert_page *);
 void hex_dump(uint8_t *, int);
 int chrdev_open(char *name, uint8_t);
 int oom_adjust(void);
+
+int resp_a3_service_action(uint8_t *cdb, uint8_t *sense_flg);
+int resp_a4_service_action(uint8_t *cdb, uint8_t *sense_flg);
