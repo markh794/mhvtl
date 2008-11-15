@@ -2,7 +2,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
 Release: 6
-Source: mhvtl-2008-11-15.tgz
+Source: mhvtl-2008-11-16.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -152,9 +152,11 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
-* Sat Nov 15 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Sun Nov 16 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.15.6
 - Fixed bug where WRITE ATTRIBUTE was causing media to rewind.
+- Increase default buffer size of SMC from 512k to 1024k - Ability to handle
+  more (twice the) slots
 
 * Fri Nov 14 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.15.5

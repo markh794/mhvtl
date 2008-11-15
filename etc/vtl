@@ -158,12 +158,19 @@ Slot 33: CLN003L1
 CONF_SAMPLE
 fi
 
+DRIVES=`grep ^Drive /etc/vtl/library_contents|wc -l`
+
 case "$1" in
     start)
 	load_vtl=`grep " vtl$" /proc/devices|awk '{print $2}'`
 	if [ "X$load_vtl" == "X" ]; then
-        	echo "Initializing vtl kernel module"
-		modprobe vtl set_firmware=0x$FIRMWARE
+        	echo "Initializing vtl kernel module with $DRIVES drives"
+		((DRIVES=$DRIVES+1)) # Account for SMC to take up one..
+		if [ "$USE_MIXED_DRIVES" -eq "0" ]; then
+			modprobe vtl set_firmware=0x$FIRMWARE num_tgts=$DRIVES
+		else
+			modprobe vtl set_firmware=0x$FIRMWARE max_luns=$DRIVES
+		fi
 		# Virtual env - can take a few more seconds for things to load & setup..
 		DELAY=`$LSSCSI|grep VMware|wc -l`
 		if [ $DELAY -gt 0 ]; then

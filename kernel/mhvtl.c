@@ -105,8 +105,8 @@ struct scatterlist;
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.15.5"
-static const char *vtl_version_date = "20081114-0";
+#define VTL_VERSION "0.15.6"
+static const char *vtl_version_date = "20081115-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -148,7 +148,8 @@ static const char *vtl_version_date = "20081114-0";
 #define SENSE_BUF_SIZE	38
 
 #define TAPE_BUFFER_SZ 524288
-#define MEDIUM_CHANGER_SZ 524288
+/* #define MEDIUM_CHANGER_SZ 524288 */
+#define MEDIUM_CHANGER_SZ 1048576
 
 /* bit mask values for vtl_opts */
 #define VTL_OPT_NOISE   1
