@@ -124,13 +124,14 @@ main(int argc, char *argv[]) {
 
 	memset((u8 *)&mam, 0, sizeof(mam));
 
-	mam.tape_fmt_version = TAPE_FMT_VERIONS;
+	mam.tape_fmt_version = TAPE_FMT_VERSION;
 	mam.max_capacity = htonll(size * 1048576);
 	mam.MAMSpaceRemaining = htonll(sizeof(mam.VendorUnique));
 	mam.MediumLength = htonl(384);	// 384 tracks
 	mam.MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 	memcpy(&mam.MediumManufacturer, "Mark    ", 8);
 	memcpy(&mam.ApplicationVendor, "Harvey  ", 8);
+	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (! strncmp("clean", mediaType, 5)) {
 		mam.MediumType = MEDIA_TYPE_CLEAN; // Cleaning cart
@@ -142,6 +143,7 @@ main(int argc, char *argv[]) {
 	}
 
 	sprintf((char *)mam.MediumSerialNumber, "%s_%d", pcl, (int)time(NULL));
+	sprintf((char *)mam.MediumManufactureDate, "%d", (int)time(NULL));
 	sprintf((char *)mam.Barcode, "%-31s", pcl);
 
 	sprintf((char *)currentMedia, "%s/%s", HOME_PATH, pcl);

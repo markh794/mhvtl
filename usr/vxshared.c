@@ -548,44 +548,6 @@ s32 resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
 	return offset;
 }
 
-/*
- * Process WRITE ATTRIBUTE scsi command
- * Returns 0 if OK
- *         or 1 if MAM needs to be written.
- *         or -1 on failure.
- */
-s32 resp_write_attribute(uint8_t *buf, uint64_t len, struct MAM *mam, uint8_t *sense_flg)
-{
-	s32 a;
-
-	if (debug) {
-		printf("write attribute data");
-		for (a = 0; a < len; a++) {
-			if ((a % 16) == 0)
-				putchar('\n');
-			printf("%02x ", buf[a]);
-		}
-		putchar('\n');
-		putchar('\n');
-	} else if ((buf[3] == 6) && (buf[4] == 4) && (buf[5] == 8)){
-/* FIXME: if 0x06, 0x04, 0x08, 0x80, 0x01, 0x80 => Set media type to WORM.. */
-		syslog(LOG_DAEMON|LOG_WARNING, "Converting media to WORM");
-		mam->MediumType = MEDIA_TYPE_WORM;
-		return 1;
-	} else {
-		mkSenseBuf(MEDIUM_ERROR, E_CARTRIDGE_FAULT, sense_flg);
-		if (verbose > 1)
-			for (a = 0; a < len; a += 8)
-				syslog(LOG_DAEMON|LOG_WARNING,
-				" 0x%02x 0x%02x 0x%02x 0x%02x"
-				" 0x%02x 0x%02x 0x%02x 0x%02x",
-				buf[a+0], buf[a+1], buf[a+2], buf[a+3],
-				buf[a+4], buf[a+5], buf[a+6], buf[a+7]);
-	}
-
-return 0;
-}
-
 void initTapeAlert(struct TapeAlert_page *ta)
 {
 	int a;

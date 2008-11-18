@@ -229,7 +229,7 @@ struct MAM {
 	uint8_t MediumDensityCode;
 	uint8_t MediumManufactureDate[8];
 	uint64_t MAMCapacity;
-	uint8_t MediumType;	// 0 -> Data, 1, WORM, 6 -> Clean
+	uint8_t MediumType;	// 0 -> Data, 1 -> WORM, 6 -> Clean
 	uint16_t MediumTypeInformation;	// If Clean, max mount
 
 	uint8_t ApplicationVendor[8];
@@ -259,7 +259,6 @@ int32_t resp_read_position(loff_t, uint8_t *, uint8_t *);
 int32_t resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
 int32_t resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int32_t resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t *);
-int32_t resp_write_attribute(uint8_t *, uint64_t, struct MAM *, uint8_t *);
 struct mode *find_pcode(uint8_t, struct mode *);
 struct mode *alloc_mode_page(uint8_t, struct mode *, int32_t);
 

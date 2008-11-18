@@ -1,7 +1,7 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 6
+Release: 7
 Source: mhvtl-2008-11-16.tgz
 License: GPL
 Group: System/Kernel
@@ -152,6 +152,10 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Tue Nov 19 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.7
+- Merge READ ATTRIBUTES fixes from Raymond Gilson
+
 * Sun Nov 16 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.15.6
 - Fixed bug where WRITE ATTRIBUTE was causing media to rewind.

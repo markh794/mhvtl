@@ -138,6 +138,51 @@ uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 
 static struct MAM mam;
 
+struct MAM_Attributes_table {
+	int attribute;
+	int length;
+	int read_only;
+	int format;
+	void *value; 
+} MAM_Attributes[] = {
+	{0x000, 8, 1, 0, &mam.remaining_capacity },
+	{0x001, 8, 1, 0, &mam.max_capacity },
+	{0x002, 8, 1, 0, &mam.TapeAlert },
+	{0x003, 8, 1, 0, &mam.LoadCount },
+	{0x004, 8, 1, 0, &mam.MAMSpaceRemaining },
+	{0x005, 8, 1, 1, &mam.AssigningOrganization_1 },
+	{0x006, 1, 1, 0, &mam.FormattedDensityCode },
+	{0x007, 2, 1, 0, &mam.InitializationCount },
+	{0x20a, 40, 1, 1, &mam.DevMakeSerialLastLoad },
+	{0x20b, 40, 1, 1, &mam.DevMakeSerialLastLoad1 },
+	{0x20c, 40, 1, 1, &mam.DevMakeSerialLastLoad2 },
+	{0x20d, 40, 1, 1, &mam.DevMakeSerialLastLoad3 },
+	{0x220, 8, 1, 0, &mam.WrittenInMediumLife },
+	{0x221, 8, 1, 0, &mam.ReadInMediumLife },
+	{0x222, 8, 1, 0, &mam.WrittenInLastLoad },
+	{0x223, 8, 1, 0, &mam.ReadInLastLoad },
+	{0x400, 8, 1, 1, &mam.MediumManufacturer },
+	{0x401, 32, 1, 1, &mam.MediumSerialNumber },
+	{0x402, 4, 1, 0, &mam.MediumLength },
+	{0x403, 4, 1, 0, &mam.MediumWidth },
+	{0x404, 8, 1, 1, &mam.AssigningOrganization_2 },
+	{0x405, 1, 1, 0, &mam.MediumDensityCode },
+	{0x406, 8, 1, 1, &mam.MediumManufactureDate },
+	{0x407, 8, 1, 0, &mam.MAMCapacity },
+	{0x408, 1, 0, 0, &mam.MediumType },
+	{0x409, 2, 1, 0, &mam.MediumTypeInformation },
+	{0x800, 8, 0, 1, &mam.ApplicationVendor },
+	{0x801, 32, 0, 1, &mam.ApplicationName },
+	{0x802, 8, 0, 1, &mam.ApplicationVersion },
+	{0x803, 160, 0, 2, &mam.UserMediumTextLabel },
+	{0x804, 12, 0, 1, &mam.DateTimeLastWritten },
+	{0x805, 1, 0, 0, &mam.LocalizationIdentifier },
+	{0x806, 32, 0, 1, &mam.Barcode },
+	{0x807, 80, 0, 2, &mam.OwningHostTextualName },
+	{0x808, 160, 0, 2, &mam.MediaPool },
+	{0xbff, 0, 1, 0, NULL }
+};
+
 /* Log pages */
 static struct	Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
@@ -947,6 +992,8 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
 	u32 *lp;
 	u32 alloc_len;
 	int ret_val = 0;
+	int byte_index = 4;
+	int index, found_attribute;
 
 	sp = (u16 *)&SCpnt[8];
 	attribute = ntohs(*sp);
@@ -959,34 +1006,111 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
 
 	memset(buf, 0, alloc_len);	// Clear memory
 
-	sp = (u16 *)&buf[0];
-	*sp = htons(attribute);
-
-	switch(attribute) {
-	case 0x0400:	/* Medium Manufacturer */
-		buf[2] = 0x81;		// Read-only + ASCII format..
-		buf[4] = 0x8;	// Attribute length
-		memcpy(&buf[5], &mam.MediumManufacturer, 8);
-		ret_val = 14;
-		break;
-	case 0x0408:	/* Medium Type  - Hack for SDLT and WORM */
-		buf[2] = 0x80;		// Read-only + binary format..
-		buf[4] = 0x8;	// Attribute length
-		buf[5] = mam.MediumType;
-		buf[9] = (MediaType == MEDIA_TYPE_WORM) ? 0x80 : 0;
-		ret_val = 14;
-		break;
-	case 0x0800:	/* Application Vendor */
-		buf[4] = 0x8;	// Attribute length
-		memcpy(&buf[5], &mam.ApplicationVendor, 8);
-		ret_val = 14;
-		break;
-	default:
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
-		return 0;
-		break;
+	if (SCpnt[1] < 2) {
+		/* Attribute Values */
+		for (index = found_attribute = 0; MAM_Attributes[index].length; index++) {
+			if (attribute == MAM_Attributes[index].attribute) {
+				found_attribute = 1;
+			}
+			if (found_attribute) {
+				/* calculate available data length */
+				ret_val += MAM_Attributes[index].length + 5;
+				if (ret_val < alloc_len) {
+					/* add it to output */
+					buf[byte_index++] = MAM_Attributes[index].attribute >> 8;
+					buf[byte_index++] = MAM_Attributes[index].attribute;
+					buf[byte_index++] = (MAM_Attributes[index].read_only << 7) | 
+					                    MAM_Attributes[index].format;
+					buf[byte_index++] = MAM_Attributes[index].length >> 8;
+					buf[byte_index++] = MAM_Attributes[index].length;
+					memcpy(&buf[byte_index], MAM_Attributes[index].value, 
+					       MAM_Attributes[index].length);
+					byte_index += MAM_Attributes[index].length;
+				}
+			}
+		}
+		if (!found_attribute) {
+			mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+			return 0;
+		}
+	} else {
+		/* Attribute List */
+		for (index = found_attribute = 0; MAM_Attributes[index].length; index++) {
+			/* calculate available data length */
+			ret_val += 2;
+			if (ret_val < alloc_len) {
+				/* add it to output */
+				buf[byte_index++] = MAM_Attributes[index].attribute >> 8;
+				buf[byte_index++] = MAM_Attributes[index].attribute;
+			}
+		}
 	}
-return ret_val;
+
+	buf[0] = ret_val >> 24;
+	buf[1] = ret_val >> 16;
+	buf[2] = ret_val >> 8;
+	buf[3] = ret_val;
+
+	if (ret_val > alloc_len)
+		ret_val = alloc_len;
+
+	return ret_val;
+}
+
+/*
+ * Process WRITE ATTRIBUTE scsi command
+ * Returns 0 if OK
+ *         or 1 if MAM needs to be written.
+ *         or -1 on failure.
+ */
+static s32 resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, struct MAM *mam, uint8_t *sense_flg)
+{
+	u32 *lp;
+	u32 alloc_len;
+	int byte_index;
+	int index, attribute, attribute_length, found_attribute = 0;
+
+	lp = (u32 *)&SCpnt[10];
+	alloc_len = ntohl(*lp);
+
+	/* this is too simple, as it will change the mam in memory even
+	 * if some of the data is wrong.
+	 */
+	for (byte_index = 4; byte_index < alloc_len; ) {
+		attribute = ((u16)buf[byte_index++] << 8);
+		attribute += buf[byte_index++];
+		syslog(LOG_DAEMON|LOG_WARNING, "processing attribute 0x%x",
+						attribute);
+		for (index = found_attribute = 0; MAM_Attributes[index].length; index++) {
+			if (attribute == MAM_Attributes[index].attribute) {
+				syslog(LOG_DAEMON|LOG_WARNING,
+					"matched attribute 0x%x", attribute);
+				found_attribute = 1;
+				byte_index += 1;
+				attribute_length = ((u16)buf[byte_index++] << 8);
+				attribute_length += buf[byte_index++];
+				if ((attribute = 0x408) &&
+					(attribute_length == 1) &&
+						(buf[byte_index] == 0x80)) {
+					/* set media to worm */
+					syslog(LOG_DAEMON|LOG_WARNING,
+						"Converting media to WORM");
+					mam->MediumType = MEDIA_TYPE_WORM;
+				} else {
+					memcpy(MAM_Attributes[index].value,
+						&buf[byte_index],
+						MAM_Attributes[index].length);
+				}
+				byte_index += attribute_length;
+				break;
+			} else {
+				found_attribute = 0;
+			}
+		}
+		if (!found_attribute)
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sense_flg);
+	}
+	return found_attribute;
 }
 
 /*
@@ -1248,7 +1372,7 @@ static int resp_rewind(uint8_t * sense_flg) {
 		return 2;
 	}
 
-	if (mam.tape_fmt_version != TAPE_FMT_VERIONS) {
+	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		syslog(LOG_DAEMON|LOG_INFO, "Incorrect media format");
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
 		DEBC( print_header(&c_pos);) ;
@@ -1595,12 +1719,13 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			break;
 		}
 		/* Only support Service Action - Attribute Values */
-		if (SCpnt[1]) {
+		if (SCpnt[1] < 2)
+			ret += resp_read_attribute(SCpnt, buf, sense_flg);
+		else {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sense_flg);
 			break;
 		}
-		ret += resp_read_attribute(SCpnt, buf, sense_flg);
 		if (verbose > 1) {
 			syslog(LOG_DAEMON|LOG_INFO,
 				" dump return data, length: %d", ret);
@@ -1824,13 +1949,8 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 			syslog(LOG_DAEMON|LOG_INFO,
 				"  --> Expected to read %d bytes"
 				", read %d", count, block_size);
-		if (resp_write_attribute(buf, count, &mam, sense_flg) == 1) {
-			count = c_pos.blk_number;
+		if (resp_write_attribute(SCpnt, buf, count, &mam, sense_flg))
 			rewriteMAM(&mam, sense_flg);
-			// resp_rewind() will clean up for us..
-			resp_rewind(sense_flg);
-		}
-
 		break;
 
 	case WRITE_FILEMARKS:
@@ -1858,21 +1978,21 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case ACCESS_CONTROL_IN:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-				"Access control in - Unsupported **");
+			"*** Unsupported command ACCESS CONTROL IN **");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
 
 	case ACCESS_CONTROL_OUT:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-				"Access control out - Unsupported **");
+			"*** Unsupported command ACCESS CONTROL OUT **");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
 
 	case EXTENDED_COPY:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-				"Extended copy - Unsupported **");
+			"*** Unsupported command EXTENDED COPY **");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
 
@@ -1887,14 +2007,14 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case PERSISTENT_RESERVE_IN:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-				"Persistent reserve in - Unsupported **");
+			"*** Unsupported command PERSISTENT RESERVE IN **");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
 
 	case PERSISTENT_RESERVE_OUT:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-				"Persistent reserve out - Unsupported **");
+			"*** Unsupported command PERSISTENT RESERVE OUT **");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
 		break;
 

@@ -33,7 +33,7 @@
 // #define B_CLEANING 9	// Cleaning cartridge
 #define B_WORM 10	// Write Once Read Many media type
 
-#define TAPE_FMT_VERIONS	1
+#define TAPE_FMT_VERSION	1
 
 /*
  * Header before each block of data in 'file'
