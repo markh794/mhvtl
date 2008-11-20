@@ -259,6 +259,7 @@ int32_t resp_read_position(loff_t, uint8_t *, uint8_t *);
 int32_t resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
 int32_t resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int32_t resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t *);
+//int32_t resp_write_attribute(uint8_t *, uint64_t, struct MAM *, uint8_t *);
 struct mode *find_pcode(uint8_t, struct mode *);
 struct mode *alloc_mode_page(uint8_t, struct mode *, int32_t);
 
@@ -271,3 +272,4 @@ int oom_adjust(void);
 
 int resp_a3_service_action(uint8_t *cdb, uint8_t *sense_flg);
 int resp_a4_service_action(uint8_t *cdb, uint8_t *sense_flg);
+int ProcessSendDiagnostic(uint8_t *SCpnt, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sense_flg);

@@ -821,3 +821,10 @@ int resp_a4_service_action(uint8_t *cdb, uint8_t *sense_flg)
 	}
 	return 0;
 }
+
+int ProcessSendDiagnostic(uint8_t *SCpnt, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sense_flg)
+{
+	syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostics not implemented");
+	return 0;
+}
+

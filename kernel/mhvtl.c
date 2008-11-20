@@ -803,6 +803,22 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		if (errsts == 0)
 			return resp_write_to_user(SCpnt, devip, num);
 		break;
+	case SEND_DIAGNOSTIC:
+		/* Calculate the size of data to 'write' */
+		num   = (cmd[3] << 8) +
+			 cmd[4];
+		// Check for buffer overflow..
+		if (num > devip->rw_buf_sz) {
+			mk_sense_buffer(devip, ILLEGAL_REQUEST,
+					 	INVALID_FIELD_IN_CDB,0);
+			errsts = check_condition_result;
+		}
+		errsts = q_cmd(SCpnt, done, devip);
+		if ((errsts == 0) && num)
+			return resp_write_to_user(SCpnt, devip, num);
+		if (errsts == 0)
+			return 0;
+		break;
 
 	default:	// Pass on to user space daemon to process
 		if ((errsts = check_reset(SCpnt, devip)))

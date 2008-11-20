@@ -603,7 +603,7 @@ static int retrieve_CDB_data(int cdev, uint8_t *buf, int count) {
 			"retrieving %d bytes from char dev, bufsize: %d",
 					count, bufsize);
 
-	return (read(cdev, buf, bufsize));
+	return (read(cdev, buf, count));
 }
 
 /*
@@ -1973,6 +1973,13 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
+		lp = (u32 *)&SCpnt[10];
+		count = ntohl(*lp);
+		if (count) {
+			// Read '*lp' bytes from char device...
+			block_size = retrieve_CDB_data(cdev, buf, count);
+			ProcessSendDiagnostic(SCpnt, 16, buf, block_size, sense_flg);
+		}
 		break;
 
 	case ACCESS_CONTROL_IN:

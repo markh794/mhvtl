@@ -237,9 +237,9 @@ static void decode_element_status(uint8_t *p)
 /*
  * Simple function to read 'count' bytes from the chardev into 'buf'.
  */
-static int retreive_CDB_data(int cdev, uint8_t *buf, uint32_t count) {
+static int retrieve_CDB_data(int cdev, uint8_t *buf, uint32_t count) {
 
-	return (read(cdev, buf, bufsize));
+	return (read(cdev, buf, count));
 }
 
 /*
@@ -251,7 +251,7 @@ static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf) {
 
 	alloc_len = (MODE_SELECT == cmd[0]) ? cmd[4] : ((cmd[7] << 8) | cmd[8]);
 
-	retreive_CDB_data(cdev, buf, alloc_len);
+	retrieve_CDB_data(cdev, buf, alloc_len);
 
 	DEBC(	for (k = 0; k < alloc_len; k++)
 			printf("%02x ", (uint32_t)buf[k]);
@@ -1391,6 +1391,8 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 	uint32_t	ret = 5L;	// At least 4 bytes for Sense & 4 for S/No.
 	int	k = 0;
 	struct	mode *smp = sm;
+	u32	count;
+	u32	*lp;
 
 	switch(SCpnt[0]) {
 	case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
@@ -1512,6 +1514,18 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 			break;
 		if ( ! libraryOnline)
 			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sense_flg);
+		break;
+
+	case SEND_DIAGNOSTIC:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
+		lp = (u32 *)&SCpnt[10];
+		count = ntohl(*lp);
+		if (count) {
+			// Read '*lp' bytes from char device...
+			block_size = retrieve_CDB_data(cdev, buf, count);
+			ProcessSendDiagnostic(SCpnt, 16, buf, block_size, sense_flg);
+		}
 		break;
 
 	default:
