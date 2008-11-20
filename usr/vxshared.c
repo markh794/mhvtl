@@ -781,23 +781,27 @@ int oom_adjust(void)
 	return 0;
 }
 
+void log_opcode(char *opcode, uint8_t *cdb, uint8_t *sense_flg)
+{
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO, "*** Unsupported op code: %s ***",
+				opcode);
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+	logSCSICommand(cdb);
+}
+
 int resp_a3_service_action(uint8_t *cdb, uint8_t *sense_flg)
 {
 	uint8_t sa = cdb[1];
 	switch(sa) {
 	case MANAGEMENT_PROTOCOL_IN:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Management protocol in - Unsupported **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		log_opcode("MANAGEMENT PROTOCOL IN **", cdb, sense_flg);
 		break;
 	case REPORT_ALIASES:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Report Aliases - Unsupported **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		log_opcode("REPORT ALIASES **", cdb, sense_flg);
 		break;
 	}
+	log_opcode("Unknown service action A3 **", cdb, sense_flg);
 	return 0;
 }
 
@@ -807,24 +811,20 @@ int resp_a4_service_action(uint8_t *cdb, uint8_t *sense_flg)
 
 	switch(sa) {
 	case MANAGEMENT_PROTOCOL_OUT:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Management protocol out - Unsupported **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		log_opcode("MANAGEMENT PROTOCOL OUT **", cdb, sense_flg);
 		break;
 	case CHANGE_ALIASES:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Change Aliases - Unsupported **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		log_opcode("CHANGE ALIASES **", cdb, sense_flg);
 		break;
 	}
+	log_opcode("Unknown service action A4 **", cdb, sense_flg);
 	return 0;
 }
 
 int ProcessSendDiagnostic(uint8_t *SCpnt, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sense_flg)
 {
-	syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostics not implemented");
+	syslog(LOG_DAEMON|LOG_INFO,
+			"*** Unsupported op code: SEND DIAGNOSTICS **");
 	return 0;
 }
 

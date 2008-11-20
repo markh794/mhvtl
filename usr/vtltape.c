@@ -1481,24 +1481,313 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 		break;
 
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB, sense_flg);
 		break;
 	}
+}
+
+static char * sps_pg0 = "Tape Data Encyrption in Support page";
+static char * sps_pg1 = "Tape Data Encyrption Out Support Page";
+static char * sps_pg16 = "Data Encryption Capabilities page";
+static char * sps_pg17 = "Supported key formats page";
+static char * sps_pg18 = "Data Encryption management capabilities page";
+static char * sps_pg32 = "Data Encryption Status page";
+static char * sps_pg33 = "Next Block Encryption Status Page";
+static char * sps_pg48 = "Random Number Page";
+static char * sps_pg49 = "Device Server Key Wrapping Public Key page";
+static char * sps_reserved = "Security Protcol Specific : reserved value";
+
+static char * lookup_sp_specific(uint16_t field)
+{
+	syslog(LOG_DAEMON|LOG_INFO, "%s: lookup %d\n", __func__, field);
+	switch (field) {
+	case 0:	return sps_pg0;
+	case 1: return sps_pg1;
+	case 16: return sps_pg16;
+	case 17: return sps_pg17;
+	case 18: return sps_pg18;
+	case 32: return sps_pg32;
+	case 33: return sps_pg33;
+	case 48: return sps_pg48;
+	case 49: return sps_pg49;
+	default: return sps_reserved;
+	break;
+	}
+}
+
+#define SUPPORTED_SECURITY_PROTOCOL_LIST 0
+#define CERTIFICATE_DATA		 1
+
+/* FIXME:
+ * Took this certificate from my Ubuntu install
+ *          /usr/share/libssl-dev/demos/sign/key.pem
+ * Need to insert a certificate of my own here...
+ */
+static char *certificate =
+"-----BEGIN CERTIFICATE-----\n"
+"MIICLDCCAdYCAQAwDQYJKoZIhvcNAQEEBQAwgaAxCzAJBgNVBAYTAlBUMRMwEQYD\n"
+"VQQIEwpRdWVlbnNsYW5kMQ8wDQYDVQQHEwZMaXNib2ExFzAVBgNVBAoTDk5ldXJv\n"
+"bmlvLCBMZGEuMRgwFgYDVQQLEw9EZXNlbnZvbHZpbWVudG8xGzAZBgNVBAMTEmJy\n"
+"dXR1cy5uZXVyb25pby5wdDEbMBkGCSqGSIb3DQEJARYMc2FtcG9AaWtpLmZpMB4X\n"
+"DTk2MDkwNTAzNDI0M1oXDTk2MTAwNTAzNDI0M1owgaAxCzAJBgNVBAYTAlBUMRMw\n"
+"EQYDVQQIEwpRdWVlbnNsYW5kMQ8wDQYDVQQHEwZMaXNib2ExFzAVBgNVBAoTDk5l\n"
+"dXJvbmlvLCBMZGEuMRgwFgYDVQQLEw9EZXNlbnZvbHZpbWVudG8xGzAZBgNVBAMT\n"
+"EmJydXR1cy5uZXVyb25pby5wdDEbMBkGCSqGSIb3DQEJARYMc2FtcG9AaWtpLmZp\n"
+"MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL7+aty3S1iBA/+yxjxv4q1MUTd1kjNw\n"
+"L4lYKbpzzlmC5beaQXeQ2RmGMTXU+mDvuqItjVHOK3DvPK7lTcSGftUCAwEAATAN\n"
+"BgkqhkiG9w0BAQQFAANBAFqPEKFjk6T6CKTHvaQeEAsX0/8YHPHqH/9AnhSjrwuX\n"
+"9EBc0n6bVGhN7XaXd6sJ7dym9sbsWxb+pJdurnkxjx4=\n"
+"-----END CERTIFICATE-----\n";
+
+/*
+ * Returns number of bytes in struct
+ */
+static int resp_sp_in_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sense_flg)
+{
+	int ret = 0;
+
+	syslog(LOG_DAEMON|LOG_INFO, "%s: %s\n",
+			 __func__, lookup_sp_specific(sps));
+
+	switch(sps) {
+	case SUPPORTED_SECURITY_PROTOCOL_LIST:
+		memset(buf, 0, alloc_len);
+		buf[6] = 0;	/* list length (MSB) */
+		buf[7] = 2;	/* list length (LSB) */
+		buf[8] = SUPPORTED_SECURITY_PROTOCOL_LIST;
+		buf[9] = CERTIFICATE_DATA;
+		ret = 10;
+		break;
+
+	case CERTIFICATE_DATA:
+		memset(buf, 0, alloc_len);
+		buf[2] = (sizeof(certificate) >> 8) & 0xff;
+		buf[3] = sizeof(certificate) & 0xff;
+		strncpy((char *)&buf[4], certificate, alloc_len - 4);
+		if (strlen(certificate) >= alloc_len - 4)
+			ret = alloc_len;
+		else
+			ret = strlen(certificate) + 4;
+		break;
+
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sense_flg);
+	}
+	return ret;
+}
+
+#define ENCR_IN_SUPPORT_PAGES		0
+#define ENCR_OUT_SUPPORT_PAGES		1
+#define ENCR_CAPABILITIES		0x10
+#define ENCR_KEY_FORMATS		0x11
+#define ENCR_KEY_MGT_CAPABILITIES	0x12
+#define ENCR_DATA_ENCR_STATUS		0x20
+#define ENCR_NEXT_BLK_ENCR_STATUS	0x21
+
+#define ENCR_SET_DATA_ENCRYPTION	0x10
+
+/*
+ * Return number of valid bytes in data structure
+ */
+static int resp_sp_in_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sense_flg)
+{
+	int ret = 0;
+
+	syslog(LOG_DAEMON|LOG_INFO, "%s: %s\n",
+			 __func__, lookup_sp_specific(sps));
+
+	memset(buf, 0, alloc_len);
+	switch(sps) {
+	case ENCR_IN_SUPPORT_PAGES:
+		buf[0] = (ENCR_IN_SUPPORT_PAGES >> 8) & 0xff;
+		buf[1] = ENCR_IN_SUPPORT_PAGES & 0xff;
+		buf[2] = 0;	/* list length (MSB) */
+		buf[3] = 14;	/* list length (LSB) */
+		buf[4] = (ENCR_IN_SUPPORT_PAGES >> 8) & 0xff;
+		buf[5] = ENCR_IN_SUPPORT_PAGES && 0xff;
+		buf[6] = (ENCR_OUT_SUPPORT_PAGES >> 8) & 0xff;
+		buf[7] = ENCR_OUT_SUPPORT_PAGES & 0xff;
+		buf[8] = (ENCR_CAPABILITIES >> 8) & 0xff;
+		buf[9] = ENCR_CAPABILITIES & 0xff;
+		buf[10] = (ENCR_KEY_FORMATS >> 8) & 0xff;
+		buf[11] = ENCR_KEY_FORMATS & 0xff;
+		buf[12] = (ENCR_KEY_MGT_CAPABILITIES >> 8) & 0xff;
+		buf[13] = ENCR_KEY_MGT_CAPABILITIES & 0xff;
+		buf[14] = (ENCR_DATA_ENCR_STATUS >> 8) & 0xff;
+		buf[15] = ENCR_DATA_ENCR_STATUS & 0xff;
+		buf[16] = (ENCR_NEXT_BLK_ENCR_STATUS >> 8) & 0xff;
+		buf[17] = ENCR_NEXT_BLK_ENCR_STATUS & 0xff;
+		ret = 18;
+		break;
+
+	case ENCR_OUT_SUPPORT_PAGES:
+		buf[0] = (ENCR_OUT_SUPPORT_PAGES >> 8) & 0XFF;
+		buf[1] = ENCR_OUT_SUPPORT_PAGES & 0xff;
+		buf[2] = 0;	/* List length (MSB) */
+		buf[3] = 2;	/* List length (LSB) */
+		buf[4] = (ENCR_SET_DATA_ENCRYPTION >> 8) & 0xff;
+		buf[5] = ENCR_SET_DATA_ENCRYPTION & 0xff;
+		ret = 6;
+		break;
+
+	case ENCR_CAPABILITIES:
+		buf[0] = (ENCR_CAPABILITIES >> 8) & 0xff;
+		buf[1] = ENCR_CAPABILITIES & 0xff;
+		buf[2] = 0;	/* List length (MSB) */
+		buf[3] = 40;	/* List length (LSB) */
+
+		buf[20] = 1;	/* Algorithm index */
+		buf[21] = 0;	/* Reserved */
+		buf[22] = 0;	/* Descriptor length (0x14) */
+		buf[23] = 0x14;	/* Descriptor length (0x14) */
+		buf[24] = 0x3a;	/* See table 202 of IBM Ultrium doco */
+		buf[25] = 0x30;	/* See table 202 of IBM Ultrium doco */
+		buf[25] = 0;	/* Max unauthenticated key data */
+		buf[26] = 0x20;	/* Max unauthenticated key data */
+		buf[27] = 0;	/* Max authenticated key data */
+		buf[28] = 0x0c;	/* Max authenticated key data */
+		buf[29] = 0;	/* Key size */
+		buf[30] = 0x20;	/* Key size */
+		/* buf 12 - 19 reserved */
+		buf[39] = 0;	/* Encryption Algorithm Id */
+		buf[40] = 0;	/* Encryption Algorithm Id */
+		buf[41] = 0;	/* Encryption Algorithm Id */
+		buf[42] = 0x14;	/* Encryption Algorithm Id */
+		ret = 48;
+		break;
+
+	case ENCR_KEY_FORMATS:
+		buf[0] = (ENCR_KEY_FORMATS >> 8) & 0xff;
+		buf[1] = ENCR_KEY_FORMATS & 0xff;
+		buf[2] = 0;	/* List length (MSB) */
+		buf[3] = 2;	/* List length (MSB) */
+		buf[4] = 0;	/* Plain text */
+		buf[5] = 0;	/* Plain text */
+		ret = 6;
+		break;
+
+	case ENCR_KEY_MGT_CAPABILITIES:
+		buf[0] = (ENCR_KEY_MGT_CAPABILITIES >> 8) & 0xff;
+		buf[1] = ENCR_KEY_MGT_CAPABILITIES & 0xff;
+		buf[2] = 0;	/* List length (MSB) */
+		buf[3] = 0x0c;	/* List length (MSB) */
+		buf[4] = 1;	/* LOCK_C */
+		buf[5] = 7;	/* CKOD_C, DKOPR_C, CKORL_C */
+		buf[6] = 0;	/* Reserved */
+		buf[7] = 7;	/* AITN_C, LOCAL_C, PUBLIC_C */
+		/* buf 8 - 15 reserved */
+		ret = 16;
+		break;
+
+	case ENCR_DATA_ENCR_STATUS:
+		buf[0] = (ENCR_DATA_ENCR_STATUS >> 8) & 0xff;
+		buf[1] = ENCR_DATA_ENCR_STATUS & 0xff;
+		buf[2] = 0;	/* List length (MSB) */
+		buf[3] = 2;	/* List length (MSB) */
+		ret = 6;
+		break;
+	case ENCR_NEXT_BLK_ENCR_STATUS:
+		buf[0] = (ENCR_NEXT_BLK_ENCR_STATUS >> 8) & 0xff;
+		buf[1] = ENCR_NEXT_BLK_ENCR_STATUS & 0xff;
+		buf[2] = 0;	/* List length (MSB) */
+		buf[3] = 2;	/* List length (MSB) */
+		ret = 6;
+		break;
+
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sense_flg);
+	}
+	return ret;
+}
+
+/*
+ * Retrieve Security Protocol Information
+ */
+#define SECURITY_PROTOCOL_INFORMATION 0
+#define TAPE_DATA_ENCRYPTION 0x20
+
+static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sense_flg)
+{
+	uint16_t sps = ((cdb[2] & 0xff) << 8) + (cdb[3] & 0xff);
+	uint32_t alloc_len = ((cdb[6] & 0xff) << 24) +
+				((cdb[7] & 0xff) << 16) +
+				((cdb[8] & 0xff) << 8) +
+				(cdb[9] & 0xff);
+	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
+
+	if (inc_512)
+		alloc_len = alloc_len * 512;
+
+	switch(cdb[1]) {
+	case SECURITY_PROTOCOL_INFORMATION:
+		return resp_sp_in_page_0(buf, sps, alloc_len, sense_flg);
+		break;
+
+	case TAPE_DATA_ENCRYPTION:
+		return resp_sp_in_page_20(buf, sps, alloc_len, sense_flg);
+		break;
+	}
+
+	syslog(LOG_DAEMON|LOG_INFO,
+			"%s: security protocol 0x%04x unknown\n",
+				__func__, cdb[1]);
+
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sense_flg);
+	return 0;
+}
+
+static int resp_spout(uint8_t *cdb, uint8_t *buf, uint8_t *sense_flg)
+{
+	uint16_t sps = ((cdb[2] | 0xff) << 8) +
+						(cdb[3] | 0xff);
+	uint32_t alloc_len = ((cdb[6] & 0xff) << 24) +
+				((cdb[7] & 0xff) << 16) +
+				((cdb[8] & 0xff) << 8) +
+				(cdb[9] & 0xff);
+	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
+
+	if (inc_512)
+		alloc_len = alloc_len * 512;
+
+	if (cdb[1] != TAPE_DATA_ENCRYPTION) {
+		syslog(LOG_DAEMON|LOG_INFO,
+			"%s: security protocol 0x%02x unknown\n",
+				__func__, cdb[1]);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB, sense_flg);
+		return 0;
+	}
+	syslog(LOG_DAEMON|LOG_INFO,
+			"%s: Tape Data Encryption, %s, "
+			" alloc len: 0x%02x, inc_512: %s\n",
+				__func__, lookup_sp_specific(sps),
+				alloc_len, (inc_512) ? "Set" : "Unset");
+	return 0;
 }
 
 /*
  * Writes data in struct mam back to beginning of datafile..
  * Returns 0 if nothing written or -1 on error
  */
-static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg) {
+static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg)
+{
 	loff_t nwrite = 0;
+
+	// Start at beginning of datafile..
+	lseek64(datafile, 0L, SEEK_SET);
+
+	/* Update the c_pos data struct.
+	 * If this is not the BOT header we are in trouble
+	 * Just using this to position to MAM
+	 */
+	nwrite = read(datafile, &c_pos, sizeof(c_pos));
+	if (nwrite != sizeof(c_pos)) {
+		mkSenseBuf(MEDIUM_ERROR, E_UNKNOWN_FORMAT, sense_flg);
+		return -1;
+	}
 
 	// Rewrite MAM data
 	nwrite = pwrite(datafile, mamp, sizeof(mam), sizeof(struct blk_header));
 	if (nwrite != sizeof(mam)) {
-		syslog(LOG_DAEMON|LOG_ERR, "Could not rewrite MAM"
-				" pwrite returned %d, should have been %d : %m",
-				(int)nwrite, (int)sizeof(mam));
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
 		return -1;
 	}
@@ -1509,7 +1798,8 @@ static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg) {
 /*
  * Update MAM contents with current counters
  */
-static void updateMAM(struct MAM *mamp, uint8_t *sense_flg, int loadCount) {
+static void updateMAM(struct MAM *mamp, uint8_t *sense_flg, int loadCount)
+{
 	u64 bw;		// Bytes Written
 	u64 br;		// Bytes Read
 	u64 load;	// load count
@@ -1971,34 +2261,41 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		lp = (u16 *)&SCpnt[3];
+		sp = (u16 *)&SCpnt[3];
 		count = ntohs(*sp);
 		if (count) {
-			// Read '*lp' bytes from char device...
 			block_size = retrieve_CDB_data(cdev, buf, count);
 			ProcessSendDiagnostic(SCpnt, 16, buf, block_size, sense_flg);
 		}
 		break;
 
-	case ACCESS_CONTROL_IN:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-			"*** Unsupported command ACCESS CONTROL IN **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+	case PERSISTENT_RESERVE_IN:
+		log_opcode("PERSISTENT RESERVE IN ***", SCpnt, sense_flg);
 		break;
 
-	case ACCESS_CONTROL_OUT:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-			"*** Unsupported command ACCESS CONTROL OUT **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+	case PERSISTENT_RESERVE_OUT:
+		log_opcode("PERSISTENT RESERVE OUT ***", SCpnt, sense_flg);
 		break;
 
-	case EXTENDED_COPY:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-			"*** Unsupported command EXTENDED COPY **");
+	case SECURITY_PROTOCOL_IN:
+		syslog(LOG_DAEMON|LOG_INFO,
+				"Security Protocol In - Under Development **");
+//		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		logSCSICommand(SCpnt);
+		ret += resp_spin(SCpnt, buf, sense_flg);
+		syslog(LOG_DAEMON|LOG_INFO,
+				"Returning %d bytes\n", ret);
+		break;
+
+	case SECURITY_PROTOCOL_OUT:
+		syslog(LOG_DAEMON|LOG_INFO,
+				"Security Protocol Out - Under Development **");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		logSCSICommand(SCpnt);
+		nread = retrieve_CDB_data(cdev, buf, bufsize);
+		ret += resp_spout(SCpnt, buf, sense_flg);
+		syslog(LOG_DAEMON|LOG_INFO,
+				"Returning %d bytes\n", ret);
 		break;
 
 	case A3_SA:
@@ -2009,39 +2306,20 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		resp_a4_service_action(SCpnt, sense_flg);
 		break;
 
-	case PERSISTENT_RESERVE_IN:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-			"*** Unsupported command PERSISTENT RESERVE IN **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+	case ACCESS_CONTROL_IN:
+		log_opcode("ACCESS CONTROL IN ***", SCpnt, sense_flg);
 		break;
 
-	case PERSISTENT_RESERVE_OUT:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-			"*** Unsupported command PERSISTENT RESERVE OUT **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+	case ACCESS_CONTROL_OUT:
+		log_opcode("ACCESS CONTROL OUT ***", SCpnt, sense_flg);
 		break;
 
-	case SECURITY_PROTOCOL_IN:
-		syslog(LOG_DAEMON|LOG_ERR,
-			"*** Unsupported command SECURITY PROTOCOL IN ***");
-		logSCSICommand(SCpnt);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
-		break;
-
-	case SECURITY_PROTOCOL_OUT:
-		syslog(LOG_DAEMON|LOG_ERR,
-			"*** Unsupported command SECURITY PROTOCOL OUT ***");
-		logSCSICommand(SCpnt);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+	case EXTENDED_COPY:
+		log_opcode("EXTENDED COPY ***", SCpnt, sense_flg);
 		break;
 
 	default:
-		syslog(LOG_DAEMON|LOG_ERR, "*** Unsupported command 0x%02x ***",
-				SCpnt[0]);
-		logSCSICommand(SCpnt);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		log_opcode("Unknown OP code ***", SCpnt, sense_flg);
 		break;
 	}
 	return ret;
