@@ -622,7 +622,7 @@ static int skip_prev_filemark(uint8_t *sense_flg) {
 	DEBC( print_header(&c_pos);) ;
 	while(c_pos.blk_type != B_FILEMARK) {
 		if (c_pos.blk_type == B_BOT) {
-			mkSenseBuf(NO_ADDITIONAL_SENSE, E_BOM, sense_flg);
+			mkSenseBuf(NO_SENSE, E_BOM, sense_flg);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 						"Found Beginning of tape");
@@ -647,7 +647,7 @@ static int skip_next_filemark(uint8_t *sense_flg) {
 	while(c_pos.blk_type != B_FILEMARK) {
 		// END-OF-DATA -> Treat this as an error - return..
 		if (c_pos.blk_type == B_EOD) {
-			mkSenseBuf(NO_ADDITIONAL_SENSE, E_END_OF_DATA,
+			mkSenseBuf(NO_SENSE, E_END_OF_DATA,
 								 sense_flg);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
@@ -1006,7 +1006,7 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
 
 	memset(buf, 0, alloc_len);	// Clear memory
 
-	if (SCpnt[1] < 2) {
+	if (SCpnt[1] == 0) {
 		/* Attribute Values */
 		for (index = found_attribute = 0; MAM_Attributes[index].length; index++) {
 			if (attribute == MAM_Attributes[index].attribute) {
@@ -1142,7 +1142,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 		return nread;
 		break;
 	case B_EOD:
-		mkSenseBuf(NO_ADDITIONAL_SENSE, E_END_OF_DATA, sense_flg);
+		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
 		return nread;
 		break;
 	case B_BOT:
@@ -1176,7 +1176,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 				"End of data detected when reading from file");
-			mkSenseBuf(NO_ADDITIONAL_SENSE, E_END_OF_DATA,
+			mkSenseBuf(NO_SENSE, E_END_OF_DATA,
 								sense_flg);
 			free(comp_buf);
 			return 0;
@@ -1227,7 +1227,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 				"End of data detected when reading from file");
-			mkSenseBuf(NO_ADDITIONAL_SENSE, E_END_OF_DATA,
+			mkSenseBuf(NO_SENSE, E_END_OF_DATA,
 								sense_flg);
 			return nread;
 		} else if (nread < 0) {	// Error
@@ -1312,7 +1312,7 @@ static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
 	}
 	if (c_pos.curr_blk >= max_tape_capacity) {
 		syslog(LOG_DAEMON|LOG_INFO, "End of Medium - Setting EOM flag");
-		mkSenseBuf(NO_ADDITIONAL_SENSE|EOM_FLAG, NO_ADDITIONAL_SENSE,
+		mkSenseBuf(NO_SENSE|EOM_FLAG, NO_ADDITIONAL_SENSE,
 								sense_flg);
 	}
 
