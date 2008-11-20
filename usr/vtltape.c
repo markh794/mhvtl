@@ -1103,7 +1103,7 @@ static int resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, str
 			}
 		}
 		if (!found_attribute) {
-			memcpy(&mam, &mam_bkup, sizeof(struct MAM));
+			memcpy(&mam, &mam_backup, sizeof(struct MAM));
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sense_flg);
 			return 0;
 		}
@@ -1971,8 +1971,8 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		lp = (u32 *)&SCpnt[10];
-		count = ntohl(*lp);
+		sp = (u16 *)&SCpnt[3];
+		count = ntohs(*sp);
 		if (count) {
 			// Read '*lp' bytes from char device...
 			block_size = retrieve_CDB_data(cdev, buf, count);
