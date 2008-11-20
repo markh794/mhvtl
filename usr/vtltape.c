@@ -2112,7 +2112,7 @@ static int load_tape(char *PCL, uint8_t *sense_flg) {
 	//	Lost Statics
 	//	Tape system read failure.
 	if (mam.record_dirty != 0) {
-		fg = 0xa000000000000ull;
+		fg = 0x12000000000000ull;
 		syslog(LOG_DAEMON|LOG_WARNING, "Previous unload was not clean");
 	}
 
