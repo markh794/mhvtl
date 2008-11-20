@@ -1063,7 +1063,7 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
  *         or 1 if MAM needs to be written.
  *         or -1 on failure.
  */
-static s32 resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, struct MAM *mam, uint8_t *sense_flg)
+static int resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, struct MAM *mam, uint8_t *sense_flg)
 {
 	u32 *lp;
 	u32 alloc_len;

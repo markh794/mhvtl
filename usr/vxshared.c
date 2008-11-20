@@ -58,16 +58,16 @@
 #endif
 
 extern u8 blockDescriptorBlock[];
-extern s32 verbose;
+extern int verbose;
 
 DEB(
-extern s32 debug;
+extern int debug;
 ) ;
 
 
-s32 send_msg(char *cmd, s32 q_id)
+int send_msg(char *cmd, int q_id)
 {
-	s32 len, s_qid;
+	int len, s_qid;
 	struct q_entry s_entry;
 	len = strlen(cmd);
 
@@ -93,9 +93,9 @@ s32 send_msg(char *cmd, s32 q_id)
  */
 void logSCSICommand(u8 * SCpnt)
 {
-	s32 groupCode;
-	s32 cmd_len = 6;
-	s32 k;
+	int groupCode;
+	int cmd_len = 6;
+	int k;
 
 	groupCode = (SCpnt[0] & 0xe0) >> 5;
 	switch(groupCode) {
@@ -185,11 +185,11 @@ void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sense_flg)
 				sense[0], sense[2], sense[12], sense[13]);
 }
 
-extern s32 reset;
+extern int reset;
 
-s32 check_reset(u8 *sense_flg)
+int check_reset(u8 *sense_flg)
 {
-	s32 retval = reset;
+	int retval = reset;
 
 	if (reset) {
 		mkSenseBuf(UNIT_ATTENTION, E_POWERON_RESET, sense_flg);
@@ -288,7 +288,7 @@ void resp_log_select(u8 * SCpnt, u8 * sense_flg)
  *           - Number of Setmarks between the beginning of the partiion and
  *           - the logical position.
  */
-s32 resp_read_position_long(loff_t pos, u8 * buf, u8 * sense_flg)
+int resp_read_position_long(loff_t pos, u8 * buf, u8 * sense_flg)
 {
 	u64 partition = 1;
 	u64 *lp;
@@ -309,7 +309,7 @@ return(READ_POSITION_LONG_LEN);
 
 #define READ_POSITION_LEN 20
 /* Return tape position - short format */
-s32 resp_read_position(loff_t pos, u8 * buf, u8 * sense_flg)
+int resp_read_position(loff_t pos, u8 * buf, u8 * sense_flg)
 {
 	u64 *lp;
 
@@ -327,7 +327,7 @@ return(READ_POSITION_LEN);
 /*
  * Copy data in struct 'report_luns' into bufer and return length
  */
-s32 resp_report_lun(struct report_luns * rpLUNs, u8 *buf, u8 *sense_flg)
+int resp_report_lun(struct report_luns * rpLUNs, u8 *buf, u8 *sense_flg)
 {
 	u64 size = ntohl(rpLUNs->size) + 8;
 
@@ -338,7 +338,7 @@ s32 resp_report_lun(struct report_luns * rpLUNs, u8 *buf, u8 *sense_flg)
 /*
  * Respond with S/No. of media currently mounted
  */
-s32 resp_read_media_serial(u8 *sno, u8 *buf, u8 *sense_flg)
+int resp_read_media_serial(u8 *sno, u8 *buf, u8 *sense_flg)
 {
 	u64 size = 0L;
 
@@ -353,7 +353,7 @@ s32 resp_read_media_serial(u8 *sno, u8 *buf, u8 *sense_flg)
  */
 struct mode *find_pcode(u8 pcode, struct mode *m)
 {
-	s32 a;
+	int a;
 
 	DEBC(	 printf("Entered: %s(0x%x)\n", __func__, pcode);
 		fflush(NULL);
@@ -387,7 +387,7 @@ struct mode *find_pcode(u8 pcode, struct mode *m)
  * Add data for pcode to buffer pointed to by p
  * Return: Number of chars moved.
  */
-static s32 add_pcode(struct mode *m, u8 *p)
+static int add_pcode(struct mode *m, u8 *p)
 {
 	memcpy(p, m->pcodePointer, m->pcodeSize);
 	return(m->pcodeSize);
@@ -403,7 +403,7 @@ static s32 add_pcode(struct mode *m, u8 *p)
  *
  * Return pointer to mode structure being init. or NULL if alloc failed
  */
-struct mode * alloc_mode_page(u8 pcode, struct mode *m, s32 size)
+struct mode * alloc_mode_page(u8 pcode, struct mode *m, int size)
 {
 	struct mode * mp;
 
@@ -427,17 +427,17 @@ struct mode * alloc_mode_page(u8 pcode, struct mode *m, s32 size)
  * Build mode sense data into *buf
  * Return size of data.
  */
-s32 resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
+int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
 {
-	s32 pcontrol, pcode, subpcode;
-	s32 media_type;
-	s32 alloc_len, msense_6;
-	s32 dev_spec, len = 0;
-	s32 offset = 0;
+	int pcontrol, pcode, subpcode;
+	int media_type;
+	int alloc_len, msense_6;
+	int dev_spec, len = 0;
+	int offset = 0;
 	u8 * ap;
 	u16 *sp;		/* Short pointer */
 	struct mode *smp;	/* Struct mode pointer... */
-	s32 a;
+	int a;
 
 	char *pcontrolString[] = {
 		"Current configuration",
