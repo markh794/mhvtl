@@ -1069,22 +1069,17 @@ static int resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, str
 	u32 alloc_len;
 	int byte_index;
 	int index, attribute, attribute_length, found_attribute = 0;
+	struct MAM mam_backup;
 
 	lp = (u32 *)&SCpnt[10];
 	alloc_len = ntohl(*lp);
 
-	/* this is too simple, as it will change the mam in memory even
-	 * if some of the data is wrong.
-	 */
+	memcpy(&mam_backup, &mam, sizeof(struct MAM));
 	for (byte_index = 4; byte_index < alloc_len; ) {
 		attribute = ((u16)buf[byte_index++] << 8);
 		attribute += buf[byte_index++];
-		syslog(LOG_DAEMON|LOG_WARNING, "processing attribute 0x%x",
-						attribute);
 		for (index = found_attribute = 0; MAM_Attributes[index].length; index++) {
 			if (attribute == MAM_Attributes[index].attribute) {
-				syslog(LOG_DAEMON|LOG_WARNING,
-					"matched attribute 0x%x", attribute);
 				found_attribute = 1;
 				byte_index += 1;
 				attribute_length = ((u16)buf[byte_index++] << 8);
@@ -1107,8 +1102,11 @@ static int resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, str
 				found_attribute = 0;
 			}
 		}
-		if (!found_attribute)
+		if (!found_attribute) {
+			memcpy(&mam, &mam_bkup, sizeof(struct MAM));
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sense_flg);
+			return 0;
+		}
 	}
 	return found_attribute;
 }
