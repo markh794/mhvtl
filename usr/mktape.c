@@ -129,7 +129,7 @@ main(int argc, char *argv[]) {
 	mam.MAMSpaceRemaining = htonll(sizeof(mam.VendorUnique));
 	mam.MediumLength = htonl(384);	// 384 tracks
 	mam.MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-	memcpy(&mam.MediumManufacturer, "Mark    ", 8);
+	memcpy(&mam.MediumManufacturer, "VERITAS ", 8);
 	memcpy(&mam.ApplicationVendor, "Harvey  ", 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
