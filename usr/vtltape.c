@@ -279,7 +279,7 @@ static struct report_luns report_luns = {
  */
 
 // Used by Mode Sense - if set, return block descriptor
-uint8_t blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0, };
+uint8_t blockDescriptorBlock[8] = {0x10, 0, 0, 0, 0, 0, 0, 0, };
 
 static struct mode sm[] = {
 //	Page,  subpage, len, 'pointer to data struct'
