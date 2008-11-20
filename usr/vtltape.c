@@ -1971,7 +1971,7 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		sp = (u16 *)&SCpnt[3];
+		lp = (u16 *)&SCpnt[3];
 		count = ntohs(*sp);
 		if (count) {
 			// Read '*lp' bytes from char device...
