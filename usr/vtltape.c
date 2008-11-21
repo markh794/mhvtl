@@ -406,7 +406,7 @@ static int skip_to_next_header(uint8_t * sense_flg) {
 	loff_t nread;
 
 	if (c_pos.blk_type == B_EOD) {
-		mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sense_flg);
+		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
 		if (verbose)
 		    syslog(LOG_DAEMON|LOG_WARNING,
 			"End of data detected while forward SPACEing!!");
