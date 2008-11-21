@@ -365,8 +365,7 @@ static void print_header(struct blk_header *h) {
 
 static void
 mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid) {
-	u32 difference = requested - processed;
-	u32 * lp;
+	s32 difference = (s32)requested - (s32)processed;
 
 	/* No sense, ILI bit set */
 	mkSenseBuf(ILI, NO_ADDITIONAL_SENSE, sense_valid);
@@ -379,10 +378,10 @@ mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid) {
 					requested, processed, difference);
 
 	/* Now fill in the datablock with number of bytes not read/written */
-	sense[0] |= VALID;	/* Set Valid bit only */
-
-	lp = (u32 *)&sense[3];
-	*lp = htonl(difference);
+	sense[3] = difference >> 24;
+	sense[4] = difference >> 16;
+	sense[5] = difference >> 8;
+	sense[6] = difference;
 }
 
 static loff_t read_header(struct blk_header *h, int size, uint8_t *sense_flg) {
