@@ -646,8 +646,7 @@ static int skip_next_filemark(uint8_t *sense_flg) {
 	while(c_pos.blk_type != B_FILEMARK) {
 		// END-OF-DATA -> Treat this as an error - return..
 		if (c_pos.blk_type == B_EOD) {
-			mkSenseBuf(NO_SENSE, E_END_OF_DATA,
-								 sense_flg);
+			mkSenseBuf(NO_SENSE, E_END_OF_DATA, sense_flg);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 							"Found end of media");
@@ -1127,6 +1126,12 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 							request_sz);
 
 	DEBC( print_header(&c_pos);) ;
+
+	/* check for a zero length read */
+	if (request_sz == 0) {
+		/* This is not an error, and doesn't change the tape position */
+		return 0;
+	}
 
 	/* Read in block of data */
 	switch(c_pos.blk_type) {
