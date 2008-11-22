@@ -365,8 +365,7 @@ static void print_header(struct blk_header *h) {
 
 static void
 mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid) {
-	u32 difference = requested - processed;
-	u32 * lp;
+	int difference = (int)requested - (int)processed;
 
 	/* No sense, ILI bit set */
 	mkSenseBuf(ILI, NO_ADDITIONAL_SENSE, sense_valid);
@@ -379,10 +378,10 @@ mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid) {
 					requested, processed, difference);
 
 	/* Now fill in the datablock with number of bytes not read/written */
-	sense[0] |= VALID;	/* Set Valid bit only */
-
-	lp = (u32 *)&sense[3];
-	*lp = htonl(difference);
+	sense[3] = difference >> 24;
+	sense[4] = difference >> 16;
+	sense[5] = difference >> 8;
+	sense[6] = difference;
 }
 
 static loff_t read_header(struct blk_header *h, int size, uint8_t *sense_flg) {
@@ -407,7 +406,7 @@ static int skip_to_next_header(uint8_t * sense_flg) {
 	loff_t nread;
 
 	if (c_pos.blk_type == B_EOD) {
-		mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sense_flg);
+		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
 		if (verbose)
 		    syslog(LOG_DAEMON|LOG_WARNING,
 			"End of data detected while forward SPACEing!!");
@@ -647,8 +646,7 @@ static int skip_next_filemark(uint8_t *sense_flg) {
 	while(c_pos.blk_type != B_FILEMARK) {
 		// END-OF-DATA -> Treat this as an error - return..
 		if (c_pos.blk_type == B_EOD) {
-			mkSenseBuf(NO_SENSE, E_END_OF_DATA,
-								 sense_flg);
+			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 							"Found end of media");
@@ -1122,12 +1120,19 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 	uLongf	uncompress_sz;
 	uLongf	comp_buf_sz;
 	int	z;
+	u8	information[4];
 
 	if (verbose > 1)
 		syslog(LOG_DAEMON|LOG_WARNING, "Request to read: %d bytes",
 							request_sz);
 
 	DEBC( print_header(&c_pos);) ;
+
+	/* check for a zero length read */
+	if (request_sz == 0) {
+		/* This is not an error, and doesn't change the tape position */
+		return 0;
+	}
 
 	/* Read in block of data */
 	switch(c_pos.blk_type) {
@@ -1136,11 +1141,30 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			syslog(LOG_DAEMON|LOG_ERR,
 				"Expected to find hdr type: %d, found: %d",
 				 	B_UNCOMPRESS_DATA, c_pos.blk_type);
+		skip_to_next_header(sense_flg);
+		mk_sense_short_block(request_sz, 0, sense_flg);
+		information[0] = sense[3];
+		information[1] = sense[4];
+		information[2] = sense[5];
+		information[3] = sense[6];
 		mkSenseBuf(FILEMARK, E_MARK, sense_flg);
+		sense[3] = information[0];
+		sense[4] = information[1];
+		sense[5] = information[2];
+		sense[6] = information[3];
 		return nread;
 		break;
 	case B_EOD:
+		mk_sense_short_block(request_sz, 0, sense_flg);
+		information[0] = sense[3];
+		information[1] = sense[4];
+		information[2] = sense[5];
+		information[3] = sense[6];
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
+		sense[3] = information[0];
+		sense[4] = information[1];
+		sense[5] = information[2];
+		sense[6] = information[3];
 		return nread;
 		break;
 	case B_BOT:
@@ -1174,8 +1198,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 				"End of data detected when reading from file");
-			mkSenseBuf(NO_SENSE, E_END_OF_DATA,
-								sense_flg);
+			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
 			free(comp_buf);
 			return 0;
 		} else if (nread < 0) {	// Error
@@ -1200,6 +1223,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			free(comp_buf);
 			return 0;
 		}
+		nread = uncompress_sz;
 		// requested block and actual block size different
 		if (uncompress_sz != request_sz) {
 			syslog(LOG_DAEMON|LOG_WARNING,
@@ -1225,8 +1249,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 				"End of data detected when reading from file");
-			mkSenseBuf(NO_SENSE, E_END_OF_DATA,
-								sense_flg);
+			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
 			return nread;
 		} else if (nread < 0) {	// Error
 			syslog(LOG_DAEMON|LOG_ERR, "%m");
@@ -1946,8 +1969,8 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		ret += resp_mode_sense(SCpnt, buf, smp, sense_flg);
 		break;
 
-	case READ_12:
-	case READ_10:
+//	case READ_12:
+//	case READ_10:
 	case READ_6:
 		block_size = 	(SCpnt[2] << 16) +
 				(SCpnt[3] << 8) +
@@ -1980,6 +2003,9 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 				break;
 			}
 			retval = readBlock(cdev, buf, sense_flg, block_size);
+			/* adjust for a read that asks for fewer bytes than available */
+			if (retval > block_size)
+				retval = block_size;
 			bytesRead += retval;
 			pg_read_err_counter.bytesProcessed = bytesRead;
 		} else if (tapeLoaded == TAPE_UNLOADED) {
@@ -2184,8 +2210,8 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 
 		break;
 
-	case WRITE_12:
-	case WRITE_10:
+//	case WRITE_12:
+//	case WRITE_10:
 	case WRITE_6:
 		block_size = 	(SCpnt[2] << 16) +
 				(SCpnt[3] << 8) +
@@ -2860,10 +2886,26 @@ int main(int argc, char *argv[])
 				/* Something to do, reduce poll time */
 				pollInterval = 10;
 				break;
+#if 0
+syslog(LOG_DAEMON|LOG_NOTICE, "CDB: 0x%.2x%.2x %.2x%.2x %.2x%.2x %.2x%.2x %.2x%.2x blk_type %d",
+SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3], SCpnt[4], SCpnt[5], SCpnt[6], SCpnt[7], SCpnt[8], SCpnt[9],
+c_pos.blk_type);
+#endif
 
 			case STATUS_OK:
 				/* While nothing to do, increase
 				 * time we sleep before polling again.
+#if 0
+if (byteCount > 5) {
+syslog(LOG_DAEMON|LOG_NOTICE, "%d bytes of data", byteCount - 5);
+}
+if (request_sense) {
+syslog(LOG_DAEMON|LOG_NOTICE, "Sense: 0x%.2x%.2x%.2x%.2x %.2x%.2x%.2x%.2x",
+sense[0], sense[1], sense[2], sense[3], sense[4], sense[5], sense[6], sense[7]);
+syslog(LOG_DAEMON|LOG_NOTICE, "     : 0x%.2x%.2x%.2x%.2x %.2x%.2x%.2x%.2x",
+sense[8], sense[9], sense[10], sense[11], sense[12], sense[13], sense[14], sense[15]);
+}
+#endif
 				 */
 				if (pollInterval < 1000000)
 					pollInterval += 100;

@@ -172,7 +172,7 @@ void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sense_flg)
 
 	* sense_flg = CHECK_CONDITION;
 
-	sense[0] = 0x70;	/* Fixed sense data fmt */
+	sense[0] = 0xf0;        /* Valid, current error */
 	sense[2] = sense_d;
 	sense[7] = SENSE_BUF_SIZE - 8;
 	sp = (u16 *)&sense[12];
