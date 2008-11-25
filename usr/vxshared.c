@@ -624,8 +624,8 @@ void completeSCSICommand(int cdev,
 
 	DEB(
 	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "Return: CHECK_CONDITION: %s",
-					(*check_condition) ? "yes" : "no");
+		if (*check_condition)
+			syslog(LOG_DAEMON|LOG_INFO, "CHECK_CONDITION: yes");
 	) ;
 
 	nwrite = write(cdev, check_condition, 1);
