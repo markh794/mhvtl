@@ -364,7 +364,8 @@ static void print_header(struct blk_header *h) {
 )
 
 static void
-mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid) {
+mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid)
+{
 	int difference = (int)requested - (int)processed;
 
 	/* No sense, ILI bit set */
