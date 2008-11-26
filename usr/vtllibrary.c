@@ -122,7 +122,19 @@ struct s_info { /* Slot Info */
 	uint8_t	status;	// Used for MAP status.
 	uint8_t	asc;	// Additional Sense Code
 	uint8_t	ascq;	// Additional Sense Code Qualifier
+	uint8_t internal_status; // internal states
 };
+// status definitions (byte[2] in the element descriptor)
+#define STATUS_Full      0x01
+#define STATUS_ImpExp    0x02
+#define STATUS_Except    0x04
+#define STATUS_Access    0x08
+#define STATUS_ExEnab    0x10
+#define STATUS_InEnab    0x20
+#define STATUS_Reserved6 0x40
+#define STATUS_Reserved7 0x80
+// internal_status definitions:
+#define INSTATUS_NO_BARCODE 0x01
 
 // If I leave this as 'static struct', the I get a gcc warning
 // " warning: useless storage class specifier in empty declaration"
@@ -300,7 +312,7 @@ static struct d_info *drive2struct(int addr) {
 
 /* Returns true if slot has media in it */
 static int slotOccupied(struct s_info *s) {
-	return(s->status & 0x01);
+	return(s->status & STATUS_Full);
 }
 
 /* Returns true if drive has media in it */
@@ -315,10 +327,10 @@ static int driveOccupied(struct d_info *d) {
  */
 /*
 static void setInEnableStatus(struct s_info *s, int flg) {
-	if (flg)	// Set Full bit
-		s->status |= 0x20;
-	else		// Set Full bit to 0
-		s->status &= 0xdf;
+	if (flg)
+		s->status |= STATUS_InEnab;
+	else
+		s->status &= ~STATUS_InEnab;
 }
 */
 
@@ -329,10 +341,10 @@ static void setInEnableStatus(struct s_info *s, int flg) {
  */
 /*
 static void setExEnableStatus(struct s_info *s, int flg) {
-	if (flg)	// Set Full bit
-		s->status |= 0x10;
-	else		// Set Full bit to 0
-		s->status &= 0xef;
+	if (flg)
+		s->status |= STATUS_ExEnab;
+	else
+		s->status &= ~STATUS_ExEnab;
 }
 */
 
@@ -342,10 +354,10 @@ static void setExEnableStatus(struct s_info *s, int flg) {
  */
 /*
 static void setAccessStatus(struct s_info *s, int flg) {
-	if (flg)	// Set Full bit
-		s->status |= 0x08;
-	else		// Set Full bit to 0
-		s->status &= 0xf7;
+	if (flg)
+		s->status |= STATUS_Access;
+	else
+		s->status &= ~STATUS_Access;
 }
 */
 
@@ -356,10 +368,10 @@ static void setAccessStatus(struct s_info *s, int flg) {
  */
 /*
 static void setExceptStatus(struct s_info *s, int flg) {
-	if (flg)	// Set Full bit
-		s->status |= 0x04;
-	else		// Set Full bit to 0
-		s->status &= 0xfb;
+	if (flg)
+		s->status |= STATUS_Except;
+	else
+		s->status &= ~STATUS_Except;
 }
 */
 
@@ -369,10 +381,10 @@ static void setExceptStatus(struct s_info *s, int flg) {
  */
 /*
 static void setImpExpStatus(struct s_info *s, int flg) {
-	if (flg)	// Set Full bit
-		s->status |= 0x02;
-	else		// Set Full bit to 0
-		s->status &= 0xfd;
+	if (flg)
+		s->status |= STATUS_ImpExp;
+	else
+		s->status &= ~STATUS_ImpExp;
 }
 */
 
@@ -380,10 +392,10 @@ static void setImpExpStatus(struct s_info *s, int flg) {
  * Sets the 'Full' bit true/false in the status field
  */
 static void setFullStatus(struct s_info *s, int flg) {
-	if (flg)	// Set Full bit
-		s->status |= 0x01;
-	else		// Set Full bit to 0
-		s->status &= 0xfe;
+	if (flg)
+		s->status |= STATUS_Full;
+	else
+		s->status &= ~STATUS_Full;
 }
 
 static void setSlotEmpty(struct s_info *s) {
@@ -677,7 +689,9 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag) {
 	if (voltag) {
 		DEBC( printf("voltag set\n"); )
 
-		if (s->status & 0x01) /* Barcode with trailing space(s) */
+		/* Barcode with trailing space(s) */
+		if ((s->status & STATUS_Full) &&
+		    !(s->internal_status & INSTATUS_NO_BARCODE))
 			snprintf((char *)&p[j], 32, "%-32s", s->barcode);
 		else
 			memset(&p[j], 0, 32);
@@ -772,7 +786,8 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		break;
 	case 1:
 		DEBC( printf("voltag set, DVCID not set\n"); )
-		if (d->slot->status & 0x01) {
+		if ((d->slot->status & STATUS_Full) &&
+		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
 			/* Barcode with trailing space(s) */
@@ -810,7 +825,8 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		break;
 	case 3:
 		DEBC( printf("voltag set, DVCID set\n"); )
-		if (d->slot->status & 0x01) {
+		if ((d->slot->status & STATUS_Full) &&
+		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
 			strncpy(s, (char *)d->slot->barcode, 10);
 			s[10] = '\0';
 			/* Barcode with trailing space(s) */
@@ -1392,7 +1408,7 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 	int	k = 0;
 	struct	mode *smp = sm;
 	u32	count;
-	u32	*lp;
+	u16	*sp;
 
 	switch(SCpnt[0]) {
 	case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
@@ -1519,10 +1535,9 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		lp = (u32 *)&SCpnt[10];
-		count = ntohl(*lp);
+		sp = (u16 *)&SCpnt[3];
+		count = ntohs(*sp);
 		if (count) {
-			// Read '*lp' bytes from char device...
 			block_size = retrieve_CDB_data(cdev, buf, count);
 			ProcessSendDiagnostic(SCpnt, 16, buf, block_size, sense_flg);
 		}
@@ -1886,8 +1901,9 @@ static void init_tape_info(void) {
 				syslog(LOG_DAEMON|LOG_ERR, "Too many drives");
 			else if (x == 1) {
 				dp->slot->slot_location = slt + START_DRIVE - 1;
-				dp->slot->status = 0x08;
+				dp->slot->status = STATUS_Access;
 				dp->slot->cart_type = 0;
+				dp->slot->internal_status = 0;
 			} else {
 			/*
 				if (debug)
@@ -1903,8 +1919,9 @@ static void init_tape_info(void) {
 			}
 			*/
 				dp->slot->cart_type = 0;
-				dp->slot->status = 0x08;
+				dp->slot->status = STATUS_Access;
 				dp->slot->slot_location = slt + START_DRIVE - 1;
+				dp->slot->internal_status = 0;
 			}
 		}
 		if ((x = (sscanf(b, "MAP %d: %s", &slt, barcode))) > 0) {
@@ -1913,8 +1930,10 @@ static void init_tape_info(void) {
 				syslog(LOG_DAEMON|LOG_ERR, "Too many MAPs");
 			else if (x == 1) {
 				sp->slot_location = slt + START_MAP - 1;
-				sp->status = 0x3a;
+				sp->status = 
+					STATUS_InEnab | STATUS_ExEnab | STATUS_Access | STATUS_ImpExp;
 				sp->cart_type = 0;
+				sp->internal_status = 0;
 			} else {
 				if (debug)
 					printf("Barcode %s in MAP %d\n",
@@ -1923,8 +1942,14 @@ static void init_tape_info(void) {
 				sp->barcode[10] = '\0';
 				// 1 = data, 2 = Clean
 				sp->cart_type = cart_type(barcode);
-				sp->status = 0x3b;
+				sp->status = 
+					STATUS_InEnab | STATUS_ExEnab | STATUS_Access | STATUS_ImpExp | STATUS_Full;
 				sp->slot_location = slt + START_MAP - 1;
+				// look for special media that should be reported as not having a barcode
+				if (!strncmp(sp->barcode, "NOBAR", 5))
+					sp->internal_status = INSTATUS_NO_BARCODE;
+				else
+					sp->internal_status = 0;
 			}
 		}
 		if ((x = (sscanf(b, "Picker %d: %s", &slt, barcode))) > 0) {
@@ -1935,6 +1960,7 @@ static void init_tape_info(void) {
 				sp->slot_location = slt + START_PICKER - 1;
 				sp->cart_type = 0;
 				sp->status = 0;
+				sp->internal_status = 0;
 			} else {
 				if (debug)
 					printf("Barcode %s in Picker %d\n",
@@ -1944,7 +1970,12 @@ static void init_tape_info(void) {
 				// 1 = data, 2 = Clean
 				sp->cart_type = cart_type(barcode);
 				sp->slot_location = slt + START_PICKER - 1;
-				sp->status = 0x01;
+				sp->status = STATUS_Full;
+				// look for special media that should be reported as not having a barcode
+				if (!strncmp(sp->barcode, "NOBAR", 5))
+					sp->internal_status = INSTATUS_NO_BARCODE;
+				else
+					sp->internal_status = 0;
 			}
 		}
 		if ((x = (sscanf(b, "Slot %d: %s", &slt, barcode))) > 0) {
@@ -1956,6 +1987,7 @@ static void init_tape_info(void) {
 				sp->slot_location = slt + START_STORAGE - 1;
 				sp->status = 0;
 				sp->cart_type = 0x08;
+				sp->internal_status = 0;
 			} else {
 				if (debug)
 					printf("Barcode %s in slot %d\n",
@@ -1966,7 +1998,12 @@ static void init_tape_info(void) {
 				// 1 = data, 2 = Clean
 				sp->cart_type = cart_type(barcode);
 				// Slot full
-				sp->status = 0x09;
+				sp->status = STATUS_Access | STATUS_Full;
+				// look for special media that should be reported as not having a barcode
+				if (!strncmp(sp->barcode, "NOBAR", 5))
+					sp->internal_status = INSTATUS_NO_BARCODE;
+				else
+					sp->internal_status = 0;
 			}
 		}
 	}
@@ -2127,7 +2164,7 @@ int main(int argc, char *argv[])
 
 			printf("Drive location: %d\n", dp->slot->slot_location);
 			printf("Drive occupied: %s\n",
-				(dp->slot->status & 0x01) ? "No" : "Yes");
+				(dp->slot->status & STATUS_Full) ? "No" : "Yes");
 		}
 	}
 
