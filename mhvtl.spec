@@ -41,7 +41,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/bin
 mkdir -p $RPM_BUILD_ROOT/usr/share/man/man1
 mkdir -p $RPM_BUILD_ROOT/usr/share/man/man5
 
-%ifarch x86_64 amd64
+%ifarch x86_64 amd64 ppc64
 mkdir -p $RPM_BUILD_ROOT/usr/lib64
 %else
 mkdir -p $RPM_BUILD_ROOT/usr/lib
@@ -56,7 +56,7 @@ install -m 750 usr/mktape $RPM_BUILD_ROOT/usr/bin/mktape
 install -m 700 usr/build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
 install -m 700 usr/make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
 
-%ifarch x86_64 amd64
+%ifarch x86_64 amd64 ppc64
 install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
 %else
 install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
@@ -137,7 +137,7 @@ fi
 %{_prefix}/bin/mktape
 %{_prefix}/bin/build_library_config
 %{_prefix}/bin/make_vtl_devices
-%ifarch x86_64 amd64
+%ifarch x86_64 amd64 ppc64
 %{_prefix}/lib64/libvtlscsi.so
 %else
 %{_prefix}/lib/libvtlscsi.so

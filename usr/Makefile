@@ -10,7 +10,7 @@
 #
 
 CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../include
-CLFLAGS=-shared
+CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary vtl_set_sn
