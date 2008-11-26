@@ -1795,19 +1795,6 @@ static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg)
 {
 	loff_t nwrite = 0;
 
-	// Start at beginning of datafile..
-	lseek64(datafile, 0L, SEEK_SET);
-
-	/* Update the c_pos data struct.
-	 * If this is not the BOT header we are in trouble
-	 * Just using this to position to MAM
-	 */
-	nwrite = read(datafile, &c_pos, sizeof(c_pos));
-	if (nwrite != sizeof(c_pos)) {
-		mkSenseBuf(MEDIUM_ERROR, E_UNKNOWN_FORMAT, sense_flg);
-		return -1;
-	}
-
 	// Rewrite MAM data
 	nwrite = pwrite(datafile, mamp, sizeof(mam), sizeof(struct blk_header));
 	if (nwrite != sizeof(mam)) {
