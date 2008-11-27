@@ -2,7 +2,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
 Release: 9
-Source: mhvtl-2008-11-26.tgz
+Source: mhvtl-2008-11-27.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -156,10 +156,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
-* Wed Nov 26 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Thu Nov 27 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.9
 - Re-fixed WRITE ATTRIBUTE bug forcing a rewind of media.
 - Fixed build for PPC64 platform
+- Add special reserved barcode 'NOBAR' to indicate a slot is full but
+  contains no barcode.
 
 * Fri Nov 21 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.8
