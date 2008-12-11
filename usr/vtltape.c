@@ -2169,7 +2169,11 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		break;
 
 	case START_STOP:	// Load/Unload cmd
-		if (SCpnt[4] && 0x1) {
+		if ((SCpnt[4] == 0x1) && (SCpnt[5] == 0x40)) {
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+						"NO-OP special SDLT load");
+		} else if (SCpnt[4] && 0x1) {
 			if (verbose) 
 				syslog(LOG_DAEMON|LOG_INFO, "Loading Tape **");
 			tapeLoaded = resp_rewind(sense_flg);
