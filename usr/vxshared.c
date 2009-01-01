@@ -91,68 +91,68 @@ int send_msg(char *cmd, int q_id)
  * If debug -> display to stdout.
  * else to syslog
  */
-void logSCSICommand(u8 * SCpnt)
+void logSCSICommand(u8 *cdb)
 {
 	int groupCode;
 	int cmd_len = 6;
 	int k;
 
-	groupCode = (SCpnt[0] & 0xe0) >> 5;
-	switch(groupCode) {
+	groupCode = (cdb[0] & 0xe0) >> 5;
+	switch (groupCode) {
 	case 0:	/*  6 byte commands */
 		cmd_len = 6;
 		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x",
-			SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3],
-			SCpnt[4], SCpnt[5]);
+			cdb[0], cdb[1], cdb[2], cdb[3],
+			cdb[4], cdb[5]);
 		break;
 	case 1: /* 10 byte commands */
 	case 2: /* 10 byte commands */
 		cmd_len = 10;
 		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x",
-			SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3],
-			SCpnt[4], SCpnt[5], SCpnt[6], SCpnt[7],
-			SCpnt[8], SCpnt[9]);
+			cdb[0], cdb[1], cdb[2], cdb[3],
+			cdb[4], cdb[5], cdb[6], cdb[7],
+			cdb[8], cdb[9]);
 		break;
 	case 3: /* Reserved - There is always one exception ;) */
 		cmd_len = 6;
 		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x",
-			SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3],
-			SCpnt[4], SCpnt[5], SCpnt[6], SCpnt[7],
-			SCpnt[8], SCpnt[9], SCpnt[10], SCpnt[11]);
+			cdb[0], cdb[1], cdb[2], cdb[3],
+			cdb[4], cdb[5], cdb[6], cdb[7],
+			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 4: /* 16 byte commands */
 		cmd_len = 16;
 		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-			SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3],
-			SCpnt[4], SCpnt[5], SCpnt[6], SCpnt[7],
-			SCpnt[8], SCpnt[9], SCpnt[10], SCpnt[11],
-			SCpnt[12], SCpnt[13], SCpnt[14], SCpnt[15]);
+			cdb[0], cdb[1], cdb[2], cdb[3],
+			cdb[4], cdb[5], cdb[6], cdb[7],
+			cdb[8], cdb[9], cdb[10], cdb[11],
+			cdb[12], cdb[13], cdb[14], cdb[15]);
 		break;
 	case 5: /* 12 byte commands */
 		cmd_len = 12;
 	syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x",
-			SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3],
-			SCpnt[4], SCpnt[5], SCpnt[6], SCpnt[7],
-			SCpnt[8], SCpnt[9], SCpnt[10], SCpnt[11]);
+			cdb[0], cdb[1], cdb[2], cdb[3],
+			cdb[4], cdb[5], cdb[6], cdb[7],
+			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 6: /* Vendor Specific */
 	case 7: /* Vendor Specific */
 		cmd_len = 6;
 		syslog(LOG_DAEMON|LOG_INFO, "VENDOR SPECIFIC !! "
 			" %02x %02x %02x %02x %02x %02x",
-			SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3],
-			SCpnt[4], SCpnt[5]);
+			cdb[0], cdb[1], cdb[2], cdb[3],
+			cdb[4], cdb[5]);
 		break;
 	}
 
 	if (debug) {
 		printf("\n");
 		for (k = 0; k < cmd_len; k++)
-			printf("%02x ", (u32)SCpnt[k]);
+			printf("%02x ", (u32)cdb[k]);
 		printf("\n");
 	}
 }
@@ -163,14 +163,14 @@ void logSCSICommand(u8 * SCpnt)
  */
 extern u8 sense[];
 
-void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sense_flg)
+void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sam_stat)
 {
 	u16 *sp;
 
 	/* Clear Sense key status */
 	memset(sense, 0, SENSE_BUF_SIZE);
 
-	* sense_flg = CHECK_CONDITION;
+	*sam_stat = SAM_STAT_CHECK_CONDITION;
 
 	sense[0] = 0xf0;        /* Valid, current error */
 	sense[2] = sense_d;
@@ -187,12 +187,12 @@ void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sense_flg)
 
 extern int reset;
 
-int check_reset(u8 *sense_flg)
+int check_reset(u8 *sam_stat)
 {
 	int retval = reset;
 
 	if (reset) {
-		mkSenseBuf(UNIT_ATTENTION, E_POWERON_RESET, sense_flg);
+		mkSenseBuf(UNIT_ATTENTION, E_POWERON_RESET, sam_stat);
 		reset = 0;
 	}
 return(retval);
@@ -204,16 +204,16 @@ return(retval);
  * basically a no-op but log the cmd.
  */
 
-void resp_allow_prevent_removal(u8 * SCpnt, u8 * sense_flg)
+void resp_allow_prevent_removal(u8 *cdb, u8 *sam_stat)
 {
 
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "%s",
-				(SCpnt[4]) ? "Prevent MEDIUM removal **" :
+				(cdb[4]) ? "Prevent MEDIUM removal **" :
 					 "Allow MEDIUM Removal **");
 	if (debug)
 		printf("%s\n",
-			(SCpnt[4]) ? "Prevent MEDIUM removal **" :
+			(cdb[4]) ? "Prevent MEDIUM removal **" :
 					 "Allow MEDIUM Removal **");
 }
 
@@ -229,14 +229,14 @@ static char LOG_SELECT_01[] = "Current cumulative values";
 static char LOG_SELECT_10[] = "Default threshold values";
 static char LOG_SELECT_11[] = "Default cumulative values";
 
-void resp_log_select(u8 * SCpnt, u8 * sense_flg)
+void resp_log_select(u8 *cdb, u8 *sam_stat)
 {
 
-	char pcr = SCpnt[1] & 0x1;
+	char pcr = cdb[1] & 0x1;
 	u16	parmList;
-	char	* parmString = "Undefined";
+	char	*parmString = "Undefined";
 
-	parmList = ntohs((u16)SCpnt[7]); /* bytes 7 & 8 are parm list. */
+	parmList = ntohs((u16)cdb[7]); /* bytes 7 & 8 are parm list. */
 
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "LOG SELECT %s",
@@ -248,10 +248,10 @@ void resp_log_select(u8 * SCpnt, u8 * sense_flg)
 	if (pcr)	{	/* Check for Parameter code reset */
 		if (parmList) {	/* If non-zero, error */
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						sense_flg);
+						sam_stat);
 			return;
 		}
-		switch((SCpnt[2] & 0xc0) >> 5) {
+		switch ((cdb[2] & 0xc0) >> 5) {
 		case 0:
 			parmString = LOG_SELECT_00;
 			break;
@@ -288,17 +288,22 @@ void resp_log_select(u8 * SCpnt, u8 * sense_flg)
  *           - Number of Setmarks between the beginning of the partiion and
  *           - the logical position.
  */
-int resp_read_position_long(loff_t pos, u8 * buf, u8 * sense_flg)
+int resp_read_position_long(loff_t pos, u8 *buf, u8 *sam_stat)
 {
-	u64 partition = 1;
-	u64 *lp;
+	u64 partition = 1L;
+
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO,
+				"%s: position %ld\n", __func__, (long)pos);
 
 	memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Begining of Partition */
-	lp = (u64 *)&buf[4];
-	*lp = htonl(partition);
+	buf[4] = (partition >> 24) & 0xff;
+	buf[5] = (partition >> 16) & 0xff;
+	buf[6] = (partition >> 8) & 0xff;
+	buf[7] = partition & 0xff;
 
 	buf[8] = buf[9]  = (pos >> 16) & 0xff;
 	buf[6] = buf[10] = (pos >> 8) & 0xff;
@@ -309,16 +314,20 @@ return(READ_POSITION_LONG_LEN);
 
 #define READ_POSITION_LEN 20
 /* Return tape position - short format */
-int resp_read_position(loff_t pos, u8 * buf, u8 * sense_flg)
+int resp_read_position(loff_t pos, u8 *buf, u8 *sam_stat)
 {
-	u64 *lp;
-
 	memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Begining of Partition */
-	lp = (u64 *)&buf[4];
-	*lp = htonl(pos);
+
+	buf[4] = (pos >> 24) & 0xff;
+	buf[5] = (pos >> 16) & 0xff;
+	buf[6] = (pos >> 8) & 0xff;
+	buf[7] = pos & 0xff;
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO,
+			"%s: position %ld\n", __func__, (long)pos);
 
 return(READ_POSITION_LEN);
 }
@@ -327,7 +336,7 @@ return(READ_POSITION_LEN);
 /*
  * Copy data in struct 'report_luns' into bufer and return length
  */
-int resp_report_lun(struct report_luns * rpLUNs, u8 *buf, u8 *sense_flg)
+int resp_report_lun(struct report_luns *rpLUNs, u8 *buf, u8 *sam_stat)
 {
 	u64 size = ntohl(rpLUNs->size) + 8;
 
@@ -338,7 +347,7 @@ int resp_report_lun(struct report_luns * rpLUNs, u8 *buf, u8 *sense_flg)
 /*
  * Respond with S/No. of media currently mounted
  */
-int resp_read_media_serial(u8 *sno, u8 *buf, u8 *sense_flg)
+int resp_read_media_serial(u8 *sno, u8 *buf, u8 *sam_stat)
 {
 	u64 size = 0L;
 
@@ -427,7 +436,7 @@ struct mode * alloc_mode_page(u8 pcode, struct mode *m, int size)
  * Build mode sense data into *buf
  * Return size of data.
  */
-int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
+int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sam_stat)
 {
 	int pcontrol, pcode, subpcode;
 	int media_type;
@@ -477,7 +486,7 @@ int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
 	}
 
 	if (0x3 == pcontrol) {  /* Saving values not supported */
-		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
 		return (0);
 	}
 
@@ -491,7 +500,7 @@ int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
 	if (0 != subpcode) { /* TODO: Control Extension page */
 		syslog(LOG_DAEMON|LOG_WARNING,
 				"Non-zero sub-page sense code not supported");
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 	}
 
@@ -516,7 +525,7 @@ int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sense_flg)
 	if (pcode != 0)	/* 0 = No page code requested */
 		if (0 == len) {	/* Page not found.. */
 		syslog(LOG_DAEMON|LOG_WARNING, "Unknown mode page : %d", pcode);
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return (0);
 		}
 
@@ -582,6 +591,34 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 
 }
 
+/*
+ * Simple function to read 'count' bytes from the chardev into 'buf'.
+ */
+int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
+{
+	ssize_t ret;
+
+	if (verbose > 2)
+		syslog(LOG_DAEMON|LOG_INFO,
+			"retrieving %d bytes from char dev\n", ds->sz);
+#ifdef NEW_FUNC
+	/* NEW_FUNC: not working yet */
+	ioctl(cdev, VTL_GET_DATA, ds);
+	return ds->sz;
+#else
+	ret = read(cdev, ds->data, ds->sz);
+	if (ret < 0)
+		syslog(LOG_DAEMON|LOG_ERR,
+			"%s: failed to retrieve %d bytes %m\n",
+				__func__, ds->sz);
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO,
+			"%s: S/No %ld, sam_status: %d\n", __func__,
+				(long)ds->serialNo, ds->sam_stat);
+	return ret;
+#endif
+}
+
 
 /*
  * First send SCSI S/No. to char device
@@ -590,78 +627,17 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
  *
  * Returns nothing.
  */
-void completeSCSICommand(int cdev,
-			u32 serialNo,
-			u8 *buf,
-			u8 *sense_buf,
-			u8 *check_condition,
-			u32 count)
+void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
-	loff_t nwrite;
-	u8	s[4];
-	int	k;
-	u32	*lp;
-
-	lp = (u32 *)&s[0];
-	*lp = htonl(serialNo);
-	
-	/* If debug is high enough, print out all. Otherwise just print
-	 out data if something of interest. */
-	if (debug > 2)
-		printf("Completing SerialNo: %d, total of %d bytes\n",
-							 serialNo, count);
-	else if (debug > 1)
-		if (count > 5)
-			printf("Comple SerialNo: %d, total of %d bytes\n",
-							 serialNo, count);
-	nwrite = write(cdev, s, 4);
-	if (nwrite != 4)
-		syslog(LOG_DAEMON|LOG_ERR,
-			"Could not send SCSI serial number: %d", serialNo);
-
-	if (debug > 2)
-		printf("Returning sense status : %d\n", *check_condition);
-
-	DEB(
 	if (verbose)
-		if (*check_condition)
-			syslog(LOG_DAEMON|LOG_INFO, "CHECK_CONDITION: yes");
-	) ;
+		syslog(LOG_DAEMON|LOG_INFO,
+			"%s: op s/n: %ld, sam_status: %d, buffer: %p, sz: %d\n",
+				__func__, (long)ds->serialNo, ds->sam_stat,
+				ds->data, ds->sz);
 
-	nwrite = write(cdev, check_condition, 1);
-	if (nwrite != 1)
-		syslog(LOG_DAEMON|LOG_ERR, "%s %d",
-			"Problems returning Sense Check Condition",
-							 *check_condition);
+	ioctl(cdev, VTL_PUT_DATA, ds);
 
-	/* Print out (in hex) the returned block of data */
-	if ((debug > 1) && (count < 64) && (count > 5)) {
-		for (k = 0; k < (count - 5); k++) {
-			if ((k % 16) == 0)
-				printf("\n");
-			printf("%02x ", buf[k]);
-		}
-		printf("\n");
-	}
-	nwrite = write(cdev, buf, count - 5);
-	if (nwrite != count - 5)
-		syslog(LOG_DAEMON|LOG_ERR, "%s %m",
-					"Problems returning SCSI data");
-
-	/* Automagically append SENSE data if check_condition set
-	 *
-	 * FIXME: SENSE_BUF_SIZE has to be manually kept in sync with kernel
-	 * driver defination. i.e. They have to match..
-	 */
-	if (*check_condition) {
-		nwrite = write(cdev, sense_buf, SENSE_BUF_SIZE);
-		if (SENSE_BUF_SIZE != nwrite)
-			syslog(LOG_DAEMON|LOG_ERR, "%s %m",
-					"Problems returning SCSI SENSE data");
-		*check_condition = 0;	/* Clear Sense Flag */
-	}
-
-	ioctl(cdev, VX_FINISH_SCSI_CMD, &count);
+	ds->sam_stat = 0;
 }
 
 /*
@@ -670,28 +646,27 @@ void completeSCSICommand(int cdev,
  * Called with:
  * 	cdev   -> Char dev file handle,
  * 	vheadp -> vtl_header struct pointer.
- *	count  -> Number of bytes in SCSI cdb
  *
  * Return: void
  */
-void getCommand(int cdev, struct vtl_header *vheadp, int count)
+void getCommand(int cdev, struct vtl_header *vheadp)
 {
-	int	status = 0;
-	u8	* SCpnt;
+	int status = 0;
+	u8 *cdb;
 
 	/*  Call the vtl kernel module to populate the vtl_header struct. */
 	ioctl(cdev, VTL_GET_HEADER, vheadp);
 
-	SCpnt = (u8 *)&vheadp->cdb;
+	cdb = (u8 *)&vheadp->cdb;
 
 	if (verbose > 1) {
 		syslog(LOG_DAEMON|LOG_INFO, "SCSI S/No: %d",
 						ntohl(vheadp->serialNo));
 		if (verbose > 2) {	/* High verbose - log every cmd. */
-			logSCSICommand(SCpnt);
+			logSCSICommand(cdb);
 		} else {		/* Lower verbosity,.. */
-			if (SCpnt[0] != 0)	/* Skip TUR */
-				logSCSICommand(SCpnt);
+			if (cdb[0] != 0)	/* Skip TUR */
+				logSCSICommand(cdb);
 		}
 	}
 
@@ -702,7 +677,7 @@ void getCommand(int cdev, struct vtl_header *vheadp, int count)
 /* Hex dump 'count' bytes at p  */
 void hex_dump(u8 *p, int count)
 {
-	int	j;
+	int j;
 
 	for (j = 0; j < count; j++) {
 		if ((j != 0) && (j % 16 == 0))
@@ -715,10 +690,10 @@ void hex_dump(u8 *p, int count)
 int chrdev_open(char *name, uint8_t minor)
 {
 	FILE *f;
-	char	devname[256];
-	char	buf[256];
-	int	devn;
-	int	ctlfd;
+	char devname[256];
+	char buf[256];
+	int devn;
+	int ctlfd;
 
 	f = fopen("/proc/devices", "r");
 	if (!f) {
@@ -759,7 +734,7 @@ int chrdev_open(char *name, uint8_t minor)
  */
 int oom_adjust(void)
 {
-	int	fd, err;
+	int fd, err;
 	char path[64];
 
 	/* Avoid oom-killer */
@@ -781,47 +756,45 @@ int oom_adjust(void)
 	return 0;
 }
 
-void log_opcode(char *opcode, uint8_t *cdb, uint8_t *sense_flg)
+void log_opcode(char *opcode, uint8_t *cdb, uint8_t *sam_stat)
 {
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "*** Unsupported op code: %s ***",
-				opcode);
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+	syslog(LOG_DAEMON|LOG_INFO, "*** Unsupported op code: %s ***", opcode);
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 	logSCSICommand(cdb);
 }
 
-int resp_a3_service_action(uint8_t *cdb, uint8_t *sense_flg)
+int resp_a3_service_action(uint8_t *cdb, uint8_t *sam_stat)
 {
 	uint8_t sa = cdb[1];
-	switch(sa) {
+	switch (sa) {
 	case MANAGEMENT_PROTOCOL_IN:
-		log_opcode("MANAGEMENT PROTOCOL IN **", cdb, sense_flg);
+		log_opcode("MANAGEMENT PROTOCOL IN **", cdb, sam_stat);
 		break;
 	case REPORT_ALIASES:
-		log_opcode("REPORT ALIASES **", cdb, sense_flg);
+		log_opcode("REPORT ALIASES **", cdb, sam_stat);
 		break;
 	}
-	log_opcode("Unknown service action A3 **", cdb, sense_flg);
+	log_opcode("Unknown service action A3 **", cdb, sam_stat);
 	return 0;
 }
 
-int resp_a4_service_action(uint8_t *cdb, uint8_t *sense_flg)
+int resp_a4_service_action(uint8_t *cdb, uint8_t *sam_stat)
 {
 	uint8_t sa = cdb[1];
 
-	switch(sa) {
+	switch (sa) {
 	case MANAGEMENT_PROTOCOL_OUT:
-		log_opcode("MANAGEMENT PROTOCOL OUT **", cdb, sense_flg);
+		log_opcode("MANAGEMENT PROTOCOL OUT **", cdb, sam_stat);
 		break;
 	case CHANGE_ALIASES:
-		log_opcode("CHANGE ALIASES **", cdb, sense_flg);
+		log_opcode("CHANGE ALIASES **", cdb, sam_stat);
 		break;
 	}
-	log_opcode("Unknown service action A4 **", cdb, sense_flg);
+	log_opcode("Unknown service action A4 **", cdb, sam_stat);
 	return 0;
 }
 
-int ProcessSendDiagnostic(uint8_t *SCpnt, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sense_flg)
+int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sam_stat)
 {
 	syslog(LOG_DAEMON|LOG_INFO,
 			"*** Unsupported op code: SEND DIAGNOSTICS **");

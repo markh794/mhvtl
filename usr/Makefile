@@ -13,7 +13,7 @@ CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../include
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
-	vtllibrary vtl_set_sn
+	vtllibrary vtl_set_sn debug_mem
 
 libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
 	$(CC) $(CFLAGS) -c -fpic vxshared.c
@@ -21,6 +21,9 @@ libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
 
 dump_messageQ:	dump_messageQ.c q.h
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.c
+
+debug_mem:	debug_mem.o vxshared.h vx.h scsi.h
+	$(CC) $(CFLAGS) -o debug_mem debug_mem.o -L. -lvtlscsi
 
 vtl_set_sn:	vtl_set_sn.o vxshared.h vx.h scsi.h
 	$(CC) $(CFLAGS) -o vtl_set_sn vtl_set_sn.o -L. -lvtlscsi
@@ -34,19 +37,17 @@ dump_tape:	dump_tape.o vx.h vtltape.h scsi.h
 mktape:	mktape.o vtltape.h q.h vx.h vxshared.h
 	$(CC) $(CFLAGS) -o mktape mktape.o
 
-
 vtllibrary:	vtllibrary.o q.h vx.h vxshared.o vxshared.h scsi.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
 
 vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o -L. -lz -lvtlscsi
 
-
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
 		vxshared.o libvtlscsi.so z.o vtllibrary.o \
-		vtl_set_sn.o
+		vtl_set_sn.o debug_mem.o
 
 tags:
 	etags *.c *.h
@@ -57,6 +58,7 @@ distclean:
 	q.o q \
 	vtlcmd.o vtlcmd \
 	vtl_set_sn.o vtl_set_sn \
+	debug_mem.o debug_mem \
 	dump_messageQ.o dump_messageQ \
 	core mktape mktape.o \
 	vxshared.o libvtlscsi.so \

@@ -66,14 +66,13 @@ typedef char		s8;
 #define VX_TAPE_POLL_STATUS	0x83
 #define VX_TAPE_ACK_STATUS	0x84
 
-#define VX_FINISH_SCSI_CMD	0x184
 #define VX_ACK_SCSI_CDB		0x185
-#define VX_ADD_HOST		0x186
 
 #define VTL_GET_HEADER		0x200
 #define VTL_GET_DATA		0x201
 #define VTL_SET_SERIAL		0x202
 #define VTL_PUT_DATA		0x203
+#define VTL_DEBUG_MEM		0x204
 
 #define STATUS_OK 0
 
@@ -117,11 +116,19 @@ typedef char		s8;
 #define MEDIA_TYPE_CLEAN 6
 
 struct	vtl_header {
-	u32 serialNo;
+	u64 serialNo;
 	u8 cdb[16];
 	u8 *buf;
 };
 
+struct vtl_ds {
+	void *data;
+	u32 sz;
+	u64 serialNo;
+	void *sense_buf;
+	u8 sam_stat;
+};
 
-void completeSCSICommand(int, u32, u8 *, u8 *, u8 *, u32);
-void getCommand(int, struct vtl_header *, int);
+void completeSCSICommand(int, struct vtl_ds *ds);
+void getCommand(int, struct vtl_header *);
+int retrieve_CDB_data(int cdev, struct vtl_ds *dbuf_p);

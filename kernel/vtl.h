@@ -17,11 +17,10 @@ static int vtl_host_reset(struct scsi_cmnd *);
 static int vtl_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
 static const char * vtl_info(struct Scsi_Host *);
 static ssize_t vtl_read(struct file *filp, char __user *buf, size_t count, loff_t *offp);
-static ssize_t vtl_write(struct file *filp, const char __user *buf, size_t count, loff_t *offp);
 static int vtl_open(struct inode *, struct file *);
 static int vtl_release(struct inode *, struct file *);
 
-#define VTL_CANQUEUE  1 	/* needs to be >= 1 */
+#define VTL_CANQUEUE  255 	/* needs to be >= 1 */
 
 #define VTL_MAX_CMD_LEN 16
 

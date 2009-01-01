@@ -40,11 +40,15 @@
 #define TYPE_NO_LUN         0x7f
 
 /*
- * Status codes
+ * SCSI Architectual model (SAM) Status codes.
  */
-#define GOOD			0x00
-#define CHECK_CONDITION		0x01
-#define	BUSY			0x04
+#define SAM_STAT_GOOD			0x00
+#define SAM_STAT_CHECK_CONDITION	0x02
+#define SAM_STAT_CONDITION_MET		0x04
+#define	SAM_STAT_BUSY			0x08
+#define	SAM_STAT_INTERMEDIATE		0x10
+#define	SAM_STAT_INTERMEDIATE_CONDITION_MET	0x14
+#define SAM_STAT_RESERVATION_CONFLICT	0x18
 
 /*
  * SENSE keys

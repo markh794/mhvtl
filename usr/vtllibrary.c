@@ -107,7 +107,7 @@ int verbose = 0;
 int debug = 0;
 static int libraryOnline = 1;	/* Default to Off-line */
 int reset = 1;		/* Poweron reset */
-static uint8_t request_sense = 0; /* Non-zero if Sense-data is valid */
+static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 
@@ -247,36 +247,19 @@ static void decode_element_status(uint8_t *p)
 
 
 /*
- * Simple function to read 'count' bytes from the chardev into 'buf'.
- */
-static int retrieve_CDB_data(int cdev, uint8_t *buf, uint32_t count) {
-
-	return (read(cdev, buf, count));
-}
-
-/*
  * Process the MODE_SELECT command
  */
-static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf) {
-	int alloc_len;
-	DEB( int k; )
+static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
+{
 
-	alloc_len = (MODE_SELECT == cmd[0]) ? cmd[4] : ((cmd[7] << 8) | cmd[8]);
-
-	retrieve_CDB_data(cdev, buf, alloc_len);
-
-	DEBC(	for (k = 0; k < alloc_len; k++)
-			printf("%02x ", (uint32_t)buf[k]);
-		printf("\n");
-	)
-
-	return 0;
+	return retrieve_CDB_data(cdev, dbuf_p);
 }
 
 /*
  * Takes a slot number and returns a struct pointer to the slot
  */
-static struct s_info *slot2struct(int addr) {
+static struct s_info *slot2struct(int addr)
+{
 	if ((addr >= START_MAP) && (addr <= (START_MAP + NUM_MAP))) {
 		addr -= START_MAP;
 		DEBC(	printf("slot2struct: MAP %d\n", addr); )
@@ -431,21 +414,22 @@ static void move_cart(struct s_info *src, struct s_info *dest) {
 }
 
 /* Move media in drive 'src_addr' to drive 'dest_addr' */
-static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
+static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
+{
 	struct d_info *src;
 	struct d_info *dest;
-	char   cmd[128];
-	int    x;
+	char cmd[128];
+	int x;
 
 	src  = drive2struct(src_addr);
 	dest = drive2struct(dest_addr);
 
-	if ( ! driveOccupied(src) ) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
+	if (!driveOccupied(src)) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
-	if ( driveOccupied(dest) ) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
+	if (driveOccupied(dest)) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return 1;
 	}
 
@@ -476,7 +460,8 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 return 0;
 }
 
-static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
+static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
+{
 	struct d_info *src;
 	struct s_info *dest;
 
@@ -484,11 +469,11 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
 	dest = slot2struct(dest_addr);
 
 	if ( ! driveOccupied(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
 	if ( slotOccupied(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return 1;
 	}
 
@@ -501,21 +486,22 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
 return 0;
 }
 
-static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
+static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
+{
 	struct s_info *src;
 	struct d_info *dest;
-	char   cmd[128];
-	int    x;
+	char cmd[128];
+	int x;
 
 	src  = slot2struct(src_addr);
 	dest = drive2struct(dest_addr);
 
 	if ( ! slotOccupied(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
 	if ( driveOccupied(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return 1;
 	}
 
@@ -537,7 +523,8 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sense_flg) {
 return 0;
 }
 
-static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
+static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
+{
 	struct s_info *src;
 	struct s_info *dest;
 
@@ -549,11 +536,11 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sense_flg) {
 				src->slot_location, dest->slot_location);
 
 	if (! slotOccupied(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
 	if (slotOccupied(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return 1;
 	}
 
@@ -578,7 +565,8 @@ static int valid_slot(int addr) {
 }
 
 /* Move a piece of medium from one slot to another */
-static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
+static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
+{
 	int transport_addr;
 	int src_addr;
 	int dest_addr;
@@ -606,11 +594,11 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	}
 
 	if (cmd[10] != 0) {	/* Can not Invert media */
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return -1;
 	}
 	if (cmd[11] == 0xc0) {	// Invalid combo of Extend/retract I/O port
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return -1;
 	}
 	if (cmd[11]) // Must be an Extend/Retract I/O port cmd.. NO-OP
@@ -619,15 +607,15 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	if (transport_addr == 0)
 		transport_addr = START_PICKER;
 	if (transport_addr > (START_PICKER + NUM_PICKER)) {
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
 	if (! valid_slot(src_addr)) {
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
 	if (! valid_slot(dest_addr)) {
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
 
@@ -636,16 +624,16 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
 	/* WWR - The following depends on Drive 1 being in the lowest slot */
 		if ((src_addr < maxDrive) && (dest_addr < maxDrive)) {
 			/* Move between drives */
-			if (move_drive2drive(src_addr, dest_addr, sense_flg))
+			if (move_drive2drive(src_addr, dest_addr, sam_stat))
 				retVal = -1;
 		} else if (src_addr < maxDrive) {
-			if (move_drive2slot(src_addr, dest_addr, sense_flg))
+			if (move_drive2slot(src_addr, dest_addr, sam_stat))
 				retVal = -1;
 		} else if (dest_addr < maxDrive) {
-			if (move_slot2drive(src_addr, dest_addr, sense_flg))
+			if (move_slot2drive(src_addr, dest_addr, sam_stat))
 				retVal = -1;
 		} else {   // Move between (non-drive) slots
-			if (move_slot2slot(src_addr, dest_addr, sense_flg))
+			if (move_slot2slot(src_addr, dest_addr, sam_stat))
 				retVal = -1;
 		}
 	}
@@ -1168,7 +1156,7 @@ return len;
  * Returns number of bytes to xfer back to host.
  */
 static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
-							uint8_t *sense_flg)
+							uint8_t *sam_stat)
 {
 	uint16_t *sp;
 	uint32_t *sl;
@@ -1258,14 +1246,14 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	memset(buf, 0, alloc_len);
 
 	if (cdb[11] != 0x0) {	// Reserved byte..
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 	}
 
 	// Find first matching slot number which matches the typeCode.
 	start = find_first_matching_element(req_start_elem, typeCode);
 	if (start == 0) {	// Nothing found..
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 	}
 
@@ -1306,7 +1294,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		}
 		break;
 	default:	// Illegal descriptor type.
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 		break;
 	}
@@ -1332,10 +1320,11 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
  * Temperature page & tape alert pages only...
  */
 #define TAPE_ALERT 0x2e
-static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
+static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
+{
 	uint8_t	*b = buf;
-	int	retval = 0;
-	uint16_t	*sp;
+	int retval = 0;
+	uint16_t *sp;
 
 	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x04,
 					0x00,
@@ -1343,7 +1332,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 					TAPE_ALERT
 					};
 
-	switch (SCpnt[2] & 0x3f) {
+	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING, "%s",
@@ -1376,11 +1365,11 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 		if (debug)
 			printf(
 				"Unknown log sense code: 0x%x\n",
-							SCpnt[2] & 0x3f);
+							cdb[2] & 0x3f);
 		else if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"Unknown log sense code: 0x%x\n",
-							SCpnt[2] & 0x3f);
+							cdb[2] & 0x3f);
 		retval = 2;
 		break;
 	}
@@ -1393,50 +1382,54 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
  *
  * Called with:
  * 	cdev     -> Char dev file handle,
- * 	SCpnt    -> SCSI Command buffer pointer,
- *	buf      -> General purpose data buffer pointer
- * 	sense_flg    -> int buffer -> 1 = request_sense, 0 = no sense
+ * 	cdb    -> SCSI Command buffer pointer,
+ *	struct vtl_ds -> general purpose data structure... Need better name
  *
  * Return:
- *	total number of bytes to send back to vtl device
+ *	success/failure
  */
-static uint32_t processCommand(int cdev, uint8_t *SCpnt,
-					uint8_t *buf, uint8_t *sense_flg)
+static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint32_t	block_size = 0L;
-	uint32_t	ret = 5L;	// At least 4 bytes for Sense & 4 for S/No.
-	int	k = 0;
-	struct	mode *smp = sm;
-	u32	count;
-	u16	*sp;
+	uint32_t block_size = 0L;
+	uint32_t ret = 5L;	// At least 4 bytes for Sense & 4 for S/No.
+	int k = 0;
+	struct mode *smp = sm;
+	u32 count;
+	u16 *sp;
 
-	switch(SCpnt[0]) {
+	/* Quick fix for POC */
+	uint8_t *buf = dbuf_p->data;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
+
+	switch (cdb[0]) {
 	case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
 	case INITIALIZE_ELEMENT_STATUS:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s",
 						"INITIALIZE ELEMENT **");
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
 		sleep(1);
 		break;
 
 	case LOG_SELECT:	// Set or reset LOG stats.
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
-		resp_log_select(SCpnt, sense_flg);
+		resp_log_select(cdb, sam_stat);
 		break;
 	case LOG_SENSE:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "LOG SENSE **");
-		ret += resp_log_sense(SCpnt, buf);
+		ret += resp_log_sense(cdb, buf);
 		break;
 
 	case MODE_SELECT:
 	case MODE_SELECT_10:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SELECT **");
-		ret += resp_mode_select(cdev, SCpnt, buf);
+		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
+						((cdb[7] << 8) | cdb[8]);
+		ret += resp_mode_select(cdev, dbuf_p);
 		break;
 
 	case MODE_SENSE:
@@ -1444,30 +1437,30 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SENSE **");
 		DEBC( printf("MODE SENSE\n"); )
-		ret += resp_mode_sense(SCpnt, buf, smp, sense_flg);
+		ret += resp_mode_sense(cdb, buf, smp, sam_stat);
 		break;
 
 	case MOVE_MEDIUM:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "MOVE MEDIUM **");
 		DEBC( printf("MOVE MEDIUM\n"); )
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
-		k = resp_move_medium(SCpnt, buf, sense_flg);
+		k = resp_move_medium(cdb, buf, sam_stat);
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
-		resp_allow_prevent_removal(SCpnt, sense_flg);
+		resp_allow_prevent_removal(cdb, sam_stat);
 		break;
 	case READ_ELEMENT_STATUS:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s",
 						 "READ ELEMENT STATUS **");
 		DEBC(	printf("READ ELEMENT STATUS\n"); )
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
-		ret += resp_read_element_status(SCpnt, buf, sense_flg);
+		ret += resp_read_element_status(cdb, buf, sam_stat);
 		break;
 
 	case REQUEST_SENSE:
@@ -1482,10 +1475,10 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 					sense[2], sense[12], sense[13]);
 		)
 		block_size =
-		 (SCpnt[4] < sizeof(sense)) ? SCpnt[4] : sizeof(sense);
+		 (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
 		memcpy(buf, sense, block_size);
 		/* Clear out the request sense flag */
-		*sense_flg = 0;
+		*sam_stat = 0;
 		memset(sense, 0, sizeof(sense));
 		ret += block_size;
 		break;
@@ -1494,22 +1487,22 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 	case RESERVE_10:
 	case RELEASE:
 	case RELEASE_10:
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
 		if (verbose) 
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "Rewinding **");
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
 		sleep(1);
 		break;
 
 	case START_STOP:	// Load/Unload cmd
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
-		if (SCpnt[4] && 0x1) {
+		if (cdb[4] && 0x1) {
 			libraryOnline = 1;
 			if (verbose) 
 				syslog(LOG_DAEMON|LOG_INFO, "%s",
@@ -1526,38 +1519,44 @@ static uint32_t processCommand(int cdev, uint8_t *SCpnt,
 			syslog(LOG_DAEMON|LOG_INFO, "%s %s",
 					"Test Unit Ready :",
 					(libraryOnline == 0) ? "No" : "Yes");
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			break;
 		if ( ! libraryOnline)
-			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sense_flg);
+			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
 		break;
 
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		sp = (u16 *)&SCpnt[3];
+		sp = (u16 *)&cdb[3];
 		count = ntohs(*sp);
 		if (count) {
-			block_size = retrieve_CDB_data(cdev, buf, count);
-			ProcessSendDiagnostic(SCpnt, 16, buf, block_size, sense_flg);
+			dbuf_p->sz = count;
+			block_size = retrieve_CDB_data(cdev, dbuf_p);
+			ProcessSendDiagnostic(cdb, 16, buf, block_size, sam_stat);
 		}
 		break;
 
 	default:
 		syslog(LOG_DAEMON|LOG_ERR, "%s",
 				"******* Unsupported command **********");
-		DEBC( printf("0x%02x : Unsupported command ************\n", SCpnt[0]); )
+		DEBC(
+		printf("0x%02x : Unsupported command ************\n", cdb[0]);
+		)
 
-		logSCSICommand(SCpnt);
-		if (check_reset(sense_flg))
+		logSCSICommand(cdb);
+		if (check_reset(sam_stat))
 			break;
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 		break;
 	}
 	DEBC(
-		printf("%s returning %d bytes\n\n", __func__, ret);
+	printf("%s returning %d bytes\n\n", __func__, ret);
 	)
-	return ret;
+
+	dbuf_p->sz = ret;
+
+	return 0;
 }
 
 /*
@@ -1946,7 +1945,7 @@ static void init_tape_info(void) {
 					STATUS_InEnab | STATUS_ExEnab | STATUS_Access | STATUS_ImpExp | STATUS_Full;
 				sp->slot_location = slt + START_MAP - 1;
 				// look for special media that should be reported as not having a barcode
-				if (!strncmp(sp->barcode, "NOBAR", 5))
+				if (!strncmp((char *)sp->barcode, "NOBAR", 5))
 					sp->internal_status = INSTATUS_NO_BARCODE;
 				else
 					sp->internal_status = 0;
@@ -1972,7 +1971,7 @@ static void init_tape_info(void) {
 				sp->slot_location = slt + START_PICKER - 1;
 				sp->status = STATUS_Full;
 				// look for special media that should be reported as not having a barcode
-				if (!strncmp(sp->barcode, "NOBAR", 5))
+				if (!strncmp((char *)sp->barcode, "NOBAR", 5))
 					sp->internal_status = INSTATUS_NO_BARCODE;
 				else
 					sp->internal_status = 0;
@@ -2000,7 +1999,7 @@ static void init_tape_info(void) {
 				// Slot full
 				sp->status = STATUS_Access | STATUS_Full;
 				// look for special media that should be reported as not having a barcode
-				if (!strncmp(sp->barcode, "NOBAR", 5))
+				if (!strncmp((char *)sp->barcode, "NOBAR", 5))
 					sp->internal_status = INSTATUS_NO_BARCODE;
 				else
 					sp->internal_status = 0;
@@ -2024,10 +2023,8 @@ int main(int argc, char *argv[])
 	int vx_status;
 	int q_priority = 0;
 	int exit_status = 0;
-	uint32_t serialNo = 0L;
-	uint32_t	byteCount;
 	uint8_t *buf;
-	uint8_t *SCpnt;
+	uint8_t *cdb;
 
 	struct d_info *dp;
 	char s[100];
@@ -2044,6 +2041,7 @@ int main(int argc, char *argv[])
 	struct q_entry r_entry;
 
 	struct vtl_header vtl_head;
+	struct vtl_ds dbuf;
 
 	while(argc > 0) {
 		if (argv[0][0] == '-') {
@@ -2211,24 +2209,22 @@ int main(int argc, char *argv[])
 			case STATUS_QUEUE_CMD:	// The new & improved method
 				/* Get the SCSI cdb from vxtape driver
 				 * - Returns SCSI command S/No. */
-				getCommand(cdev, &vtl_head, vx_status);
+				getCommand(cdev, &vtl_head);
 
-				SCpnt = (uint8_t *)&vtl_head.cdb;
-				serialNo = htonl(vtl_head.serialNo);
+				cdb = (uint8_t *)&vtl_head.cdb;
 
-				/* Interpret the SCSI command & process
-				-> Returns no. of bytes to send back to kernel
-				 */
-				byteCount = processCommand(cdev, SCpnt, buf,
-								&request_sense);
+				memset(&dbuf, 0, sizeof(struct vtl_ds));
+				dbuf.serialNo = vtl_head.serialNo;
+				dbuf.sense_buf = &sense;
+				dbuf.sam_stat = sam_status;
+				dbuf.data = buf;
+
+				processCommand(cdev, cdb, &dbuf);
 
 				/* Complete SCSI cmd processing */
-				completeSCSICommand(cdev,
-						serialNo,
-						buf,
-						sense,
-						&request_sense,
-						byteCount);
+				completeSCSICommand(cdev, &dbuf);
+				sam_status = dbuf.sam_stat;
+
 				break;
 
 			case STATUS_OK:

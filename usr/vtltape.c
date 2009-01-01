@@ -123,18 +123,18 @@ static int datafile;		/* Global file handle - This goes against the
 			grain, however the handle is passed to every function
 			anyway. */
 static char *currentMedia;	/* filename of 'datafile' */
-static uint8_t request_sense = 0;	/* Non-zero if Sense-data is valid */
+static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
+static uint8_t busy = 0;	/* Device busy */
 static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
 static int OK_to_write = 1;	// True if in correct position to start writing
 static int compressionFactor = 0;
-
-static uint8_t *rw_buf;	// Data buffer (malloc'ed memory)
 
 static u64 bytesRead = 0;
 static u64 bytesWritten = 0;
 static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
+uint8_t sense_busy[SENSE_BUF_SIZE]; /* Request sense buffer */
 
 static struct MAM mam;
 
@@ -385,29 +385,32 @@ mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid)
 	sense[6] = difference;
 }
 
-static loff_t read_header(struct blk_header *h, int size, uint8_t *sense_flg) {
+static loff_t read_header(struct blk_header *h, int size, uint8_t *sam_stat)
+{
 	loff_t nread;
 
 	nread = read(datafile, h, size);
 	if (nread < 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		nread = 0;
 	} else if (nread == 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
 		nread = 0;
 	}
 	return nread;
 }
 
-static loff_t position_to_curr_header(uint8_t * sense_flg) {
+static loff_t position_to_curr_header(uint8_t *sam_stat)
+{
 	return (lseek64(datafile, c_pos.curr_blk, SEEK_SET));
 }
 
-static int skip_to_next_header(uint8_t * sense_flg) {
+static int skip_to_next_header(uint8_t *sam_stat)
+{
 	loff_t nread;
 
 	if (c_pos.blk_type == B_EOD) {
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
+		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 		if (verbose)
 		    syslog(LOG_DAEMON|LOG_WARNING,
 			"End of data detected while forward SPACEing!!");
@@ -415,28 +418,28 @@ static int skip_to_next_header(uint8_t * sense_flg) {
 	}
 
 	if (c_pos.next_blk != lseek64(datafile, c_pos.next_blk, SEEK_SET)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		syslog(LOG_DAEMON|LOG_WARNING,
 					"Unable to seek to next block header");
 		return -1;
 	}
-	nread = read_header(&c_pos, sizeof(c_pos), sense_flg);
+	nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
 	if (nread == 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		syslog(LOG_DAEMON|LOG_WARNING,
 					"Unable to read next block header");
 		return -1;
 	}
 	if (nread == -1) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		syslog(LOG_DAEMON|LOG_WARNING,
 					"Unable to read next block header: %m");
 		return -1;
 	}
 	DEBC( print_header(&c_pos);) ;
 	// Position to start of header (rewind over header)
-	if (c_pos.curr_blk != position_to_curr_header(sense_flg)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sense_flg);
+	if (c_pos.curr_blk != position_to_curr_header(sam_stat)) {
+		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING,
 			"%s: Error positing in datafile, byte offset: %" PRId64,
@@ -446,7 +449,8 @@ static int skip_to_next_header(uint8_t * sense_flg) {
 	return 0;
 }
 
-static int skip_to_prev_header(uint8_t * sense_flg) {
+static int skip_to_prev_header(uint8_t *sam_stat)
+{
 	loff_t nread;
 
 	// Position to previous header
@@ -455,7 +459,7 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 		printf("Positioning to c_pos.prev_blk: %" PRId64 "\n", c_pos.prev_blk);
 	}
 	if (c_pos.prev_blk != lseek64(datafile, c_pos.prev_blk, SEEK_SET)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING,
 					"%s: Error position in datafile !!",
@@ -466,7 +470,7 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 	if (debug)
 		printf("Reading in header: %d bytes\n", (int)sizeof(c_pos));
 
-	nread = read_header(&c_pos, sizeof(c_pos), sense_flg);
+	nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
 	if (nread == 0) {
 		if (verbose)
 		    syslog(LOG_DAEMON|LOG_WARNING, "%s",
@@ -478,16 +482,16 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 		if (debug)
 			printf("Found Beginning Of Tape, "
 				"Skipping to next header..\n");
-		skip_to_next_header(sense_flg);
+		skip_to_next_header(sam_stat);
 		DEBC( print_header(&c_pos);) ;
-		mkSenseBuf(MEDIUM_ERROR, E_BOM, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_BOM, sam_stat);
 		syslog(LOG_DAEMON|LOG_WARNING, "Found BOT!!");
 		return -1;
 	}
 
 	// Position to start of header (rewind over header)
-	if (c_pos.curr_blk != position_to_curr_header(sense_flg)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR,sense_flg);
+	if (c_pos.curr_blk != position_to_curr_header(sam_stat)) {
+		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR,sam_stat);
 		syslog(LOG_DAEMON|LOG_WARNING,
 				"%s: Error position in datafile !!",
 				__func__);
@@ -504,7 +508,8 @@ static int skip_to_prev_header(uint8_t * sense_flg) {
 /*
  * Create & write a new block header
  */
-static int mkNewHeader(char type, int size, int comp_size, uint8_t * sense_flg) {
+static int mkNewHeader(char type, int size, int comp_size, uint8_t *sam_stat)
+{
 	struct blk_header h;
 	loff_t nwrite;
 
@@ -544,7 +549,7 @@ static int mkNewHeader(char type, int size, int comp_size, uint8_t * sense_flg) 
 		"Fatal: Position error blk No: %" PRId64 ", Pos: %" PRId64
 		", Exp: %" PRId64,
 				h.blk_number, h.curr_blk, c_pos.curr_blk);
-		mkSenseBuf(MEDIUM_ERROR,E_SEQUENTIAL_POSITION_ERR,sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		return 0;
 	}
 
@@ -554,7 +559,7 @@ static int mkNewHeader(char type, int size, int comp_size, uint8_t * sense_flg) 
 	 * If write was successful, update c_pos with this header block.
 	 */
 	if (nwrite <= 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 		if (debug) {
 			if (nwrite < 0) perror("header write failed");
 			printf("Error writing %d header, pos: %" PRId64 "\n",
@@ -570,18 +575,19 @@ static int mkNewHeader(char type, int size, int comp_size, uint8_t * sense_flg) 
 	return nwrite;
 }
 
-static int mkEODHeader(uint8_t *sense_flg) {
+static int mkEODHeader(uint8_t *sam_stat)
+{
 	loff_t nwrite;
 
-	nwrite = mkNewHeader(B_EOD, sizeof(c_pos), sizeof(c_pos), sense_flg);
+	nwrite = mkNewHeader(B_EOD, sizeof(c_pos), sizeof(c_pos), sam_stat);
 	if (MediaType == MEDIA_TYPE_WORM)
 		OK_to_write = 1;
 
 	/* If we have just written a END OF DATA marker,
 	 * rewind to just before it. */
 	// Position to start of header (rewind over header)
-	if (c_pos.curr_blk != position_to_curr_header(sense_flg)) {
-		mkSenseBuf(MEDIUM_ERROR,E_SEQUENTIAL_POSITION_ERR,sense_flg);
+	if (c_pos.curr_blk != position_to_curr_header(sam_stat)) {
+		mkSenseBuf(MEDIUM_ERROR,E_SEQUENTIAL_POSITION_ERR,sam_stat);
 		syslog(LOG_DAEMON|LOG_ERR, "Failed to write EOD header");
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING,
@@ -594,23 +600,11 @@ static int mkEODHeader(uint8_t *sense_flg) {
 }
 
 /*
- * Simple function to read 'count' bytes from the chardev into 'buf'.
- */
-static int retrieve_CDB_data(int cdev, uint8_t *buf, int count) {
-
-	if (verbose > 2)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"retrieving %d bytes from char dev, bufsize: %d",
-					count, bufsize);
-
-	return (read(cdev, buf, count));
-}
-
-/*
  *
  */
 
-static int skip_prev_filemark(uint8_t *sense_flg) {
+static int skip_prev_filemark(uint8_t *sam_stat)
+{
 
 	DEBC(
 		printf("  skip_prev_filemark()\n");
@@ -622,13 +616,13 @@ static int skip_prev_filemark(uint8_t *sense_flg) {
 	DEBC( print_header(&c_pos);) ;
 	while(c_pos.blk_type != B_FILEMARK) {
 		if (c_pos.blk_type == B_BOT) {
-			mkSenseBuf(NO_SENSE, E_BOM, sense_flg);
+			mkSenseBuf(NO_SENSE, E_BOM, sam_stat);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 						"Found Beginning of tape");
 			return -1;
 		}
-		if (skip_to_prev_header(sense_flg))
+		if (skip_to_prev_header(sam_stat))
 			return -1;
 	}
 	return 0;
@@ -637,7 +631,8 @@ static int skip_prev_filemark(uint8_t *sense_flg) {
 /*
  *
  */
-static int skip_next_filemark(uint8_t *sense_flg) {
+static int skip_next_filemark(uint8_t *sam_stat)
+{
 
 	DEBC(
 		printf("  skip_next_filemark()\n");
@@ -647,7 +642,7 @@ static int skip_next_filemark(uint8_t *sense_flg) {
 	while(c_pos.blk_type != B_FILEMARK) {
 		// END-OF-DATA -> Treat this as an error - return..
 		if (c_pos.blk_type == B_EOD) {
-			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
+			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 							"Found end of media");
@@ -655,11 +650,11 @@ static int skip_next_filemark(uint8_t *sense_flg) {
 				OK_to_write = 1;
 			return -1;
 		}
-		if (skip_to_next_header(sense_flg))
+		if (skip_to_next_header(sam_stat))
 			return -1;	// On error
 	}
 	// Position to header AFTER the FILEMARK..
-	if (skip_to_next_header(sense_flg))
+	if (skip_to_next_header(sam_stat))
 		return -1;
 
 	return 0;
@@ -680,19 +675,20 @@ setSeqAccessDevice(struct seqAccessDevice * seqAccessDevice, u64 flg) {
  * Check for any write restrictions - e.g. WORM, or Clean Cartridge mounted.
  * Return 1 = OK to write, zero -> Can't write.
  */
-static int checkRestrictions(uint8_t *sense_flg) {
+static int checkRestrictions(uint8_t *sam_stat)
+{
 
 	// Check that there is a piece of media loaded..
 	switch (tapeLoaded) {
 	case TAPE_LOADED:	/* Do nothing */
 		break;
 	case TAPE_UNLOADED:
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sense_flg);
+		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		OK_to_write = 0;
 		return 1;
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		OK_to_write = 0;
 		return 1;
 		break;
@@ -700,7 +696,7 @@ static int checkRestrictions(uint8_t *sense_flg) {
 
 	switch(MediaType) {
 	case MEDIA_TYPE_CLEAN:
-		mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED, sense_flg);
+		mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED, sam_stat);
 		syslog(LOG_DAEMON|LOG_INFO, "Can not write - Cleaning cart");
 		OK_to_write = 0;
 		break;
@@ -710,11 +706,11 @@ static int checkRestrictions(uint8_t *sense_flg) {
 	 	*/
 		if (c_pos.blk_type == B_EOD)
 			OK_to_write = 1;	// OK to append to end of 'tape'
-		if (! OK_to_write) {
+		if (!OK_to_write) {
 			syslog(LOG_DAEMON|LOG_ERR,
 					"Attempt to overwrite WORM data");
 			mkSenseBuf(DATA_PROTECT,
-				E_MEDIUM_OVERWRITE_ATTEMPTED, sense_flg);
+				E_MEDIUM_OVERWRITE_ATTEMPTED, sam_stat);
 		}
 		break;
 	case MEDIA_TYPE_DATA:
@@ -770,10 +766,13 @@ static void clearWORM(void) {
 // FIXME: Need to grab info from MAM !!!
 
 #define REPORT_DENSITY_LEN 56
-static int resp_report_density(uint8_t media, int len, uint8_t *buf, uint8_t *sense_flg) {
+static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
+{
 	u16 *sp;
 	u32 *lp;
 	u32 t;
+	uint8_t *buf = dbuf_p->data;
+	int len = dbuf_p->sz;
 
 	// Zero out buf
 	memset(buf, 0, len);
@@ -822,22 +821,23 @@ return(REPORT_DENSITY_LEN);
 /*
  * Process the MODE_SELECT command
  */
-static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf, uint8_t *sense_flg) {
-	int alloc_len;
+static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
+{
 	int k;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	uint8_t *buf = dbuf_p->data;
+	int count;
 
-	alloc_len = (MODE_SELECT == cmd[0]) ? cmd[4] : ((cmd[7] << 8) | cmd[8]);
-
-	retrieve_CDB_data(cdev, buf, alloc_len);
+	count = retrieve_CDB_data(cdev, dbuf_p);
 
 	/* This should be more selective..
 	 * Only needed for cmds that alter the partitioning or format..
 	 */
-	if (! checkRestrictions(sense_flg))
+	if (!checkRestrictions(sam_stat))
 		return 0; 
 
 	if (debug) {
-		for (k = 0; k < alloc_len; k++)
+		for (k = 0; k < dbuf_p->sz; k++)
 			printf("%02x ", (u32)buf[k]);
 		printf("\n");
 	}
@@ -846,11 +846,12 @@ static int resp_mode_select(int cdev, uint8_t *cmd, uint8_t *buf, uint8_t *sense
 }
 
 
-static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
-	uint8_t	*b = buf;
+static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
+{
+	uint8_t	*b = dbuf_p->data;
 	int retval = 0;
 	uint16_t *sp;
-	uint16_t alloc_len = (SCpnt[7] << 8) | SCpnt[8];
+	uint16_t alloc_len = dbuf_p->sz;
 
 	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x08,
 					0x00,
@@ -864,7 +865,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 					DATA_COMPRESSION,
 					};
 
-	switch (SCpnt[2] & 0x3f) {
+	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
@@ -973,7 +974,7 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
 		break;
 	default:
 		syslog(LOG_DAEMON|LOG_ERR,
-			"LOG SENSE: Unknown code: 0x%x", SCpnt[2] & 0x3f);
+			"LOG SENSE: Unknown code: 0x%x", cdb[2] & 0x3f);
 		retval = 2;
 		break;
 	}
@@ -985,7 +986,8 @@ static int resp_log_sense(uint8_t *SCpnt, uint8_t *buf) {
  *
  * Fill in 'buf' with data and return number of bytes
  */
-static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_flg) {
+static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
+{
 	u16 *sp;
 	u16 attribute;
 	u32 *lp;
@@ -994,9 +996,9 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
 	int byte_index = 4;
 	int index, found_attribute;
 
-	sp = (u16 *)&SCpnt[8];
+	sp = (u16 *)&cdb[8];
 	attribute = ntohs(*sp);
-	lp = (u32 *)&SCpnt[10];
+	lp = (u32 *)&cdb[10];
 	alloc_len = ntohl(*lp);
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
@@ -1005,7 +1007,7 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
 
 	memset(buf, 0, alloc_len);	// Clear memory
 
-	if (SCpnt[1] == 0) {
+	if (cdb[1] == 0) {
 		/* Attribute Values */
 		for (index = found_attribute = 0; MAM_Attributes[index].length; index++) {
 			if (attribute == MAM_Attributes[index].attribute) {
@@ -1029,7 +1031,7 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
 			}
 		}
 		if (!found_attribute) {
-			mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sense_flg);
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 			return 0;
 		}
 	} else {
@@ -1062,15 +1064,17 @@ static int resp_read_attribute(uint8_t * SCpnt, uint8_t * buf, uint8_t * sense_f
  *         or 1 if MAM needs to be written.
  *         or -1 on failure.
  */
-static int resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, struct MAM *mam, uint8_t *sense_flg)
+static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM *mam)
 {
 	u32 *lp;
 	u32 alloc_len;
 	int byte_index;
 	int index, attribute, attribute_length, found_attribute = 0;
 	struct MAM mam_backup;
+	uint8_t *buf = dbuf_p->data;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
 
-	lp = (u32 *)&SCpnt[10];
+	lp = (u32 *)&cdb[10];
 	alloc_len = ntohl(*lp);
 
 	memcpy(&mam_backup, &mam, sizeof(struct MAM));
@@ -1103,7 +1107,7 @@ static int resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, str
 		}
 		if (!found_attribute) {
 			memcpy(&mam, &mam_backup, sizeof(struct MAM));
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sense_flg);
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
 			return 0;
 		}
 	}
@@ -1115,13 +1119,14 @@ static int resp_write_attribute(uint8_t * SCpnt, uint8_t *buf, uint64_t len, str
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
-static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_sz) {
-	loff_t	nread = 0;
+static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, u32 request_sz)
+{
+	loff_t nread = 0;
 	uint8_t	*comp_buf;
-	uLongf	uncompress_sz;
-	uLongf	comp_buf_sz;
-	int	z;
-	u8	information[4];
+	uLongf uncompress_sz;
+	uLongf comp_buf_sz;
+	int z;
+	u8 information[4];
 
 	if (verbose > 1)
 		syslog(LOG_DAEMON|LOG_WARNING, "Request to read: %d bytes",
@@ -1142,13 +1147,13 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			syslog(LOG_DAEMON|LOG_ERR,
 				"Expected to find hdr type: %d, found: %d",
 				 	B_UNCOMPRESS_DATA, c_pos.blk_type);
-		skip_to_next_header(sense_flg);
-		mk_sense_short_block(request_sz, 0, sense_flg);
+		skip_to_next_header(sam_stat);
+		mk_sense_short_block(request_sz, 0, sam_stat);
 		information[0] = sense[3];
 		information[1] = sense[4];
 		information[2] = sense[5];
 		information[3] = sense[6];
-		mkSenseBuf(FILEMARK, E_MARK, sense_flg);
+		mkSenseBuf(FILEMARK, E_MARK, sam_stat);
 		sense[3] = information[0];
 		sense[4] = information[1];
 		sense[5] = information[2];
@@ -1156,12 +1161,12 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 		return nread;
 		break;
 	case B_EOD:
-		mk_sense_short_block(request_sz, 0, sense_flg);
+		mk_sense_short_block(request_sz, 0, sam_stat);
 		information[0] = sense[3];
 		information[1] = sense[4];
 		information[2] = sense[5];
 		information[3] = sense[6];
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
+		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 		sense[3] = information[0];
 		sense[4] = information[1];
 		sense[5] = information[2];
@@ -1169,19 +1174,19 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 		return nread;
 		break;
 	case B_BOT:
-		skip_to_next_header(sense_flg);
+		skip_to_next_header(sam_stat);
 		// Re-exec function.
-		return readBlock(cdev, buf, sense_flg, request_sz);
+		return readBlock(cdev, buf, sam_stat, request_sz);
 		break;
 	case B_COMPRESSED_DATA:
 		// If we are positioned at beginning of header, read it in.
 		if (c_pos.curr_blk == lseek64(datafile, 0, SEEK_CUR)) {
-			nread = read_header(&c_pos, sizeof(c_pos), sense_flg);
+			nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
 			if (nread == 0) {	// Error
 				syslog(LOG_DAEMON|LOG_ERR,
 					"Unable to read header: %m");
 				mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,
-								sense_flg);
+								sam_stat);
 				return 0;
 			}
 		}
@@ -1191,7 +1196,7 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 		if (NULL == comp_buf) {
 			syslog(LOG_DAEMON|LOG_WARNING,
 				"Unable to alloc %ld bytes", comp_buf_sz);
-			mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,sense_flg);
+			mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,sam_stat);
 			return 0;
 		}
 		nread = read(datafile, comp_buf, c_pos.disk_blk_size);
@@ -1199,18 +1204,18 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 				"End of data detected when reading from file");
-			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
+			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 			free(comp_buf);
 			return 0;
 		} else if (nread < 0) {	// Error
 			syslog(LOG_DAEMON|LOG_ERR, "Read Error: %m");
-			mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,sense_flg);
+			mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,sam_stat);
 			free(comp_buf);
 			return 0;
 		}
 		z = uncompress((uint8_t *)buf,&uncompress_sz, comp_buf, nread);
 		if (z != Z_OK) {
-			mkSenseBuf(MEDIUM_ERROR,E_DECOMPRESSION_CRC,sense_flg);
+			mkSenseBuf(MEDIUM_ERROR,E_DECOMPRESSION_CRC,sam_stat);
 			if (z == Z_MEM_ERROR)
 				syslog(LOG_DAEMON|LOG_ERR,
 					"Not enough memory to decompress data");
@@ -1230,18 +1235,18 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			syslog(LOG_DAEMON|LOG_WARNING,
 			"Short block read %ld %d", uncompress_sz, request_sz);
 			mk_sense_short_block(request_sz, uncompress_sz,
-								sense_flg);
+								sam_stat);
 		}
 		free(comp_buf);
 		break;
 	case B_UNCOMPRESS_DATA:
 		// If we are positioned at beginning of header, read it in.
 		if (c_pos.curr_blk == lseek64(datafile, 0, SEEK_CUR)) {
-			nread = read_header(&c_pos, sizeof(c_pos), sense_flg);
+			nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
 			if (nread == 0) {	// Error
 				syslog(LOG_DAEMON|LOG_ERR, "%m");
 				mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,
-								sense_flg);
+								sam_stat);
 				return 0;
 			}
 		}
@@ -1250,15 +1255,15 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_WARNING, "%s",
 				"End of data detected when reading from file");
-			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sense_flg);
+			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 			return nread;
 		} else if (nread < 0) {	// Error
 			syslog(LOG_DAEMON|LOG_ERR, "%m");
-			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sense_flg);
+			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		} else if (nread != request_sz) {
 			// requested block and actual block size different
-			mk_sense_short_block(request_sz, nread, sense_flg);
+			mk_sense_short_block(request_sz, nread, sam_stat);
 		}
 		break;
 	default:
@@ -1266,12 +1271,12 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 		  syslog(LOG_DAEMON|LOG_ERR,
 			"Unknown blk header at offset %" PRId64 " - Abort read cmd",
 							c_pos.curr_blk);
-		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 		return 0;
 		break;
 	}
 	// Now read in subsequent header
-	skip_to_next_header(sense_flg);
+	skip_to_next_header(sam_stat);
 
 	return nread;
 }
@@ -1280,7 +1285,8 @@ static int readBlock(int cdev, uint8_t * buf, uint8_t * sense_flg, u32 request_s
 /*
  * Return number of bytes written to 'file'
  */
-static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
+static int writeBlock(uint8_t *src_buf, u32 src_sz,  uint8_t *sam_stat)
+{
 	loff_t	nwrite = 0;
 	Bytef	* dest_buf = src_buf;
 	uLong	dest_len = src_sz;
@@ -1292,7 +1298,7 @@ static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
 
 		dest_buf = malloc(src_len);
 		if (NULL == dest_buf) {
-			mkSenseBuf(MEDIUM_ERROR,E_COMPRESSION_CHECK, sense_flg);
+			mkSenseBuf(MEDIUM_ERROR,E_COMPRESSION_CHECK, sam_stat);
 			syslog(LOG_DAEMON|LOG_ERR, "malloc failed: %m");
 			return 0;
 		}
@@ -1304,17 +1310,17 @@ static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
 
 		// Create & write block header..
 		nwrite =
-		   mkNewHeader(B_COMPRESSED_DATA, src_len, dest_len, sense_flg);
+		   mkNewHeader(B_COMPRESSED_DATA, src_len, dest_len, sam_stat);
 */
 	} else {
 		nwrite =
-		   mkNewHeader(B_UNCOMPRESS_DATA, src_len, dest_len, sense_flg);
+		   mkNewHeader(B_UNCOMPRESS_DATA, src_len, dest_len, sam_stat);
 
 	}
 	if (nwrite <= 0) {
 		if (debug)
 			printf("Failed to write header\n");
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 	} else {	// now write the block of data..
 		nwrite = write(datafile, dest_buf, dest_len);
 		if (nwrite <= 0) {
@@ -1324,27 +1330,26 @@ static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
 					perror("writeBlk failed");
 				printf("Failed to write %ld bytes\n", dest_len);
 			}
-			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sense_flg);
+			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 		} else if (nwrite != dest_len) {
 			DEBC(
 			syslog(LOG_DAEMON|LOG_ERR, "Did not write all data");
 			) ;
-			mk_sense_short_block(src_len, nwrite, sense_flg);
+			mk_sense_short_block(src_len, nwrite, sam_stat);
 		}
 	}
 	if (c_pos.curr_blk >= max_tape_capacity) {
 		syslog(LOG_DAEMON|LOG_INFO, "End of Medium - Setting EOM flag");
-		mkSenseBuf(NO_SENSE|EOM_FLAG, NO_ADDITIONAL_SENSE,
-								sense_flg);
+		mkSenseBuf(NO_SENSE|EOM_FLAG, NO_ADDITIONAL_SENSE, sam_stat);
 	}
 
 	if (compressionFactor)
 		free(dest_buf);
 
 	/* Write END-OF-DATA marker */
-	nwrite = mkEODHeader(sense_flg);
+	nwrite = mkEODHeader(sam_stat);
 	if (nwrite <= 0)
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 
 	return src_len;
 }
@@ -1353,19 +1358,31 @@ static int writeBlock(uint8_t * src_buf, u32 src_sz,  uint8_t * sense_flg) {
 /*
  * Rewind 'tape'.
  */
-static void rawRewind(uint8_t *sense_flg) {
-	loff_t retval;
-
-	// FIXME: Do something on error....
+static int rawRewind(uint8_t *sam_stat)
+{
+	off64_t retval;
+	int val = 0;
 
 	// Start at beginning of datafile..
 	retval = lseek64(datafile, 0L, SEEK_SET);
+	if (retval < 0) {
+		syslog(LOG_DAEMON|LOG_ERR,
+			"%s: can't seek to beginning of file: %m\n", __func__);
+		val = 1;
+	}
 
 	/*
 	 * Read header..
 	 * If this is not the BOT header we are in trouble
 	 */
 	retval = read(datafile, &c_pos, sizeof(c_pos));
+	if (retval != sizeof(c_pos)) {
+		syslog(LOG_DAEMON|LOG_ERR, "%s: can't read header: %m\n",
+			__func__);
+		val = 1;
+	}
+
+	return val;
 }
 
 /*
@@ -1375,20 +1392,24 @@ static void rawRewind(uint8_t *sense_flg) {
  *        1 -> Load OK
  *        2 -> format corrupt.
  */
-static int resp_rewind(uint8_t * sense_flg) {
+static int resp_rewind(uint8_t *sam_stat)
+{
 	loff_t nread = 0;
 
-	rawRewind(sense_flg);
+	if (rawRewind(sam_stat)) {
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		return 2;
+	}
 
 	if (c_pos.blk_type != B_BOT) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		DEBC( print_header(&c_pos);) ;
 		return 2;
 	}
 	nread = read(datafile, &mam, sizeof(struct MAM));
 	if (nread != sizeof(struct MAM)) {
 		syslog(LOG_DAEMON|LOG_INFO, "read MAM short - corrupt");
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		memset(&mam, 0, sizeof(struct MAM));
 		DEBC( print_header(&c_pos);) ;
 		return 2;
@@ -1396,7 +1417,7 @@ static int resp_rewind(uint8_t * sense_flg) {
 
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		syslog(LOG_DAEMON|LOG_INFO, "Incorrect media format");
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		DEBC( print_header(&c_pos);) ;
 		return 2;
 	}
@@ -1405,7 +1426,7 @@ static int resp_rewind(uint8_t * sense_flg) {
 		syslog(LOG_DAEMON|LOG_INFO, "MAM: media S/No. %s",
 							mam.MediumSerialNumber);
 
-	if (skip_to_next_header(sense_flg))
+	if (skip_to_next_header(sam_stat))
 		return 2;
 
 	MediaType = mam.MediumType;
@@ -1427,14 +1448,18 @@ static int resp_rewind(uint8_t * sense_flg) {
 		// Check that this header is a filemark and the next header
 		//  is End of Data. If it is, we are OK to write
 		if (c_pos.blk_type == B_FILEMARK) {
-			skip_to_next_header(sense_flg);
+			skip_to_next_header(sam_stat);
 			if (c_pos.blk_type == B_EOD)
 				OK_to_write = 1;
 		}
 		// Now we have to go thru thru the rewind again..
-		rawRewind(sense_flg);
+		if (rawRewind(sam_stat)) {
+			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+			return 2;
+		}
+
 		// No need to do all previous error checking...
-		skip_to_next_header(sense_flg);
+		skip_to_next_header(sam_stat);
 		break;
 	case MEDIA_TYPE_DATA:
 		OK_to_write = 1;	// Reset flag to OK.
@@ -1452,7 +1477,8 @@ static int resp_rewind(uint8_t * sense_flg) {
 /*
  * Space over (to) x filemarks. Setmarks not supported as yet.
  */
-static void resp_space(u32 count, int code, uint8_t *sense_flg) {
+static void resp_space(u32 count, int code, uint8_t *sam_stat)
+{
 
 	switch(code) {
 	// Space 'count' blocks
@@ -1465,11 +1491,11 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 			if (MediaType == MEDIA_TYPE_WORM)
 				OK_to_write = 0;
 			for (;count > 0; count++)
-				if (skip_to_prev_header(sense_flg))
+				if (skip_to_prev_header(sam_stat))
 					return;
 		} else {
 			for (;count > 0; count--)
-				if (skip_to_next_header(sense_flg))
+				if (skip_to_next_header(sam_stat))
 					return;
 		}
 		break;
@@ -1483,11 +1509,11 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 			if (MediaType == MEDIA_TYPE_WORM)
 				OK_to_write = 0;
 			for (;count > 0; count++)
-				if (skip_prev_filemark(sense_flg))
+				if (skip_prev_filemark(sam_stat))
 					return;
 		} else {
 			for (;count > 0; count--)
-				if (skip_next_filemark(sense_flg))
+				if (skip_next_filemark(sam_stat))
 					return;
 		}
 		break;
@@ -1497,7 +1523,7 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 			syslog(LOG_DAEMON|LOG_NOTICE, "%s",
 				"SCSI space to end-of-data **");
 		while(c_pos.blk_type != B_EOD)
-			if (skip_to_next_header(sense_flg)) {
+			if (skip_to_next_header(sam_stat)) {
 				if (MediaType == MEDIA_TYPE_WORM)
 					OK_to_write = 1;
 				return;
@@ -1505,7 +1531,7 @@ static void resp_space(u32 count, int code, uint8_t *sense_flg) {
 		break;
 
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB, sam_stat);
 		break;
 	}
 }
@@ -1566,7 +1592,7 @@ static char *certificate =
 /*
  * Returns number of bytes in struct
  */
-static int resp_sp_in_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sense_flg)
+static int resp_sp_in_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sam_stat)
 {
 	int ret = 0;
 
@@ -1595,7 +1621,7 @@ static int resp_sp_in_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		break;
 
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 	}
 	return ret;
 }
@@ -1613,7 +1639,7 @@ static int resp_sp_in_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 /*
  * Return number of valid bytes in data structure
  */
-static int resp_sp_in_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sense_flg)
+static int resp_sp_in_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sam_stat)
 {
 	int ret = 0;
 
@@ -1719,7 +1745,7 @@ static int resp_sp_in_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, ui
 		break;
 
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 	}
 	return ret;
 }
@@ -1730,7 +1756,7 @@ static int resp_sp_in_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, ui
 #define SECURITY_PROTOCOL_INFORMATION 0
 #define TAPE_DATA_ENCRYPTION 0x20
 
-static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sense_flg)
+static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint16_t sps = ((cdb[2] & 0xff) << 8) + (cdb[3] & 0xff);
 	uint32_t alloc_len = ((cdb[6] & 0xff) << 24) +
@@ -1744,11 +1770,11 @@ static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sense_flg)
 
 	switch(cdb[1]) {
 	case SECURITY_PROTOCOL_INFORMATION:
-		return resp_sp_in_page_0(buf, sps, alloc_len, sense_flg);
+		return resp_sp_in_page_0(buf, sps, alloc_len, sam_stat);
 		break;
 
 	case TAPE_DATA_ENCRYPTION:
-		return resp_sp_in_page_20(buf, sps, alloc_len, sense_flg);
+		return resp_sp_in_page_20(buf, sps, alloc_len, sam_stat);
 		break;
 	}
 
@@ -1756,35 +1782,28 @@ static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sense_flg)
 			"%s: security protocol 0x%04x unknown\n",
 				__func__, cdb[1]);
 
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sense_flg);
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 	return 0;
 }
 
-static int resp_spout(uint8_t *cdb, uint8_t *buf, uint8_t *sense_flg)
+static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint16_t sps = ((cdb[2] | 0xff) << 8) +
-						(cdb[3] | 0xff);
-	uint32_t alloc_len = ((cdb[6] & 0xff) << 24) +
-				((cdb[7] & 0xff) << 16) +
-				((cdb[8] & 0xff) << 8) +
-				(cdb[9] & 0xff);
+	uint16_t sps = ((cdb[2] | 0xff) << 8) + (cdb[3] | 0xff);
 	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
-
-	if (inc_512)
-		alloc_len = alloc_len * 512;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
 
 	if (cdb[1] != TAPE_DATA_ENCRYPTION) {
 		syslog(LOG_DAEMON|LOG_INFO,
 			"%s: security protocol 0x%02x unknown\n",
 				__func__, cdb[1]);
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB, sense_flg);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return 0;
 	}
 	syslog(LOG_DAEMON|LOG_INFO,
 			"%s: Tape Data Encryption, %s, "
 			" alloc len: 0x%02x, inc_512: %s\n",
 				__func__, lookup_sp_specific(sps),
-				alloc_len, (inc_512) ? "Set" : "Unset");
+				dbuf_p->sz, (inc_512) ? "Set" : "Unset");
 	return 0;
 }
 
@@ -1792,14 +1811,14 @@ static int resp_spout(uint8_t *cdb, uint8_t *buf, uint8_t *sense_flg)
  * Writes data in struct mam back to beginning of datafile..
  * Returns 0 if nothing written or -1 on error
  */
-static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg)
+static int rewriteMAM(struct MAM *mamp, uint8_t *sam_stat)
 {
 	loff_t nwrite = 0;
 
 	// Rewrite MAM data
 	nwrite = pwrite(datafile, mamp, sizeof(mam), sizeof(struct blk_header));
 	if (nwrite != sizeof(mam)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sense_flg);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		return -1;
 	}
 
@@ -1809,7 +1828,7 @@ static int rewriteMAM(struct MAM *mamp, uint8_t *sense_flg)
 /*
  * Update MAM contents with current counters
  */
-static void updateMAM(struct MAM *mamp, uint8_t *sense_flg, int loadCount)
+static void updateMAM(struct MAM *mamp, uint8_t *sam_stat, int loadCount)
 {
 	u64 bw;		// Bytes Written
 	u64 br;		// Bytes Read
@@ -1838,7 +1857,7 @@ static void updateMAM(struct MAM *mamp, uint8_t *sense_flg, int loadCount)
 		mamp->LoadCount = ntohll(load);
 	}
 
-	rewriteMAM(mamp, sense_flg);
+	rewriteMAM(mamp, sam_stat);
 }
 
 /*
@@ -1847,66 +1866,72 @@ static void updateMAM(struct MAM *mamp, uint8_t *sense_flg, int loadCount)
  *
  * Called with:
  * 	cdev     -> Char dev file handle,
- * 	SCpnt    -> SCSI Command buffer pointer,
- *	buf      -> General purpose data buffer pointer
- * 	sense_flg    -> int buffer -> 1 = request_sense, 0 = no sense
+ * 	cdb      -> SCSI Command buffer pointer,
+ * 	dbuf     -> struct vtl_ds *
  *
  * Return:
  *	total number of bytes to send back to vtl device
  */
-static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense_flg)
+static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	u32	block_size = 0L;
-	u32	count;
-	u32	ret = 5L;	// At least 4 bytes for Sense & 4 for S/No.
-	u32	retval=0L;
-	u32	*lp;
-	u16	*sp;
-	int	k;
-	int	code;
-	int	service_action;
-	struct	mode *smp = sm;
-	loff_t	nread;
+	u32 block_size = 0L;
+	u32 count;
+	u32 ret = 5L;	/* At least 4 bytes for Sense & 4 for S/No. */
+	u32 retval = 0L;
+	u32 *lp;
+	u16 *sp;
+	int k;
+	int code;
+	int service_action;
+	struct mode *smp = sm;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	loff_t nread;
+	char str[256];
 
-	DEB( logSCSICommand(SCpnt); ) ;
 
-	// Limited subset of commands don't need to check for power-on reset
-	switch(SCpnt[0]) {
+	/* Limited subset of commands don't need to check for power-on reset */
+	switch (cdb[0]) {
 	case REPORT_LUN:
 	case REQUEST_SENSE:
 	case MODE_SELECT:
 		break;
 	default:
-		if (check_reset(sense_flg))
+		if (check_reset(sam_stat))
 			return ret;
 	}
 
 	// Now process SCSI command.
-	switch(SCpnt[0]) {
+	switch (cdb[0]) {
 	case ALLOW_MEDIUM_REMOVAL:
-		resp_allow_prevent_removal(SCpnt, sense_flg);
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO, "Allow removal (%ld) **",
+						(long)dbuf_p->serialNo);
+		resp_allow_prevent_removal(cdb, sam_stat);
 		break;
 
 	case FORMAT_UNIT:	// That's FORMAT_MEDIUM for an SSC device...
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Format Medium **");
+			syslog(LOG_DAEMON|LOG_INFO, "Format Medium (%ld) **",
+						(long)dbuf_p->serialNo);
 
-		if (! checkRestrictions(sense_flg))
+		if (!checkRestrictions(sam_stat))
 			break;
 
 		if (c_pos.blk_number != 0) {
 			syslog(LOG_DAEMON|LOG_INFO, "Not at beginning **");
 			mkSenseBuf(ILLEGAL_REQUEST,E_POSITION_PAST_BOM,
-								 sense_flg);
+								 sam_stat);
 			break;
 		}
-		mkEODHeader(sense_flg);
+		mkEODHeader(sam_stat);
 		break;
 
 	case SEEK_10:	// Thats LOCATE_BLOCK for SSC devices...
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Fast Block Locate **");
-		lp = (u32 *)&SCpnt[3];
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Fast Block Locate (%ld) **",
+						(long)dbuf_p->serialNo);
+		lp = (u32 *)&cdb[3];
 		count = ntohl(*lp);
 
 		/* If we want to seek closer to beginning of file than
@@ -1914,206 +1939,224 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 		 */
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-			"Current blk: %" PRId64 ", seek: %d",c_pos.blk_number,count);
+				"Current blk: %" PRId64 ", seek: %d",
+					c_pos.blk_number, count);
 		if (((u32)(count - c_pos.blk_number) > count) &&
 						(count < c_pos.blk_number)) {
-			resp_rewind(sense_flg);
+			resp_rewind(sam_stat);
 		}
 		if (MediaType == MEDIA_TYPE_WORM)
 			OK_to_write = 0;
 		while(c_pos.blk_number != count) {
 			if (c_pos.blk_number > count) {
-				if (skip_to_prev_header(sense_flg) == -1)
+				if (skip_to_prev_header(sam_stat) == -1)
 					break;
 			} else {
-				if (skip_to_next_header(sense_flg) == -1)
+				if (skip_to_next_header(sam_stat) == -1)
 					break;
 			}
 		}
 		break;
 
 	case LOG_SELECT:	// Set or reset LOG stats.
-		resp_log_select(SCpnt, sense_flg);
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO, "LOG SELECT (%ld) **",
+						(long)dbuf_p->serialNo);
+		resp_log_select(cdb, sam_stat);
 		break;
 
 	case LOG_SENSE:
-		k = resp_log_sense(SCpnt, buf);
-		sp = (u16 *)&SCpnt[7];
-		count = ntohs(*sp);
-		ret += (k < count) ? k : count;
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO, "LOG SENSE (%ld) **",
+						(long)dbuf_p->serialNo);
+		dbuf_p->sz = (cdb[7] << 8) | cdb[8];
+		k = resp_log_sense(cdb, dbuf_p);
+		ret += (k < dbuf_p->sz) ? k : dbuf_p->sz;
 		break;
 
 	case MODE_SELECT:
 	case MODE_SELECT_10:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SELECT **");
-		ret += resp_mode_select(cdev, SCpnt, buf, sense_flg);
+			syslog(LOG_DAEMON|LOG_INFO, "MODE SELECT (%ld) **",
+						(long)dbuf_p->serialNo);
+		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
+						((cdb[7] << 8) | cdb[8]);
+		ret += resp_mode_select(cdev, dbuf_p);
 		break;
 
 	case MODE_SENSE:
 	case MODE_SENSE_10:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SENSE **");
-		ret += resp_mode_sense(SCpnt, buf, smp, sense_flg);
+			syslog(LOG_DAEMON|LOG_INFO, "MODE SENSE (%ld) **",
+						(long)dbuf_p->serialNo);
+		ret += resp_mode_sense(cdb, dbuf_p->data, smp, sam_stat);
 		break;
 
 //	case READ_12:
 //	case READ_10:
 	case READ_6:
-		block_size = 	(SCpnt[2] << 16) +
-				(SCpnt[3] << 8) +
-				 SCpnt[4];
+		block_size = 	(cdb[2] << 16) +
+				(cdb[3] << 8) +
+				 cdb[4];
 		if (verbose) 
-			syslog(LOG_DAEMON|LOG_INFO, "Read: %d bytes **",
-								block_size);
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Read_6 (%ld) : %d bytes **",
+						(long)dbuf_p->serialNo,
+						block_size);
 		/* If both FIXED & SILI bits set, invalid combo.. */
-		if ((SCpnt[1] & (SILI | FIXED)) == (SILI | FIXED)) {
+		if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
 			syslog(LOG_DAEMON|LOG_WARNING,
 					"Fixed block read not supported");
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sense_flg);
+								sam_stat);
 			reset = 0;
 			break;
 		}
 		/* This driver does not support fixed blocks at the moment */
-		if (SCpnt[1] & FIXED) {
+		if (cdb[1] & FIXED) {
 			syslog(LOG_DAEMON|LOG_WARNING,
 					"\"Fixed block read\" not supported");
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sense_flg);
+								sam_stat);
 			reset = 0;
 			break;
 		}
 		if (tapeLoaded == TAPE_LOADED) {
 			if (MediaType == MEDIA_TYPE_CLEAN) {
 				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
-								sense_flg);
+								sam_stat);
 				break;
 			}
-			retval = readBlock(cdev, buf, sense_flg, block_size);
+			retval = readBlock(cdev, dbuf_p->data, sam_stat, block_size);
 			/* adjust for a read that asks for fewer bytes than available */
 			if (retval > block_size)
 				retval = block_size;
 			bytesRead += retval;
 			pg_read_err_counter.bytesProcessed = bytesRead;
 		} else if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		} else
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
 
 		ret += retval;
 		break;
 
 	case READ_ATTRIBUTE:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Read Attribute**");
+			syslog(LOG_DAEMON|LOG_INFO, "Read Attribute (%ld) **",
+						(long)dbuf_p->serialNo);
 		if (tapeLoaded == TAPE_UNLOADED) {
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO,
 					"Failed due to \"no media loaded\"");
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sense_flg);
+			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		} else if (tapeLoaded > TAPE_LOADED) {
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO,
 					"Failed due to \"media corrupt\"");
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
 			break;
 		}
 		/* Only support Service Action - Attribute Values */
-		if (SCpnt[1] < 2)
-			ret += resp_read_attribute(SCpnt, buf, sense_flg);
+		if (cdb[1] < 2)
+			ret += resp_read_attribute(cdb, dbuf_p->data, sam_stat);
 		else {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sense_flg);
+								sam_stat);
 			break;
 		}
 		if (verbose > 1) {
+			uint8_t *p = dbuf_p->data;
 			syslog(LOG_DAEMON|LOG_INFO,
 				" dump return data, length: %d", ret);
 			for (k = 0; k < ret; k += 8) {
 				syslog(LOG_DAEMON|LOG_INFO,
 					" 0x%02x 0x%02x 0x%02x 0x%02x"
 					" 0x%02x 0x%02x 0x%02x 0x%02x",
-					buf[k+0], buf[k+1], buf[k+2], buf[k+3],
-					buf[k+4], buf[k+5], buf[k+6], buf[k+7]);
+					p[k+0], p[k+1], p[k+2], p[k+3],
+					p[k+4], p[k+5], p[k+6], p[k+7]);
 			}
 		}
 		break;
 
 	case READ_MEDIA_SERIAL_NUMBER:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Read Medium Serial No.**");
+			syslog(LOG_DAEMON|LOG_INFO,
+					"Read Medium Serial No. (%ld) **",
+						(long)dbuf_p->serialNo);
 		if (tapeLoaded == TAPE_UNLOADED)
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		else if (tapeLoaded == TAPE_LOADED) {
-			ret += resp_read_media_serial(mediaSerialNo, buf,
-								sense_flg);
+			ret += resp_read_media_serial(mediaSerialNo, dbuf_p->data,
+								sam_stat);
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO, "   %d", ret);
 		} else
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
 		break;
 
 	case READ_POSITION:
-		service_action = SCpnt[1] & 0x1f;
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO, "Read Position (%ld) **",
+						(long)dbuf_p->serialNo);
+		service_action = cdb[1] & 0x1f;
 /* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
 		if ((service_action == 0) || (service_action == 1)) {
-			ret += resp_read_position(c_pos.blk_number, buf,
-								sense_flg);
+			ret += resp_read_position(c_pos.blk_number,
+							dbuf_p->data, sam_stat);
 		} else {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sense_flg);
+								sam_stat);
 		}
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Read Position => %d **",
-								ret);
 		break;
 
 	case RELEASE:
 	case RELEASE_10:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Release **");
+			syslog(LOG_DAEMON|LOG_INFO, "Release (%ld) **",
+						(long)dbuf_p->serialNo);
 		break;
 
 	case REPORT_DENSITY:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Report Density **");
-		sp = (u16 *)&SCpnt[7];
-		ret += resp_report_density((SCpnt[1] & 0x01), 	// media flg
-					ntohs(*sp),		// alloc len
-					buf,			// fifo buf
-					sense_flg );
+			syslog(LOG_DAEMON|LOG_INFO, "Report Density (%ld) **",
+						(long)dbuf_p->serialNo);
+		dbuf_p->sz = (cdb[7] << 8) | cdb[8];
+		ret += resp_report_density((cdb[1] & 0x01), dbuf_p);
 		break;
 
 	case REPORT_LUN:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Report LUNs **");
-		lp = (u32 *)&SCpnt[6];
+			syslog(LOG_DAEMON|LOG_INFO, "Report LUNs (%ld) **",
+						(long)dbuf_p->serialNo);
+		lp = (u32 *)&cdb[6];
 		if (*lp < 16) {	// Minimum allocation length is 16 bytes.
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sense_flg);
+								sam_stat);
 			break;
 		}
 		report_luns.size = htonl(sizeof(report_luns) - 8);
-		resp_report_lun(&report_luns, buf, sense_flg);
+		resp_report_lun(&report_luns, dbuf_p->data, sam_stat);
 		break;
 
 	case REQUEST_SENSE:
 		if (verbose) {
 			syslog(LOG_DAEMON|LOG_INFO,
-			"Request Sense: key/ASC/ASCQ [0x%02x 0x%02x 0x%02x]"
+			"Request Sense (%ld) : key/ASC/ASCQ "
+				"[0x%02x 0x%02x 0x%02x]"
 				" Filemark: %s, EOM: %s, ILI: %s",
+					(long)dbuf_p->serialNo,
 					sense[2] & 0x0f, sense[12], sense[13],
 					(sense[2] & FILEMARK) ? "yes" : "no",
 					(sense[2] & EOM) ? "yes" : "no",
 					(sense[2] & ILI) ? "yes" : "no");
 		}
 		block_size =
-			(SCpnt[4] < sizeof(sense)) ? SCpnt[4] : sizeof(sense);
-		memcpy(buf, sense, block_size);
+			(cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
+		memcpy(dbuf_p->data, sense, block_size);
 		/* Clear out the request sense flag */
-		*sense_flg = 0;
+		*sam_stat = 0;
 		memset(sense, 0, sizeof(sense));
 		ret += block_size;
 		break;
@@ -2121,96 +2164,111 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 	case RESERVE:
 	case RESERVE_10:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Reserve **");
+			syslog(LOG_DAEMON|LOG_INFO, "Reserve (%ld) **",
+						(long)dbuf_p->serialNo);
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
 		if (verbose) 
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "Rewinding **");
+			syslog(LOG_DAEMON|LOG_INFO, "Rewinding (%ld) **",
+						(long)dbuf_p->serialNo);
 
-		resp_rewind(sense_flg);
+		resp_rewind(sam_stat);
 		sleep(1);
 		break;
 
 	case ERASE_6:
 		if (verbose) 
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "Erasing **");
+			syslog(LOG_DAEMON|LOG_INFO, "Erasing (%ld) **",
+						(long)dbuf_p->serialNo);
 
-		if (! checkRestrictions(sense_flg))
+		if (!checkRestrictions(sam_stat))
 			break;
 
 		// Rewind and postition just after the first header.
-		resp_rewind(sense_flg);
+		resp_rewind(sam_stat);
 
 		if (ftruncate(datafile, c_pos.curr_blk))
 			syslog(LOG_DAEMON|LOG_ERR,
 					"Failed to truncate datafile");
 
 		// Position to just before first header.
-		position_to_curr_header(sense_flg);
+		position_to_curr_header(sam_stat);
 
 		// Write EOD header
-		mkEODHeader(sense_flg);
+		mkEODHeader(sam_stat);
 		sleep(2);
 		break;
 
 	case SPACE:
-		count = (SCpnt[2] << 16) +
-			(SCpnt[3] << 8) +
-			 SCpnt[4];
+		syslog(LOG_DAEMON|LOG_INFO,
+					"SPACE (%ld) **",
+						(long)dbuf_p->serialNo);
+		count = (cdb[2] << 16) +
+			(cdb[3] << 8) +
+			 cdb[4];
 
-		code = SCpnt[1] & 0x07;
+		code = cdb[1] & 0x07;
 
 		/* Can return a '2s complement' to seek backwards */
-		if (SCpnt[2] & 0x80)
+		if (cdb[2] & 0x80)
 			count += (0xff << 24);
 
-		resp_space(count, code, sense_flg);
+		resp_space(count, code, sam_stat);
 		break;
 
 	case START_STOP:	// Load/Unload cmd
-		if ((SCpnt[4] == 0x1) && (SCpnt[5] == 0x40)) {
+		if ((cdb[4] == 0x1) && (cdb[5] == 0x40)) {
 			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO,
-						"NO-OP special SDLT load");
-		} else if (SCpnt[4] && 0x1) {
+					"NO-OP special SDLT load (%ld) **",
+						(long)dbuf_p->serialNo);
+		} else if (cdb[4] && 0x1) {
 			if (verbose) 
-				syslog(LOG_DAEMON|LOG_INFO, "Loading Tape **");
-			tapeLoaded = resp_rewind(sense_flg);
+				syslog(LOG_DAEMON|LOG_INFO,
+					"Loading Tape (%ld) **",
+						(long)dbuf_p->serialNo);
+			tapeLoaded = resp_rewind(sam_stat);
 		} else {
 			mam.record_dirty = 0;
 			// Don't update load count on unload -done at load time
-			updateMAM(&mam, sense_flg, 0);
+			updateMAM(&mam, sam_stat, 0);
 			close(datafile);
 			tapeLoaded = TAPE_UNLOADED;
 			OK_to_write = 0;
 			clearWORM();
 			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO,"Unloading Tape **");
+				syslog(LOG_DAEMON|LOG_INFO,
+					"Unloading Tape (%ld)  **",
+						(long)dbuf_p->serialNo);
 			close(datafile);
 		}
 		break;
 
 	case TEST_UNIT_READY:	// Return OK by default
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Test Unit Ready : %s",
+			syslog(LOG_DAEMON|LOG_INFO,
+					"Test Unit Ready (%ld) : %s",
+				(long)dbuf_p->serialNo,
 				(tapeLoaded == TAPE_UNLOADED) ? "No" : "Yes");
 		if (tapeLoaded == TAPE_UNLOADED)
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		if (tapeLoaded > TAPE_LOADED)
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
 
 		break;
 
 //	case WRITE_12:
 //	case WRITE_10:
 	case WRITE_6:
-		block_size = 	(SCpnt[2] << 16) +
-				(SCpnt[3] << 8) +
-				 SCpnt[4];
+		block_size = 	(cdb[2] << 16) +
+				(cdb[3] << 8) +
+				 cdb[4];
 		if (verbose) 
-			syslog(LOG_DAEMON|LOG_INFO, "Write: %d bytes **",
-								block_size);
+			syslog(LOG_DAEMON|LOG_INFO,
+					"WRITE_6: %d bytes (%ld) **",
+						block_size,
+						(long)dbuf_p->serialNo);
 
 		// FIXME: should handle this test in a nicer way...
 		if (block_size > bufsize)
@@ -2220,15 +2278,16 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 
 		// Attempt to read complete buffer size of data
 		// from vx char device into buffer..
-		nread = retrieve_CDB_data(cdev, buf, bufsize);
+		dbuf_p->sz = block_size;
+		nread = retrieve_CDB_data(cdev, dbuf_p);
 
 		// NOTE: This needs to be performed AFTER we read
 		//	 data block from kernel char driver.
-		if (! checkRestrictions(sense_flg))
+		if (!checkRestrictions(sam_stat))
 			break;
 
 		if (OK_to_write) {
-			retval = writeBlock(buf, block_size, sense_flg);
+			retval = writeBlock(dbuf_p->data, block_size, sam_stat);
 			bytesWritten += retval;
 			pg_write_err_counter.bytesProcessed = bytesWritten;
 		}
@@ -2237,110 +2296,130 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
 
 	case WRITE_ATTRIBUTE:
 		if (verbose) 
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "Write Attributes**");
+			syslog(LOG_DAEMON|LOG_INFO, "Write Attributes (%ld) **",
+						(long)dbuf_p->serialNo);
 
 		if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		} else if (tapeLoaded > TAPE_LOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sense_flg);
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 			break;
 		}
 
-		lp = (u32 *)&SCpnt[10];
-		count = ntohl(*lp);
+		lp = (u32 *)&cdb[10];
 		// Read '*lp' bytes from char device...
-		block_size = retrieve_CDB_data(cdev, buf, count);
+		dbuf_p->sz = ntohl(*lp);
+		block_size = retrieve_CDB_data(cdev, dbuf_p);
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"  --> Expected to read %d bytes"
-				", read %d", count, block_size);
-		if (resp_write_attribute(SCpnt, buf, count, &mam, sense_flg))
-			rewriteMAM(&mam, sense_flg);
+				", read %d", dbuf_p->sz, block_size);
+		if (resp_write_attribute(cdb, dbuf_p, &mam))
+			rewriteMAM(&mam, sam_stat);
 		break;
 
 	case WRITE_FILEMARKS:
-		block_size = 	(SCpnt[2] << 16) +
-				(SCpnt[3] << 8) +
-				 SCpnt[4];
+		block_size = 	(cdb[2] << 16) +
+				(cdb[3] << 8) +
+				 cdb[4];
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Write %d filemarks **",
-								block_size);
-		if (! checkRestrictions(sense_flg))
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Write %d filemarks (%ld) **",
+						block_size,
+						(long)dbuf_p->serialNo);
+		if (!checkRestrictions(sam_stat))
 			break;
 
 		while(block_size > 0) {
 			block_size--;
-			mkNewHeader(B_FILEMARK, 0, 0, sense_flg);
-			mkEODHeader(sense_flg);
+			mkNewHeader(B_FILEMARK, 0, 0, sam_stat);
+			mkEODHeader(sam_stat);
 		}
 		break;
 
 	case SEND_DIAGNOSTIC:
 		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		sp = (u16 *)&SCpnt[3];
+			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic (%ld) **",
+						(long)dbuf_p->serialNo);
+		sp = (u16 *)&cdb[3];
 		count = ntohs(*sp);
 		if (count) {
-			block_size = retrieve_CDB_data(cdev, buf, count);
-			ProcessSendDiagnostic(SCpnt, 16, buf, block_size, sense_flg);
+			dbuf_p->sz = count;
+			block_size = retrieve_CDB_data(cdev, dbuf_p);
+			ProcessSendDiagnostic(cdb, 16, dbuf_p->data, block_size, sam_stat);
 		}
 		break;
 
 	case PERSISTENT_RESERVE_IN:
-		log_opcode("PERSISTENT RESERVE IN ***", SCpnt, sense_flg);
+		sprintf(str, "PERSISTENT RESERVE IN (%ld) **",
+						(long)dbuf_p->serialNo);
+		log_opcode(str, cdb, sam_stat);
 		break;
 
 	case PERSISTENT_RESERVE_OUT:
-		log_opcode("PERSISTENT RESERVE OUT ***", SCpnt, sense_flg);
+		sprintf(str, "PERSISTENT RESERVE OUT (%ld) **",
+						(long)dbuf_p->serialNo);
+		log_opcode(str, cdb, sam_stat);
 		break;
 
 	case SECURITY_PROTOCOL_IN:
 		syslog(LOG_DAEMON|LOG_INFO,
-				"Security Protocol In - Under Development **");
-//		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
-		logSCSICommand(SCpnt);
-		ret += resp_spin(SCpnt, buf, sense_flg);
+			"Security Protocol In - Under Development (%ld) **",
+						(long)dbuf_p->serialNo);
+		logSCSICommand(cdb);
+		ret += resp_spin(cdb, dbuf_p->data, sam_stat);
 		syslog(LOG_DAEMON|LOG_INFO,
 				"Returning %d bytes\n", ret);
 		break;
 
 	case SECURITY_PROTOCOL_OUT:
 		syslog(LOG_DAEMON|LOG_INFO,
-				"Security Protocol Out - Under Development **");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sense_flg);
-		logSCSICommand(SCpnt);
-		nread = retrieve_CDB_data(cdev, buf, bufsize);
-		ret += resp_spout(SCpnt, buf, sense_flg);
+			"Security Protocol Out - Under Development (%ld) **",
+						(long)dbuf_p->serialNo);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		logSCSICommand(cdb);
+		dbuf_p->sz = (cdb[6] << 24) | (cdb[7] << 16) |
+				 (cdb[8] << 8) | cdb[9];
+		/* Check for '512 increment' bit & multiply sz by 512 if set */
+		dbuf_p->sz *= (cdb[4] & 0x80) ? 512 : 1;
+
+		nread = retrieve_CDB_data(cdev, dbuf_p);
+		ret += resp_spout(cdb, dbuf_p);
 		syslog(LOG_DAEMON|LOG_INFO,
 				"Returning %d bytes\n", ret);
 		break;
 
 	case A3_SA:
-		resp_a3_service_action(SCpnt, sense_flg);
+		resp_a3_service_action(cdb, sam_stat);
 		break;
 
 	case A4_SA:
-		resp_a4_service_action(SCpnt, sense_flg);
+		resp_a4_service_action(cdb, sam_stat);
 		break;
 
 	case ACCESS_CONTROL_IN:
-		log_opcode("ACCESS CONTROL IN ***", SCpnt, sense_flg);
+		sprintf(str, "ACCESS CONTROL IN (%ld) **",
+						(long)dbuf_p->serialNo);
 		break;
 
 	case ACCESS_CONTROL_OUT:
-		log_opcode("ACCESS CONTROL OUT ***", SCpnt, sense_flg);
+		sprintf(str, "ACCESS CONTROL OUT (%ld) **",
+						(long)dbuf_p->serialNo);
 		break;
 
 	case EXTENDED_COPY:
-		log_opcode("EXTENDED COPY ***", SCpnt, sense_flg);
+		sprintf(str, "EXTENDED COPY (%ld) **",
+						(long)dbuf_p->serialNo);
 		break;
 
 	default:
-		log_opcode("Unknown OP code ***", SCpnt, sense_flg);
+		sprintf(str, "Unknown OP code (%ld) **",
+						(long)dbuf_p->serialNo);
 		break;
 	}
-	return ret;
+	dbuf_p->sz = ret;
+	return 0;
 }
 
 /*
@@ -2349,7 +2428,8 @@ static u32 processCommand(int cdev, uint8_t *SCpnt, uint8_t *buf, uint8_t *sense
  * Return 0 on failure, 1 on success
  */
 
-static int load_tape(char *PCL, uint8_t *sense_flg) {
+static int load_tape(char *PCL, uint8_t *sam_stat)
+{
 	loff_t nread;
 	u64 fg = 0;	// TapeAlert flags
 
@@ -2417,12 +2497,12 @@ static int load_tape(char *PCL, uint8_t *sense_flg) {
 
 	mam.record_dirty = 1;
 	// Increment load count
-	updateMAM(&mam, sense_flg, 1);
+	updateMAM(&mam, sam_stat, 1);
 
 	/* resp_rewind() will clean up for us..
 	 * - It also set up media type & if we can write to media
 	 */
-	resp_rewind(sense_flg);
+	resp_rewind(sam_stat);
 
 	strncpy((char *)mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
@@ -2436,10 +2516,10 @@ static int load_tape(char *PCL, uint8_t *sense_flg) {
 	case MEDIA_TYPE_CLEAN:
 		fg = 0x400;
 		syslog(LOG_DAEMON|LOG_WARNING, "Cleaning cart loaded");
-		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED,sense_flg);
+		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	default:
-		mkSenseBuf(UNIT_ATTENTION,E_NOT_READY_TO_TRANSITION,sense_flg);
+		mkSenseBuf(UNIT_ATTENTION,E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	}
 
@@ -2478,7 +2558,8 @@ static char * strip_PCL(char *p, int start) {
 return p;
 }
 
-static int processMessageQ(char *mtext, uint8_t *sense_flg) {
+static int processMessageQ(char *mtext, uint8_t *sam_stat)
+{
 	char * pcl;
 	char s[128];
 
@@ -2486,7 +2567,7 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 		syslog(LOG_DAEMON|LOG_NOTICE, "Q msg : %s", mtext);
 
 	/* Tape Load message from Library */
-	if (! strncmp(mtext, "lload", 5)) {
+	if (!strncmp(mtext, "lload", 5)) {
 		if ( ! inLibrary) {
 			syslog(LOG_DAEMON|LOG_NOTICE,
 						"lload & drive not in library");
@@ -2498,7 +2579,7 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 			send_msg("Load failed", LIBRARY_Q);
 		} else {
 			pcl = strip_PCL(mtext, 6); // 'lload ' => offset of 6
-			tapeLoaded = load_tape(pcl, sense_flg);
+			tapeLoaded = load_tape(pcl, sam_stat);
 			if (tapeLoaded == TAPE_LOADED)
 				sprintf(s, "Loaded OK: %s\n", pcl);
 			else
@@ -2508,7 +2589,7 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 	}
 
 	/* Tape Load message from User space */
-	if (! strncmp(mtext, "load", 4)) {
+	if (!strncmp(mtext, "load", 4)) {
 		if (inLibrary)
 			syslog(LOG_DAEMON|LOG_WARNING,
 					"Warn: Tape assigned to library");
@@ -2516,16 +2597,16 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 			syslog(LOG_DAEMON|LOG_NOTICE, "Tape already mounted");
 		} else {
 			pcl = strip_PCL(mtext, 4);
-			tapeLoaded = load_tape(pcl, sense_flg);
+			tapeLoaded = load_tape(pcl, sam_stat);
 		}
 	}
 
-	if (! strncmp(mtext, "unload", 6)) {
+	if (!strncmp(mtext, "unload", 6)) {
 		switch (tapeLoaded) {
 		case TAPE_LOADED:
 			mam.record_dirty = 0;
 			// Don't update load count on unload -done at load time
-			updateMAM(&mam, sense_flg, 0);
+			updateMAM(&mam, sam_stat, 0);
 			/* Fall thru to case 2: */
 		case TAPE_LOAD_BAD:
 			tapeLoaded = TAPE_UNLOADED;
@@ -2542,18 +2623,18 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 		}
 	}
 
-	if (! strncmp(mtext, "exit", 4)) {
+	if (!strncmp(mtext, "exit", 4)) {
 		syslog(LOG_DAEMON|LOG_NOTICE, "Notice to exit : %s", mtext);
 		return 1;
 	}
 
-	if (! strncmp(mtext, "Register", 8)) {
+	if (!strncmp(mtext, "Register", 8)) {
 		inLibrary = 1;
 		syslog(LOG_DAEMON|LOG_NOTICE,
 				"Notice from Library controller : %s", mtext);
 	}
 
-	if (! strncmp(mtext, "verbose", 7)) {
+	if (!strncmp(mtext, "verbose", 7)) {
 		if (verbose)
 			verbose--;
 		else
@@ -2562,14 +2643,14 @@ static int processMessageQ(char *mtext, uint8_t *sense_flg) {
 				 verbose ? "enabled" : "disabled", verbose);
 	}
 
-	if (! strncmp(mtext, "TapeAlert", 9)) {
+	if (!strncmp(mtext, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
 		sscanf(mtext, "TapeAlert %" PRIx64, &flg);
 		setTapeAlert(&TapeAlert, flg);
 		setSeqAccessDevice(&seqAccessDevice, flg);
 	}
 
-	if (! strncmp(mtext, "debug", 5)) {
+	if (!strncmp(mtext, "debug", 5)) {
 		if (debug) {
 			debug--;
 		} else {
@@ -2671,6 +2752,60 @@ static void init_mode_pages(struct mode *m) {
 	}
 }
 
+static void process_cmd(int cdev, uint8_t *buf)
+{
+	struct vtl_header vtl_head;
+	struct vtl_header vtl_busy;
+	struct vtl_ds dbuf;
+	struct vtl_ds dbuf_busy;
+	uint8_t *cdb;
+
+	/* Get the SCSI cdb from vtl driver
+	 * - Returns SCSI command S/No. */
+	if (busy) {
+		getCommand(cdev, &vtl_busy);
+		cdb = (uint8_t *)&vtl_busy.cdb;
+		syslog(LOG_DAEMON|LOG_WARNING,
+				"%s: busy with another cmd (%ld)\n",
+						__func__, (long)dbuf.serialNo);
+
+		/* Interpret the SCSI command & process
+		-> Returns no. of bytes to send back to kernel
+		 */
+		memset(&sense_busy, 0, SENSE_BUF_SIZE);
+		memset(&dbuf_busy, 0, sizeof(struct vtl_ds));
+		dbuf_busy.serialNo = vtl_busy.serialNo;
+		dbuf_busy.data = buf;
+		dbuf_busy.sam_stat = SAM_STAT_BUSY;
+		dbuf_busy.sense_buf = &sense_busy;
+		dbuf_busy.sz = 5;
+		completeSCSICommand(cdev, &dbuf_busy);
+	} else {
+		busy = 1;
+		getCommand(cdev, &vtl_head);
+
+		cdb = (uint8_t *)&vtl_head.cdb;
+
+	/* Interpret the SCSI command & process
+	-> Returns no. of bytes to send back to kernel
+	 */
+		memset(&dbuf, 0, sizeof(struct vtl_ds));
+		dbuf.serialNo = vtl_head.serialNo;
+		dbuf.data = buf;
+		dbuf.sam_stat = sam_status;
+		dbuf.sense_buf = &sense;
+
+		processCommand(cdev, cdb, &dbuf);
+
+		/* Complete SCSI cmd processing */
+		completeSCSICommand(cdev, &dbuf);
+
+		sam_status = dbuf.sam_stat;
+		busy = 0;
+	}
+}
+
+
 int main(int argc, char *argv[])
 {
 	int cdev, k;
@@ -2679,19 +2814,15 @@ int main(int argc, char *argv[])
 	int q_priority = 0;
 	int exit_status = 0;
 	u32 pollInterval = 50000;
-	u32 serialNo = 0L;
-	u32 byteCount;
-	uint8_t * buf;
-	uint8_t * SCpnt;
-	struct vtl_header vtl_head;
+	uint8_t *buf;
 
 	pid_t pid;
 
-	char * progname = argv[0];
+	char *progname = argv[0];
 
-	char * dataFile = HOME_PATH;
-	char * name = "vtl";
-	int	minor = 0;
+	char *dataFile = HOME_PATH;
+	char *name = "vtl";
+	int minor = 0;
 
 	/* Output file pointer (data file) */
 	int ofp = -1;
@@ -2764,12 +2895,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	rw_buf = (uint8_t *)malloc(1024 * 1024 * 1);	// 1M
-	if (NULL == rw_buf) {
-		perror("Could not alloc memory -- exiting");
-		exit(1);
-	}
-
 	k = TYPE_TAPE;
 	if (ioctl(cdev, VX_TAPE_ONLINE, &k) < 0) {
 		syslog(LOG_DAEMON|LOG_ERR, "Failed to connect to /dev/%s%d: %m",
@@ -2839,7 +2964,7 @@ int main(int argc, char *argv[])
 		if (mlen > 0) {
 			r_entry.mtext[mlen] = '\0';
 			exit_status =
-				processMessageQ(r_entry.mtext, &request_sense);
+				processMessageQ(r_entry.mtext, &sam_status);
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
 				syslog(LOG_DAEMON|LOG_ERR,
@@ -2848,56 +2973,23 @@ int main(int argc, char *argv[])
 		}
 		if (exit_status)	/* Received a 'exit' message */
 			goto exit;
-		if ((ret = ioctl(cdev, VX_TAPE_POLL_STATUS, &vx_status)) < 0) {
-			syslog(LOG_DAEMON|LOG_WARNING, "ret: %d : %m", ret);
+		ret = ioctl(cdev, VX_TAPE_POLL_STATUS, &vx_status);
+		if (ret < 0) {
+			syslog(LOG_DAEMON|LOG_WARNING,
+					"ioctl(VX_TAPE_POLL_STATUS: %d : %m",
+							ret);
 		} else {
 			fflush(NULL);	/* So I can pipe debug o/p thru tee */
 			switch(ret) {
-			case STATUS_QUEUE_CMD:	// The new & improved method
-				/* Get the SCSI cdb from vtl driver
-				 * - Returns SCSI command S/No. */
-				getCommand(cdev, &vtl_head, vx_status);
-
-				SCpnt = (uint8_t *)&vtl_head.cdb;
-				serialNo = htonl(vtl_head.serialNo);
-
-				/* Interpret the SCSI command & process
-				-> Returns no. of bytes to send back to kernel
-				 */
-				byteCount = processCommand(cdev, SCpnt, buf,
-								&request_sense);
-
-				/* Complete SCSI cmd processing */
-				completeSCSICommand(cdev,
-						serialNo,	// SCSI S/No.
-						buf,		// Data buf
-						sense,		// Sense buf
-						&request_sense,	// sense valid?
-						byteCount);	// total xfer
-
+			case STATUS_QUEUE_CMD:	/* A cdb to process */
+				process_cmd(cdev, buf);
 				/* Something to do, reduce poll time */
 				pollInterval = 10;
 				break;
-#if 0
-syslog(LOG_DAEMON|LOG_NOTICE, "CDB: 0x%.2x%.2x %.2x%.2x %.2x%.2x %.2x%.2x %.2x%.2x blk_type %d",
-SCpnt[0], SCpnt[1], SCpnt[2], SCpnt[3], SCpnt[4], SCpnt[5], SCpnt[6], SCpnt[7], SCpnt[8], SCpnt[9],
-c_pos.blk_type);
-#endif
 
 			case STATUS_OK:
 				/* While nothing to do, increase
 				 * time we sleep before polling again.
-#if 0
-if (byteCount > 5) {
-syslog(LOG_DAEMON|LOG_NOTICE, "%d bytes of data", byteCount - 5);
-}
-if (request_sense) {
-syslog(LOG_DAEMON|LOG_NOTICE, "Sense: 0x%.2x%.2x%.2x%.2x %.2x%.2x%.2x%.2x",
-sense[0], sense[1], sense[2], sense[3], sense[4], sense[5], sense[6], sense[7]);
-syslog(LOG_DAEMON|LOG_NOTICE, "     : 0x%.2x%.2x%.2x%.2x %.2x%.2x%.2x%.2x",
-sense[8], sense[9], sense[10], sense[11], sense[12], sense[13], sense[14], sense[15]);
-}
-#endif
 				 */
 				if (pollInterval < 1000000)
 					pollInterval += 100;
@@ -2919,7 +3011,6 @@ exit:
 	close(cdev);
 	close(ofp);
 	free(buf);
-	free(rw_buf);
 	exit(0);
 }
 
