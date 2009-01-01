@@ -64,6 +64,13 @@ static const char * Version = "$Id: vtltape.c 2008-11-26 19:35:01 markh Exp $";
 #include "vtltape.h"
 #include "vxshared.h"
 
+/* Variables for simple, single initiator, SCSI Reservation system */
+static int I_am_SPC_2_Reserved;
+static unsigned int SPR_Reservation_Generation;
+static unsigned int SPR_Reservation_Type;
+static unsigned int SPR_Reservation_Key_LSW;
+static unsigned int SPR_Reservation_Key_MSW;
+
 #include <zlib.h>
 
 /* Suppress Incorrect Length Indicator */
@@ -1056,6 +1063,224 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 		ret_val = alloc_len;
 
 	return ret_val;
+}
+
+/*
+ * Process PERSITENT RESERVE IN scsi command
+ * Returns bytes to return if OK
+ *         or -1 on failure.
+ */
+static int resp_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
+{
+	u16 *sp;
+	u16 alloc_len;
+	u32 *lp;
+	u16 SA;
+	uint8_t *buf = dbuf_p->data;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
+
+	SA = cdb[1] & 0x1f;
+
+	sp = (u16 *)&cdb[7];
+	alloc_len = ntohs(*sp);
+
+	memset(buf, 0, alloc_len);	// Clear memory
+
+	switch(SA) {
+	case 0: /* READ KEYS */
+		lp = (u32 *)&buf[0];
+		*lp = htonl(SPR_Reservation_Generation);
+		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW)
+			return(8);
+		buf[7] = 8;
+		lp = (u32 *)&buf[8];
+		*lp = htonl(SPR_Reservation_Key_MSW);
+		lp = (u32 *)&buf[12];
+		*lp = htonl(SPR_Reservation_Key_LSW);
+		return(16);
+	case 1: /* READ RESERVATON */
+		lp = (u32 *)&buf[0];
+		*lp = htonl(SPR_Reservation_Generation);
+		if (!SPR_Reservation_Type)
+			return(8);
+		buf[7] = 16;
+		lp = (u32 *)&buf[8];
+		*lp = htonl(SPR_Reservation_Key_MSW);
+		lp = (u32 *)&buf[12];
+		*lp = htonl(SPR_Reservation_Key_LSW);
+		buf[21] = SPR_Reservation_Type;
+		return(24);
+	case 2: /* REPORT CAPABILITIES */
+		buf[1] = 8;
+		buf[2] = 0x10;
+		buf[3] = 0x80;
+		buf[4] = 0x08;
+		return(8);
+	case 3: /* READ FULL STATUS */
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		break;
+	}
+	return(0);
+}
+
+/*
+ * Process PERSITENT RESERVE OUT scsi command
+ * Returns 0 if OK
+ *         or -1 on failure.
+ */
+static int resp_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
+{
+	u32 *lp;
+	u32 RK_LSW, RK_MSW, SARK_LSW, SARK_MSW;
+	u16 SA, TYPE;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	uint8_t *buf = dbuf_p->data;
+
+	if (dbuf_p->sz != 24) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_PARAMETER_LIST_LENGTH_ERR, sam_stat);
+		return(-1);
+	}
+
+	SA = cdb[1] & 0x1f;
+	TYPE = cdb[2] & 0x0f;
+
+	lp = (u32 *)&buf[0];
+	RK_MSW = ntohl(*lp);
+	lp = (u32 *)&buf[4];
+	RK_LSW = ntohl(*lp);
+
+	lp = (u32 *)&buf[8];
+	SARK_MSW = ntohl(*lp);
+	lp = (u32 *)&buf[12];
+	SARK_LSW = ntohl(*lp);
+
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"Key 0x%.8x %.8x SA Key 0x%.8x %.8x "
+			"Service Action 0x%.2x Type 0x%.1x", 
+			RK_MSW, RK_LSW, SARK_MSW, SARK_LSW, SA, TYPE);
+
+	switch(SA) {
+	case 0: /* REGISTER */
+		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
+			if(!RK_LSW && !RK_MSW) {
+				SPR_Reservation_Key_MSW = SARK_MSW;
+				SPR_Reservation_Key_LSW = SARK_LSW;
+				SPR_Reservation_Generation++;
+			} else {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			}
+		} else {
+			if((RK_MSW == SPR_Reservation_Key_MSW) &&
+					(RK_LSW == SPR_Reservation_Key_LSW)) {
+				if (!SARK_MSW && !SARK_LSW) {
+					SPR_Reservation_Key_MSW = 0;
+					SPR_Reservation_Key_LSW = 0;
+					SPR_Reservation_Type = 0;
+				} else {
+					SPR_Reservation_Key_MSW = SARK_MSW;
+					SPR_Reservation_Key_LSW = SARK_LSW;
+				}
+				SPR_Reservation_Generation++;
+			} else {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			}
+		}
+		break;
+	case 1: /* RESERVE */
+		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+		} else {
+			if((RK_MSW == SPR_Reservation_Key_MSW) && (RK_LSW == SPR_Reservation_Key_LSW)) {
+				if(TYPE != 3) {
+					*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+				} else {
+					SPR_Reservation_Type = TYPE;
+				}
+			} else {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			}
+		}
+		break;
+	case 2: /* RELEASE */
+		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+		} else {
+			if((RK_MSW == SPR_Reservation_Key_MSW) && (RK_LSW == SPR_Reservation_Key_LSW)) {
+				if(TYPE != 3) {
+					*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+				} else {
+					SPR_Reservation_Type = 0;
+				}
+			} else {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			}
+		}
+		break;
+	case 3: /* CLEAR */
+		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+		} else {
+			if((RK_MSW == SPR_Reservation_Key_MSW) && (RK_LSW == SPR_Reservation_Key_LSW)) {
+				SPR_Reservation_Key_MSW = 0;
+				SPR_Reservation_Key_LSW = 0;
+				SPR_Reservation_Type = 0;
+				SPR_Reservation_Generation++;
+			} else {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			}
+		}
+		break;
+	case 4: /* PREEMT */
+	case 5: /* PREEMPT AND ABORT */
+		/* this is pretty weird, in that we can only have a single key registered, so preempt is pretty simplified */
+		if ((!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) &&
+		    (!RK_MSW && !RK_LSW) &&
+		    (!SARK_MSW && !SARK_LSW)) {
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+		} else {
+			if (!SPR_Reservation_Type) {
+				if((SARK_MSW == SPR_Reservation_Key_MSW) && (SARK_LSW == SPR_Reservation_Key_LSW)) {
+					SPR_Reservation_Key_MSW = 0;
+					SPR_Reservation_Key_LSW = 0;
+					SPR_Reservation_Generation++;
+				}
+			} else {
+				if((SARK_MSW == SPR_Reservation_Key_MSW) && (SARK_LSW == SPR_Reservation_Key_LSW)) {
+					SPR_Reservation_Key_MSW = RK_MSW;
+					SPR_Reservation_Key_LSW = RK_LSW;
+					SPR_Reservation_Type = TYPE;
+					SPR_Reservation_Generation++;
+				}
+			}
+		}
+				
+		break;
+	case 6: /* REGISTER AND IGNORE EXISTING KEY */
+		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
+			SPR_Reservation_Key_MSW = SARK_MSW;
+			SPR_Reservation_Key_LSW = SARK_LSW;
+		} else {
+			if (!SARK_MSW && !SARK_LSW) {
+				SPR_Reservation_Key_MSW = 0;
+				SPR_Reservation_Key_LSW = 0;
+				SPR_Reservation_Type = 0;
+			} else {
+				SPR_Reservation_Key_MSW = SARK_MSW;
+				SPR_Reservation_Key_LSW = SARK_LSW;
+			}
+		}
+		SPR_Reservation_Generation++;
+		break;
+	case 7: /* REGISTER AND MOVE */
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		break;
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		break;
+	}
+	return(0);
 }
 
 /*
@@ -2116,6 +2341,10 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Release (%ld) **",
 						(long)dbuf_p->serialNo);
+		if (!SPR_Reservation_Type &&
+			(SPR_Reservation_Key_MSW || SPR_Reservation_Key_LSW))
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+		I_am_SPC_2_Reserved = 0;
 		break;
 
 	case REPORT_DENSITY:
@@ -2166,6 +2395,12 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Reserve (%ld) **",
 						(long)dbuf_p->serialNo);
+		if (!SPR_Reservation_Type && !SPR_Reservation_Key_MSW &&
+						!SPR_Reservation_Key_LSW)
+			I_am_SPC_2_Reserved = 1;
+		if (!SPR_Reservation_Type &
+			(SPR_Reservation_Key_MSW || SPR_Reservation_Key_LSW))
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
@@ -2352,15 +2587,33 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case PERSISTENT_RESERVE_IN:
-		sprintf(str, "PERSISTENT RESERVE IN (%ld) **",
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"PERSISTENT RESERVE IN (%ld) **",
 						(long)dbuf_p->serialNo);
-		log_opcode(str, cdb, sam_stat);
+		if (I_am_SPC_2_Reserved)
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+		else {
+			retval = resp_pri(cdb, dbuf_p);
+			ret += retval;
+		}
 		break;
 
 	case PERSISTENT_RESERVE_OUT:
-		sprintf(str, "PERSISTENT RESERVE OUT (%ld) **",
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"PERSISTENT RESERVE OUT (%ld) **",
 						(long)dbuf_p->serialNo);
-		log_opcode(str, cdb, sam_stat);
+		if (I_am_SPC_2_Reserved)
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+		else {
+			dbuf_p->sz = cdb[5] << 24 |
+					cdb[6] << 16 |
+					cdb[7] << 8 |
+					cdb[8];
+			nread = retrieve_CDB_data(cdev, dbuf_p);
+			resp_pro(cdb, dbuf_p);
+		}
 		break;
 
 	case SECURITY_PROTOCOL_IN:
