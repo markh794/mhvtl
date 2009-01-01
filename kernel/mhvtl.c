@@ -892,6 +892,15 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		resp_write_to_user(SCpnt, devip, num);
 		return q_cmd(SCpnt, done, devip);
 		break;
+	case PERSISTENT_RESERVE_OUT:
+		/* Calculate the size of data to 'write' */
+		num   = (cmd[5] << 24) +
+			(cmd[6] << 16) +
+			(cmd[7] <<  8) +
+			 cmd[8];
+		resp_write_to_user(SCpnt, devip, num);
+		return q_cmd(SCpnt, done, devip);
+		break;
 	case SEND_DIAGNOSTIC:
 		/* Calculate the size of data to 'write' */
 		num   = (cmd[3] << 8) +
