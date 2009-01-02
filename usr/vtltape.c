@@ -2436,7 +2436,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case SPACE:
-		syslog(LOG_DAEMON|LOG_INFO,
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
 					"SPACE (%ld) **",
 						(long)dbuf_p->serialNo);
 		count = (cdb[2] << 16) +
