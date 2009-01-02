@@ -105,8 +105,8 @@ struct scatterlist;
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-#define VTL_VERSION "0.15.7"
-static const char *vtl_version_date = "20090101-0";
+#define VTL_VERSION "0.15.10"
+static const char *vtl_version_date = "20090102-0";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d

@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 9
-Source: mhvtl-2008-11-27.tgz
+Release: 10
+Source: mhvtl-2009-01-02.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -156,6 +156,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Fri Jan 02 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.10
+- Removed kfifo from data path for SCSI OP codes which originate at the target
+- Add simple SCSI Persistent Reserve
+- Major change to kernel module. Replaced queued_command_arr[] with linked list
+
 * Thu Nov 27 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.9
 - Re-fixed WRITE ATTRIBUTE bug forcing a rewind of media.
