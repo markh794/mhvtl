@@ -2573,6 +2573,14 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 		break;
 
+	case RECEIVE_DIAGNOSTIC:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+					"Receive Diagnostic (%ld) **",
+						(long)dbuf_p->serialNo);
+		ret += ProcessReceiveDiagnostic(cdb, dbuf_p->data, sam_stat);
+		break;
+
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic (%ld) **",

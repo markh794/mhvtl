@@ -796,8 +796,12 @@ int resp_a4_service_action(uint8_t *cdb, uint8_t *sam_stat)
 
 int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sam_stat)
 {
-	syslog(LOG_DAEMON|LOG_INFO,
-			"*** Unsupported op code: SEND DIAGNOSTICS **");
+	log_opcode("Send Diagnostics", cdb, sam_stat);
 	return 0;
 }
 
+int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
+{
+	log_opcode("Receive Diagnostics", cdb, sam_stat);
+	return 0;
+}

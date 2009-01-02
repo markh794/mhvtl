@@ -270,7 +270,8 @@ void hex_dump(uint8_t *, int);
 int chrdev_open(char *name, uint8_t);
 int oom_adjust(void);
 
-void log_opcode(char *opcode, uint8_t *SCpnt, uint8_t *sense_flg);
-int resp_a3_service_action(uint8_t *cdb, uint8_t *sense_flg);
-int resp_a4_service_action(uint8_t *cdb, uint8_t *sense_flg);
-int ProcessSendDiagnostic(uint8_t *SCpnt, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sense_flg);
+void log_opcode(char *opcode, uint8_t *SCpnt, uint8_t *sam_stat);
+int resp_a3_service_action(uint8_t *cdb, uint8_t *sam_stat);
+int resp_a4_service_action(uint8_t *cdb, uint8_t *sam_stat);
+int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sam_stat);
+int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat);
