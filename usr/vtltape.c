@@ -122,7 +122,7 @@ int reset = 1;		/* Tape drive has been 'reset' */
 #define TAPE_LOADED 1
 #define TAPE_LOAD_BAD 2
 
-static int bufsize = 0;
+static int bufsize = 1024 * 1024;
 static loff_t max_tape_capacity;	/* Max capacity of media */
 static int tapeLoaded = 0;	/* Default to Off-line */
 static int inLibrary = 0;	/* Default to stand-alone drive */
@@ -1761,18 +1761,18 @@ static void resp_space(u32 count, int code, uint8_t *sam_stat)
 	}
 }
 
-static char * sps_pg0 = "Tape Data Encyrption in Support page";
-static char * sps_pg1 = "Tape Data Encyrption Out Support Page";
-static char * sps_pg16 = "Data Encryption Capabilities page";
-static char * sps_pg17 = "Supported key formats page";
-static char * sps_pg18 = "Data Encryption management capabilities page";
-static char * sps_pg32 = "Data Encryption Status page";
-static char * sps_pg33 = "Next Block Encryption Status Page";
-static char * sps_pg48 = "Random Number Page";
-static char * sps_pg49 = "Device Server Key Wrapping Public Key page";
-static char * sps_reserved = "Security Protcol Specific : reserved value";
+static char *sps_pg0 = "Tape Data Encyrption in Support page";
+static char *sps_pg1 = "Tape Data Encyrption Out Support Page";
+static char *sps_pg16 = "Data Encryption Capabilities page";
+static char *sps_pg17 = "Supported key formats page";
+static char *sps_pg18 = "Data Encryption management capabilities page";
+static char *sps_pg32 = "Data Encryption Status page";
+static char *sps_pg33 = "Next Block Encryption Status Page";
+static char *sps_pg48 = "Random Number Page";
+static char *sps_pg49 = "Device Server Key Wrapping Public Key page";
+static char *sps_reserved = "Security Protcol Specific : reserved value";
 
-static char * lookup_sp_specific(uint16_t field)
+static char *lookup_sp_specific(uint16_t field)
 {
 	syslog(LOG_DAEMON|LOG_INFO, "%s: lookup %d\n", __func__, field);
 	switch (field) {
@@ -1909,7 +1909,7 @@ static int resp_sp_in_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, ui
 		buf[0] = (ENCR_CAPABILITIES >> 8) & 0xff;
 		buf[1] = ENCR_CAPABILITIES & 0xff;
 		buf[2] = 0;	/* List length (MSB) */
-		buf[3] = 40;	/* List length (LSB) */
+		buf[3] = 42;	/* List length (LSB) */
 
 		buf[20] = 1;	/* Algorithm index */
 		buf[21] = 0;	/* Reserved */
@@ -1917,17 +1917,17 @@ static int resp_sp_in_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, ui
 		buf[23] = 0x14;	/* Descriptor length (0x14) */
 		buf[24] = 0x3a;	/* See table 202 of IBM Ultrium doco */
 		buf[25] = 0x30;	/* See table 202 of IBM Ultrium doco */
-		buf[25] = 0;	/* Max unauthenticated key data */
-		buf[26] = 0x20;	/* Max unauthenticated key data */
-		buf[27] = 0;	/* Max authenticated key data */
-		buf[28] = 0x0c;	/* Max authenticated key data */
-		buf[29] = 0;	/* Key size */
-		buf[30] = 0x20;	/* Key size */
+		buf[26] = 0;	/* Max unauthenticated key data */
+		buf[27] = 0x20;	/* Max unauthenticated key data */
+		buf[28] = 0;	/* Max authenticated key data */
+		buf[29] = 0x0c;	/* Max authenticated key data */
+		buf[30] = 0;	/* Key size */
+		buf[31] = 0x20;	/* Key size */
 		/* buf 12 - 19 reserved */
-		buf[39] = 0;	/* Encryption Algorithm Id */
 		buf[40] = 0;	/* Encryption Algorithm Id */
 		buf[41] = 0;	/* Encryption Algorithm Id */
-		buf[42] = 0x14;	/* Encryption Algorithm Id */
+		buf[42] = 0;	/* Encryption Algorithm Id */
+		buf[43] = 0x14;	/* Encryption Algorithm Id */
 		ret = 48;
 		break;
 
@@ -2305,6 +2305,19 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 		break;
 
+	case READ_BLOCK_LIMITS:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+					"Read block limits (%ld) **",
+						(long)dbuf_p->serialNo);
+		if (tapeLoaded == TAPE_LOADED)
+			ret += resp_read_block_limits(dbuf_p, bufsize);
+		else if (tapeLoaded == TAPE_UNLOADED)
+			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
+		else
+			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+		break;
+
 	case READ_MEDIA_SERIAL_NUMBER:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
@@ -2633,6 +2646,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		ret += resp_spin(cdb, dbuf_p->data, sam_stat);
 		syslog(LOG_DAEMON|LOG_INFO,
 				"Returning %d bytes\n", ret);
+		if (verbose > 2)
+			hex_dump(dbuf_p->data, ret);
 		break;
 
 	case SECURITY_PROTOCOL_OUT:
@@ -3165,16 +3180,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (ioctl(cdev, VX_TAPE_FIFO_SIZE, &bufsize) < 0) {
-		perror("Failed quering FIFO size");
+	syslog(LOG_DAEMON|LOG_INFO, "Size of buffer is %d", bufsize);
+	buf = (uint8_t *)malloc(bufsize);
+	if (NULL == buf) {
+		perror("Problems allocating memory");
 		exit(1);
-	} else {
-		syslog(LOG_DAEMON|LOG_INFO, "Size of kfifo is %d", bufsize);
-		buf = (uint8_t *)malloc(bufsize);
-		if (NULL == buf) {
-			perror("Problems allocating memory");
-			exit(1);
-		}
 	}
 
 	currentMedia = (char *)malloc(sizeof(dataFile) + 1024);

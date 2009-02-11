@@ -39,9 +39,6 @@
  *	Requires Linux kernel 2.6.10 for the 'generic' circular buffer
  *	- My thanks to Stelian Pop
  *
- *	A patch for pre-2.6.10 kernels is available to add the 'kfifo'
- *	circular buffer to this src.
- *
  */
 
 // #include <linux/config.h>
@@ -91,12 +88,6 @@ struct scatterlist;
 
 #endif /* _SCSI_H */
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,9)
-#include <linux/kfifo.h>
-#else
-#include "kfifo.h"
-#endif
-
 #include "vtl.h"
 
 #include <scsi/scsi_driver.h>
@@ -106,7 +97,7 @@ struct scatterlist;
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.15.10"
-static const char *vtl_version_date = "20090102-0";
+static const char *vtl_version_date = "20090103-2";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
@@ -239,8 +230,6 @@ struct vtl_dev_info {
 	unsigned int status;
 	unsigned int status_argv;
 
-	struct kfifo *fifo;
-
 	struct semaphore lock;
 
 	spinlock_t spin_in_progress;
@@ -268,21 +257,6 @@ struct vtl_host_info {
 static LIST_HEAD(vtl_host_list);
 static spinlock_t vtl_host_list_lock = SPIN_LOCK_UNLOCKED;
 
-/*
- * Do away with kfifo once and for all.
- *
- * Build a list of buffers to use between user<->kernel xfer
- */
-struct free_dev_buf {
-	struct list_head buf_list;
-	unsigned long cmd_sn;
-	void *p;
-	int sz;
-	int state;
-};
-
-static LIST_HEAD(dev_buffer);
-
 typedef void (* done_funct_t) (struct scsi_cmnd *);
 
 struct vtl_queued_cmd {
@@ -291,7 +265,6 @@ struct vtl_queued_cmd {
 	done_funct_t done_funct;
 	struct scsi_cmnd *a_cmnd;
 	int scsi_result;
-	struct free_dev_buf *fdev_p;
 	struct list_head queued_sibling;
 };
 /* static struct vtl_queued_cmd queued_arr[VTL_CANQUEUE]; */
@@ -326,8 +299,6 @@ static int num_dev_resets = 0;
 static int num_bus_resets = 0;
 static int num_host_resets = 0;
 
-static rwlock_t atomic_rw = RW_LOCK_UNLOCKED;
-
 static char vtl_driver_name[] = "vtl";
 
 static int vtl_driver_probe(struct device *);
@@ -348,8 +319,6 @@ static const int check_condition_result =
 static int resp_inquiry(struct scsi_cmnd *SCpnt, int target,
 			struct vtl_dev_info *devip);
 static int resp_requests(struct scsi_cmnd *SCpnt, struct vtl_dev_info *devip);
-static int resp_readblocklimits(struct scsi_cmnd *SCpnt,
-			struct vtl_dev_info *devip);
 static int resp_report_luns(struct scsi_cmnd *SCpnt,
 			    struct vtl_dev_info *devip);
 static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
@@ -369,8 +338,6 @@ static int do_create_driverfs_files(void);
 static void do_remove_driverfs_files(void);
 static int add_q_cmd(struct scsi_cmnd *SCpnt, done_funct_t done, int delta);
 
-static struct free_dev_buf *get_free_io_buf(int sz);
-
 static int vtl_add_adapter(void);
 static void vtl_remove_adapter(void);
 static void vtl_max_tgts_luns(void);
@@ -382,7 +349,6 @@ static struct bus_type pseudo_lld_bus;
 
 static struct file_operations vtl_fops = {
 	.owner   =  THIS_MODULE,
-	.read    =  vtl_read,
 	.ioctl   =  vtl_c_ioctl,
 	.open    =  vtl_open,
 	.release =  vtl_release,
@@ -391,71 +357,6 @@ static struct file_operations vtl_fops = {
 /**********************************************************************
  *                misc functions to handle queuing SCSI commands
  **********************************************************************/
-static struct free_dev_buf *locate_io_buf(unsigned long serialNo)
-{
-	struct free_dev_buf *d_buf;
-
-	list_for_each_entry(d_buf, &dev_buffer, buf_list) {
-		if ((d_buf->cmd_sn == serialNo) && (d_buf->state))
-			return d_buf;
-	}
-	return NULL;
-}
-
-static struct free_dev_buf *alloc_new_io_buf(int sz)
-{
-	void *p;
-	struct free_dev_buf *d_buf;
-
-	d_buf = vmalloc(sizeof(struct free_dev_buf));
-	if (!d_buf)
-		return NULL;
-
-	memset(d_buf, 0, sizeof(struct free_dev_buf));
-
-	p = vmalloc(sz);
-	/* Success - can add to list, else free struct and return */
-	if (p) {
-		d_buf->sz = sz;
-		d_buf->state = 0;
-		d_buf->p = p;
-		list_add_tail(&d_buf->buf_list, &dev_buffer);
-		return get_free_io_buf(sz);
-	} else
-		vfree(d_buf);
-
-	return NULL;
-}
-
-static struct free_dev_buf *get_free_io_buf(int sz)
-{
-	struct free_dev_buf *d_buf;
-
-	sz = roundup_pow_of_two(sz);
-	list_for_each_entry(d_buf, &dev_buffer, buf_list) {
-		if (!d_buf->state) {
-			if (d_buf->sz >= sz) {
-				d_buf->state = DIRTY;
-				return d_buf;
-			}
-		}
-	}
-
-	return alloc_new_io_buf(sz);
-}
-
-static void release_io_buf(void)
-{
-	struct free_dev_buf *dbp;
-	struct list_head *pos, *tmp;
-
-	list_for_each_safe(pos, tmp, &dev_buffer) {
-		dbp = list_entry(pos, struct free_dev_buf, buf_list);
-		list_del(pos);
-		vfree(dbp->p);
-		vfree(dbp);
-	}
-}
 
 /*
  * schedule_resp() - handle SCSI commands that are processed from the
@@ -510,11 +411,11 @@ static int resp_becomming_ready(struct vtl_dev_info *devip)
 
 /*
  * Copy data from SCSI command buffer to device buffer
- *  (SCSI command buffer -> kfifo -> user space)
+ *  (SCSI command buffer -> user space)
  *
  * Returns number of bytes fetched into 'arr'/FIFO or -1 if error.
  */
-static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
+static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 		       int max_arr_len)
 {
 	int k, req_len, act_len, len, active;
@@ -526,8 +427,8 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
 		return 0;
 	if (NULL == scp->request_buffer)
 		return -1;
-	if (NULL == fifo) {
-		printk("%s, kfifo is NULL\n", __func__);
+	if (NULL == arr) {
+		printk("%s, userspace pointer is NULL\n", __func__);
 		WARN_ON(1);
 	}
 
@@ -537,12 +438,14 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
 		act_len = (req_len < max_arr_len) ? req_len : max_arr_len;
-		kfifo_put(fifo, scp->request_buffer, act_len);
+		if (copy_to_user(arr, scp->request_buffer, act_len))
+			return -1;
 		return act_len;
 	}
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 	active = 1;
-	req_len = act_len = 0;
+	req_len = 0;
+	act_len = 0;
 	scsi_for_each_sg(scp, sg, scp->use_sg, k) {
 		if (active) {
 			kaddr = (unsigned char *)
@@ -555,8 +458,9 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
 				active = 0;
 				len = max_arr_len - req_len;
 			}
-			kfifo_put(fifo, kaddr_off, len);
 			kunmap_atomic(kaddr, KM_USER0);
+			if (copy_to_user(arr + act_len, kaddr_off, len))
+				return -1;
 			act_len += len;
 		}
 		req_len += sg->length;
@@ -578,8 +482,9 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
 			len = max_arr_len - req_len;
 			active = 1;
 		}
-		kfifo_put(fifo, kaddr_off, len);
 		kunmap_atomic(kaddr, KM_USER0);
+		if (copy_to_user(arr + req_len, kaddr_off, len))
+			return -1;
 		if (active)
 			return req_len + len;
 		req_len += sg->length;
@@ -592,20 +497,11 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, struct kfifo *fifo,
  *                SCSI data handling routines
  **********************************************************************/
 static int resp_write_to_user(struct scsi_cmnd *SCpnt,
-			  struct vtl_dev_info *devip, int count)
+			  void __user *up, int count)
 {
 	int fetched;
-	unsigned long iflags = 0;
 
-	write_lock_irqsave(&atomic_rw, iflags);
-	fetched = fetch_to_dev_buffer(SCpnt, devip->fifo, count);
-	write_unlock_irqrestore(&atomic_rw, iflags);
-
-	if (-1 == fetched) {
-		devip->status_argv = 0;
-		devip->status = 0;
-		return (DID_ERROR << 16);
-	}
+	fetched = fetch_to_dev_buffer(SCpnt, up, count);
 
 	if ((fetched < count) && (VTL_OPT_NOISE & vtl_opts))
 		printk(KERN_INFO "mhvtl: write: cdb indicated=%d, "
@@ -808,16 +704,6 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 				return 0;
 		}
 		break;
-	case MODE_SENSE:
-	case MODE_SENSE_10:
-		/* User space REQUEST SENSE */
-		errsts = q_cmd(SCpnt, done, devip);
-		if (errsts == 0)
-			return 0;
-		break;
-	case READ_BLOCK_LIMITS:
-		errsts = resp_readblocklimits(SCpnt, devip);
-		break;
 	case REPORT_LUNS:	/* mandatory, ignore unit attention */
 		errsts = resp_report_luns(SCpnt, devip);
 		break;
@@ -829,96 +715,6 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		break;
 
 	/* All commands down the list are handled by a user-space daemon */
-	case MODE_SELECT:
-		num   = cmd[4];
-
-		resp_write_to_user(SCpnt, devip, num);
-		return q_cmd(SCpnt, done, devip);
-		break;
-	case MODE_SELECT_10:
-		num   = (cmd[7] <<  8) +
-			 cmd[8];
-
-		resp_write_to_user(SCpnt, devip, num);
-		return q_cmd(SCpnt, done, devip);
-		break;
-	case WRITE_16:
-		printk(KERN_INFO "Write_16: not supported **");
-		mk_sense_buffer(devip, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB,0);
-		errsts = check_condition_result;
-		break;
-	case WRITE_12:
-		printk(KERN_INFO "Write_12: not supported **");
-		mk_sense_buffer(devip, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB,0);
-		errsts = check_condition_result;
-		break;
-	case WRITE_10:
-		printk(KERN_INFO "Write_10: not supported **");
-		mk_sense_buffer(devip, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB,0);
-		errsts = check_condition_result;
-		break;
-	case WRITE_6:
-		if ((errsts = check_reset(SCpnt, devip)))
-			break;
-
-		if (devip->ptype == TYPE_TAPE) {
-			/* Currently only handle 6byte CDB var block writes */
-			if (((*cmd) != WRITE_6) || (cmd[1] && 0x1)){
-				mk_sense_buffer(devip, ILLEGAL_REQUEST,
-						 INVALID_FIELD_IN_CDB,0);
-				errsts = check_condition_result;
-				break;
-			}
-			/* Calculate the size of data to 'write' */
-			num   = (cmd[2] << 16) +
-				(cmd[3] <<  8) +
-				 cmd[4];
-
-			resp_write_to_user(SCpnt, devip, num);
-			return q_cmd(SCpnt, done, devip);
-		} else {	/* Fail any thing other than a WRITE_6 */
-			printk("Fixed block Writes: not supported **");
-			mk_sense_buffer(devip, ILLEGAL_REQUEST,
-					 INVALID_FIELD_IN_CDB, 0);
-			errsts = check_condition_result;
-		}
-		break;
-	case WRITE_ATTRIBUTE:
-		/* Calculate the size of data to 'write' */
-		num   = (cmd[10] << 24) +
-			(cmd[11] << 16) +
-			(cmd[12] <<  8) +
-			 cmd[13];
-		resp_write_to_user(SCpnt, devip, num);
-		return q_cmd(SCpnt, done, devip);
-		break;
-	case PERSISTENT_RESERVE_OUT:
-		/* Calculate the size of data to 'write' */
-		num   = (cmd[5] << 24) +
-			(cmd[6] << 16) +
-			(cmd[7] <<  8) +
-			 cmd[8];
-		resp_write_to_user(SCpnt, devip, num);
-		return q_cmd(SCpnt, done, devip);
-		break;
-	case SEND_DIAGNOSTIC:
-		/* Calculate the size of data to 'write' */
-		num   = (cmd[3] << 8) +
-			 cmd[4];
-		if (num)
-			resp_write_to_user(SCpnt, devip, num);
-		return q_cmd(SCpnt, done, devip);
-		break;
-
-	case SECURITY_PROTOCOL_OUT:
-		/* Calculate the size of data to 'write' */
-		num   = (cmd[6] << 24) | (cmd[7] << 16) |
-			(cmd[8] << 8)  | cmd[9];
-		if (num)
-			resp_write_to_user(SCpnt, devip, num);
-		return q_cmd(SCpnt, done, devip);
-		break;
-
 	default:	// Pass on to user space daemon to process
 		if ((errsts = check_reset(SCpnt, devip)))
 			break;
@@ -1138,7 +934,7 @@ static const char *inq_vendor_id_1 = "QUANTUM ";
 static const char *inq_product_id_1 = "SDLT600         ";
 
 static const char *inq_vendor1_id_1 = "IBM     ";
-static const char *inq_product1_id_1 = "ULT3580-TD3     ";
+static const char *inq_product1_id_1 = "ULT3580-TD4     ";
 
 static const char *inq_vendor2_id_1 = "SONY    ";
 static const char *inq_product2_id_1 = "SDX-900V        ";
@@ -1235,7 +1031,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 			dev_id_num = host * 2000 + (devip->target * 1000)
 						+ devip->lun;
 			len = scnprintf(dev_id_str, 10, "%3s%06d",
-				(vtl_serial_prefix) ? vtl_serial_prefix : "SN",
+				(vtl_serial_prefix) ? vtl_serial_prefix : "SN_",
 				dev_id_num);
 			if (VTL_OPT_NOISE & vtl_opts)
 				printk("Host: %d, target: %d, lun: %d"
@@ -1364,25 +1160,6 @@ static int resp_requests(struct scsi_cmnd *scp,
 	return fill_from_dev_buffer(scp, arr, len);
 }
 
-#define SDEBUG_READBLOCKLIMITS_ARR_SZ 6
-static int resp_readblocklimits(struct scsi_cmnd *scp,
-			struct vtl_dev_info *devip)
-{
-	unsigned char arr[SDEBUG_READBLOCKLIMITS_ARR_SZ];
-	int errsts;
-	unsigned long size = vtl_ssc_buffer_sz;
-
-	if ((errsts = check_reset(scp, devip)))
-		return errsts;
-
-	memset(arr, 0, SDEBUG_READBLOCKLIMITS_ARR_SZ);
-	arr[1] = (size >> 16);
-	arr[2] = (size >> 8) & 0xff;
-	arr[3] = size & 0xff;
-	arr[5] = 0x4;	/* minimum block size */
-	return fill_from_dev_buffer(scp, arr, SDEBUG_READBLOCKLIMITS_ARR_SZ);
-}
-
 #define SDEBUG_RLUN_ARR_SZ 128
 
 static int resp_report_luns(struct scsi_cmnd *scp, struct vtl_dev_info *devip)
@@ -1458,8 +1235,6 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 	struct vtl_dev_info *open_devip = NULL;
 	struct vtl_dev_info *devip = (struct vtl_dev_info *)sdp->hostdata;
 	unsigned long sz = 0;
-	unsigned char *base_p;
-	struct kfifo *base_fifo = NULL;
 
 	if (VTL_OPT_NOISE & vtl_opts)
 		printk(KERN_INFO "mhvtl: slave_alloc <%u %u %u %u>\n",
@@ -1518,22 +1293,6 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		open_devip->status_argv = 0;
 		open_devip->serial_no = (char *)NULL;
 
-		base_p = vmalloc(sz);
-		if (NULL == base_p) {
-			printk(KERN_ERR
-			"%s(): Allocate %ldbytes failed, out of memory\n",
-					__func__, (unsigned long)sz);
-			return -1;
-		}
-		memset(base_p, 0, sz);
-		base_fifo = (struct kfifo *)kfifo_init( base_p, sz, GFP_KERNEL,
-						 &open_devip->spin_in_progress);
-		if (IS_ERR(base_fifo)) {
-			printk(KERN_ERR
-			"%s: Can not initialise kfifo memory at line %d\n",
-				__func__, __LINE__);
-			return -1;
-		}
 		/* Allocate memory for header buffer */
 		open_devip->vtl_header = vmalloc(sizeof(struct vtl_header));
 		if (!open_devip->vtl_header) {
@@ -1542,17 +1301,10 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 			return -1;
 		}
 
-		/* Now set the storage pointer in the struct */
-		open_devip->fifo = base_fifo;
-
 		/* Make the current pointer to the start */
 		open_devip->spin_in_progress = SPIN_LOCK_UNLOCKED;
 
 		init_MUTEX(&open_devip->lock);
-
-		if (VTL_OPT_NOISE & vtl_opts)
-			printk("mhvtl: Allocated %ld bytes for fifo buffer\n",
-								 (long)sz);
 
 		memset(open_devip->sense_buff, 0, SDEBUG_SENSE_LEN);
 
@@ -1594,10 +1346,7 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (devip) {
 		/* make this slot avaliable for re-use */
-		/* A little work to clean up after kfifo allocation */
 		vfree(devip->serial_no);
-		vfree(devip->fifo->buffer);
-		kfree(devip->fifo);
 		vfree(devip->vtl_header);
 
 		devip->used = 0;
@@ -1663,10 +1412,8 @@ static int vtl_device_reset(struct scsi_cmnd *SCpnt)
 	++num_dev_resets;
 	if (SCpnt) {
 		devip = devInfoReg(SCpnt->device);
-		if (devip) {
-			kfifo_reset(devip->fifo);
+		if (devip)
 			devip->reset = 1;
-		}
 	}
 	return SUCCESS;
 }
@@ -2247,7 +1994,6 @@ static void __exit vtl_exit(void)
 	stop_all_queued();
 	for (; k; k--)
 		vtl_remove_adapter();
-	release_io_buf();
 	do_remove_driverfs_files();
 	driver_unregister(&vtl_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
@@ -2456,16 +2202,13 @@ static int get_user_data(char __user *arg)
 {
 	struct vtl_queued_cmd *sqcp = NULL;
 	struct vtl_ds ds;
-	struct free_dev_buf *io_buf = NULL;
-	int ret = 0, i;
-	unsigned char *p;
+	int ret = 0;
 	unsigned char __user *up;
 	size_t sz;
 
-	if (copy_from_user((u8 *)&ds, (u8 *)arg, sizeof(struct vtl_ds))) {
-		ret = -EFAULT;
-		goto give_up;
-	}
+	if (copy_from_user((u8 *)&ds, (u8 *)arg, sizeof(struct vtl_ds)))
+		return -EFAULT;
+
 	if (VTL_OPT_NOISE & vtl_opts) {
 		printk("%s: data Cmd S/No : %ld\n",
 					__func__, (long)ds.serialNo);
@@ -2475,34 +2218,14 @@ static int get_user_data(char __user *arg)
 					ds.sam_stat, ds.sam_stat);
 		printk(" sense buf pointer: %p\n", ds.sense_buf);
 	}
-	sqcp = lookup_sqcp(ds.serialNo);
-	io_buf = locate_io_buf(ds.serialNo);
-	if (!io_buf) {
-		printk("Can't find io_buf for S/No. %ld\n",
-					(long)ds.serialNo);
-		return -ENOTTY;
-	}
-	p = io_buf->p;
 	up = ds.data;
 	sz = ds.sz;
+	sqcp = lookup_sqcp(ds.serialNo);
+	if (!sqcp)
+		return -ENOTTY;
 
-	i = access_ok(VERIFY_WRITE, up, sz);
-	if (VTL_OPT_NOISE & vtl_opts)
-		printk("%s: access_ok %s %p, size %ld, i: %d\n", __func__,
-				(i) ? "succeeded" : "failed",
-				up, (long)sz, i);
+	ret = resp_write_to_user(sqcp->a_cmnd, up, sz);
 
-	if (ds.sz) {
-		i = copy_to_user(up, p, sz);
-		if (i)
-			printk("Failed copy_to_user(%d) %p => %p "
-				"SCSI s/no %ld, could not copy %d, (%d)\n",
-					ds.sz, io_buf->p, ds.data,
-					(long)ds.serialNo, i, (int)sz - i);
-	}
-
-
-give_up:
 	return ret;
 }
 
@@ -2575,8 +2298,8 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		return -ENODEV;
 	}
 
-	if (down_interruptible(&devp[minor]->lock))
-		return -ERESTARTSYS;
+//	if (down_interruptible(&devp[minor]->lock))
+//		return -ERESTARTSYS;
 
 	ret = 0;
 
@@ -2600,13 +2323,6 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	case 0x81:
 		printk(KERN_INFO "mhvtl%d: Offline\n", minor);
 		devp[minor]->device_offline = 1;
-		break;
-
-	/* read size of fifo buffer */
-	case 0x82:
-		put_user(devp[minor]->fifo->size, (unsigned int *)arg);
-		printk(KERN_INFO "mhvtl%d: fifo buffer %d bytes\n",
-					    minor, devp[minor]->fifo->size);
 		break;
 
 	/* ioctl poll -> return status of vtl driver */
@@ -2640,8 +2356,6 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 
 	/*
 	 * c_ioctl > 200 are new & improved interface
-	 * where we no longer depend on the kfifo (and hence remove an
-	 * extra copy of data)
 	 */
 	case 0x200:	/* VTL_GET_HEADER - Read SCSI header + S/No. */
 		if (VTL_OPT_NOISE & vtl_opts)
@@ -2688,58 +2402,14 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		put_user_data((char __user *)arg);
 		break;
 
-	case 0x204:	/* Walk data struct */
-		if (VTL_OPT_NOISE & vtl_opts)
-			printk("mhvtl: ioctl(VTL_DEBUG_MEM)\n");
-		{
-			struct free_dev_buf *d_buf;
-			int a = 0;
-
-			list_for_each_entry(d_buf, &dev_buffer, buf_list) {
-				a++;
-				printk("d_buf: %p, d_buf->p %p, "
-					"sz: %d, state: %d\n",
-					d_buf, d_buf->p,
-					d_buf->sz, d_buf->state);
-			}
-			printk("Found %d entries...\n", a);
-		}
-		ret = 0;
-		break;
-
 	default:
 		ret = -ENOTTY;
 		break;
 	}
 
 give_up:
-	up(&devp[minor]->lock);
+//	up(&devp[minor]->lock);
 	return ret;
-}
-
-static ssize_t vtl_read(struct file *filp, char *buf, size_t count,
-						loff_t *ppos)
-{
-	unsigned int minor = iminor(filp->f_dentry->d_inode);
-	size_t cnt = 0;
-	unsigned char c;
-	struct kfifo *p;
-
-	p = devp[minor]->fifo;
-	if (down_interruptible(&devp[minor]->lock))
-		return -ERESTARTSYS;
-
-	while(cnt < count &&
-		(kfifo_get(p, &c, sizeof(c)) == sizeof(c))) {
-// FIXME: Should use 'copy_from_user()/copy_to_user() instead of char at a time
-			if (put_user(c, buf++)) {
-				up(&devp[minor]->lock);
-				return -EFAULT;
-			}
-		cnt++;
-	}
-	up(&devp[minor]->lock);
-	return cnt;
 }
 
 static int vtl_release(struct inode *inode, struct file *filp)
@@ -2761,7 +2431,3 @@ static int vtl_open(struct inode *inode, struct file *filp)
 		return 0;
 }
 
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-#include "kfifo.c"
-#endif

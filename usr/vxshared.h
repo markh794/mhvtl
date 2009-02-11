@@ -262,6 +262,7 @@ int32_t resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t *);
 //int32_t resp_write_attribute(uint8_t *, uint64_t, struct MAM *, uint8_t *);
 struct mode *find_pcode(uint8_t, struct mode *);
 struct mode *alloc_mode_page(uint8_t, struct mode *, int32_t);
+int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);
 
 void setTapeAlert(struct TapeAlert_page *, uint64_t);
 void initTapeAlert(struct TapeAlert_page *);

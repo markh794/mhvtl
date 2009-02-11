@@ -332,6 +332,19 @@ int resp_read_position(loff_t pos, u8 *buf, u8 *sam_stat)
 return(READ_POSITION_LEN);
 }
 
+#define READBLOCKLIMITS_ARR_SZ 6
+int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
+{
+	uint8_t *arr = dbuf_p->data;
+
+	memset(arr, 0, READBLOCKLIMITS_ARR_SZ);
+	arr[1] = (sz >> 16);
+	arr[2] = (sz >> 8);
+	arr[3] = sz;
+	arr[5] = 0x4;	/* Minimum block size */
+
+	return READBLOCKLIMITS_ARR_SZ;
+}
 
 /*
  * Copy data in struct 'report_luns' into bufer and return length
@@ -596,27 +609,11 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
  */
 int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
 {
-	ssize_t ret;
-
 	if (verbose > 2)
 		syslog(LOG_DAEMON|LOG_INFO,
 			"retrieving %d bytes from char dev\n", ds->sz);
-#ifdef NEW_FUNC
-	/* NEW_FUNC: not working yet */
 	ioctl(cdev, VTL_GET_DATA, ds);
 	return ds->sz;
-#else
-	ret = read(cdev, ds->data, ds->sz);
-	if (ret < 0)
-		syslog(LOG_DAEMON|LOG_ERR,
-			"%s: failed to retrieve %d bytes %m\n",
-				__func__, ds->sz);
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: S/No %ld, sam_status: %d\n", __func__,
-				(long)ds->serialNo, ds->sam_stat);
-	return ret;
-#endif
 }
 
 
@@ -631,7 +628,7 @@ void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: op s/n: %ld, sam_status: %d, buffer: %p, sz: %d\n",
+			"%s: op s/n: (%ld), sam_status: %d, buffer: %p, sz: %d\n",
 				__func__, (long)ds->serialNo, ds->sam_stat,
 				ds->data, ds->sz);
 
@@ -660,8 +657,8 @@ void getCommand(int cdev, struct vtl_header *vheadp)
 	cdb = (u8 *)&vheadp->cdb;
 
 	if (verbose > 1) {
-		syslog(LOG_DAEMON|LOG_INFO, "SCSI S/No: %d",
-						ntohl(vheadp->serialNo));
+		syslog(LOG_DAEMON|LOG_INFO, "SCSI s/n: (%ld)",
+						(long)vheadp->serialNo);
 		if (verbose > 2) {	/* High verbose - log every cmd. */
 			logSCSICommand(cdb);
 		} else {		/* Lower verbosity,.. */

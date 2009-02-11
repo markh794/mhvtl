@@ -102,7 +102,7 @@ static int NUM_STORAGE = 0x0800;
 #define MAP_ELEMENT		3
 #define DATA_TRANSFER		4
 
-static int bufsize = 0;
+static int bufsize = 1024 * 1024;
 int verbose = 0;
 int debug = 0;
 static int libraryOnline = 1;	/* Default to Off-line */
@@ -2106,16 +2106,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (ioctl(cdev, VX_TAPE_FIFO_SIZE, &bufsize) < 0) {
-		perror("Failed quering FIFO size");
+	buf = (uint8_t *)malloc(bufsize);
+	if (NULL == buf) {
+		perror("Problems allocating memory");
 		exit(1);
-	} else {
-		syslog(LOG_DAEMON|LOG_INFO, "Size of kfifo is %d", bufsize);
-		buf = (uint8_t *)malloc(bufsize);
-		if (NULL == buf) {
-			perror("Problems allocating memory");
-			exit(1);
-		}
 	}
 
 	/* Clear Sense arr */

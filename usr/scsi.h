@@ -91,6 +91,7 @@
 #define	READ_10			0x28
 #define	READ_12			0xa8
 #define READ_ATTRIBUTE		0x8c
+#define READ_BLOCK_LIMITS	0x05
 #define	READ_ELEMENT_STATUS	0xb8
 #define READ_MEDIA_SERIAL_NUMBER	0xab
 #define	READ_POSITION		0x34
