@@ -419,6 +419,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 		       int max_arr_len)
 {
 	int k, req_len, act_len, len, active;
+	int retval;
 	void *kaddr;
 	void *kaddr_off;
 	struct scatterlist *sg;
@@ -448,8 +449,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 	act_len = 0;
 	scsi_for_each_sg(scp, sg, scp->use_sg, k) {
 		if (active) {
-			kaddr = (unsigned char *)
-				kmap_atomic(sg_page(sg), KM_USER0);
+			kaddr = (unsigned char *)kmap(sg_page(sg));
 			if (NULL == kaddr)
 				return (DID_ERROR << 16);
 			kaddr_off = (unsigned char *)kaddr + sg->offset;
@@ -458,9 +458,14 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 				active = 0;
 				len = max_arr_len - req_len;
 			}
-			kunmap_atomic(kaddr, KM_USER0);
-			if (copy_to_user(arr + act_len, kaddr_off, len))
+			retval = copy_to_user(arr + act_len, kaddr_off, len);
+			kunmap(sg_page(sg));
+			if (retval) {
+				printk("mhvtl: %s[%d] failed to "
+					"copy_to_user()\n",
+						__func__, __LINE__);
 				return -1;
+			}
 			act_len += len;
 		}
 		req_len += sg->length;
@@ -473,7 +478,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 #else
 	sg = (struct scatterlist *)scp->request_buffer;
 	for (k = 0, req_len = 0, active = 0; k < scp->use_sg; ++k, ++sg) {
-		kaddr = (unsigned char *)kmap_atomic(sg->page, KM_USER0);
+		kaddr = (unsigned char *)kmap(sg->page);
 		if (NULL == kaddr)
 			return -1;
 		kaddr_off = (unsigned char *)kaddr + sg->offset;
@@ -482,9 +487,13 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 			len = max_arr_len - req_len;
 			active = 1;
 		}
-		kunmap_atomic(kaddr, KM_USER0);
-		if (copy_to_user(arr + req_len, kaddr_off, len))
+		retval = copy_to_user(arr + req_len, kaddr_off, len);
+		kunmap(sg->page);
+		if (retval) {
+			printk("mhvtl: %s[%d] failed to copy_to_user()\n",
+						__func__, __LINE__);
 			return -1;
+		}
 		if (active)
 			return req_len + len;
 		req_len += sg->length;
@@ -776,6 +785,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 				int arr_len)
 {
 	int k, req_len, act_len, len, active;
+	int retval;
 	void *kaddr;
 	void *kaddr_off;
 	struct scatterlist *sg;
@@ -803,8 +813,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 	act_len = 0;
 	scsi_for_each_sg(scp, sg, scp->use_sg, k) {
 		if (active) {
-			kaddr = (unsigned char *)
-				kmap_atomic(sg_page(sg), KM_USER0);
+			kaddr = (unsigned char *)kmap(sg_page(sg));
 			if (NULL == kaddr)
 				return (DID_ERROR << 16);
 			kaddr_off = (unsigned char *)kaddr + sg->offset;
@@ -813,10 +822,13 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 				active = 0;
 				len = arr_len - req_len;
 			}
-			if (copy_from_user(kaddr_off, arr + req_len, len))
-				printk("%s[%d]: failed to copy_from_user()\n",
+			retval = copy_from_user(kaddr_off, arr + req_len, len);
+			kunmap(sg_page(sg));
+			if (retval) {
+				printk("mhvtl: %s[%d] failed to copy_from_user()\n",
 						__func__, __LINE__);
-			kunmap_atomic(kaddr, KM_USER0);
+				return -1;
+			}
 			act_len += len;
 		}
 		req_len += sg->length;
@@ -830,8 +842,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 	sg = (struct scatterlist *)scp->request_buffer;
 	for (k = 0, req_len = 0, act_len = 0; k < scp->use_sg; ++k, ++sg) {
 		if (active) {
-			kaddr = (unsigned char *)
-				kmap_atomic(sg->page, KM_USER0);
+			kaddr = (unsigned char *)kmap(sg->page);
 			if (NULL == kaddr)
 				return (DID_ERROR << 16);
 			kaddr_off = (unsigned char *)kaddr + sg->offset;
@@ -840,10 +851,13 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 				active = 0;
 				len = arr_len - req_len;
 			}
-			if (copy_from_user(kaddr_off, arr + req_len, len))
-				printk("%s[%d]: failed to copy_from_user()\n",
+			retval = copy_from_user(kaddr_off, arr + req_len, len);
+			kunmap(sg->page);
+			if (retval) {
+				printk("mhvtl: %s[%d] failed to copy_from_user()\n",
 						__func__, __LINE__);
-			kunmap_atomic(kaddr, KM_USER0);
+				return -1;
+			}
 			act_len += len;
 		}
 		req_len += sg->length;
