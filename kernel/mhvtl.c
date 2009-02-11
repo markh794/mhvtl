@@ -544,8 +544,8 @@ static void debug_queued_list(void)
 		k++;
 	}
 	spin_unlock_irqrestore(&queued_list_lock, iflags);
-	printk(KERN_INFO "mhvtl: %s found a total of %d entries\n",
-				__func__, k);
+	printk(KERN_INFO "mhvtl: %s found a total of %d entr%s\n",
+				__func__, k, (k == 1) ? "y" : "ies");
 }
 
 /*********************************************************
@@ -1982,8 +1982,8 @@ static int __init vtl_init(void)
 	}
 
 	if (VTL_OPT_NOISE & vtl_opts) {
-		printk(KERN_INFO "%s: built %d host(s)\n",
-		       __func__, vtl_add_host);
+		printk(KERN_INFO "%s: built %d host%s\n",
+		       __func__, vtl_add_host, (vtl_add_host == 1) ? "" : "s");
 	}
 	return 0;
 del_files:
