@@ -36,9 +36,6 @@
  *	I've used it for testing NetBackup - but there is no reason any
  *	other backup utility could not use it as well.
  *
- *	Requires Linux kernel 2.6.10 for the 'generic' circular buffer
- *	- My thanks to Stelian Pop
- *
  */
 
 // #include <linux/config.h>
@@ -55,7 +52,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/smp_lock.h>
-#include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <asm/uaccess.h>
 
@@ -571,9 +567,9 @@ static int add_q_cmd(struct scsi_cmnd *SCpnt, done_funct_t done, int delta)
 		return 1;
 	}
 
-	sqcp = vmalloc(sizeof(*sqcp));
+	sqcp = kmalloc(sizeof(*sqcp), GFP_ATOMIC);
 	if (!sqcp) {
-		printk(KERN_WARNING "mhvtl: %s vmalloc failed\n", __func__);
+		printk(KERN_WARNING "mhvtl: %s kmalloc failed\n", __func__);
 		return 1;
 	}
 
@@ -1308,10 +1304,11 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 		open_devip->serial_no = (char *)NULL;
 
 		/* Allocate memory for header buffer */
-		open_devip->vtl_header = vmalloc(sizeof(struct vtl_header));
+		open_devip->vtl_header = kmalloc(sizeof(struct vtl_header), GFP_KERNEL);
 		if (!open_devip->vtl_header) {
 			printk(KERN_ERR
-		"vtl_init: out of memory, Can not allocate header buffer\n");
+				"mhvtl: %s out of memory, Can not allocate "
+				"header buffer\n", __func__);
 			return -1;
 		}
 
@@ -2390,9 +2387,9 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 	case 0x202:	/* Copy 'Device Serial Number' from userspace */
 		if (VTL_OPT_NOISE & vtl_opts)
 			printk("mhvtl: ioctl(VTL_SET_SERIAL)\n");
-		sn = vmalloc(32);
+		sn = kmalloc(32, GFP_KERNEL);
 		if (!sn) {
-			printk("%s out of memory\n", __func__);
+			printk("mhvtl: %s out of memory\n", __func__);
 			ret = -ENOMEM;
 			goto give_up;
 		}
