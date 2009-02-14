@@ -2870,7 +2870,7 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 		if (inLibrary)
 			syslog(LOG_DAEMON|LOG_WARNING,
 					"Warn: Tape assigned to library");
-		if (tapeLoaded != TAPE_LOADED) {
+		if (tapeLoaded == TAPE_LOADED) {
 			syslog(LOG_DAEMON|LOG_NOTICE, "Tape already mounted");
 		} else {
 			pcl = strip_PCL(mtext, 4);
