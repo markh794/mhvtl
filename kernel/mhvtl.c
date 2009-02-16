@@ -122,7 +122,6 @@ static const char *vtl_version_date = "20090216-0";
 #define DEF_NUM_HOST   1
 #define DEF_NUM_TGTS   1
 #define DEF_MAX_LUNS   1
-#define DEF_DELAY   1
 #define DEF_EVERY_NTH   0
 #define DEF_NUM_PARTS   0
 #define DEF_OPTS   0		/* Default to quiet logging */
@@ -168,7 +167,6 @@ static int vtl_Major = 0;
 
 static int vtl_add_host = DEF_NUM_HOST;
 static int vtl_set_serial_num = DEF_NUM_HOST;
-static int vtl_delay = DEF_DELAY;
 static int vtl_every_nth = DEF_EVERY_NTH;
 static int vtl_max_luns = DEF_MAX_LUNS;
 static int vtl_num_tgts = DEF_NUM_TGTS; /* targets per host */
@@ -1527,7 +1525,6 @@ module_param_named(add_host, vtl_add_host, int, 0); /* perm=0644 */
 module_param_named(set_serial, vtl_set_serial_num, int, 0); /* perm=0644 */
 module_param_named(set_firmware, vtl_set_firmware, int, 0); /* perm=0644 */
 module_param_named(ssc_buffer_sz, vtl_ssc_buffer_sz, int, 0); /* perm=0644 */
-module_param_named(delay, vtl_delay, int, 0); /* perm=0644 */
 module_param_named(dsense, vtl_dsense, int, 0);
 module_param_named(every_nth, vtl_every_nth, int, 0);
 module_param_named(max_luns, vtl_max_luns, int, 0);
@@ -1544,7 +1541,6 @@ MODULE_PARM_DESC(add_host, "0..127 hosts allowed(def=1)");
 MODULE_PARM_DESC(set_serial, "num SerialNum");
 MODULE_PARM_DESC(set_firmware, "num firmware");
 MODULE_PARM_DESC(ssc_buffer_sz, "ssc buffer size(def=262144)");
-MODULE_PARM_DESC(delay, "# of jiffies to delay response(def=1)");
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def: fixed)");
 MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
 MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
@@ -1594,13 +1590,13 @@ static int vtl_proc_info(struct Scsi_Host *host, char *buffer,
 	    "%s [%s]\n"
 	    "num_tgts=%d, opts=0x%x, "
 	    "every_nth=%d(curr:%d)\n"
-	    "delay=%d, max_luns=%d\n"
+	    "max_luns=%d,"
             "firmware=%d, scsi_level=%d\n"
 	    "number of aborts=%d, device_reset=%d, bus_resets=%d, "
 	    "host_resets=%d\n",
 	    VTL_VERSION, vtl_version_date, vtl_num_tgts,
 	    vtl_opts, vtl_every_nth,
-	    vtl_cmnd_count, vtl_delay,
+	    vtl_cmnd_count,
 	    vtl_max_luns,
 	    vtl_set_firmware, vtl_scsi_level,
 	    num_aborts, num_dev_resets, num_bus_resets, num_host_resets);
@@ -1614,28 +1610,6 @@ static int vtl_proc_info(struct Scsi_Host *host, char *buffer,
 		len = length;
 	return len;
 }
-
-static ssize_t vtl_delay_show(struct device_driver *ddp, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_delay);
-}
-
-static ssize_t vtl_delay_store(struct device_driver *ddp,
-				  const char *buf, size_t count)
-{
-	int delay;
-	char work[20];
-
-	if (1 == sscanf(buf, "%10s", work)) {
-		if ((1 == sscanf(work, "%d", &delay)) && (delay >= 0)) {
-			vtl_delay = delay;
-			return count;
-		}
-	}
-	return -EINVAL;
-}
-DRIVER_ATTR(delay, S_IRUGO | S_IWUSR, vtl_delay_show,
-	    vtl_delay_store);
 
 static ssize_t vtl_opts_show(struct device_driver *ddp, char *buf)
 {
@@ -1889,7 +1863,6 @@ static int do_create_driverfs_files(void)
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_firmware);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_serial_prefix);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_ssc_buffer_sz);
-	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_delay);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_every_nth);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
@@ -1905,7 +1878,6 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_every_nth);
-	driver_remove_file(&vtl_driverfs_driver, &driver_attr_delay);
 	kfree(vtl_firmware);
 	kfree(vtl_serial_prefix);
 	vtl_firmware = NULL;
