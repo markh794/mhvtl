@@ -92,6 +92,7 @@
 #define	READ_12			0xa8
 #define READ_ATTRIBUTE		0x8c
 #define READ_BLOCK_LIMITS	0x05
+#define READ_BUFFER		0x3c
 #define	READ_ELEMENT_STATUS	0xb8
 #define READ_MEDIA_SERIAL_NUMBER	0xab
 #define	READ_POSITION		0x34
@@ -114,6 +115,7 @@
 #define	WRITE_10		0x2a
 #define	WRITE_12		0xaa
 #define WRITE_ATTRIBUTE		0x8d
+#define WRITE_BUFFER		0x3b
 #define	WRITE_FILEMARKS		0x10
 
 /* Service codes */

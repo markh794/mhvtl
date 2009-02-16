@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 10
-Source: mhvtl-2009-01-02.tgz
+Release: 12
+Source: mhvtl-2009-02-16.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -55,6 +55,7 @@ install -m 750 usr/vtl_set_sn $RPM_BUILD_ROOT/usr/bin/vtl_set_sn
 install -m 750 usr/mktape $RPM_BUILD_ROOT/usr/bin/mktape
 install -m 700 usr/build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
 install -m 700 usr/make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
+install -m 700 usr/make_vtl_media $RPM_BUILD_ROOT/usr/bin/make_vtl_media
 
 %ifarch x86_64 amd64 ppc64
 install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
@@ -141,6 +142,7 @@ fi
 %{_prefix}/bin/mktape
 %{_prefix}/bin/build_library_config
 %{_prefix}/bin/make_vtl_devices
+%{_prefix}/bin/make_vtl_media
 %ifarch x86_64 amd64 ppc64
 %{_prefix}/lib64/libvtlscsi.so
 %else
@@ -156,6 +158,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Mon Feb 16 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.12 - Not sure what happened as I found a 0.16.11..
+- Fixed vfree() bug in kernel module.
+  Allocating mem using kalloc() now. Should have been using kfree().
+- Moved media creation to 'make_vtl_media' script.
+
 * Fri Jan 02 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.10
 - Removed kfifo from data path for SCSI OP codes which originate at the target

@@ -306,7 +306,8 @@ static struct mode sm[] = {
 //static loff_t	currentPosition = 0;
 static struct blk_header c_pos;
 
-static void usage(char *progname) {
+static void usage(char *progname)
+{
 	printf("Usage: %s -q <Q number> [-d] [-v] [-f file]\n",
 						 progname);
 	printf("       Where file == data file\n");
@@ -316,10 +317,11 @@ static void usage(char *progname) {
 }
 
 DEB(
-static void print_header(struct blk_header *h) {
+static void print_header(struct blk_header *h)
+{
 
 	/* It should only be called in 'debug' mode */
-	if ( ! debug)
+	if (!debug)
 		return;
 
 	printf("Hdr:");
@@ -1564,7 +1566,9 @@ static int writeBlock(uint8_t *src_buf, u32 src_sz,  uint8_t *sam_stat)
 		}
 	}
 	if (c_pos.curr_blk >= max_tape_capacity) {
-		syslog(LOG_DAEMON|LOG_INFO, "End of Medium - Setting EOM flag");
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+					"End of Medium - Setting EOM flag");
 		mkSenseBuf(NO_SENSE|EOM_FLAG, NO_ADDITIONAL_SENSE, sam_stat);
 	}
 
@@ -2099,10 +2103,10 @@ static void updateMAM(struct MAM *mamp, uint8_t *sam_stat, int loadCount)
  */
 static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	u32 block_size = 0L;
+	u32 block_size = 0;
 	u32 count;
-	u32 ret = 5L;	/* At least 4 bytes for Sense & 4 for S/No. */
-	u32 retval = 0L;
+	u32 ret = 0;
+	u32 retval = 0;
 	u32 *lp;
 	u16 *sp;
 	int k;
@@ -2316,6 +2320,18 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		else
 			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+		break;
+
+	case READ_BUFFER:
+		block_size =	(cdb[6] << 16) |
+				(cdb[7] << 8) |
+				 cdb[8];
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Read buffer with %d bytes (%ld) **",
+						block_size,
+						(long)dbuf_p->serialNo);
+		ret = block_size;
 		break;
 
 	case READ_MEDIA_SERIAL_NUMBER:
@@ -2568,6 +2584,19 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			rewriteMAM(&mam, sam_stat);
 		break;
 
+	case WRITE_BUFFER:
+		block_size =	(cdb[6] << 16) +
+				(cdb[7] << 8) +
+				 cdb[8];
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Write buffer with %d bytes (%ld) **",
+						block_size,
+						(long)dbuf_p->serialNo);
+		dbuf_p->sz = block_size;
+		block_size = retrieve_CDB_data(cdev, dbuf_p);
+		break;
+
 	case WRITE_FILEMARKS:
 		block_size = 	(cdb[2] << 16) +
 				(cdb[3] << 8) +
@@ -2761,11 +2790,9 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 					"Can not read MAM from mounted media");
 		return 0;	// Unsuccessful load
 	}
-	// Set TapeAlert flg 32h & 35h =>
-	//	Lost Statics
-	//	Tape system read failure.
+	// Set TapeAlert flg 32h => Lost Statics
 	if (mam.record_dirty != 0) {
-		fg = 0x12000000000000ull;
+		fg = 0x02000000000000ull;
 		syslog(LOG_DAEMON|LOG_WARNING, "Previous unload was not clean");
 	}
 
@@ -2849,7 +2876,7 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 
 	/* Tape Load message from Library */
 	if (!strncmp(mtext, "lload", 5)) {
-		if ( ! inLibrary) {
+		if (!inLibrary) {
 			syslog(LOG_DAEMON|LOG_NOTICE,
 						"lload & drive not in library");
 			return (0);
@@ -2893,12 +2920,15 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			tapeLoaded = TAPE_UNLOADED;
 			OK_to_write = 0;
 			clearWORM();
-			syslog(LOG_DAEMON|LOG_INFO,
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
 					"Library requested tape unload");
 			close(datafile);
 			break;
 		default:
-			syslog(LOG_DAEMON|LOG_NOTICE, "Tape not mounted");
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_NOTICE,
+					"Tape not mounted");
 			tapeLoaded = TAPE_UNLOADED;
 			break;
 		}

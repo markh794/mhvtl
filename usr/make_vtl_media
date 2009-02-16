@@ -71,7 +71,6 @@ umask 002
 for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^CLN|sort -u`
 do
 	set_density $a
-	echo "Density for media $a is $DENSITY"
 	if [ ! -f /opt/vtl/$a ]; then
 		su $USER -c "mktape -s $CAPACITY -t clean -m $a -d $DENSITY"
 	fi
@@ -81,7 +80,6 @@ done
 for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^W|sort -u`
 do
 	set_density $a
-	echo "Density for media $a is $DENSITY"
 	if [ ! -f /opt/vtl/$a ]; then
 		su $USER -c "mktape -s $CAPACITY -t WORM -m $a -d $DENSITY"
 	fi
@@ -91,7 +89,6 @@ done
 for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|sort -u`
 do
 	set_density $a
-	echo "Density for media $a is $DENSITY"
 	if [ ! -f /opt/vtl/$a ]; then
 		su $USER -c "mktape -s $CAPACITY -t data -m $a -d $DENSITY"
 	fi
