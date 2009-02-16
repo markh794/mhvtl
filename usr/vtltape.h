@@ -32,6 +32,7 @@
 #define B_NOOP	8	// No Operation - fake it
 // #define B_CLEANING 9	// Cleaning cartridge
 #define B_WORM 10	// Write Once Read Many media type
+#define B_ENCRYPT 11	// Encrypted block
 
 #define TAPE_FMT_VERSION	1
 
@@ -54,6 +55,7 @@ struct blk_header {
 	loff_t		prev_blk;
 	loff_t		curr_blk;
 	loff_t		next_blk;
+	
 };
 
 /* Default tape size specified in Mbytes */

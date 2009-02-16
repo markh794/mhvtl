@@ -1,0 +1,99 @@
+#!/bin/sh
+#
+# Designed to be called from vtl rc script
+#
+# * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
+# *                                mark_harvey at symantec dot com
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 2 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+export PATH=/usr/bin:$PATH
+
+if [ $# != 1 ]; then
+	echo "Usage: $0 username"
+	exit 1
+fi
+
+USER=$1
+LIBCONTENTS=/etc/vtl/library_contents
+
+# Im sure there is a better method then this...
+set_density() {
+	density=$1
+	DENSITY="X"
+
+	A=`echo $density|awk '/L1$/'|wc -l`
+	if [ "X$A" == "X1" ]; then
+		DENSITY="LTO1"
+	fi
+	A=`echo $density|awk '/L2$/'|wc -l`
+	if [ "X$A" == "X1" ]; then
+		DENSITY="LTO2"
+	fi
+	A=`echo $density|awk '/L3$/'|wc -l`
+	if [ "X$A" == "X1" ]; then
+		DENSITY="LTO3"
+	fi
+	A=`echo $density|awk '/L4$/'|wc -l`
+	if [ "X$A" == "X1" ]; then
+		DENSITY="LTO4"
+	fi
+}
+
+# rc script will make sure this exists...
+. /etc/vtl/vtl.conf
+
+##################################################################
+## Main starts here...
+##################################################################
+
+# Set default capacity to 500M if not defined.
+if [ $CAPACITY -eq 0 ]; then
+	CAPACITY=500
+fi
+
+# Create any media specified in library config.
+umask 002
+
+# Cleaning carts
+for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^CLN|sort -u`
+do
+	set_density $a
+	echo "Density for media $a is $DENSITY"
+	if [ ! -f /opt/vtl/$a ]; then
+		su $USER -c "mktape -s $CAPACITY -t clean -m $a -d $DENSITY"
+	fi
+done
+
+# WORM media
+for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^W|sort -u`
+do
+	set_density $a
+	echo "Density for media $a is $DENSITY"
+	if [ ! -f /opt/vtl/$a ]; then
+		su $USER -c "mktape -s $CAPACITY -t WORM -m $a -d $DENSITY"
+	fi
+done
+
+# Rest must be Data
+for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|sort -u`
+do
+	set_density $a
+	echo "Density for media $a is $DENSITY"
+	if [ ! -f /opt/vtl/$a ]; then
+		su $USER -c "mktape -s $CAPACITY -t data -m $a -d $DENSITY"
+	fi
+done
+

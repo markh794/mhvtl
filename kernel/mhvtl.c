@@ -1207,7 +1207,7 @@ static int resp_report_luns(struct scsi_cmnd *scp, struct vtl_dev_info *devip)
 static void __remove_sqcp(struct vtl_queued_cmd *sqcp)
 {
 	list_del(&sqcp->queued_sibling);
-	vfree(sqcp);
+	kfree(sqcp);
 }
 
 
@@ -1357,8 +1357,8 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (devip) {
 		/* make this slot avaliable for re-use */
-		vfree(devip->serial_no);
-		vfree(devip->vtl_header);
+		kfree(devip->serial_no);
+		kfree(devip->vtl_header);
 
 		devip->used = 0;
 		sdp->hostdata = NULL;
@@ -2393,7 +2393,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 			ret = -ENOMEM;
 			goto give_up;
 		}
-		vfree(devp[minor]->serial_no);
+		kfree(devp[minor]->serial_no);
 		devp[minor]->serial_no = sn;
 		if (copy_from_user(sn, (u8 *)arg, 32)) {
 			ret = -EFAULT;
@@ -2401,7 +2401,7 @@ static int vtl_c_ioctl(struct inode *inode, struct file *file,
 		}
 		if (strlen(sn) < 2) {
 			printk("Serial number too short. Removing\n");
-			vfree(sn);
+			kfree(sn);
 			devp[minor]->serial_no = (char *)NULL;
 		}
 		if (VTL_OPT_NOISE & vtl_opts)

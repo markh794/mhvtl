@@ -106,6 +106,27 @@ if [ ! -f /etc/vtl/library_contents ]; then
 	echo "Please stop vtl & edit /etc/vtl/library_contents to suit your requirements"
 	mkdir -p /etc/vtl
 	cat > /etc/vtl/library_contents << CONF_SAMPLE
+VERSION 2
+
+# Drive 1 to 32, no gaps
+# Drive N: serial-number [vendor-id] [product-id]
+# [vendor-id] [product-id]
+# HP Ultrium~1
+# HP Ultrium~2
+# HP Ultrium~3
+# HP Ultrium~4
+# IBM ULTRIUM-TD1
+# IBM ULTRIUM-TD2
+# IBM ULTRIUM-TD3
+# IBM ULTRIUM-TD4
+# IBM 03592J1A
+# IBM 03592E05
+# IBM 03592E06
+# QUANTUM SDLT600
+# SONY SDX-900V
+# STK T10000A
+# STK T10000B
+#
 Drive 1: XYZZY_1
 Drive 2: XYZZY_2
 Drive 3: XYZZY_3
@@ -122,6 +143,23 @@ MAP 2:
 MAP 3:
 MAP 4:
 
+# Slot 1 - ?, no gaps
+# Slot N: [barcode]
+# [barcode]
+# a barcode is comprised of three fields: [Leading] [identifier] [Trailing]
+# Leading "CLN" -- cleaning tape
+# Leading "W" -- WORM tape
+# Leading "NOBAR" -- will appear to have no barcode
+# If the barcode is at least 8 character long, then the last two characters are Trailing
+# Trailing "S3" - SDLT600
+# Trailing "X4" - AIT-4
+# Trailing "L1" - LTO 1
+# Trailing "TA" - T10000+
+# Trailing "JA" - 3592+
+# Trailing "JB" - 3592E05+
+# Trailing "JW" - WORM 3592+
+# Trailing "JX" - WORM 3592E05+
+#
 Slot 1: SDLT01L1
 Slot 2: SDLT02L1
 Slot 3: SDLT03L1
@@ -224,6 +262,13 @@ case "$1" in
 	# Set verbosity of kernel driver
 	if [ "X$VTL_DEBUG" != "X" ]; then
 		echo $VTL_DEBUG > /sys/bus/pseudo/drivers/vtl/opts
+	fi
+
+	# Build Library media
+	make_vtl_media $USER
+	if [ $? != 0 ]; then
+		echo "make_vtl_media failed.."
+		exit 1
 	fi
 
 	# Build Library config - No. of drives & serial Nos etc..

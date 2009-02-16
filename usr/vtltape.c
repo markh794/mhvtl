@@ -2800,6 +2800,10 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 		break;
 	}
 
+	blockDescriptorBlock[0] = mam.MediumDensityCode;
+	syslog(LOG_DAEMON|LOG_INFO, "Setting MediumDensityCode to 0x%02x\n",
+			mam.MediumDensityCode);
+
 	// Update TapeAlert flags
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);

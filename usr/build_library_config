@@ -38,10 +38,9 @@ OPTIONS=""
 # rc script will make sure this exists...
 . /etc/vtl/vtl.conf
 
-# Set default capacity to 500M if not defined.
-if [ $CAPACITY -eq 0 ]; then
-	CAPACITY=500
-fi
+##################################################################
+## Main starts here...
+##################################################################
 
 if [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"
@@ -159,31 +158,4 @@ echo "NumberMAP: `grep MAP $LIBCONTENTS|wc -l`" >> $CONFIG
 echo "NumberPicker: `grep Picker $LIBCONTENTS|wc -l`" >> $CONFIG
 
 rm -f $TMP
-
-# Create any media specified in library config.
-umask 002
-
-# Cleaning carts
-for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^CLN|sort -u`
-do
-	if [ ! -f /opt/vtl/$a ]; then
-		su $USER -c "mktape -s $CAPACITY -t clean -m $a"
-	fi
-done
-
-# WORM media
-for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^W|sort -u`
-do
-	if [ ! -f /opt/vtl/$a ]; then
-		su $USER -c "mktape -s $CAPACITY -t WORM -m $a"
-	fi
-done
-
-# Rest must be Data
-for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|sort -u`
-do
-	if [ ! -f /opt/vtl/$a ]; then
-		su $USER -c "mktape -s $CAPACITY -t data -m $a"
-	fi
-done
 
