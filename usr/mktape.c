@@ -55,6 +55,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 1/8T", 12);
 		memcpy(&mam->media_info.density_name, "U-18  ", 6);
+		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
 		mam->media_info.bits_per_mm = htonl(4880);
 	}
 	if (!(strncmp(density, "LTO2", 4))) {
@@ -63,6 +64,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 2/8T", 12);
 		memcpy(&mam->media_info.density_name, "U-28  ", 6);
+		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
 		mam->media_info.bits_per_mm = htonl(7398);
 	}
 	if (!(strncmp(density, "LTO3", 4))) {
@@ -71,6 +73,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 3/8T", 12);
 		memcpy(&mam->media_info.density_name, "U-316 ", 6);
+		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
 		mam->media_info.bits_per_mm = htonl(9638);
 	}
 	if (!(strncmp(density, "LTO4", 4))) {
@@ -79,6 +82,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 4/8T", 12);
 		memcpy(&mam->media_info.density_name, "U-416  ", 6);
+		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
 		mam->media_info.bits_per_mm = htonl(12725);
 	}
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
@@ -88,6 +92,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape1", 20);
 		memcpy(&mam->media_info.density_name, "AIT-1 ", 6);
+		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
 		mam->media_info.bits_per_mm = htonl(0x11d7);
 	}
 	if (!(strncmp(density, "AIT2", 4))) {
@@ -96,6 +101,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape2", 20);
 		memcpy(&mam->media_info.density_name, "AIT-2  ", 6);
+		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
 		mam->media_info.bits_per_mm = htonl(0x17d6);
 	}
 	if (!(strncmp(density, "AIT3", 4))) {
@@ -104,6 +110,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape3", 20);
 		memcpy(&mam->media_info.density_name, "AIT-3  ", 6);
+		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
 		mam->media_info.bits_per_mm = htonl(0x17d6);
 	}
 	if (!(strncmp(density, "AIT4", 4))) {
@@ -112,6 +119,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape4", 20);
 		memcpy(&mam->media_info.density_name, "AIT-4  ", 6);
+		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
 		mam->media_info.bits_per_mm = htonl(0x17d6);
 	}
 

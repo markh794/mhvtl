@@ -771,15 +771,18 @@ static void clearWORM(void) {
 /*
  * Report density of media loaded.
 
+FIXME:
+ -  Need to grab info from MAM !!!
+ -  Need to check 'media' bit buf[1] & 0x1 for currently loaded or drive support
+ -  Need to return full list of media support.
+    e.g. AIT-4 should return AIT1, AIT2 AIT3 & AIT4 data.
  */
-// FIXME: Need to grab info from MAM !!!
 
 #define REPORT_DENSITY_LEN 56
 static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 {
 	u16 *sp;
 	u32 *lp;
-	u32 t;
 	uint8_t *buf = dbuf_p->data;
 	int len = dbuf_p->sz;
 
@@ -800,28 +803,37 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 
 	// Bits per mm (only 24bits in len MS Byte should be 0).
 	lp = (u32 *)&buf[8];
-	*lp = ntohl(4880);
+	*lp = ntohl(mam.media_info.bits_per_mm);
 
 	// Media Width (tenths of mm)
-	t = htonl(mam.MediumWidth);
 	sp = (u16 *)&buf[12];
-	*sp = htons(t);
+	*sp = htons(mam.MediumWidth);
 
 	// Tracks
-	t = htonl(mam.MediumLength);
 	sp = (u16 *)&buf[14];
-	*sp = htons(t);
+	*sp = htons(mam.MediumLength);
 
 	// Capacity
 	lp = (u32 *)&buf[16];
-	*lp = htonl(95367);
+	*lp = htonl(mam.max_capacity);
 
 	// Assigning Oranization (8 chars long)
-	snprintf((char *)&buf[20], 8, "%-8s", "LTO-CVE");
-	// Density Name (8 chars long)
-	snprintf((char *)&buf[28], 8, "%-8s", "U-18");
-	// Description (18 chars long)
-	snprintf((char *)&buf[36], 18, "%-18s", "Ultrium 1/8T");
+	if (tapeLoaded == TAPE_LOADED) {
+		snprintf((char *)&buf[20], 8, "%-8s",
+					mam.AssigningOrganization_1);
+		// Density Name (8 chars long)
+		snprintf((char *)&buf[28], 8, "%-8s",
+					mam.media_info.density_name);
+		// Description (18 chars long)
+		snprintf((char *)&buf[36], 18, "%-18s",
+					mam.media_info.description);
+	} else {
+		snprintf((char *)&buf[20], 8, "%-8s", "LTO-CVE");
+		// Density Name (8 chars long)
+		snprintf((char *)&buf[28], 8, "%-8s", "U-18");
+		// Description (18 chars long)
+		snprintf((char *)&buf[36], 18, "%-18s", "Ultrium 1/8T");
+	}
 
 return(REPORT_DENSITY_LEN);
 }
