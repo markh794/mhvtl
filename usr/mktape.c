@@ -81,6 +81,39 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		memcpy(&mam->media_info.density_name, "U-416  ", 6);
 		mam->media_info.bits_per_mm = htonl(12725);
 	}
+	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
+	if (!(strncmp(density, "AIT1", 4))) {
+		mam->MediumDensityCode = 0x30;
+		mam->MediumLength = htonl(384);	// 384 tracks
+		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mam->media_info.description, "AdvIntelligentTape1", 20);
+		memcpy(&mam->media_info.density_name, "AIT-1 ", 6);
+		mam->media_info.bits_per_mm = htonl(0x11d7);
+	}
+	if (!(strncmp(density, "AIT2", 4))) {
+		mam->MediumDensityCode = 0x31;
+		mam->MediumLength = htonl(384);	// 384 tracks
+		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mam->media_info.description, "AdvIntelligentTape2", 20);
+		memcpy(&mam->media_info.density_name, "AIT-2  ", 6);
+		mam->media_info.bits_per_mm = htonl(0x17d6);
+	}
+	if (!(strncmp(density, "AIT3", 4))) {
+		mam->MediumDensityCode = 0x32;
+		mam->MediumLength = htonl(384);	// 384 tracks
+		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mam->media_info.description, "AdvIntelligentTape3", 20);
+		memcpy(&mam->media_info.density_name, "AIT-3  ", 6);
+		mam->media_info.bits_per_mm = htonl(0x17d6);
+	}
+	if (!(strncmp(density, "AIT4", 4))) {
+		mam->MediumDensityCode = 0x33;
+		mam->MediumLength = htonl(384);	// 384 tracks
+		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mam->media_info.description, "AdvIntelligentTape4", 20);
+		memcpy(&mam->media_info.density_name, "AIT-4  ", 6);
+		mam->media_info.bits_per_mm = htonl(0x17d6);
+	}
 
 	return 0;
 }

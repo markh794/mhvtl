@@ -242,17 +242,17 @@ struct MAM {
 	uint8_t OwningHostTextualName[80];
 	uint8_t MediaPool[160];
 
+	uint8_t record_dirty; /* 0 = Record clean, non-zero umount failed. */
+
 	struct uniq_media_info {
 		uint32_t bits_per_mm;
 		uint16_t tracks;
 		char density_name[8];
-		char description[14];
+		char description[32];
 	} media_info;
 
 	uint8_t VendorUnique[256 - sizeof(struct uniq_media_info)];
 
-	// 0 = Record clean, non-zero umount failed.
-	uint8_t record_dirty;
 };
 
 int32_t send_msg(s8 *, int32_t);
