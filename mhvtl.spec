@@ -2,7 +2,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
 Release: 12
-Source: mhvtl-2009-02-16.tgz
+Source: mhvtl-2009-02-18.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -158,7 +158,7 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
-* Mon Feb 16 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Wed Feb 18 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.12 - Not sure what happened as I found a 0.16.11..
 - Fixed vfree() bug in kernel module.
   Allocating mem using kalloc() now. Should have been using kfree().
