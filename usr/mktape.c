@@ -130,14 +130,17 @@ int main(int argc, char *argv[])
 {
 	int file;
 	struct blk_header h;
-	struct MAM mam;
 	uint8_t currentMedia[1024];
 	long nwrite;
-	char *progname = argv[0];
+	char *progname;
 	char *pcl = NULL;
 	char *mediaType = NULL;
 	char *mediaCapacity = NULL;
 	char *density = NULL;
+	struct MAM mam;
+
+	progname = argv[0];
+
 	uint32_t size;
 
 	if (argc < 2) {
@@ -238,8 +241,8 @@ int main(int argc, char *argv[])
 		mam.MediumType = MEDIA_TYPE_DATA; // Normal data cart
 	}
 
-	sprintf((char *)mam.MediumSerialNumber, "%s_%d", pcl, (int)time(NULL));
-	sprintf((char *)mam.MediumManufactureDate, "%d", (int)time(NULL));
+	sprintf((char *)mam.MediumSerialNumber, "%s_%ld", pcl,(long)time(NULL));
+	sprintf((char *)mam.MediumManufactureDate, "%ld", (long)time(NULL));
 	sprintf((char *)mam.Barcode, "%-31s", pcl);
 
 	sprintf((char *)currentMedia, "%s/%s", HOME_PATH, pcl);

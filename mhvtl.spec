@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 12
-Source: mhvtl-2009-02-18.tgz
+Release: 13
+Source: mhvtl-2009-02-26.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -158,6 +158,10 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu Feb 26 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.13
+- mktape failing to run on SLES 10 with *** buffer overflow detected***
+
 * Wed Feb 18 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.12 - Not sure what happened as I found a 0.16.11..
 - Fixed vfree() bug in kernel module.

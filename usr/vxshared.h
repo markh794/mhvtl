@@ -227,7 +227,7 @@ struct MAM {
 	uint32_t MediumWidth;
 	uint8_t AssigningOrganization_2[8];
 	uint8_t MediumDensityCode;
-	uint8_t MediumManufactureDate[8];
+	uint8_t MediumManufactureDate[12];
 	uint64_t MAMCapacity;
 	uint8_t MediumType;	// 0 -> Data, 1 -> WORM, 6 -> Clean
 	uint16_t MediumTypeInformation;	// If Clean, max mount
@@ -251,7 +251,7 @@ struct MAM {
 		char description[32];
 	} media_info;
 
-	uint8_t VendorUnique[256 - sizeof(struct uniq_media_info)];
+	uint8_t VendorUnique[256];
 
 };
 

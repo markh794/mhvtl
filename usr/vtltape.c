@@ -1309,9 +1309,9 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
 	u32 alloc_len;
 	int byte_index;
 	int index, attribute, attribute_length, found_attribute = 0;
-	struct MAM mam_backup;
 	uint8_t *buf = dbuf_p->data;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	struct MAM mam_backup;
 
 	lp = (u32 *)&cdb[10];
 	alloc_len = ntohl(*lp);
@@ -1345,7 +1345,7 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
 			}
 		}
 		if (!found_attribute) {
-			memcpy(&mam, &mam_backup, sizeof(struct MAM));
+			memcpy(&mam, &mam_backup, sizeof(mam));
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
 			return 0;
 		}

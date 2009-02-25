@@ -34,7 +34,7 @@
 #define B_WORM 10	// Write Once Read Many media type
 #define B_ENCRYPT 11	// Encrypted block
 
-#define TAPE_FMT_VERSION	1
+#define TAPE_FMT_VERSION	2
 
 /*
  * Header before each block of data in 'file'
