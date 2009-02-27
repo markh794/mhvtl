@@ -129,16 +129,6 @@ if [ $EXIST -eq 0 ]; then
 	echo CAPACITY=500 >> /etc/vtl/vtl.conf
 fi
 
-# Earlier versions of vtl.conf may not contain the 'FIRMWARE' string.
-# Update if nessessary..
-EXIST=`grep FIRMWARE /etc/vtl/vtl.conf|wc -l`
-if [ $EXIST -eq 0 ]; then
-	FIRMWARE=$DEFAULT_FW
-	echo "" >> /etc/vtl/vtl.conf
-	echo "# Default vtl firmware" >> /etc/vtl/vtl.conf
-	echo FIRMWARE=$DEFAULT_FW >> /etc/vtl/vtl.conf
-fi
-
 # Now check for for 'library_contents'
 if [ ! -f /etc/vtl/library_contents ]; then
 	echo

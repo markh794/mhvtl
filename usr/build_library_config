@@ -41,6 +41,8 @@ OPTIONS=""
 
 if [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"
+else
+	OPTIONS=""
 fi
 
 if [ ! -f $DRIVECONFIG ]; then
@@ -79,11 +81,11 @@ do
 	fi
 
 	# Start daemon for new lu
-	vtltape -q $a
+	vtltape -q $a $OPTIONS
 done
 
 # now start the library daemon
-vtllibrary -q 0
+vtllibrary -q 0 $OPTIONS
 
 rm -f $TMP
 
