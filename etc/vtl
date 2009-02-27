@@ -24,10 +24,8 @@
 ### END INIT INFO
 
 USER=vtl
-DEFAULT_FW=5400
 
 OPTIONS=
-# OPTIONS=" -v"
 
 export PATH=$PATH:/usr/bin
 
@@ -42,38 +40,81 @@ elif [ -x /bin/lsscsi ]; then
 	LSSCSI=/bin/lsscsi
 fi
 
+# Create a 'device.conf' if it does not exist...
+if [ ! -f /etc/vtl/device.conf ]; then
+
+mkdir -p /etc/vtl
+cat > /etc/vtl/device.conf << VTL_CONF
+
+VERSION: 2
+
+# VPD page format:
+# <page #> <Length> <x> <x+1>... <x+n>
+
+# NOTE: The order of records is IMPORTANT...
+# The 'Unit serial number:' should be last (except for VPD data)
+# i.e.
+# Order is : Vendor ID, Product ID, Product Rev and serial number finally
+# Zero, one or more VPD entries.
+#
+# Each 'record' is sperated by one (or more) blank lines.
+# Each 'record' starts at column 1
+
+Library: 0 CHANNEL: 0 TARGET: 0 LUN: 0
+ Vendor identification: STK 
+ Product identification: L700
+ Product revision level: 5500
+ Unit serial number: XYZZY
+
+Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
+ Vendor identification: QUANTUM 
+ Product identification: SDLT600         
+ Product revision level: 5500
+ Unit serial number: XYZZY_A1         
+ Max density: 0x46
+ VPD: b0 04 00 02 01 00
+
+Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
+ Vendor identification: QUANTUM 
+ Product identification: SDLT600         
+ Product revision level: 5500
+ Unit serial number: XYZZY_A2         
+ Max density: 0x46
+ VPD: b0 04 00 02 01 00
+
+Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
+ Vendor identification: QUANTUM 
+ Product identification: SDLT600         
+ Product revision level: 5500
+ Unit serial number: XYZZY_A3         
+ Max density: 0x46
+ VPD: b0 04 00 02 01 00
+
+Drive: 4 CHANNEL: 0 TARGET: 3 LUN: 1
+ Vendor identification: QUANTUM 
+ Product identification: SDLT600         
+ Product revision level: 5500
+ Unit serial number: XYZZY_A4         
+ Max density: 0x46
+ VPD: b0 04 00 02 01 00
+
+VTL_CONF
+fi
+
 # Create a 'vtl.conf' if it does not exist...
 if [ ! -f /etc/vtl/vtl.conf ]; then
 
 mkdir -p /etc/vtl
 cat > /etc/vtl/vtl.conf << VTL_CONF
 
-# If vtl kernel module > 0.12.14, then we have the ability to either bring
-# the vtl up with all the same type of drive or mixed drive combo.
-# defaults to mixed drive combo.
-#USE_MIXED_DRIVES=0
-USE_MIXED_DRIVES=1
-
-# if vtl kernel module > 0.12.20, then we can preset the SSC serial numbers
-# with the following prefix.
-SERIAL_PREFIX=XYZ
-
-# If vtl kernel module > 0.12.20, then we have the ability to preset the
-# max buffer size used by the SSC devices within the kernel module. Old default
-# is 512k. Example here is 256k
-SSC_BUFFER_SZ=262144
-
-# Pre-set firmware version returned from INQUIRY.
-FIRMWARE=$DEFAULT_FW
-
 # Default media capacity (500 M)
 CAPACITY=500
 
 # Set default verbosity [0|1]
-VERBOSE=0
+VERBOSE=1
 
 # Set kernel module debuging [0|1]
-VTL_DEBUG=0
+VTL_DEBUG=1
 VTL_CONF
 fi
 
@@ -106,35 +147,12 @@ if [ ! -f /etc/vtl/library_contents ]; then
 	echo "Please stop vtl & edit /etc/vtl/library_contents to suit your requirements"
 	mkdir -p /etc/vtl
 	cat > /etc/vtl/library_contents << CONF_SAMPLE
-VERSION 2
+VERSION: 2
 
-# Drive 1 to 32, no gaps
-# Drive N: serial-number [vendor-id] [product-id]
-# [vendor-id] [product-id]
-# HP Ultrium~1
-# HP Ultrium~2
-# HP Ultrium~3
-# HP Ultrium~4
-# IBM ULTRIUM-TD1
-# IBM ULTRIUM-TD2
-# IBM ULTRIUM-TD3
-# IBM ULTRIUM-TD4
-# IBM 03592J1A
-# IBM 03592E05
-# IBM 03592E06
-# QUANTUM SDLT600
-# SONY SDX-900V
-# STK T10000A
-# STK T10000B
-#
-Drive 1: XYZZY_1
-Drive 2: XYZZY_2
-Drive 3: XYZZY_3
-Drive 4: XYZZY_4
-Drive 5: XYZZY_5
-Drive 6: XYZZY_6
-Drive 7: XYZZY_7
-Drive 8: XYZZY_8
+Drive 1: XYZZY_A1
+Drive 2: XYZZY_A2
+Drive 3: XYZZY_A3
+Drive 4: XYZZY_A4
 
 Picker 1:
 
@@ -202,41 +220,22 @@ case "$1" in
     start)
 	load_vtl=`grep " vtl$" /proc/devices|awk '{print $2}'`
 	if [ "X$load_vtl" == "X" ]; then
-        	echo "Initializing vtl kernel module with $DRIVES drives"
-		((DRIVES=$DRIVES+1)) # Account for SMC to take up one..
-		if [ "$USE_MIXED_DRIVES" -eq "0" ]; then
-			modprobe vtl set_firmware=0x$FIRMWARE num_tgts=$DRIVES
-		else
-			modprobe vtl set_firmware=0x$FIRMWARE max_luns=$DRIVES
-		fi
-		# Virtual env - can take a few more seconds for things to load & setup..
-		DELAY=`$LSSCSI|grep VMware|wc -l`
-		if [ $DELAY -gt 0 ]; then
-			sleep 3
-		else
-			sleep 1
-		fi
-		echo
+		modprobe vtl
 	fi
 
 	hba=`ls /proc/scsi/vtl|tail -1`
 	if [ "X$hba" == "X" ]; then
 		echo "Incorrect (or no) kernel module loaded for these daemons."
-		echo "Need vtl kernel module version later then 0.12.12"
+		echo "Need vtl kernel module version later then 0.16.0"
 		echo "Please see http://linuxvtl.googlepages.com"
 		exit 1
 	fi
 	vtlMidVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $2}'`
-	if [ $vtlMidVersion -lt 14 ]; then
-		vtlMinVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $3}'`
-		if [ $vtlMinVersion -lt 20 ]; then
-			echo "Incorrect kernel module for these daemons."
-			echo "Need at least 0.12.20 and 0.12.$vtlMinVersion is loaded."
-			echo "Please see http://linuxvtl.googlepages.com"
-			exit 1
-		fi
-		echo "Note: kernel version 0.14 is available."
+	if [ $vtlMidVersion -lt 16 ]; then
+		echo "Incorrect kernel module for these daemons."
+		echo "Need at least 0.16.0"
 		echo "Please see http://linuxvtl.googlepages.com"
+		exit 1
 	fi
 
 	# Load sg driver if not already loaded..
@@ -275,17 +274,15 @@ case "$1" in
 	# This also loads each tape daemon.
 	build_library_config $USER
 	if [ $? != 0 ]; then
-		echo "build_library_config failed.."
+		echo "build_library_config failed.. Could not start daemons"
 		exit 1
 	fi
-
-	# Start the vxlibrary daemon
-	su $USER -c "vtllibrary $OPTIONS"
 
 	if [ -f /etc/rc.status ]; then
 		rc_status -v
 	fi
 	;;
+
     stop)
         echo "shutdown of mhvtl"
 	for a in `ps -ef|grep ^vtl | grep "\-q"|awk '{print $10}'`
@@ -295,8 +292,7 @@ case "$1" in
 		usleep 100 > /dev/null 2>&1 /dev/null
 	done
 
-	# Send library daemon exit msg..
-	vtlcmd library  exit
+	vtlcmd library exit
 
 	if [ -f /etc/rc.status ]; then
 		rc_status -v

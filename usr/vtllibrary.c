@@ -44,12 +44,15 @@ static const char *Version = "$Id: vtllibrary.c 2008-11-26 19:35:01 markh Exp $"
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <string.h>
 #include <dirent.h>
 #include <syslog.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <pwd.h>
+#include "vtl_common.h"
 #include "scsi.h"
 #include "q.h"
 #include "vx.h"
@@ -84,16 +87,16 @@ static const char *Version = "$Id: vtllibrary.c 2008-11-26 19:35:01 markh Exp $"
  *   Some of the logic in this source depends on it.
  */
 #define START_DRIVE	0x0001
-static int NUM_DRIVES = 4;
+static int num_drives = 4;
 
 #define START_PICKER	0x0100
-static int NUM_PICKER = 1;
+static int num_picker = 1;
 
 #define START_MAP	0x0200
-static int NUM_MAP = 0x0020;
+static int num_map = 0x0020;
 
 #define START_STORAGE	0x0400
-static int NUM_STORAGE = 0x0800;
+static int num_storage = 0x0800;
 
 // Element type codes
 #define ANY			0
@@ -110,6 +113,8 @@ int reset = 1;		/* Poweron reset */
 static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
+
+struct lu_phy_attr lu;
 
 // If I leave this as 'static struct', the I get a gcc warning
 // " warning: useless storage class specifier in empty declaration"
@@ -261,17 +266,17 @@ static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
  */
 static struct s_info *slot2struct(int addr)
 {
-	if ((addr >= START_MAP) && (addr <= (START_MAP + NUM_MAP))) {
+	if ((addr >= START_MAP) && (addr <= (START_MAP + num_map))) {
 		addr -= START_MAP;
 		DEBC(	printf("slot2struct: MAP %d\n", addr); )
 		return &map_info[addr];
 	}
-	if ((addr >= START_STORAGE) && (addr <= (START_STORAGE + NUM_STORAGE))) {
+	if ((addr >= START_STORAGE) && (addr <= (START_STORAGE + num_storage))) {
 		addr -= START_STORAGE;
 		DEBC(	printf("slot2struct: Storage %d\n", addr); )
 		return &storage_info[addr];
 	}
-	if ((addr >= START_PICKER) && (addr <= (START_PICKER + NUM_PICKER))) {
+	if ((addr >= START_PICKER) && (addr <= (START_PICKER + num_picker))) {
 		addr -= START_PICKER;
 		DEBC(	printf("slot2struct: Picker %d\n", addr); )
 		return &picker_info[addr];
@@ -567,10 +572,9 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 /* Return OK if 'addr' is within either a MAP, Drive or Storage slot */
 static int valid_slot(int addr)
 {
-
-	int maxDrive = START_DRIVE + NUM_DRIVES;
-	int maxStorage = START_STORAGE + NUM_STORAGE;
-	int maxMAP   = START_MAP + NUM_MAP;
+	int maxDrive = START_DRIVE + num_drives;
+	int maxStorage = START_STORAGE + num_storage;
+	int maxMAP   = START_MAP + num_map;
 
 	if (((addr >= START_DRIVE)  && (addr <= maxDrive)) ||
 	   ((addr >= START_MAP)     && (addr <= maxMAP))   ||
@@ -586,7 +590,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 	int transport_addr;
 	int src_addr;
 	int dest_addr;
-	int maxDrive = START_DRIVE + NUM_DRIVES;
+	int maxDrive = START_DRIVE + num_drives;
 	int retVal = 0;	// Return a success status
 	uint16_t *sp;
 
@@ -622,7 +626,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 
 	if (transport_addr == 0)
 		transport_addr = START_PICKER;
-	if (transport_addr > (START_PICKER + NUM_PICKER)) {
+	if (transport_addr > (START_PICKER + num_picker)) {
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
@@ -935,7 +939,7 @@ return(8);	// Always 8 bytes in header
 
 /*
  * Build the initial ELEMENT STATUS HEADER
- * 
+ *
  */
 static int
 element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int count)
@@ -1004,22 +1008,22 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 		 */
 		// Check we are within a storage slot range.
 		if ((start >= START_STORAGE) &&
-		   (start <= (START_STORAGE + NUM_STORAGE)))
+		   (start <= (START_STORAGE + num_storage)))
 			return(start);
 		// If we are above I/O Range -> return START_STORAGE
-		if (start > (START_MAP + NUM_MAP))
+		if (start > (START_MAP + num_map))
 			return(START_STORAGE);
 		// Must be within the I/O Range..
 		if (start >= START_MAP)
 			return(start);
 		// If we are above the Picker range -> Return I/O Range..
-		if (start > (START_PICKER + NUM_PICKER))
+		if (start > (START_PICKER + num_picker))
 			return START_MAP;
 		// Must be a valid picker slot..
 		if (start >= START_PICKER)
 			return (start);
 		// If we are starting above the valid drives, return Picker..
-		if (start > (START_DRIVE + NUM_DRIVES))
+		if (start > (START_DRIVE + num_drives))
 			return(START_PICKER);
 		// Must be a valid drive
 		if (start >= START_DRIVE)
@@ -1027,28 +1031,28 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 		break;
 	case MEDIUM_TRANSPORT:	// Medium Transport.
 		if ((start >= START_PICKER) &&
-		   (start <= (START_PICKER + NUM_PICKER)))
+		   (start <= (START_PICKER + num_picker)))
 			return start;
 		if (start < START_PICKER)
 			return START_PICKER;
 		break;
 	case STORAGE_ELEMENT:	// Storage Slots
 		if ((start >= START_STORAGE) &&
-		   (start <= (START_STORAGE + NUM_STORAGE)))
+		   (start <= (START_STORAGE + num_storage)))
 			return start;
 		if (start < START_STORAGE)
 			return START_STORAGE;
 		break;
 	case MAP_ELEMENT:	// Import/Export
 		if ((start >= START_MAP) &&
-		   (start <= (START_MAP + NUM_MAP)))
+		   (start <= (START_MAP + num_map)))
 			return start;
 		if (start < START_MAP)
 			return START_MAP;
 		break;
 	case DATA_TRANSFER:	// Data transfer
 		if ((start >= START_DRIVE) &&
-		   (start <= (START_DRIVE + NUM_DRIVES)))
+		   (start <= (START_DRIVE + num_drives)))
 			return start;
 		if (start < START_DRIVE)
 			return START_DRIVE;
@@ -1072,11 +1076,11 @@ static int medium_transport_descriptor(uint8_t *p, uint16_t start,
 	begin = find_first_matching_element(start, MEDIUM_TRANSPORT);
 
 	// Create Element Status Page Header.
-	len = 
+	len =
 	  fill_element_status_page(p,begin,count,dvcid,voltag,MEDIUM_TRANSPORT);
 
 	begin -= START_PICKER;	// Array starts at [0]
-	count = NUM_PICKER - begin;
+	count = num_picker - begin;
 
 	// Now loop over each picker slot and fill in details.
 	len += fill_element_detail(&p[len], &picker_info[begin], count, voltag);
@@ -1100,7 +1104,7 @@ static int storage_element_descriptor(uint8_t *p, uint16_t start,
 	  fill_element_status_page(p,begin,count,dvcid,voltag,STORAGE_ELEMENT);
 
 	begin -= START_STORAGE;	// Array starts at [0]
-	count = NUM_STORAGE - begin;
+	count = num_storage - begin;
 
 	// Now loop over each picker slot and fill in details.
 	len += fill_element_detail(&p[len],&storage_info[begin],count,voltag);
@@ -1124,7 +1128,7 @@ static int map_element_descriptor(uint8_t *p, uint16_t start, uint16_t count,
 	    fill_element_status_page(p,begin,count,dvcid,voltag,MAP_ELEMENT);
 
 	begin -= START_MAP;	// Array starts at [0]
-	count = NUM_MAP - begin;
+	count = num_map - begin;
 
 	// Now loop over each picker slot and fill in details.
 	len += fill_element_detail(&p[len], &map_info[begin], count, voltag);
@@ -1412,8 +1416,8 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
  */
 static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint32_t block_size = 0L;
-	uint32_t ret = 5L;	// At least 4 bytes for Sense & 4 for S/No.
+	uint32_t block_size = 0;
+	uint32_t ret = 0;
 	int k = 0;
 	struct mode *smp = sm;
 	u32 count;
@@ -1432,6 +1436,10 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (check_reset(sam_stat))
 			break;
 		sleep(1);
+		break;
+
+	case INQUIRY:
+		ret += spc_inquiry(cdb, dbuf_p, &lu);
 		break;
 
 	case LOG_SELECT:	// Set or reset LOG stats.
@@ -1459,7 +1467,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SENSE **");
 		DEBC( printf("MODE SENSE\n"); )
-		ret += resp_mode_sense(cdb, buf, smp, sam_stat);
+		ret += resp_mode_sense(cdb, buf, smp, 0, sam_stat);
 		break;
 
 	case MOVE_MEDIUM:
@@ -1514,7 +1522,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
-		if (verbose) 
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "%s", "Rewinding **");
 		if (check_reset(sam_stat))
 			break;
@@ -1526,7 +1534,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			break;
 		if (cdb[4] && 0x1) {
 			libraryOnline = 1;
-			if (verbose) 
+			if (verbose)
 				syslog(LOG_DAEMON|LOG_INFO, "%s",
 							"Library online **");
 		} else {
@@ -1581,7 +1589,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 	}
 	DEBC(
-	printf("%s returning %d bytes\n\n", __func__, ret);
+		printf("%s returning %d bytes\n\n", __func__, ret);
 	)
 
 	dbuf_p->sz = ret;
@@ -1600,7 +1608,7 @@ static void listMap(void)
 	char *c = msg;
 	*c = '\0';
 
-	for (a = START_MAP; a < START_MAP + NUM_MAP; a++) {
+	for (a = START_MAP; a < START_MAP + num_map; a++) {
 		sp = slot2struct(a);
 		if (slotOccupied(sp)) {
 			strncat(c, (char *)sp->barcode, 10);
@@ -1618,6 +1626,8 @@ static void listMap(void)
 
 static void loadMap(void)
 {
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO, "Loading MAP\n");
 }
 
 /*
@@ -1628,7 +1638,7 @@ static void emptyMap(void)
 	struct s_info *sp;
 	int	a;
 
-	for (a = START_MAP; a < START_MAP + NUM_MAP; a++) {
+	for (a = START_MAP; a < START_MAP + num_map; a++) {
 		sp = slot2struct(a);
 		if (slotOccupied(sp)) {
 			setSlotEmpty(sp);
@@ -1684,8 +1694,7 @@ static int processMessageQ(char *mtext)
 return 0;
 }
 
-int
-init_queue(void)
+int init_queue(void)
 {
 	int	queue_id;
 
@@ -1744,19 +1753,19 @@ static void init_mode_pages(struct mode *m)
 		sp++;
 		*sp = htons(START_PICKER);	// First medium transport
 		sp++;
-		*sp = htons(NUM_PICKER);	// Number of transport elem.
+		*sp = htons(num_picker);	// Number of transport elem.
 		sp++;
 		*sp = htons(START_STORAGE);	// First storage slot
 		sp++;
-		*sp = htons(NUM_STORAGE);	// Number of storage slots
+		*sp = htons(num_storage);	// Number of storage slots
 		sp++;
 		*sp = htons(START_MAP);		// First i/e address
 		sp++;
-		*sp = htons(NUM_MAP);		// Number of i/e slots
+		*sp = htons(num_map);		// Number of i/e slots
 		sp++;
 		*sp = htons(START_DRIVE);	// Number of Drives
 		sp++;
-		*sp = htons(NUM_DRIVES);
+		*sp = htons(num_drives);
 	}
 
 	// Transport Geometry Parameters mode page: SMC-3 7.3.4
@@ -1813,17 +1822,90 @@ static int cart_type(char *barcode)
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "%s cart found: %s",
 				(retval == 1) ? "Data" : "Cleaning", barcode);
-		
+
 return(retval);
+}
+
+#define MALLOC_SZ 1024
+
+/* Open device config file and update device information
+ */
+static void update_drive_details(struct d_info *drv, int drive_count)
+{
+	char *config="/etc/vtl/device.conf";
+	FILE *conf;
+	char *b;	/* Read from file into this buffer */
+	char *s;	/* Somewhere for sscanf to store results */
+	int indx;
+	int found;
+	struct d_info *dp = NULL;
+
+	conf = fopen(config , "r");
+	if (!conf) {
+		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
+								config);
+		perror("Can not open config file");
+		exit(1);
+	}
+	s = malloc(MALLOC_SZ);
+	if (!s) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	b = malloc(MALLOC_SZ);
+	if (!b) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+
+	found = 0;
+	/* While read in a line */
+	while( fgets(b, MALLOC_SZ, conf) != NULL) {
+		if (b[0] == '#')	/* Ignore comments */
+			continue;
+		if (debug)
+			printf("%s: strlen: %ld\n", __func__, (long)strlen(b));
+		if (sscanf(b, "Drive: %d", &indx)) {
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+						"Found Drive %d\n", indx);
+			if (indx > 0) {
+				indx--;
+				dp = &drv[indx];
+			}
+
+			if (indx > drive_count)
+				goto done;
+
+		}
+		if (dp) {
+			if (sscanf(b, " Unit serial number: %s", s) > 0)
+				strncpy(dp->inq_product_sno, s, 10);
+			if (sscanf(b, " Product identification: %s", s) > 0)
+				strncpy(dp->inq_product_id, s, 16);
+			if (sscanf(b, " Product revision level: %s", s) > 0)
+				strncpy(dp->inq_product_rev, s, 4);
+			if (sscanf(b, " Vendor identification: %s", s) > 0)
+				strncpy(dp->inq_vendor_id, s, 8);
+		}
+		if (strlen(b) == 1)	/* Blank line => Reset device pointer */
+			dp = NULL;
+	}
+
+done:
+	free(b);
+	free(s);
+	fclose(conf);
 }
 
 /*
  * Read config file and populate d_info struct with library's drives
+ *
+ * One very long and serial function...
  */
-#define MALLOC_SZ 1024
-static void init_tape_info(void)
+static void init_slot_info(void)
 {
-	char *conf="/etc/vtl/vxlib.conf";
+	char *conf="/etc/vtl/library_contents";
 	FILE *ctrl;
 	struct d_info *dp = NULL;
 	struct s_info *sp = NULL;
@@ -1853,190 +1935,455 @@ static void init_tape_info(void)
 		exit(1);
 	}
 
+	/* First time thru the config file, determine the number of slots
+	 * so we know how much memory to alloc */
+	num_drives = 0;
+	num_storage = 0;
+	num_map = 0;
+	num_picker = 0;
 	/* While read in a line */
 	while(fgets(b, MALLOC_SZ, ctrl) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		if (sscanf(b, "NumberDrives: %d", &slt) > 0)
-			NUM_DRIVES = slt;
-		if (sscanf(b, "NumberSlots: %d", &slt) > 0)
-			NUM_STORAGE = slt;
-		if (sscanf(b, "NumberMAP: %d", &slt) > 0)
-			NUM_MAP = slt;
-		if (sscanf(b, "NumberPicker: %d", &slt) > 0)
-			NUM_PICKER = slt;
+		if (sscanf(b, "Drive %d", &slt) > 0)
+			num_drives++;
+		if (sscanf(b, "Slot %d", &slt) > 0)
+			num_storage++;
+		if (sscanf(b, "MAP %d", &slt) > 0)
+			num_map++;
+		if (sscanf(b, "Picker %d", &slt) > 0)
+			num_picker++;
 	}
-	rewind(ctrl);
 
 	if (debug)
 		printf("%d Drives, %d Storage slots\n",
-						NUM_DRIVES, NUM_STORAGE);
+						num_drives, num_storage);
 	else
 		syslog(LOG_DAEMON|LOG_INFO, "%d Drives, %d Storage slots\n",
-						NUM_DRIVES, NUM_STORAGE);
+						num_drives, num_storage);
 
 	/* Allocate enough memory for drives */
-	drive_info = init_d_struct(NUM_DRIVES + 1);
+	drive_info = init_d_struct(num_drives + 1);
 	if (drive_info) {
-		for (x = 0; x < NUM_DRIVES; x++) {
+		for (x = 0; x < num_drives; x++) {
 			dp = &drive_info[x];
-			if ((dp->slot = init_s_struct(1)) == NULL)
+			dp->slot = init_s_struct(1);
+			if (!dp->slot)
 				exit(1);
 		}
 	} else
 		exit(1);
 
 	/* Allocate enough memory for storage slots */
-	storage_info = init_s_struct(NUM_STORAGE + 1);
+	storage_info = init_s_struct(num_storage + 1);
 	if (!storage_info)
 		exit(1);
 
 	/* Allocate enough memory for MAP slots */
-	map_info = init_s_struct(NUM_MAP + 1);
+	map_info = init_s_struct(num_map + 1);
 	if (!map_info)
 		exit(1);
 
 	/* Allocate enough memory for picker slots */
-	picker_info = init_s_struct(NUM_PICKER + 1);
+	picker_info = init_s_struct(num_picker + 1);
 	if (!picker_info)
 		exit(1);
 
-	/* While read in a line */
-	while( fgets(b, MALLOC_SZ, ctrl) != NULL) {
-		if (b[0] == '#')	/* Ignore comments */
-			continue;
-		if (sscanf(b, "Drive: %d", &slt) > 0)
-			dp = &drive_info[slt - 1];
-		if (sscanf(b, " Unit serial number: %s", s) > 0)
-			strncpy(dp->inq_product_sno, s, 10);
-		if (sscanf(b, " Product identification: %s", s) > 0)
-			strncpy(dp->inq_product_id, s, 16);
-		if (sscanf(b, " Product revision level: %s", s) > 0)
-			strncpy(dp->inq_product_rev, s, 4);
-		if (sscanf(b, " Vendor identification: %s", s) > 0)
-			strncpy(dp->inq_vendor_id, s, 8);
-	}
-	fclose(ctrl);
-
-	ctrl = fopen("/etc/vtl/library_contents", "r");
-	if (!ctrl) {
-		printf("Can not open config file %s\n",
-					"/etc/vtl/library_contents");
-		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
-					"/etc/vtl/library_contents");
-		exit(1);
-	}
+	/* Rewind and parse config file again... */
+	rewind(ctrl);
 	barcode = s;
 	while( fgets(b, MALLOC_SZ, ctrl) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		barcode[0] = '\0';
-		x = (sscanf(b, "Drive %d: %s", &slt, barcode));
-		if (x) {
-			dp = &drive_info[slt - 1];
-			if (slt > NUM_DRIVES)
-				syslog(LOG_DAEMON|LOG_ERR, "Too many drives");
-			else if (x == 1) {
-				dp->slot->slot_location = slt + START_DRIVE - 1;
-				dp->slot->status = STATUS_Access;
-				dp->slot->cart_type = 0;
-				dp->slot->internal_status = 0;
-			} else {
-				dp->slot->cart_type = 0;
-				dp->slot->status = STATUS_Access;
-				dp->slot->slot_location = slt + START_DRIVE - 1;
-				dp->slot->internal_status = 0;
-			}
+
+		x = sscanf(b, "Drive %d: %s", &slt, s);
+		if (x && slt > num_drives) {
+			syslog(LOG_DAEMON|LOG_ERR, "Too many drives");
+			continue;
 		}
-		x = (sscanf(b, "MAP %d: %s", &slt, barcode));
-		if (x) {
-			sp = &map_info[slt - 1];
-			if (slt > NUM_MAP)
-				syslog(LOG_DAEMON|LOG_ERR, "Too many MAPs");
-			else if (x == 1) {
-				sp->slot_location = slt + START_MAP - 1;
-				sp->status = 
-					STATUS_InEnab | STATUS_ExEnab | STATUS_Access | STATUS_ImpExp;
-				sp->cart_type = 0;
+		dp = &drive_info[slt - 1];
+		switch (x) {
+		case 2:
+			/* Pull serial number out and fall thru to case 1*/
+			strncpy(dp->inq_product_sno, s, 10);
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+						"Drive s/no: %s\n", s);
+		case 1:
+			dp->slot->slot_location = slt + START_DRIVE - 1;
+			dp->slot->status = STATUS_Access;
+			dp->slot->cart_type = 0;
+			dp->slot->internal_status = 0;
+			break;
+		}
+
+		x = sscanf(b, "MAP %d: %s", &slt, barcode);
+		if (x && slt > num_map) {
+			syslog(LOG_DAEMON|LOG_ERR, "Too many MAPs");
+			continue;
+		}
+		sp = &map_info[slt - 1];
+		switch (x) {
+		case 1:
+			sp->slot_location = slt + START_MAP - 1;
+			sp->status = STATUS_InEnab | STATUS_ExEnab |
+					STATUS_Access | STATUS_ImpExp;
+			sp->cart_type = 0;
+			sp->internal_status = 0;
+			break;
+		case 2:
+			if (debug)
+				printf("Barcode %s in MAP %d\n", barcode, slt);
+			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
+			sp->barcode[10] = '\0';
+			/* 1 = data, 2 = Clean */
+			sp->cart_type = cart_type(barcode);
+			sp->status = STATUS_InEnab | STATUS_ExEnab |
+					STATUS_Access | STATUS_ImpExp |
+					STATUS_Full;
+			sp->slot_location = slt + START_MAP - 1;
+			/* look for special media that should be reported
+			   as not having a barcode */
+			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
+				sp->internal_status = INSTATUS_NO_BARCODE;
+			else
 				sp->internal_status = 0;
-			} else {
-				if (debug)
-					printf("Barcode %s in MAP %d\n",
-								barcode, slt);
-				snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-				sp->barcode[10] = '\0';
-				// 1 = data, 2 = Clean
-				sp->cart_type = cart_type(barcode);
-				sp->status = 
-					STATUS_InEnab | STATUS_ExEnab | STATUS_Access | STATUS_ImpExp | STATUS_Full;
-				sp->slot_location = slt + START_MAP - 1;
-				// look for special media that should be reported as not having a barcode
-				if (!strncmp((char *)sp->barcode, "NOBAR", 5))
-					sp->internal_status = INSTATUS_NO_BARCODE;
-				else
-					sp->internal_status = 0;
-			}
+			break;
 		}
-		x = (sscanf(b, "Picker %d: %s", &slt, barcode));
-		if (x) {
-			sp = &picker_info[slt - 1];
-			if (slt > NUM_PICKER)
-				syslog(LOG_DAEMON|LOG_ERR, "Too many pickers");
-			else if (x == 1) {
-				sp->slot_location = slt + START_PICKER - 1;
-				sp->cart_type = 0;
-				sp->status = 0;
+
+		x = sscanf(b, "Picker %d: %s", &slt, barcode);
+		if (x && slt > num_picker) {
+			syslog(LOG_DAEMON|LOG_ERR, "Too many pickers");
+			continue;
+		}
+		sp = &picker_info[slt - 1];
+		switch (x) {
+		case 1:
+			sp->slot_location = slt + START_PICKER - 1;
+			sp->cart_type = 0;
+			sp->status = 0;
+			sp->internal_status = 0;
+			break;
+		case 2:
+			if (debug)
+				printf("Barcode %s in Picker %d\n",
+								barcode, slt);
+			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
+			sp->barcode[10] = '\0';
+			/* 1 = data, 2 = Clean */
+			sp->cart_type = cart_type(barcode);
+			sp->slot_location = slt + START_PICKER - 1;
+			sp->status = STATUS_Full;
+			/* look for special media that should be reported
+			 * as not having a barcode */
+			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
+				sp->internal_status = INSTATUS_NO_BARCODE;
+			else
 				sp->internal_status = 0;
-			} else {
-				if (debug)
-					printf("Barcode %s in Picker %d\n",
-								barcode, slt);
-				snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-				sp->barcode[10] = '\0';
-				// 1 = data, 2 = Clean
-				sp->cart_type = cart_type(barcode);
-				sp->slot_location = slt + START_PICKER - 1;
-				sp->status = STATUS_Full;
-				// look for special media that should be reported as not having a barcode
-				if (!strncmp((char *)sp->barcode, "NOBAR", 5))
-					sp->internal_status = INSTATUS_NO_BARCODE;
-				else
-					sp->internal_status = 0;
-			}
 		}
-		x = (sscanf(b, "Slot %d: %s", &slt, barcode));
-		if (x) {
-			sp = &storage_info[slt - 1];
-			if (slt > NUM_STORAGE)
-				syslog(LOG_DAEMON|LOG_ERR,
+
+		x = sscanf(b, "Slot %d: %s", &slt, barcode);
+		if (x && (slt > num_storage)) {
+			syslog(LOG_DAEMON|LOG_ERR,
 					"Storage slot %d out of range", slt);
-			else if (x == 1) {
-				sp->slot_location = slt + START_STORAGE - 1;
-				sp->status = 0;
-				sp->cart_type = 0x08;
-				sp->internal_status = 0;
-			} else {
-				if (debug)
-					printf("Barcode %s in slot %d\n",
+			continue;
+		}
+		sp = &storage_info[slt - 1];
+		switch (x) {
+		case 1:
+			sp->slot_location = slt + START_STORAGE - 1;
+			sp->status = STATUS_Access;
+			sp->cart_type = 0x08;
+			sp->internal_status = 0;
+			break;
+		case 2:
+			if (debug)
+				printf("Barcode %s in slot %d\n",
 								 barcode, slt);
-				snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-				sp->barcode[10] = '\0';
-				sp->slot_location = slt + START_STORAGE - 1;
-				// 1 = data, 2 = Clean
-				sp->cart_type = cart_type(barcode);
-				// Slot full
-				sp->status = STATUS_Access | STATUS_Full;
-				// look for special media that should be reported as not having a barcode
-				if (!strncmp((char *)sp->barcode, "NOBAR", 5))
-					sp->internal_status = INSTATUS_NO_BARCODE;
-				else
-					sp->internal_status = 0;
-			}
+			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
+			sp->barcode[10] = '\0';
+			sp->slot_location = slt + START_STORAGE - 1;
+			/* 1 = data, 2 = Clean */
+			sp->cart_type = cart_type(barcode);
+			/* Slot full */
+			sp->status = STATUS_Access | STATUS_Full;
+			/* look for special media that should be reported
+			 * as not having a barcode */
+			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
+				sp->internal_status = INSTATUS_NO_BARCODE;
+			else
+				sp->internal_status = 0;
+			break;
 		}
 	}
 	fclose(ctrl);
 	free(b);
 	free(s);
+
+	/* Now update the details of each drive
+	 * Details contained in /etc/vtl/device.conf
+	 * Data keyed by device s/no
+	 */
+	update_drive_details(&drive_info[0], num_drives);
+}
+
+/* Set VPD data with device serial number */
+static void update_vpd_80(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x80)];
+
+	memcpy(vpd_pg->data, p, strlen(p));
+}
+
+static void update_vpd_83(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x83)];
+	uint8_t *d;
+	int num;
+
+	d = vpd_pg->data;
+
+	d[0] = 2;
+	d[1] = 1;
+	d[2] = 0;
+	num = VENDOR_ID_LEN + PRODUCT_ID_LEN + 10;
+	d[3] = num;
+
+	memcpy(&d[4], &lu->vendor_id, VENDOR_ID_LEN);
+	memcpy(&d[12], &lu->product_id, PRODUCT_ID_LEN);
+	memcpy(&d[28], &lu->lu_serial_no, 10);
+
+	num += 4;
+	/* NAA IEEE registered identifier (faked) */
+	d[num] = 0x1;	/* Binary */
+	d[num + 1] = 0x3;
+	d[num + 2] = 0x0;
+	d[num + 3] = 0x8;
+	d[num + 4] = 0x51;
+	d[num + 5] = 0x23;
+	d[num + 6] = 0x45;
+	d[num + 7] = 0x60;
+	d[num + 8] = 0x3;
+	d[num + 9] = 0x3;
+	d[num + 10] = 0x3;
+	d[num + 11] = 0x3;
+}
+
+static void update_vpd_b1(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb1)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+static void update_vpd_b2(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+static void update_vpd_c0(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
+
+	memcpy(&vpd_pg->data[20], p, strlen(p));
+}
+
+static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc1)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+#define VPD_83_SZ 52
+#define VPD_B0_SZ 4
+#define VPD_B1_SZ SCSI_SN_LEN
+#define VPD_B2_SZ 8
+#define VPD_C0_SZ 0x28
+
+static void init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
+{
+
+	struct vpd **lu_vpd = lu->lu_vpd;
+	int pg;
+	uint8_t TapeAlert[8] =
+			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+	char *config="/etc/vtl/device.conf";
+	FILE *conf;
+	char *b;	/* Read from file into this buffer */
+	char *s;	/* Somewhere for sscanf to store results */
+	int indx, n = 0;
+	struct vtl_ctl tmpctl;
+
+	conf = fopen(config , "r");
+	if (!conf) {
+		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
+								config);
+		perror("Can not open config file");
+		exit(1);
+	}
+	s = malloc(MALLOC_SZ);
+	if (!s) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	b = malloc(MALLOC_SZ);
+	if (!b) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+
+	/* While read in a line */
+	while( fgets(b, MALLOC_SZ, conf) != NULL) {
+		if (b[0] == '#')	/* Ignore comments */
+			continue;
+		if (strlen(b) == 1)	/* Reset drive number of blank line */
+			indx = 0xff;
+		if (sscanf(b, "Library: %d CHANNEL: %d TARGET: %d LUN: %d",
+					&indx, &tmpctl.channel,
+					&tmpctl.id, &tmpctl.lun)) {
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"Found Library %d, looking for %d\n",
+							indx, minor);
+			if (indx == minor)
+				memcpy(ctl, &tmpctl, sizeof(tmpctl));
+		}
+		if (indx == minor) {
+			if (sscanf(b, " Unit serial number: %s", s))
+				sprintf(lu->lu_serial_no, "%-10s", s);
+			if (sscanf(b, " Product identification: %s", s))
+				sprintf(lu->product_id, "%-16s", s);
+			if (sscanf(b, " Product revision level: %s", s))
+				sprintf(lu->product_rev, "%-4s", s);
+			if (sscanf(b, " Vendor identification: %s", s))
+				sprintf(lu->vendor_id, "%-8s", s);
+			if (sscanf(b, " Density : %s", s)) {
+				lu->supported_density[n] =
+					(uint8_t)strtol(s, NULL, 16);
+				if (verbose)
+					syslog(LOG_DAEMON|LOG_INFO,
+					"Supported density: 0x%x (%d)\n",
+						lu->supported_density[n],
+						lu->supported_density[n]);
+				if (debug)
+					printf("Supported density: 0x%x (%d)\n",
+						lu->supported_density[n],
+						lu->supported_density[n]);
+				n++;
+			}
+		}
+	}
+	fclose(conf);
+	free(b);
+	free(s);
+
+	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
+	lu->removable = 1;	/* Supports removable media */
+	lu->version_desc[0] = 0x0300;	/* SPC-3 No version claimed */
+	lu->version_desc[1] = 0x0960;	/* iSCSI */
+	lu->version_desc[2] = 0x0200;	/* SSC */
+
+	/* Unit Serial Number */
+	pg = 0x80 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(strlen(lu->lu_serial_no));
+	if (lu_vpd[pg]) {
+		lu_vpd[pg]->vpd_update = update_vpd_80;
+		lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
+	} else
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"%s: could not malloc(%d) line %d\n",
+				__func__, (int)strlen(lu->lu_serial_no),
+				(int)__LINE__);
+
+	/* Device Identification */
+	pg = 0x83 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
+	if (lu_vpd[pg]) {
+		lu_vpd[pg]->vpd_update = update_vpd_83;
+		lu_vpd[pg]->vpd_update(lu, NULL);
+	} else
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"%s: could not malloc(%d) line %d\n",
+				__func__, VPD_83_SZ, __LINE__);
+
+	/* Manufacture-assigned serial number - Ref: 8.4.3 */
+	pg = 0xB1 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
+	if (lu_vpd[pg]) {
+		lu_vpd[pg]->vpd_update = update_vpd_b1;
+		lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
+	} else
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"%s: could not malloc(%d) line %d\n",
+				__func__, VPD_B1_SZ, __LINE__);
+
+	/* TapeAlert supported flags - Ref: 8.4.4 */
+	pg = 0xB2 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
+	if (lu_vpd[pg]) {
+		lu_vpd[pg]->vpd_update = update_vpd_b2;
+		lu_vpd[pg]->vpd_update(lu, &TapeAlert);
+	} else
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"%s: could not malloc(%d) line %d\n",
+				__func__, VPD_B2_SZ, __LINE__);
+
+	/* VPD page 0xC0 */
+	pg = 0xC0 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
+	if (lu_vpd[pg]) {
+		lu_vpd[pg]->vpd_update = update_vpd_c0;
+		lu_vpd[pg]->vpd_update(lu, "10-03-2008 19:38:00");
+	} else
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"%s: could not malloc(%d) line %d\n",
+				__func__, VPD_C0_SZ, __LINE__);
+
+	/* VPD page 0xC1 */
+	pg = 0xC1 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(strlen("Security"));
+	if (lu_vpd[pg]) {
+		lu_vpd[pg]->vpd_update = update_vpd_c1;
+		lu_vpd[pg]->vpd_update(lu, "Security");
+	} else
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"%s: could not malloc(%d) line %d\n",
+				__func__, (int)strlen(lu->lu_serial_no),
+				(int)__LINE__);
+
+}
+
+static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
+{
+	struct vtl_ds dbuf;
+	uint8_t *cdb;
+
+	/* Get the SCSI cdb from vtl driver
+	 * - Returns SCSI command S/No. */
+
+	cdb = (uint8_t *)&vtl_cmd->cdb;
+
+	/* Interpret the SCSI command & process
+	-> Returns no. of bytes to send back to kernel
+	 */
+	memset(&dbuf, 0, sizeof(struct vtl_ds));
+	dbuf.serialNo = vtl_cmd->serialNo;
+	dbuf.data = buf;
+	dbuf.sam_stat = sam_status;
+	dbuf.sense_buf = &sense;
+
+	processCommand(cdev, cdb, &dbuf);
+
+	/* Complete SCSI cmd processing */
+	completeSCSICommand(cdev, &dbuf);
+
+	/* dbuf.sam_stat was zeroed in completeSCSICommand */
+	sam_status = dbuf.sam_stat;
 }
 
 /*
@@ -2046,30 +2393,29 @@ static void init_tape_info(void)
  */
 int main(int argc, char *argv[])
 {
-	int cdev, k;
+	int cdev;
 	int ret;
-	int vx_status;
 	int q_priority = 0;
 	int exit_status = 0;
+	long pollInterval = 0L;
 	uint8_t *buf;
-	uint8_t *cdb;
 
 	struct d_info *dp;
+	struct vtl_header vtl_cmd;
+	struct vtl_ctl ctl;
 	char s[100];
 	int a;
 
-	pid_t pid;
+	pid_t pid, sid, child_cleanup;
 
 	char *progname = argv[0];
 	char *name = "vtl";
 	uint8_t	minor = 0;
+	struct passwd *pw;
 
 	/* Message Q */
 	int	mlen, r_qid;
 	struct q_entry r_entry;
-
-	struct vtl_header vtl_head;
-	struct vtl_ds dbuf;
 
 	while(argc > 0) {
 		if (argv[0][0] == '-') {
@@ -2106,35 +2452,40 @@ int main(int argc, char *argv[])
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, Version);
-	if (verbose)
+	if (verbose) {
 		printf("%s: version %s\n", progname, Version);
-
-	if ((cdev = chrdev_open(name, minor)) == -1) {
-		syslog(LOG_DAEMON|LOG_ERR,
-				"Could not open /dev/%s%d: %m", name, minor);
-		printf("Could not open /dev/%s%d: %m", name, minor);
-		fflush(NULL);
-		exit(1);
-	}
-
-	k = TYPE_MEDIUM_CHANGER;
-	if (ioctl(cdev, VX_TAPE_ONLINE, &k) < 0) {
-		syslog(LOG_DAEMON|LOG_ERR,
-				"Failed to connect to device %s%d: %m",
-								name, minor);
-		perror("Failed bringing unit online");
-		exit(1);
-	}
-
-	buf = (uint8_t *)malloc(bufsize);
-	if (NULL == buf) {
-		perror("Problems allocating memory");
-		exit(1);
+		syslog(LOG_DAEMON|LOG_INFO, "verbose: %d\n", verbose);
 	}
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
 	reset = 1;
+
+	init_slot_info();
+	init_mode_pages(sm);
+	initTapeAlert(&TapeAlert);
+	/* One of these days, we will support multiple libraries */
+	init_lu(&lu, q_priority - LIBRARY_Q, &ctl);
+
+	pw = getpwnam("vtl");	/* Find UID for user 'vtl' */
+	if (!pw) {
+		printf("Unable to find user: vtl\n");
+		exit(1);
+	}
+
+	/* Now that we have created the lu, drop root uid/gid */
+	if (setgid(pw->pw_gid)) {
+		perror("Unable to change gid");
+		exit (1);
+	}
+	if (setuid(pw->pw_uid)) {
+		perror("Unable to change uid");
+		exit (1);
+	}
+
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO, "Running as %s, uid: %d\n",
+					pw->pw_name, getuid());
 
 	/* Initialise message queue as necessary */
 	if ((r_qid = init_queue()) == -1) {
@@ -2151,14 +2502,24 @@ int main(int argc, char *argv[])
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
 	}
 
-	init_tape_info();
-	init_mode_pages(sm);
-	initTapeAlert(&TapeAlert);
+	if ((cdev = chrdev_open(name, minor)) == -1) {
+		syslog(LOG_DAEMON|LOG_ERR,
+				"Could not open /dev/%s%d: %m", name, minor);
+		printf("Could not open /dev/%s%d: %m", name, minor);
+		fflush(NULL);
+		exit(1);
+	}
+
+	buf = (uint8_t *)malloc(bufsize);
+	if (NULL == buf) {
+		perror("Problems allocating memory");
+		exit(1);
+	}
 
 	/* Send a message to each tape drive so they know the
 	 * controlling library's message Q id
 	 */
-	for (a = 0; a < NUM_DRIVES; a++) {
+	for (a = 0; a < num_drives; a++) {
 		send_msg("Register", a + 1);
 
 		if (debug) {
@@ -2189,25 +2550,43 @@ int main(int argc, char *argv[])
 	}
 
 	/* If debug, don't fork/run in background */
-	if ( ! debug) {
+	if (!debug) {
 		switch(pid = fork()) {
 		case 0:         /* Child */
 			break;
 		case -1:
 			printf("Failed to fork daemon\n");
+			exit(-1);
 			break;
 		default:
 			printf("%s process PID is %d\n", progname, (int)pid);
+			exit(0);
 			break;
 		}
- 
-		/* Time for the parent to terminate */
-		if (pid != 0)
-			exit(pid != -1 ? 0 : 1);
+
+		umask(0);	/* Change the file mode mask */
+
+		sid = setsid();
+		if (sid < 0)
+			exit(-1);
+
+		if ((chdir("/opt/vtl")) < 0) {
+			perror("Unable to change directory to /opt/vtl ");
+			exit(-1);
+		}
+
+		close(STDIN_FILENO);
+		close(STDERR_FILENO);
+	}
+
+	child_cleanup = add_lu((q_priority == LIBRARY_Q) ? 0 : q_priority, &ctl);
+	if (! child_cleanup) {
+		printf("Could not create logical unit\n");
+		exit(1);
 	}
 
 	oom_adjust();
-	
+
 	for (;;) {
 		/* Check for any messages */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
@@ -2223,46 +2602,43 @@ int main(int argc, char *argv[])
 		if (exit_status)	// Process a 'exit' messageQ
 			goto exit;
 
-		if ((ret = ioctl(cdev, VX_TAPE_POLL_STATUS, &vx_status)) < 0) {
+		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
+		if (ret < 0) {
 			syslog(LOG_DAEMON|LOG_WARNING, "ret: %d : %m", ret);
 		} else {
+			if (child_cleanup) {
+				if (waitpid(child_cleanup, NULL, WNOHANG)) {
+					if (verbose)
+						syslog(LOG_DAEMON|LOG_INFO,
+						"Cleaning up after child %d\n",
+							child_cleanup);
+					child_cleanup = 0;
+				}
+			}
 			fflush(NULL);	/* So I can pipe debug o/p thru tee */
 			switch(ret) {
-			case STATUS_QUEUE_CMD:	// The new & improved method
-				/* Get the SCSI cdb from vxtape driver
-				 * - Returns SCSI command S/No. */
-				getCommand(cdev, &vtl_head);
-
-				cdb = (uint8_t *)&vtl_head.cdb;
-
-				memset(&dbuf, 0, sizeof(struct vtl_ds));
-				dbuf.serialNo = vtl_head.serialNo;
-				dbuf.sense_buf = &sense;
-				dbuf.sam_stat = sam_status;
-				dbuf.data = buf;
-
-				processCommand(cdev, cdb, &dbuf);
-
-				/* Complete SCSI cmd processing */
-				completeSCSICommand(cdev, &dbuf);
-				sam_status = dbuf.sam_stat;
-
+			case VTL_QUEUE_CMD:
+				process_cmd(cdev, buf, &vtl_cmd);
+				pollInterval = 10;
 				break;
 
-			case STATUS_OK:
-				usleep(100000);	// 0.1 Seconds
+			case VTL_IDLE:
+				if (pollInterval < 1000000)
+					pollInterval += 4000;
+				usleep(pollInterval);
 				break;
 
 			default:
 				syslog(LOG_DAEMON|LOG_NOTICE,
-					"ioctl(0x%x) returned %d: argv %d",
-					VX_TAPE_POLL_STATUS, ret, vx_status);
+					"ioctl(0x%x) returned %d\n",
+						VTL_POLL_AND_GET_HEADER, ret);
 				sleep(1);
 				break;
-			}	// End switch(vx_status)
+			}
 		}
 	}
 exit:
+	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	free(buf);
 	free(drive_info);

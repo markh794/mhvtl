@@ -35,6 +35,7 @@
 #include <inttypes.h>
 #include "scsi.h"
 #include "q.h"
+#include "vtl_common.h"
 #include "vx.h"
 #include "vxshared.h"
 
@@ -88,7 +89,7 @@ int send_msg(char *cmd, int q_id)
 
 /*
  * log the SCSI command.
- * If debug -> display to stdout.
+ * If debug -> display to stdout and syslog.
  * else to syslog
  */
 void logSCSICommand(u8 *cdb)
@@ -101,14 +102,14 @@ void logSCSICommand(u8 *cdb)
 	switch (groupCode) {
 	case 0:	/*  6 byte commands */
 		cmd_len = 6;
-		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x",
+		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x",
 			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5]);
 		break;
 	case 1: /* 10 byte commands */
 	case 2: /* 10 byte commands */
 		cmd_len = 10;
-		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x"
+		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x",
 			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
@@ -116,7 +117,7 @@ void logSCSICommand(u8 *cdb)
 		break;
 	case 3: /* Reserved - There is always one exception ;) */
 		cmd_len = 6;
-		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x"
+		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x",
 			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
@@ -124,7 +125,7 @@ void logSCSICommand(u8 *cdb)
 		break;
 	case 4: /* 16 byte commands */
 		cmd_len = 16;
-		syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x"
+		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
 			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
@@ -133,7 +134,7 @@ void logSCSICommand(u8 *cdb)
 		break;
 	case 5: /* 12 byte commands */
 		cmd_len = 12;
-	syslog(LOG_DAEMON|LOG_INFO, "%02x %02x %02x %02x %02x %02x %02x"
+		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x",
 			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
@@ -143,7 +144,7 @@ void logSCSICommand(u8 *cdb)
 	case 7: /* Vendor Specific */
 		cmd_len = 6;
 		syslog(LOG_DAEMON|LOG_INFO, "VENDOR SPECIFIC !! "
-			" %02x %02x %02x %02x %02x %02x",
+			" CDB: %02x %02x %02x %02x %02x %02x",
 			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5]);
 		break;
@@ -300,16 +301,20 @@ int resp_read_position_long(loff_t pos, u8 *buf, u8 *sam_stat)
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Begining of Partition */
-	buf[4] = (partition >> 24) & 0xff;
-	buf[5] = (partition >> 16) & 0xff;
-	buf[6] = (partition >> 8) & 0xff;
-	buf[7] = partition & 0xff;
 
-	buf[8] = buf[9]  = (pos >> 16) & 0xff;
-	buf[6] = buf[10] = (pos >> 8) & 0xff;
-	buf[7] = buf[11] = pos & 0xff;
+	/* partition should be zero, as we only support one */
+	buf[4] = (partition >> 24);
+	buf[5] = (partition >> 16);
+	buf[6] = (partition >> 8);
+	buf[7] = partition;
 
-return(READ_POSITION_LONG_LEN);
+	/* we don't know logical field identifier */
+	/* FIXME: this code is wrong -- pos should be returned in [8 - 15] */
+	buf[8] = buf[9]  = (pos >> 16);
+	buf[6] = buf[10] = (pos >> 8);
+	buf[7] = buf[11] = pos;
+
+	return(READ_POSITION_LONG_LEN);
 }
 
 #define READ_POSITION_LEN 20
@@ -321,15 +326,15 @@ int resp_read_position(loff_t pos, u8 *buf, u8 *sam_stat)
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Begining of Partition */
 
-	buf[4] = (pos >> 24) & 0xff;
-	buf[5] = (pos >> 16) & 0xff;
-	buf[6] = (pos >> 8) & 0xff;
-	buf[7] = pos & 0xff;
+	buf[4] = buf[8] = (pos >> 24);
+	buf[5] = buf[9] = (pos >> 16);
+	buf[6] = buf[10] = (pos >> 8);
+	buf[7] = buf[11] = pos;
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
 			"%s: position %ld\n", __func__, (long)pos);
 
-return(READ_POSITION_LEN);
+	return(READ_POSITION_LEN);
 }
 
 #define READBLOCKLIMITS_ARR_SZ 6
@@ -449,7 +454,7 @@ struct mode * alloc_mode_page(u8 pcode, struct mode *m, int size)
  * Build mode sense data into *buf
  * Return size of data.
  */
-int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sam_stat)
+int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 WriteProtect, u8 *sam_stat)
 {
 	int pcontrol, pcode, subpcode;
 	int media_type;
@@ -504,7 +509,7 @@ int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 *sam_stat)
 	}
 
 	memset(buf, 0, alloc_len);	/* Set return data to null */
-	dev_spec = 0x10;
+	dev_spec = (WriteProtect ? 0x80 : 0x00) | 0x10;
 	media_type = 0x0;
 
 	offset += blockDescriptorLen;
@@ -628,47 +633,14 @@ void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: op s/n: (%ld), sam_status: %d, buffer: %p, sz: %d\n",
+			"%s: op s/n: (%ld), sam_status: %d, "
+			"buffer: %p, sz: %d\n",
 				__func__, (long)ds->serialNo, ds->sam_stat,
 				ds->data, ds->sz);
 
 	ioctl(cdev, VTL_PUT_DATA, ds);
 
 	ds->sam_stat = 0;
-}
-
-/*
- * Read the SCSI command from the char device
- *
- * Called with:
- * 	cdev   -> Char dev file handle,
- * 	vheadp -> vtl_header struct pointer.
- *
- * Return: void
- */
-void getCommand(int cdev, struct vtl_header *vheadp)
-{
-	int status = 0;
-	u8 *cdb;
-
-	/*  Call the vtl kernel module to populate the vtl_header struct. */
-	ioctl(cdev, VTL_GET_HEADER, vheadp);
-
-	cdb = (u8 *)&vheadp->cdb;
-
-	if (verbose > 1) {
-		syslog(LOG_DAEMON|LOG_INFO, "SCSI s/n: (%ld)",
-						(long)vheadp->serialNo);
-		if (verbose > 2) {	/* High verbose - log every cmd. */
-			logSCSICommand(cdb);
-		} else {		/* Lower verbosity,.. */
-			if (cdb[0] != 0)	/* Skip TUR */
-				logSCSICommand(cdb);
-		}
-	}
-
-	/* Ack kernel - we have read cdb */
-	ioctl(cdev, VX_ACK_SCSI_CDB, &status);
 }
 
 /* Hex dump 'count' bytes at p  */
@@ -682,6 +654,130 @@ void hex_dump(u8 *p, int count)
 		printf("%02x ", p[j]);
 	}
 	printf("\n");
+}
+
+#ifdef NOTDEF
+static int get_ctl(int minor, struct vtl_ctl *ctl)
+{
+	FILE *ctrl;
+	char *filename = "/etc/vtl/device.conf";
+	char b[1024];
+	int drive;
+	int retval;
+
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO, "Looking for device minor %d\n",
+						minor);
+	ctrl = fopen(filename , "r");
+	if (ctrl == NULL) {
+		syslog(LOG_DAEMON|LOG_INFO,
+			"%s Could not open config file %s",
+				__func__, filename);
+			retval = -1;
+			goto out;
+	}
+
+	while( fgets(b, sizeof(b), ctrl) != NULL) {
+		if (b[0] == '#')	/* Ignore comments */
+			continue;
+		if (minor)
+			retval = sscanf(b,
+				"Drive: %d CHANNEL: %d TARGET: %d LUN: %d",
+				&drive, &ctl->channel, &ctl->id, &ctl->lun);
+		else
+			retval = sscanf(b,
+				"Library: %d CHANNEL: %d TARGET: %d LUN: %d",
+				&drive, &ctl->channel, &ctl->id, &ctl->lun);
+		if (retval) {
+			if (drive == minor) {
+				if (debug)
+					printf("%s: Found match for "
+						"%d %d %d %d\n",
+						__func__, minor,
+						ctl->channel, ctl->id,
+						ctl->lun);
+				if (verbose > 1)
+					syslog(LOG_DAEMON|LOG_INFO,
+					"%s: Found match for %d %d %d %d\n",
+						__func__, minor,
+						ctl->channel, ctl->id,
+						ctl->lun);
+				retval =  0;
+				goto out_close;
+			}
+		} else {
+			if (debug)
+				printf("Did not match : %s\n", b);
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"Did not match : %s\n", b);
+		}
+	}
+	retval = 1;
+out_close:
+	fclose(ctrl);
+out:
+	return retval;
+}
+#endif
+
+/* Writing to the kernel module will block until the device is created.
+ * Unfortunately, we need to be polling the device and process the
+ * SCSI op code before the lu can be created.
+ * Chicken & Egg.
+ * So spawn child process and don't wait for return.
+ * Let the child process write to the kernel module
+ */
+pid_t add_lu(int minor, struct vtl_ctl *ctl)
+{
+	char str[1024];
+	pid_t pid;
+	ssize_t retval;
+	int pseudo;
+	char *pseudo_filename = "/sys/bus/pseudo/drivers/vtl/add_lu";
+	char errmsg[512];
+
+#ifdef NOTDEF
+	if (get_ctl(minor, &ctl))
+		return 0;
+#endif
+
+	sprintf(str, "add %d %d %d %d\n",
+			minor, ctl->channel, ctl->id, ctl->lun);
+
+	switch(pid = fork()) {
+	case 0:         /* Child */
+		pseudo = open(pseudo_filename, O_WRONLY);
+		if (pseudo < 0) {
+			sprintf(errmsg, "Could not open %s", pseudo_filename);
+			syslog(LOG_DAEMON|LOG_ERR, "%s : %m", errmsg);
+			perror("Cound not open 'add_lu'");
+			exit(-1);
+		}
+		retval = write(pseudo, str, strlen(str));
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO, "%s Wrote %s (%d bytes)\n",
+				__func__, str, (int)retval);
+		close(pseudo);
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+				"Child anounces 'job done' lu created.\n");
+		exit(0);
+		break;
+	case -1:
+		perror("Failed to fork()");
+		syslog(LOG_DAEMON|LOG_ERR, "Fail to fork() %m");
+		return 0;
+		break;
+	default:
+		if (verbose)
+			syslog(LOG_DAEMON|LOG_INFO,
+			"From a proud parent : Child PID to create lu is %d\n",
+								(int)pid);
+		return pid;
+		break;
+	}
+	return 0;
 }
 
 int chrdev_open(char *name, uint8_t minor)
@@ -714,9 +810,11 @@ int chrdev_open(char *name, uint8_t minor)
 		return -1;
 	}
 	snprintf(devname, sizeof(devname), "/dev/%s%d", name, minor);
-	ctlfd = open(devname, O_RDWR);
+	ctlfd = open(devname, O_RDWR|O_NONBLOCK);
 	if (ctlfd < 0) {
 		printf("Cannot open %s %s\n", devname, strerror(errno));
+		fflush(NULL);
+		printf("\n\n");
 		return -1;
 	}
 	return ctlfd;

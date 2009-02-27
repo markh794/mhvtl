@@ -9,65 +9,62 @@
 # 	clean	to clean up all intermediate files
 #
 
-CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../include
+CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
-	vtllibrary vtl_set_sn
+	vtllibrary
 
-libvtlscsi.so:	vxshared.c vx.h vxshared.h scsi.h
+libvtlscsi.so:	vxshared.c spc.c vx.h vxshared.h scsi.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic vxshared.c
-	$(CC) $(CLFLAGS) -o libvtlscsi.so vxshared.o
+	$(CC) $(CFLAGS) -c -fpic spc.c
+	$(CC) $(CLFLAGS) -o libvtlscsi.so vxshared.o spc.o
 
 dump_messageQ:	dump_messageQ.c q.h
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.c
 
-vtl_set_sn:	vtl_set_sn.o vxshared.h vx.h scsi.h
-	$(CC) $(CFLAGS) -o vtl_set_sn vtl_set_sn.o -L. -lvtlscsi
-
 vtlcmd:	vtlcmd.o q.o q.h
 	$(CC) $(CFLAGS) -o vtlcmd q.o vtlcmd.o
 
-dump_tape:	dump_tape.o vx.h vtltape.h scsi.h
+dump_tape:	dump_tape.o vx.h vtltape.h scsi.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o dump_tape dump_tape.o
 
-mktape:	mktape.o vtltape.h q.h vx.h vxshared.h
+mktape:	mktape.o vtltape.h q.h vx.h vxshared.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o mktape mktape.o
 
-vtllibrary:	vtllibrary.o q.h vx.h vxshared.o vxshared.h scsi.h
+vtllibrary:	vtllibrary.o q.h vx.h vxshared.o vxshared.h scsi.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
 
-vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h
+vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o -L. -lz -lvtlscsi
 
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
 		vxshared.o libvtlscsi.so z.o vtllibrary.o \
-		vtl_set_sn.o
+		spc.o
 
 tags:
-	etags *.c *.h
+	etags *.c *.h ../kernel/*.h
 
 distclean:
 	rm -f vtltape.o vtltape \
 	dump_tape.o dump_tape \
 	q.o q \
 	vtlcmd.o vtlcmd \
-	vtl_set_sn.o vtl_set_sn \
 	dump_messageQ.o dump_messageQ \
 	core mktape mktape.o \
 	vxshared.o libvtlscsi.so \
+	spc.o \
 	z.o z \
 	TAGS \
 	vtllibrary vtllibrary.o
 
 install:
 	install -o root -g bin -m 755 libvtlscsi.so /usr/lib/
-	install -o vtl -g vtl -m 750 vtltape /usr/bin/
-	install -o vtl -g vtl -m 750 vtllibrary /usr/bin/
+	install -o root -g vtl -m 4750 vtltape /usr/bin/
+	install -o root -g vtl -m 4750 vtllibrary /usr/bin/
 	install -o vtl -g vtl -m 750 vtlcmd /usr/bin/
-	install -o vtl -g vtl -m 750 vtl_set_sn /usr/bin/
 	install -o vtl -g vtl -m 750 mktape /usr/bin/
 	install -m 700 build_library_config /usr/bin/
 	install -m 700 make_vtl_media /usr/bin/
@@ -75,5 +72,5 @@ install:
 	install -m 700 ../etc/vtl /etc/init.d/
 
 tar:
-	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`.tgz  --exclude=.git mhvtl-0.15/man mhvtl-0.15/doc mhvtl-0.15/kernel-driver mhvtl-0.15/*.[ch] mhvtl-0.15/Makefile mhvtl-0.15/README mhvtl-0.15/INSTALL mhvtl-0.15/build_library_config mhvtl-0.15/library_contents.sample mhvtl-0.15/make_vtl_devices mhvtl-0.15/make_vtl_media mhvtl-0.15/mhvtl.spec mhvtl-0.15/vtl)
+	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`.tgz  --exclude=.git mhvtl-0.16/man mhvtl-0.16/doc mhvtl-0.16/kernel-driver mhvtl-0.16/*.[ch] mhvtl-0.16/Makefile mhvtl-0.16/README mhvtl-0.16/INSTALL mhvtl-0.16/build_library_config mhvtl-0.16/library_contents.sample mhvtl-0.16/make_vtl_devices mhvtl-0.16/make_vtl_media mhvtl-0.16/mhvtl.spec mhvtl-0.16/vtl)
 

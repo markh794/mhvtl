@@ -255,6 +255,30 @@ struct MAM {
 
 };
 
+struct lu_phy_attr;
+
+#define PCODE_SHIFT 7
+#define PCODE_OFFSET(x) (x & ((1 << PCODE_SHIFT) - 1))
+
+struct vpd {
+	uint16_t sz;
+	void (*vpd_update)(struct lu_phy_attr *lu, void *data);
+	uint8_t data[0];
+};
+
+/* Logical Unit information */
+struct lu_phy_attr {
+	char ptype;
+	char removable;
+	char vendor_id[VENDOR_ID_LEN + 1];
+	char product_id[PRODUCT_ID_LEN + 1];
+	char product_rev[PRODUCT_REV_LEN + 1];
+	char lu_serial_no[SCSI_SN_LEN];
+	uint16_t version_desc[3];
+	uint8_t supported_density[8];
+	struct vpd *lu_vpd[1 << PCODE_SHIFT];
+};
+
 int32_t send_msg(s8 *, int32_t);
 void logSCSICommand(uint8_t *);
 int32_t check_reset(uint8_t *);
@@ -265,7 +289,7 @@ int32_t resp_read_position_long(loff_t, uint8_t *, uint8_t *);
 int32_t resp_read_position(loff_t, uint8_t *, uint8_t *);
 int32_t resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
 int32_t resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
-int32_t resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t *);
+int32_t resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
 //int32_t resp_write_attribute(uint8_t *, uint64_t, struct MAM *, uint8_t *);
 struct mode *find_pcode(uint8_t, struct mode *);
 struct mode *alloc_mode_page(uint8_t, struct mode *, int32_t);
@@ -283,3 +307,7 @@ int resp_a3_service_action(uint8_t *cdb, uint8_t *sam_stat);
 int resp_a4_service_action(uint8_t *cdb, uint8_t *sam_stat);
 int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sam_stat);
 int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat);
+
+int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu);
+struct vpd *alloc_vpd(uint16_t sz);
+pid_t add_lu(int minor, struct vtl_ctl *ctl);

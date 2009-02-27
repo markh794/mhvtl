@@ -30,6 +30,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "scsi.h"
+#include "vtl_common.h"
 #include "vx.h"
 #include "vtltape.h"
 

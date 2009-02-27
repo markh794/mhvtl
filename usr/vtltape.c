@@ -54,10 +54,13 @@ static const char * Version = "$Id: vtltape.c 2008-11-26 19:35:01 markh Exp $";
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <string.h>
 #include <syslog.h>
 #include <inttypes.h>
+#include <pwd.h>
+#include "vtl_common.h"
 #include "scsi.h"
 #include "q.h"
 #include "vx.h"
@@ -131,8 +134,8 @@ static int datafile;		/* Global file handle - This goes against the
 			anyway. */
 static char *currentMedia;	/* filename of 'datafile' */
 static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
-static uint8_t busy = 0;	/* Device busy */
 static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
+static uint8_t MediaWriteProtect = 0;	/* True if virtual "write protect" switch is set */
 static int OK_to_write = 1;	// True if in correct position to start writing
 static int compressionFactor = 0;
 
@@ -141,7 +144,8 @@ static u64 bytesWritten = 0;
 static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
-uint8_t sense_busy[SENSE_BUF_SIZE]; /* Request sense buffer */
+
+struct lu_phy_attr lu;
 
 static struct MAM mam;
 
@@ -150,7 +154,7 @@ struct MAM_Attributes_table {
 	int length;
 	int read_only;
 	int format;
-	void *value; 
+	void *value;
 } MAM_Attributes[] = {
 	{0x000, 8, 1, 0, &mam.remaining_capacity },
 	{0x001, 8, 1, 0, &mam.max_capacity },
@@ -286,7 +290,7 @@ static struct report_luns report_luns = {
  */
 
 // Used by Mode Sense - if set, return block descriptor
-uint8_t blockDescriptorBlock[8] = {0x10, 0, 0, 0, 0, 0, 0, 0, };
+uint8_t blockDescriptorBlock[8] = {0x40, 0, 0, 0, 0, 0, 0, 0, };
 
 static struct mode sm[] = {
 //	Page,  subpage, len, 'pointer to data struct'
@@ -306,8 +310,7 @@ static struct mode sm[] = {
 //static loff_t	currentPosition = 0;
 static struct blk_header c_pos;
 
-static void usage(char *progname)
-{
+static void usage(char *progname) {
 	printf("Usage: %s -q <Q number> [-d] [-v] [-f file]\n",
 						 progname);
 	printf("       Where file == data file\n");
@@ -317,8 +320,7 @@ static void usage(char *progname)
 }
 
 DEB(
-static void print_header(struct blk_header *h)
-{
+static void print_header(struct blk_header *h) {
 
 	/* It should only be called in 'debug' mode */
 	if (!debug)
@@ -694,12 +696,12 @@ static int checkRestrictions(uint8_t *sam_stat)
 	case TAPE_UNLOADED:
 		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		OK_to_write = 0;
-		return 1;
+		return OK_to_write;
 		break;
 	default:
 		mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
 		OK_to_write = 0;
-		return 1;
+		return OK_to_write;
 		break;
 	}
 
@@ -726,6 +728,13 @@ static int checkRestrictions(uint8_t *sam_stat)
 		OK_to_write = 1;
 		break;
 	}
+
+	/* over-ride the above IF the virtual write protect switch is on */
+	if (OK_to_write && MediaWriteProtect) {
+		OK_to_write = 0;
+		mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
+	}
+
 	if (verbose > 2) {
 		syslog(LOG_DAEMON|LOG_INFO, "checkRestrictions() returning %s",
 				(OK_to_write) ? "Writable" : "Non-writable");
@@ -855,7 +864,7 @@ static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
 	 * Only needed for cmds that alter the partitioning or format..
 	 */
 	if (!checkRestrictions(sam_stat))
-		return 0; 
+		return 0;
 
 	if (debug) {
 		for (k = 0; k < dbuf_p->sz; k++)
@@ -944,7 +953,7 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 			syslog(LOG_DAEMON|LOG_INFO,
 				" Returning TapeAlert flags: 0x%" PRIx64,
 					ntohll(seqAccessDevice.TapeAlert));
-			
+
 		TapeAlert.pcode_head.len = htons(sizeof(TapeAlert) -
 					sizeof(TapeAlert.pcode_head));
 		b = memcpy(b, &TapeAlert, sizeof(TapeAlert));
@@ -1041,11 +1050,11 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 					/* add it to output */
 					buf[byte_index++] = MAM_Attributes[index].attribute >> 8;
 					buf[byte_index++] = MAM_Attributes[index].attribute;
-					buf[byte_index++] = (MAM_Attributes[index].read_only << 7) | 
+					buf[byte_index++] = (MAM_Attributes[index].read_only << 7) |
 					                    MAM_Attributes[index].format;
 					buf[byte_index++] = MAM_Attributes[index].length >> 8;
 					buf[byte_index++] = MAM_Attributes[index].length;
-					memcpy(&buf[byte_index], MAM_Attributes[index].value, 
+					memcpy(&buf[byte_index], MAM_Attributes[index].value,
 					       MAM_Attributes[index].length);
 					byte_index += MAM_Attributes[index].length;
 				}
@@ -1172,7 +1181,7 @@ static int resp_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_WARNING,
 			"Key 0x%.8x %.8x SA Key 0x%.8x %.8x "
-			"Service Action 0x%.2x Type 0x%.1x", 
+			"Service Action 0x%.2x Type 0x%.1x",
 			RK_MSW, RK_LSW, SARK_MSW, SARK_LSW, SA, TYPE);
 
 	switch(SA) {
@@ -1183,7 +1192,7 @@ static int resp_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 				SPR_Reservation_Key_LSW = SARK_LSW;
 				SPR_Reservation_Generation++;
 			} else {
-				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 			}
 		} else {
 			if((RK_MSW == SPR_Reservation_Key_MSW) &&
@@ -1198,43 +1207,43 @@ static int resp_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 				}
 				SPR_Reservation_Generation++;
 			} else {
-				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 			}
 		}
 		break;
 	case 1: /* RESERVE */
 		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		} else {
 			if((RK_MSW == SPR_Reservation_Key_MSW) && (RK_LSW == SPR_Reservation_Key_LSW)) {
 				if(TYPE != 3) {
-					*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+					*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 				} else {
 					SPR_Reservation_Type = TYPE;
 				}
 			} else {
-				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 			}
 		}
 		break;
 	case 2: /* RELEASE */
 		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		} else {
 			if((RK_MSW == SPR_Reservation_Key_MSW) && (RK_LSW == SPR_Reservation_Key_LSW)) {
 				if(TYPE != 3) {
-					*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+					*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 				} else {
 					SPR_Reservation_Type = 0;
 				}
 			} else {
-				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 			}
 		}
 		break;
 	case 3: /* CLEAR */
 		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		} else {
 			if((RK_MSW == SPR_Reservation_Key_MSW) && (RK_LSW == SPR_Reservation_Key_LSW)) {
 				SPR_Reservation_Key_MSW = 0;
@@ -1242,7 +1251,7 @@ static int resp_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 				SPR_Reservation_Type = 0;
 				SPR_Reservation_Generation++;
 			} else {
-				*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 			}
 		}
 		break;
@@ -1252,7 +1261,7 @@ static int resp_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if ((!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) &&
 		    (!RK_MSW && !RK_LSW) &&
 		    (!SARK_MSW && !SARK_LSW)) {
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT; 
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		} else {
 			if (!SPR_Reservation_Type) {
 				if((SARK_MSW == SPR_Reservation_Key_MSW) && (SARK_LSW == SPR_Reservation_Key_LSW)) {
@@ -1269,7 +1278,7 @@ static int resp_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 				}
 			}
 		}
-				
+
 		break;
 	case 6: /* REGISTER AND IGNORE EXISTING KEY */
 		if (!SPR_Reservation_Key_MSW && !SPR_Reservation_Key_LSW) {
@@ -1309,9 +1318,9 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
 	u32 alloc_len;
 	int byte_index;
 	int index, attribute, attribute_length, found_attribute = 0;
+	struct MAM mam_backup;
 	uint8_t *buf = dbuf_p->data;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
-	struct MAM mam_backup;
 
 	lp = (u32 *)&cdb[10];
 	alloc_len = ntohl(*lp);
@@ -1578,9 +1587,8 @@ static int writeBlock(uint8_t *src_buf, u32 src_sz,  uint8_t *sam_stat)
 		}
 	}
 	if (c_pos.curr_blk >= max_tape_capacity) {
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-					"End of Medium - Setting EOM flag");
+		if (debug)
+			syslog(LOG_DAEMON|LOG_INFO, "End of Medium - Setting EOM flag");
 		mkSenseBuf(NO_SENSE|EOM_FLAG, NO_ADDITIONAL_SENSE, sam_stat);
 	}
 
@@ -2135,6 +2143,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case REPORT_LUN:
 	case REQUEST_SENSE:
 	case MODE_SELECT:
+	case INQUIRY:
 		break;
 	default:
 		if (check_reset(sam_stat))
@@ -2148,6 +2157,10 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			syslog(LOG_DAEMON|LOG_INFO, "Allow removal (%ld) **",
 						(long)dbuf_p->serialNo);
 		resp_allow_prevent_removal(cdb, sam_stat);
+		break;
+
+	case INQUIRY:
+		ret += spc_inquiry(cdb, dbuf_p, &lu);
 		break;
 
 	case FORMAT_UNIT:	// That's FORMAT_MEDIUM for an SSC device...
@@ -2230,7 +2243,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "MODE SENSE (%ld) **",
 						(long)dbuf_p->serialNo);
-		ret += resp_mode_sense(cdb, dbuf_p->data, smp, sam_stat);
+		ret += resp_mode_sense(cdb, dbuf_p->data, smp, MediaWriteProtect, sam_stat);
 		break;
 
 //	case READ_12:
@@ -2239,7 +2252,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		block_size = 	(cdb[2] << 16) +
 				(cdb[3] << 8) +
 				 cdb[4];
-		if (verbose) 
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"Read_6 (%ld) : %d bytes **",
 						(long)dbuf_p->serialNo,
@@ -2275,9 +2288,9 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			bytesRead += retval;
 			pg_read_err_counter.bytesProcessed = bytesRead;
 		} else if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		} else
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT,sam_stat);
 
 		ret += retval;
 		break;
@@ -2332,18 +2345,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		else
 			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
-		break;
-
-	case READ_BUFFER:
-		block_size =	(cdb[6] << 16) |
-				(cdb[7] << 8) |
-				 cdb[8];
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Read buffer with %d bytes (%ld) **",
-						block_size,
-						(long)dbuf_p->serialNo);
-		ret = block_size;
 		break;
 
 	case READ_MEDIA_SERIAL_NUMBER:
@@ -2445,7 +2446,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
-		if (verbose) 
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Rewinding (%ld) **",
 						(long)dbuf_p->serialNo);
 
@@ -2454,24 +2455,24 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case ERASE_6:
-		if (verbose) 
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Erasing (%ld) **",
 						(long)dbuf_p->serialNo);
 
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		// Rewind and postition just after the first header.
+		/* Rewind and postition just after the first header. */
 		resp_rewind(sam_stat);
 
 		if (ftruncate(datafile, c_pos.curr_blk))
 			syslog(LOG_DAEMON|LOG_ERR,
 					"Failed to truncate datafile");
 
-		// Position to just before first header.
+		/* Position to just before first header. */
 		position_to_curr_header(sam_stat);
 
-		// Write EOD header
+		/* Write EOD header */
 		mkEODHeader(sam_stat);
 		sleep(2);
 		break;
@@ -2494,14 +2495,9 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		resp_space(count, code, sam_stat);
 		break;
 
-	case START_STOP:	// Load/Unload cmd
-		if ((cdb[4] == 0x1) && (cdb[5] == 0x40)) {
+	case START_STOP:	/* Load/Unload cmd */
+		if (cdb[4] && 0x1) {
 			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO,
-					"NO-OP special SDLT load (%ld) **",
-						(long)dbuf_p->serialNo);
-		} else if (cdb[4] && 0x1) {
-			if (verbose) 
 				syslog(LOG_DAEMON|LOG_INFO,
 					"Loading Tape (%ld) **",
 						(long)dbuf_p->serialNo);
@@ -2541,7 +2537,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		block_size = 	(cdb[2] << 16) +
 				(cdb[3] << 8) +
 				 cdb[4];
-		if (verbose) 
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 					"WRITE_6: %d bytes (%ld) **",
 						block_size,
@@ -2572,7 +2568,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case WRITE_ATTRIBUTE:
-		if (verbose) 
+		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Write Attributes (%ld) **",
 						(long)dbuf_p->serialNo);
 
@@ -2594,19 +2590,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 				", read %d", dbuf_p->sz, block_size);
 		if (resp_write_attribute(cdb, dbuf_p, &mam))
 			rewriteMAM(&mam, sam_stat);
-		break;
-
-	case WRITE_BUFFER:
-		block_size =	(cdb[6] << 16) +
-				(cdb[7] << 8) +
-				 cdb[8];
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Write buffer with %d bytes (%ld) **",
-						block_size,
-						(long)dbuf_p->serialNo);
-		dbuf_p->sz = block_size;
-		block_size = retrieve_CDB_data(cdev, dbuf_p);
 		break;
 
 	case WRITE_FILEMARKS:
@@ -2755,9 +2738,10 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 	bytesRead = 0;		// Global - Bytes rearead this load
 
 	sprintf(currentMedia ,"%s/%s", HOME_PATH, PCL);
-	syslog(LOG_DAEMON|LOG_INFO, "%s", currentMedia);
+	if (debug)
+		syslog(LOG_DAEMON|LOG_INFO, "Opening file/media %s", currentMedia);
 	if ((datafile = open(currentMedia, O_RDWR|O_LARGEFILE)) == -1) {
-		syslog(LOG_DAEMON|LOG_ERR, "%s: open failed, %m", currentMedia);
+		syslog(LOG_DAEMON|LOG_ERR, "%s: open file/media failed, %m", currentMedia);
 		return 0; 	// Unsuccessful load
 	}
 
@@ -2802,15 +2786,18 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 					"Can not read MAM from mounted media");
 		return 0;	// Unsuccessful load
 	}
-	// Set TapeAlert flg 32h => Lost Statics
+	// Set TapeAlert flg 32h =>
+	//	Lost Statics
 	if (mam.record_dirty != 0) {
 		fg = 0x02000000000000ull;
 		syslog(LOG_DAEMON|LOG_WARNING, "Previous unload was not clean");
 	}
 
 	max_tape_capacity = (loff_t)c_pos.blk_size * (loff_t)1048576;
-	syslog(LOG_DAEMON|LOG_INFO, "Tape capacity: %" PRId64, max_tape_capacity);
+	if (debug)
+		syslog(LOG_DAEMON|LOG_INFO, "Tape capacity: %" PRId64, max_tape_capacity);
 
+	blockDescriptorBlock[0] = mam.MediumDensityCode;
 	mam.record_dirty = 1;
 	// Increment load count
 	updateMAM(&mam, sam_stat, 1);
@@ -2888,7 +2875,7 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 
 	/* Tape Load message from Library */
 	if (!strncmp(mtext, "lload", 5)) {
-		if (!inLibrary) {
+		if ( ! inLibrary) {
 			syslog(LOG_DAEMON|LOG_NOTICE,
 						"lload & drive not in library");
 			return (0);
@@ -2932,15 +2919,14 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			tapeLoaded = TAPE_UNLOADED;
 			OK_to_write = 0;
 			clearWORM();
-			if (verbose)
+			if (debug)
 				syslog(LOG_DAEMON|LOG_INFO,
 					"Library requested tape unload");
 			close(datafile);
 			break;
 		default:
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_NOTICE,
-					"Tape not mounted");
+			if (debug)
+				syslog(LOG_DAEMON|LOG_NOTICE, "Tape not mounted");
 			tapeLoaded = TAPE_UNLOADED;
 			break;
 		}
@@ -3075,77 +3061,271 @@ static void init_mode_pages(struct mode *m) {
 	}
 }
 
-static void process_cmd(int cdev, uint8_t *buf)
+/* Set VPD data with device serial number */
+static void update_vpd_80(struct lu_phy_attr *lu, void *p)
 {
-	struct vtl_header vtl_head;
-	struct vtl_header vtl_busy;
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x80)];
+
+	memcpy(vpd_pg->data, p, strlen(p));
+}
+
+static void update_vpd_83(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x83)];
+	uint8_t *d;
+	int num;
+
+	d = vpd_pg->data;
+
+	d[0] = 2;
+	d[1] = 1;
+	d[2] = 0;
+	num = VENDOR_ID_LEN + PRODUCT_ID_LEN + 10;
+	d[3] = num;
+
+	memcpy(&d[4], &lu->vendor_id, VENDOR_ID_LEN);
+	memcpy(&d[12], &lu->product_id, PRODUCT_ID_LEN);
+	memcpy(&d[28], &lu->lu_serial_no, 10);
+
+	num += 4;
+	/* NAA IEEE registered identifier (faked) */
+	d[num] = 0x1;	/* Binary */
+	d[num + 1] = 0x3;
+	d[num + 2] = 0x0;
+	d[num + 3] = 0x8;
+	d[num + 4] = 0x51;
+	d[num + 5] = 0x23;
+	d[num + 6] = 0x45;
+	d[num + 7] = 0x60;
+	d[num + 8] = 0x3;
+	d[num + 9] = 0x3;
+	d[num + 10] = 0x3;
+	d[num + 11] = 0x3;
+}
+
+static void update_vpd_b0(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
+	uint8_t *worm;
+
+	worm = p;
+
+	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
+}
+
+static void update_vpd_b1(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb1)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+static void update_vpd_b2(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+static void update_vpd_c0(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
+
+	memcpy(&vpd_pg->data[20], p, strlen(p));
+}
+
+static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc1)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+#define VPD_83_SZ 52
+#define VPD_B0_SZ 4
+#define VPD_B1_SZ SCSI_SN_LEN
+#define VPD_B2_SZ 8
+#define VPD_C0_SZ 0x28
+
+#define MALLOC_SZ 512
+static void init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
+{
+
+	struct vpd **lu_vpd = lu->lu_vpd;
+	uint8_t worm = 1;	/* Supports WORM */
+	int pg;
+	uint8_t TapeAlert[8] =
+			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+	char *config="/etc/vtl/device.conf";
+	FILE *conf;
+	char *b;	/* Read from file into this buffer */
+	char *s;	/* Somewhere for sscanf to store results */
+	int indx, n = 0;
+	struct vtl_ctl tmpctl;
+
+	conf = fopen(config , "r");
+	if (!conf) {
+		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
+								config);
+		perror("Can not open config file");
+		exit(1);
+	}
+	s = malloc(MALLOC_SZ);
+	if (!s) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	b = malloc(MALLOC_SZ);
+	if (!b) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+
+	/* While read in a line */
+	while( fgets(b, MALLOC_SZ, conf) != NULL) {
+		if (b[0] == '#')	/* Ignore comments */
+			continue;
+		if (strlen(b) == 1)	/* Reset drive number of blank line */
+			indx = 0xff;
+		if (sscanf(b, "Drive: %d CHANNEL: %d TARGET: %d LUN: %d",
+					&indx, &tmpctl.channel,
+					&tmpctl.id, &tmpctl.lun)) {
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"Found Drive %d, looking for %d\n",
+							indx, minor);
+			if (indx == minor)
+				memcpy(ctl, &tmpctl, sizeof(tmpctl));
+		}
+		if (indx == minor) {
+			if (sscanf(b, " Unit serial number: %s", s))
+				sprintf(lu->lu_serial_no, "%-10s", s);
+			if (sscanf(b, " Product identification: %s", s))
+				sprintf(lu->product_id, "%-16s", s);
+			if (sscanf(b, " Product revision level: %s", s))
+				sprintf(lu->product_rev, "%-4s", s);
+			if (sscanf(b, " Vendor identification: %s", s))
+				sprintf(lu->vendor_id, "%-8s", s);
+			if (sscanf(b, " Density : %s", s)) {
+				lu->supported_density[n] =
+					(uint8_t)strtol(s, NULL, 16);
+				if (verbose)
+					syslog(LOG_DAEMON|LOG_INFO,
+					"Supported density: 0x%x (%d)\n",
+						lu->supported_density[n],
+						lu->supported_density[n]);
+				if (debug)
+					printf("Supported density: 0x%x (%d)\n",
+						lu->supported_density[n],
+						lu->supported_density[n]);
+				n++;
+			}
+		}
+	}
+	fclose(conf);
+	free(b);
+	free(s);
+
+	lu->ptype = TYPE_TAPE;
+	lu->removable = 1;	/* Supports removable media */
+
+	lu->version_desc[0] = 0x0300;	/* SPC-3 No version claimed */
+	lu->version_desc[1] = 0x0960;	/* iSCSI */
+	lu->version_desc[2] = 0x0200;	/* SSC */
+
+	/* Unit Serial Number */
+	pg = 0x80 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(strlen(lu->lu_serial_no));
+	lu_vpd[pg]->vpd_update = update_vpd_80;
+	lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
+
+	/* Device Identification */
+	pg = 0x83 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
+	lu_vpd[pg]->vpd_update = update_vpd_83;
+	lu_vpd[pg]->vpd_update(lu, NULL);
+
+	/* Sequential Access device capabilities - Ref: 8.4.2 */
+	pg = 0xb0 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
+	lu_vpd[pg]->vpd_update = update_vpd_b0;
+	lu_vpd[pg]->vpd_update(lu, &worm);
+
+	/* Manufacture-assigned serial number - Ref: 8.4.3 */
+	pg = 0xb1 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
+	lu_vpd[pg]->vpd_update = update_vpd_b1;
+	lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
+
+	/* TapeAlert supported flags - Ref: 8.4.4 */
+	pg = 0xb2 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
+	lu_vpd[pg]->vpd_update = update_vpd_b2;
+	lu_vpd[pg]->vpd_update(lu, &TapeAlert);
+
+	/* VPD page 0xC0 */
+	pg = 0xc0 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
+	lu_vpd[pg]->vpd_update = update_vpd_c0;
+	lu_vpd[pg]->vpd_update(lu, "10-03-2008 19:38:00");
+
+	/* VPD page 0xC1 */
+	pg = 0xc1 & 0x7f;
+	lu_vpd[pg] = alloc_vpd(strlen("Security"));
+	lu_vpd[pg]->vpd_update = update_vpd_c1;
+	lu_vpd[pg]->vpd_update(lu, "Security");
+
+}
+
+static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
+{
 	struct vtl_ds dbuf;
-	struct vtl_ds dbuf_busy;
 	uint8_t *cdb;
 
 	/* Get the SCSI cdb from vtl driver
 	 * - Returns SCSI command S/No. */
-	if (busy) {
-		getCommand(cdev, &vtl_busy);
-		cdb = (uint8_t *)&vtl_busy.cdb;
-		syslog(LOG_DAEMON|LOG_WARNING,
-				"%s: busy with another cmd (%ld)\n",
-						__func__, (long)dbuf.serialNo);
 
-		/* Interpret the SCSI command & process
-		-> Returns no. of bytes to send back to kernel
-		 */
-		memset(&sense_busy, 0, SENSE_BUF_SIZE);
-		memset(&dbuf_busy, 0, sizeof(struct vtl_ds));
-		dbuf_busy.serialNo = vtl_busy.serialNo;
-		dbuf_busy.data = buf;
-		dbuf_busy.sam_stat = SAM_STAT_BUSY;
-		dbuf_busy.sense_buf = &sense_busy;
-		dbuf_busy.sz = 5;
-		completeSCSICommand(cdev, &dbuf_busy);
-	} else {
-		busy = 1;
-		getCommand(cdev, &vtl_head);
-
-		cdb = (uint8_t *)&vtl_head.cdb;
+	cdb = (uint8_t *)&vtl_cmd->cdb;
 
 	/* Interpret the SCSI command & process
 	-> Returns no. of bytes to send back to kernel
 	 */
-		memset(&dbuf, 0, sizeof(struct vtl_ds));
-		dbuf.serialNo = vtl_head.serialNo;
-		dbuf.data = buf;
-		dbuf.sam_stat = sam_status;
-		dbuf.sense_buf = &sense;
+	memset(&dbuf, 0, sizeof(struct vtl_ds));
+	dbuf.serialNo = vtl_cmd->serialNo;
+	dbuf.data = buf;
+	dbuf.sam_stat = sam_status;
+	dbuf.sense_buf = &sense;
 
-		processCommand(cdev, cdb, &dbuf);
+	processCommand(cdev, cdb, &dbuf);
 
-		/* Complete SCSI cmd processing */
-		completeSCSICommand(cdev, &dbuf);
+	/* Complete SCSI cmd processing */
+	completeSCSICommand(cdev, &dbuf);
 
-		sam_status = dbuf.sam_stat;
-		busy = 0;
-	}
+	/* dbuf.sam_stat was zeroed in completeSCSICommand */
+	sam_status = dbuf.sam_stat;
 }
-
 
 int main(int argc, char *argv[])
 {
-	int cdev, k;
+	int cdev;
 	int ret;
-	int vx_status;
 	int q_priority = 0;
 	int exit_status = 0;
-	u32 pollInterval = 50000;
+	long pollInterval = 50000L;
 	uint8_t *buf;
-
-	pid_t pid;
+	pid_t child_cleanup, pid, sid;
 
 	char *progname = argv[0];
 
 	char *dataFile = HOME_PATH;
 	char *name = "vtl";
 	int minor = 0;
+	struct passwd *pw;
+
+	struct vtl_header vtl_cmd;
+	struct vtl_header *cmd;
+	struct vtl_ctl ctl;
 
 	/* Output file pointer (data file) */
 	int ofp = -1;
@@ -3211,18 +3391,45 @@ int main(int argc, char *argv[])
 	if (verbose)
 		printf("%s: version %s\n", progname, Version);
 
+	/* Clear Sense arr */
+	memset(sense, 0, sizeof(sense));
+
+	/* Powered on / reset flag */
+	reset = 1;
+
+	init_mode_pages(sm);
+	initTapeAlert(&TapeAlert);
+	init_lu(&lu, minor, &ctl);
+
+	pw = getpwnam("vtl");	/* Find UID for user 'vtl' */
+	if (!pw) {
+		printf("Unable to find user: vtl\n");
+		exit(1);
+	}
+
+	if (setgid(pw->pw_gid)) {
+		perror("Unable to change gid");
+		exit (1);
+	}
+	if (setuid(pw->pw_uid)) {
+		perror("Unable to change uid");
+		exit (1);
+	}
+
+	/* Initialise message queue as necessary */
+	if ((r_qid = init_queue()) == -1) {
+		printf("Could not initialise message queue\n");
+		exit(1);
+	}
+
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO, "Running as %s, uid: %d\n",
+					pw->pw_name, getuid());
+
 	if ((cdev = chrdev_open(name, minor)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
 				"Could not open /dev/%s%d: %m", name, minor);
 		fflush(NULL);
-		exit(1);
-	}
-
-	k = TYPE_TAPE;
-	if (ioctl(cdev, VX_TAPE_ONLINE, &k) < 0) {
-		syslog(LOG_DAEMON|LOG_ERR, "Failed to connect to /dev/%s%d: %m",
-								name, minor);
-		perror("Failed bringing unit online");
 		exit(1);
 	}
 
@@ -3241,41 +3448,45 @@ int main(int argc, char *argv[])
 
 	strncpy(currentMedia, dataFile, sizeof(dataFile));
 
-	/* Clear Sense arr */
-	memset(sense, 0, sizeof(sense));
-	reset = 1;
-
-	init_mode_pages(sm);
-	initTapeAlert(&TapeAlert);
-
-	/* Initialise message queue as necessary */
-	if ((r_qid = init_queue()) == -1) {
-		printf("Could not initialise message queue\n");
-		exit(1);
-	}
-
 	/* If debug, don't fork/run in background */
-	if ( ! debug) {
+	if (!debug) {
 		switch(pid = fork()) {
 		case 0:         /* Child */
 			break;
 		case -1:
-			printf("Failed to fork daemon\n");
+			perror("Failed to fork daemon");
+			exit (-1);
 			break;
 		default:
 			if (verbose)
 				printf("vtltape process PID is %d\n", (int)pid);
+			exit (0);
 			break;
 		}
- 
-		/* Time for the parent to terminate */
-		if (pid != 0)
-			exit(pid != -1 ? 0 : 1);
 
+		umask(0);	/* Change the file mode mask */
+
+		sid = setsid();
+		if (sid < 0)
+			exit(-1);
+
+		if ((chdir("/opt/vtl")) < 0) {
+			perror("Unable to change directory to /opt/vtl ");
+			exit(-1);
+		}
+
+		close(STDIN_FILENO);
+		close(STDERR_FILENO);
 	}
 
 	oom_adjust();
-	
+
+	child_cleanup = add_lu(q_priority, &ctl);
+	if (! child_cleanup) {
+		printf("Could not create logical unit\n");
+		exit(1);
+	}
+
 	for (;;) {
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
@@ -3291,41 +3502,63 @@ int main(int argc, char *argv[])
 		}
 		if (exit_status)	/* Received a 'exit' message */
 			goto exit;
-		ret = ioctl(cdev, VX_TAPE_POLL_STATUS, &vx_status);
+		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
 		if (ret < 0) {
 			syslog(LOG_DAEMON|LOG_WARNING,
-					"ioctl(VX_TAPE_POLL_STATUS: %d : %m",
-							ret);
+				"ioctl(VTL_POLL_AND_GET_HEADER: %d : %m", ret);
 		} else {
-			fflush(NULL);	/* So I can pipe debug o/p thru tee */
+			if (debug)
+				printf("ioctl(VX_TAPE_POLL_STATUS) "
+					"returned: %d, interval: %ld\n",
+						ret, pollInterval);
+			if (child_cleanup) {
+				if (waitpid(child_cleanup, NULL, WNOHANG)) {
+					if (verbose)
+						syslog(LOG_DAEMON|LOG_INFO,
+						"Cleaning up after child %d\n",
+							child_cleanup);
+					child_cleanup = 0;
+				}
+			}
+			fflush(NULL);
 			switch(ret) {
-			case STATUS_QUEUE_CMD:	/* A cdb to process */
-				process_cmd(cdev, buf);
-				/* Something to do, reduce poll time */
-				pollInterval = 10;
+			case VTL_QUEUE_CMD:	/* A cdb to process */
+				cmd = malloc(sizeof(struct vtl_header));
+				if (!cmd) {
+					syslog(LOG_DAEMON|LOG_ERR,
+						"Out of memory");
+					pollInterval = 1000000;
+				} else {
+					memcpy(cmd, &vtl_cmd, sizeof(vtl_cmd));
+					process_cmd(cdev, buf, cmd);
+					/* Something to do, reduce poll time */
+					pollInterval = 10;
+					free(cmd);
+				}
 				break;
 
-			case STATUS_OK:
+			case VTL_IDLE:
 				/* While nothing to do, increase
 				 * time we sleep before polling again.
 				 */
 				if (pollInterval < 1000000)
-					pollInterval += 100;
+					pollInterval += 1000;
 
 				usleep(pollInterval);
 				break;
 
 			default:
 				syslog(LOG_DAEMON|LOG_NOTICE,
-					"ioctl(0x%x) returned %d: argv %d",
-					VX_TAPE_POLL_STATUS, ret, vx_status);
+					"ioctl(0x%x) returned %d\n",
+						VTL_POLL_AND_GET_HEADER, ret);
 				sleep(1);
 				break;
-			}	// End switch(vx_status)
+			}
 		}
 	}
 
 exit:
+	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	close(ofp);
 	free(buf);

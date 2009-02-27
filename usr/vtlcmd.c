@@ -132,7 +132,9 @@ main(int argc, char **argv) {
 		driveNo = LIBRARY_Q;
 	} else {
 		driveNo = atoi(argv[1]);
-		if ((driveNo <= 0) || (driveNo > LIBRARY_Q)) {
+		if (driveNo == 0)
+			driveNo = LIBRARY_Q;
+		else if ((driveNo < 0) || (driveNo > LIBRARY_Q)) {
 			printf("Invalid drive number\n");
 			exit(1);
 		}

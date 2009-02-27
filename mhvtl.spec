@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
-Version: 0.15
-Release: 14beta
-Source: mhvtl-2009-03-06.tgz
+Version: 0.16
+Release: 0
+Source: mhvtl-2009-02-27.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -51,7 +51,6 @@ install -m 750 etc/vtl $RPM_BUILD_ROOT/etc/init.d/vtl
 install -m 750 -s usr/vtltape $RPM_BUILD_ROOT/usr/bin/vtltape
 install -m 750 -s usr/vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
 install -m 750 usr/vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
-install -m 750 usr/vtl_set_sn $RPM_BUILD_ROOT/usr/bin/vtl_set_sn
 install -m 750 usr/mktape $RPM_BUILD_ROOT/usr/bin/mktape
 install -m 700 usr/build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
 install -m 700 usr/make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
@@ -108,6 +107,10 @@ if [ ! -d /opt/vtl ]; then
 fi
 chown vtl:vtl /opt/vtl
 chmod 770 /opt/vtl
+chown root:vtl /usr/bin/vtltape
+chown root:vtl /usr/bin/vtllibrary
+chmod 4750 /usr/bin/vtltape
+chmod 4750 /usr/bin/vtllibrary
 
 %preun
 if [ -x /etc/init.d/vtl ]; then
@@ -136,7 +139,6 @@ fi
 %doc INSTALL README etc/library_contents.sample
 /etc/init.d/vtl
 %{_prefix}/bin/vtlcmd
-%{_prefix}/bin/vtl_set_sn
 %{_prefix}/bin/vtltape
 %{_prefix}/bin/vtllibrary
 %{_prefix}/bin/mktape
@@ -158,15 +160,11 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
-* Thu Feb 26 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.13
-- mktape failing to run on SLES 10 with *** buffer overflow detected***
-
-* Wed Feb 18 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.12 - Not sure what happened as I found a 0.16.11..
-- Fixed vfree() bug in kernel module.
-  Allocating mem using kalloc() now. Should have been using kfree().
-- Moved media creation to 'make_vtl_media' script.
+* Wed Feb 25 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.0
+- Moved INQUIRY into userspace.
+  Re-jigged all helper scripts.
+  Still need to do dynamic config of : vpd pages & mode pages.
 
 * Fri Jan 02 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.10

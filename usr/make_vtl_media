@@ -2,8 +2,10 @@
 #
 # Designed to be called from vtl rc script
 #
-# * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
-# *                                mark_harvey at symantec dot com
+# $Id:$
+#
+# * Copyright (C) 2005 Mark Harvey markh794@gmail.com
+# *                                mark_harvey@symantec.com
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by

@@ -55,7 +55,6 @@ struct blk_header {
 	loff_t		prev_blk;
 	loff_t		curr_blk;
 	loff_t		next_blk;
-	
 };
 
 /* Default tape size specified in Mbytes */

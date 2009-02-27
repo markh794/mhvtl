@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <inttypes.h>
+#include "vtl_common.h"
 #include "vx.h"
 #include "vtltape.h"
 #include "vxshared.h"
@@ -126,21 +127,22 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	return 0;
 }
 
+/* SLES 9 problem when this struct inside main()
+ * glibc memory corruption messages.
+ */
+struct MAM mam;
+
 int main(int argc, char *argv[])
 {
 	int file;
 	struct blk_header h;
 	uint8_t currentMedia[1024];
 	long nwrite;
-	char *progname;
+	char *progname = argv[0];
 	char *pcl = NULL;
 	char *mediaType = NULL;
 	char *mediaCapacity = NULL;
 	char *density = NULL;
-	struct MAM mam;
-
-	progname = argv[0];
-
 	uint32_t size;
 
 	if (argc < 2) {
@@ -241,8 +243,8 @@ int main(int argc, char *argv[])
 		mam.MediumType = MEDIA_TYPE_DATA; // Normal data cart
 	}
 
-	sprintf((char *)mam.MediumSerialNumber, "%s_%ld", pcl,(long)time(NULL));
-	sprintf((char *)mam.MediumManufactureDate, "%ld", (long)time(NULL));
+	sprintf((char *)mam.MediumSerialNumber, "%s_%d", pcl, (int)time(NULL));
+	sprintf((char *)mam.MediumManufactureDate, "%d", (int)time(NULL));
 	sprintf((char *)mam.Barcode, "%-31s", pcl);
 
 	sprintf((char *)currentMedia, "%s/%s", HOME_PATH, pcl);

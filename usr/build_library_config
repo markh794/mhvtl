@@ -32,130 +32,58 @@ fi
 USER=$1
 TMP=/var/tmp/_build.$$
 CONFIG=/etc/vtl/vxlib.conf
+DRIVECONFIG=/etc/vtl/device.conf
 LIBCONTENTS=/etc/vtl/library_contents
 OPTIONS=""
 
 # rc script will make sure this exists...
 . /etc/vtl/vtl.conf
 
-##################################################################
-## Main starts here...
-##################################################################
-
 if [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"
 fi
 
-if [ -x /usr/bin/lsscsi ]; then
-	LSSCSI=/usr/bin/lsscsi
-elif [ -x /bin/lsscsi ]; then
-	LSSCSI=/bin/lsscsi
-else
-	echo "Can not find 'lsscsi' - Aborting...."
-	echo " Please visit http://www.torque.net/scsi/lsscsi.html"
+if [ ! -f $DRIVECONFIG ]; then
+	echo "Sorry, Can't continue - no $DRIVECONFIG"
 	exit 1
 fi
 
-echo "# Config file build `date`" > $CONFIG
-
-if [ ! -d /sys/bus/pseudo/drivers/vtl ]; then
-	echo "vtl kernel module not loaded - Exiting..."
+# Test for new interface to dynamically add logical units.
+if [ ! -f /sys/bus/pseudo/drivers/vtl/add_lu ]; then
+	echo "Sorry, Can't continue - No kernel module loaded or out of date ??"
+	echo "Please visit http://linuxvtl.googlepages.com for latest release"
 	exit 1
 fi
 
+# OK, we know the module is loaded..
+MAJOR=`grep vtl /proc/devices|awk '{print $1}'`
+
+# First we need to setup & configure drives.
+# Once all the drives are setup, query devices for config &
+# build library structure based on information found.
 count=`grep ^Drive $LIBCONTENTS|wc -l`
-if [ $VERBOSE -gt 0 ];then
-	echo "Found $count drives in library contents file /etc/vtl/library_contents"
-fi
 
-# If we can't find any existing devices, then add '$count` devices
-# If USE_MIXED_DRIVES is set to 0, then all drives will be of same type
-countDevices=`$LSSCSI -g | grep tape | grep $FIRMWARE | wc -l`
-if [ $VERBOSE -gt 0 ]; then
-	echo "Found $countDevices tape drives already.."
-fi
-
-if [ $countDevices -lt $count ]; then
-	count=`expr $count - $countDevices`
-	if [ $count -lt 0 ]; then
-		$count=0
-	fi
-	if [ $VERBOSE -gt 0 ]; then
-		echo "Adding $count more devices..."
-	fi
-
-	if [ $USE_MIXED_DRIVES -eq 0 ]; then
-		echo $count > /sys/bus/pseudo/drivers/vtl/num_tgts
-	else
-		echo $count > /sys/bus/pseudo/drivers/vtl/max_luns
-	fi
-
-	# Set up SSC (Tape drive) params...
-	#
-	# Set up a 128k buffer size.
-	if [ -f /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz ]; then
-		echo $SSC_BUFFER_SZ > /sys/bus/pseudo/drivers/vtl/ssc_buffer_sz
-	fi
-	if [ -f /sys/bus/pseudo/drivers/vtl/firmware ]; then
-		echo $FIRMWARE > /sys/bus/pseudo/drivers/vtl/firmware
-	fi
-
-	if [ $countDevices -eq 0 ]; then
-		if [ "X$SERIAL_PREFIX" != "X" ]; then
-			if [ -f /sys/bus/pseudo/drivers/vtl/serial_prefix ]; then
-				echo $SERIAL_PREFIX > /sys/bus/pseudo/drivers/vtl/serial_prefix
-			fi
-		fi
-	fi
-
-	# OK -> Now load the new 'host' with the SSC devices attached...
-	echo 1 > /sys/bus/pseudo/drivers/vtl/add_host
-fi
-
-count=0
-
-# Wait for devices to be registered with kernel and sg devices to be setup..
-RDY=1
-while [ $RDY -gt 0 ]; do
-	RDY=`$LSSCSI -g|grep tape|grep $FIRMWARE|awk '{print $7}'|grep -v dev|wc -l`
-	if [ $RDY -gt 0 ]; then
-		if [ $VERBOSE -gt 0 ]; then
-			echo "Waiting for devices to be setup"
-		fi
-		sleep 1
-	fi
-done
-
-for a in `$LSSCSI -g | grep tape | grep $FIRMWARE | awk '{print $7}'`
+for a in `seq $count`
 do
-	count=`expr $count + 1`
-	# Set serial number of each device...
-	if [ -x /usr/bin/vtl_set_sn ]; then
-		/usr/bin/vtl_set_sn -q $count
+	grep "^Drive $a" $DRIVECONFIG
+
+	# Make sure device node exists..
+	# A better bet would be to configure udev...
+	if [ ! -c /dev/vtl$count ]; then
+		if [ -a /dev/vtl$count ]; then
+			# Exists but not a char device... remove..
+			rm /dev/vtl$count
+		fi
+		mknod /dev/vtl$count c $major $count
+		chown vtl:vtl /dev/vtl$count
 	fi
-	# Start the vxtape daemon...
-	su $USER -c "vtltape -q $count $OPTIONS"
-	echo "Drive: $count"
-	echo "Drive: $count" >> $CONFIG
 
-	# Test Unit Ready - Clear init flag..
-	sg_turs $a > /dev/null 2>&1
-
-	# Earlier versions of lsscsi use Product serial,
-	# so change to later syntax
-	sg_inq $a |sed -e 's/Product serial/Unit serial/' > $TMP
-
-	cat $TMP | grep "Vendor identification:" >> $CONFIG
-	cat $TMP | grep "Product identification:" >> $CONFIG
-	cat $TMP | grep "Product revision level:" >> $CONFIG
-	cat $TMP | grep "Unit serial number:" >> $CONFIG
+	# Start daemon for new lu
+	vtltape -q $a
 done
 
-echo >> $CONFIG
-echo "NumberDrives: $count" >> $CONFIG
-echo "NumberSlots: `grep Slot $LIBCONTENTS|wc -l`" >> $CONFIG
-echo "NumberMAP: `grep MAP $LIBCONTENTS|wc -l`" >> $CONFIG
-echo "NumberPicker: `grep Picker $LIBCONTENTS|wc -l`" >> $CONFIG
+# now start the library daemon
+vtllibrary -q 0
 
 rm -f $TMP
 
