@@ -3148,7 +3148,7 @@ static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
 #define VPD_C0_SZ 0x28
 
 #define MALLOC_SZ 512
-static void init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
+static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 {
 
 	struct vpd **lu_vpd = lu->lu_vpd;
@@ -3163,6 +3163,7 @@ static void init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	char *s;	/* Somewhere for sscanf to store results */
 	int indx, n = 0;
 	struct vtl_ctl tmpctl;
+	int found = 0;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -3195,8 +3196,10 @@ static void init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				syslog(LOG_DAEMON|LOG_INFO,
 					"Found Drive %d, looking for %d\n",
 							indx, minor);
-			if (indx == minor)
+			if (indx == minor) {
+				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
+			}
 		}
 		if (indx == minor) {
 			if (sscanf(b, " Unit serial number: %s", s))
@@ -3276,6 +3279,7 @@ static void init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	lu_vpd[pg]->vpd_update = update_vpd_c1;
 	lu_vpd[pg]->vpd_update(lu, "Security");
 
+	return found;
 }
 
 static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
@@ -3399,7 +3403,10 @@ int main(int argc, char *argv[])
 
 	init_mode_pages(sm);
 	initTapeAlert(&TapeAlert);
-	init_lu(&lu, minor, &ctl);
+	if (!init_lu(&lu, minor, &ctl)) {
+		printf("Can not find entry for '%d' in config file\n", minor);
+		exit(1);
+	}
 
 	pw = getpwnam("vtl");	/* Find UID for user 'vtl' */
 	if (!pw) {

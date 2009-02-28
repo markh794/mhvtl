@@ -1722,10 +1722,8 @@ static int vtl_remove_lu(int minor, char __user *arg)
 	vtl_host = get_vtl_host_entry();
 
 	list_for_each_entry_safe(lu, n, &vtl_host->dev_info_list, dev_list) {
-		if ((!lu->device_offline) &&
-				(lu->channel == ctl.channel) &&
-				(lu->target == ctl.id) &&
-				(lu->lun == ctl.lun)) {
+		if ((lu->channel == ctl.channel) && (lu->target == ctl.id) &&
+						(lu->lun == ctl.lun)) {
 			if (VTL_OPT_NOISE & vtl_opts)
 				printk("mhvtl: %s line %d found matching lu\n",
 					__func__, __LINE__);
