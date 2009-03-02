@@ -1,8 +1,5 @@
 #!/bin/sh
 #
-# Parse lsscsi -g o/p to build a drive/library config for the 'vxlibrary'
-# daemon.
-#
 # Designed to be called from vtl rc script
 #
 # * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com

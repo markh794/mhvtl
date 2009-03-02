@@ -34,12 +34,6 @@ if [ -f /etc/rc.status ]; then
 	rc_reset
 fi
 
-if [ -x /usr/bin/lsscsi ]; then
-	LSSCSI=/usr/bin/lsscsi
-elif [ -x /bin/lsscsi ]; then
-	LSSCSI=/bin/lsscsi
-fi
-
 # Create a 'device.conf' if it does not exist...
 if [ ! -f /etc/vtl/device.conf ]; then
 
