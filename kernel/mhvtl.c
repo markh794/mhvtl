@@ -97,7 +97,7 @@ struct scatterlist;
 #define WRITE_ATTRIBUTE 0x8d
 #define SECURITY_PROTOCOL_OUT 0xb5
 #define VTL_VERSION "0.16.0"
-static const char *vtl_version_date = "20090227-0";
+static const char *vtl_version_date = "20090313-0";
 
 /* Additional Sense Code (ASC) used */
 #define NO_ADDED_SENSE 0x0
