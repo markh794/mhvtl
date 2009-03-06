@@ -93,7 +93,7 @@ struct scatterlist;
  #define VTL_VERSION "1.75"
 */
 #define VTL_VERSION "0.15.11"
-static const char *vtl_version_date = "20090305-0";
+static const char *vtl_version_date = "20090306-2";
 
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d

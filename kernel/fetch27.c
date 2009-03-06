@@ -88,7 +88,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 	int act_len;
 	struct scsi_data_buffer *sdb = scsi_in(scp);
 
-	if (sdb->length)
+	if (!sdb->length)
 		return 0;
 	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
 		return (DID_ERROR << 16);
@@ -111,7 +111,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 	int act_len;
 	struct scsi_data_buffer *sdb = scsi_in(scp);
 
-	if (sdb->length)
+	if (!sdb->length)
 		return 0;
 	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
 		return (DID_ERROR << 16);

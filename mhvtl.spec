@@ -1,7 +1,7 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.15
-Release: 14
+Release: 14beta
 Source: mhvtl-2009-03-06.tgz
 License: GPL
 Group: System/Kernel
