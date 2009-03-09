@@ -35,19 +35,19 @@ set_density() {
 	DENSITY="X"
 
 	A=`echo $density|awk '/L1$/'|wc -l`
-	if [ "X$A" == "X1" ]; then
+	if [ $A -eq 1 ]; then
 		DENSITY="LTO1"
 	fi
 	A=`echo $density|awk '/L2$/'|wc -l`
-	if [ "X$A" == "X1" ]; then
+	if [ $A -eq 1 ]; then
 		DENSITY="LTO2"
 	fi
 	A=`echo $density|awk '/L3$/'|wc -l`
-	if [ "X$A" == "X1" ]; then
+	if [ $A -eq 1 ]; then
 		DENSITY="LTO3"
 	fi
 	A=`echo $density|awk '/L4$/'|wc -l`
-	if [ "X$A" == "X1" ]; then
+	if [ $A -eq 1 ]; then
 		DENSITY="LTO4"
 	fi
 }
@@ -68,7 +68,7 @@ fi
 umask 002
 
 # Cleaning carts
-for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^CLN|sort -u`
+for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}'|grep ^CLN|sort -u`
 do
 	set_density $a
 	if [ ! -f /opt/vtl/$a ]; then
@@ -77,7 +77,7 @@ do
 done
 
 # WORM media
-for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|grep ^W|sort -u`
+for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}'|grep ^W|sort -u`
 do
 	set_density $a
 	if [ ! -f /opt/vtl/$a ]; then
@@ -86,7 +86,7 @@ do
 done
 
 # Rest must be Data
-for a in `cat $LIBCONTENTS|grep ":"|grep -v Drive|awk '{print $3}'|sort -u`
+for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}'|sort -u`
 do
 	set_density $a
 	if [ ! -f /opt/vtl/$a ]; then
