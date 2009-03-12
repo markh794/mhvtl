@@ -772,8 +772,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 	default:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-			"From a proud parent : Child PID to create lu is %d\n",
-								(int)pid);
+			"From a proud parent - birth of PID %ld\n", (long)pid);
 		return pid;
 		break;
 	}

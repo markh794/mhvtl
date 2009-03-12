@@ -387,7 +387,7 @@ static void debug_queued_list(struct vtl_lu_info *lu)
 		if (sqcp->state) {
 			if (sqcp->a_cmnd) {
 				printk("mhvtl: %s %d entry in use "
-				"SCpnt:%p, SCSI result: %d, done: %p"
+				"SCpnt: %p, SCSI result: %d, done: %p, "
 				"Serial No: %ld\n",
 					__func__, k,
 					sqcp->a_cmnd, sqcp->scsi_result,
@@ -395,7 +395,7 @@ static void debug_queued_list(struct vtl_lu_info *lu)
 					sqcp->a_cmnd->serial_number);
 			} else {
 				printk("mhvtl: %s %d entry in use "
-				"SCpnt:%p, SCSI result: %d, done: %p\n",
+				"SCpnt: %p, SCSI result: %d, done: %p\n",
 					__func__, k,
 					sqcp->a_cmnd, sqcp->scsi_result,
 					sqcp->done_funct);

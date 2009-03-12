@@ -215,10 +215,10 @@ case "$1" in
 		exit 1
 	fi
 	vtlMidVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $2}'`
-	if [ $vtlMidVersion -lt 16 ]; then
+	if [ $vtlMidVersion -ne 16 ]; then
 		echo "Incorrect kernel module for these daemons."
-		echo "Need at least 0.16.0"
-		echo "Please see http://linuxvtl.googlepages.com"
+		echo -e "Should be at 0.16.x\n"
+		echo -e "Please see http://linuxvtl.googlepages.com\n"
 		exit 1
 	fi
 
