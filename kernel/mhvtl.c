@@ -97,7 +97,7 @@ struct scatterlist;
 #define WRITE_ATTRIBUTE 0x8d
 #define SECURITY_PROTOCOL_OUT 0xb5
 #define VTL_VERSION "0.16.0"
-static const char *vtl_version_date = "20090313-0";
+static const char *vtl_version_date = "20090313-1";
 
 /* Additional Sense Code (ASC) used */
 #define NO_ADDED_SENSE 0x0
@@ -522,12 +522,12 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		return 0;	/* assume mid level reprocessing command */
 
 	if ((VTL_OPT_NOISE & vtl_opts) && cmd) {
-		if (TEST_UNIT_READY != cmd[0]) {	// Skip TUR *
+//		if (TEST_UNIT_READY != cmd[0]) {	// Skip TUR *
 			printk(KERN_INFO "mhvtl: SCSI cdb ");
 			for (k = 0, num = SCpnt->cmd_len; k < num; ++k)
 				printk("%02x ", (int)cmd[k]);
 			printk("\n");
-		}
+//		}
 	}
 
 	if (SCpnt->device->id == vtl_driver_template.this_id) {
@@ -535,12 +535,16 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
 
-	if (SCpnt->device->lun >= vtl_max_luns)
+	if (SCpnt->device->lun >= vtl_max_luns) {
+		printk("mhvtl: %s max luns exceeded\n", __func__);
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
+	}
 
 	lu = devInfoReg(SCpnt->device);
-	if (NULL == lu)
+	if (NULL == lu) {
+		printk("mhvtl: %s could not find lu\n", __func__);
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
+	}
 
 	if ((vtl_every_nth != 0) &&
 			(++vtl_cmnd_count >= abs(vtl_every_nth))) {
@@ -702,7 +706,8 @@ static void timer_intr_handler(unsigned long indx)
 	}
 
 	if (!sqcp) {
-		printk(KERN_ERR "mhvtl: %s: Unexpected interrupt\n", __func__);
+		printk(KERN_ERR "mhvtl: %s: Unexpected interrupt, indx %ld\n",
+					 __func__, indx);
 		return;
 	}
 

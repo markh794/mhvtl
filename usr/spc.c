@@ -1,7 +1,7 @@
 /*
  * This handles any SCSI OP codes defined in the standards as 'PRIMARY'
  *
- * Copyright (C) 2005 - 2008 Mark Harvey markh794 at gmail dot com
+ * Copyright (C) 2005 - 2009 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *
  * This program is free software; you can redistribute it and/or modify
