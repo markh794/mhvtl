@@ -197,7 +197,7 @@ struct MAM_Attributes_table {
 /* Log pages */
 static struct	Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
-	{ 0x00, 0x00, 0x60, 0x02, }, 0x00, 	// Temperature
+	{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	// Temperature
 	};
 
 static struct error_counter pg_write_err_counter = {
@@ -281,7 +281,7 @@ static struct TapeCapacity TapeCapacity = {
 	};
 
 static struct report_luns report_luns = {
-	0x00, 0x00, 0x00, 			// 16 bytes in length..
+	0x00, 0x00, 0x00,			// 16 bytes in length..
 	};
 
 
@@ -713,8 +713,8 @@ static int checkRestrictions(uint8_t *sam_stat)
 		break;
 	case MEDIA_TYPE_WORM:
 		/* If we are not at end of data for a write
-	 	* and media is defined as WORM, fail...
-	 	*/
+		 * and media is defined as WORM, fail...
+		 */
 		if (c_pos.blk_type == B_EOD)
 			OK_to_write = 1;	// OK to append to end of 'tape'
 		if (!OK_to_write) {
@@ -1033,7 +1033,7 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
 			"Read Attribute: 0x%x, allocation len: %d",
-			 				attribute, alloc_len);
+							attribute, alloc_len);
 
 	memset(buf, 0, alloc_len);	// Clear memory
 
@@ -1394,7 +1394,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, u32 request_sz)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_ERR,
 				"Expected to find hdr type: %d, found: %d",
-				 	B_UNCOMPRESS_DATA, c_pos.blk_type);
+					B_UNCOMPRESS_DATA, c_pos.blk_type);
 		skip_to_next_header(sam_stat);
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		information[0] = sense[3];
@@ -1685,12 +1685,12 @@ static int resp_rewind(uint8_t *sam_stat)
 		break;
 	case MEDIA_TYPE_WORM:
 		/* Special condition...
-	 	* If we
-	 	* - rewind,
-	 	* - write filemark
-	 	* - EOD
-	 	* We set this as writable media as the tape is blank.
-	 	*/
+		* If we
+		* - rewind,
+		* - write filemark
+		* - EOD
+		* We set this as writable media as the tape is blank.
+		*/
 		if (c_pos.blk_type != B_EOD)
 			OK_to_write = 0;
 
@@ -1736,7 +1736,7 @@ static void resp_space(u32 count, int code, uint8_t *sam_stat)
 			syslog(LOG_DAEMON|LOG_NOTICE,
 				"SCSI space 0x%02x blocks **", count);
 		if (count > 0xff000000) {
-	 		// Moved backwards. Disable writing..
+			// Moved backwards. Disable writing..
 			if (MediaType == MEDIA_TYPE_WORM)
 				OK_to_write = 0;
 			for (;count > 0; count++)
@@ -2114,9 +2114,9 @@ static void updateMAM(struct MAM *mamp, uint8_t *sam_stat, int loadCount)
  * Process the SCSI command
  *
  * Called with:
- * 	cdev     -> Char dev file handle,
- * 	cdb      -> SCSI Command buffer pointer,
- * 	dbuf     -> struct vtl_ds *
+ *	cdev     -> Char dev file handle,
+ *	cdb      -> SCSI Command buffer pointer,
+ *	dbuf     -> struct vtl_ds *
  *
  * Return:
  *	total number of bytes to send back to vtl device
@@ -2249,7 +2249,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 //	case READ_12:
 //	case READ_10:
 	case READ_6:
-		block_size = 	(cdb[2] << 16) +
+		block_size =	(cdb[2] << 16) +
 				(cdb[3] << 8) +
 				 cdb[4];
 		if (verbose)
@@ -2534,7 +2534,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 //	case WRITE_12:
 //	case WRITE_10:
 	case WRITE_6:
-		block_size = 	(cdb[2] << 16) +
+		block_size =	(cdb[2] << 16) +
 				(cdb[3] << 8) +
 				 cdb[4];
 		if (verbose)
@@ -2593,7 +2593,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case WRITE_FILEMARKS:
-		block_size = 	(cdb[2] << 16) +
+		block_size =	(cdb[2] << 16) +
 				(cdb[3] << 8) +
 				 cdb[4];
 		if (verbose)
@@ -2742,7 +2742,7 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 		syslog(LOG_DAEMON|LOG_INFO, "Opening file/media %s", currentMedia);
 	if ((datafile = open(currentMedia, O_RDWR|O_LARGEFILE)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR, "%s: open file/media failed, %m", currentMedia);
-		return 0; 	// Unsuccessful load
+		return 0;	// Unsuccessful load
 	}
 
 	// Now read in header information from just opened datafile
