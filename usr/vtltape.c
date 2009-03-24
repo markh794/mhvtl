@@ -2246,8 +2246,24 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		ret += resp_mode_sense(cdb, dbuf_p->data, smp, MediaWriteProtect, sam_stat);
 		break;
 
-//	case READ_12:
-//	case READ_10:
+	case READ_10:
+		syslog(LOG_DAEMON|LOG_ERR,
+				"READ_10 op code not currently supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		break;
+
+	case READ_12:
+		syslog(LOG_DAEMON|LOG_ERR,
+				"READ_12 op code not currently supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		break;
+
+	case READ_16:
+		syslog(LOG_DAEMON|LOG_ERR,
+				"READ_16 op code not currently supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		break;
+
 	case READ_6:
 		block_size =	(cdb[2] << 16) +
 				(cdb[3] << 8) +
@@ -2531,8 +2547,24 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 		break;
 
-//	case WRITE_12:
-//	case WRITE_10:
+	case WRITE_10:
+		syslog(LOG_DAEMON|LOG_ERR,
+				"WRITE_10 op code not currently supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		break;
+
+	case WRITE_12:
+		syslog(LOG_DAEMON|LOG_ERR,
+				"WRITE_12 op code not currently supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		break;
+
+	case WRITE_16:
+		syslog(LOG_DAEMON|LOG_ERR,
+				"WRITE_16 op code not currently supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		break;
+
 	case WRITE_6:
 		block_size =	(cdb[2] << 16) +
 				(cdb[3] << 8) +
@@ -2543,11 +2575,20 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						block_size,
 						(long)dbuf_p->serialNo);
 
-		// FIXME: should handle this test in a nicer way...
+		/* FIXME: should handle this test in a nicer way... */
 		if (block_size > bufsize)
 			syslog(LOG_DAEMON|LOG_ERR,
 			"Fatal: bufsize %d, requested write of %d bytes",
 							bufsize, block_size);
+
+		/* FIXME: Add 'fixed' block write support here */
+		if (cdb[1] & 0x1) { /* Fixed block write */
+			syslog(LOG_DAEMON|LOG_ERR,
+				"Fixed block write not currently supported");
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+					sam_stat);
+			break;
+		}
 
 		// Attempt to read complete buffer size of data
 		// from vx char device into buffer..

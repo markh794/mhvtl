@@ -93,6 +93,7 @@
 #define	READ_6			0x08
 #define	READ_10			0x28
 #define	READ_12			0xa8
+#define	READ_16			0x88
 #define READ_ATTRIBUTE		0x8c
 #define READ_BLOCK_LIMITS	0x05
 #define	READ_ELEMENT_STATUS	0xb8
@@ -116,6 +117,7 @@
 #define	WRITE_6			0x0a
 #define	WRITE_10		0x2a
 #define	WRITE_12		0xaa
+#define	WRITE_16		0x8a
 #define WRITE_ATTRIBUTE		0x8d
 #define	WRITE_FILEMARKS		0x10
 
