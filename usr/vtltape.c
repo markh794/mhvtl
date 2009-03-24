@@ -2143,7 +2143,7 @@ static void updateMAM(struct MAM *mamp, uint8_t *sam_stat, int loadCount)
  */
 static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	u32 block_size = 0;
+	u32 blk_sz = 0;
 	u32 count;
 	u32 ret = 0;
 	u32 retval = 0;
@@ -2154,6 +2154,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	int service_action;
 	struct mode *smp = sm;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	uint8_t *buf;
 	loff_t nread;
 	char str[256];
 
@@ -2287,14 +2288,12 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case READ_6:
-		block_size =	(cdb[2] << 16) +
-				(cdb[3] << 8) +
-				 cdb[4];
+		blk_sz = (cdb[2] << 16) + (cdb[3] << 8) + cdb[4];
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"Read_6 (%ld) : %d bytes **",
 						(long)dbuf_p->serialNo,
-						block_size);
+						blk_sz);
 		/* If both FIXED & SILI bits set, invalid combo.. */
 		if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
 			syslog(LOG_DAEMON|LOG_WARNING,
@@ -2319,10 +2318,9 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 								sam_stat);
 				break;
 			}
-			retval = readBlock(cdev, dbuf_p->data, sam_stat, block_size);
-			/* adjust for a read that asks for fewer bytes than available */
-			if (retval > block_size)
-				retval = block_size;
+			retval = readBlock(cdev, dbuf_p->data, sam_stat, blk_sz);
+			if (retval > blk_sz)
+				retval = blk_sz;
 			bytesRead += retval;
 			pg_read_err_counter.bytesProcessed = bytesRead;
 		} else if (tapeLoaded == TAPE_UNLOADED) {
@@ -2461,13 +2459,12 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 					(sense[2] & EOM) ? "yes" : "no",
 					(sense[2] & ILI) ? "yes" : "no");
 		}
-		block_size =
-			(cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
-		memcpy(dbuf_p->data, sense, block_size);
+		blk_sz = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
+		memcpy(dbuf_p->data, sense, blk_sz);
 		/* Clear out the request sense flag */
 		*sam_stat = 0;
 		memset(sense, 0, sizeof(sense));
-		ret += block_size;
+		ret += blk_sz;
 		break;
 
 	case RESERVE:
@@ -2588,46 +2585,52 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case WRITE_6:
-		block_size =	(cdb[2] << 16) +
-				(cdb[3] << 8) +
-				 cdb[4];
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-					"WRITE_6: %d bytes (%ld) **",
-						block_size,
+		/* If Fixed block writes */
+		if (cdb[1] & FIXED) {
+			count = (cdb[2] << 16) + (cdb[3] << 8) + cdb[4];
+			blk_sz = (blockDescriptorBlock[5] << 16) +
+					(blockDescriptorBlock[6] << 8) +
+					blockDescriptorBlock[7];
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"WRITE_6: %d blks of %d bytes (%ld) **",
+						count,
+						blk_sz,
 						(long)dbuf_p->serialNo);
-
-		/* FIXME: should handle this test in a nicer way... */
-		if (block_size > bufsize)
-			syslog(LOG_DAEMON|LOG_ERR,
-			"Fatal: bufsize %d, requested write of %d bytes",
-							bufsize, block_size);
-
-		/* FIXME: Add 'fixed' block write support here */
-		if (cdb[1] & 0x1) { /* Fixed block write */
-			syslog(LOG_DAEMON|LOG_ERR,
-				"Fixed block write not currently supported");
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-					sam_stat);
-			break;
+		/* else - Variable Block writes */
+		} else {
+			count = 1;
+			blk_sz = (cdb[2] << 16) + (cdb[3] << 8) + cdb[4];
+			if (verbose)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"WRITE_6: %d bytes (%ld) **",
+						blk_sz,
+						(long)dbuf_p->serialNo);
 		}
 
-		// Attempt to read complete buffer size of data
-		// from vx char device into buffer..
-		dbuf_p->sz = block_size;
+		/* FIXME: Should handle this instead of 'check & warn' */
+		if ((blk_sz * count) > bufsize)
+			syslog(LOG_DAEMON|LOG_ERR,
+			"Fatal: bufsize %d, requested write of %d bytes",
+							bufsize, blk_sz);
+
+		/* Retrieve data from kernel */
+		dbuf_p->sz = blk_sz * count;
 		nread = retrieve_CDB_data(cdev, dbuf_p);
 
-		// NOTE: This needs to be performed AFTER we read
-		//	 data block from kernel char driver.
 		if (!checkRestrictions(sam_stat))
 			break;
 
 		if (OK_to_write) {
-			retval = writeBlock(dbuf_p->data, block_size, sam_stat);
-			bytesWritten += retval;
-			pg_write_err_counter.bytesProcessed = bytesWritten;
+			buf = dbuf_p->data;
+			for (k = 0; k < count; k++) {
+				retval = writeBlock(buf, blk_sz, sam_stat);
+				bytesWritten += retval;
+				buf += retval;
+				pg_write_err_counter.bytesProcessed =
+							bytesWritten;
+			}
 		}
-
 		break;
 
 	case WRITE_ATTRIBUTE:
@@ -2646,29 +2649,29 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		lp = (u32 *)&cdb[10];
 		// Read '*lp' bytes from char device...
 		dbuf_p->sz = ntohl(*lp);
-		block_size = retrieve_CDB_data(cdev, dbuf_p);
+		blk_sz = retrieve_CDB_data(cdev, dbuf_p);
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"  --> Expected to read %d bytes"
-				", read %d", dbuf_p->sz, block_size);
+				", read %d", dbuf_p->sz, blk_sz);
 		if (resp_write_attribute(cdb, dbuf_p, &mam))
 			rewriteMAM(&mam, sam_stat);
 		break;
 
 	case WRITE_FILEMARKS:
-		block_size =	(cdb[2] << 16) +
+		blk_sz =	(cdb[2] << 16) +
 				(cdb[3] << 8) +
 				 cdb[4];
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"Write %d filemarks (%ld) **",
-						block_size,
+						blk_sz,
 						(long)dbuf_p->serialNo);
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		while(block_size > 0) {
-			block_size--;
+		while(blk_sz > 0) {
+			blk_sz--;
 			mkNewHeader(B_FILEMARK, 0, 0, sam_stat);
 			mkEODHeader(sam_stat);
 		}
@@ -2690,8 +2693,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		count = ntohs(*sp);
 		if (count) {
 			dbuf_p->sz = count;
-			block_size = retrieve_CDB_data(cdev, dbuf_p);
-			ProcessSendDiagnostic(cdb, 16, dbuf_p->data, block_size, sam_stat);
+			blk_sz = retrieve_CDB_data(cdev, dbuf_p);
+			ProcessSendDiagnostic(cdb, 16, dbuf_p->data, blk_sz, sam_stat);
 		}
 		break;
 
