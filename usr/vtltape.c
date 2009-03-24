@@ -851,11 +851,13 @@ return(REPORT_DENSITY_LEN);
 /*
  * Process the MODE_SELECT command
  */
-static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
+static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	int k;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	uint8_t *buf = dbuf_p->data;
+	int block_descriptor_sz;
+	uint8_t *bdb = NULL;
+	int long_lba = 0;
 	int count;
 
 	count = retrieve_CDB_data(cdev, dbuf_p);
@@ -866,11 +868,29 @@ static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
 	if (!checkRestrictions(sam_stat))
 		return 0;
 
-	if (debug) {
-		for (k = 0; k < dbuf_p->sz; k++)
-			printf("%02x ", (u32)buf[k]);
-		printf("\n");
+	if (cdb[0] == MODE_SELECT) {
+		block_descriptor_sz = buf[3];
+		if (block_descriptor_sz)
+			bdb = &buf[4];
+	} else {
+		block_descriptor_sz = (buf[6] << 8) +
+					buf[7];
+		long_lba = buf[4] & 1;
+		if (block_descriptor_sz)
+			bdb = &buf[8];
 	}
+
+	if (bdb) {
+		if (!long_lba) {
+			memcpy(blockDescriptorBlock, bdb, block_descriptor_sz);
+		} else
+			syslog(LOG_DAEMON|LOG_INFO, "%s: Warning can not "
+				"handle long descriptor block (long_lba bit)",
+					__func__);
+	}
+
+	if (debug)
+		hex_dump(buf, dbuf_p->sz);
 
 	return 0;
 }
@@ -2235,7 +2255,9 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						(long)dbuf_p->serialNo);
 		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
 						((cdb[7] << 8) | cdb[8]);
-		ret += resp_mode_select(cdev, dbuf_p);
+		if (cdb[1] & 0x10) { /* Page Format: 1 - SPC, 0 - vendor uniq */
+		}
+		ret += resp_mode_select(cdev, cdb, dbuf_p);
 		break;
 
 	case MODE_SENSE:
