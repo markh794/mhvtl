@@ -2288,25 +2288,17 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case READ_6:
-		blk_sz = (cdb[2] << 16) + (cdb[3] << 8) + cdb[4];
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
-				"Read_6 (%ld) : %d bytes **",
-						(long)dbuf_p->serialNo,
-						blk_sz);
+				"Read_6 (%ld) : %d %s **",
+					(long)dbuf_p->serialNo,
+					blk_sz,
+					(cdb[1] & FIXED) ? "blocks" : "bytes");
 		/* If both FIXED & SILI bits set, invalid combo.. */
 		if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
 			syslog(LOG_DAEMON|LOG_WARNING,
-					"Fixed block read not supported");
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sam_stat);
-			reset = 0;
-			break;
-		}
-		/* This driver does not support fixed blocks at the moment */
-		if (cdb[1] & FIXED) {
-			syslog(LOG_DAEMON|LOG_WARNING,
-					"\"Fixed block read\" not supported");
+					"Supress ILI and Fixed block "
+					"read not allowed by SSC3");
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sam_stat);
 			reset = 0;
@@ -2318,16 +2310,40 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 								sam_stat);
 				break;
 			}
-			retval = readBlock(cdev, dbuf_p->data, sam_stat, blk_sz);
-			if (retval > blk_sz)
-				retval = blk_sz;
-			bytesRead += retval;
-			pg_read_err_counter.bytesProcessed = bytesRead;
 		} else if (tapeLoaded == TAPE_UNLOADED) {
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-		} else
+			break;
+		} else {
 			mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+			break;
+		}
 
+		/* If - Fixed block read */
+		if (cdb[1] & FIXED) {
+			count = (cdb[2] << 16) + (cdb[3] << 8) + cdb[4];
+			blk_sz = (blockDescriptorBlock[5] << 16) +
+					(blockDescriptorBlock[6] << 8) +
+					blockDescriptorBlock[7];
+			syslog(LOG_DAEMON|LOG_WARNING,
+				"\"Fixed block read\" under development -"
+				" Read %d blocks of %d size", count, blk_sz);
+		/* else - Variable block read */
+		} else {
+			blk_sz = (cdb[2] << 16) + (cdb[3] << 8) + cdb[4];
+			count = 1;
+		}
+
+		buf = dbuf_p->data;
+		for (k = 0; k < count; k++) {
+			retval = readBlock(cdev, buf, sam_stat, blk_sz);
+			buf += retval;
+			ret += retval;
+		}
+		/* Fix this for fixed block reads */
+		if (retval > (blk_sz * count))
+			retval = blk_sz * count;
+		bytesRead += retval;
+		pg_read_err_counter.bytesProcessed = bytesRead;
 		ret += retval;
 		break;
 
