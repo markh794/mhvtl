@@ -305,6 +305,8 @@ static struct file_operations vtl_fops = {
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
  #include "fetch27.c"
+#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,26)
+ #include "fetch26.c"
 #elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
  #include "fetch24.c"
 #else
