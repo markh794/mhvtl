@@ -46,26 +46,29 @@ struct blk_header current_pos;
 void print_current_header(void) {
 	printf("Hdr:");
 	switch(current_pos.blk_type) {
-		case B_UNCOMPRESS_DATA:
-			printf(" Uncompressed data");
-			break;
-		case B_COMPRESSED_DATA:
-			printf("   Compressed data");
-			break;
+		case B_DATA:
+			if ((current_pos.blk_flags &&
+				(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
+				== (BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
+				printf("Encrypted/cmp data");
+			else if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
+				printf("    Encrypted data");
+			else if (current_pos.blk_flags & BLKHDR_FLG_COMPRESSED)
+				printf("   Compressed data");
+			else
+				printf("              data");
+
 		case B_FILEMARK:
 			printf("          Filemark");
 			break;
 		case B_BOT:
 			printf(" Beginning of Tape");
 			break;
+		case B_BOT_V1:
+			printf("   Old format Tape");
+			break;
 		case B_EOD:
 			printf("       End of Data");
-			break;
-		case B_EOM_WARN:
-			printf("End of Media - Early Warning");
-			break;
-		case B_EOM:
-			printf("      End of Media");
 			break;
 		case B_NOOP:
 			printf("      No Operation");
@@ -83,6 +86,12 @@ void print_current_header(void) {
 			current_pos.prev_blk,
 			current_pos.curr_blk,
 			current_pos.next_blk);
+	if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
+		printf("   => Encr key length %d, ukad length %d, "
+			"akad length %d\n",
+			current_pos.encryption_key_length,
+			current_pos.encryption_ukad_length,
+			current_pos.encryption_akad_length);
 }
 
 int skip_to_next_header(int datafile, char * sense_flg) {

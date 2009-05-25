@@ -34,6 +34,7 @@
 #include <syslog.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include "be_byteshift.h"
 #include "scsi.h"
 #include "vtl_common.h"
 #include "vx.h"
@@ -68,6 +69,10 @@ extern uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 extern uint8_t sense_flg;
 
 extern uint8_t blockDescriptorBlock[];
+
+extern uint32_t SPR_Reservation_Generation;
+extern uint8_t SPR_Reservation_Type;
+extern uint64_t SPR_Reservation_Key;
 
 struct vpd *alloc_vpd(uint16_t sz)
 {
@@ -170,3 +175,240 @@ sense:
 	mkSenseBuf(key, asc, &ds->sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
+
+/*
+ * Process PERSITENT RESERVE OUT scsi command
+ * Returns 0 if OK
+ *         or -1 on failure.
+ */
+static char *type_str[] = {
+	"Obsolete",
+	"Write exclusive",
+	"Obsolete",
+	"Exclusive access",
+	"Obsolete",
+};
+
+static char *type_unknown = "Undefined";
+
+static char *lookup_type(uint8_t type)
+{
+	if (type > 4)
+		return type_unknown;
+	else
+		return type_str[type];
+}
+
+static char *serv_action_str[] = {
+	 "Register",
+	 "Reserve",
+	 "Release",
+	 "Clear",
+	 "Preempt",
+	 "Preempt & abort",
+	 "Register & ignore existing key",
+	 "Register & move",
+};
+static char *sa_unknown = "Undefined";
+
+static char *lookup_sa(uint8_t sa)
+{
+	if (sa > 7)
+		return sa_unknown;
+	else
+		return serv_action_str[sa];
+}
+
+#define SPR_EXCLUSIVE_ACCESS 3
+int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
+{
+	uint64_t RK;
+	uint64_t SARK;
+	uint16_t SA;
+	uint8_t TYPE;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	uint8_t *buf = dbuf_p->data;
+
+	if (dbuf_p->sz != 24) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_PARAMETER_LIST_LENGTH_ERR, sam_stat);
+		return(-1);
+	}
+
+	SA = cdb[1] & 0x1f;
+	TYPE = cdb[2] & 0x0f;
+
+	RK = get_unaligned_be64(&buf[0]);
+	SARK = get_unaligned_be64(&buf[8]);
+
+	if (verbose) {
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"Key 0x%.8x %.8x SA Key 0x%.8x %.8x "
+			"Service Action: %s, Type: %s\n",
+			(uint32_t)(RK >> 32) & 0xffffffff,
+			(uint32_t) RK & 0xffffffff,
+			(uint32_t)(SARK >> 32) & 0xffffffff,
+			(uint32_t)SARK & 0xffffffff,
+			lookup_sa(SA), lookup_type(TYPE));
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"Reservation key was: 0x%.8x 0x%.8x\n",
+			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
+			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
+	}
+
+	switch(SA) {
+	case 0: /* REGISTER */
+		if (SPR_Reservation_Key) {
+			if (RK == SPR_Reservation_Key) {
+				if (SARK) {
+					SPR_Reservation_Key = SARK;
+				} else {
+					SPR_Reservation_Key = 0UL;
+					SPR_Reservation_Type = 0;
+				}
+				SPR_Reservation_Generation++;
+			} else {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+			}
+		} else {
+			if (RK) {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+			} else {
+				SPR_Reservation_Key = SARK;
+				SPR_Reservation_Generation++;
+			}
+		}
+		break;
+	case 1: /* RESERVE */
+		if (SPR_Reservation_Key)
+			if (RK == SPR_Reservation_Key)
+				if (TYPE == SPR_EXCLUSIVE_ACCESS) {
+					SPR_Reservation_Type = TYPE;
+					break;
+				}
+		*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+		break;
+	case 2: /* RELEASE */
+		if (SPR_Reservation_Key)
+			if (RK == SPR_Reservation_Key)
+				if (TYPE == SPR_EXCLUSIVE_ACCESS) {
+					SPR_Reservation_Type = 0;
+					break;
+				}
+		*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+		break;
+	case 3: /* CLEAR */
+		if (!SPR_Reservation_Key && !SPR_Reservation_Key) {
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+		} else {
+			if (RK == SPR_Reservation_Key) {
+				SPR_Reservation_Key = 0UL;
+				SPR_Reservation_Type = 0;
+				SPR_Reservation_Generation++;
+			} else {
+				*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+			}
+		}
+		break;
+	case 4: /* PREEMT */
+	case 5: /* PREEMPT AND ABORT */
+		/* this is pretty weird,
+		 * in that we can only have a single key registered,
+		 * so preempt is pretty simplified */
+		if ((!SPR_Reservation_Key) && (!RK) && (!SARK)) {
+			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
+		} else {
+			if (SPR_Reservation_Type) {
+				if (SARK == SPR_Reservation_Key) {
+					SPR_Reservation_Key = RK;
+					SPR_Reservation_Type = TYPE;
+					SPR_Reservation_Generation++;
+				}
+			} else {
+				if (SARK == SPR_Reservation_Key) {
+					SPR_Reservation_Key = 0UL;
+					SPR_Reservation_Generation++;
+				}
+			}
+		}
+
+		break;
+	case 6: /* REGISTER AND IGNORE EXISTING KEY */
+		if (SPR_Reservation_Key) {
+			if (SARK) {
+				SPR_Reservation_Key = SARK;
+			} else {
+				SPR_Reservation_Key = 0UL;
+				SPR_Reservation_Type = 0;
+			}
+		} else {
+			SPR_Reservation_Key = SARK;
+		}
+		SPR_Reservation_Generation++;
+		break;
+	case 7: /* REGISTER AND MOVE */
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		break;
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		break;
+	}
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_WARNING,
+			"Reservation key now: 0x%.8x 0x%.8x\n",
+			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
+			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
+	return(0);
+}
+
+/*
+ * Process PERSITENT RESERVE IN scsi command
+ * Returns bytes to return if OK
+ *         or -1 on failure.
+ */
+int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
+{
+	u16 alloc_len;
+	u16 SA;
+	uint8_t *buf = dbuf_p->data;
+	uint8_t *sam_stat = &dbuf_p->sam_stat;
+
+	SA = cdb[1] & 0x1f;
+
+	alloc_len = get_unaligned_be16(&cdb[7]);
+
+	memset(buf, 0, alloc_len);	// Clear memory
+
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO, "%s: service action: %d\n",
+			__func__, SA);
+
+	switch(SA) {
+	case 0: /* READ KEYS */
+		put_unaligned_be32(SPR_Reservation_Generation, &buf[0]);
+		if (!SPR_Reservation_Key)
+			return(8);
+		buf[7] = 8;
+		put_unaligned_be64(SPR_Reservation_Key, &buf[8]);
+		return(16);
+	case 1: /* READ RESERVATON */
+		put_unaligned_be32(SPR_Reservation_Generation, &buf[0]);
+		if (!SPR_Reservation_Type)
+			return(8);
+		buf[7] = 16;
+		put_unaligned_be64(SPR_Reservation_Key, &buf[8]);
+		buf[21] = SPR_Reservation_Type;
+		return(24);
+	case 2: /* REPORT CAPABILITIES */
+		buf[1] = 8;
+		buf[2] = 0x10;
+		buf[3] = 0x80;
+		buf[4] = 0x08;
+		return(8);
+	case 3: /* READ FULL STATUS */
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		break;
+	}
+	return(0);
+}
+

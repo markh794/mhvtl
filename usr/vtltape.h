@@ -22,17 +22,15 @@
  */
 
 /* Block type definitations */
-#define B_UNCOMPRESS_DATA 1
-#define B_COMPRESSED_DATA 2
-#define B_FILEMARK	3
-#define B_BOT	4	// Beginning of Tape
-#define B_EOD	5	// End of data
-#define B_EOM_WARN 6	// End of Media - early warning
-#define B_EOM	7	// End of Media
-#define B_NOOP	8	// No Operation - fake it
-// #define B_CLEANING 9	// Cleaning cartridge
-#define B_WORM 10	// Write Once Read Many media type
-#define B_ENCRYPT 11	// Encrypted block
+#define B_DATA		11
+#define B_FILEMARK	 3
+#define B_BOT_V1	 4	// Beginning of Tape TAPE_FMT_VERSION 1
+#define B_BOT		14	// Beginning of Tape TAPE_FMT_VERSION 2
+#define B_EOD		 5	// End of data
+#define B_NOOP		 8	// No Operation - fake it
+
+#define BLKHDR_FLG_COMPRESSED 0x01
+#define BLKHDR_FLG_ENCRYPTED  0x02
 
 #define TAPE_FMT_VERSION	2
 
@@ -46,17 +44,48 @@
  *	prev_blk	-> Allow quick seek
  *	curr_blk	-> Allow quick seek
  *	next_blk	-> Allow quick seek
+ * encryption_key_length   -> what length was the key used to 'encrypt' this block
+ * encryption_ukad_length  -> what length was the ukad used to 'encrypt' this block
+ * encryption_akad_length  -> what length was the akad used to 'encrypt' this block
+ * encryption_key  -> what key was used to 'encrypt' this block
+ * encryption_ukad -> what ukad was used to 'encrypt' this block
+ * encryption_kkad -> what akad was used to 'encrypt' this block
  */
 struct blk_header {
 	uint32_t	blk_type;
 	uint32_t	blk_size;
 	uint32_t	disk_blk_size;
+	uint32_t	blk_flags;
 	loff_t		blk_number;
 	loff_t		prev_blk;
 	loff_t		curr_blk;
 	loff_t		next_blk;
+	uint32_t	unused;	/* Available */
+	uint32_t	encryption_key_length;
+	uint32_t	encryption_ukad_length;
+	uint32_t	encryption_akad_length;
+	uint8_t		encryption_key[32];
+	uint8_t		encryption_ukad[32];
+	uint8_t		encryption_akad[32];
+	/*
+	 * Add other things right here...
+	 * Be careful to keep data 64bit aligned
+	 */
+	/* Adjust pad to mantain a 512byte structure */
+	char		pad[352];
 };
 
 /* Default tape size specified in Mbytes */
 #define DEFAULT_TAPE_SZ 8000
 
+#define medium_density_code_lto1	0x40
+#define medium_density_code_lto2	0x42
+#define medium_density_code_lto3	0x44
+#define medium_density_code_lto4	0x46
+#define medium_density_code_j1a		0x51
+#define medium_density_code_e05		0x52
+#define medium_density_code_e06		0x53
+#define medium_density_code_ait4	0x33
+#define medium_density_code_10kA	0x4a
+#define medium_density_code_10kB	0x4b
+#define medium_density_code_600		0x40

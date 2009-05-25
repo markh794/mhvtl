@@ -97,7 +97,7 @@ struct scatterlist;
 #define WRITE_ATTRIBUTE 0x8d
 #define SECURITY_PROTOCOL_OUT 0xb5
 #define VTL_VERSION "0.16.0"
-static const char *vtl_version_date = "20090313-1";
+static const char *vtl_version_date = "20090526-0";
 
 /* Additional Sense Code (ASC) used */
 #define NO_ADDED_SENSE 0x0
@@ -161,13 +161,13 @@ static int vtl_add_lu = 0;
 static int vtl_cmnd_count = 0;
 
 struct vtl_lu_info {
-	struct list_head dev_list;
+	struct list_head lu_sibling;
 	unsigned char sense_buff[SENSE_BUF_SIZE];	/* weak nexus */
 	unsigned int channel;
 	unsigned int target;
 	unsigned int lun;
 	unsigned int minor;
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct scsi_device *sdev;
 
 	char reset;
@@ -175,24 +175,24 @@ struct vtl_lu_info {
 
 	struct semaphore lock;
 
-	struct list_head cmd_list;
+	struct list_head cmd_list; /* list of outstanding cmds for this lu */
 	spinlock_t cmd_list_lock;
 };
 
 static struct vtl_lu_info *devp[DEF_MAX_MINOR_NO];
 
-struct vtl_host_info {
-	struct list_head host_list;
+struct vtl_hba_info {
+	struct list_head hba_sibling; /* List of adapters */
+	struct list_head lu_list; /* List of lu */
 	struct Scsi_Host *shost;
 	struct device dev;
-	struct list_head dev_info_list;
 };
 
-#define to_vtl_host(d)	\
-	container_of(d, struct vtl_host_info, dev)
+#define to_vtl_hba(d) \
+	container_of(d, struct vtl_hba_info, dev)
 
-static LIST_HEAD(vtl_host_list);
-static spinlock_t vtl_host_list_lock = SPIN_LOCK_UNLOCKED;
+static LIST_HEAD(vtl_hba_list);	/* dll of adapters */
+static spinlock_t vtl_hba_list_lock = SPIN_LOCK_UNLOCKED;
 
 typedef void (* done_funct_t) (struct scsi_cmnd *);
 
@@ -411,35 +411,35 @@ static void debug_queued_list(struct vtl_lu_info *lu)
 			 __func__, k, (k == 1) ? "y" : "ies");
 }
 
-static struct vtl_host_info *get_vtl_host_entry(void)
+static struct vtl_hba_info *vtl_get_hba_entry(void)
 {
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 
-	spin_lock(&vtl_host_list_lock);
-	if (list_empty(&vtl_host_list)) {
-		spin_unlock(&vtl_host_list_lock);
+	spin_lock(&vtl_hba_list_lock);
+	if (list_empty(&vtl_hba_list)) {
+		spin_unlock(&vtl_hba_list_lock);
 		printk("mhvtl: %s host list empty... Can not add device\n",
 				__func__);
 		return NULL;
 	}
-	vtl_host = list_entry(vtl_host_list.prev,
-					struct vtl_host_info, host_list);
-	spin_unlock(&vtl_host_list_lock);
-	return vtl_host;
+	vtl_hba = list_entry(vtl_hba_list.prev,
+					struct vtl_hba_info, hba_sibling);
+	spin_unlock(&vtl_hba_list_lock);
+	return vtl_hba;
 }
 
 static void dump_queued_list(void)
 {
 	struct vtl_lu_info *lu;
 
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 
-	vtl_host = get_vtl_host_entry();
+	vtl_hba = vtl_get_hba_entry();
 
 	/* Now that the work list is split per lu, we have to check each
 	 * lu to see if we can find the serial number in question
 	 */
-	list_for_each_entry(lu, &vtl_host->dev_info_list, dev_list) {
+	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
 		printk("mhvtl: %s Channel %d, ID %d, LUN %d\n",
 				__func__, lu->channel, lu->target, lu->lun);
 		debug_queued_list(lu);
@@ -692,16 +692,16 @@ static void timer_intr_handler(unsigned long indx)
 	struct vtl_queued_cmd *sqcp;
 	struct vtl_lu_info *lu;
 
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 
-	vtl_host = get_vtl_host_entry();
-	if (!vtl_host)
+	vtl_hba = vtl_get_hba_entry();
+	if (!vtl_hba)
 		return;
 
 	/* Now that the work list is split per lu, we have to check each
 	 * lu to see if we can find the serial number in question
 	 */
-	list_for_each_entry(lu, &vtl_host->dev_info_list, dev_list) {
+	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
 		sqcp = lookup_sqcp(lu, indx);
 		if (sqcp)
 			break;
@@ -724,7 +724,7 @@ static void timer_intr_handler(unsigned long indx)
 
 static int vtl_slave_alloc(struct scsi_device *sdp)
 {
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu = (struct vtl_lu_info *)sdp->hostdata;
 
 	if (VTL_OPT_NOISE & vtl_opts)
@@ -734,13 +734,13 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 	if (lu)
 		return 0;
 
-	vtl_host = *(struct vtl_host_info **) sdp->host->hostdata;
-	if (!vtl_host) {
+	vtl_hba = *(struct vtl_hba_info **) sdp->host->hostdata;
+	if (!vtl_hba) {
 		printk(KERN_ERR "Host info NULL\n");
 		return -1;
 	}
 
-	list_for_each_entry(lu, &vtl_host->dev_info_list, dev_list) {
+	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
 		if ((!lu->device_offline) &&
 				(lu->channel == sdp->channel) &&
 				(lu->target == sdp->id) &&
@@ -794,19 +794,19 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 
 static struct vtl_lu_info *devInfoReg(struct scsi_device *sdp)
 {
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu = (struct vtl_lu_info *)sdp->hostdata;
 
 	if (lu)
 		return lu;
 
-	vtl_host = *(struct vtl_host_info **) sdp->host->hostdata;
-	if (!vtl_host) {
+	vtl_hba = *(struct vtl_hba_info **) sdp->host->hostdata;
+	if (!vtl_hba) {
 		printk(KERN_ERR "mhvtl: %s Host info NULL\n", __func__);
 		return NULL;
 	}
 
-	list_for_each_entry(lu, &vtl_host->dev_info_list, dev_list) {
+	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
 		if ((!lu->device_offline) &&
 				(lu->channel == sdp->channel) &&
 				(lu->target == sdp->id) &&
@@ -858,7 +858,7 @@ static int vtl_device_reset(struct scsi_cmnd *SCpnt)
 
 static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 {
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu;
 	struct scsi_device *sdp;
 	struct Scsi_Host *hp;
@@ -867,10 +867,10 @@ static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 		printk(KERN_INFO "mhvtl: bus_reset\n");
 	++num_bus_resets;
 	if (SCpnt && ((sdp = SCpnt->device)) && ((hp = sdp->host))) {
-		vtl_host = *(struct vtl_host_info **) hp->hostdata;
-		if (vtl_host) {
-			list_for_each_entry(lu, &vtl_host->dev_info_list,
-						dev_list)
+		vtl_hba = *(struct vtl_hba_info **) hp->hostdata;
+		if (vtl_hba) {
+			list_for_each_entry(lu, &vtl_hba->lu_list,
+						lu_sibling)
 			lu->reset = 1;
 		}
 	}
@@ -879,18 +879,18 @@ static int vtl_bus_reset(struct scsi_cmnd *SCpnt)
 
 static int vtl_host_reset(struct scsi_cmnd *SCpnt)
 {
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu;
 
 	if (VTL_OPT_NOISE & vtl_opts)
 		printk(KERN_INFO "mhvtl: host_reset\n");
 	++num_host_resets;
-	spin_lock(&vtl_host_list_lock);
-	list_for_each_entry(vtl_host, &vtl_host_list, host_list) {
-		list_for_each_entry(lu, &vtl_host->dev_info_list, dev_list)
+	spin_lock(&vtl_hba_list_lock);
+	list_for_each_entry(vtl_hba, &vtl_hba_list, hba_sibling) {
+		list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling)
 		lu->reset = 1;
 	}
-	spin_unlock(&vtl_host_list_lock);
+	spin_unlock(&vtl_hba_list_lock);
 	stop_all_queued();
 	return SUCCESS;
 }
@@ -925,12 +925,12 @@ static void stop_all_queued(void)
 {
 	unsigned long iflags;
 	struct vtl_queued_cmd *sqcp, *n;
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu;
 
-	vtl_host = get_vtl_host_entry();
+	vtl_hba = vtl_get_hba_entry();
 
-	list_for_each_entry(lu, &vtl_host->dev_info_list, dev_list) {
+	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
 		spin_lock_irqsave(&lu->cmd_list_lock, iflags);
 		list_for_each_entry_safe(sqcp, n, &lu->cmd_list, queued_sibling) {
 			if (sqcp->state && sqcp->a_cmnd) {
@@ -963,7 +963,7 @@ static int vtl_abort(struct scsi_cmnd *SCpnt)
 static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 {
 	struct Scsi_Host *hpnt;
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu;
 	int error = 0;
 
@@ -974,18 +974,18 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 		return error;
 	}
 
-	vtl_host = get_vtl_host_entry();
-	if (!vtl_host) {
+	vtl_hba = vtl_get_hba_entry();
+	if (!vtl_hba) {
 		if (VTL_OPT_NOISE & vtl_opts)
 			printk("mhvtl: %s vtl_ost_info struct is NULL\n",
 						__func__);
 		return -ENOTTY;
 	}
 	if (VTL_OPT_NOISE & vtl_opts)
-		printk("mhvtl: %s vtl_ost_info struct is %p\n",
-						__func__, vtl_host);
+		printk("mhvtl: %s vtl_hba_info struct is %p\n",
+						__func__, vtl_hba);
 
-	hpnt = vtl_host->shost;
+	hpnt = vtl_hba->shost;
 	if (!hpnt) {
 		if (VTL_OPT_NOISE & vtl_opts)
 			printk("mhvtl: %s scsi host structure is NULL\n",
@@ -1003,14 +1003,13 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 		return -ENOMEM;
 	}
 	memset(lu, 0, sizeof(*lu));
-	lu->vtl_host = vtl_host;
-	list_add_tail(&lu->dev_list, &vtl_host->dev_info_list);
+	list_add_tail(&lu->lu_sibling, &vtl_hba->lu_list);
 
 	lu->minor = minor;
 	lu->channel = ctl->channel;
 	lu->target = ctl->id;
 	lu->lun = ctl->lun;
-	lu->vtl_host = vtl_host;
+	lu->vtl_hba = vtl_hba;
 	lu->reset = 0;
 	lu->device_offline = 0;
 	lu->cmd_list_lock = SPIN_LOCK_UNLOCKED;
@@ -1041,7 +1040,6 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
  * of sysfs parameters (which module_param doesn't yet support).
  * Sysfs parameters defined explicitly below.
  */
-module_param_named(add_host, vtl_add_host, int, 0); /* perm=0644 */
 module_param_named(dsense, vtl_dsense, int, 0);
 module_param_named(every_nth, vtl_every_nth, int, 0);
 module_param_named(max_luns, vtl_max_luns, int, 0);
@@ -1055,7 +1053,6 @@ MODULE_DESCRIPTION("SCSI vtl adapter driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VTL_VERSION);
 
-MODULE_PARM_DESC(add_host, "0..127 hosts allowed(def=1)");
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def: fixed)");
 MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
 MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
@@ -1240,43 +1237,6 @@ static ssize_t vtl_scsi_level_show(struct device_driver *ddp, char *buf)
 }
 DRIVER_ATTR(scsi_level, S_IRUGO, vtl_scsi_level_show, NULL);
 
-static ssize_t vtl_add_host_show(struct device_driver *ddp, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_add_host);
-}
-
-static ssize_t vtl_add_host_store(struct device_driver *ddp,
-				     const char *buf, size_t count)
-{
-	int delta_hosts;
-	char work[20];
-
-	if (1 != sscanf(buf, "%10s", work))
-		return -EINVAL;
-	{	/* temporary hack around sscanf() problem with -ve nums */
-		int neg = 0;
-
-		if ('-' == *work)
-			neg = 1;
-		if (1 != sscanf(work + neg, "%d", &delta_hosts))
-			return -EINVAL;
-		if (neg)
-			delta_hosts = -delta_hosts;
-	}
-	if (delta_hosts > 0) {
-		do {
-			vtl_add_adapter();
-		} while (--delta_hosts);
-	} else if (delta_hosts < 0) {
-		do {
-			vtl_remove_adapter();
-		} while (++delta_hosts);
-	}
-	return count;
-}
-DRIVER_ATTR(add_host, S_IRUGO | S_IWUSR, vtl_add_host_show, 
-	    vtl_add_host_store);
-
 static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
@@ -1309,7 +1269,6 @@ static int do_create_driverfs_files(void)
 {
 	int	ret;
 	ret = driver_create_file(&vtl_driverfs_driver, &driver_attr_add_lu);
-	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_add_host);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_every_nth);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
@@ -1325,15 +1284,13 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_every_nth);
-	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_host);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_lu);
 }
 
 static int __init vtl_init(void)
 {
 	int host_to_add;
-	int k;
-	int	ret;
+	int ret;
 
 	memset(&devp, 0, sizeof(devp));
 
@@ -1369,12 +1326,9 @@ static int __init vtl_init(void)
 	host_to_add = vtl_add_host;
 	vtl_add_host = 0;
 
-	for (k = 0; k < host_to_add; k++) {
-		if (vtl_add_adapter()) {
-			printk(KERN_ERR "%s: vtl_add_adapter failed k=%d\n",
-					__func__, k);
-			break;
-		}
+	if (vtl_add_adapter()) {
+		printk(KERN_ERR "mhvtl: %s vtl_add_adapter failed\n", __func__);
+		goto del_files;
 	}
 
 	if (VTL_OPT_NOISE & vtl_opts) {
@@ -1435,119 +1389,94 @@ static struct bus_type pseudo_lld_bus = {
 
 static void vtl_release_adapter(struct device *dev)
 {
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 
-	vtl_host = to_vtl_host(dev);
-	kfree(vtl_host);
+	vtl_hba = to_vtl_hba(dev);
+	kfree(vtl_hba);
 }
 
+/* Simplified from original.
+ *
+ * Changed so it only adds one hba instance and no logical units
+ */
 static int vtl_add_adapter(void)
 {
-	int k, devs_per_host;
 	int error = 0;
-	struct vtl_host_info *vtl_host;
-	struct vtl_lu_info *lu;
-	struct list_head *lh, *lh_sf;
+	struct vtl_hba_info *vtl_hba;
 
-	vtl_host = kmalloc(sizeof(*vtl_host), GFP_KERNEL);
+	vtl_hba = kmalloc(sizeof(*vtl_hba), GFP_KERNEL);
 
-	if (NULL == vtl_host) {
+	if (!vtl_hba) {
 		printk(KERN_ERR "%s: out of memory at line %d\n",
 						__func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	memset(vtl_host, 0, sizeof(*vtl_host));
-	INIT_LIST_HEAD(&vtl_host->dev_info_list);
+	memset(vtl_hba, 0, sizeof(*vtl_hba));
+	INIT_LIST_HEAD(&vtl_hba->lu_list);
 
-/* For now, don't add any targets/luns as the user-daemons will do this
- * when they start up
- */
-	devs_per_host = 0;
-	for (k = 0; k < devs_per_host; k++) {
-		lu = kmalloc(sizeof(*lu), GFP_KERNEL);
-		if (NULL == lu) {
-			printk(KERN_ERR "%s: out of memory at line %d\n",
-						__func__, __LINE__);
-			error = -ENOMEM;
-			goto clean;
-		}
-		memset(lu, 0, sizeof(*lu));
-		lu->vtl_host = vtl_host;
-		list_add_tail(&lu->dev_list, &vtl_host->dev_info_list);
+	spin_lock(&vtl_hba_list_lock);
+	list_add_tail(&vtl_hba->hba_sibling, &vtl_hba_list);
+	spin_unlock(&vtl_hba_list_lock);
+
+	vtl_hba->dev.bus = &pseudo_lld_bus;
+	vtl_hba->dev.parent = &pseudo_primary;
+	vtl_hba->dev.release = &vtl_release_adapter;
+	sprintf(vtl_hba->dev.bus_id, "adapter%d", vtl_add_host);
+
+	error = device_register(&vtl_hba->dev);
+	if (error) {
+		kfree(vtl_hba);
+		return error;
 	}
 
-	spin_lock(&vtl_host_list_lock);
-	list_add_tail(&vtl_host->host_list, &vtl_host_list);
-	spin_unlock(&vtl_host_list_lock);
-
-	vtl_host->dev.bus = &pseudo_lld_bus;
-	vtl_host->dev.parent = &pseudo_primary;
-	vtl_host->dev.release = &vtl_release_adapter;
-	sprintf(vtl_host->dev.bus_id, "adapter%d", vtl_add_host);
-
-	error = device_register(&vtl_host->dev);
-
-	if (error)
-		goto clean;
-
-	++vtl_add_host;
-	return error;
-
-clean:
-	list_for_each_safe(lh, lh_sf, &vtl_host->dev_info_list) {
-		lu = list_entry(lh, struct vtl_lu_info, dev_list);
-		list_del(&lu->dev_list);
-		kfree(lu);
-	}
-
-	kfree(vtl_host);
+	vtl_add_host++;
 	return error;
 }
 
 static void vtl_remove_adapter(void)
 {
-	struct vtl_host_info *vtl_host = NULL;
+	struct vtl_hba_info *vtl_hba = NULL;
 
-	spin_lock(&vtl_host_list_lock);
-	if (!list_empty(&vtl_host_list)) {
-		vtl_host = list_entry(vtl_host_list.prev,
-					struct vtl_host_info, host_list);
-		list_del(&vtl_host->host_list);
+	spin_lock(&vtl_hba_list_lock);
+	if (!list_empty(&vtl_hba_list)) {
+		vtl_hba = list_entry(vtl_hba_list.prev,
+					struct vtl_hba_info, hba_sibling);
+		list_del(&vtl_hba->hba_sibling);
 	}
-	spin_unlock(&vtl_host_list_lock);
+	spin_unlock(&vtl_hba_list_lock);
 
-	if (!vtl_host)
+	if (!vtl_hba)
 		return;
 
-	device_unregister(&vtl_host->dev);
+	device_unregister(&vtl_hba->dev);
 	--vtl_add_host;
 }
 
 static int vtl_driver_probe(struct device *dev)
 {
 	int error = 0;
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct Scsi_Host *hpnt;
 
-	vtl_host = to_vtl_host(dev);
+	vtl_hba = to_vtl_hba(dev);
 
-	hpnt = scsi_host_alloc(&vtl_driver_template, sizeof(vtl_host));
+	hpnt = scsi_host_alloc(&vtl_driver_template, sizeof(*vtl_hba));
 	if (NULL == hpnt) {
 		printk(KERN_ERR "%s: scsi_register failed\n", __func__);
 		error = -ENODEV;
 		return error;
 	}
 
-	vtl_host->shost = hpnt;
-	*((struct vtl_host_info **)hpnt->hostdata) = vtl_host;
+	vtl_hba->shost = hpnt;
+	*((struct vtl_hba_info **)hpnt->hostdata) = vtl_hba;
 	if ((hpnt->this_id >= 0) && (vtl_num_tgts > hpnt->this_id))
 		hpnt->max_id = vtl_num_tgts + 1;
 	else
 		hpnt->max_id = vtl_num_tgts;
 	hpnt->max_lun = vtl_max_luns;
 
-	error = scsi_add_host(hpnt, &vtl_host->dev);
+	error = scsi_add_host(hpnt, &vtl_hba->dev);
 	if (error) {
 		printk(KERN_ERR "%s: scsi_add_host failed\n", __func__);
 		error = -ENODEV;
@@ -1561,38 +1490,38 @@ static int vtl_driver_probe(struct device *dev)
 static int vtl_driver_remove(struct device *dev)
 {
 	struct list_head *lh, *lh_sf;
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu;
 
-	vtl_host = to_vtl_host(dev);
+	vtl_hba = to_vtl_hba(dev);
 
-	if (!vtl_host) {
+	if (!vtl_hba) {
 		printk(KERN_ERR "%s: Unable to locate host info\n", __func__);
 		return -ENODEV;
 	}
 
-	scsi_remove_host(vtl_host->shost);
+	scsi_remove_host(vtl_hba->shost);
 
-	list_for_each_safe(lh, lh_sf, &vtl_host->dev_info_list) {
+	list_for_each_safe(lh, lh_sf, &vtl_hba->lu_list) {
 		lu = list_entry(lh, struct vtl_lu_info,
-					dev_list);
-		list_del(&lu->dev_list);
+					lu_sibling);
+		list_del(&lu->lu_sibling);
 		kfree(lu);
 	}
 
-	scsi_host_put(vtl_host->shost);
-	vtl_host->shost = NULL;
+	scsi_host_put(vtl_hba->shost);
+	vtl_hba->shost = NULL;
 	return 0;
 }
 
 static void vtl_max_tgts_luns(void)
 {
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct Scsi_Host *hpnt;
 
-	spin_lock(&vtl_host_list_lock);
-	list_for_each_entry(vtl_host, &vtl_host_list, host_list) {
-		hpnt = vtl_host->shost;
+	spin_lock(&vtl_hba_list_lock);
+	list_for_each_entry(vtl_hba, &vtl_hba_list, hba_sibling) {
+		hpnt = vtl_hba->shost;
 		if ((hpnt->this_id >= 0) &&
 		    (vtl_num_tgts > hpnt->this_id))
 			hpnt->max_id = vtl_num_tgts + 1;
@@ -1600,7 +1529,7 @@ static void vtl_max_tgts_luns(void)
 			hpnt->max_id = vtl_num_tgts;
 		hpnt->max_lun = vtl_max_luns;
 	}
-	spin_unlock(&vtl_host_list_lock);
+	spin_unlock(&vtl_hba_list_lock);
 }
 
 /*
@@ -1716,7 +1645,7 @@ give_up:
 static int vtl_remove_lu(int minor, char __user *arg)
 {
 	struct vtl_ctl ctl;
-	struct vtl_host_info *vtl_host;
+	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu, *n;
 	int ret = -ENODEV;
 
@@ -1726,17 +1655,18 @@ static int vtl_remove_lu(int minor, char __user *arg)
 	}
 	printk("mhvtl: ioctl to remove device <c t l> <%02d %02d %02d>\n",
 				ctl.channel, ctl.id, ctl.lun);
-	vtl_host = get_vtl_host_entry();
+	vtl_hba = vtl_get_hba_entry();
 
-	list_for_each_entry_safe(lu, n, &vtl_host->dev_info_list, dev_list) {
+	list_for_each_entry_safe(lu, n, &vtl_hba->lu_list, lu_sibling) {
 		if ((lu->channel == ctl.channel) && (lu->target == ctl.id) &&
 						(lu->lun == ctl.lun)) {
 			if (VTL_OPT_NOISE & vtl_opts)
 				printk("mhvtl: %s line %d found matching lu\n",
 					__func__, __LINE__);
-			scsi_remove_device(lu->sdev);
-			list_del(&lu->dev_list);
+			list_del(&lu->lu_sibling);
 			devp[minor] = NULL;
+			scsi_remove_device(lu->sdev);
+			scsi_device_put(lu->sdev);
 		}
 	}
 

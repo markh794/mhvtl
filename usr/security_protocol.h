@@ -18,7 +18,7 @@
 
 /*
  * Security Association
- * 	spc4r14 5.13.2
+ *	spc4r14 5.13.2
  */
 struct sa {
 	uint32_t ac_sai;

@@ -51,7 +51,7 @@ void usage(char *progname) {
 static unsigned int set_params(struct MAM *mam, char *density)
 {
 	if (!(strncmp(density, "LTO1", 4))) {
-		mam->MediumDensityCode = 0x40;
+		mam->MediumDensityCode = medium_density_code_lto1;
 		mam->MediumLength = htonl(384);	// 384 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 1/8T", 12);
@@ -60,7 +60,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->media_info.bits_per_mm = htonl(4880);
 	}
 	if (!(strncmp(density, "LTO2", 4))) {
-		mam->MediumDensityCode = 0x42;
+		mam->MediumDensityCode = medium_density_code_lto2;
 		mam->MediumLength = htonl(512);	// 512 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 2/8T", 12);
@@ -69,7 +69,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->media_info.bits_per_mm = htonl(7398);
 	}
 	if (!(strncmp(density, "LTO3", 4))) {
-		mam->MediumDensityCode = 0x44;
+		mam->MediumDensityCode = medium_density_code_lto3;
 		mam->MediumLength = htonl(704);	// 704 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 3/8T", 12);
@@ -78,7 +78,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		mam->media_info.bits_per_mm = htonl(9638);
 	}
 	if (!(strncmp(density, "LTO4", 4))) {
-		mam->MediumDensityCode = 0x46;
+		mam->MediumDensityCode = medium_density_code_lto4;
 		mam->MediumLength = htonl(896);	// 896 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 4/8T", 12);
@@ -182,8 +182,8 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case 'V':
-				printf("%s: version %s\n",
-						progname, mktapeVersion);
+				printf("%s: version %s\n\n",
+						progname, MHVTL_VERSION);
 				break;
 			case 'v':
 				verbose++;
@@ -229,9 +229,9 @@ int main(int argc, char *argv[])
 	mam.max_capacity = htonll(size * 1048576);
 
 	set_params(&mam, density);
-	mam.MAMSpaceRemaining = htonll(sizeof(mam.VendorUnique));
+	mam.MAMSpaceRemaining = htonll(sizeof(mam.pad));
 	memcpy(&mam.MediumManufacturer, "VERITAS ", 8);
-	memcpy(&mam.ApplicationVendor, "Harvey  ", 8);
+	memcpy(&mam.ApplicationVendor, "vtl-0.16", 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (! strncmp("clean", mediaType, 5)) {

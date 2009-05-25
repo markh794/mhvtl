@@ -43,3 +43,11 @@ struct vtl_ctl {
 	unsigned int id;
 	unsigned int lun;
 };
+
+#if !defined(FALSE)
+  #define FALSE 0
+#endif
+
+#if !defined(TRUE)
+  #define TRUE 1
+#endif

@@ -26,8 +26,8 @@
  * See comments in vtltape.c for a more complete version release...
  *
  * 0.14 13 Feb 2008
- * 	Since ability to define device serial number, increased ver from
- * 	0.12 to 0.14
+ *	Since ability to define device serial number, increased ver from
+ *	0.12 to 0.14
  *
  * v0.12 -> Forked into 'stable' (0.12) and 'devel' (0.13).
  *          My current thinking : This is a dead end anyway.
@@ -35,8 +35,6 @@
  *          This means I don't have to do any kernel level drivers
  *          and leaverage the hosts native iSCSI initiator.
  */
-
-static const char *Version = "$Id: vtllibrary.c 2008-11-26 19:35:01 markh Exp $";
 
 #include <unistd.h>
 #include <stdio.h>
@@ -57,6 +55,7 @@ static const char *Version = "$Id: vtllibrary.c 2008-11-26 19:35:01 markh Exp $"
 #include "q.h"
 #include "vx.h"
 #include "vxshared.h"
+#include "spc.h"
 
 /*
  * Define DEBUG to 0 and recompile to remove most debug messages.
@@ -98,6 +97,10 @@ static int num_map = 0x0020;
 #define START_STORAGE	0x0400
 static int num_storage = 0x0800;
 
+uint32_t SPR_Reservation_Generation;
+uint8_t SPR_Reservation_Type;
+uint64_t SPR_Reservation_Key;
+
 // Element type codes
 #define ANY			0
 #define MEDIUM_TRANSPORT	1
@@ -114,7 +117,7 @@ static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 
-struct lu_phy_attr lu;
+struct lu_phy_attr lunit;
 
 // If I leave this as 'static struct', the I get a gcc warning
 // " warning: useless storage class specifier in empty declaration"
@@ -141,19 +144,17 @@ struct s_info { /* Slot Info */
 // internal_status definitions:
 #define INSTATUS_NO_BARCODE 0x01
 
-// If I leave this as 'static struct', the I get a gcc warning
-// " warning: useless storage class specifier in empty declaration"
-// static struct d_info {	/* Drive Info */
-struct d_info {	/* Drive Info */
+/* Drive Info */
+struct d_info {
 	char inq_vendor_id[8];
 	char inq_product_id[16];
 	char inq_product_rev[4];
 	char inq_product_sno[10];
-	char online;		// Physical status of drive
+	char online;		/* Physical status of drive */
 	int SCSI_BUS;
 	int SCSI_ID;
 	int SCSI_LUN;
-	char tapeLoaded;	// Tape is 'loaded' by drive
+	char tapeLoaded;	/* Tape is 'loaded' by drive */
 	struct s_info *slot;
 };
 
@@ -165,11 +166,10 @@ static struct s_info *picker_info;
 /* Log pages */
 static struct Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
-	{ 0x00, 0x00, 0x60, 0x02, }, 0x00, 	// Temperature
+	{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	/* Temperature */
 	};
 
 static struct TapeAlert_page TapeAlert;
-
 
 /*
  * Mode Pages defined for SMC-3 devices..
@@ -1407,8 +1407,8 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
  * Process the SCSI command
  *
  * Called with:
- * 	cdev     -> Char dev file handle,
- * 	cdb    -> SCSI Command buffer pointer,
+ *	cdev     -> Char dev file handle,
+ *	cdb    -> SCSI Command buffer pointer,
  *	struct vtl_ds -> general purpose data structure... Need better name
  *
  * Return:
@@ -1439,7 +1439,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case INQUIRY:
-		ret += spc_inquiry(cdb, dbuf_p, &lu);
+		ret += spc_inquiry(cdb, dbuf_p, &lunit);
 		break;
 
 	case LOG_SELECT:	// Set or reset LOG stats.
@@ -2209,7 +2209,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	struct vpd **lu_vpd = lu->lu_vpd;
 	int pg;
-	uint8_t TapeAlert[8] =
+	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	char *config="/etc/vtl/device.conf";
@@ -2330,7 +2330,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
 	if (lu_vpd[pg]) {
 		lu_vpd[pg]->vpd_update = update_vpd_b2;
-		lu_vpd[pg]->vpd_update(lu, &TapeAlert);
+		lu_vpd[pg]->vpd_update(lu, &local_TapeAlert);
 	} else
 		syslog(LOG_DAEMON|LOG_WARNING,
 			"%s: could not malloc(%d) line %d\n",
@@ -2455,9 +2455,9 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, Version);
+	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, MHVTL_VERSION);
 	if (verbose) {
-		printf("%s: version %s\n", progname, Version);
+		printf("%s: version %s\n", progname, MHVTL_VERSION);
 		syslog(LOG_DAEMON|LOG_INFO, "verbose: %d\n", verbose);
 	}
 
@@ -2469,7 +2469,7 @@ int main(int argc, char *argv[])
 	init_mode_pages(sm);
 	initTapeAlert(&TapeAlert);
 	/* One of these days, we will support multiple libraries */
-	if (!init_lu(&lu, q_priority - LIBRARY_Q, &ctl)) {
+	if (!init_lu(&lunit, q_priority - LIBRARY_Q, &ctl)) {
 		printf("Can not find entry for '%d' in config file\n", minor);
 		exit(1);
 	}

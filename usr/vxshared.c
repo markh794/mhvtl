@@ -207,11 +207,6 @@ return(retval);
 
 void resp_allow_prevent_removal(u8 *cdb, u8 *sam_stat)
 {
-
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "%s",
-				(cdb[4]) ? "Prevent MEDIUM removal **" :
-					 "Allow MEDIUM Removal **");
 	if (debug)
 		printf("%s\n",
 			(cdb[4]) ? "Prevent MEDIUM removal **" :
@@ -595,7 +590,9 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 {
 	if (verbose > 1)
 		syslog(LOG_DAEMON|LOG_INFO,
-				"Setting TapeAlert flags 0x%" PRIx64 "\n", flg);
+			"Setting TapeAlert flags 0x%.8x %.8x\n",
+				(uint32_t)(flg >> 32) & 0xffffffff,
+				(uint32_t)flg & 0xffffffff);
 
 	int a;
 	for (a = 0; a < 64; a++) {
@@ -616,7 +613,7 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
 {
 	if (verbose > 2)
 		syslog(LOG_DAEMON|LOG_INFO,
-			"retrieving %d bytes from char dev\n", ds->sz);
+			"retrieving %d bytes from kernel\n", ds->sz);
 	ioctl(cdev, VTL_GET_DATA, ds);
 	return ds->sz;
 }
@@ -828,7 +825,7 @@ int chrdev_open(char *name, uint8_t minor)
  */
 int oom_adjust(void)
 {
-	int fd, err;
+	int fd, ret;
 	char path[64];
 
 	/* Avoid oom-killer */
@@ -840,8 +837,8 @@ int oom_adjust(void)
 				path);
 		return 0;
 	}
-	err = write(fd, "-17\n", 4);
-	if (err < 0) {
+	ret = write(fd, "-17\n", 4);
+	if (ret < 0) {
 		syslog(LOG_DAEMON|LOG_WARNING,
 				"Can't adjust oom-killer's pardon %s, %m\n",
 				path);

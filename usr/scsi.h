@@ -197,5 +197,8 @@
 /* Data Protect */
 #define E_WRITE_PROTECT			0x2700
 #define E_MEDIUM_OVERWRITE_ATTEMPTED	0x300c
+#define E_UNABLE_TO_DECRYPT		0x7401
+#define E_UNENCRYPTED_DATA		0x7402
+#define E_INCORRECT_KEY			0x7403
 
 #endif

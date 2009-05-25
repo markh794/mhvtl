@@ -202,7 +202,7 @@ struct mode {
  */
 struct MAM {
 	uint32_t tape_fmt_version;
-	uint8_t spare;
+	uint32_t mam_fmt_version;
 
 	uint64_t remaining_capacity;
 	uint64_t max_capacity;
@@ -210,7 +210,6 @@ struct MAM {
 	uint64_t LoadCount;
 	uint64_t MAMSpaceRemaining;
 	uint8_t AssigningOrganization_1[8];
-	uint8_t FormattedDensityCode;
 	uint8_t InitializationCount[2];
 	uint8_t DevMakeSerialLastLoad[40];
 	uint8_t DevMakeSerialLastLoad1[40];
@@ -226,10 +225,11 @@ struct MAM {
 	uint32_t MediumLength;
 	uint32_t MediumWidth;
 	uint8_t AssigningOrganization_2[8];
-	uint8_t MediumDensityCode;
 	uint8_t MediumManufactureDate[12];
-	uint64_t MAMCapacity;
+	uint8_t FormattedDensityCode;
+	uint8_t MediumDensityCode;
 	uint8_t MediumType;	// 0 -> Data, 1 -> WORM, 6 -> Clean
+	uint64_t MAMCapacity;
 	uint16_t MediumTypeInformation;	// If Clean, max mount
 
 	uint8_t ApplicationVendor[8];
@@ -243,6 +243,7 @@ struct MAM {
 	uint8_t MediaPool[160];
 
 	uint8_t record_dirty; /* 0 = Record clean, non-zero umount failed. */
+	uint16_t Flags;
 
 	struct uniq_media_info {
 		uint32_t bits_per_mm;
@@ -251,9 +252,12 @@ struct MAM {
 		char description[32];
 	} media_info;
 
-	uint8_t VendorUnique[256];
+	/* Pad to keep MAM to 1024 bytes */
+	uint8_t pad[1024 - 888];
 
 };
+
+#define MAM_FLAGS_ENCRYPTION_FORMAT 0x0001
 
 struct lu_phy_attr;
 
@@ -266,10 +270,28 @@ struct vpd {
 	uint8_t data[0];
 };
 
+enum drive_type_list {
+	drive_undefined,
+	drive_LTO1,
+	drive_LTO2,
+	drive_LTO3,
+	drive_LTO4,
+	drive_3592_J1A,
+	drive_3592_E05,
+	drive_3592_E06,
+	drive_AIT4,
+	drive_10K_A,
+	drive_10K_B,
+	drive_SDLT600,
+	drive_UNKNOWN /* Always last */
+};
+
 /* Logical Unit information */
 struct lu_phy_attr {
 	char ptype;
 	char removable;
+	uint8_t drive_type;
+	int drive_native_write_density[drive_UNKNOWN + 1];
 	char vendor_id[VENDOR_ID_LEN + 1];
 	char product_id[PRODUCT_ID_LEN + 1];
 	char product_rev[PRODUCT_REV_LEN + 1];
@@ -308,6 +330,5 @@ int resp_a4_service_action(uint8_t *cdb, uint8_t *sam_stat);
 int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sam_stat);
 int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat);
 
-int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu);
 struct vpd *alloc_vpd(uint16_t sz);
 pid_t add_lu(int minor, struct vtl_ctl *ctl);

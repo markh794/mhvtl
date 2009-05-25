@@ -8,14 +8,24 @@
 # 	all 	to build all utilities
 # 	clean	to clean up all intermediate files
 #
+VER = $(shell grep Version ../mhvtl.spec|awk '{print $$2}')
+REL = $(shell grep Release ../mhvtl.spec|awk '{print $$2}')
 
-CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
+VERSION = $(VER).$(REL)
+EXTRAVERSION =  $(if $(shell git-show-ref 2>/dev/null),-git-$(shell git-show-ref --head --abbrev|head -1|awk '{print $$1}'))
+
+# CFLAGS=-Wall -Wshadow -pg -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
+CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
+CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
+
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary
 
-libvtlscsi.so:	vxshared.c spc.c vx.h vxshared.h scsi.h ../kernel/vtl_common.h
+libvtlscsi.so:	vxshared.c spc.c vx.h vxshared.h scsi.h \
+		be_byteshift.h \
+		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic vxshared.c
 	$(CC) $(CFLAGS) -c -fpic spc.c
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vxshared.o spc.o
@@ -32,10 +42,14 @@ dump_tape:	dump_tape.o vx.h vtltape.h scsi.h ../kernel/vtl_common.h
 mktape:	mktape.o vtltape.h q.h vx.h vxshared.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o mktape mktape.o
 
-vtllibrary:	vtllibrary.o q.h vx.h vxshared.o vxshared.h scsi.h ../kernel/vtl_common.h
+vtllibrary:	vtllibrary.o q.h vx.h vxshared.o vxshared.h scsi.h \
+		be_byteshift.h \
+		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
 
-vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h ../kernel/vtl_common.h
+vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h \
+		be_byteshift.h \
+		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o -L. -lz -lvtlscsi
 
 clean:

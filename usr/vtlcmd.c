@@ -24,8 +24,6 @@
  *
  */
 
-static const char *Version = "$Id: vtlcmd.c 2008-02-14 19:58:44 markh Exp $";
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -35,7 +33,7 @@ static const char *Version = "$Id: vtlcmd.c 2008-02-14 19:58:44 markh Exp $";
 void
 usage(char *progname) {
 	fprintf(stderr, "Usage: %s DriveNo. <command>\n", progname);
-	fprintf(stderr, "       %s\n", Version);
+	fprintf(stderr, "       version: %s\n\n", MHVTL_VERSION);
 	fprintf(stderr, "       Where 'DriveNo' is the messageQ number"
 			" associated with tape daemon\n");
 	fprintf(stderr, "       Where 'command' can be:\n");
