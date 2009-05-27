@@ -2200,6 +2200,7 @@ int valid_encryption_blk(uint8_t *sam_stat)
 				if (c_pos.encryption_ukad_length != UKAD_LENGTH) {
 					mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY, sam_stat);
 					correct_key = FALSE;
+					return correct_key;
 				}
 				for (i = 0; i < c_pos.encryption_ukad_length; ++i) {
 					if (c_pos.encryption_ukad[i] != UKAD[i]) {
@@ -2209,7 +2210,7 @@ int valid_encryption_blk(uint8_t *sam_stat)
 						break;
 					}
 				}
-			}
+			} /* End if STK 10K */
 		} else {
 			mkSenseBuf(DATA_PROTECT, E_UNABLE_TO_DECRYPT, sam_stat);
 			correct_key = FALSE;
