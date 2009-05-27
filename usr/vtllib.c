@@ -36,7 +36,7 @@
 #include "scsi.h"
 #include "q.h"
 #include "vtl_common.h"
-#include "vxshared.h"
+#include "vtllib.h"
 
 #ifndef Solaris
 	int ioctl(int, int, void *);

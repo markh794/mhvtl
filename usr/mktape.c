@@ -16,7 +16,7 @@
 #include <inttypes.h>
 #include "vtl_common.h"
 #include "vtltape.h"
-#include "vxshared.h"
+#include "vtllib.h"
 
 const char *mktapeVersion = "$Id: mktape.c 2008-02-14 19:58:44 markh Exp $";
 

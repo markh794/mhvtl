@@ -31,7 +31,7 @@
 #include <inttypes.h>
 #include "scsi.h"
 #include "vtl_common.h"
-#include "vxshared.h"
+#include "vtllib.h"
 #include "vtltape.h"
 
 #ifndef Solaris

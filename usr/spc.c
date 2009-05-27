@@ -37,7 +37,7 @@
 #include "be_byteshift.h"
 #include "scsi.h"
 #include "vtl_common.h"
-#include "vxshared.h"
+#include "vtllib.h"
 
 /*
  * Define DEBUG to 0 and recompile to remove most debug messages.

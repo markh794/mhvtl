@@ -53,7 +53,7 @@
 #include "vtl_common.h"
 #include "scsi.h"
 #include "q.h"
-#include "vxshared.h"
+#include "vtllib.h"
 #include "spc.h"
 
 /*

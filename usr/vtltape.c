@@ -64,7 +64,7 @@
 #include "scsi.h"
 #include "q.h"
 #include "vtltape.h"
-#include "vxshared.h"
+#include "vtllib.h"
 #include "spc.h"
 
 /* Variables for simple, single initiator, SCSI Reservation system */
