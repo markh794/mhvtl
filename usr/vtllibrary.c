@@ -55,6 +55,7 @@
 #include "q.h"
 #include "vtllib.h"
 #include "spc.h"
+#include "be_byteshift.h"
 
 /*
  * Define DEBUG to 0 and recompile to remove most debug messages.
@@ -230,19 +231,24 @@ static void decode_element_status(uint8_t *p)
 	int len;
 
 	printf("Element Status Data\n");
-	printf("  First element reported       : %d\n", (p[0] << 8) | p[1]);
-	printf("  Number of elements available : %d\n", (p[2] << 8) | p[3]);
+	printf("  First element reported       : %d\n",
+					get_unaligned_be16(&p[0]));
+	printf("  Number of elements available : %d\n",
+					get_unaligned_be16(&p[2]));
 	printf("  Byte count of report         : %d\n",
-				(p[5] << 16) | (p[6] << 8) | p[7]);
+					get_unaligned_be24(&p[5]));
 	printf("Element Status Page\n");
 	printf("  Element Type code            : %d\n", p[8]);
-	printf("  Primary Vol Tag              : %s\n", (p[9] & 0x80) ? "Yes" : "No");
+	printf("  Primary Vol Tag              : %s\n",
+					(p[9] & 0x80) ? "Yes" : "No");
 	voltag = (p[9] & 0x80) ? 1 : 0;
-	printf("  Alt Vol Tag                  : %s\n", (p[9] & 0x40) ? "Yes" : "No");
-	printf("  Element descriptor length    : %d\n", (p[10] << 8) | p[11]);
+	printf("  Alt Vol Tag                  : %s\n",
+					(p[9] & 0x40) ? "Yes" : "No");
+	printf("  Element descriptor length    : %d\n",
+					get_unaligned_be16(&p[10]));
 	printf("  Byte count of descriptor data: %d\n",
-				(p[13] << 16) | (p[14] << 8) | p[15]);
-	len = (p[13] << 16) | (p[14] << 8) | p[15];
+					get_unaligned_be24(&p[13]));
+	len = get_unaligned_be24(&p[13]);
 
 	printf("Element Descriptor(s)\n");
 	dump_element_desc(&p[16], voltag, len);
@@ -591,14 +597,10 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 	int dest_addr;
 	int maxDrive = START_DRIVE + num_drives;
 	int retVal = 0;	// Return a success status
-	uint16_t *sp;
 
-	sp = (uint16_t *)&cmd[2];
-	transport_addr = ntohs(*sp);
-	sp = (uint16_t *)&cmd[4];
-	src_addr  = ntohs(*sp);
-	sp = (uint16_t *)&cmd[6];
-	dest_addr = ntohs(*sp);
+	transport_addr = get_unaligned_be16(&cmd[2]);
+	src_addr  = get_unaligned_be16(&cmd[4]);
+	dest_addr = get_unaligned_be16(&cmd[6]);
 
 	if (verbose) {
 		if (cmd[11] && 0xc0)
@@ -668,12 +670,10 @@ return(retVal);
 static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
 {
 	int j = 0;
-	uint16_t *sp;
 
 	if (debug)
 		printf("Slot location: %d\n", s->slot_location);
-	sp = (uint16_t *)&p[j];
-	*sp = htons(s->slot_location);
+	put_unaligned_be16(s->slot_location, &p[j]);
 	j += 2;
 	p[j++] = s->status;
 	p[j++] = 0;	/* Reserved */
@@ -690,8 +690,7 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
 	p[j++] |= (s->cart_type & 0x0f);
 
 	/* Source Storage Element Address */
-	sp = (uint16_t *)&p[j];
-	*sp = htons(s->last_location);
+	put_unaligned_be16(s->last_location, &p[j]);
 	j += 2;
 
 	if (voltag) {
@@ -745,10 +744,8 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 	int j = 0;
 	int m;
 	char s[128];
-	uint16_t *sp;
 
-	sp = (uint16_t *)&p[j];
-	*sp = htons(d->slot->slot_location);
+	put_unaligned_be16(d->slot->slot_location, &p[j]);
 	j+=2;
 	p[j++] = d->slot->status;
 	p[j++] = 0;	/* Reserved */
@@ -776,8 +773,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		p[j++] = 0x80;
 
 		/* Source Storage Element Address */
-		sp = (uint16_t *)&p[j];
-		*sp = htons(d->slot->last_location);
+		put_unaligned_be16(d->slot->last_location, &p[j]);
 		j += 2;
 	} else {
 		j += 3;
@@ -900,8 +896,6 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 {
 	int	element_sz;
 	uint32_t	element_len;
-	uint16_t	*sp;
-	uint32_t	*sl;
 
 	element_sz = determine_element_sz(dvcid, voltag);
 
@@ -911,14 +905,13 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 	p[1] = (voltag == 0) ? 0 : 0x80;
 
 	/* Number of bytes per element */
-	sp = (uint16_t *)&p[2];
-	*sp = htons(element_sz);
+	put_unaligned_be16(element_sz, &p[2]);
 
 	element_len = element_sz *element_count;
 
 	/* Total number of bytes in all element descriptors */
-	sl = (uint32_t *)&p[4];
-	*sl = htonl(element_len & 0xffffff);
+	put_unaligned_be32(element_len & 0xffffff, &p[4]);
+
 	/* Reserved */
 	p[4] = 0;	// Above mask should have already set this to 0...
 
@@ -945,8 +938,6 @@ element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int cou
 {
 	uint32_t	byte_count;
 	int	element_sz;
-	uint32_t	*lp;
-	uint16_t	*sp;
 
 	element_sz = determine_element_sz(dvcid, voltag);
 
@@ -956,30 +947,26 @@ element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int cou
 	)
 
 	/* Start of ELEMENT STATUS DATA */
-	sp = (uint16_t *)&p[0];
-	*sp = htons(start);
-
-	sp = (uint16_t *)&p[2];
-	*sp = htons(count);
+	put_unaligned_be16(start, &p[0]);
+	put_unaligned_be16(count, &p[2]);
 
 	/* The byte_count should be the length required to return all of
 	 * valid data.
 	 * The 'allocated length' indicates how much data can be returned.
 	 */
 	byte_count = 8 + (count * element_sz);
-	lp = (uint32_t *)&p[4];
-	*lp = htonl(byte_count & 0xffffff);
+	put_unaligned_be32(byte_count & 0xffffff, &p[4]);
 
 	DEBC(	printf(" Element Status Data HEADER: "
 			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
-		sp = (uint16_t *)&p[0];
 		printf(" Decoded:\n");
-		printf("  First element Address    : %d\n", ntohs(*sp));
-		sp = (uint16_t *)&p[2];
-		printf("  Number elements reported : %d\n", ntohs(*sp));
-		lp = (uint32_t *)&p[4];
-		printf("  Total byte count         : %d\n", ntohl(*lp));
+		printf("  First element Address    : %d\n",
+					get_unaligned_be16(&p[0]));
+		printf("  Number elements reported : %d\n",
+					get_unaligned_be16(&p[2]));
+		printf("  Total byte count         : %d\n",
+					get_unaligned_be32(&p[4]));
 	) ;
 
 	if (verbose > 2)
@@ -1183,8 +1170,6 @@ return len;
 static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 							uint8_t *sam_stat)
 {
-	uint16_t *sp;
-	uint32_t *sl;
 	uint8_t	*p;
 	uint8_t	typeCode = cdb[1] & 0x0f;
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
@@ -1195,12 +1180,9 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	uint16_t start;	// First valid slot location
 	uint16_t len = 0;
 
-	sp = (uint16_t *)&cdb[2];
-	req_start_elem = ntohs(*sp);
-	sp = (uint16_t *)&cdb[4];
-	number = ntohs(*sp);
-	sl = (uint32_t *)&cdb[6];
-	alloc_len = 0xffffff & ntohl(*sl);
+	req_start_elem = get_unaligned_be16(&cdb[2]);
+	number = get_unaligned_be16(&cdb[4]);
+	alloc_len = 0xffffff & get_unaligned_be32(&cdb[6]);
 
 	DEBC(	printf("Element type (%d) => ", typeCode);
 		switch(typeCode) {
@@ -1349,7 +1331,6 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
 {
 	uint8_t	*b = buf;
 	int retval = 0;
-	uint16_t *sp;
 
 	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x04,
 					0x00,
@@ -1362,8 +1343,8 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_WARNING, "%s",
 						"Sending supported pages");
-		sp = (uint16_t *)&supported_pages[2];
-		*sp = htons(sizeof(supported_pages) - 4);
+		put_unaligned_be16(sizeof(supported_pages) - 4,
+					&supported_pages[2]);
 		b = memcpy(b, supported_pages, sizeof(supported_pages));
 		retval = sizeof(supported_pages);
 		break;
@@ -1371,17 +1352,15 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 						"LOG SENSE: Temperature page");
-		Temperature_pg.pcode_head.len = htons(sizeof(Temperature_pg) -
-					sizeof(Temperature_pg.pcode_head));
-		Temperature_pg.temperature = htons(35);
+		put_unaligned_be16(sizeof(Temperature_pg) - sizeof(Temperature_pg.pcode_head), &Temperature_pg.pcode_head.len);
+		put_unaligned_be16(35, &Temperature_pg.temperature);
 		b = memcpy(b, &Temperature_pg, sizeof(Temperature_pg));
 		retval += sizeof(Temperature_pg);
 		break;
 	case TAPE_ALERT:	/* TapeAlert page */
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,"LOG SENSE: TapeAlert page");
-		TapeAlert.pcode_head.len = htons(sizeof(TapeAlert) -
-					sizeof(TapeAlert.pcode_head));
+		put_unaligned_be16(sizeof(TapeAlert) - sizeof(TapeAlert.pcode_head), &TapeAlert.pcode_head.len);
 		b = memcpy(b, &TapeAlert, sizeof(TapeAlert));
 		retval += sizeof(TapeAlert);
 		setTapeAlert(&TapeAlert, 0);	// Clear flags after value read.
@@ -1420,7 +1399,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	int k = 0;
 	struct mode *smp = sm;
 	uint32_t count;
-	uint16_t *sp;
 
 	/* Quick fix for POC */
 	uint8_t *buf = dbuf_p->data;
@@ -1565,8 +1543,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		sp = (uint16_t *)&cdb[3];
-		count = ntohs(*sp);
+		count = get_unaligned_be16(&cdb[3]);
 		if (count) {
 			dbuf_p->sz = count;
 			block_size = retrieve_CDB_data(cdev, dbuf_p);
@@ -1708,7 +1685,6 @@ static void init_mode_pages(struct mode *m)
 {
 
 	struct mode *mp;
-	uint16_t *sp;
 
 	// Disconnect-Reconnect: SPC-3 7.4.8
 	mp = alloc_mode_page(2, m, 16);
@@ -1748,23 +1724,16 @@ static void init_mode_pages(struct mode *m)
 	// Element Address Assignment mode page: SMC-3 7.3.3
 	mp = alloc_mode_page(0x1d, m, 20);
 	if (mp) {
-		sp = (uint16_t *)mp->pcodePointer;
-		sp++;
-		*sp = htons(START_PICKER);	// First medium transport
-		sp++;
-		*sp = htons(num_picker);	// Number of transport elem.
-		sp++;
-		*sp = htons(START_STORAGE);	// First storage slot
-		sp++;
-		*sp = htons(num_storage);	// Number of storage slots
-		sp++;
-		*sp = htons(START_MAP);		// First i/e address
-		sp++;
-		*sp = htons(num_map);		// Number of i/e slots
-		sp++;
-		*sp = htons(START_DRIVE);	// Number of Drives
-		sp++;
-		*sp = htons(num_drives);
+		uint8_t *p = mp->pcodePointer;
+
+		put_unaligned_be16(START_PICKER, &p[2]); // First transport.
+		put_unaligned_be16(num_picker, &p[4]); // No. transport elem.
+		put_unaligned_be16(START_STORAGE, &p[6]); // First storage slot
+		put_unaligned_be16(num_storage, &p[8]);	// No. of storage slots
+		put_unaligned_be16(START_MAP, &p[10]); // First i/e address
+		put_unaligned_be16(num_map, &p[12]); // No. of i/e slots
+		put_unaligned_be16(START_DRIVE, &p[14]); // First Drives
+		put_unaligned_be16(num_drives, &p[16]); // No. of dives
 	}
 
 	// Transport Geometry Parameters mode page: SMC-3 7.3.4
