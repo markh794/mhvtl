@@ -23,7 +23,7 @@ CLFLAGS=-shared ${RPM_OPT_FLAGS}
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary
 
-libvtlscsi.so:	vxshared.c spc.c vx.h vxshared.h scsi.h \
+libvtlscsi.so:	vxshared.c spc.c vxshared.h scsi.h \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic vxshared.c
@@ -36,18 +36,18 @@ dump_messageQ:	dump_messageQ.c q.h
 vtlcmd:	vtlcmd.o q.o q.h
 	$(CC) $(CFLAGS) -o vtlcmd q.o vtlcmd.o
 
-dump_tape:	dump_tape.o vx.h vtltape.h scsi.h ../kernel/vtl_common.h
+dump_tape:	dump_tape.o vtltape.h scsi.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o dump_tape dump_tape.o
 
-mktape:	mktape.o vtltape.h q.h vx.h vxshared.h ../kernel/vtl_common.h
+mktape:	mktape.o vtltape.h q.h vxshared.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o mktape mktape.o
 
-vtllibrary:	vtllibrary.o q.h vx.h vxshared.o vxshared.h scsi.h \
+vtllibrary:	vtllibrary.o q.h vxshared.o vxshared.h scsi.h \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
 
-vtltape:	vtltape.o q.h vx.h vxshared.o vxshared.h vtltape.h scsi.h \
+vtltape:	vtltape.o q.h vxshared.o vxshared.h vtltape.h scsi.h \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o -L. -lz -lvtlscsi

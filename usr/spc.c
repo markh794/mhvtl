@@ -37,7 +37,6 @@
 #include "be_byteshift.h"
 #include "scsi.h"
 #include "vtl_common.h"
-#include "vx.h"
 #include "vxshared.h"
 
 /*
@@ -367,8 +366,8 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
  */
 int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	u16 alloc_len;
-	u16 SA;
+	uint16_t alloc_len;
+	uint16_t SA;
 	uint8_t *buf = dbuf_p->data;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 

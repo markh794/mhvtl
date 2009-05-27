@@ -15,7 +15,6 @@
 #include <time.h>
 #include <inttypes.h>
 #include "vtl_common.h"
-#include "vx.h"
 #include "vtltape.h"
 #include "vxshared.h"
 
@@ -223,7 +222,7 @@ int main(int argc, char *argv[])
 	h.prev_blk = 0;
 	h.next_blk = sizeof(mam) + sizeof(h);
 
-	memset((u8 *)&mam, 0, sizeof(mam));
+	memset((uint8_t *)&mam, 0, sizeof(mam));
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
 	mam.max_capacity = htonll(size * 1048576);

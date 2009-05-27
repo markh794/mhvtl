@@ -20,6 +20,74 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#ifndef Solaris
+  #include <endian.h>
+  #include <byteswap.h>
+#endif
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+
+#define ntohll(x)	(x)
+#define ntohl(x)	(x)
+#define ntohs(x)	(x)
+#define htonll(x)	(x)
+#define htonl(x)	(x)
+#define htons(x)	(x)
+#else
+# if __BYTE_ORDER == __LITTLE_ENDIAN
+#  define ntohll(x)	__bswap_64 (x)
+#  define ntohl(x)	__bswap_32 (x)
+#  define ntohs(x)	__bswap_16 (x)
+#  define htonll(x)	__bswap_64 (x)
+#  define htonl(x)	__bswap_32 (x)
+#  define htons(x)	__bswap_16 (x)
+# endif
+#endif
+
+#define EOM_FLAG 0x40
+
+#define STATUS_OK 0
+
+#define STATUS_QUEUE_CMD 0xfe
+
+#define SENSE_BUF_SIZE 38
+
+#define SCSI_SN_LEN 16
+
+/* Where all the tape data files belong */
+#define HOME_PATH "/opt/vtl"
+
+/*
+ * Process the LOG_SENSE page definations
+ */
+#define BUFFER_UNDER_OVER_RUN 0x01
+#define WRITE_ERROR_COUNTER 0x02
+#define READ_ERROR_COUNTER 0x03
+#define READ_REVERSE_ERROR_COUNTER 0x04
+#define VERIFY_ERROR_COUNTER 0x05
+#define NON_MEDIUM_ERROR_COUNTER 0x06
+#define LAST_n_ERROR 0x07
+#define FORMAT_STATUS 0x08
+#define LAST_n_DEFERRED_ERROR 0x0b
+#define SEQUENTIAL_ACCESS_DEVICE 0x0c
+#define TEMPERATURE_PAGE 0x0d
+#define START_STOP_CYCLE_COUNTER 0x0e
+#define APPLICATION_CLIENT 0x0f
+#define SELFTEST_RESULTS 0x10
+#define TAPE_ALERT 0x2e
+#define INFORMATIONAL_EXCEPTIONS 0x2f
+#define TAPE_USAGE 0x30
+#define TAPE_CAPACITY 0x31
+#define DATA_COMPRESSION 0x32
+
+#define MAX_INQ_ARR_SZ 64
+
+/*
+ * Medium Type Definations
+ */
+#define MEDIA_TYPE_DATA 0
+#define MEDIA_TYPE_WORM 1
+#define MEDIA_TYPE_CLEAN 6
 
 // Log Page header
 struct	log_pg_header {
@@ -301,20 +369,20 @@ struct lu_phy_attr {
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 };
 
-int32_t send_msg(s8 *, int32_t);
+int send_msg(char *, int);
 void logSCSICommand(uint8_t *);
-int32_t check_reset(uint8_t *);
+int check_reset(uint8_t *);
 void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
 void resp_allow_prevent_removal(uint8_t *, uint8_t *);
 void resp_log_select(uint8_t *, uint8_t *);
-int32_t resp_read_position_long(loff_t, uint8_t *, uint8_t *);
-int32_t resp_read_position(loff_t, uint8_t *, uint8_t *);
-int32_t resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
-int32_t resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
-int32_t resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
+int resp_read_position_long(loff_t, uint8_t *, uint8_t *);
+int resp_read_position(loff_t, uint8_t *, uint8_t *);
+int resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
+int resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
+int resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
 //int32_t resp_write_attribute(uint8_t *, uint64_t, struct MAM *, uint8_t *);
 struct mode *find_pcode(uint8_t, struct mode *);
-struct mode *alloc_mode_page(uint8_t, struct mode *, int32_t);
+struct mode *alloc_mode_page(uint8_t, struct mode *, int);
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);
 
 void setTapeAlert(struct TapeAlert_page *, uint64_t);
@@ -332,3 +400,9 @@ int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat);
 
 struct vpd *alloc_vpd(uint16_t sz);
 pid_t add_lu(int minor, struct vtl_ctl *ctl);
+
+void completeSCSICommand(int, struct vtl_ds *ds);
+void getCommand(int, struct vtl_header *);
+int retrieve_CDB_data(int cdev, struct vtl_ds *dbuf_p);
+void get_sn_inquiry(int, struct vtl_sn_inquiry *);
+

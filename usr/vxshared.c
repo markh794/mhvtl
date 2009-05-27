@@ -36,7 +36,6 @@
 #include "scsi.h"
 #include "q.h"
 #include "vtl_common.h"
-#include "vx.h"
 #include "vxshared.h"
 
 #ifndef Solaris
@@ -58,7 +57,7 @@
 
 #endif
 
-extern u8 blockDescriptorBlock[];
+extern uint8_t blockDescriptorBlock[];
 extern int verbose;
 
 DEB(
@@ -92,7 +91,7 @@ int send_msg(char *cmd, int q_id)
  * If debug -> display to stdout and syslog.
  * else to syslog
  */
-void logSCSICommand(u8 *cdb)
+void logSCSICommand(uint8_t *cdb)
 {
 	int groupCode;
 	int cmd_len = 6;
@@ -153,7 +152,7 @@ void logSCSICommand(u8 *cdb)
 	if (debug) {
 		printf("\n");
 		for (k = 0; k < cmd_len; k++)
-			printf("%02x ", (u32)cdb[k]);
+			printf("%02x ", (uint32_t)cdb[k]);
 		printf("\n");
 	}
 }
@@ -162,11 +161,11 @@ void logSCSICommand(u8 *cdb)
  * Fills in a global array with current sense data
  * Sets 'sense_valid' to 1.
  */
-extern u8 sense[];
+extern uint8_t sense[];
 
-void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sam_stat)
+void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 {
-	u16 *sp;
+	uint16_t *sp;
 
 	/* Clear Sense key status */
 	memset(sense, 0, SENSE_BUF_SIZE);
@@ -176,7 +175,7 @@ void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sam_stat)
 	sense[0] = 0xf0;        /* Valid, current error */
 	sense[2] = sense_d;
 	sense[7] = SENSE_BUF_SIZE - 8;
-	sp = (u16 *)&sense[12];
+	sp = (uint16_t *)&sense[12];
 	*sp = htons(sense_q);
 
 	if (debug)
@@ -188,7 +187,7 @@ void mkSenseBuf(u8 sense_d, u32 sense_q, u8 *sam_stat)
 
 extern int reset;
 
-int check_reset(u8 *sam_stat)
+int check_reset(uint8_t *sam_stat)
 {
 	int retval = reset;
 
@@ -205,7 +204,7 @@ return(retval);
  * basically a no-op but log the cmd.
  */
 
-void resp_allow_prevent_removal(u8 *cdb, u8 *sam_stat)
+void resp_allow_prevent_removal(uint8_t *cdb, uint8_t *sam_stat)
 {
 	if (debug)
 		printf("%s\n",
@@ -225,14 +224,14 @@ static char LOG_SELECT_01[] = "Current cumulative values";
 static char LOG_SELECT_10[] = "Default threshold values";
 static char LOG_SELECT_11[] = "Default cumulative values";
 
-void resp_log_select(u8 *cdb, u8 *sam_stat)
+void resp_log_select(uint8_t *cdb, uint8_t *sam_stat)
 {
 
 	char pcr = cdb[1] & 0x1;
-	u16	parmList;
+	uint16_t	parmList;
 	char	*parmString = "Undefined";
 
-	parmList = ntohs((u16)cdb[7]); /* bytes 7 & 8 are parm list. */
+	parmList = ntohs((uint16_t)cdb[7]); /* bytes 7 & 8 are parm list. */
 
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "LOG SELECT %s",
@@ -284,9 +283,9 @@ void resp_log_select(u8 *cdb, u8 *sam_stat)
  *           - Number of Setmarks between the beginning of the partiion and
  *           - the logical position.
  */
-int resp_read_position_long(loff_t pos, u8 *buf, u8 *sam_stat)
+int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
-	u64 partition = 1L;
+	uint64_t partition = 1L;
 
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
@@ -314,7 +313,7 @@ int resp_read_position_long(loff_t pos, u8 *buf, u8 *sam_stat)
 
 #define READ_POSITION_LEN 20
 /* Return tape position - short format */
-int resp_read_position(loff_t pos, u8 *buf, u8 *sam_stat)
+int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
 	memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
 
@@ -349,20 +348,20 @@ int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
 /*
  * Copy data in struct 'report_luns' into bufer and return length
  */
-int resp_report_lun(struct report_luns *rpLUNs, u8 *buf, u8 *sam_stat)
+int resp_report_lun(struct report_luns *rpLUNs, uint8_t *buf, uint8_t *sam_stat)
 {
-	u64 size = ntohl(rpLUNs->size) + 8;
+	uint64_t size = ntohl(rpLUNs->size) + 8;
 
-	memcpy( buf, (u8 *)&rpLUNs, size);
+	memcpy( buf, (uint8_t *)&rpLUNs, size);
 	return size;
 }
 
 /*
  * Respond with S/No. of media currently mounted
  */
-int resp_read_media_serial(u8 *sno, u8 *buf, u8 *sam_stat)
+int resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
 {
-	u64 size = 0L;
+	uint64_t size = 0L;
 
 	syslog(LOG_DAEMON|LOG_ERR, "Read media S/No not implemented yet!");
 
@@ -373,7 +372,7 @@ int resp_read_media_serial(u8 *sno, u8 *buf, u8 *sam_stat)
  * Look thru NULL terminated array of struct mode[] for a match to pcode.
  * Return: struct mode * or NULL for no pcode
  */
-struct mode *find_pcode(u8 pcode, struct mode *m)
+struct mode *find_pcode(uint8_t pcode, struct mode *m)
 {
 	int a;
 
@@ -409,7 +408,7 @@ struct mode *find_pcode(u8 pcode, struct mode *m)
  * Add data for pcode to buffer pointed to by p
  * Return: Number of chars moved.
  */
-static int add_pcode(struct mode *m, u8 *p)
+static int add_pcode(struct mode *m, uint8_t *p)
 {
 	memcpy(p, m->pcodePointer, m->pcodeSize);
 	return(m->pcodeSize);
@@ -425,7 +424,7 @@ static int add_pcode(struct mode *m, u8 *p)
  *
  * Return pointer to mode structure being init. or NULL if alloc failed
  */
-struct mode * alloc_mode_page(u8 pcode, struct mode *m, int size)
+struct mode * alloc_mode_page(uint8_t pcode, struct mode *m, int size)
 {
 	struct mode * mp;
 
@@ -449,15 +448,15 @@ struct mode * alloc_mode_page(u8 pcode, struct mode *m, int size)
  * Build mode sense data into *buf
  * Return size of data.
  */
-int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 WriteProtect, u8 *sam_stat)
+int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WriteProtect, uint8_t *sam_stat)
 {
 	int pcontrol, pcode, subpcode;
 	int media_type;
 	int alloc_len, msense_6;
 	int dev_spec, len = 0;
 	int offset = 0;
-	u8 * ap;
-	u16 *sp;		/* Short pointer */
+	uint8_t * ap;
+	uint16_t *sp;		/* Short pointer */
 	struct mode *smp;	/* Struct mode pointer... */
 	int a;
 
@@ -469,7 +468,7 @@ int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 WriteProtect, u8 *sam_s
 	};
 
 	/* Disable Block Descriptors */
-	u8 blockDescriptorLen = (cmd[1] & 0x8) ? 0 : 8;
+	uint8_t blockDescriptorLen = (cmd[1] & 0x8) ? 0 : 8;
 
 	/*
 	 pcontrol => page control
@@ -526,12 +525,12 @@ int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 WriteProtect, u8 *sam_s
 		for (a = 1; a < 0x3f; a++) { /* Walk thru all possibilities */
 			smp = find_pcode(a, m);
 			if (smp)
-				len += add_pcode(smp, (u8 *)ap + len);
+				len += add_pcode(smp, (uint8_t *)ap + len);
 		}
 	} else {
 		smp = find_pcode(pcode, m);
 		if (smp)
-			len = add_pcode(smp, (u8 *)ap);
+			len = add_pcode(smp, (uint8_t *)ap);
 	}
 	offset += len;
 
@@ -552,11 +551,11 @@ int resp_mode_sense(u8 *cmd, u8 *buf, struct mode *m, u8 WriteProtect, u8 *sam_s
 		if (blockDescriptorLen)
 			memcpy(&buf[4],blockDescriptorBlock,blockDescriptorLen);
 	} else {
-		sp = (u16 *)&buf[0];
+		sp = (uint16_t *)&buf[0];
 		*sp = htons(offset - 2); /* size - sizeof(buf[0]) field */
 		buf[2] = media_type;
 		buf[3] = dev_spec;
-		sp = (u16 *)&buf[6];
+		sp = (uint16_t *)&buf[6];
 		*sp = htons(blockDescriptorLen);
 		/* If the length > 0, copy Block Desc. */
 		if (blockDescriptorLen)
@@ -641,7 +640,7 @@ void completeSCSICommand(int cdev, struct vtl_ds *ds)
 }
 
 /* Hex dump 'count' bytes at p  */
-void hex_dump(u8 *p, int count)
+void hex_dump(uint8_t *p, int count)
 {
 	int j;
 

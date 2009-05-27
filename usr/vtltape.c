@@ -63,7 +63,6 @@
 #include "vtl_common.h"
 #include "scsi.h"
 #include "q.h"
-#include "vx.h"
 #include "vtltape.h"
 #include "vxshared.h"
 #include "spc.h"
@@ -150,8 +149,8 @@ static uint8_t MediaWriteProtect = 0;	/* True if virtual "write protect" switch 
 static int OK_to_write = 1;	// True if in correct position to start writing
 static int compressionFactor = 0;
 
-static u64 bytesRead = 0;
-static u64 bytesWritten = 0;
+static uint64_t bytesRead = 0;
+static uint64_t bytesWritten = 0;
 static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
@@ -408,7 +407,7 @@ static void print_header(struct blk_header *h) {
 )
 
 static void
-mk_sense_short_block(u32 requested, u32 processed, uint8_t *sense_valid)
+mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_valid)
 {
 	int difference = (int)requested - (int)processed;
 
@@ -731,7 +730,7 @@ static int skip_next_filemark(uint8_t *sam_stat)
  * Set TapeAlert status in seqAccessDevice
  */
 static void
-setSeqAccessDevice(struct seqAccessDevice * seqAccessDevicep, u64 flg) {
+setSeqAccessDevice(struct seqAccessDevice * seqAccessDevicep, uint64_t flg) {
 
 	seqAccessDevicep->TapeAlert = htonll(flg);
 }
@@ -842,16 +841,13 @@ FIXME:
 #define REPORT_DENSITY_LEN 56
 static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 {
-	u16 *sp;
-	u32 *lp;
 	uint8_t *buf = dbuf_p->data;
 	int len = dbuf_p->sz;
 
 	// Zero out buf
 	memset(buf, 0, len);
 
-	sp = (u16 *)&buf[0];
-	*sp = htons(REPORT_DENSITY_LEN - 4);
+	put_unaligned_be16(REPORT_DENSITY_LEN - 4, &buf[0]);
 
 	buf[2] = 0;	// Reserved
 	buf[3] = 0;	// Reserved
@@ -863,20 +859,16 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 
 
 	// Bits per mm (only 24bits in len MS Byte should be 0).
-	lp = (u32 *)&buf[8];
-	*lp = ntohl(mam.media_info.bits_per_mm);
+	put_unaligned_be32(mam.media_info.bits_per_mm, &buf[8]);
 
 	// Media Width (tenths of mm)
-	sp = (u16 *)&buf[12];
-	*sp = htons(mam.MediumWidth);
+	put_unaligned_be32(mam.MediumWidth, &buf[12]);
 
 	// Tracks
-	sp = (u16 *)&buf[14];
-	*sp = htons(mam.MediumLength);
+	put_unaligned_be16(mam.MediumLength, &buf[14]);
 
 	// Capacity
-	lp = (u32 *)&buf[16];
-	*lp = htonl(mam.max_capacity);
+	put_unaligned_be32(mam.max_capacity, &buf[16]);
 
 	// Assigning Oranization (8 chars long)
 	if (tapeLoaded == TAPE_LOADED) {
@@ -971,7 +963,7 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO,
 					"LOG SENSE: Sending supported pages");
-		sp = (u16 *)&supported_pages[2];
+		sp = (uint16_t *)&supported_pages[2];
 		*sp = htons(sizeof(supported_pages) - 4);
 		b = memcpy(b, supported_pages, sizeof(supported_pages));
 		retval = sizeof(supported_pages);
@@ -1023,7 +1015,7 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose > 1)
 			syslog(LOG_DAEMON|LOG_INFO,
 				" Returning TapeAlert flags: 0x%" PRIx64,
-					ntohll(seqAccessDevice.TapeAlert));
+				get_unaligned_be64(&seqAccessDevice.TapeAlert));
 
 		TapeAlert.pcode_head.len = htons(sizeof(TapeAlert) -
 					sizeof(TapeAlert.pcode_head));
@@ -1089,18 +1081,14 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
  */
 static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 {
-	u16 *sp;
-	u16 attribute;
-	u32 *lp;
-	u32 alloc_len;
+	uint16_t attribute;
+	uint32_t alloc_len;
 	int ret_val = 0;
 	int byte_index = 4;
 	int indx, found_attribute;
 
-	sp = (u16 *)&cdb[8];
-	attribute = ntohs(*sp);
-	lp = (u32 *)&cdb[10];
-	alloc_len = ntohl(*lp);
+	attribute = get_unaligned_be16(&cdb[8]);
+	alloc_len = get_unaligned_be32(&cdb[10]);
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
 			"Read Attribute: 0x%x, allocation len: %d",
@@ -1164,7 +1152,7 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
  */
 static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM *mamp)
 {
-	u32 alloc_len;
+	uint32_t alloc_len;
 	int byte_index;
 	int indx, attribute, attribute_length, found_attribute = 0;
 	struct MAM mam_backup;
@@ -1175,13 +1163,13 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
 
 	memcpy(&mam_backup, &mamp, sizeof(struct MAM));
 	for (byte_index = 4; byte_index < alloc_len; ) {
-		attribute = ((u16)buf[byte_index++] << 8);
+		attribute = ((uint16_t)buf[byte_index++] << 8);
 		attribute += buf[byte_index++];
 		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
 			if (attribute == MAM_Attributes[indx].attribute) {
 				found_attribute = 1;
 				byte_index += 1;
-				attribute_length = ((u16)buf[byte_index++] << 8);
+				attribute_length = ((uint16_t)buf[byte_index++] << 8);
 				attribute_length += buf[byte_index++];
 				if ((attribute = 0x408) &&
 					(attribute_length == 1) &&
@@ -1215,7 +1203,7 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
-static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, u32 request_sz)
+static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request_sz)
 {
 	loff_t nread = 0;
 /*
@@ -1224,7 +1212,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, u32 request_sz)
 	uLongf comp_buf_sz;
 	int z;
 */
-	u8 information[4];
+	uint8_t information[4];
 
 	if (verbose > 1)
 		syslog(LOG_DAEMON|LOG_WARNING, "Request to read: %d bytes",
@@ -1403,7 +1391,7 @@ static int rewriteMAM(struct MAM *mamp, uint8_t *sam_stat)
 /*
  * Return number of bytes written to 'file'
  */
-static int writeBlock(uint8_t *src_buf, u32 src_sz,  uint8_t *sam_stat)
+static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 {
 	loff_t	nwrite = 0;
 	Bytef *dest_buf = src_buf;
@@ -1631,7 +1619,7 @@ static int resp_rewind(uint8_t *sam_stat)
 /*
  * Space over (to) x filemarks. Setmarks not supported as yet.
  */
-static void resp_space(u32 count, int code, uint8_t *sam_stat)
+static void resp_space(uint32_t count, int code, uint8_t *sam_stat)
 {
 
 	switch(code) {
@@ -2151,31 +2139,31 @@ static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
  */
 static void updateMAM(struct MAM *mamp, uint8_t *sam_stat, int loadCount)
 {
-	u64 bw;		// Bytes Written
-	u64 br;		// Bytes Read
-	u64 load;	// load count
+	uint64_t bw;		// Bytes Written
+	uint64_t br;		// Bytes Read
+	uint64_t load;	// load count
 
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "updateMAM(%d)", loadCount);
 
 	// Update bytes written this load.
-	mamp->WrittenInLastLoad = ntohll(bytesWritten);
-	mamp->ReadInLastLoad = ntohll(bytesRead);
+	put_unaligned_be64(bytesWritten, &mamp->WrittenInLastLoad);
+	put_unaligned_be64(bytesRead, &mamp->ReadInLastLoad);
 
 	// Update total bytes read/written
-	bw = htonll(mamp->WrittenInMediumLife);
+	bw = get_unaligned_be64(&mamp->WrittenInMediumLife);
 	bw += bytesWritten;
-	mamp->WrittenInMediumLife = ntohll(bw);
+	put_unaligned_be64(bw, &mamp->WrittenInMediumLife);
 
-	br = htonll(mamp->ReadInMediumLife);
+	br = get_unaligned_be64(&mamp->ReadInMediumLife);
 	br += bytesRead;
-	mamp->ReadInMediumLife = ntohll(br);
+	put_unaligned_be64(br, &mamp->ReadInMediumLife);
 
 	// Update load count
 	if (loadCount) {
-		load = htonll(mamp->LoadCount);
+		load = get_unaligned_be64(&mamp->LoadCount);
 		load++;
-		mamp->LoadCount = ntohll(load);
+		put_unaligned_be64(load, &mamp->LoadCount);
 	}
 
 	rewriteMAM(mamp, sam_stat);
@@ -2247,11 +2235,10 @@ int valid_encryption_blk(uint8_t *sam_stat)
  */
 static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	u32 blk_sz = 0;
-	u32 count;
-	u32 ret = 0;
-	u32 retval = 0;
-	u16 *sp;
+	uint32_t blk_sz = 0;
+	uint32_t count;
+	uint32_t ret = 0;
+	uint32_t retval = 0;
 	int k;
 	int code;
 	int service_action;
@@ -2322,7 +2309,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			syslog(LOG_DAEMON|LOG_INFO,
 				"Current blk: %" PRId64 ", seek: %d",
 					c_pos.blk_number, count);
-		if (((u32)(count - c_pos.blk_number) > count) &&
+		if (((uint32_t)(count - c_pos.blk_number) > count) &&
 						(count < c_pos.blk_number)) {
 			resp_rewind(sam_stat);
 		}
@@ -2799,8 +2786,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic (%ld) **",
 						(long)dbuf_p->serialNo);
-		sp = (u16 *)&cdb[3];
-		count = ntohs(*sp);
+		count = get_unaligned_be16(&cdb[3]);
 		if (count) {
 			dbuf_p->sz = count;
 			blk_sz = retrieve_CDB_data(cdev, dbuf_p);
@@ -2907,7 +2893,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 static int load_tape(char *PCL, uint8_t *sam_stat)
 {
 	loff_t nread;
-	u64 fg = 0;	// TapeAlert flags
+	uint64_t fg = 0;	// TapeAlert flags
 
 	bytesWritten = 0;	// Global - Bytes written this load
 	bytesRead = 0;		// Global - Bytes rearead this load
@@ -3217,7 +3203,7 @@ return (queue_id);
 #define COMPRESSION_TYPE 0x10
 static void init_mode_pages(struct mode *m) {
 	struct mode *mp;
-	u32	*lp;
+	uint32_t	*lp;
 
 	// RW Error Recovery: SSC-3 8.3.5
 	if ((mp = alloc_mode_page(1, m, 12))) {
@@ -3241,7 +3227,7 @@ static void init_mode_pages(struct mode *m) {
 		// Init rest of page data..
 		mp->pcodePointer[2] = 0xc0;	// Set Data Compression Enable
 		mp->pcodePointer[3] = 0x80;	// Set Data Decompression Enable
-		lp = (u32 *)&mp->pcodePointer[4];
+		lp = (uint32_t *)&mp->pcodePointer[4];
 		*lp = htonl(COMPRESSION_TYPE);	// Compression Algorithm
 		lp++;
 		*lp = htonl(COMPRESSION_TYPE);	// Decompression algorithm

@@ -53,7 +53,6 @@
 #include "vtl_common.h"
 #include "scsi.h"
 #include "q.h"
-#include "vx.h"
 #include "vxshared.h"
 #include "spc.h"
 
@@ -1420,8 +1419,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint32_t ret = 0;
 	int k = 0;
 	struct mode *smp = sm;
-	u32 count;
-	u16 *sp;
+	uint32_t count;
+	uint16_t *sp;
 
 	/* Quick fix for POC */
 	uint8_t *buf = dbuf_p->data;
@@ -1566,7 +1565,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case SEND_DIAGNOSTIC:
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
-		sp = (u16 *)&cdb[3];
+		sp = (uint16_t *)&cdb[3];
 		count = ntohs(*sp);
 		if (count) {
 			dbuf_p->sz = count;
