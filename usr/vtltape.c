@@ -926,10 +926,13 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	if (bdb) {
 		if (!long_lba) {
 			memcpy(blockDescriptorBlock, bdb, block_descriptor_sz);
-		} else
+		} else {
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							sam_stat);
 			syslog(LOG_DAEMON|LOG_INFO, "%s: Warning can not "
 				"handle long descriptor block (long_lba bit)",
 					__func__);
+		}
 	}
 
 	if (debug)
@@ -2957,7 +2960,8 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 
 	max_tape_capacity = (loff_t)c_pos.blk_size * (loff_t)1048576;
 	if (debug)
-		syslog(LOG_DAEMON|LOG_INFO, "Tape capacity: %" PRId64, max_tape_capacity);
+		syslog(LOG_DAEMON|LOG_INFO, "Tape capacity: %" PRId64,
+						max_tape_capacity);
 
 	blockDescriptorBlock[0] = mam.MediumDensityCode;
 	mam.record_dirty = 1;
