@@ -28,7 +28,6 @@ fi
 
 USER=$1
 TMP=/var/tmp/_build.$$
-CONFIG=/etc/vtl/vxlib.conf
 DRIVECONFIG=/etc/vtl/device.conf
 LIBCONTENTS=/etc/vtl/library_contents
 OPTIONS=""

@@ -229,10 +229,6 @@ case "$1" in
 		sleep 1
 	fi
 
-	chmod 750 /etc/vtl
-	if [ ! -f /etc/vtl/vxlib.conf ]; then
-		touch /etc/vtl/vxlib.conf
-	fi
 	chown -R $USER:$USER /etc/vtl
 	chmod 770 /opt/vtl
 
