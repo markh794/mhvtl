@@ -619,9 +619,8 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
 
 
 /*
- * First send SCSI S/No. to char device
- * Then the 'check condition' status (1 = check, 0 no check)
- * Finally any other data queued up to be sent for this command
+ * Passes struct vtl_ds to kernel module.
+ *   struct contains amount of data, status and pointer to data struct.
  *
  * Returns nothing.
  */
@@ -629,10 +628,8 @@ void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: op s/n: (%ld), sam_status: %d, "
-			"buffer: %p, sz: %d\n",
-				__func__, (long)ds->serialNo, ds->sam_stat,
-				ds->data, ds->sz);
+			"%s: op s/n: (%ld), sam_status: %d, sz: %d\n",
+			__func__, (long)ds->serialNo, ds->sam_stat, ds->sz);
 
 	ioctl(cdev, VTL_PUT_DATA, ds);
 
