@@ -327,10 +327,10 @@ struct MAM {
 
 #define MAM_FLAGS_ENCRYPTION_FORMAT 0x0001
 
-struct lu_phy_attr;
-
 #define PCODE_SHIFT 7
 #define PCODE_OFFSET(x) (x & ((1 << PCODE_SHIFT) - 1))
+
+struct lu_phy_attr;
 
 struct vpd {
 	uint16_t sz;
@@ -366,6 +366,7 @@ struct lu_phy_attr {
 	char lu_serial_no[SCSI_SN_LEN];
 	uint16_t version_desc[3];
 	uint8_t supported_density[8];
+	void *lu_private;	/* Private data struct per lu */
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 };
 

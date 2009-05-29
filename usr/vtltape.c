@@ -43,6 +43,9 @@
  *	Since ability to define device serial number, increased ver from
  *	0.12 to 0.14
  *
+ * 0.16 Jun 2009
+ * 	Moved SCSI Inquiry into user-space.
+ * 	SCSI lu are created/destroyed as the daemon is started/shutdown
  */
 
 #define _XOPEN_SOURCE 500
@@ -3663,6 +3666,13 @@ int main(int argc, char *argv[])
 	int	mlen, r_qid;
 	struct q_entry r_entry;
 
+	if (sizeof(struct blk_header) != 512) {
+		printf("Something wrong with blk_header data struct.\n"
+		"Needs to be exactly 512 bytes in size. Currently: %d\n",
+			(int)sizeof(struct blk_header));
+		exit(1);
+	}
+		
 	if (argc < 2) {
 		usage(argv[0]);
 		printf("  -- Not enough parameters --\n");
