@@ -1218,7 +1218,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 	uLongf comp_buf_sz;
 	int z;
 */
-	uint8_t information[4];
+	uint32_t save_sense;
 
 	if (verbose > 1)
 		syslog(LOG_DAEMON|LOG_WARNING, "Request to read: %d bytes",
@@ -1226,9 +1226,9 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 
 	DEBC( print_header(&c_pos);) ;
 
-	/* check for a zero length read */
+	/* check for a zero length read
+	 * This is not an error, and shouldn't change the tape position */
 	if (request_sz == 0) {
-		/* This is not an error, and doesn't change the tape position */
 		return 0;
 	}
 
@@ -1241,28 +1241,16 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 					B_DATA, c_pos.blk_type);
 		skip_to_next_header(sam_stat);
 		mk_sense_short_block(request_sz, 0, sam_stat);
-		information[0] = sense[3];
-		information[1] = sense[4];
-		information[2] = sense[5];
-		information[3] = sense[6];
+		save_sense = get_unaligned_be32(&sense[3]);
 		mkSenseBuf(FILEMARK, E_MARK, sam_stat);
-		sense[3] = information[0];
-		sense[4] = information[1];
-		sense[5] = information[2];
-		sense[6] = information[3];
+		put_unaligned_be32(save_sense, &sense[3]);
 		return nread;
 		break;
 	case B_EOD:
 		mk_sense_short_block(request_sz, 0, sam_stat);
-		information[0] = sense[3];
-		information[1] = sense[4];
-		information[2] = sense[5];
-		information[3] = sense[6];
+		save_sense = get_unaligned_be32(&sense[3]);
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
-		sense[3] = information[0];
-		sense[4] = information[1];
-		sense[5] = information[2];
-		sense[6] = information[3];
+		put_unaligned_be32(save_sense, &sense[3]);
 		return nread;
 		break;
 	case B_BOT:
@@ -1338,7 +1326,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 		if (c_pos.curr_blk == lseek64(datafile, 0, SEEK_CUR)) {
 			nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
 			if (nread == 0) {	// Error
-				syslog(LOG_DAEMON|LOG_ERR, "%m");
+				syslog(LOG_DAEMON|LOG_ERR, "%s: %m", __func__);
 				mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,
 								sam_stat);
 				return 0;
@@ -1347,12 +1335,13 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 		nread = read(datafile, buf, c_pos.disk_blk_size);
 		if (nread == 0) {	// End of data - no more to read
 			if (verbose)
-				syslog(LOG_DAEMON|LOG_WARNING, "%s",
+				syslog(LOG_DAEMON|LOG_WARNING, "%s: %s",
+				__func__,
 				"End of data detected when reading from file");
 			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 			return nread;
 		} else if (nread < 0) {	// Error
-			syslog(LOG_DAEMON|LOG_ERR, "%m");
+			syslog(LOG_DAEMON|LOG_ERR, "%s: %m", __func__);
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		} else if (nread != request_sz) {
