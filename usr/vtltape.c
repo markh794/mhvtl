@@ -3738,6 +3738,12 @@ int main(int argc, char *argv[])
 	/* Setup Media_Density */
 	media_density_init();
 
+	child_cleanup = add_lu(q_priority, &ctl);
+	if (! child_cleanup) {
+		printf("Could not create logical unit\n");
+		exit(1);
+	}
+
 	pw = getpwnam("vtl");	/* Find UID for user 'vtl' */
 	if (!pw) {
 		printf("Unable to find user: vtl\n");
@@ -3817,12 +3823,6 @@ int main(int argc, char *argv[])
 	}
 
 	oom_adjust();
-
-	child_cleanup = add_lu(q_priority, &ctl);
-	if (! child_cleanup) {
-		printf("Could not create logical unit\n");
-		exit(1);
-	}
 
 	for (;;) {
 		/* Check for anything in the messages Q */

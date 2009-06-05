@@ -2442,6 +2442,12 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	child_cleanup = add_lu((q_priority == LIBRARY_Q) ? 0 : q_priority, &ctl);
+	if (! child_cleanup) {
+		printf("Could not create logical unit\n");
+		exit(1);
+	}
+
 	pw = getpwnam("vtl");	/* Find UID for user 'vtl' */
 	if (!pw) {
 		printf("Unable to find user: vtl\n");
@@ -2552,12 +2558,6 @@ int main(int argc, char *argv[])
 
 		close(STDIN_FILENO);
 		close(STDERR_FILENO);
-	}
-
-	child_cleanup = add_lu((q_priority == LIBRARY_Q) ? 0 : q_priority, &ctl);
-	if (! child_cleanup) {
-		printf("Could not create logical unit\n");
-		exit(1);
 	}
 
 	oom_adjust();
