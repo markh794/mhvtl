@@ -204,7 +204,7 @@ case "$1" in
     start)
 	load_vtl=`grep " vtl$" /proc/devices|awk '{print $2}'`
 	if [ "X$load_vtl" == "X" ]; then
-		modprobe vtl
+		modprobe vtl opts=$VTL_DEBUG
 	fi
 
 	hba=`ls /proc/scsi/vtl|tail -1`
@@ -237,11 +237,6 @@ case "$1" in
 
 	# Now correct file permissions..
 	chown -R $USER:$USER /opt/vtl /dev/vtl[0-9]
-
-	# Set verbosity of kernel driver
-	if [ "X$VTL_DEBUG" != "X" ]; then
-		echo $VTL_DEBUG > /sys/bus/pseudo/drivers/vtl/opts
-	fi
 
 	# Build Library media
 	make_vtl_media $USER
