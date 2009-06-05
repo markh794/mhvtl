@@ -73,14 +73,14 @@ Install the rc script into /etc/init.d/ and binaries to /usr/local/bin/
 # make install
 
 Make config directory :
-mkdir /etc/vtl
-chown vtl:vtl /etc/vtl
-chmod 770 /etc/vtl
+mkdir /etc/mhvtl
+chown vtl:vtl /etc/mhvtl
+chmod 770 /etc/mhvtl
 
-Copy the library_contents.sample to /etc/vtl/library_contents
-Edit the /etc/vtl/library_contents to suite your environment.
+Copy the library_contents.sample to /etc/mhvtl/library_contents
+Edit the /etc/mhvtl/library_contents to suite your environment.
 Note: If changing Storage slots, stop and re-start daemons via the rc script:
- /etc/init.d/vtl
+ /etc/init.d/mhvtl
 Part of the rc scripts job is to create 'blank' media in the /opt/vtl/
 directory and dynamically build the robot contents.
 
@@ -88,7 +88,7 @@ There is no way of HUPing the daemons to re-read the configuration file contents
 
 
 Start daemons:
-/etc/init.d/vtl start
+/etc/init.d/mhvtl start
 
 Test:
 Note: Make sure the 'mtx' & 'lsscsi' utilities are installed

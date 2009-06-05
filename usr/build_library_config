@@ -28,12 +28,12 @@ fi
 
 USER=$1
 TMP=/var/tmp/_build.$$
-DRIVECONFIG=/etc/vtl/device.conf
-LIBCONTENTS=/etc/vtl/library_contents
+DRIVECONFIG=$HOME_CONFIG_PATH/device.conf
+LIBCONTENTS=$HOME_CONFIG_PATH/library_contents
 OPTIONS=""
 
 # rc script will make sure this exists...
-. /etc/vtl/vtl.conf
+. $HOME_CONFIG_PATH/mhvtl.conf
 
 if [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"
@@ -47,7 +47,7 @@ if [ ! -f $DRIVECONFIG ]; then
 fi
 
 # Test for new interface to dynamically add logical units.
-if [ ! -f /sys/bus/pseudo/drivers/vtl/add_lu ]; then
+if [ ! -f /sys/bus/pseudo/drivers/mhvtl/add_lu ]; then
 	echo "Sorry, Can't continue - No kernel module loaded or out of date ??"
 	echo "Please visit http://linuxvtl.googlepages.com for latest release"
 	exit 1
@@ -67,13 +67,13 @@ do
 
 	# Make sure device node exists..
 	# A better bet would be to configure udev...
-	if [ ! -c /dev/vtl$count ]; then
-		if [ -a /dev/vtl$count ]; then
+	if [ ! -c /dev/mhvtl$count ]; then
+		if [ -a /dev/mhvtl$count ]; then
 			# Exists but not a char device... remove..
-			rm /dev/vtl$count
+			rm /dev/mhvtl$count
 		fi
-		mknod /dev/vtl$count c $major $count
-		chown vtl:vtl /dev/vtl$count
+		mknod /dev/mhvtl$count c $major $count
+		chown vtl:vtl /dev/mhvtl$count
 	fi
 
 	# Start daemon for new lu

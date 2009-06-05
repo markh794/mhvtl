@@ -28,26 +28,26 @@ if [ $# != 1 ]; then
 fi
 
 USER=$1
-MAJOR=`grep " vtl$" /proc/devices|awk '{print $1}'`
+MAJOR=`grep " mhvtl$" /proc/devices|awk '{print $1}'`
 
 umask 002
 
 if [ "X" = "X$MAJOR" ]; then
-	echo "Could not find a major number for vtl: kernel module loaded ?"
+	echo "Could not find a major number for mhvtl: kernel module loaded ?"
 	exit 1
 fi
 
-count=`grep "Drive" /etc/vtl/library_contents|wc -l`
+count=`grep "Drive" $HOME_CONFIG_PATH/library_contents|wc -l`
 count=`expr $count + 1`
 echo "Number of devices to create : $count"
 
 for (( a=0 ; a < $count ; a++)); do
-	if [ -c /dev/vtl$a ]; then
-		rm -f /dev/vtl$a
+	if [ -c /dev/mhvtl$a ]; then
+		rm -f /dev/mhvtl$a
 	fi
-	mknod -m 660 /dev/vtl$a c $MAJOR $a
-	chown $USER:$USER /dev/vtl$a
-	chmod 660 /dev/vtl$a
-	echo "Made node for /dev/vtl$a"
+	mknod -m 660 /dev/mhvtl$a c $MAJOR $a
+	chown $USER:$USER /dev/mhvtl$a
+	chmod 660 /dev/mhvtl$a
+	echo "Made node for /dev/mhvtl$a"
 done
 

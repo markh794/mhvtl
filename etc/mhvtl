@@ -6,24 +6,25 @@
 #	  mark794 at gmail dot com
 #	  mark dot harvey at veritas dot com
 #
-# /etc/init.d/vtl
+# /etc/init.d/mhvtl
 #
-# Script to start vtl kernel module & vtltape userspace daemon
+# Script to start mhvtl kernel module & vtltape userspace daemon
 #
 # Virtual tape & library system
 #
-# $Id: vtl,v 1.12.2.3 2006-08-30 06:35:01 markh Exp $
+# $Id: mhvtl,v 1.12.2.3 2006-08-30 06:35:01 markh Exp $
 #
 ### BEGIN INIT INFO
-# Provides:       vtl
+# Provides:       mhvtl
 # Required-Start: syslog
 # Required-Stop:
 # Default-Start:  2 3 5
 # Default-Stop: 0 1 6
-# Description:    Script to start/stop vtl kernel modules & vtltape userspace daemons
+# Description:    Script to start/stop mhvtl kernel modules & vtltape userspace daemons
 ### END INIT INFO
 
 USER=vtl
+export HOME_CONFIG_PATH=/etc/mhvtl
 
 OPTIONS=
 
@@ -35,10 +36,10 @@ if [ -f /etc/rc.status ]; then
 fi
 
 # Create a 'device.conf' if it does not exist...
-if [ ! -f /etc/vtl/device.conf ]; then
+if [ ! -f $HOME_CONFIG_PATH/device.conf ]; then
 
-mkdir -p /etc/vtl
-cat > /etc/vtl/device.conf << VTL_CONF
+mkdir -p $HOME_CONFIG_PATH
+cat > $HOME_CONFIG_PATH/device.conf << VTL_CONF
 
 VERSION: 2
 
@@ -95,11 +96,11 @@ Drive: 4 CHANNEL: 0 TARGET: 3 LUN: 1
 VTL_CONF
 fi
 
-# Create a 'vtl.conf' if it does not exist...
-if [ ! -f /etc/vtl/vtl.conf ]; then
+# Create a 'mhvtl.conf' if it does not exist...
+if [ ! -f $HOME_CONFIG_PATH/mhvtl.conf ]; then
 
-mkdir -p /etc/vtl
-cat > /etc/vtl/vtl.conf << VTL_CONF
+mkdir -p $HOME_CONFIG_PATH
+cat > $HOME_CONFIG_PATH/mhvtl.conf << VTL_CONF
 
 # Default media capacity (500 M)
 CAPACITY=500
@@ -112,25 +113,24 @@ VTL_DEBUG=1
 VTL_CONF
 fi
 
-. /etc/vtl/vtl.conf
+. $HOME_CONFIG_PATH/mhvtl.conf
 
-# Earlier versions of vtl.conf may not contain the 'CAPACITY' string.
+# Earlier versions of mhvtl.conf may not contain the 'CAPACITY' string.
 # Update if nessessary..
-EXIST=`grep CAPACITY /etc/vtl/vtl.conf|wc -l`
+EXIST=`grep CAPACITY $HOME_CONFIG_PATH/mhvtl.conf|wc -l`
 if [ $EXIST -eq 0 ]; then
-	echo "" >> /etc/vtl/vtl.conf
-	echo "# Default media capacity" >> /etc/vtl/vtl.conf
-	echo CAPACITY=500 >> /etc/vtl/vtl.conf
+	echo "" >> $HOME_CONFIG_PATH/mhvtl.conf
+	echo "# Default media capacity" >> $HOME_CONFIG_PATH/mhvtl.conf
+	echo CAPACITY=500 >> $HOME_CONFIG_PATH/mhvtl.conf
 fi
 
 # Now check for for 'library_contents'
-if [ ! -f /etc/vtl/library_contents ]; then
+if [ ! -f $HOME_CONFIG_PATH/library_contents ]; then
 	echo
-	echo "Could not locate library config file: /etc/vtl/library_contents"
+	echo "Could not locate library config file: $HOME_CONFIG_PATH/library_contents"
 	echo "Creating a default one"
-	echo "Please stop vtl & edit /etc/vtl/library_contents to suit your requirements"
-	mkdir -p /etc/vtl
-	cat > /etc/vtl/library_contents << CONF_SAMPLE
+	echo "Please stop mhvtl & edit $HOME_CONFIG_PATH/library_contents to suit your requirements"
+	cat > $HOME_CONFIG_PATH/library_contents << CONF_SAMPLE
 VERSION: 2
 
 Drive 1: XYZZY_A1
@@ -198,23 +198,23 @@ Slot 33: CLN003L1
 CONF_SAMPLE
 fi
 
-DRIVES=`grep ^Drive /etc/vtl/library_contents|wc -l`
+DRIVES=`grep ^Drive $HOME_CONFIG_PATH/library_contents|wc -l`
 
 case "$1" in
     start)
-	load_vtl=`grep " vtl$" /proc/devices|awk '{print $2}'`
+	load_vtl=`grep " mhvtl$" /proc/devices|awk '{print $2}'`
 	if [ "X$load_vtl" == "X" ]; then
-		modprobe vtl opts=$VTL_DEBUG
+		modprobe mhvtl opts=$VTL_DEBUG
 	fi
 
-	hba=`ls /proc/scsi/vtl|tail -1`
+	hba=`ls /proc/scsi/mhvtl|tail -1`
 	if [ "X$hba" == "X" ]; then
 		echo "Incorrect (or no) kernel module loaded for these daemons."
-		echo "Need vtl kernel module version later then 0.16.0"
+		echo "Need mhvtl kernel module version later then 0.16.0"
 		echo "Please see http://linuxvtl.googlepages.com"
 		exit 1
 	fi
-	vtlMidVersion=`grep version /proc/scsi/vtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $2}'`
+	vtlMidVersion=`grep version /proc/scsi/mhvtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $2}'`
 	if [ $vtlMidVersion -ne 16 ]; then
 		echo "Incorrect kernel module for these daemons."
 		echo -e "Should be at 0.16.x\n"
@@ -229,14 +229,14 @@ case "$1" in
 		sleep 1
 	fi
 
-	chown -R $USER:$USER /etc/vtl
+	chown -R $USER:$USER $HOME_CONFIG_PATH
 	chmod 770 /opt/vtl
 
 	# creating devices
 	make_vtl_devices $USER > /dev/null
 
 	# Now correct file permissions..
-	chown -R $USER:$USER /opt/vtl /dev/vtl[0-9]
+	chown -R $USER:$USER /opt/vtl /dev/mhvtl[0-9]
 
 	# Build Library media
 	make_vtl_media $USER
@@ -275,8 +275,8 @@ case "$1" in
 	;;
     shutdown)
 	# Remove kernel moduel (vtl) along with messageQ key.
-        echo "Removing vtl kernel module"
-	for a in `ps -ef|grep ^vtl | grep "\-q"|awk '{print $10}'`
+        echo "Removing mhvtl kernel module"
+	for a in `ps -ef|grep ^mhvtl | grep "\-q"|awk '{print $10}'`
 	do
 		echo "   Sending exit to $a"
 		vtlcmd $a exit
@@ -285,7 +285,7 @@ case "$1" in
 
 	# Send library daemon exit msg..
 	vtlcmd library  exit
-	rmmod vtl
+	rmmod mhvtl
 	Q_EXISTS=`ipcs -q|grep 4d61726b|awk '{print $2}'`
 	if [ "X$Q_EXISTS" != "X" ]; then
 		ipcrm -q $Q_EXISTS

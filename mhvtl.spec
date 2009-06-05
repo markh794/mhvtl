@@ -35,7 +35,7 @@ make RPM_OPT_FLAGS="$RPM_OPT_FLAGS" usr
 [ "%{buildroot}" != "/" ] && rm -rf %[buildroot}
 
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
-mkdir -p $RPM_BUILD_ROOT/etc/vtl
+mkdir -p $RPM_BUILD_ROOT/etc/mhvtl
 mkdir -p $RPM_BUILD_ROOT/usr/bin
 mkdir -p $RPM_BUILD_ROOT/usr/share/man/man1
 mkdir -p $RPM_BUILD_ROOT/usr/share/man/man5
@@ -46,7 +46,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/lib64
 mkdir -p $RPM_BUILD_ROOT/usr/lib
 %endif
 
-install -m 750 etc/vtl $RPM_BUILD_ROOT/etc/init.d/vtl
+install -m 750 etc/mhvtl $RPM_BUILD_ROOT/etc/init.d/mhvtl
 install -m 750 -s usr/vtltape $RPM_BUILD_ROOT/usr/bin/vtltape
 install -m 750 -s usr/vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
 install -m 750 usr/vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
@@ -64,7 +64,7 @@ install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
 install -m 644 man/build_library_config.1 $RPM_BUILD_ROOT/usr/share/man/man1/build_library_config.1
 install -m 644 man/make_vtl_devices.1 $RPM_BUILD_ROOT/usr/share/man/man1/make_vtl_devices.1
 install -m 644 man/mktape.1 $RPM_BUILD_ROOT/usr/share/man/man1/mktape.1
-install -m 644 man/vtl.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtl.1
+install -m 644 man/mhvtl.1 $RPM_BUILD_ROOT/usr/share/man/man1/mhvtl.1
 install -m 644 man/vtlcmd.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtlcmd.1
 install -m 644 man/vtllibrary.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtllibrary.1
 install -m 644 man/vtltape.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtltape.1
@@ -92,13 +92,16 @@ fi
 if [ -x /etc/init.d/vtl ]; then
  /etc/init.d/vtl shutdown
 fi
+if [ -x /etc/init.d/mhvtl ]; then
+ /etc/init.d/mhvtl shutdown
+fi
 
 %post
 /sbin/ldconfig
-r=`/sbin/chkconfig --list|grep vtl|awk '{print $1}'`
+r=`/sbin/chkconfig --list|grep mhvtl|awk '{print $1}'`
 if [ "X"$r == "X" ]; then
-	/sbin/chkconfig --add vtl
-	/sbin/chkconfig vtl on
+	/sbin/chkconfig --add mhvtl
+	/sbin/chkconfig mhvtl on
 fi
 
 if [ ! -d /opt/vtl ]; then
@@ -112,8 +115,8 @@ chmod 4750 /usr/bin/vtltape
 chmod 4750 /usr/bin/vtllibrary
 
 %preun
-if [ -x /etc/init.d/vtl ]; then
- /etc/init.d/vtl shutdown
+if [ -x /etc/init.d/mhvtl ]; then
+ /etc/init.d/mhvtl shutdown
 fi
 
 %postun
@@ -136,7 +139,7 @@ fi
 %files
 %defattr(-,vtl,vtl)
 %doc INSTALL README etc/library_contents.sample
-/etc/init.d/vtl
+/etc/init.d/mhvtl
 %{_prefix}/bin/vtlcmd
 %{_prefix}/bin/vtltape
 %{_prefix}/bin/vtllibrary
@@ -153,7 +156,7 @@ fi
 %doc %{_prefix}/share/man/man1/make_vtl_devices.1.gz
 %doc %{_prefix}/share/man/man1/mktape.1.gz
 %doc %{_prefix}/share/man/man1/vtlcmd.1.gz
-%doc %{_prefix}/share/man/man1/vtl.1.gz
+%doc %{_prefix}/share/man/man1/mhvtl.1.gz
 %doc %{_prefix}/share/man/man1/vtllibrary.1.gz
 %doc %{_prefix}/share/man/man1/vtltape.1.gz
 %doc %{_prefix}/share/man/man5/library_contents.5.gz

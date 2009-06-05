@@ -29,7 +29,7 @@ if [ $# != 1 ]; then
 fi
 
 USER=$1
-LIBCONTENTS=/etc/vtl/library_contents
+LIBCONTENTS=$HOME_CONFIG_PATH/library_contents
 
 # Im sure there is a better method then this...
 set_density() {
@@ -55,7 +55,7 @@ set_density() {
 }
 
 # rc script will make sure this exists...
-. /etc/vtl/vtl.conf
+. $HOME_CONFIG_PATH/mhvtl.conf
 
 ##################################################################
 ## Main starts here...

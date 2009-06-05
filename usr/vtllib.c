@@ -653,7 +653,7 @@ void hex_dump(uint8_t *p, int count)
 static int get_ctl(int minor, struct vtl_ctl *ctl)
 {
 	FILE *ctrl;
-	char *filename = "/etc/vtl/device.conf";
+	char *filename = HOME_CONFIG_PATH"/device.conf";
 	char b[1024];
 	int drive;
 	int retval;
@@ -727,7 +727,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 	pid_t pid;
 	ssize_t retval;
 	int pseudo;
-	char *pseudo_filename = "/sys/bus/pseudo/drivers/vtl/add_lu";
+	char *pseudo_filename = "/sys/bus/pseudo/drivers/mhvtl/add_lu";
 	char errmsg[512];
 
 #ifdef NOTDEF

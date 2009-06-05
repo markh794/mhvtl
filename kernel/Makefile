@@ -12,9 +12,8 @@
 #
 EXTRA_CFLAGS += -I$(SRC)/../include
 
-obj-m	:= vtl.o
+obj-m	:= mhvtl.o
 vtl-objs := mhvtl.o
-# vtl-objs := mhvtl.o event.o
 
 # Custom kernel build..
 KDIR	:= /usr/src/linux/
@@ -31,30 +30,28 @@ default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 
 clean:
-	rm -f vtl.ko
+	rm -f mhvtl.ko
 
 distclean:
-	rm -f vtl.o vtl.ko \
+	rm -f mhvtl.o mhvtl.ko \
 	*.o \
 	*.o.d \
-	vtl.mod.c \
+	mhvtl.mod.c \
 	Modules.symvers \
 	Module.symvers \
-	.vtl.ko.cmd \
-	.vtl.o.cmd \
-	.vtl.mod.o.cmd \
+	.mhvtl.ko.cmd \
+	.mhvtl.o.cmd \
 	.mhvtl.mod.o.cmd \
 	.event.o.cmd \
 	.event.o.d \
-	.mhvtl.o.cmd
+	TAGS
 	rm -rf .tmp_versions
-	rm -f TAGS
 
 install:
-	install -o root -g bin -m 755 vtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/
+	install -o root -g bin -m 755 mhvtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/
 
 install-bkup:
-	cp vtl.ko ~/vtl-`uname -r`_`uname -m`.ko
+	cp mhvtl.ko ~/mhvtl-`uname -r`_`uname -m`.ko
 
 tags:
 	etags *.c *.h

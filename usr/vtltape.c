@@ -3457,7 +3457,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	char *config="/etc/vtl/device.conf";
+	char *config=HOME_CONFIG_PATH"/device.conf";
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
@@ -3640,7 +3640,7 @@ int main(int argc, char *argv[])
 	char *progname = argv[0];
 
 	char *dataFile = HOME_PATH;
-	char *name = "vtl";
+	char *name = "mhvtl";
 	int minor = 0;
 	struct passwd *pw;
 

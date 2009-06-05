@@ -1800,7 +1800,7 @@ return(retval);
  */
 static void update_drive_details(struct d_info *drv, int drive_count)
 {
-	char *config="/etc/vtl/device.conf";
+	char *config=HOME_CONFIG_PATH"/device.conf";
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
@@ -1873,7 +1873,7 @@ done:
  */
 static void init_slot_info(void)
 {
-	char *conf="/etc/vtl/library_contents";
+	char *conf=HOME_CONFIG_PATH"/library_contents";
 	FILE *ctrl;
 	struct d_info *dp = NULL;
 	struct s_info *sp = NULL;
@@ -2090,7 +2090,7 @@ static void init_slot_info(void)
 	free(s);
 
 	/* Now update the details of each drive
-	 * Details contained in /etc/vtl/device.conf
+	 * Details contained in HOME_CONFIG_PATH/device.conf
 	 * Data keyed by device s/no
 	 */
 	update_drive_details(&drive_info[0], num_drives);
@@ -2180,7 +2180,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	char *config="/etc/vtl/device.conf";
+	char *config=HOME_CONFIG_PATH"/device.conf";
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
@@ -2381,7 +2381,7 @@ int main(int argc, char *argv[])
 	pid_t pid, sid, child_cleanup;
 
 	char *progname = argv[0];
-	char *name = "vtl";
+	char *name = "mhvtl";
 	uint8_t	minor = 0;
 	struct passwd *pw;
 

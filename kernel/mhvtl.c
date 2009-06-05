@@ -219,7 +219,7 @@ static int num_dev_resets = 0;
 static int num_bus_resets = 0;
 static int num_host_resets = 0;
 
-static char vtl_driver_name[] = "vtl";
+static char vtl_driver_name[] = "mhvtl";
 
 static int vtl_driver_probe(struct device *);
 static int vtl_driver_remove(struct device *);
@@ -1100,7 +1100,7 @@ static int vtl_proc_info(struct Scsi_Host *host, char *buffer,
 		return length;
 	}
 	begin = 0;
-	pos = len = sprintf(buffer, "vtl adapter driver, version "
+	pos = len = sprintf(buffer, "mhvtl adapter driver, version "
 		"%s [%s]\n"
 		"num_tgts=%d, opts=0x%x, "
 		"every_nth=%d(curr:%d)\n"
@@ -1287,14 +1287,14 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_lu);
 }
 
-static int __init vtl_init(void)
+static int __init mhvtl_init(void)
 {
 	int host_to_add;
 	int ret;
 
 	memset(&devp, 0, sizeof(devp));
 
-	vtl_Major = register_chrdev(vtl_Major, "vtl", &vtl_fops);
+	vtl_Major = register_chrdev(vtl_Major, "mhvtl", &vtl_fops);
 	if (vtl_Major < 0) {
 		printk(KERN_WARNING "mhvtl: can't get major number\n");
 		return vtl_Major;
@@ -1359,10 +1359,10 @@ static void __exit vtl_exit(void)
 	driver_unregister(&vtl_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
 	device_unregister(&pseudo_primary);
-	unregister_chrdev(vtl_Major, "vtl");
+	unregister_chrdev(vtl_Major, "mhvtl");
 }
 
-device_initcall(vtl_init);
+device_initcall(mhvtl_init);
 module_exit(vtl_exit);
 
 void pseudo_0_release(struct device *dev)
