@@ -1653,9 +1653,9 @@ static int vtl_remove_lu(int minor, char __user *arg)
 		ret = -EFAULT;
 		goto give_up;
 	}
-	printk("mhvtl: ioctl to remove device <c t l> <%02d %02d %02d>\n",
-				ctl.channel, ctl.id, ctl.lun);
 	vtl_hba = vtl_get_hba_entry();
+	printk("mhvtl: %s() ioctl to remove device <c t l> <%02d %02d %02d>, "
+		"hba: %p\n", __func__, ctl.channel, ctl.id, ctl.lun, vtl_hba);
 
 	list_for_each_entry_safe(lu, n, &vtl_hba->lu_list, lu_sibling) {
 		if ((lu->channel == ctl.channel) && (lu->target == ctl.id) &&
