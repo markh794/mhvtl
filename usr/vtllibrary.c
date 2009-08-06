@@ -1600,10 +1600,102 @@ static void listMap(void)
 	send_msg(msg, LIBRARY_Q + 1);
 }
 
+/*
+ * If barcode starts with string 'CLN' define it as a cleaning cart.
+ * else its a data cartridge
+ *
+ * Return 1 = Data cartridge
+ *        2 = Cleaning cartridge
+ */
+static uint8_t cart_type(char *barcode)
+{
+	uint8_t retval = 0;
+
+	retval = (strncmp(barcode, "CLN", 3)) ? 1 : 2;
+	if (verbose)
+		syslog(LOG_DAEMON|LOG_INFO, "%s cart found: %s",
+				(retval == 1) ? "Data" : "Cleaning", barcode);
+
+return retval;
+}
+
+#define MALLOC_SZ 1024
+
 static void loadMap(void)
 {
+	char *conf=HOME_CONFIG_PATH"/library_contents";
+	FILE *ctrl;
+	struct s_info *sp = NULL;
+	char *b;        /* Read from file into this buffer */
+	char *s;        /* Somewhere for sscanf to store results */
+	char *barcode;
+	int slt;
+	int x;
+
 	if (verbose)
 		syslog(LOG_DAEMON|LOG_INFO, "Loading MAP\n");
+
+	ctrl = fopen(conf , "r");
+	if (!ctrl) {
+		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m", conf);
+		printf("Can not open config file %s : %m\n", conf);
+		exit(1);
+	}
+
+	// Grab a couple of generic MALLOC_SZ buffers..
+	s = malloc(MALLOC_SZ);
+	if (!s) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	b = malloc(MALLOC_SZ);
+	if (!b) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+
+	barcode = s;
+	/* While read in a line */
+	while (fgets(b, MALLOC_SZ, ctrl) != NULL) {
+		if (b[0] == '#')        /* Ignore comments */
+			continue;
+		barcode[0] = '\0';
+		if (sscanf(b, "Drive %d", &slt) > 0)
+			continue;
+		if (sscanf(b, "Slot %d", &slt) > 0)
+			continue;
+		x = sscanf(b, "MAP %d: %s", &slt, barcode);
+		if (x > 1) {
+			syslog(LOG_DAEMON|LOG_INFO, "Loading MAP with data\n");
+			sp = &map_info[slt - 1];
+			if (slotOccupied(sp))
+				continue;
+			if (debug)
+				printf("Barcode %s in MAP %d\n", barcode, slt);
+			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
+			sp->barcode[10] = '\0';
+			/* 1 = data, 2 = Clean */
+			sp->cart_type = cart_type(barcode);
+			sp->status = STATUS_InEnab | STATUS_ExEnab |
+					STATUS_Access | STATUS_ImpExp |
+					STATUS_Full;
+			sp->slot_location = slt + START_MAP - 1;
+			/* look for special media that should be reported
+			as not having a barcode */
+			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
+				sp->internal_status = INSTATUS_NO_BARCODE;
+			else
+				sp->internal_status = 0;
+			break;
+		} else
+			continue;
+
+		if (sscanf(b, "Picker %d", &slt) > 0)
+			continue;
+	}
+	fclose(ctrl);
+	free(b);
+	free(s);
 }
 
 /*
@@ -1774,27 +1866,6 @@ static struct s_info *init_s_struct(int size)
 
 return sp;
 }
-
-/*
- * If barcode starts with string 'CLN' define it as a cleaning cart.
- * else its a data cartridge
- *
- * Return 1 = Data cartridge
- *        2 = Cleaning cartridge
- */
-static int cart_type(char *barcode)
-{
-	int retval = 0;
-
-	retval = (strncmp(barcode, "CLN", 3)) ? 1 : 2;
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "%s cart found: %s",
-				(retval == 1) ? "Data" : "Cleaning", barcode);
-
-return(retval);
-}
-
-#define MALLOC_SZ 1024
 
 /* Open device config file and update device information
  */
