@@ -416,13 +416,10 @@ static struct vtl_hba_info *vtl_get_hba_entry(void)
 	struct vtl_hba_info *vtl_hba;
 
 	spin_lock(&vtl_hba_list_lock);
-	if (list_empty(&vtl_hba_list)) {
-		spin_unlock(&vtl_hba_list_lock);
-		printk("mhvtl: %s host list empty... Can not add device\n",
-				__func__);
-		return NULL;
-	}
-	vtl_hba = list_entry(vtl_hba_list.prev,
+	if (list_empty(&vtl_hba_list))
+		vtl_hba = NULL;
+	else
+		vtl_hba = list_entry(vtl_hba_list.prev,
 					struct vtl_hba_info, hba_sibling);
 	spin_unlock(&vtl_hba_list_lock);
 	return vtl_hba;
