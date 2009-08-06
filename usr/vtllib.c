@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <inttypes.h>
+#include "be_byteshift.h"
 #include "scsi.h"
 #include "q.h"
 #include "vtl_common.h"
@@ -165,8 +166,6 @@ extern uint8_t sense[];
 
 void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 {
-	uint16_t *sp;
-
 	/* Clear Sense key status */
 	memset(sense, 0, SENSE_BUF_SIZE);
 
@@ -175,8 +174,7 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 	sense[0] = 0xf0;        /* Valid, current error */
 	sense[2] = sense_d;
 	sense[7] = SENSE_BUF_SIZE - 8;
-	sp = (uint16_t *)&sense[12];
-	*sp = htons(sense_q);
+	put_unaligned_be16(sense_q, &sense[12]);
 
 	if (debug)
 		syslog(LOG_DAEMON|LOG_INFO,
@@ -455,8 +453,7 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 	int alloc_len, msense_6;
 	int dev_spec, len = 0;
 	int offset = 0;
-	uint8_t * ap;
-	uint16_t *sp;		/* Short pointer */
+	uint8_t *ap;
 	struct mode *smp;	/* Struct mode pointer... */
 	int a;
 
@@ -551,12 +548,10 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 		if (blockDescriptorLen)
 			memcpy(&buf[4],blockDescriptorBlock,blockDescriptorLen);
 	} else {
-		sp = (uint16_t *)&buf[0];
-		*sp = htons(offset - 2); /* size - sizeof(buf[0]) field */
+		put_unaligned_be16(offset - 2, &buf[0]);
 		buf[2] = media_type;
 		buf[3] = dev_spec;
-		sp = (uint16_t *)&buf[6];
-		*sp = htons(blockDescriptorLen);
+		put_unaligned_be16(blockDescriptorLen, &buf[6]);
 		/* If the length > 0, copy Block Desc. */
 		if (blockDescriptorLen)
 			memcpy(&buf[8],blockDescriptorBlock,blockDescriptorLen);
