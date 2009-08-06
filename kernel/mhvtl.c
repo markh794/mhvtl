@@ -689,7 +689,7 @@ static void remove_sqcp(struct vtl_lu_info *lu, struct vtl_queued_cmd *sqcp)
 /* When timer goes off this function is called. */
 static void timer_intr_handler(unsigned long indx)
 {
-	struct vtl_queued_cmd *sqcp;
+	struct vtl_queued_cmd *sqcp = NULL;
 	struct vtl_lu_info *lu;
 
 	struct vtl_hba_info *vtl_hba;
@@ -1031,8 +1031,10 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 						__func__, lu, minor);
 
 	lu->sdev = __scsi_add_device(hpnt, ctl->channel, ctl->id, ctl->lun, NULL);
-	if (IS_ERR(lu->sdev))
+	if (IS_ERR(lu->sdev)) {
+		lu->sdev = NULL;
 		error = -ENODEV;
+	}
 	return error;
 }
 
