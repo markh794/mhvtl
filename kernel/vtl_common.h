@@ -3,6 +3,8 @@
 /* Common stuff for kernel and usr programs */
 
 #define SENSE_BUF_SIZE	38
+/* Max cdb size */
+#define MAX_COMMAND_SIZE	16
 
 #define VTL_IDLE		0x00
 #define VTL_QUEUE_CMD		0xfe
@@ -20,7 +22,7 @@
 
 struct	vtl_header {
 	unsigned long long serialNo;
-	unsigned char cdb[16];
+	unsigned char cdb[MAX_COMMAND_SIZE];
 	unsigned char *buf;
 };
 
