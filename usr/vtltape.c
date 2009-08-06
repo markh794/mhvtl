@@ -3179,7 +3179,8 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 return 0;
 }
 
-int init_queue(void) {
+int init_queue(void)
+{
 	int	queue_id;
 
 	/* Attempt to create or open message queue */
@@ -3198,7 +3199,8 @@ return (queue_id);
  * Return void  - Nothing
  */
 #define COMPRESSION_TYPE 0x10
-static void init_mode_pages(struct mode *m) {
+static void init_mode_pages(struct mode *m)
+{
 	struct mode *mp;
 	uint32_t	*lp;
 
@@ -3763,6 +3765,11 @@ int main(int argc, char *argv[])
 	if ((r_qid = init_queue()) == -1) {
 		printf("Could not initialise message queue\n");
 		exit(1);
+	}
+
+	if (check_for_running_daemons(minor)) {
+		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
+		exit(2);
 	}
 
 	if (verbose)

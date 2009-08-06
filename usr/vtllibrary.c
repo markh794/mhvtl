@@ -2474,6 +2474,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (check_for_running_daemons(minor)) {
+		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
+		exit(2);
+	}
+
 	/* Clear out message Q by reading anthing there.. */
 	mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
 	while (mlen > 0) {

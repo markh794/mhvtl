@@ -887,3 +887,14 @@ int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 	log_opcode("Receive Diagnostics", cdb, sam_stat);
 	return 0;
 }
+
+/*
+ * Send a ping message to the queue & wait for a response...
+ * If we get a response after 2 seconds, there must be another
+ * daemon listening on this message queue.
+ */
+int check_for_running_daemons(int minor)
+{
+	return 0;
+}
+

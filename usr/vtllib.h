@@ -408,4 +408,5 @@ void completeSCSICommand(int, struct vtl_ds *ds);
 void getCommand(int, struct vtl_header *);
 int retrieve_CDB_data(int cdev, struct vtl_ds *dbuf_p);
 void get_sn_inquiry(int, struct vtl_sn_inquiry *);
+int check_for_running_daemons(int minor);
 
