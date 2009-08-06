@@ -846,7 +846,7 @@ static int vtl_device_reset(struct scsi_cmnd *SCpnt)
 	struct vtl_lu_info *lu;
 
 	if (VTL_OPT_NOISE & vtl_opts)
-		printk(KERN_INFO "mhvtl: device_reset\n");
+		printk(KERN_INFO "mhvtl: %s()\n", __func__);
 	++num_dev_resets;
 	if (SCpnt) {
 		lu = devInfoReg(SCpnt->device);
@@ -947,7 +947,7 @@ static void stop_all_queued(void)
 static int vtl_abort(struct scsi_cmnd *SCpnt)
 {
 	if (VTL_OPT_NOISE & vtl_opts)
-		printk(KERN_INFO "mhvtl: %s\n", __func__);
+		printk(KERN_INFO "mhvtl: %s()\n", __func__);
 	++num_aborts;
 	stop_queued_cmnd(SCpnt);
 	return SUCCESS;
