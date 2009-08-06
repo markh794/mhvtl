@@ -1649,12 +1649,16 @@ give_up:
 	return ret;
 }
 
+DECLARE_MUTEX(tmp_mutex);
+
 static int vtl_remove_lu(int minor, char __user *arg)
 {
 	struct vtl_ctl ctl;
 	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu, *n;
 	int ret = -ENODEV;
+
+	down(&tmp_mutex);
 
 	if (copy_from_user((u8 *)&ctl, (u8 *)arg, sizeof(ctl))) {
 		ret = -EFAULT;
@@ -1680,6 +1684,7 @@ static int vtl_remove_lu(int minor, char __user *arg)
 	ret = 0;
 
 give_up:
+	up(&tmp_mutex);
 	return ret;
 }
 
