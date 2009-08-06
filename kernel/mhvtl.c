@@ -953,6 +953,14 @@ static int vtl_abort(struct scsi_cmnd *SCpnt)
 	return SUCCESS;
 }
 
+/* SLES 9 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,6)
+struct scsi_device *__scsi_add_device(struct Scsi_Host *hpnt, uint channel, uint id, uint lun, char *p )
+{
+	return scsi_add_device(hpnt, channel, id, lun);
+}
+#endif
+
 /*
  * According to scsi_mid_low_api.txt
  *
