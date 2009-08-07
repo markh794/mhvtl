@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.16
-Release: 0
-Source: mhvtl-2009-06-09.tgz
+Release: 1
+Source: mhvtl-2009-08-05.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -162,6 +162,11 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Wed Aug 05 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.1
+  Fixed kernel module oops on lu removal - Many thanks to Jean-Francois
+  Added loadMap() to vtllibrary.
+
 * Tue Jul 09 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.0
 - Moved INQUIRY into userspace.
@@ -171,24 +176,24 @@ fi
 - kernel module will oops if unloaded and re-loaded..
 
 * Fri Jan 02 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.10
+- Bumped version to 0.15.10
 - Removed kfifo from data path for SCSI OP codes which originate at the target
 - Add simple SCSI Persistent Reserve
 - Major change to kernel module. Replaced queued_command_arr[] with linked list
 
 * Thu Nov 27 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.9
+- Bumped version to 0.15.9
 - Re-fixed WRITE ATTRIBUTE bug forcing a rewind of media.
 - Fixed build for PPC64 platform
 - Add special reserved barcode 'NOBAR' to indicate a slot is full but
   contains no barcode.
 
 * Fri Nov 21 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.8
+- Bumped version to 0.15.8
 - Added initial SECURITY PROTOCOL code
 
 * Tue Nov 19 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.7
+- Bumped version to 0.15.7
 - Merge READ ATTRIBUTES fixes from Raymond Gilson
 
 * Sun Nov 16 2008 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
