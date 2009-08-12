@@ -2226,14 +2226,12 @@ int valid_encryption_blk(uint8_t *sam_stat)
  *	cdb      -> SCSI Command buffer pointer,
  *	dbuf     -> struct vtl_ds *
  *
- * Return:
- *	total number of bytes to send back to vtl device
+ *	Return	 -> vtl_ds->sz contains number of bytes to return.
  */
-static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
+static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	uint32_t blk_sz = 0;
 	uint32_t count;
-	uint32_t ret = 0;
 	uint32_t retval = 0;
 	int k;
 	int code;
@@ -2244,6 +2242,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	loff_t nread;
 	char str[256];
 
+	dbuf_p->sz = 0;
 
 	/* Limited subset of commands don't need to check for power-on reset */
 	switch (cdb[0]) {
@@ -2254,7 +2253,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 	default:
 		if (check_reset(sam_stat))
-			return ret;
+			return;
 	}
 
 	// Now process SCSI command.
@@ -2271,7 +2270,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "INQUIRY (%ld) **",
 					(long)dbuf_p->serialNo);
-		ret += spc_inquiry(cdb, dbuf_p, &lunit);
+		dbuf_p->sz = spc_inquiry(cdb, dbuf_p, &lunit);
 		break;
 
 	case FORMAT_UNIT:	// That's FORMAT_MEDIUM for an SSC device...
@@ -2334,8 +2333,10 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			syslog(LOG_DAEMON|LOG_INFO, "LOG SENSE (%ld) **",
 						(long)dbuf_p->serialNo);
 		dbuf_p->sz = get_unaligned_be16(&cdb[7]);
-		k = resp_log_sense(cdb, dbuf_p);
-		ret += (k < dbuf_p->sz) ? k : dbuf_p->sz;
+		retval = resp_log_sense(cdb, dbuf_p);
+		/* Only return number of bytes allocated by initiator */
+		if (dbuf_p->sz > retval)
+			dbuf_p->sz = retval;
 		break;
 
 	case MODE_SELECT:
@@ -2347,7 +2348,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						((cdb[7] << 8) | cdb[8]);
 		if (cdb[1] & 0x10) { /* Page Format: 1 - SPC, 0 - vendor uniq */
 		}
-		ret += resp_mode_select(cdev, cdb, dbuf_p);
+		dbuf_p->sz = resp_mode_select(cdev, cdb, dbuf_p);
 		break;
 
 	case MODE_SENSE:
@@ -2355,7 +2356,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose)
 			syslog(LOG_DAEMON|LOG_INFO, "MODE SENSE (%ld) **",
 						(long)dbuf_p->serialNo);
-		ret += resp_mode_sense(cdb, dbuf_p->data, smp, MediaWriteProtect, sam_stat);
+		dbuf_p->sz = resp_mode_sense(cdb, dbuf_p->data, smp, MediaWriteProtect, sam_stat);
 		break;
 
 	case READ_10:
@@ -2420,20 +2421,23 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			count = 1;
 		}
 
+		printf("Debug 1: blk sz: %d, count: %d\n",
+			blk_sz, count);
+
 		buf = dbuf_p->data;
 		for (k = 0; k < count; k++) {
 			if (!valid_encryption_blk(sam_stat))
 				break;
 			retval = readBlock(cdev, buf, sam_stat, blk_sz);
 			buf += retval;
-			ret += retval;
+			dbuf_p->sz += retval;
 		}
 		/* Fix this for fixed block reads */
 		if (retval > (blk_sz * count))
 			retval = blk_sz * count;
 		bytesRead += retval;
 		pg_read_err_counter.bytesProcessed = bytesRead;
-		ret += retval;
+//		dbuf_p->sz += retval;
 		break;
 
 	case READ_ATTRIBUTE:
@@ -2455,7 +2459,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 		/* Only support Service Action - Attribute Values */
 		if (cdb[1] < 2)
-			ret += resp_read_attribute(cdb, dbuf_p->data, sam_stat);
+			dbuf_p->sz = resp_read_attribute(cdb, dbuf_p->data, sam_stat);
 		else {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sam_stat);
@@ -2464,8 +2468,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (verbose > 1) {
 			uint8_t *p = dbuf_p->data;
 			syslog(LOG_DAEMON|LOG_INFO,
-				" dump return data, length: %d", ret);
-			for (k = 0; k < ret; k += 8) {
+				" dump return data, length: %d", dbuf_p->sz);
+			for (k = 0; k < dbuf_p->sz; k += 8) {
 				syslog(LOG_DAEMON|LOG_INFO,
 					" 0x%02x 0x%02x 0x%02x 0x%02x"
 					" 0x%02x 0x%02x 0x%02x 0x%02x",
@@ -2481,7 +2485,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 					"Read block limits (%ld) **",
 						(long)dbuf_p->serialNo);
 		if (tapeLoaded == TAPE_LOADED)
-			ret += resp_read_block_limits(dbuf_p, bufsize);
+			dbuf_p->sz = resp_read_block_limits(dbuf_p, bufsize);
 		else if (tapeLoaded == TAPE_UNLOADED)
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		else
@@ -2496,10 +2500,11 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (tapeLoaded == TAPE_UNLOADED)
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		else if (tapeLoaded == TAPE_LOADED) {
-			ret += resp_read_media_serial(mediaSerialNo, dbuf_p->data,
+			dbuf_p->sz = resp_read_media_serial(mediaSerialNo,
+								dbuf_p->data,
 								sam_stat);
 			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO, "   %d", ret);
+				syslog(LOG_DAEMON|LOG_INFO, "  %d", dbuf_p->sz);
 		} else
 			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
 		break;
@@ -2511,7 +2516,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		service_action = cdb[1] & 0x1f;
 /* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
 		if ((service_action == 0) || (service_action == 1)) {
-			ret += resp_read_position(c_pos.blk_number,
+			dbuf_p->sz = resp_read_position(c_pos.blk_number,
 							dbuf_p->data, sam_stat);
 		} else {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
@@ -2534,7 +2539,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			syslog(LOG_DAEMON|LOG_INFO, "Report Density (%ld) **",
 						(long)dbuf_p->serialNo);
 		dbuf_p->sz = get_unaligned_be16(&cdb[7]);
-		ret += resp_report_density((cdb[1] & 0x01), dbuf_p);
+		dbuf_p->sz = resp_report_density((cdb[1] & 0x01), dbuf_p);
 		break;
 
 	case REPORT_LUN:
@@ -2568,7 +2573,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		/* Clear out the request sense flag */
 		*sam_stat = 0;
 		memset(sense, 0, sizeof(sense));
-		ret += blk_sz;
+		dbuf_p->sz = blk_sz;
 		break;
 
 	case RESERVE:
@@ -2775,7 +2780,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			syslog(LOG_DAEMON|LOG_INFO,
 					"Receive Diagnostic (%ld) **",
 						(long)dbuf_p->serialNo);
-		ret += ProcessReceiveDiagnostic(cdb, dbuf_p->data, sam_stat);
+		dbuf_p->sz = ProcessReceiveDiagnostic(cdb, dbuf_p->data,
+						sam_stat);
 		break;
 
 	case SEND_DIAGNOSTIC:
@@ -2786,7 +2792,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (count) {
 			dbuf_p->sz = count;
 			blk_sz = retrieve_CDB_data(cdev, dbuf_p);
-			ProcessSendDiagnostic(cdb, 16, dbuf_p->data, blk_sz, sam_stat);
+			ProcessSendDiagnostic(cdb, 16, dbuf_p->data, blk_sz,
+						sam_stat);
 		}
 		break;
 
@@ -2797,10 +2804,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						(long)dbuf_p->serialNo);
 		if (I_am_SPC_2_Reserved)
 			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
-		else {
-			retval = resp_spc_pri(cdb, dbuf_p);
-			ret += retval;
-		}
+		else
+			dbuf_p->sz = resp_spc_pri(cdb, dbuf_p);
 		break;
 
 	case PERSISTENT_RESERVE_OUT:
@@ -2825,11 +2830,11 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			"Security Protocol In (%ld) **",
 						(long)dbuf_p->serialNo);
 		logSCSICommand(cdb);
-		ret += resp_spin(cdb, dbuf_p->data, sam_stat);
+		dbuf_p->sz = resp_spin(cdb, dbuf_p->data, sam_stat);
 		syslog(LOG_DAEMON|LOG_INFO,
-				"Returning %d bytes\n", ret);
+				"Returning %d bytes\n", dbuf_p->sz);
 		if (verbose > 2)
-			hex_dump(dbuf_p->data, ret);
+			hex_dump(dbuf_p->data, dbuf_p->sz);
 		break;
 
 	case SECURITY_PROTOCOL_OUT:
@@ -2843,9 +2848,9 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		dbuf_p->sz *= (cdb[4] & 0x80) ? 512 : 1;
 
 		nread = retrieve_CDB_data(cdev, dbuf_p);
-		ret += resp_spout(cdb, dbuf_p);
+		dbuf_p->sz = resp_spout(cdb, dbuf_p);
 		syslog(LOG_DAEMON|LOG_INFO,
-				"Returning %d bytes\n", ret);
+				"Returning %d bytes\n", dbuf_p->sz);
 		break;
 
 	case A3_SA:
@@ -2876,8 +2881,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						(long)dbuf_p->serialNo);
 		break;
 	}
-	dbuf_p->sz = ret;
-	return 0;
+	return;
 }
 
 /*
