@@ -521,12 +521,11 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		return 0;	/* assume mid level reprocessing command */
 
 	if ((VTL_OPT_NOISE & vtl_opts) && cmd) {
-//		if (TEST_UNIT_READY != cmd[0]) {	// Skip TUR *
-			printk(KERN_INFO "mhvtl: SCSI cdb ");
-			for (k = 0, num = SCpnt->cmd_len; k < num; ++k)
-				printk("%02x ", (int)cmd[k]);
-			printk("\n");
-//		}
+		printk(KERN_INFO "mhvtl: SCSI cdb (%ld) ",
+					SCpnt->serial_number);
+		for (k = 0, num = SCpnt->cmd_len; k < num; ++k)
+			printk("%02x ", (int)cmd[k]);
+		printk("\n");
 	}
 
 	if (SCpnt->device->id == vtl_driver_template.this_id) {
