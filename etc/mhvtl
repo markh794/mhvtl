@@ -41,16 +41,12 @@ if [ ! -f $HOME_CONFIG_PATH/device.conf ]; then
 mkdir -p $HOME_CONFIG_PATH
 cat > $HOME_CONFIG_PATH/device.conf << VTL_CONF
 
-VERSION: 2
+VERSION: 3
 
 # VPD page format:
 # <page #> <Length> <x> <x+1>... <x+n>
-
-# NOTE: The order of records is IMPORTANT...
-# The 'Unit serial number:' should be last (except for VPD data)
-# i.e.
-# Order is : Vendor ID, Product ID, Product Rev and serial number finally
-# Zero, one or more VPD entries.
+# NAA format is an 8 hex byte value seperated by ':'
+# Note: NAA is part of inquiry VPD 0x83
 #
 # Each 'record' is sperated by one (or more) blank lines.
 # Each 'record' starts at column 1
@@ -60,12 +56,14 @@ Library: 0 CHANNEL: 0 TARGET: 0 LUN: 0
  Product identification: L700
  Product revision level: 5500
  Unit serial number: XYZZY
+ NAA: 11:22:33:44:ab:cd:ef:00
 
 Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
  Vendor identification: QUANTUM 
  Product identification: SDLT600         
  Product revision level: 5500
  Unit serial number: XYZZY_A1         
+ NAA: 11:22:33:44:ab:cd:ef:01
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
@@ -74,6 +72,7 @@ Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
  Product identification: SDLT600         
  Product revision level: 5500
  Unit serial number: XYZZY_A2         
+ NAA: 11:22:33:44:ab:cd:ef:02
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
@@ -82,6 +81,7 @@ Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
  Product identification: SDLT600         
  Product revision level: 5500
  Unit serial number: XYZZY_A3         
+ NAA: 11:22:33:44:ab:cd:ef:03
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
@@ -90,6 +90,7 @@ Drive: 4 CHANNEL: 0 TARGET: 3 LUN: 1
  Product identification: SDLT600         
  Product revision level: 5500
  Unit serial number: XYZZY_A4         
+ NAA: 11:22:33:44:ab:cd:ef:04
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
@@ -109,7 +110,7 @@ CAPACITY=500
 VERBOSE=1
 
 # Set kernel module debuging [0|1]
-VTL_DEBUG=1
+VTL_DEBUG=0
 VTL_CONF
 fi
 

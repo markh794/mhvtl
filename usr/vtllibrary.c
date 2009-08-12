@@ -1755,7 +1755,7 @@ static int processMessageQ(char *mtext)
 			verbose--;
 		else
 			verbose = 3;
-		syslog(LOG_DAEMON|LOG_NOTICE, "Verbose %s (%d)",
+		syslog(LOG_DAEMON|LOG_NOTICE, "Verbose: %s at level %d",
 				 verbose ? "enabled" : "disabled", verbose);
 	}
 
@@ -2180,6 +2180,8 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x83)];
 	uint8_t *d;
 	int num;
+	char *ptr;
+	int len, j;
 
 	d = vpd_pg->data;
 
@@ -2192,6 +2194,8 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 	memcpy(&d[4], &lu->vendor_id, VENDOR_ID_LEN);
 	memcpy(&d[12], &lu->product_id, PRODUCT_ID_LEN);
 	memcpy(&d[28], &lu->lu_serial_no, 10);
+	len = (int)strlen(lu->lu_serial_no);
+	ptr = &lu->lu_serial_no[len];
 
 	num += 4;
 	/* NAA IEEE registered identifier (faked) */
@@ -2207,6 +2211,23 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 	d[num + 9] = 0x3;
 	d[num + 10] = 0x3;
 	d[num + 11] = 0x3;
+
+	if (lu->naa) { /* If defined in config file */
+		sscanf((const char *)lu->naa,
+			"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+			&d[num + 4], 
+			&d[num + 5], 
+			&d[num + 6], 
+			&d[num + 7], 
+			&d[num + 8], 
+			&d[num + 9], 
+			&d[num + 10], 
+			&d[num + 11]);
+	} else { /* Else munge the serial number */
+		ptr--;
+		for (j = 11; j > 3; ptr--, j--)
+			d[num + j] = *ptr;
+	}
 }
 
 static void update_vpd_b1(struct lu_phy_attr *lu, void *p)
@@ -2296,6 +2317,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			}
 		}
 		if (indx == minor) {
+			unsigned int c, d, e, f, g, h, j, k;
+			int i;
+
 			if (sscanf(b, " Unit serial number: %s", s))
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			if (sscanf(b, " Product identification: %s", s))
@@ -2317,6 +2341,29 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 						lu->supported_density[n],
 						lu->supported_density[n]);
 				n++;
+			}
+			i = sscanf(b,
+				" NAA: %x:%x:%x:%x:%x:%x:%x:%x",
+					&c, &d, &e, &f, &g, &h, &j, &k);
+			if (i == 8) {
+				if (lu->naa)
+					free(lu->naa);
+				lu->naa = malloc(24);
+				if (lu->naa)
+					sprintf((char *)lu->naa,
+				"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+					c, d, e, f, g, h, j, k);
+				if (debug)
+					printf("Setting NAA: to %s\n", lu->naa);
+				if (verbose)
+					syslog(LOG_DAEMON|LOG_INFO,
+						"Setting NAA: to %s\n",
+							lu->naa);
+			} else if (i > 0) {
+				syslog(LOG_DAEMON|LOG_INFO,
+					"NAA: Incorrect num params: %s", b);
+				if (debug)
+					printf("Incorrect num params %s\n", b);
 			}
 		}
 	}

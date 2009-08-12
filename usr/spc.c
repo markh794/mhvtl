@@ -136,6 +136,10 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 	} else if (cdb[1] & 0x1) {
 		uint8_t pcode = cdb[2];
 
+		if (verbose > 2)
+			syslog(LOG_DAEMON|LOG_INFO, "%s: page code 0x%02x\n",
+					__func__, pcode);
+
 		if (pcode == 0x00) {
 			uint8_t *p;
 			int i, cnt;
@@ -158,6 +162,11 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 			ret = SAM_STAT_GOOD;
 		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
 			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
+
+			if (verbose > 2)
+				syslog(LOG_DAEMON|LOG_INFO,
+					"%s: Found page 0x%x\n",
+						__func__, pcode);
 
 			data[0] = lu->ptype;
 			data[1] = pcode;

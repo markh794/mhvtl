@@ -368,6 +368,7 @@ struct lu_phy_attr {
 	char lu_serial_no[SCSI_SN_LEN];
 	uint16_t version_desc[3];
 	uint8_t supported_density[8];
+	uint8_t *naa;
 	void *lu_private;	/* Private data struct per lu */
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 };
