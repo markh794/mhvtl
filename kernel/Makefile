@@ -44,6 +44,8 @@ distclean:
 	.mhvtl.mod.o.cmd \
 	.event.o.cmd \
 	.event.o.d \
+	Module.markers \
+	modules.order \
 	TAGS
 	rm -rf .tmp_versions
 
