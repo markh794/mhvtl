@@ -49,7 +49,7 @@ install:
 	install -m 700 usr/build_library_config /usr/bin/
 	install -m 700 usr/make_vtl_devices /usr/bin/
 	install -m 700 usr/make_vtl_media /usr/bin/
-	install -m 700 etc/vtl /etc/init.d/
+	install -m 700 etc/mhvtl /etc/init.d/
 
 tar:
 	$(MAKE) distclean
