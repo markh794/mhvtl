@@ -209,8 +209,10 @@ case "$1" in
 
 	hba=`ls /proc/scsi/mhvtl|tail -1`
 	if [ "X$hba" == "X" ]; then
-		echo "Incorrect (or no) kernel module loaded for these daemons."
-		echo "Need mhvtl kernel module version later then 0.16.0"
+		echo "Incorrect (or no) kernel module loaded to feed these daemons."
+		echo ""
+		echo "Need mhvtl kernel module version at least 0.16.0"
+		echo ""
 		echo "Please see http://linuxvtl.googlepages.com"
 		exit 1
 	fi
