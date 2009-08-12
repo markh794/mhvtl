@@ -202,39 +202,49 @@ static void usage(char *progname)
 #endif
 
 
-static void dump_element_desc(uint8_t *p, int voltag, int len)
+static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 {
-	int i;
+	int i, j;
 
-	printf("  Element Address             : %d\n", (p[0] << 8) | p[1]);
-	printf("  Status                      : 0x%02x\n", p[2]);
-	printf("  Medium type                 : %d\n", p[9] & 0x7);
-	if (p[9] & 0x80)
-		printf("  Source Address              : %d\n", (p[10] << 8) | p[11]);
-	i = 12;
-	if (voltag) {
-		i += 36;
-		printf(" Need to print Voltag info\n");
+	i = 0;
+	for (j = 0; j < num_elem; j++) {
+		printf(" %s()  Debug.... i = %d\n", __func__, i);
+		printf("  Element Address             : %d\n",
+					get_unaligned_be16(&p[i]));
+		printf("  Status                      : 0x%02x\n", p[i + 2]);
+		printf("  Medium type                 : %d\n", p[i + 9] & 0x7);
+		if (p[i + 9] & 0x80)
+			printf("  Source Address              : %d\n",
+					get_unaligned_be16(&p[i + 10]));
+		i += 12;
+		if (voltag) {
+			i += 36;
+			printf(" Voltag info...\n");
+		}
+
+		printf(" Identification Descriptor\n");
+		printf("  Code Set                     : 0x%02x\n", p[i] & 0xf);
+		printf("  Identifier type              : 0x%02x\n",
+					p[i + 1] & 0xf);
+		printf("  Identifier length            : %d\n", p[i + 3]);
+		printf("  ASCII data                   : %s\n", &p[i + 4]);
+		printf("  ASCII data                   : %s\n", &p[i + 12]);
+		printf("  ASCII data                   : %s\n\n", &p[i + 28]);
+		i = j + len;
 	}
-	printf(" Identification Descriptor\n");
-	printf("  Code Set                     : 0x%02x\n", p[i] & 0xf);
-	printf("  Identifier type              : 0x%02x\n", p[i + 1] & 0xf);
-	printf("  Identifier length            : %d\n", p[i + 3]);
-	printf("  ASCII data                   : %s\n", &p[i + 4]);
-	printf("  ASCII data                   : %s\n", &p[i + 12]);
-	printf("  ASCII data                   : %s\n", &p[i + 28]);
 }
 
 static void decode_element_status(uint8_t *p)
 {
 	int voltag;
-	int len;
+	int len, elem_len;
+	int num_elements;
 
 	printf("Element Status Data\n");
 	printf("  First element reported       : %d\n",
 					get_unaligned_be16(&p[0]));
-	printf("  Number of elements available : %d\n",
-					get_unaligned_be16(&p[2]));
+	num_elements = 	get_unaligned_be16(&p[2]);
+	printf("  Number of elements available : %d\n", num_elements);
 	printf("  Byte count of report         : %d\n",
 					get_unaligned_be24(&p[5]));
 	printf("Element Status Page\n");
@@ -244,14 +254,17 @@ static void decode_element_status(uint8_t *p)
 	voltag = (p[9] & 0x80) ? 1 : 0;
 	printf("  Alt Vol Tag                  : %s\n",
 					(p[9] & 0x40) ? "Yes" : "No");
-	printf("  Element descriptor length    : %d\n",
-					get_unaligned_be16(&p[10]));
+	elem_len = get_unaligned_be16(&p[10]);
+	printf("  Element descriptor length    : %d\n", elem_len);
 	printf("  Byte count of descriptor data: %d\n",
 					get_unaligned_be24(&p[13]));
+
 	len = get_unaligned_be24(&p[13]);
 
-	printf("Element Descriptor(s)\n");
-	dump_element_desc(&p[16], voltag, len);
+	printf("Element Descriptor(s) : Length %d, Num of Elements %d\n",
+					len, num_elements);
+
+	dump_element_desc(&p[16], voltag, num_elements, elem_len);
 
 	fflush(NULL);
 }
@@ -779,19 +792,20 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		j += 3;
 	}
 
-/*	syslog(LOG_DAEMON|LOG_WARNING, "DVCID: %d, VOLTAG: %d, Index: %d\n",
-			dvcid, voltag, j);
-*/
+	if (verbose > 1)
+		syslog(LOG_DAEMON|LOG_INFO,
+				"%s() line %d DVCID: %d, VOLTAG: %d, Index: %d",
+					__func__, __LINE__, dvcid, voltag, j);
 
 	// Tidy up messy if/then/else into a 'case'
 	m = dvcid + dvcid + voltag;
 	switch(m) {
 	case 0:
-		DEBC( printf("voltag & DVCID both not set\n"); )
+		DEBC( printf("%s() voltag & DVCID both not set\n", __func__); )
 		j += 4;
 		break;
 	case 1:
-		DEBC( printf("voltag set, DVCID not set\n"); )
+		DEBC( printf("%s() voltag set, DVCID not set\n", __func__); )
 		if ((d->slot->status & STATUS_Full) &&
 		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
 			strncpy(s, (char *)d->slot->barcode, 10);
@@ -805,7 +819,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		j += 8;		/* Reserved */
 		break;
 	case 2:
-		DEBC( printf("voltag not set, DVCID set\n"); )
+		DEBC( printf("%s() voltag not set, DVCID set\n", __func__); )
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
 		j++;		/* Reserved */
@@ -830,7 +844,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		j += 10;
 		break;
 	case 3:
-		DEBC( printf("voltag set, DVCID set\n"); )
+		DEBC( printf("%s() voltag set, DVCID set\n", __func__); )
 		if ((d->slot->status & STATUS_Full) &&
 		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
 			strncpy(s, (char *)d->slot->barcode, 10);
@@ -913,7 +927,7 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 	put_unaligned_be32(element_len & 0xffffff, &p[4]);
 
 	/* Reserved */
-	p[4] = 0;	// Above mask should have already set this to 0...
+	p[4] = 0;	/* Above mask should have already set this to 0... */
 
 	DEBC(	printf("Element Status Page Header: "
 			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -926,7 +940,7 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 
-return(8);	// Always 8 bytes in header
+return(8);	/* Always 8 bytes in header */
 }
 
 /*
@@ -936,8 +950,8 @@ return(8);	// Always 8 bytes in header
 static int
 element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int count)
 {
-	uint32_t	byte_count;
-	int	element_sz;
+	uint32_t byte_count;
+	int element_sz;
 
 	element_sz = determine_element_sz(dvcid, voltag);
 
@@ -1139,13 +1153,14 @@ static int data_transfer_descriptor(uint8_t *p, uint16_t start,
 
 	drive -= START_DRIVE;	// Array starts at [0]
 
-	DEBC(	printf("Starting at drive: %d, count %d\n", drive + 1, count);
+	DEBC(	printf("%s() Starting at drive: %d, count %d\n",
+				__func__, drive + 1, count);
 		printf("Element Length: %d for drive: %d\n",
 				determine_element_sz(dvcid, voltag),
 				drive); )
 
 	if (verbose > 2)
-		syslog(LOG_DAEMON|LOG_INFO, "Len: %d\n", len);
+		syslog(LOG_DAEMON|LOG_INFO, "%s() Len: %d\n", __func__, len);
 	/**** For each Data Transfer Element ****/
 	count += drive; // We want 'count' number of drive entries returned
 	for (; drive < count; drive++) {
@@ -1154,7 +1169,8 @@ static int data_transfer_descriptor(uint8_t *p, uint16_t start,
 		len += fill_data_transfer_element( &p[len],
 					&drive_info[drive], dvcid, voltag);
 		if (verbose > 2)
-			syslog(LOG_DAEMON|LOG_INFO, "Len: %d\n", len);
+			syslog(LOG_DAEMON|LOG_INFO, "%s() Len: %d\n",
+					__func__, len);
 	}
 
 	DEBC( printf("%s() returning %d bytes\n", __func__, len); )
@@ -1184,7 +1200,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	number = get_unaligned_be16(&cdb[4]);
 	alloc_len = 0xffffff & get_unaligned_be32(&cdb[6]);
 
-	DEBC(	printf("Element type (%d) => ", typeCode);
+	DEBC(	printf("%s() Element type (%d) => ", __func__, typeCode);
 		switch(typeCode) {
 		case ANY:
 			printf("All Elements\n");
@@ -1310,7 +1326,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	len += element_status_hdr(&buf[0], dvcid, voltag, start, number);
 
 	DEBC( printf("%s() returning %d bytes\n", __func__,
-		((len < alloc_len) ? len : alloc_len));
+			((len < alloc_len) ? len : alloc_len));
 
 		hex_dump(buf, (len < alloc_len) ? len : alloc_len);
 
