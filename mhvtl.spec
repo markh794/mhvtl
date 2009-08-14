@@ -7,7 +7,7 @@ License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
 URL: http://linuxvtl.googlepages.com/
-requires: sg_utils zlib
+requires: zlib
 
 %description
 A Virtual tape library and tape drives:
