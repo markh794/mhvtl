@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.16
-Release: 1
-Source: mhvtl-2009-08-05.tgz
+Release: 2
+Source: mhvtl-2009-08-15.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -162,6 +162,17 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Sat Aug 15 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.2
+  Changed/updated load MAP() functionality.
+  Previous implementation re-read config file and parsed the MAP slots.
+  This is 'interactive' using the vtlcmd command.
+   e.g. vtlcmd library load map BARCODE
+  Corrected NAA field in VPD page 0x83. This was a hard coded string.
+   Now reads entry from /etc/mhvtl/device.conf
+	' NAA: 11:22:33:44:ab:cd:ef:03' (8 octet value)
+  Remove dependency on sg3_utils
+
 * Wed Aug 05 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.1
   Fixed kernel module oops on lu removal - Many thanks to Jean-Francois
