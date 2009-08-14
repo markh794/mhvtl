@@ -1592,7 +1592,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 /*
  * Respond to messageQ 'list map' by sending a list of PCLs to messageQ
  */
-static void listMap(void)
+static void list_map(void)
 {
 	struct s_info *sp;
 	int	a;
@@ -1635,83 +1635,93 @@ static uint8_t cart_type(char *barcode)
 return retval;
 }
 
+
+/* Check existing MAP & Storage slots for existing barcode */
+int already_in_slot(char *barcode)
+{
+	struct s_info *sp = NULL;
+	int slt;
+	int len;
+
+	len = strlen(barcode);
+
+	for (slt = 0; slt < num_map; slt++) {
+		sp = &map_info[slt];
+		if (slotOccupied(sp)) {
+			if (! strncmp((char *)sp->barcode, barcode, len)) {
+				syslog(LOG_DAEMON|LOG_INFO, "Match: %s %s",
+					sp->barcode, barcode);
+				return 1;
+			} else 
+				syslog(LOG_DAEMON|LOG_INFO, "No match: %s %s",
+					sp->barcode, barcode);
+		}
+	}
+	for (slt = 0; slt < num_storage; slt++) {
+		sp = &storage_info[slt];
+		if (slotOccupied(sp)) {
+			if (! strcmp((char *)sp->barcode, barcode))
+				return 1;
+		}
+	}
+	return 0;
+}
+
 #define MALLOC_SZ 1024
 
-static void loadMap(void)
+static void load_map(char *msg)
 {
-	char *conf=HOME_CONFIG_PATH"/library_contents";
-	FILE *ctrl;
 	struct s_info *sp = NULL;
-	char *b;        /* Read from file into this buffer */
-	char *s;        /* Somewhere for sscanf to store results */
 	char *barcode;
 	int slt;
-	int x;
+	int i;
+	int str_len;
 
 	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "Loading MAP\n");
+		syslog(LOG_DAEMON|LOG_INFO, "Loading %s into MAP\n", msg);
 
-	ctrl = fopen(conf , "r");
-	if (!ctrl) {
-		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m", conf);
-		printf("Can not open config file %s : %m\n", conf);
-		exit(1);
+	str_len = strlen(msg);
+	barcode = NULL;
+	for (i = 0; i < str_len; i++)
+		if (isalnum(msg[i])) {
+			barcode = &msg[i];
+			break;
+		}
+
+	/* No barcode - reject load */
+	if (! barcode) {
+		send_msg("Bad barcode", LIBRARY_Q + 1);
+		return;
 	}
 
-	// Grab a couple of generic MALLOC_SZ buffers..
-	s = malloc(MALLOC_SZ);
-	if (!s) {
-		perror("Could not allocate memory");
-		exit(1);
-	}
-	b = malloc(MALLOC_SZ);
-	if (!b) {
-		perror("Could not allocate memory");
-		exit(1);
+	if (already_in_slot(barcode)) {
+		send_msg("barcode already in library", LIBRARY_Q + 1);
+		return;
 	}
 
-	barcode = s;
-	/* While read in a line */
-	while (fgets(b, MALLOC_SZ, ctrl) != NULL) {
-		if (b[0] == '#')        /* Ignore comments */
+	if (strlen(barcode) > 10) {
+		send_msg("barcode length too long", LIBRARY_Q + 1);
+		return;
+	}
+
+	for (slt = 0; slt < num_map; slt++) {
+		sp = &map_info[slt];
+		if (slotOccupied(sp))
 			continue;
-		barcode[0] = '\0';
-		if (sscanf(b, "Drive %d", &slt) > 0)
-			continue;
-		if (sscanf(b, "Slot %d", &slt) > 0)
-			continue;
-		x = sscanf(b, "MAP %d: %s", &slt, barcode);
-		if (x > 1) {
-			syslog(LOG_DAEMON|LOG_INFO, "Loading MAP with data\n");
-			sp = &map_info[slt - 1];
-			if (slotOccupied(sp))
-				continue;
-			if (debug)
-				printf("Barcode %s in MAP %d\n", barcode, slt);
-			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-			sp->barcode[10] = '\0';
-			/* 1 = data, 2 = Clean */
-			sp->cart_type = cart_type(barcode);
-			sp->status = STATUS_InEnab | STATUS_ExEnab |
+		snprintf((char *)sp->barcode, 10, "%-10s", barcode);
+		sp->barcode[10] = '\0';
+		/* 1 = data, 2 = Clean */
+		sp->cart_type = cart_type(barcode);
+		sp->status = STATUS_InEnab | STATUS_ExEnab |
 					STATUS_Access | STATUS_ImpExp |
 					STATUS_Full;
-			sp->slot_location = slt + START_MAP - 1;
-			/* look for special media that should be reported
-			as not having a barcode */
-			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
-				sp->internal_status = INSTATUS_NO_BARCODE;
-			else
-				sp->internal_status = 0;
-			break;
-		} else
-			continue;
-
-		if (sscanf(b, "Picker %d", &slt) > 0)
-			continue;
+		sp->slot_location = slt + START_MAP - 1;
+		sp->internal_status = 0;
+		send_msg("OK", LIBRARY_Q + 1);
+		return;
 	}
-	fclose(ctrl);
-	free(b);
-	free(s);
+	send_msg("MAP Full", LIBRARY_Q + 1);
+	return;
 }
 
 /*
@@ -1754,9 +1764,9 @@ static int processMessageQ(char *mtext)
 	if (! strncmp(mtext, "exit", 4))
 		return 1;
 	if (! strncmp(mtext, "list map", 8))
-		listMap();
-	if (! strncmp(mtext, "load map", 8))
-		loadMap();
+		list_map();
+	if (! strncmp(mtext, "load map ", 9))
+		load_map(&mtext[9]);
 	if (! strncmp(mtext, "offline", 7))
 		libraryOnline = 0;
 	if (! strncmp(mtext, "online", 6))
