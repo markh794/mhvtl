@@ -107,6 +107,10 @@ static const char *vtl_version_date = "20090805-0";
 
 #define VTL_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 
+#ifndef SCSI_MAX_SG_CHAIN_SEGMENTS
+	#define SCSI_MAX_SG_CHAIN_SEGMENTS SG_ALL
+#endif
+
 /* Default values for driver parameters */
 #define DEF_NUM_HOST   1
 #define DEF_NUM_TGTS   0
@@ -287,7 +291,7 @@ static struct scsi_host_template vtl_driver_template = {
 	.eh_host_reset_handler = vtl_host_reset,
 	.can_queue =		VTL_CANQUEUE,
 	.this_id =		7,
-	.sg_tablesize =		64,
+	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
 	.cmd_per_lun =		7,
 	.max_sectors =		4096,
 	.unchecked_isa_dma = 	0,
