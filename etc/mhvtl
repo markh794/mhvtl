@@ -24,7 +24,7 @@
 ### END INIT INFO
 
 USER=vtl
-export HOME_CONFIG_PATH=/etc/mhvtl
+MHVTL_CONFIG_PATH=/etc/mhvtl
 
 OPTIONS=
 
@@ -36,10 +36,10 @@ if [ -f /etc/rc.status ]; then
 fi
 
 # Create a 'device.conf' if it does not exist...
-if [ ! -f $HOME_CONFIG_PATH/device.conf ]; then
+if [ ! -f $MHVTL_CONFIG_PATH/device.conf ]; then
 
-mkdir -p $HOME_CONFIG_PATH
-cat > $HOME_CONFIG_PATH/device.conf << VTL_CONF
+mkdir -p $MHVTL_CONFIG_PATH
+cat > $MHVTL_CONFIG_PATH/device.conf << VTL_CONF
 
 VERSION: 3
 
@@ -98,10 +98,13 @@ VTL_CONF
 fi
 
 # Create a 'mhvtl.conf' if it does not exist...
-if [ ! -f $HOME_CONFIG_PATH/mhvtl.conf ]; then
+if [ ! -f $MHVTL_CONFIG_PATH/mhvtl.conf ]; then
 
-mkdir -p $HOME_CONFIG_PATH
-cat > $HOME_CONFIG_PATH/mhvtl.conf << VTL_CONF
+mkdir -p $MHVTL_CONFIG_PATH
+cat > $MHVTL_CONFIG_PATH/mhvtl.conf << VTL_CONF
+
+# Home directory for config file(s)
+MHVTL_CONFIG_PATH=$MHVTL_CONFIG_PATH
 
 # Default media capacity (500 M)
 CAPACITY=500
@@ -114,24 +117,32 @@ VTL_DEBUG=0
 VTL_CONF
 fi
 
-. $HOME_CONFIG_PATH/mhvtl.conf
+# Upgrade mhvtl.conf with 'MHVTL_CONFIG_PATH' default
+EXIST=`grep MHVTL_CONFIG_PATH $MHVTL_CONFIG_PATH/mhvtl.conf | wc -l`
+if [ $EXIST -eq 0 ]; then
+	echo "" >> $MHVTL_CONFIG_PATH/mhvtl.conf
+	echo "# Default config directory" >> $MHVTL_CONFIG_PATH/mhvtl.conf
+	echo "MHVTL_CONFIG_PATH=$MHVTL_CONFIG_PATH" >> $MHVTL_CONFIG_PATH/mhvtl.conf
+fi
+
+. $MHVTL_CONFIG_PATH/mhvtl.conf
 
 # Earlier versions of mhvtl.conf may not contain the 'CAPACITY' string.
 # Update if nessessary..
-EXIST=`grep CAPACITY $HOME_CONFIG_PATH/mhvtl.conf|wc -l`
+EXIST=`grep CAPACITY $MHVTL_CONFIG_PATH/mhvtl.conf|wc -l`
 if [ $EXIST -eq 0 ]; then
-	echo "" >> $HOME_CONFIG_PATH/mhvtl.conf
-	echo "# Default media capacity" >> $HOME_CONFIG_PATH/mhvtl.conf
-	echo CAPACITY=500 >> $HOME_CONFIG_PATH/mhvtl.conf
+	echo "" >> $MHVTL_CONFIG_PATH/mhvtl.conf
+	echo "# Default media capacity" >> $MHVTL_CONFIG_PATH/mhvtl.conf
+	echo CAPACITY=500 >> $MHVTL_CONFIG_PATH/mhvtl.conf
 fi
 
 # Now check for for 'library_contents'
-if [ ! -f $HOME_CONFIG_PATH/library_contents ]; then
+if [ ! -f $MHVTL_CONFIG_PATH/library_contents ]; then
 	echo
-	echo "Could not locate library config file: $HOME_CONFIG_PATH/library_contents"
+	echo "Could not locate library config file: $MHVTL_CONFIG_PATH/library_contents"
 	echo "Creating a default one"
-	echo "Please stop mhvtl & edit $HOME_CONFIG_PATH/library_contents to suit your requirements"
-	cat > $HOME_CONFIG_PATH/library_contents << CONF_SAMPLE
+	echo "Please stop mhvtl & edit $MHVTL_CONFIG_PATH/library_contents to suit your requirements"
+	cat > $MHVTL_CONFIG_PATH/library_contents << CONF_SAMPLE
 VERSION: 2
 
 Drive 1: XYZZY_A1
@@ -199,8 +210,6 @@ Slot 33: CLN003L1
 CONF_SAMPLE
 fi
 
-DRIVES=`grep ^Drive $HOME_CONFIG_PATH/library_contents|wc -l`
-
 case "$1" in
     start)
 	load_vtl=`grep " mhvtl$" /proc/devices|awk '{print $2}'`
@@ -232,7 +241,7 @@ case "$1" in
 		sleep 1
 	fi
 
-	chown -R $USER:$USER $HOME_CONFIG_PATH
+	chown -R $USER:$USER $MHVTL_CONFIG_PATH
 	chmod 770 /opt/vtl
 
 	# creating devices

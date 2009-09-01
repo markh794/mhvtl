@@ -648,7 +648,7 @@ void hex_dump(uint8_t *p, int count)
 static int get_ctl(int minor, struct vtl_ctl *ctl)
 {
 	FILE *ctrl;
-	char *filename = HOME_CONFIG_PATH"/device.conf";
+	char *filename = MHVTL_CONFIG_PATH"/device.conf";
 	char b[1024];
 	int drive;
 	int retval;

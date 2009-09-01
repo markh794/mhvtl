@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Designed to be called from vtl rc script
 #
@@ -20,16 +20,22 @@
 # * You should have received a copy of the GNU General Public License
 # * along with this program; if not, write to the Free Software
 # * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 export PATH=/usr/bin:$PATH
 
-if [ $# != 1 ]; then
+if [ $# -ne 1 ]; then
 	echo "Usage: $0 username"
 	exit 1
 fi
 
+# Source default config file if not already set
+if [ "X$MHVTL_CONFIG_PATH" == "X" ]; then
+	. /etc/mhvtl/mhvtl.conf
+else
+	. $MHVTL_CONFIG_PATH/mhvtl.conf
+fi
+
 USER=$1
-LIBCONTENTS=$HOME_CONFIG_PATH/library_contents
+LIBCONTENTS=$MHVTL_CONFIG_PATH/library_contents
 
 # Im sure there is a better method then this...
 set_density() {
@@ -53,9 +59,6 @@ set_density() {
 		DENSITY="LTO4"
 	fi
 }
-
-# rc script will make sure this exists...
-. $HOME_CONFIG_PATH/mhvtl.conf
 
 ##################################################################
 ## Main starts here...

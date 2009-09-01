@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Designed to be called from vtl rc script
 #
@@ -26,14 +26,20 @@ if [ $# != 1 ]; then
 	exit 1
 fi
 
+if [ X$MHVTL_CONFIG_PATH == "X" ]; then
+	. /etc/mhvtl/mhvtl.conf
+else
+	. $MHVTL_CONFIG_PATH/mhvtl.conf
+fi
+
 USER=$1
 TMP=/var/tmp/_build.$$
-DRIVECONFIG=$HOME_CONFIG_PATH/device.conf
-LIBCONTENTS=$HOME_CONFIG_PATH/library_contents
+DRIVECONFIG=$MHVTL_CONFIG_PATH/device.conf
+LIBCONTENTS=$MHVTL_CONFIG_PATH/library_contents
 OPTIONS=""
 
 # rc script will make sure this exists...
-. $HOME_CONFIG_PATH/mhvtl.conf
+. $MHVTL_CONFIG_PATH/mhvtl.conf
 
 if [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"

@@ -25,7 +25,7 @@
   #include <byteswap.h>
 #endif
 
-#define HOME_CONFIG_PATH "/etc/mhvtl"
+#define MHVTL_CONFIG_PATH "/etc/mhvtl"
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 

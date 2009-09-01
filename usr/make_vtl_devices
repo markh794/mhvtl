@@ -30,14 +30,21 @@ fi
 USER=$1
 MAJOR=`grep " mhvtl$" /proc/devices|awk '{print $1}'`
 
+# Source default config file if not already set
+if [ "X$MHVTL_CONFIG_PATH" == "X" ]; then
+	. /etc/mhvtl/mhvtl.conf
+else
+	. $MHVTL_CONFIG_PATH/mhvtl.conf
+fi
+
 umask 002
 
-if [ "X" = "X$MAJOR" ]; then
+if [ "X" == "X$MAJOR" ]; then
 	echo "Could not find a major number for mhvtl: kernel module loaded ?"
 	exit 1
 fi
 
-count=`grep "Drive" $HOME_CONFIG_PATH/library_contents|wc -l`
+count=`grep "Drive" $MHVTL_CONFIG_PATH/library_contents|wc -l`
 count=`expr $count + 1`
 echo "Number of devices to create : $count"
 
