@@ -46,6 +46,35 @@
 # endif
 #endif
 
+#define MHVTL_OPT_NOISE 3
+
+#ifndef MHVTL_DEBUG
+
+#define MHVTL_DBG(lvl, s...)
+#define MHVTL_DBG_PRT_CDB(lvl, sn, cdb)
+
+#else
+extern char vtl_driver_name[];
+
+#define MHVTL_DBG(lvl, format, arg...) {			\
+	if (debug)						\
+		printf("%s: %s: " format "\n",			\
+			vtl_driver_name, __func__, ## arg); 	\
+	else if ((verbose && MHVTL_OPT_NOISE) >= (lvl))		\
+		syslog(LOG_DAEMON|LOG_INFO, "%s: " format,	\
+			__func__, ## arg); 			\
+}
+
+#define MHVTL_DBG_PRT_CDB(lvl, sn, cdb) {			\
+	if (debug) {						\
+		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
+	} else if ((verbose & MHVTL_OPT_NOISE) >= (lvl)) {	\
+		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
+	}							\
+}
+
+#endif	/* MHVTL_DEBUG */
+
 #define EOM_FLAG 0x40
 
 #define STATUS_OK 0
@@ -374,7 +403,6 @@ struct lu_phy_attr {
 };
 
 int send_msg(char *, int);
-void logSCSICommand(uint8_t *);
 int check_reset(uint8_t *);
 void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
 void resp_allow_prevent_removal(uint8_t *, uint8_t *);
@@ -396,11 +424,11 @@ void hex_dump(uint8_t *, int);
 int chrdev_open(char *name, uint8_t);
 int oom_adjust(void);
 
-void log_opcode(char *opcode, uint8_t *SCpnt, uint8_t *sam_stat);
-int resp_a3_service_action(uint8_t *cdb, uint8_t *sam_stat);
-int resp_a4_service_action(uint8_t *cdb, uint8_t *sam_stat);
-int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sam_stat);
-int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat);
+void log_opcode(char *opcode, uint8_t *SCpnt, struct vtl_ds *dbuf_p);
+int resp_a3_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
+int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
+int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, struct vtl_ds *dbuf_p);
+int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, struct vtl_ds *dbuf_p);
 
 struct vpd *alloc_vpd(uint16_t sz);
 pid_t add_lu(int minor, struct vtl_ctl *ctl);
@@ -411,3 +439,4 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *dbuf_p);
 void get_sn_inquiry(int, struct vtl_sn_inquiry *);
 int check_for_running_daemons(int minor);
 
+void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);

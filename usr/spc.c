@@ -44,20 +44,6 @@
  * or DEFINE TO 1 to make the -d (debug operation) mode more chatty
  */
 
-#define DEBUG 1
-
-#if DEBUG
-
-#define DEB(a) a
-#define DEBC(a) if (debug) { a ; }
-
-#else
-
-#define DEB(a)
-#define DEBC(a)
-
-#endif
-
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 extern int verbose;
@@ -136,9 +122,7 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 	} else if (cdb[1] & 0x1) {
 		uint8_t pcode = cdb[2];
 
-		if (verbose > 2)
-			syslog(LOG_DAEMON|LOG_INFO, "%s: page code 0x%02x\n",
-					__func__, pcode);
+		MHVTL_DBG(2, "Page code 0x%02x\n", pcode);
 
 		if (pcode == 0x00) {
 			uint8_t *p;
@@ -163,10 +147,7 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
 			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
 
-			if (verbose > 2)
-				syslog(LOG_DAEMON|LOG_INFO,
-					"%s: Found page 0x%x\n",
-						__func__, pcode);
+			MHVTL_DBG(2, "Found page 0x%x\n", pcode);
 
 			data[0] = lu->ptype;
 			data[1] = pcode;
@@ -184,6 +165,7 @@ sense:
 	return SAM_STAT_CHECK_CONDITION;
 }
 
+#ifdef MHVTL_DEBUG
 /*
  * Process PERSITENT RESERVE OUT scsi command
  * Returns 0 if OK
@@ -226,6 +208,7 @@ static char *lookup_sa(uint8_t sa)
 	else
 		return serv_action_str[sa];
 }
+#endif
 
 #define SPR_EXCLUSIVE_ACCESS 3
 int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
@@ -248,20 +231,16 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	RK = get_unaligned_be64(&buf[0]);
 	SARK = get_unaligned_be64(&buf[8]);
 
-	if (verbose) {
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"Key 0x%.8x %.8x SA Key 0x%.8x %.8x "
+	MHVTL_DBG(2, "Key 0x%.8x %.8x SA Key 0x%.8x %.8x "
 			"Service Action: %s, Type: %s\n",
 			(uint32_t)(RK >> 32) & 0xffffffff,
 			(uint32_t) RK & 0xffffffff,
 			(uint32_t)(SARK >> 32) & 0xffffffff,
 			(uint32_t)SARK & 0xffffffff,
 			lookup_sa(SA), lookup_type(TYPE));
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"Reservation key was: 0x%.8x 0x%.8x\n",
+	MHVTL_DBG(2, "Reservation key was: 0x%.8x 0x%.8x\n",
 			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
 			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
-	}
 
 	switch(SA) {
 	case 0: /* REGISTER */
@@ -360,9 +339,7 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		break;
 	}
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"Reservation key now: 0x%.8x 0x%.8x\n",
+	MHVTL_DBG(2, "Reservation key now: 0x%.8x 0x%.8x\n",
 			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
 			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
 	return(0);

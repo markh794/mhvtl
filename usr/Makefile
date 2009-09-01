@@ -14,9 +14,9 @@ REL = $(shell grep Release ../mhvtl.spec|awk '{print $$2}')
 VERSION = $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git-show-ref 2>/dev/null),-git-$(shell git-show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
-# CFLAGS=-Wall -Wshadow -pg -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
+CFLAGS += -DMHVTL_DEBUG
 
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 

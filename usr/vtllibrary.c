@@ -57,24 +57,7 @@
 #include "spc.h"
 #include "be_byteshift.h"
 
-/*
- * Define DEBUG to 0 and recompile to remove most debug messages.
- * or DEFINE TO 1 to make the -d (debug operation) mode more chatty
- */
-
-#define DEBUG 1
-
-#if DEBUG
-
-#define DEB(a) a
-#define DEBC(a) if (debug) { a ; }
-
-#else
-
-#define DEB(a)
-#define DEBC(a)
-
-#endif
+char vtl_driver_name[] = "vtllibrary";
 
 /*
  * The following should be dynamic (read from config file)
@@ -208,28 +191,28 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 
 	i = 0;
 	for (j = 0; j < num_elem; j++) {
-		printf(" %s()  Debug.... i = %d\n", __func__, i);
-		printf("  Element Address             : %d\n",
+		MHVTL_DBG(3, " %s()  Debug.... i = %d\n", __func__, i);
+		MHVTL_DBG(3, "  Element Address             : %d\n",
 					get_unaligned_be16(&p[i]));
-		printf("  Status                      : 0x%02x\n", p[i + 2]);
-		printf("  Medium type                 : %d\n", p[i + 9] & 0x7);
+		MHVTL_DBG(3, "  Status                      : 0x%02x\n", p[i + 2]);
+		MHVTL_DBG(3, "  Medium type                 : %d\n", p[i + 9] & 0x7);
 		if (p[i + 9] & 0x80)
-			printf("  Source Address              : %d\n",
+			MHVTL_DBG(3, "  Source Address              : %d\n",
 					get_unaligned_be16(&p[i + 10]));
 		i += 12;
 		if (voltag) {
 			i += 36;
-			printf(" Voltag info...\n");
+			MHVTL_DBG(3, " Voltag info...\n");
 		}
 
-		printf(" Identification Descriptor\n");
-		printf("  Code Set                     : 0x%02x\n", p[i] & 0xf);
-		printf("  Identifier type              : 0x%02x\n",
+		MHVTL_DBG(3, " Identification Descriptor\n");
+		MHVTL_DBG(3, "  Code Set                     : 0x%02x\n", p[i] & 0xf);
+		MHVTL_DBG(3, "  Identifier type              : 0x%02x\n",
 					p[i + 1] & 0xf);
-		printf("  Identifier length            : %d\n", p[i + 3]);
-		printf("  ASCII data                   : %s\n", &p[i + 4]);
-		printf("  ASCII data                   : %s\n", &p[i + 12]);
-		printf("  ASCII data                   : %s\n\n", &p[i + 28]);
+		MHVTL_DBG(3, "  Identifier length            : %d\n", p[i + 3]);
+		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 4]);
+		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 12]);
+		MHVTL_DBG(3, "  ASCII data                   : %s\n\n", &p[i + 28]);
 		i = j + len;
 	}
 }
@@ -240,28 +223,28 @@ static void decode_element_status(uint8_t *p)
 	int len, elem_len;
 	int num_elements;
 
-	printf("Element Status Data\n");
-	printf("  First element reported       : %d\n",
+	MHVTL_DBG(3, "Element Status Data\n");
+	MHVTL_DBG(3, "  First element reported       : %d\n",
 					get_unaligned_be16(&p[0]));
 	num_elements = 	get_unaligned_be16(&p[2]);
-	printf("  Number of elements available : %d\n", num_elements);
-	printf("  Byte count of report         : %d\n",
+	MHVTL_DBG(3, "  Number of elements available : %d\n", num_elements);
+	MHVTL_DBG(3, "  Byte count of report         : %d\n",
 					get_unaligned_be24(&p[5]));
-	printf("Element Status Page\n");
-	printf("  Element Type code            : %d\n", p[8]);
-	printf("  Primary Vol Tag              : %s\n",
+	MHVTL_DBG(3, "Element Status Page\n");
+	MHVTL_DBG(3, "  Element Type code            : %d\n", p[8]);
+	MHVTL_DBG(3, "  Primary Vol Tag              : %s\n",
 					(p[9] & 0x80) ? "Yes" : "No");
 	voltag = (p[9] & 0x80) ? 1 : 0;
-	printf("  Alt Vol Tag                  : %s\n",
+	MHVTL_DBG(3, "  Alt Vol Tag                  : %s\n",
 					(p[9] & 0x40) ? "Yes" : "No");
 	elem_len = get_unaligned_be16(&p[10]);
-	printf("  Element descriptor length    : %d\n", elem_len);
-	printf("  Byte count of descriptor data: %d\n",
+	MHVTL_DBG(3, "  Element descriptor length    : %d\n", elem_len);
+	MHVTL_DBG(3, "  Byte count of descriptor data: %d\n",
 					get_unaligned_be24(&p[13]));
 
 	len = get_unaligned_be24(&p[13]);
 
-	printf("Element Descriptor(s) : Length %d, Num of Elements %d\n",
+	MHVTL_DBG(3, "Element Descriptor(s) : Length %d, Num of Elements %d\n",
 					len, num_elements);
 
 	dump_element_desc(&p[16], voltag, num_elements, elem_len);
@@ -286,25 +269,22 @@ static struct s_info *slot2struct(int addr)
 {
 	if ((addr >= START_MAP) && (addr <= (START_MAP + num_map))) {
 		addr -= START_MAP;
-		DEBC(	printf("slot2struct: MAP %d\n", addr); )
+		MHVTL_DBG(2, "slot2struct: MAP %d", addr);
 		return &map_info[addr];
 	}
 	if ((addr >= START_STORAGE) && (addr <= (START_STORAGE + num_storage))) {
 		addr -= START_STORAGE;
-		DEBC(	printf("slot2struct: Storage %d\n", addr); )
+		MHVTL_DBG(2, "slot2struct: Storage %d", addr);
 		return &storage_info[addr];
 	}
 	if ((addr >= START_PICKER) && (addr <= (START_PICKER + num_picker))) {
 		addr -= START_PICKER;
-		DEBC(	printf("slot2struct: Picker %d\n", addr); )
+		MHVTL_DBG(2, "slot2struct: Picker %d", addr);
 		return &picker_info[addr];
 	}
 
 // Should NEVER get here as we have performed bounds checking b4
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_ERR, "Arrr... slot2struct returning NULL\n");
-
-	syslog(LOG_DAEMON|LOG_ERR, "%s",  "Fatal: slot2struct() returned NULL");
+	MHVTL_DBG(1, "Arrr... slot2struct returning NULL");
 
 return NULL;
 }
@@ -484,13 +464,7 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 			cmd[x] = '\0';
 			break;
 		}
-	DEBC(	printf("Sending cmd: \'%s\' to drive %d\n",
-					cmd, dest->slot->slot_location);
-	)
-
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO,
-				"Sending cmd: \'%s\' to drive %d\n",
+	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %d",
 					cmd, dest->slot->slot_location);
 
 	send_msg(cmd, dest->slot->slot_location);
@@ -553,7 +527,7 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 			cmd[x] = '\0';
 			break;
 		}
-	syslog(LOG_DAEMON|LOG_INFO, "About to send cmd: \'%s\' to drive %d\n",
+	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %d",
 					cmd, dest->slot->slot_location);
 
 	send_msg(cmd, dest->slot->slot_location);
@@ -569,8 +543,7 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 	src  = slot2struct(src_addr);
 	dest = slot2struct(dest_addr);
 
-	if (debug)
-		printf("Moving from slot %d to slot %d\n",
+	MHVTL_DBG(1, "Moving from slot %d to slot %d",
 				src->slot_location, dest->slot_location);
 
 	if (! slotOccupied(src)) {
@@ -684,8 +657,7 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
 {
 	int j = 0;
 
-	if (debug)
-		printf("Slot location: %d\n", s->slot_location);
+	MHVTL_DBG(2, "Slot location: %d", s->slot_location);
 	put_unaligned_be16(s->slot_location, &p[j]);
 	j += 2;
 	p[j++] = s->status;
@@ -707,7 +679,7 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
 	j += 2;
 
 	if (voltag) {
-		DEBC( printf("voltag set\n"); )
+		MHVTL_DBG(2, "voltag set");
 
 		/* Barcode with trailing space(s) */
 		if ((s->status & STATUS_Full) &&
@@ -720,7 +692,7 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
 		j += 8;		/* Reserved */
 	} else {
 		j += 4;		/* Reserved */
-		DEBC( printf("voltag cleared => no barcode\n"); )
+		MHVTL_DBG(2, "voltag cleared => no barcode");
 	}
 
 return j;
@@ -739,10 +711,10 @@ static int fill_element_detail(uint8_t *p, struct s_info *slot, int slot_count, 
 
 	/**** For each Storage Element ****/
 	for (k = 0, j = 0; j < slot_count; j++, slot++) {
-		DEBC( printf("Slot: %d, k = %d\n", slot->slot_location, k); )
+		MHVTL_DBG(2, "Slot: %d, k = %d", slot->slot_location, k);
 		k += skel_element_descriptor( (uint8_t *)&p[k], slot, voltag);
 	}
-	DEBC( printf("%s() returning %d bytes\n", __func__, k); ) ;
+	MHVTL_DBG(3, "Returning %d bytes", k);
 
 return (k);
 }
@@ -801,11 +773,11 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 	m = dvcid + dvcid + voltag;
 	switch(m) {
 	case 0:
-		DEBC( printf("%s() voltag & DVCID both not set\n", __func__); )
+		MHVTL_DBG(2, "Voltag & DVCID are not set");
 		j += 4;
 		break;
 	case 1:
-		DEBC( printf("%s() voltag set, DVCID not set\n", __func__); )
+		MHVTL_DBG(2, "Voltag set, DVCID not set");
 		if ((d->slot->status & STATUS_Full) &&
 		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
 			strncpy(s, (char *)d->slot->barcode, 10);
@@ -819,7 +791,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		j += 8;		/* Reserved */
 		break;
 	case 2:
-		DEBC( printf("%s() voltag not set, DVCID set\n", __func__); )
+		MHVTL_DBG(2, "Voltag not set, DVCID set");
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
 		j++;		/* Reserved */
@@ -828,23 +800,23 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		strncpy(s, d->inq_vendor_id, 8);
 		s[8] = '\0';
 		snprintf((char *)&p[j], 8, "%-8s", s);
-		DEBC( printf("Vendor ID: \"%-8s\"\n", s); )
+		MHVTL_DBG(2, "Vendor ID: \"%-8s\"", s);
 		j += 8;
 
 		strncpy(s, d->inq_product_id, 16);
 		s[16] = '\0';
 		snprintf((char *)&p[j], 16, "%-16s", s);
-		DEBC( printf("Product ID: \"%-16s\"\n", s); )
+		MHVTL_DBG(2, "Product ID: \"%-16s\"", s);
 		j += 16;
 
 		strncpy(s, d->inq_product_sno, 10);
 		s[10] = '\0';
 		snprintf((char *)&p[j], 10, "%-10s", s);
-		DEBC( printf("Product S/No: \"%-10s\"\n", s); )
+		MHVTL_DBG(2, "Product S/No: \"%-10s\"", s);
 		j += 10;
 		break;
 	case 3:
-		DEBC( printf("%s() voltag set, DVCID set\n", __func__); )
+		MHVTL_DBG(2, "Voltag set, DVCID set");
 		if ((d->slot->status & STATUS_Full) &&
 		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
 			strncpy(s, (char *)d->slot->barcode, 10);
@@ -865,26 +837,26 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		strncpy(s, d->inq_vendor_id, 8);
 		s[8] = '\0';
 		snprintf((char *)&p[j], 8, "%-8s", s);
-		DEBC( printf("Vendor ID: \"%-8s\"\n", s); )
+		MHVTL_DBG(2, "Vendor ID: \"%-8s\"", s);
 		j += 8;
 
 		strncpy(s, d->inq_product_id, 16);
 		s[16] = '\0';
 		snprintf((char *)&p[j], 16, "%-16s", s);
-		DEBC( printf("Product ID: \"%-16s\"\n", s); )
+		MHVTL_DBG(2, "Product ID: \"%-16s\"", s);
 		j += 16;
 
 		strncpy(s, d->inq_product_sno, 10);
 		s[10] = '\0';
 		snprintf((char *)&p[j], 10, "%-10s", s);
-		DEBC( printf("Product S/No: \"%-10s\"\n", s); )
+		MHVTL_DBG(2, "Product S/No: \"%-10s\"", s);
 		j += 10;
 		break;
 	}
 /*
 	syslog(LOG_DAEMON|LOG_WARNING, "Index: %d\n", j);
 */
-	DEBC( printf("%s() returning %d bytes\n", __func__, j); )
+	MHVTL_DBG(3, "Returning %d bytes", j);
 
 return j;
 }
@@ -929,16 +901,10 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 	/* Reserved */
 	p[4] = 0;	/* Above mask should have already set this to 0... */
 
-	DEBC(	printf("Element Status Page Header: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
+	MHVTL_DBG(2, "Element Status Page Header: "
+			"%02x %02x %02x %02x %02x %02x %02x %02x",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 
-	) ;
-
-	if (verbose > 2)
-		syslog(LOG_DAEMON|LOG_INFO, "Element Status Page: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
-			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 
 return(8);	/* Always 8 bytes in header */
 }
@@ -955,10 +921,9 @@ element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int cou
 
 	element_sz = determine_element_sz(dvcid, voltag);
 
-	DEBC(	printf("Building READ ELEMENT STATUS Header struct\n");
-		printf(" Starting slot: %d, number of configured slots: %d\n",
+	MHVTL_DBG(2, "Building READ ELEMENT STATUS Header struct");
+	MHVTL_DBG(2, " Starting slot: %d, number of configured slots: %d",
 					start, count);
-	)
 
 	/* Start of ELEMENT STATUS DATA */
 	put_unaligned_be16(start, &p[0]);
@@ -971,22 +936,17 @@ element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int cou
 	byte_count = 8 + (count * element_sz);
 	put_unaligned_be32(byte_count & 0xffffff, &p[4]);
 
-	DEBC(	printf(" Element Status Data HEADER: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
+	MHVTL_DBG(2, " Element Status Data HEADER: "
+			"%02x %02x %02x %02x %02x %02x %02x %02x",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
-		printf(" Decoded:\n");
-		printf("  First element Address    : %d\n",
+	MHVTL_DBG(3, " Decoded:");
+	MHVTL_DBG(3, "  First element Address    : %d",
 					get_unaligned_be16(&p[0]));
-		printf("  Number elements reported : %d\n",
+	MHVTL_DBG(3, "  Number elements reported : %d",
 					get_unaligned_be16(&p[2]));
-		printf("  Total byte count         : %d\n",
+	MHVTL_DBG(3, "  Total byte count         : %d",
 					get_unaligned_be32(&p[4]));
-	) ;
 
-	if (verbose > 2)
-		syslog(LOG_DAEMON|LOG_INFO, "Element Status Data Header: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
-			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 return 8;	// Header is 8 bytes in size..
 }
 
@@ -1153,27 +1113,21 @@ static int data_transfer_descriptor(uint8_t *p, uint16_t start,
 
 	drive -= START_DRIVE;	// Array starts at [0]
 
-	DEBC(	printf("%s() Starting at drive: %d, count %d\n",
-				__func__, drive + 1, count);
-		printf("Element Length: %d for drive: %d\n",
+	MHVTL_DBG(2, "Starting at drive: %d, count %d", drive + 1, count);
+	MHVTL_DBG(2, "Element Length: %d for drive: %d",
 				determine_element_sz(dvcid, voltag),
-				drive); )
+				drive);
 
-	if (verbose > 2)
-		syslog(LOG_DAEMON|LOG_INFO, "%s() Len: %d\n", __func__, len);
 	/**** For each Data Transfer Element ****/
 	count += drive; // We want 'count' number of drive entries returned
 	for (; drive < count; drive++) {
-		DEBC(	printf("Processing drive %d, stopping after %d\n",
-					drive + 1, count);	) ;
+		MHVTL_DBG(3, "Processing drive %d, stopping after %d",
+					drive + 1, count);
 		len += fill_data_transfer_element( &p[len],
 					&drive_info[drive], dvcid, voltag);
-		if (verbose > 2)
-			syslog(LOG_DAEMON|LOG_INFO, "%s() Len: %d\n",
-					__func__, len);
 	}
 
-	DEBC( printf("%s() returning %d bytes\n", __func__, len); )
+	MHVTL_DBG(3, "Returning %d bytes", len);
 
 return len;
 }
@@ -1200,66 +1154,34 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	number = get_unaligned_be16(&cdb[4]);
 	alloc_len = 0xffffff & get_unaligned_be32(&cdb[6]);
 
-	DEBC(	printf("%s() Element type (%d) => ", __func__, typeCode);
-		switch(typeCode) {
-		case ANY:
-			printf("All Elements\n");
-			break;
-		case MEDIUM_TRANSPORT:
-			printf("Medium Transport\n");
-			break;
-		case STORAGE_ELEMENT:
-			printf("Storage Elements\n");
-			break;
-		case MAP_ELEMENT:
-			printf("Import/Export\n");
-			break;
-		case DATA_TRANSFER:
-			printf("Data Transfer Elements\n");
-			break;
-		default:
-			printf("Invalid type\n");
-			break;
-		}
-		printf("  Starting Element Address: %d\n", req_start_elem);
-		printf("  Number of Elements      : %d\n", number);
-		printf("  Allocation length       : %d\n", alloc_len);
-		printf("  Device ID: %s, voltag: %s\n",
-					(dvcid == 0) ? "No" :  "Yes",
-					(voltag == 0) ? "No" :  "Yes" );
-	)
-	if (verbose) {
-		switch(typeCode) {
-		case ANY: syslog(LOG_DAEMON|LOG_INFO,
-			" Element type(%d) => All Elements", typeCode);
-			break;
-		case MEDIUM_TRANSPORT: syslog(LOG_DAEMON|LOG_INFO,
-			" Element type(%d) => Medium Transport", typeCode);
-			break;
-		case STORAGE_ELEMENT: syslog(LOG_DAEMON|LOG_INFO,
-			" Element type(%d) => Storage Elements", typeCode);
-			break;
-		case MAP_ELEMENT: syslog(LOG_DAEMON|LOG_INFO,
-			" Element type(%d) => Import/Export", typeCode);
-			break;
-		case DATA_TRANSFER: syslog(LOG_DAEMON|LOG_INFO,
+	switch(typeCode) {
+	case ANY:
+		MHVTL_DBG(3, " Element type(%d) => All Elements", typeCode);
+		break;
+	case MEDIUM_TRANSPORT:
+		MHVTL_DBG(3, " Element type(%d) => Medium Transport", typeCode);
+		break;
+	case STORAGE_ELEMENT:
+		MHVTL_DBG(3, " Element type(%d) => Storage Elements", typeCode);
+		break;
+	case MAP_ELEMENT:
+		MHVTL_DBG(3, " Element type(%d) => Import/Export", typeCode);
+		break;
+	case DATA_TRANSFER:
+		MHVTL_DBG(3,
 			" Element type(%d) => Data Transfer Elements",typeCode);
-			break;
-		default:
-			syslog(LOG_DAEMON|LOG_INFO,
+		break;
+	default:
+		MHVTL_DBG(3,
 			" Element type(%d) => Invalid type requested",typeCode);
-			break;
-		}
-		syslog(LOG_DAEMON|LOG_INFO,
-			"  Starting Element Address: %d\n",req_start_elem);
-		syslog(LOG_DAEMON|LOG_INFO,
-			"  Number of Elements      : %d\n",number);
-		syslog(LOG_DAEMON|LOG_INFO,
-			"  Allocation length       : %d\n",alloc_len);
-		syslog(LOG_DAEMON|LOG_INFO, "  Device ID: %s, voltag: %s\n",
+		break;
+	}
+	MHVTL_DBG(3, "  Starting Element Address: %d",req_start_elem);
+	MHVTL_DBG(3, "  Number of Elements      : %d",number);
+	MHVTL_DBG(3, "  Allocation length       : %d",alloc_len);
+	MHVTL_DBG(3, "  Device ID: %s, voltag: %s",
 					(dvcid == 0) ? "No" :  "Yes",
 					(voltag == 0) ? "No" :  "Yes" );
-	}
 
 	/* Set alloc_len to smallest value */
 	if (alloc_len > bufsize)
@@ -1325,13 +1247,13 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	// Now populate the 'main' header structure with byte count..
 	len += element_status_hdr(&buf[0], dvcid, voltag, start, number);
 
-	DEBC( printf("%s() returning %d bytes\n", __func__,
+	MHVTL_DBG(3, "Returning %d bytes",
 			((len < alloc_len) ? len : alloc_len));
 
+	if (debug)
 		hex_dump(buf, (len < alloc_len) ? len : alloc_len);
 
-		decode_element_status(buf);
-	)
+	decode_element_status(buf);
 
 	/* Return the smallest number */
 	return ((len < alloc_len) ? len : alloc_len);
@@ -1356,40 +1278,28 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
 
 	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_WARNING, "%s",
-						"Sending supported pages");
+		MHVTL_DBG(2, "%s", "Sending supported pages");
 		put_unaligned_be16(sizeof(supported_pages) - 4,
 					&supported_pages[2]);
 		b = memcpy(b, supported_pages, sizeof(supported_pages));
 		retval = sizeof(supported_pages);
 		break;
 	case TEMPERATURE_PAGE:	/* Temperature page */
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-						"LOG SENSE: Temperature page");
+		MHVTL_DBG(2, "LOG SENSE: Temperature page");
 		put_unaligned_be16(sizeof(Temperature_pg) - sizeof(Temperature_pg.pcode_head), &Temperature_pg.pcode_head.len);
 		put_unaligned_be16(35, &Temperature_pg.temperature);
 		b = memcpy(b, &Temperature_pg, sizeof(Temperature_pg));
 		retval += sizeof(Temperature_pg);
 		break;
 	case TAPE_ALERT:	/* TapeAlert page */
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,"LOG SENSE: TapeAlert page");
+		MHVTL_DBG(2, "LOG SENSE: TapeAlert page");
 		put_unaligned_be16(sizeof(TapeAlert) - sizeof(TapeAlert.pcode_head), &TapeAlert.pcode_head.len);
 		b = memcpy(b, &TapeAlert, sizeof(TapeAlert));
 		retval += sizeof(TapeAlert);
 		setTapeAlert(&TapeAlert, 0);	// Clear flags after value read.
 		break;
 	default:
-		if (debug)
-			printf(
-				"Unknown log sense code: 0x%x\n",
-							cdb[2] & 0x3f);
-		else if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Unknown log sense code: 0x%x\n",
-							cdb[2] & 0x3f);
+		MHVTL_DBG(1, "Unknown log sense code: 0x%x", cdb[2] & 0x3f);
 		retval = 2;
 		break;
 	}
@@ -1420,12 +1330,12 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint8_t *buf = dbuf_p->data;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 
+	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
+
 	switch (cdb[0]) {
 	case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
 	case INITIALIZE_ELEMENT_STATUS:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s",
-						"INITIALIZE ELEMENT **");
+		MHVTL_DBG(1, "%s", "INITIALIZE ELEMENT **");
 		if (check_reset(sam_stat))
 			break;
 		sleep(1);
@@ -1441,15 +1351,13 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		resp_log_select(cdb, sam_stat);
 		break;
 	case LOG_SENSE:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "LOG SENSE **");
+		MHVTL_DBG(1, "%s", "LOG SENSE **");
 		ret += resp_log_sense(cdb, buf);
 		break;
 
 	case MODE_SELECT:
 	case MODE_SELECT_10:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SELECT **");
+		MHVTL_DBG(1, "%s", "MODE SELECT **");
 		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
 						((cdb[7] << 8) | cdb[8]);
 		ret += resp_mode_select(cdev, dbuf_p);
@@ -1457,16 +1365,12 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case MODE_SENSE:
 	case MODE_SENSE_10:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "MODE SENSE **");
-		DEBC( printf("MODE SENSE\n"); )
+		MHVTL_DBG(1, "%s", "MODE SENSE **");
 		ret += resp_mode_sense(cdb, buf, smp, 0, sam_stat);
 		break;
 
 	case MOVE_MEDIUM:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "MOVE MEDIUM **");
-		DEBC( printf("MOVE MEDIUM\n"); )
+		MHVTL_DBG(1, "%s", "MOVE MEDIUM **");
 		if (check_reset(sam_stat))
 			break;
 		k = resp_move_medium(cdb, buf, sam_stat);
@@ -1477,28 +1381,17 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		resp_allow_prevent_removal(cdb, sam_stat);
 		break;
 	case READ_ELEMENT_STATUS:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s",
-						 "READ ELEMENT STATUS **");
-		DEBC(	printf("READ ELEMENT STATUS\n"); )
+		MHVTL_DBG(1, "%s", "READ ELEMENT STATUS **");
 		if (check_reset(sam_stat))
 			break;
 		ret += resp_read_element_status(cdb, buf, sam_stat);
 		break;
 
 	case REQUEST_SENSE:
-		if (verbose) {
-			syslog(LOG_DAEMON|LOG_INFO, "%s",
-						"SCSI REQUEST SENSE **");
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Sense key/ASC/ASCQ [0x%02x 0x%02x 0x%02x]",
+		MHVTL_DBG(1, "%s", "SCSI REQUEST SENSE **");
+		MHVTL_DBG(1, "Sense key/ASC/ASCQ [0x%02x 0x%02x 0x%02x]",
 					sense[2], sense[12], sense[13]);
-		}
-		DEBC( printf("Request Sense: key 0x%02x, ASC 0x%02x, ASCQ 0x%02x\n",
-					sense[2], sense[12], sense[13]);
-		)
-		block_size =
-		 (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
+		block_size = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
 		memcpy(buf, sense, block_size);
 		/* Clear out the request sense flag */
 		*sam_stat = 0;
@@ -1515,8 +1408,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s", "Rewinding **");
+		MHVTL_DBG(1, "%s", "Rewinding **");
 		if (check_reset(sam_stat))
 			break;
 		sleep(1);
@@ -1527,20 +1419,14 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			break;
 		if (cdb[4] && 0x1) {
 			libraryOnline = 1;
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO, "%s",
-							"Library online **");
+			MHVTL_DBG(1, "%s", "Library online **");
 		} else {
 			libraryOnline = 0;
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO, "%s",
-							"Library offline **");
+			MHVTL_DBG(1, "%s", "Library offline **");
 		}
 		break;
 	case TEST_UNIT_READY:	// Return OK by default
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s %s",
-					"Test Unit Ready :",
+		MHVTL_DBG(1, "%s %s", "Test Unit Ready :",
 					(libraryOnline == 0) ? "No" : "Yes");
 		if (check_reset(sam_stat))
 			break;
@@ -1549,40 +1435,30 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case RECEIVE_DIAGNOSTIC:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-					"Receive Diagnostic (%ld) **",
+		MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
 						(long)dbuf_p->serialNo);
-		ret += ProcessReceiveDiagnostic(cdb, dbuf_p->data, sam_stat);
+		ret += ProcessReceiveDiagnostic(cdb, dbuf_p->data, dbuf_p);
 		break;
 
 	case SEND_DIAGNOSTIC:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "Send Diagnostic **");
+		MHVTL_DBG(1, "Send Diagnostic **");
 		count = get_unaligned_be16(&cdb[3]);
 		if (count) {
 			dbuf_p->sz = count;
 			block_size = retrieve_CDB_data(cdev, dbuf_p);
-			ProcessSendDiagnostic(cdb, 16, buf, block_size, sam_stat);
+			ProcessSendDiagnostic(cdb, 16, buf, block_size, dbuf_p);
 		}
 		break;
 
 	default:
-		syslog(LOG_DAEMON|LOG_ERR, "%s",
-				"******* Unsupported command **********");
-		DEBC(
-		printf("0x%02x : Unsupported command ************\n", cdb[0]);
-		)
-
-		logSCSICommand(cdb);
+		MHVTL_DBG(1,  "%s", "******* Unsupported command **********");
+		MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 		if (check_reset(sam_stat))
 			break;
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 		break;
 	}
-	DEBC(
-		printf("%s returning %d bytes\n\n", __func__, ret);
-	)
+	MHVTL_DBG(2, "Returning %d bytes", ret);
 
 	dbuf_p->sz = ret;
 
@@ -1604,15 +1480,12 @@ static void list_map(void)
 		sp = slot2struct(a);
 		if (slotOccupied(sp)) {
 			strncat(c, (char *)sp->barcode, 10);
-			syslog(LOG_DAEMON|LOG_NOTICE, "MAP slot %d full",
-					a - START_MAP);
+			MHVTL_DBG(2, "MAP slot %d full", a - START_MAP);
 		} else {
-			syslog(LOG_DAEMON|LOG_NOTICE, "MAP slot %d empty",
-					a - START_MAP);
+			MHVTL_DBG(2, "MAP slot %d empty", a - START_MAP);
 		}
 	}
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_NOTICE, "map contents: %s", msg);
+	MHVTL_DBG(2, "map contents: %s", msg);
 	send_msg(msg, LIBRARY_Q + 1);
 }
 
@@ -1628,8 +1501,7 @@ static uint8_t cart_type(char *barcode)
 	uint8_t retval = 0;
 
 	retval = (strncmp(barcode, "CLN", 3)) ? 1 : 2;
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "%s cart found: %s",
+	MHVTL_DBG(2, "%s cart found: %s",
 				(retval == 1) ? "Data" : "Cleaning", barcode);
 
 return retval;
@@ -1649,11 +1521,11 @@ int already_in_slot(char *barcode)
 		sp = &map_info[slt];
 		if (slotOccupied(sp)) {
 			if (! strncmp((char *)sp->barcode, barcode, len)) {
-				syslog(LOG_DAEMON|LOG_INFO, "Match: %s %s",
+				MHVTL_DBG(3, "Match: %s %s",
 					sp->barcode, barcode);
 				return 1;
 			} else 
-				syslog(LOG_DAEMON|LOG_INFO, "No match: %s %s",
+				MHVTL_DBG(3, "No match: %s %s",
 					sp->barcode, barcode);
 		}
 	}
@@ -1677,8 +1549,7 @@ static void load_map(char *msg)
 	int i;
 	int str_len;
 
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "Loading %s into MAP\n", msg);
+	MHVTL_DBG(2, "Loading %s into MAP", msg);
 
 	str_len = strlen(msg);
 	barcode = NULL;
@@ -1736,9 +1607,7 @@ static void emptyMap(void)
 		sp = slot2struct(a);
 		if (slotOccupied(sp)) {
 			setSlotEmpty(sp);
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_NOTICE,
-					"MAP slot %d emptied", a - START_MAP);
+			MHVTL_DBG(2, "MAP slot %d emptied", a - START_MAP);
 		}
 	}
 }
@@ -1749,7 +1618,7 @@ static void emptyMap(void)
 static int processMessageQ(char *mtext)
 {
 
-	syslog(LOG_DAEMON|LOG_NOTICE, "Q msg : %s", mtext);
+	MHVTL_DBG(3, "Q msg : %s", mtext);
 
 	if (! strncmp(mtext, "debug", 5)) {
 		if (debug) {
@@ -1907,8 +1776,7 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
-								config);
+		MHVTL_DBG(1, "Can not open config file %s : %m", config);
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -1928,12 +1796,9 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 	while( fgets(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		if (debug)
-			printf("%s: strlen: %ld\n", __func__, (long)strlen(b));
+		MHVTL_DBG(3, "strlen: %ld", (long)strlen(b));
 		if (sscanf(b, "Drive: %d", &indx)) {
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO,
-						"Found Drive %d\n", indx);
+			MHVTL_DBG(2, "Found Drive %d", indx);
 			if (indx > 0) {
 				indx--;
 				dp = &drv[indx];
@@ -1982,9 +1847,7 @@ static void init_slot_info(void)
 
 	ctrl = fopen(conf , "r");
 	if (!ctrl) {
-		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
-								conf);
-		printf("Can not open config file %s : %m\n", conf);
+		MHVTL_DBG(1, "Can not open config file %s : %m", conf);
 		exit(1);
 	}
 
@@ -2020,12 +1883,7 @@ static void init_slot_info(void)
 			num_picker++;
 	}
 
-	if (debug)
-		printf("%d Drives, %d Storage slots\n",
-						num_drives, num_storage);
-	else
-		syslog(LOG_DAEMON|LOG_INFO, "%d Drives, %d Storage slots\n",
-						num_drives, num_storage);
+	MHVTL_DBG(1, "%d Drives, %d Storage slots", num_drives, num_storage);
 
 	/* Allocate enough memory for drives */
 	drive_info = init_d_struct(num_drives + 1);
@@ -2064,7 +1922,7 @@ static void init_slot_info(void)
 
 		x = sscanf(b, "Drive %d: %s", &slt, s);
 		if (x && slt > num_drives) {
-			syslog(LOG_DAEMON|LOG_ERR, "Too many drives");
+			MHVTL_DBG(1, "Too many drives");
 			continue;
 		}
 		dp = &drive_info[slt - 1];
@@ -2072,9 +1930,7 @@ static void init_slot_info(void)
 		case 2:
 			/* Pull serial number out and fall thru to case 1*/
 			strncpy(dp->inq_product_sno, s, 10);
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO,
-						"Drive s/no: %s\n", s);
+			MHVTL_DBG(2, "Drive s/no: %s", s);
 		case 1:
 			dp->slot->slot_location = slt + START_DRIVE - 1;
 			dp->slot->status = STATUS_Access;
@@ -2085,7 +1941,7 @@ static void init_slot_info(void)
 
 		x = sscanf(b, "MAP %d: %s", &slt, barcode);
 		if (x && slt > num_map) {
-			syslog(LOG_DAEMON|LOG_ERR, "Too many MAPs");
+			MHVTL_DBG(1, "Too many MAPs");
 			continue;
 		}
 		sp = &map_info[slt - 1];
@@ -2098,8 +1954,7 @@ static void init_slot_info(void)
 			sp->internal_status = 0;
 			break;
 		case 2:
-			if (debug)
-				printf("Barcode %s in MAP %d\n", barcode, slt);
+			MHVTL_DBG(2, "Barcode %s in MAP %d", barcode, slt);
 			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
 			sp->barcode[10] = '\0';
 			/* 1 = data, 2 = Clean */
@@ -2119,7 +1974,7 @@ static void init_slot_info(void)
 
 		x = sscanf(b, "Picker %d: %s", &slt, barcode);
 		if (x && slt > num_picker) {
-			syslog(LOG_DAEMON|LOG_ERR, "Too many pickers");
+			MHVTL_DBG(1, "Too many pickers");
 			continue;
 		}
 		sp = &picker_info[slt - 1];
@@ -2131,9 +1986,7 @@ static void init_slot_info(void)
 			sp->internal_status = 0;
 			break;
 		case 2:
-			if (debug)
-				printf("Barcode %s in Picker %d\n",
-								barcode, slt);
+			MHVTL_DBG(2, "Barcode %s in Picker %d", barcode, slt);
 			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
 			sp->barcode[10] = '\0';
 			/* 1 = data, 2 = Clean */
@@ -2150,8 +2003,7 @@ static void init_slot_info(void)
 
 		x = sscanf(b, "Slot %d: %s", &slt, barcode);
 		if (x && (slt > num_storage)) {
-			syslog(LOG_DAEMON|LOG_ERR,
-					"Storage slot %d out of range", slt);
+			MHVTL_DBG(1, "Storage slot %d out of range", slt);
 			continue;
 		}
 		sp = &storage_info[slt - 1];
@@ -2163,9 +2015,7 @@ static void init_slot_info(void)
 			sp->internal_status = 0;
 			break;
 		case 2:
-			if (debug)
-				printf("Barcode %s in slot %d\n",
-								 barcode, slt);
+			MHVTL_DBG(2, "Barcode %s in slot %d", barcode, slt);
 			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
 			sp->barcode[10] = '\0';
 			sp->slot_location = slt + START_STORAGE - 1;
@@ -2308,8 +2158,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
-								config);
+		MHVTL_DBG(1, "Can not open config file %s : %m", config);
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -2333,9 +2182,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		if (sscanf(b, "Library: %d CHANNEL: %d TARGET: %d LUN: %d",
 					&indx, &tmpctl.channel,
 					&tmpctl.id, &tmpctl.lun)) {
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO,
-					"Found Library %d, looking for %d\n",
+			MHVTL_DBG(2, "Found Library %d, looking for %d",
 							indx, minor);
 			if (indx == minor) {
 				found = 1;
@@ -2357,13 +2204,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			if (sscanf(b, " Density : %s", s)) {
 				lu->supported_density[n] =
 					(uint8_t)strtol(s, NULL, 16);
-				if (verbose)
-					syslog(LOG_DAEMON|LOG_INFO,
-					"Supported density: 0x%x (%d)\n",
-						lu->supported_density[n],
-						lu->supported_density[n]);
-				if (debug)
-					printf("Supported density: 0x%x (%d)\n",
+				MHVTL_DBG(2, "Supported density: 0x%x (%d)",
 						lu->supported_density[n],
 						lu->supported_density[n]);
 				n++;
@@ -2379,17 +2220,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 					sprintf((char *)lu->naa,
 				"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					c, d, e, f, g, h, j, k);
-				if (debug)
-					printf("Setting NAA: to %s\n", lu->naa);
-				if (verbose)
-					syslog(LOG_DAEMON|LOG_INFO,
-						"Setting NAA: to %s\n",
-							lu->naa);
+				MHVTL_DBG(2, "Setting NAA: to %s", lu->naa);
 			} else if (i > 0) {
-				syslog(LOG_DAEMON|LOG_INFO,
-					"NAA: Incorrect num params: %s", b);
-				if (debug)
-					printf("Incorrect num params %s\n", b);
+				MHVTL_DBG(1, "NAA: Incorrect no params: %s", b);
 			}
 		}
 	}
@@ -2410,9 +2243,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		lu_vpd[pg]->vpd_update = update_vpd_80;
 		lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
 	} else
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"%s: could not malloc(%d) line %d\n",
-				__func__, (int)strlen(lu->lu_serial_no),
+		MHVTL_DBG(1, "Could not malloc(%d) line %d",
+				(int)strlen(lu->lu_serial_no),
 				(int)__LINE__);
 
 	/* Device Identification */
@@ -2422,9 +2254,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		lu_vpd[pg]->vpd_update = update_vpd_83;
 		lu_vpd[pg]->vpd_update(lu, NULL);
 	} else
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"%s: could not malloc(%d) line %d\n",
-				__func__, VPD_83_SZ, __LINE__);
+		MHVTL_DBG(1, "Could not malloc(%d) line %d",
+				VPD_83_SZ, __LINE__);
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
 	pg = 0xB1 & 0x7f;
@@ -2434,7 +2265,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
 	} else
 		syslog(LOG_DAEMON|LOG_WARNING,
-			"%s: could not malloc(%d) line %d\n",
+			"%s: could not malloc(%d) line %d",
 				__func__, VPD_B1_SZ, __LINE__);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
@@ -2444,9 +2275,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		lu_vpd[pg]->vpd_update = update_vpd_b2;
 		lu_vpd[pg]->vpd_update(lu, &local_TapeAlert);
 	} else
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"%s: could not malloc(%d) line %d\n",
-				__func__, VPD_B2_SZ, __LINE__);
+		MHVTL_DBG(1, "Could not malloc(%d) line %d",
+				VPD_B2_SZ, __LINE__);
 
 	/* VPD page 0xC0 */
 	pg = 0xC0 & 0x7f;
@@ -2455,9 +2285,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		lu_vpd[pg]->vpd_update = update_vpd_c0;
 		lu_vpd[pg]->vpd_update(lu, "10-03-2008 19:38:00");
 	} else
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"%s: could not malloc(%d) line %d\n",
-				__func__, VPD_C0_SZ, __LINE__);
+		MHVTL_DBG(1, "Could not malloc(%d) line %d",
+				VPD_C0_SZ, __LINE__);
 
 	/* VPD page 0xC1 */
 	pg = 0xC1 & 0x7f;
@@ -2466,9 +2295,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		lu_vpd[pg]->vpd_update = update_vpd_c1;
 		lu_vpd[pg]->vpd_update(lu, "Security");
 	} else
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"%s: could not malloc(%d) line %d\n",
-				__func__, (int)strlen(lu->lu_serial_no),
+		MHVTL_DBG(1, "Could not malloc(%d) line %d",
+				(int)strlen(lu->lu_serial_no),
 				(int)__LINE__);
 
 	return found;
@@ -2567,7 +2395,7 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, MHVTL_VERSION);
+	MHVTL_DBG(1, "%s: version %s", progname, MHVTL_VERSION);
 	if (verbose) {
 		printf("%s: version %s\n", progname, MHVTL_VERSION);
 		syslog(LOG_DAEMON|LOG_INFO, "verbose: %d\n", verbose);
@@ -2608,9 +2436,7 @@ int main(int argc, char *argv[])
 		exit (1);
 	}
 
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "Running as %s, uid: %d\n",
-					pw->pw_name, getuid());
+	MHVTL_DBG(2, "Running as %s, uid: %d", pw->pw_name, getuid());
 
 	/* Initialise message queue as necessary */
 	if ((r_qid = init_queue()) == -1) {
@@ -2627,8 +2453,7 @@ int main(int argc, char *argv[])
 	mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
 	while (mlen > 0) {
 		r_entry.mtext[mlen] = '\0';
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"Found \"%s\" still in message Q\n", r_entry.mtext);
+		MHVTL_DBG(2, "Found \"%s\" still in message Q", r_entry.mtext);
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
 	}
 
@@ -2655,26 +2480,27 @@ int main(int argc, char *argv[])
 		if (debug) {
 			dp = &drive_info[a];
 
-			printf("\nDrive %d\n", a);
+			MHVTL_DBG(3, "\nDrive %d", a);
 
 			strncpy(s, dp->inq_vendor_id, 8);
 			s[8] = '\0';
-			printf("Vendor ID     : \"%s\"\n", s);
+			MHVTL_DBG(3, "Vendor ID     : \"%s\"", s);
 
 			strncpy(s, dp->inq_product_id, 16);
 			s[16] = '\0';
-			printf("Product ID    : \"%s\"\n", s);
+			MHVTL_DBG(3, "Product ID    : \"%s\"", s);
 
 			strncpy(s, dp->inq_product_rev, 4);
 			s[4] = '\0';
-			printf("Revision Level: \"%s\"\n", s);
+			MHVTL_DBG(3, "Revision Level: \"%s\"", s);
 
 			strncpy(s, dp->inq_product_sno, 10);
 			s[10] = '\0';
-			printf("Product S/No  : \"%s\"\n", s);
+			MHVTL_DBG(3, "Product S/No  : \"%s\"", s);
 
-			printf("Drive location: %d\n", dp->slot->slot_location);
-			printf("Drive occupied: %s\n",
+			MHVTL_DBG(3, "Drive location: %d",
+						dp->slot->slot_location);
+			MHVTL_DBG(3, "Drive occupied: %s",
 				(dp->slot->status & STATUS_Full) ? "No" : "Yes");
 		}
 	}
@@ -2732,9 +2558,8 @@ int main(int argc, char *argv[])
 		} else {
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
-					if (verbose)
-						syslog(LOG_DAEMON|LOG_INFO,
-						"Cleaning up after child %d\n",
+					MHVTL_DBG(2,
+						"Cleaning up after child %d",
 							child_cleanup);
 					child_cleanup = 0;
 				}

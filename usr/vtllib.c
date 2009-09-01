@@ -43,28 +43,9 @@
 	int ioctl(int, int, void *);
 #endif
 
-#ifndef DEBUG
-
-/* Change to 0 to disable some debug statements */
-#define DEBUG 0
-
-#define DEB(a) a
-#define DEBC(a) if (debug) { a ; }
-
-#else
-
-#define DEB(a)
-#define DEBC(a)
-
-#endif
-
 extern uint8_t blockDescriptorBlock[];
 extern int verbose;
-
-DEB(
 extern int debug;
-) ;
-
 
 int send_msg(char *cmd, int q_id)
 {
@@ -87,74 +68,69 @@ int send_msg(char *cmd, int q_id)
 	}
 }
 
-/*
- * log the SCSI command.
- * If debug -> display to stdout and syslog.
- * else to syslog
- */
-void logSCSICommand(uint8_t *cdb)
-{
+#ifndef MHVTL_DEBUG
+
+#define MHVTL_DBG_CDB(lvl, format, arg...)
+
+#else
+
+/* Note: Macro needs to be called with s/n as first arg */
+#define MHVTL_DBG_CDB(lvl, format, arg...) {			\
+	if (debug)						\
+		printf("%s: CDB (%" PRId64 ") " format "\n",	\
+				vtl_driver_name, ##arg);	\
+	else if ((verbose && MHVTL_OPT_NOISE) >= (lvl))		\
+		syslog(LOG_DAEMON|LOG_INFO,			\
+			"CDB (%" PRId64 ") " format, ##arg);	\
+}
+#endif /* MHVTL_DEBUG */
+
+void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb) {
 	int groupCode;
-	int cmd_len = 6;
-	int k;
 
 	groupCode = (cdb[0] & 0xe0) >> 5;
 	switch (groupCode) {
 	case 0:	/*  6 byte commands */
-		cmd_len = 6;
-		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x",
-			cdb[0], cdb[1], cdb[2], cdb[3],
-			cdb[4], cdb[5]);
+		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x",
+			sn, cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5]);
 		break;
 	case 1: /* 10 byte commands */
 	case 2: /* 10 byte commands */
-		cmd_len = 10;
-		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x",
-			cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9]);
 		break;
 	case 3: /* Reserved - There is always one exception ;) */
-		cmd_len = 6;
-		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x",
-			cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 4: /* 16 byte commands */
-		cmd_len = 16;
-		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-			cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9], cdb[10], cdb[11],
 			cdb[12], cdb[13], cdb[14], cdb[15]);
 		break;
 	case 5: /* 12 byte commands */
-		cmd_len = 12;
-		syslog(LOG_DAEMON|LOG_INFO, "CDB: %02x %02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x",
-			cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 6: /* Vendor Specific */
 	case 7: /* Vendor Specific */
-		cmd_len = 6;
-		syslog(LOG_DAEMON|LOG_INFO, "VENDOR SPECIFIC !! "
-			" CDB: %02x %02x %02x %02x %02x %02x",
-			cdb[0], cdb[1], cdb[2], cdb[3],
+		MHVTL_DBG_CDB(lvl, "VENDOR SPECIFIC !! "
+			" %02x %02x %02x %02x %02x %02x",
+			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5]);
 		break;
-	}
-
-	if (debug) {
-		printf("\n");
-		for (k = 0; k < cmd_len; k++)
-			printf("%02x ", (uint32_t)cdb[k]);
-		printf("\n");
 	}
 }
 
@@ -176,9 +152,7 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 	sense[7] = SENSE_BUF_SIZE - 8;
 	put_unaligned_be16(sense_q, &sense[12]);
 
-	if (debug)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"Setting Sense Data [Response Code/Sense Key/ASC/ASCQ]"
+	MHVTL_DBG(1, "Setting Sense Data [Response Code/Sense Key/ASC/ASCQ]"
 			" [%02x %02x %02x %02x]",
 				sense[0], sense[2], sense[12], sense[13]);
 }
@@ -204,9 +178,7 @@ return(retval);
 
 void resp_allow_prevent_removal(uint8_t *cdb, uint8_t *sam_stat)
 {
-	if (debug)
-		printf("%s\n",
-			(cdb[4]) ? "Prevent MEDIUM removal **" :
+	MHVTL_DBG(1, "%s", (cdb[4]) ? "Prevent MEDIUM removal **" :
 					 "Allow MEDIUM Removal **");
 }
 
@@ -231,11 +203,7 @@ void resp_log_select(uint8_t *cdb, uint8_t *sam_stat)
 
 	parmList = ntohs((uint16_t)cdb[7]); /* bytes 7 & 8 are parm list. */
 
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "LOG SELECT %s",
-				(pcr) ? ": Parameter Code Reset **" : "**");
-	if (debug)
-		printf(" LOG SELECT %s\n",
+	MHVTL_DBG(1, "LOG SELECT %s",
 				(pcr) ? ": Parameter Code Reset **" : "**");
 
 	if (pcr)	{	/* Check for Parameter code reset */
@@ -258,10 +226,7 @@ void resp_log_select(uint8_t *cdb, uint8_t *sam_stat)
 			parmString = LOG_SELECT_11;
 			break;
 		}
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "  %s", parmString);
-		if (debug)
-			printf("  %s", parmString);
+		MHVTL_DBG(1, "  %s", parmString);
 	}
 }
 
@@ -285,9 +250,7 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint64_t partition = 1L;
 
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO,
-				"%s: position %ld\n", __func__, (long)pos);
+	MHVTL_DBG(1, "Position %ld", (long)pos);
 
 	memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
 
@@ -322,9 +285,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 	buf[5] = buf[9] = (pos >> 16);
 	buf[6] = buf[10] = (pos >> 8);
 	buf[7] = buf[11] = pos;
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: position %ld\n", __func__, (long)pos);
+	MHVTL_DBG(1, "Position %ld", (long)pos);
 
 	return(READ_POSITION_LEN);
 }
@@ -361,7 +322,7 @@ int resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint64_t size = 0L;
 
-	syslog(LOG_DAEMON|LOG_ERR, "Read media S/No not implemented yet!");
+	MHVTL_DBG(1, "Read media S/No not implemented yet!");
 
 	return size;
 }
@@ -374,30 +335,19 @@ struct mode *find_pcode(uint8_t pcode, struct mode *m)
 {
 	int a;
 
-	DEBC(	 printf("Entered: %s(0x%x)\n", __func__, pcode);
-		fflush(NULL);
-	)
+	MHVTL_DBG(3, "Entered: pcode 0x%x", pcode);
 
 	for (a = 0; a < 0x3f; a++, m++) { /* Possibility for 0x3f page codes */
 		if (m->pcode == 0x0)
 			break;	/* End of list */
 		if (m->pcode == pcode) {
-			if (debug)
-				printf("%s(0x%x): match pcode %d\n",
-					__func__, pcode, m->pcode);
-			else if (verbose > 1)
-				syslog(LOG_DAEMON|LOG_WARNING,
-					"%s(0x%x): match pcode %d",
-					__func__, pcode, m->pcode);
+			MHVTL_DBG(3, "(0x%x): match pcode %d",
+					pcode, m->pcode);
 			return m;
 		}
 	}
 
-	if (debug)
-		printf("%s: page code 0x%x not found\n", __func__, pcode);
-	else if (verbose > 2)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: page code 0x%x not found\n", __func__, pcode);
+	MHVTL_DBG(2, "Page code 0x%x not found", pcode);
 
 	return NULL;
 }
@@ -457,12 +407,14 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 	struct mode *smp;	/* Struct mode pointer... */
 	int a;
 
+#ifdef MHVTL_DEBUG
 	char *pcontrolString[] = {
 		"Current configuration",
 		"Every bit that can be modified",
 		"Power-on configuration",
 		"Power-on configuration"
 	};
+#endif
 
 	/* Disable Block Descriptors */
 	uint8_t blockDescriptorLen = (cmd[1] & 0x8) ? 0 : 8;
@@ -483,16 +435,13 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 	alloc_len = msense_6 ? cmd[4] : ((cmd[7] << 8) | cmd[8]);
 	offset = msense_6 ? 4 : 8;
 
-	if (verbose > 2) {
-		syslog(LOG_DAEMON|LOG_INFO, " Mode Sense %d byte version",
-			(msense_6) ? 6 : 10);
-		syslog(LOG_DAEMON|LOG_INFO, " Page Control  : %s(0x%x)",
+	MHVTL_DBG(2, " Mode Sense %d byte version", (msense_6) ? 6 : 10);
+	MHVTL_DBG(2, " Page Control  : %s(0x%x)",
 				pcontrolString[pcontrol], pcontrol);
-		syslog(LOG_DAEMON|LOG_INFO, " Page Code     : 0x%x", pcode);
-		syslog(LOG_DAEMON|LOG_INFO, " Disable Block Descriptor => %s",
+	MHVTL_DBG(2, " Page Code     : 0x%x", pcode);
+	MHVTL_DBG(2, " Disable Block Descriptor => %s",
 				(blockDescriptorLen) ? "Yes" : "No");
-		syslog(LOG_DAEMON|LOG_INFO, " Allocation len: %d", alloc_len);
-	}
+	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
 
 	if (0x3 == pcontrol) {  /* Saving values not supported */
 		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
@@ -507,14 +456,12 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 	ap = buf + offset;
 
 	if (0 != subpcode) { /* TODO: Control Extension page */
-		syslog(LOG_DAEMON|LOG_WARNING,
-				"Non-zero sub-page sense code not supported");
+		MHVTL_DBG(1, "Non-zero sub-page sense code not supported");
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 	}
 
-	if (debug)
-		printf("pcode: 0x%02x\n", pcode);
+	MHVTL_DBG(3, "pcode: 0x%02x", pcode);
 
 	if (0x0 == pcode) {
 		len = 0;
@@ -533,7 +480,7 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 
 	if (pcode != 0)	/* 0 = No page code requested */
 		if (0 == len) {	/* Page not found.. */
-		syslog(LOG_DAEMON|LOG_WARNING, "Unknown mode page : %d", pcode);
+		MHVTL_DBG(2, "Unknown mode page : %d", pcode);
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return (0);
 		}
@@ -582,18 +529,14 @@ void initTapeAlert(struct TapeAlert_page *ta)
 
 void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 {
-	if (verbose > 1)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"Setting TapeAlert flags 0x%.8x %.8x\n",
+	MHVTL_DBG(2, "Setting TapeAlert flags 0x%.8x %.8x",
 				(uint32_t)(flg >> 32) & 0xffffffff,
 				(uint32_t)flg & 0xffffffff);
 
 	int a;
 	for (a = 0; a < 64; a++) {
 		ta->TapeAlert[a].value = (flg & (1ull << a)) ? 1 : 0;
-		if (verbose > 2)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"TapeAlert flag %016" PRIx64 " : %s\n",
+		MHVTL_DBG(2, "TapeAlert flag %016" PRIx64 " : %s",
 				(uint64_t)1ull << a,
 				(ta->TapeAlert[a].value) ? "set" : "unset");
 	}
@@ -605,9 +548,7 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
  */
 int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
 {
-	if (verbose > 2)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"retrieving %d bytes from kernel\n", ds->sz);
+	MHVTL_DBG(3, "retrieving %d bytes from kernel", ds->sz);
 	ioctl(cdev, VTL_GET_DATA, ds);
 	return ds->sz;
 }
@@ -621,10 +562,8 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
  */
 void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO,
-			"%s: op s/n: (%ld), sam_status: %d, sz: %d\n",
-			__func__, (long)ds->serialNo, ds->sam_stat, ds->sz);
+	MHVTL_DBG(2, "OP s/n: (%ld), sam_status: %d, sz: %d",
+			(long)ds->serialNo, ds->sam_stat, ds->sz);
 
 	ioctl(cdev, VTL_PUT_DATA, ds);
 
@@ -644,71 +583,6 @@ void hex_dump(uint8_t *p, int count)
 	printf("\n");
 }
 
-#ifdef NOTDEF
-static int get_ctl(int minor, struct vtl_ctl *ctl)
-{
-	FILE *ctrl;
-	char *filename = MHVTL_CONFIG_PATH"/device.conf";
-	char b[1024];
-	int drive;
-	int retval;
-
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "Looking for device minor %d\n",
-						minor);
-	ctrl = fopen(filename , "r");
-	if (ctrl == NULL) {
-		syslog(LOG_DAEMON|LOG_INFO,
-			"%s Could not open config file %s",
-				__func__, filename);
-			retval = -1;
-			goto out;
-	}
-
-	while( fgets(b, sizeof(b), ctrl) != NULL) {
-		if (b[0] == '#')	/* Ignore comments */
-			continue;
-		if (minor)
-			retval = sscanf(b,
-				"Drive: %d CHANNEL: %d TARGET: %d LUN: %d",
-				&drive, &ctl->channel, &ctl->id, &ctl->lun);
-		else
-			retval = sscanf(b,
-				"Library: %d CHANNEL: %d TARGET: %d LUN: %d",
-				&drive, &ctl->channel, &ctl->id, &ctl->lun);
-		if (retval) {
-			if (drive == minor) {
-				if (debug)
-					printf("%s: Found match for "
-						"%d %d %d %d\n",
-						__func__, minor,
-						ctl->channel, ctl->id,
-						ctl->lun);
-				if (verbose > 1)
-					syslog(LOG_DAEMON|LOG_INFO,
-					"%s: Found match for %d %d %d %d\n",
-						__func__, minor,
-						ctl->channel, ctl->id,
-						ctl->lun);
-				retval =  0;
-				goto out_close;
-			}
-		} else {
-			if (debug)
-				printf("Did not match : %s\n", b);
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_INFO,
-					"Did not match : %s\n", b);
-		}
-	}
-	retval = 1;
-out_close:
-	fclose(ctrl);
-out:
-	return retval;
-}
-#endif
-
 /* Writing to the kernel module will block until the device is created.
  * Unfortunately, we need to be polling the device and process the
  * SCSI op code before the lu can be created.
@@ -725,11 +599,6 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 	char *pseudo_filename = "/sys/bus/pseudo/drivers/mhvtl/add_lu";
 	char errmsg[512];
 
-#ifdef NOTDEF
-	if (get_ctl(minor, &ctl))
-		return 0;
-#endif
-
 	sprintf(str, "add %d %d %d %d\n",
 			minor, ctl->channel, ctl->id, ctl->lun);
 
@@ -738,29 +607,24 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 		pseudo = open(pseudo_filename, O_WRONLY);
 		if (pseudo < 0) {
 			sprintf(errmsg, "Could not open %s", pseudo_filename);
-			syslog(LOG_DAEMON|LOG_ERR, "%s : %m", errmsg);
+			MHVTL_DBG(1, "%s : %m", errmsg);
 			perror("Cound not open 'add_lu'");
 			exit(-1);
 		}
 		retval = write(pseudo, str, strlen(str));
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO, "%s Wrote %s (%d bytes)\n",
-				__func__, str, (int)retval);
+		MHVTL_DBG(2, "Wrote %s (%d bytes)", str, (int)retval);
 		close(pseudo);
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-				"Child anounces 'job done' lu created.\n");
+		MHVTL_DBG(1, "Child anounces 'job done' lu created.");
 		exit(0);
 		break;
 	case -1:
 		perror("Failed to fork()");
-		syslog(LOG_DAEMON|LOG_ERR, "Fail to fork() %m");
+		MHVTL_DBG(1, "Fail to fork() %m");
 		return 0;
 		break;
 	default:
-		if (verbose)
-			syslog(LOG_DAEMON|LOG_INFO,
-			"From a proud parent - birth of PID %ld\n", (long)pid);
+		MHVTL_DBG(2, "From a proud parent - birth of PID %ld",
+					(long)pid);
 		return pid;
 		break;
 	}
@@ -823,68 +687,64 @@ int oom_adjust(void)
 	sprintf(path, "/proc/%d/oom_adj", getpid());
 	fd = open(path, O_WRONLY);
 	if (fd < 0) {
-		syslog(LOG_DAEMON|LOG_WARNING,
-				"Can't open oom-killer's pardon %s, %m\n",
-				path);
+		MHVTL_DBG(3, "Can't open oom-killer's pardon %s, %m", path);
 		return 0;
 	}
 	ret = write(fd, "-17\n", 4);
 	if (ret < 0) {
-		syslog(LOG_DAEMON|LOG_WARNING,
-				"Can't adjust oom-killer's pardon %s, %m\n",
-				path);
+		MHVTL_DBG(3, "Can't adjust oom-killer's pardon %s, %m", path);
 	}
 	close(fd);
 	return 0;
 }
 
-void log_opcode(char *opcode, uint8_t *cdb, uint8_t *sam_stat)
+void log_opcode(char *opcode, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	syslog(LOG_DAEMON|LOG_INFO, "*** Unsupported op code: %s ***", opcode);
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-	logSCSICommand(cdb);
+	MHVTL_DBG(1, "*** Unsupported op code: %s ***", opcode);
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &dbuf_p->sam_stat);
+	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 }
 
-int resp_a3_service_action(uint8_t *cdb, uint8_t *sam_stat)
+int resp_a3_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	uint8_t sa = cdb[1];
 	switch (sa) {
 	case MANAGEMENT_PROTOCOL_IN:
-		log_opcode("MANAGEMENT PROTOCOL IN **", cdb, sam_stat);
+		log_opcode("MANAGEMENT PROTOCOL IN **", cdb, dbuf_p);
 		break;
 	case REPORT_ALIASES:
-		log_opcode("REPORT ALIASES **", cdb, sam_stat);
+		log_opcode("REPORT ALIASES **", cdb, dbuf_p);
 		break;
 	}
-	log_opcode("Unknown service action A3 **", cdb, sam_stat);
+	log_opcode("Unknown service action A3 **", cdb, dbuf_p);
 	return 0;
 }
 
-int resp_a4_service_action(uint8_t *cdb, uint8_t *sam_stat)
+int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	uint8_t sa = cdb[1];
 
 	switch (sa) {
 	case MANAGEMENT_PROTOCOL_OUT:
-		log_opcode("MANAGEMENT PROTOCOL OUT **", cdb, sam_stat);
+		log_opcode("MANAGEMENT PROTOCOL OUT **", cdb, dbuf_p);
 		break;
 	case CHANGE_ALIASES:
-		log_opcode("CHANGE ALIASES **", cdb, sam_stat);
+		log_opcode("CHANGE ALIASES **", cdb, dbuf_p);
 		break;
 	}
-	log_opcode("Unknown service action A4 **", cdb, sam_stat);
+	log_opcode("Unknown service action A4 **", cdb, dbuf_p);
 	return 0;
 }
 
-int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, uint8_t *sam_stat)
+int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, struct vtl_ds *dbuf_p)
 {
-	log_opcode("Send Diagnostics", cdb, sam_stat);
+	log_opcode("Send Diagnostics", cdb, dbuf_p);
 	return 0;
 }
 
-int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
+int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, struct vtl_ds *dbuf_p)
 {
-	log_opcode("Receive Diagnostics", cdb, sam_stat);
+	log_opcode("Receive Diagnostics", cdb, dbuf_p);
 	return 0;
 }
 
