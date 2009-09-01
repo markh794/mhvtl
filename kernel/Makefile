@@ -11,6 +11,7 @@
 # CC=/usr/bin/gcc
 #
 EXTRA_CFLAGS += -I$(SRC)/../include
+EXTRA_CFLAGS += -DMHVTL_DEBUG
 
 obj-m	:= mhvtl.o
 vtl-objs := mhvtl.o
