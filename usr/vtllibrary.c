@@ -191,11 +191,13 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 
 	i = 0;
 	for (j = 0; j < num_elem; j++) {
-		MHVTL_DBG(3, " %s()  Debug.... i = %d\n", __func__, i);
+		MHVTL_DBG(3, " Debug.... i = %d, len = %d\n", i, len);
 		MHVTL_DBG(3, "  Element Address             : %d\n",
 					get_unaligned_be16(&p[i]));
-		MHVTL_DBG(3, "  Status                      : 0x%02x\n", p[i + 2]);
-		MHVTL_DBG(3, "  Medium type                 : %d\n", p[i + 9] & 0x7);
+		MHVTL_DBG(3, "  Status                      : 0x%02x\n",
+					p[i + 2]);
+		MHVTL_DBG(3, "  Medium type                 : %d\n",
+					p[i + 9] & 0x7);
 		if (p[i + 9] & 0x80)
 			MHVTL_DBG(3, "  Source Address              : %d\n",
 					get_unaligned_be16(&p[i + 10]));
@@ -213,7 +215,7 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 4]);
 		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 12]);
 		MHVTL_DBG(3, "  ASCII data                   : %s\n\n", &p[i + 28]);
-		i = j + len;
+		i = (j + 1) * len;
 	}
 }
 
