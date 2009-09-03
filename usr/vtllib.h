@@ -60,7 +60,7 @@ extern char vtl_driver_name[];
 	if (debug)						\
 		printf("%s: %s: " format "\n",			\
 			vtl_driver_name, __func__, ## arg); 	\
-	else if ((verbose && MHVTL_OPT_NOISE) >= (lvl))		\
+	else if ((lvl) >= (verbose && MHVTL_OPT_NOISE))		\
 		syslog(LOG_DAEMON|LOG_INFO, "%s: " format,	\
 			__func__, ## arg); 			\
 }
@@ -68,7 +68,7 @@ extern char vtl_driver_name[];
 #define MHVTL_DBG_PRT_CDB(lvl, sn, cdb) {			\
 	if (debug) {						\
 		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
-	} else if ((verbose & MHVTL_OPT_NOISE) >= (lvl)) {	\
+	} else if ((lvl) >= (verbose & MHVTL_OPT_NOISE)) {	\
 		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
 	}							\
 }
