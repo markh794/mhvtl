@@ -136,7 +136,7 @@ void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb) {
 
 /*
  * Fills in a global array with current sense data
- * Sets 'sense_valid' to 1.
+ * Sets 'sam status' to SAM_STAT_CHECK_CONDITION.
  */
 extern uint8_t sense[];
 
@@ -152,9 +152,8 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 	sense[7] = SENSE_BUF_SIZE - 8;
 	put_unaligned_be16(sense_q, &sense[12]);
 
-	MHVTL_DBG(1, "Setting Sense Data [Response Code/Sense Key/ASC/ASCQ]"
-			" [%02x %02x %02x %02x]",
-				sense[0], sense[2], sense[12], sense[13]);
+	MHVTL_DBG(1, "Returning sense [Key/ASC/ASCQ] [%02x %02x %02x]",
+				sense[2], sense[12], sense[13]);
 }
 
 extern int reset;
@@ -614,7 +613,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 		retval = write(pseudo, str, strlen(str));
 		MHVTL_DBG(2, "Wrote %s (%d bytes)", str, (int)retval);
 		close(pseudo);
-		MHVTL_DBG(1, "Child anounces 'job done' lu created.");
+		MHVTL_DBG(1, "Child anounces 'lu created'.");
 		exit(0);
 		break;
 	case -1:
@@ -623,7 +622,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 		return 0;
 		break;
 	default:
-		MHVTL_DBG(2, "From a proud parent - birth of PID %ld",
+		MHVTL_DBG(1, "From a proud parent - birth of PID %ld",
 					(long)pid);
 		return pid;
 		break;
