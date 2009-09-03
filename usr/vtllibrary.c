@@ -1342,10 +1342,12 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case INQUIRY:
+		MHVTL_DBG(1, "%s", "INQUIRY **");
 		ret += spc_inquiry(cdb, dbuf_p, &lunit);
 		break;
 
 	case LOG_SELECT:	// Set or reset LOG stats.
+		MHVTL_DBG(1, "%s", "LOG SELECT **");
 		if (check_reset(sam_stat))
 			break;
 		resp_log_select(cdb, sam_stat);
