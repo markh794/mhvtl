@@ -764,10 +764,7 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		j += 3;
 	}
 
-	if (verbose > 1)
-		syslog(LOG_DAEMON|LOG_INFO,
-				"%s() line %d DVCID: %d, VOLTAG: %d, Index: %d",
-					__func__, __LINE__, dvcid, voltag, j);
+	MHVTL_DBG(2, "DVCID: %d, VOLTAG: %d, Index: %d", dvcid, voltag, j);
 
 	// Tidy up messy if/then/else into a 'case'
 	m = dvcid + dvcid + voltag;
