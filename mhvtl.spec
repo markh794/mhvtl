@@ -29,7 +29,7 @@ Note: Currently, the kernel module needs to be built separately. For
 %setup
 
 %build
-make RPM_OPT_FLAGS="$RPM_OPT_FLAGS" usr
+make RPM_OPT_FLAGS="$RPM_OPT_FLAGS" VERSION=%{version}.%{release} usr
 
 %install
 [ "%{buildroot}" != "/" ] && rm -rf %[buildroot}
