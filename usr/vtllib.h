@@ -56,11 +56,19 @@
 #else
 extern char vtl_driver_name[];
 
+#define MHVTL_DBG_NO_FUNC(lvl, format, arg...) {		\
+	if (debug)						\
+		printf("%s: " format "\n",			\
+			vtl_driver_name, ## arg); 		\
+	else if ((verbose & MHVTL_OPT_NOISE) >= (lvl))		\
+		syslog(LOG_DAEMON|LOG_INFO, format, ## arg);	\
+}
+
 #define MHVTL_DBG(lvl, format, arg...) {			\
 	if (debug)						\
 		printf("%s: %s: " format "\n",			\
 			vtl_driver_name, __func__, ## arg); 	\
-	else if ((lvl) >= (verbose && MHVTL_OPT_NOISE))		\
+	else if ((verbose & MHVTL_OPT_NOISE) >= (lvl))		\
 		syslog(LOG_DAEMON|LOG_INFO, "%s: " format,	\
 			__func__, ## arg); 			\
 }
@@ -68,7 +76,7 @@ extern char vtl_driver_name[];
 #define MHVTL_DBG_PRT_CDB(lvl, sn, cdb) {			\
 	if (debug) {						\
 		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
-	} else if ((lvl) >= (verbose & MHVTL_OPT_NOISE)) {	\
+	} else if ((verbose & MHVTL_OPT_NOISE) >= (lvl)) {	\
 		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
 	}							\
 }

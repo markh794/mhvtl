@@ -68,49 +68,37 @@ int send_msg(char *cmd, int q_id)
 	}
 }
 
-#ifndef MHVTL_DEBUG
-
-#define MHVTL_DBG_CDB(lvl, format, arg...)
-
-#else
-
-/* Note: Macro needs to be called with s/n as first arg */
-#define MHVTL_DBG_CDB(lvl, format, arg...) {			\
-	if (debug)						\
-		printf("%s: CDB (%" PRId64 ") " format "\n",	\
-				vtl_driver_name, ##arg);	\
-	else if ((verbose && MHVTL_OPT_NOISE) >= (lvl))		\
-		syslog(LOG_DAEMON|LOG_INFO,			\
-			"CDB (%" PRId64 ") " format, ##arg);	\
-}
-#endif /* MHVTL_DEBUG */
-
-void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb) {
+void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb)
+{
 	int groupCode;
 
 	groupCode = (cdb[0] & 0xe0) >> 5;
 	switch (groupCode) {
 	case 0:	/*  6 byte commands */
-		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x",
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+				"%02x %02x %02x %02x %02x %02x",
 			sn, cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5]);
 		break;
 	case 1: /* 10 byte commands */
 	case 2: /* 10 byte commands */
-		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x",
 			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9]);
 		break;
 	case 3: /* Reserved - There is always one exception ;) */
-		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x",
 			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 4: /* 16 byte commands */
-		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
 			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
@@ -118,7 +106,8 @@ void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb) {
 			cdb[12], cdb[13], cdb[14], cdb[15]);
 		break;
 	case 5: /* 12 byte commands */
-		MHVTL_DBG_CDB(lvl, "%02x %02x %02x %02x %02x %02x %02x"
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+			"%02x %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x",
 			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
@@ -126,7 +115,7 @@ void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb) {
 		break;
 	case 6: /* Vendor Specific */
 	case 7: /* Vendor Specific */
-		MHVTL_DBG_CDB(lvl, "VENDOR SPECIFIC !! "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") VENDOR SPECIFIC !! "
 			" %02x %02x %02x %02x %02x %02x",
 			sn, cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5]);
@@ -152,7 +141,7 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 	sense[7] = SENSE_BUF_SIZE - 8;
 	put_unaligned_be16(sense_q, &sense[12]);
 
-	MHVTL_DBG(1, "Returning sense [Key/ASC/ASCQ] [%02x %02x %02x]",
+	MHVTL_DBG(1, "SENSE [Key/ASC/ASCQ] [%02x %02x %02x]",
 				sense[2], sense[12], sense[13]);
 }
 
@@ -205,7 +194,7 @@ void resp_log_select(uint8_t *cdb, uint8_t *sam_stat)
 	MHVTL_DBG(1, "LOG SELECT %s",
 				(pcr) ? ": Parameter Code Reset **" : "**");
 
-	if (pcr)	{	/* Check for Parameter code reset */
+	if (pcr) {	/* Check for Parameter code reset */
 		if (parmList) {	/* If non-zero, error */
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 						sam_stat);
@@ -340,13 +329,13 @@ struct mode *find_pcode(uint8_t pcode, struct mode *m)
 		if (m->pcode == 0x0)
 			break;	/* End of list */
 		if (m->pcode == pcode) {
-			MHVTL_DBG(3, "(0x%x): match pcode %d",
+			MHVTL_DBG(2, "(0x%x): match pcode %d",
 					pcode, m->pcode);
 			return m;
 		}
 	}
 
-	MHVTL_DBG(2, "Page code 0x%x not found", pcode);
+	MHVTL_DBG(3, "Page code 0x%x not found", pcode);
 
 	return NULL;
 }
@@ -562,7 +551,7 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
 void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
 	MHVTL_DBG(2, "OP s/n: (%ld), sam_status: %d, sz: %d",
-			(long)ds->serialNo, ds->sam_stat, ds->sz);
+			(unsigned long)ds->serialNo, ds->sam_stat, ds->sz);
 
 	ioctl(cdev, VTL_PUT_DATA, ds);
 
