@@ -57,7 +57,7 @@ void print_current_header(void) {
 				printf("   Compressed data");
 			else
 				printf("              data");
-
+			break;
 		case B_FILEMARK:
 			printf("          Filemark");
 			break;
@@ -77,7 +77,7 @@ void print_current_header(void) {
 			printf("      Unknown type");
 			break;
 	}
-	printf("(%d), %s %d, Blk No.: %" PRId64 ", prev %" PRId64
+	printf("(%02x), %s %-6d, Blk No.: %" PRId64 ", prev %" PRId64
 			", cur %" PRId64 ", next %" PRId64 "\n",
 			current_pos.blk_type,
 			(current_pos.blk_type == B_BOT) ? "Capacity" : "sz",
