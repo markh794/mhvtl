@@ -1552,7 +1552,7 @@ static void list_map(void)
 	*c = '\0';
 
 	if (! cap_closed) {
-		send_msg("Can list map - MAP open", LIBRARY_Q + 1);
+		send_msg("Can not list map while MAP is open", LIBRARY_Q + 1);
 		return;
 	}
 
