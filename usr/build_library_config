@@ -41,7 +41,11 @@ OPTIONS=""
 # rc script will make sure this exists...
 . $MHVTL_CONFIG_PATH/mhvtl.conf
 
-if [ $VERBOSE -gt 0 ];then
+if [ $VERBOSE -gt 2 ];then
+	OPTIONS="-v -v -v"
+elif [ $VERBOSE -gt 1 ];then
+	OPTIONS="-v -v"
+elif [ $VERBOSE -gt 0 ];then
 	OPTIONS="-v"
 else
 	OPTIONS=""
