@@ -1710,7 +1710,7 @@ static int empty_map(void)
 
 	if (cap_closed) {
 		MHVTL_DBG(1, "MAP slot empty failed - CAP Not open");
-		send_msg("Can't empty, MAP not opened", LIBRARY_Q + 1);
+		send_msg("Can't empty map while MAP is closed", LIBRARY_Q + 1);
 		return 0;
 	}
 
