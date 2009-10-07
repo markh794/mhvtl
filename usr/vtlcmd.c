@@ -151,7 +151,7 @@ void displayResponse(void)
 		sleep(1);
 	}
 
-	printf("Contents: %s\n", r_entry.mtext);
+	printf("%s\n", r_entry.mtext);
 
 }
 
@@ -217,8 +217,16 @@ int main(int argc, char **argv)
 	}
 
 	if (driveNo == LIBRARY_Q) {
-		if (! strncmp(argv[2], "list", 4))
+		if (! strncmp(argv[2], "open", 4))
 			displayResponse();
+
+		if (! strncmp(argv[2], "close", 4))
+			displayResponse();
+
+		if (! strncmp(argv[2], "list", 4)) {
+			printf("Contents: ");
+			displayResponse();
+		}
 
 		if (! strncmp(argv[2], "load", 4)) {
 			if (! checkResponse()) {

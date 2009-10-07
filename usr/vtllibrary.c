@@ -91,20 +91,23 @@ uint64_t SPR_Reservation_Key;
 #define MAP_ELEMENT		3
 #define DATA_TRANSFER		4
 
+#define CAP_CLOSED	1
+#define CAP_OPEN	0
+#define OPERATOR 	1
+#define ROBOT_ARM	0
+
 static int bufsize = 1024 * 1024;
 int verbose = 0;
 int debug = 0;
-static int libraryOnline = 1;	/* Default to Off-line */
-int reset = 1;		/* Poweron reset */
-static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
+static int libraryOnline = 1;		/* Default to Off-line */
+static int cap_closed = CAP_CLOSED;	/* CAP open/closed status */
+int reset = 1;				/* Poweron reset */
+static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
 
 uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 
 struct lu_phy_attr lunit;
 
-// If I leave this as 'static struct', the I get a gcc warning
-// " warning: useless storage class specifier in empty declaration"
-// static struct s_info { /* Slot Info */
 struct s_info { /* Slot Info */
 	uint8_t cart_type; // 0 = Unknown, 1 = Data medium, 2 = Cleaning
 	uint8_t barcode[11];
@@ -326,7 +329,6 @@ static void setInEnableStatus(struct s_info *s, int flg)
 		s->status &= ~STATUS_InEnab;
 }
 */
-
 /*
  * A value of 0 in the Export Enable field indicates that media movement
  * from the handler to the I/O port is denied. A value of 1 indicates that
@@ -375,7 +377,6 @@ static void setExceptStatus(struct s_info *s, int flg)
  * If set(1) then cartridge placed by operator
  * If clear(0), placed there by handler.
  */
-/*
 static void setImpExpStatus(struct s_info *s, int flg)
 {
 	if (flg)
@@ -383,7 +384,6 @@ static void setImpExpStatus(struct s_info *s, int flg)
 	else
 		s->status &= ~STATUS_ImpExp;
 }
-*/
 
 /*
  * Sets the 'Full' bit true/false in the status field
@@ -416,6 +416,17 @@ static void setDriveFull(struct d_info *d)
 	setFullStatus(d->slot, 1);
 }
 
+/* Returns 1 (true) if slot is MAP slot */
+static int is_map_slot(struct s_info *s)
+{
+	int addr = s->slot_location;
+
+	if ((addr >= START_MAP) && (addr <= START_MAP + num_map))
+		return 1;
+
+	return 0;
+}
+
 /*
  * Logically move information from 'src' address to 'dest' address
  */
@@ -426,6 +437,8 @@ static void move_cart(struct s_info *src, struct s_info *dest)
 	memcpy(dest->barcode, src->barcode, 10);
 	dest->last_location = src->slot_location;
 	setSlotFull(dest);
+	if (is_map_slot(dest))
+		setImpExpStatus(dest, ROBOT_ARM); /* Placed by robot arm */
 
 	src->cart_type = 0;		/* Src slot no longer occupied */
 	memset(src->barcode, 0, 10);	/* Zero out barcode */
@@ -489,6 +502,14 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 	if ( slotOccupied(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return 1;
+	}
+
+	if (is_map_slot(dest)) {
+		if (! cap_closed) {
+			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
+						sam_stat);
+			return 1;
+		}
 	}
 
 	// Send 'unload' message to drive b4 the move..
@@ -555,6 +576,14 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 	if (slotOccupied(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return 1;
+	}
+
+	if (is_map_slot(dest)) {
+		if (! cap_closed) {
+			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
+						sam_stat);
+			return 1;
+		}
 	}
 
 	move_cart(src, dest);
@@ -661,8 +690,17 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
 
 	MHVTL_DBG(2, "Slot location: %d", s->slot_location);
 	put_unaligned_be16(s->slot_location, &p[j]);
+
 	j += 2;
-	p[j++] = s->status;
+	p[j] = s->status;
+	if (is_map_slot(s)) {
+		if (cap_closed)
+			p[j] |= STATUS_Access;
+		else
+			p[j] &= ~STATUS_Access;
+	}
+	j++;
+
 	p[j++] = 0;	/* Reserved */
 	p[j++] = s->asc;  /* Additional Sense Code */
 	p[j++] = s->ascq; /* Additional Sense Code Qualifer */
@@ -884,7 +922,7 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 
 	element_sz = determine_element_sz(dvcid, voltag);
 
-	p[0] = typeCode;		/* Element type Code */
+	p[0] = typeCode;	/* Element type Code */
 
 	/* Primary Volume Tag set - Returning Barcode info */
 	p[1] = (voltag == 0) ? 0 : 0x80;
@@ -892,7 +930,7 @@ static int fill_element_status_page(uint8_t *p, uint16_t start,
 	/* Number of bytes per element */
 	put_unaligned_be16(element_sz, &p[2]);
 
-	element_len = element_sz *element_count;
+	element_len = element_sz * element_count;
 
 	/* Total number of bytes in all element descriptors */
 	put_unaligned_be32(element_len & 0xffffff, &p[4]);
@@ -1091,8 +1129,7 @@ static int map_element_descriptor(uint8_t *p, uint16_t start, uint16_t count,
 	uint16_t	begin;
 
 	begin = find_first_matching_element(start, MAP_ELEMENT);
-	len =
-	    fill_element_status_page(p,begin,count,dvcid,voltag,MAP_ELEMENT);
+	len = fill_element_status_page(p,begin,count,dvcid,voltag,MAP_ELEMENT);
 
 	begin -= START_MAP;	// Array starts at [0]
 	count = num_map - begin;
@@ -1514,6 +1551,11 @@ static void list_map(void)
 	char *c = msg;
 	*c = '\0';
 
+	if (! cap_closed) {
+		send_msg("Can list map - MAP open", LIBRARY_Q + 1);
+		return;
+	}
+
 	for (a = START_MAP; a < START_MAP + num_map; a++) {
 		sp = slot2struct(a);
 		if (slotOccupied(sp)) {
@@ -1579,7 +1621,8 @@ int already_in_slot(char *barcode)
 
 #define MALLOC_SZ 1024
 
-static void load_map(char *msg)
+/* Return zero - failed, non-zero - success */
+static int load_map(char *msg)
 {
 	struct s_info *sp = NULL;
 	char *barcode;
@@ -1588,6 +1631,11 @@ static void load_map(char *msg)
 	int str_len;
 
 	MHVTL_DBG(2, "Loading %s into MAP", msg);
+
+	if (cap_closed) {
+		send_msg("MAP not opened", LIBRARY_Q + 1);
+		return 0;
+	}
 
 	str_len = strlen(msg);
 	barcode = NULL;
@@ -1600,17 +1648,17 @@ static void load_map(char *msg)
 	/* No barcode - reject load */
 	if (! barcode) {
 		send_msg("Bad barcode", LIBRARY_Q + 1);
-		return;
+		return 0;
 	}
 
 	if (already_in_slot(barcode)) {
 		send_msg("barcode already in library", LIBRARY_Q + 1);
-		return;
+		return 0;
 	}
 
 	if (strlen(barcode) > 10) {
 		send_msg("barcode length too long", LIBRARY_Q + 1);
-		return;
+		return 0;
 	}
 
 	for (slt = 0; slt < num_map; slt++) {
@@ -1624,22 +1672,47 @@ static void load_map(char *msg)
 		sp->status = STATUS_InEnab | STATUS_ExEnab |
 					STATUS_Access | STATUS_ImpExp |
 					STATUS_Full;
+		/* Media placed by operator */
+		setImpExpStatus(sp, OPERATOR);
 		sp->slot_location = slt + START_MAP - 1;
 		sp->internal_status = 0;
 		send_msg("OK", LIBRARY_Q + 1);
-		return;
+		return 1;
 	}
 	send_msg("MAP Full", LIBRARY_Q + 1);
-	return;
+	return 0;
+}
+
+static void open_map(void)
+{
+	MHVTL_DBG(1, "Called");
+
+	cap_closed = CAP_OPEN;
+	send_msg("OK", LIBRARY_Q + 1);
+}
+
+static void close_map(void)
+{
+	MHVTL_DBG(1, "Called");
+
+	cap_closed = CAP_CLOSED;
+	send_msg("OK", LIBRARY_Q + 1);
 }
 
 /*
  * Respond to messageQ 'empty map' by clearing 'ocuplied' status in map slots.
+ * Return 0 on failure, non-zero - success.
  */
-static void emptyMap(void)
+static int empty_map(void)
 {
 	struct s_info *sp;
 	int	a;
+
+	if (cap_closed) {
+		MHVTL_DBG(1, "MAP slot empty failed - CAP Not open");
+		send_msg("Can't empty, MAP not opened", LIBRARY_Q + 1);
+		return 0;
+	}
 
 	for (a = START_MAP; a < START_MAP + num_map; a++) {
 		sp = slot2struct(a);
@@ -1648,6 +1721,8 @@ static void emptyMap(void)
 			MHVTL_DBG(2, "MAP slot %d emptied", a - START_MAP);
 		}
 	}
+	send_msg("OK", LIBRARY_Q + 1);
+	return 1;
 }
 
 /*
@@ -1667,9 +1742,13 @@ static int processMessageQ(char *mtext)
 		}
 	}
 	if (! strncmp(mtext, "empty map", 9))
-		emptyMap();
+		empty_map();
 	if (! strncmp(mtext, "exit", 4))
 		return 1;
+	if (! strncmp(mtext, "open map", 8))
+		open_map();
+	if (! strncmp(mtext, "close map", 9))
+		close_map();
 	if (! strncmp(mtext, "list map", 8))
 		list_map();
 	if (! strncmp(mtext, "load map ", 9))
