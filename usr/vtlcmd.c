@@ -141,7 +141,8 @@ void displayResponse(void)
 
 	r_qid = init_queue();
 	if (r_qid == -1) {
-		syslog(LOG_DAEMON|LOG_ERR,"Could not initialise message queue");
+		syslog(LOG_DAEMON|LOG_ERR,
+				"Could not initialise message queue");
 		return;
 	}
 
@@ -153,6 +154,17 @@ void displayResponse(void)
 
 	printf("%s\n", r_entry.mtext);
 
+}
+
+void clear_message_q(void)
+{
+	struct q_entry r_entry;
+	int r_qid = 0;
+	int ret;
+
+	ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid);
+	while (ret > 0)
+		ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid);
 }
 
 int main(int argc, char **argv)
@@ -201,6 +213,8 @@ int main(int argc, char **argv)
 		strcat(p, " ");
 		p += strlen(" ");
 	}
+
+	clear_message_q();
 
 	/* Check for the existance of a datafile first - abort if not there */
 	if (driveNo == LIBRARY_Q)
