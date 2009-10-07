@@ -965,6 +965,14 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 		 * Picker, which is higher than the drive slot number..
 		 * See WWR: near top of this file !!
 		 */
+
+		/* Special case - 'All types'
+		 * If Start is undefined/defined as '0', then return
+		 * Beginning slot
+		 */
+		if (start == 0)
+			return(START_DRIVE);
+
 		// Check we are within a storage slot range.
 		if ((start >= START_STORAGE) &&
 		   (start <= (START_STORAGE + num_storage)))
@@ -1225,16 +1233,45 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		if (start >= START_STORAGE) {
 			len = storage_element_descriptor(p, start, number,
 								dvcid, voltag);
-//			number = start - START_STORAGE;
 		} else if (start >= START_MAP) {
-			len = map_element_descriptor(p, start, number,
+			int a;
+			a = map_element_descriptor(p, start, number,
 								dvcid, voltag);
+			p += a;
+			len += a;
+			a = storage_element_descriptor(p, start, number,
+								dvcid, voltag);
+			len += a;
 		} else if (start >= START_PICKER) {
-			len = medium_transport_descriptor(p, start, number,
+			int a;
+			a = medium_transport_descriptor(p, start, number,
 								dvcid, voltag);
+			len += a;
+			p += a;
+			a = map_element_descriptor(p, start, number,
+								dvcid, voltag);
+			p += a;
+			len += a;
+			a = storage_element_descriptor(p, start, number,
+								dvcid, voltag);
+			len += a;
 		} else {	// Must start reading with drives.
-			len = data_transfer_descriptor(p, start, number,
+			int a;
+			a = data_transfer_descriptor(p, start, number,
 								dvcid, voltag);
+			len = a;
+			p += a;
+			a = medium_transport_descriptor(p, start, number,
+								dvcid, voltag);
+			len += a;
+			p += a;
+			a = map_element_descriptor(p, start, number,
+								dvcid, voltag);
+			p += a;
+			len += a;
+			a = storage_element_descriptor(p, start, number,
+								dvcid, voltag);
+			len += a;
 		}
 		break;
 	default:	// Illegal descriptor type.
