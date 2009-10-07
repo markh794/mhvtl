@@ -163,8 +163,11 @@ void clear_message_q(void)
 	int ret;
 
 	ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid);
-	while (ret > 0)
+	r_entry.mtext[0] = '\0';
+	while (ret > 0) {
 		ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid);
+		r_entry.mtext[0] = '\0';
+	}
 }
 
 int main(int argc, char **argv)
@@ -235,6 +238,9 @@ int main(int argc, char **argv)
 			displayResponse();
 
 		if (! strncmp(argv[2], "close", 4))
+			displayResponse();
+
+		if (! strncmp(argv[2], "empty", 5))
 			displayResponse();
 
 		if (! strncmp(argv[2], "list", 4)) {
