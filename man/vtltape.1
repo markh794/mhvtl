@@ -1,13 +1,13 @@
-.TH vtltape "1" "July 2009" "vtl 0.16" "User Commands"
+.TH vtltape "1" "October 2009" "vtl 0.16" "User Commands"
 .SH NAME
 vtltape \- user space daemon to handle SCSI SSC commands for Virtual Tape Library.
 .SH SYNOPSIS
-.B vtltape #
-[\fI-v|-d\fR]... [ \fI\-f FILE \fR]
+.B vtltape \fI-q <number>\fR
+[\fI-v|-d\fR]...
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
-Where '#' is the message Q number used for this daemon.
+Where '<number> is the message Q number used for this daemon.
 The first daemon started would normally use queue no. 1,
 2nd daemon started would use message Q no. 2 etc.
 A message Q number is equivelent to the drive slot number within the virtual
