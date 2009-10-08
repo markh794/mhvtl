@@ -58,6 +58,8 @@ void usage(char *progname)
 	fprintf(stderr, "           offline   -> To take library offline\n");
 	fprintf(stderr, "           list map  -> To list map contents\n");
 	fprintf(stderr, "           empty map -> To remove media from map\n");
+	fprintf(stderr, "           open map  -> Open map to allow media export\n");
+	fprintf(stderr, "           close map -> Close map to allow media import\n");
 	fprintf(stderr, "           load map barcode -> "
 			"To load media <id> into map\n");
 	fprintf(stderr, "           TapeAlert # "
