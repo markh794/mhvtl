@@ -1533,11 +1533,6 @@ static void list_map(void)
 	char *c = msg;
 	*c = '\0';
 
-	if (! cap_closed) {
-		send_msg("Can not list map while MAP is open", LIBRARY_Q + 1);
-		return;
-	}
-
 	for (a = START_MAP; a < START_MAP + num_map; a++) {
 		sp = slot2struct(a);
 		if (slotOccupied(sp)) {
