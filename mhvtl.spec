@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.16
-Release: 7beta
-Source: mhvtl-2009-10-08.tgz
+Release: 7
+Source: mhvtl-2009-10-09.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -162,6 +162,15 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu Oct 9 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.7
+  Fix REPORT ELMEMENT STATUS for All elements. TSM was core dumping.
+  Reported and fixed by Bernardo Clavijo.
+  Re-worked Media Access Port.
+   Now requires 'vtlcmd library open map' before media can be removed and
+   'vtlcmd library close map' for the Medium Transport Element to place
+   media into the MAP.
+
 * Thu Oct 1 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.6
   Fixed output of 'dump_tape' utility
