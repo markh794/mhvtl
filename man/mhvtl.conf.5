@@ -1,4 +1,4 @@
-.TH mhvtl.conf "5" "July 2009" "vtl 0.16" "User Commands"
+.TH mhvtl.conf "5" "October 2009" "vtl 0.16" "User Commands"
 .SH NAME
 mhvtl.conf \- Configuration file for
 .BR vtllibrary(1)
@@ -15,29 +15,34 @@ CAPACITY = XXX
 Defines default capacity any new media will be created (in Megabytes).
 
 .IP
-VERBOSE = [0|1] Enable verbose logging at startup.
+VERBOSE = [0|1|2|3] Define daemon logging level at startup.
+Refer
+.BR vtlcmd(1)
+to adjust logging level at runtime.
 
 .IP
-DEBUG = [0|1] Enable debug logging
+DEBUG = [0|1] Disable/Enable kernel module logging. Can be enabled/disabled
+at runtime via
+.IP
+"echo 0 > /sys/bus/pseduo/drivers/mhvtl/opts" to disable, or
+.IP
+"echo 1 > /sys/bus/pseudo/drivers/mhvtl/opts" to enable logging.
 
 .SH AUTHOR
 Written by Mark Harvey
+
 .SH BUGS
-.RS
 This man page.
-.RE
-.RS
-No version information.
-.RE
-.RS
+.PP
 Config file not xml.
-.RE
-.RS
+.PP
 .BR vtllibrary(1)
-needs to be restarted to read any changes made.
-.RE
+needs to be restarted to read any changes made. (By design).
+.PP
+
 .SH "REPORTING BUGS"
 Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+
 .SH COPYRIGHT
 Copyright \(co 2005 Free Software Foundation, Inc.
 .br
