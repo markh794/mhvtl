@@ -46,11 +46,32 @@ Valid for
 .B library
 only.
 Returns a list of media IDs in Media Access Port (MAP).
+.IP "open map"
+Valid for
+.B library
+only.
+Logically 'opens' the Media Access Port (MAP).
+.IP "close map"
+Valid for
+.B library
+only.
+Logically 'closes' the Media Access Port (MAP). MAP needs to be 'closed'
+before the Medium Transport Element can move media to/from MAP.
 .IP "empty map"
 Valid for
 .B library
 only.
-Clears media from Media Access Port (MAP).
+Clears media from Media Access Port (MAP). Only valid when MAP is
+in 'open' state
+.IP "load map <media>"
+Valid for
+.B library
+only.
+Places <media> logically into the Media Access Port (MAP). Note: <media> needs
+to exist first, otherwise the command fails with suggestion to create media
+first. see
+.BR mktape(1)
+for creating media.
 .SH AUTHOR
 Written by Mark Harvey
 .SH BUGS
