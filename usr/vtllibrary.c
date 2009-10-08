@@ -1188,7 +1188,8 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	uint8_t	typeCode = cdb[1] & 0x0f;
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
 	uint16_t req_start_elem;
-	uint16_t number;
+	int a;
+	uint16_t number, n;
 	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
 	uint32_t alloc_len;
 	uint16_t start;	// First valid slot location
@@ -1267,49 +1268,30 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		  data_transfer_descriptor(p, start, number, dvcid, voltag);
 		break;
 	case ANY:
-		if (start >= START_STORAGE) {
-			len = storage_element_descriptor(p, start, number,
-								dvcid, voltag);
-		} else if (start >= START_MAP) {
-			int a;
-			a = map_element_descriptor(p, start, number,
-								dvcid, voltag);
-			p += a;
-			len += a;
-			a = storage_element_descriptor(p, start, number,
-								dvcid, voltag);
-			len += a;
-		} else if (start >= START_PICKER) {
-			int a;
-			a = medium_transport_descriptor(p, start, number,
-								dvcid, voltag);
-			len += a;
-			p += a;
-			a = map_element_descriptor(p, start, number,
-								dvcid, voltag);
-			p += a;
-			len += a;
-			a = storage_element_descriptor(p, start, number,
-								dvcid, voltag);
-			len += a;
-		} else {	// Must start reading with drives.
-			int a;
-			a = data_transfer_descriptor(p, start, number,
-								dvcid, voltag);
-			len = a;
-			p += a;
-			a = medium_transport_descriptor(p, start, number,
-								dvcid, voltag);
-			len += a;
-			p += a;
-			a = map_element_descriptor(p, start, number,
-								dvcid, voltag);
-			p += a;
-			len += a;
-			a = storage_element_descriptor(p, start, number,
-								dvcid, voltag);
-			len += a;
-		}
+		len = data_transfer_descriptor(p,
+				(start > START_DRIVE ? start : START_DRIVE),
+				(number > num_drives ? num_drives : number),
+				dvcid, voltag);
+		n = number;
+		number -= (number>num_drives ? num_drives : number);
+		a = medium_transport_descriptor(p + len,
+				(start > START_PICKER ? start : START_PICKER),
+				(number > num_picker ? num_picker : number),
+				dvcid, voltag);
+		number -= (number > num_picker ? num_picker : number);
+	        len += a;
+	   	a = map_element_descriptor(p + len,
+				(start > START_MAP ? start : START_MAP),
+				(number > num_map ? num_map : number),
+				dvcid, voltag);
+		number -= (number > num_map ? num_map : number);
+	        len += a;
+		a = storage_element_descriptor(p + len,
+				(start > START_STORAGE ? start : START_STORAGE),
+				(number > num_storage ? num_storage : number),
+				dvcid, voltag);
+	        len += a;
+		number = n;
 		break;
 	default:	// Illegal descriptor type.
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
