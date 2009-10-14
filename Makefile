@@ -17,6 +17,8 @@ VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git-show-ref 2>/dev/null),-git-$(shell git-show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
 PARENTDIR = mhvtl-0.16
+PREFIX ?= /usr
+export PREFIX DESTDIR
 
 CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
 CLFLAGS=-shared
@@ -43,15 +45,8 @@ distclean:
 	$(MAKE) -C kernel distclean
 
 install:
-	install -o root -g bin -m 755 usr/libvtlscsi.so /usr/lib/
-	install -o root -g vtl -m 4750 usr/vtltape /usr/bin/
-	install -o root -g vtl -m 4750 usr/vtllibrary /usr/bin/
-	install -o vtl -g vtl -m 750 usr/vtlcmd /usr/bin/
-	install -o vtl -g vtl -m 750 usr/mktape /usr/bin/
-	install -m 700 usr/build_library_config /usr/bin/
-	install -m 700 usr/make_vtl_devices /usr/bin/
-	install -m 700 usr/make_vtl_media /usr/bin/
-	install -m 700 etc/mhvtl /etc/init.d/
+	$(MAKE) -C usr
+	$(MAKE) -C usr install $(PREFIX) $(DESTDIR)
 
 tar:
 	$(MAKE) distclean

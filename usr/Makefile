@@ -14,6 +14,8 @@ REL = $(shell grep Release ../mhvtl.spec|awk '{print $$2}')
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
+PREFIX ?= /usr
+
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
 CFLAGS += -DMHVTL_DEBUG
@@ -75,17 +77,20 @@ distclean:
 	vtllibrary vtllibrary.o
 
 install:
-	install -o root -g bin -m 755 libvtlscsi.so /usr/lib/
-	install -o root -g vtl -m 4750 vtltape /usr/bin/
-	install -o root -g vtl -m 4750 vtllibrary /usr/bin/
-	install -o vtl -g vtl -m 750 vtlcmd /usr/bin/
-	install -o vtl -g vtl -m 750 mktape /usr/bin/
-	install -m 700 build_library_config /usr/bin/
-	install -m 700 make_vtl_media /usr/bin/
-	install -m 700 make_vtl_devices /usr/bin/
-	install -m 700 ../etc/mhvtl /etc/init.d/
+	install -d -m 755 $(DESTDIR)$(PREFIX)/lib
+	install -o root -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/lib/
+	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
+	install -o root -g vtl -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
+	install -o root -g vtl -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
+	install -o vtl -g vtl -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
+	install -o vtl -g vtl -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
+	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
+	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
+	install -m 700 make_vtl_devices $(DESTDIR)$(PREFIX)/bin/
+	install -d -m 755 $(DESTDIR)/etc
+	install -d -m 755 $(DESTDIR)/etc/init.d
+	install -m 700 ../etc/mhvtl $(DESTDIR)/etc/init.d/
 
 tar:
 	make -C ../ tar
-#	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`.tgz  --exclude=.git mhvtl-0.16/man mhvtl-0.16/doc mhvtl-0.16/kernel-driver mhvtl-0.16/*.[ch] mhvtl-0.16/Makefile mhvtl-0.16/README mhvtl-0.16/INSTALL mhvtl-0.16/build_library_config mhvtl-0.16/library_contents.sample mhvtl-0.16/make_vtl_devices mhvtl-0.16/make_vtl_media mhvtl-0.16/mhvtl.spec mhvtl-0.16/vtl)
 
