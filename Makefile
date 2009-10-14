@@ -13,8 +13,10 @@
 VER = $(shell grep Version mhvtl.spec|awk '{print $$2}')
 REL = $(shell grep Release mhvtl.spec|awk '{print $$2}')
 
-VERSION = $(VER).$(REL)
+VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git-show-ref 2>/dev/null),-git-$(shell git-show-ref --head --abbrev|head -1|awk '{print $$1}'))
+
+PARENTDIR = mhvtl-0.16
 
 CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
 CLFLAGS=-shared
@@ -54,14 +56,14 @@ install:
 tar:
 	$(MAKE) distclean
 	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`-$(VERSION)$(EXTRAVERSION).tgz  --exclude=.git \
-		 mhvtl-0.16/man \
-		 mhvtl-0.16/doc \
-		 mhvtl-0.16/kernel \
-		 mhvtl-0.16/usr \
-		 mhvtl-0.16/etc \
-		 mhvtl-0.16/include \
-		 mhvtl-0.16/Makefile \
-		 mhvtl-0.16/README \
-		 mhvtl-0.16/INSTALL \
-		 mhvtl-0.16/mhvtl.spec)
+		 $(PARENTDIR)/man \
+		 $(PARENTDIR)/doc \
+		 $(PARENTDIR)/kernel \
+		 $(PARENTDIR)/usr \
+		 $(PARENTDIR)/etc \
+		 $(PARENTDIR)/include \
+		 $(PARENTDIR)/Makefile \
+		 $(PARENTDIR)/README \
+		 $(PARENTDIR)/INSTALL \
+		 $(PARENTDIR)/mhvtl.spec)
 
