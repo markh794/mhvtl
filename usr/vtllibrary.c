@@ -1268,29 +1268,72 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		  data_transfer_descriptor(p, start, number, dvcid, voltag);
 		break;
 	case ANY:
-		len = data_transfer_descriptor(p,
+		n = number;
+		MHVTL_DBG(3, "Any: Element Type: Starting at %d", start);
+		if (start < START_DRIVE + num_drives) {
+			MHVTL_DBG(3, "All element types");
+			len = data_transfer_descriptor(p,
 				(start > START_DRIVE ? start : START_DRIVE),
 				(number > num_drives ? num_drives : number),
 				dvcid, voltag);
-		n = number;
-		number -= (number>num_drives ? num_drives : number);
-		a = medium_transport_descriptor(p + len,
+			number -= (number > num_drives ? num_drives : number);
+			a = medium_transport_descriptor(p + len,
 				(start > START_PICKER ? start : START_PICKER),
 				(number > num_picker ? num_picker : number),
 				dvcid, voltag);
-		number -= (number > num_picker ? num_picker : number);
-	        len += a;
-	   	a = map_element_descriptor(p + len,
+			number -= (number > num_picker ? num_picker : number);
+	        	len += a;
+	   		a = map_element_descriptor(p + len,
 				(start > START_MAP ? start : START_MAP),
 				(number > num_map ? num_map : number),
 				dvcid, voltag);
-		number -= (number > num_map ? num_map : number);
-	        len += a;
-		a = storage_element_descriptor(p + len,
+			number -= (number > num_map ? num_map : number);
+	        	len += a;
+			a = storage_element_descriptor(p + len,
 				(start > START_STORAGE ? start : START_STORAGE),
 				(number > num_storage ? num_storage : number),
 				dvcid, voltag);
-	        len += a;
+	        	len += a;
+		} else if (start < START_PICKER + num_picker) {
+			MHVTL_DBG(3, "Picker, MAP & Storage element types");
+			a = medium_transport_descriptor(p + len,
+				(start > START_PICKER ? start : START_PICKER),
+				(number > num_picker ? num_picker : number),
+				dvcid, voltag);
+			number -= (number > num_picker ? num_picker : number);
+	        	len += a;
+	   		a = map_element_descriptor(p + len,
+				(start > START_MAP ? start : START_MAP),
+				(number > num_map ? num_map : number),
+				dvcid, voltag);
+			number -= (number > num_map ? num_map : number);
+	        	len += a;
+			a = storage_element_descriptor(p + len,
+				(start > START_STORAGE ? start : START_STORAGE),
+				(number > num_storage ? num_storage : number),
+				dvcid, voltag);
+	        	len += a;
+		} else if (start < START_MAP + num_map) {
+			MHVTL_DBG(3, "MAP & Storage element types");
+	   		a = map_element_descriptor(p + len,
+				(start > START_MAP ? start : START_MAP),
+				(number > num_map ? num_map : number),
+				dvcid, voltag);
+			number -= (number > num_map ? num_map : number);
+	        	len += a;
+			a = storage_element_descriptor(p + len,
+				(start > START_STORAGE ? start : START_STORAGE),
+				(number > num_storage ? num_storage : number),
+				dvcid, voltag);
+	        	len += a;
+		} else {
+			MHVTL_DBG(3, "Just Storage element types");
+			a = storage_element_descriptor(p + len,
+				(start > START_STORAGE ? start : START_STORAGE),
+				(number > num_storage ? num_storage : number),
+				dvcid, voltag);
+	        	len += a;
+		}
 		number = n;
 		break;
 	default:	// Illegal descriptor type.
@@ -1515,7 +1558,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 		break;
 	}
-	MHVTL_DBG(2, "Returning %d bytes", ret);
+/*	MHVTL_DBG(2, "Returning %d bytes", ret); */
 
 	dbuf_p->sz = ret;
 
