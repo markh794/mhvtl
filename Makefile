@@ -16,7 +16,7 @@ REL = $(shell grep Release mhvtl.spec|awk '{print $$2}')
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git-show-ref 2>/dev/null),-git-$(shell git-show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
-PARENTDIR = mhvtl-0.16
+PARENTDIR = mhvtl-$(VER)
 PREFIX ?= /usr
 export PREFIX DESTDIR
 
