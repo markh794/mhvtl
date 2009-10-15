@@ -194,30 +194,30 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 
 	i = 0;
 	for (j = 0; j < num_elem; j++) {
-		MHVTL_DBG(3, " Debug.... i = %d, len = %d\n", i, len);
-		MHVTL_DBG(3, "  Element Address             : %d\n",
+		MHVTL_DBG(3, " Debug.... i = %d, len = %d", i, len);
+		MHVTL_DBG(3, "  Element Address             : %d",
 					get_unaligned_be16(&p[i]));
-		MHVTL_DBG(3, "  Status                      : 0x%02x\n",
+		MHVTL_DBG(3, "  Status                      : 0x%02x",
 					p[i + 2]);
-		MHVTL_DBG(3, "  Medium type                 : %d\n",
+		MHVTL_DBG(3, "  Medium type                 : %d",
 					p[i + 9] & 0x7);
 		if (p[i + 9] & 0x80)
-			MHVTL_DBG(3, "  Source Address              : %d\n",
+			MHVTL_DBG(3, "  Source Address              : %d",
 					get_unaligned_be16(&p[i + 10]));
 		i += 12;
 		if (voltag) {
 			i += 36;
-			MHVTL_DBG(3, " Voltag info...\n");
+			MHVTL_DBG(3, " Voltag info...");
 		}
 
-		MHVTL_DBG(3, " Identification Descriptor\n");
-		MHVTL_DBG(3, "  Code Set                     : 0x%02x\n", p[i] & 0xf);
-		MHVTL_DBG(3, "  Identifier type              : 0x%02x\n",
+		MHVTL_DBG(3, " Identification Descriptor");
+		MHVTL_DBG(3, "  Code Set                     : 0x%02x", p[i] & 0xf);
+		MHVTL_DBG(3, "  Identifier type              : 0x%02x",
 					p[i + 1] & 0xf);
-		MHVTL_DBG(3, "  Identifier length            : %d\n", p[i + 3]);
-		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 4]);
-		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 12]);
-		MHVTL_DBG(3, "  ASCII data                   : %s\n\n", &p[i + 28]);
+		MHVTL_DBG(3, "  Identifier length            : %d", p[i + 3]);
+		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 4]);
+		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 12]);
+		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 28]);
 		i = (j + 1) * len;
 	}
 }
@@ -228,28 +228,28 @@ static void decode_element_status(uint8_t *p)
 	int len, elem_len;
 	int num_elements;
 
-	MHVTL_DBG(3, "Element Status Data\n");
-	MHVTL_DBG(3, "  First element reported       : %d\n",
+	MHVTL_DBG(3, "Element Status Data");
+	MHVTL_DBG(3, "  First element reported       : %d",
 					get_unaligned_be16(&p[0]));
 	num_elements = 	get_unaligned_be16(&p[2]);
-	MHVTL_DBG(3, "  Number of elements available : %d\n", num_elements);
-	MHVTL_DBG(3, "  Byte count of report         : %d\n",
+	MHVTL_DBG(3, "  Number of elements available : %d", num_elements);
+	MHVTL_DBG(3, "  Byte count of report         : %d",
 					get_unaligned_be24(&p[5]));
-	MHVTL_DBG(3, "Element Status Page\n");
-	MHVTL_DBG(3, "  Element Type code            : %d\n", p[8]);
-	MHVTL_DBG(3, "  Primary Vol Tag              : %s\n",
+	MHVTL_DBG(3, "Element Status Page");
+	MHVTL_DBG(3, "  Element Type code            : %d", p[8]);
+	MHVTL_DBG(3, "  Primary Vol Tag              : %s",
 					(p[9] & 0x80) ? "Yes" : "No");
 	voltag = (p[9] & 0x80) ? 1 : 0;
-	MHVTL_DBG(3, "  Alt Vol Tag                  : %s\n",
+	MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
 					(p[9] & 0x40) ? "Yes" : "No");
 	elem_len = get_unaligned_be16(&p[10]);
-	MHVTL_DBG(3, "  Element descriptor length    : %d\n", elem_len);
-	MHVTL_DBG(3, "  Byte count of descriptor data: %d\n",
+	MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
+	MHVTL_DBG(3, "  Byte count of descriptor data: %d",
 					get_unaligned_be24(&p[13]));
 
 	len = get_unaligned_be24(&p[13]);
 
-	MHVTL_DBG(3, "Element Descriptor(s) : Length %d, Num of Elements %d\n",
+	MHVTL_DBG(3, "Element Descriptor(s) : Length %d, Num of Elements %d",
 					len, num_elements);
 
 	dump_element_desc(&p[16], voltag, num_elements, elem_len);
@@ -890,9 +890,6 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
 		j += 10;
 		break;
 	}
-/*
-	syslog(LOG_DAEMON|LOG_WARNING, "Index: %d\n", j);
-*/
 	MHVTL_DBG(3, "Returning %d bytes", j);
 
 return j;
