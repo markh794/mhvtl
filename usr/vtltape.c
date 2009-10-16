@@ -2252,10 +2252,8 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case READ_BLOCK_LIMITS:
 		MHVTL_DBG(1, "Read block limits (%ld) **",
 						(long)dbuf_p->serialNo);
-		if (tapeLoaded == TAPE_LOADED)
+		if (tapeLoaded == TAPE_LOADED || tapeLoaded == TAPE_UNLOADED)
 			dbuf_p->sz = resp_read_block_limits(dbuf_p, bufsize);
-		else if (tapeLoaded == TAPE_UNLOADED)
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 		else
 			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
 		break;
