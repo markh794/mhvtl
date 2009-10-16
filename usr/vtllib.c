@@ -428,7 +428,7 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 				pcontrolString[pcontrol], pcontrol);
 	MHVTL_DBG(2, " Page Code     : 0x%x", pcode);
 	MHVTL_DBG(2, " Disable Block Descriptor => %s",
-				(blockDescriptorLen) ? "Yes" : "No");
+				(blockDescriptorLen) ? "No" : "Yes");
 	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
 
 	if (0x3 == pcontrol) {  /* Saving values not supported */
@@ -493,7 +493,7 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 	}
 
 	if (debug) {
-		printf("mode sense: Returning %d bytes", offset);
+		printf("mode sense: Returning %d bytes\n", offset);
 		hex_dump(buf, offset);
 	}
 	return offset;
