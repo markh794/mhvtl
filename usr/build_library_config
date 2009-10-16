@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Designed to be called from vtl rc script
+# Designed to be called from mhvtl rc script
 #
-# * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
-# *                                mark_harvey at symantec dot com
+# * Copyright (C) 2005 Mark Harvey markh794@gmail.com
+# *                                mark_harvey@symantec.com
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ if [ ! -f /sys/bus/pseudo/drivers/mhvtl/add_lu ]; then
 fi
 
 # OK, we know the module is loaded..
-MAJOR=`grep vtl /proc/devices|awk '{print $1}'`
+MAJOR=`grep mhvtl /proc/devices|awk '{print $1}'`
 
 # First we need to setup & configure drives.
 # Once all the drives are setup, query devices for config &
@@ -83,7 +83,7 @@ do
 			rm /dev/mhvtl$count
 		fi
 		mknod /dev/mhvtl$count c $major $count
-		chown vtl:vtl /dev/mhvtl$count
+		chown $USER:$USER /dev/mhvtl$count
 	fi
 
 	# Start daemon for new lu
