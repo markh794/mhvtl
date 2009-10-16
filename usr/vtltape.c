@@ -2276,7 +2276,9 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						(long)dbuf_p->serialNo);
 		service_action = cdb[1] & 0x1f;
 /* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
-		if ((service_action == 0) || (service_action == 1)) {
+		if (tapeLoaded == TAPE_UNLOADED) {
+			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		} else if ((service_action == 0) || (service_action == 1)) {
 			dbuf_p->sz = resp_read_position(c_pos.blk_number,
 							dbuf_p->data, sam_stat);
 		} else {
