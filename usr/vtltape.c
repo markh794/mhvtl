@@ -2383,6 +2383,8 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			MHVTL_DBG(1, "Loading Tape (%ld) **",
 						(long)dbuf_p->serialNo);
 			tapeLoaded = resp_rewind(sam_stat);
+		} else if (tapeLoaded == TAPE_UNLOADED) {
+			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		} else {
 			mam.record_dirty = 0;
 			// Don't update load count on unload -done at load time
