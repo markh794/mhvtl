@@ -276,7 +276,7 @@ case "$1" in
 
     stop)
         echo "shutdown of mhvtl"
-	for a in `ps -ef|grep ^vtl | grep "\-q"|awk '{print $10}'`
+	for a in `ps -eo cmd |awk '/^vtltape -q/ {print $3}'`
 	do
 		echo "   Sending exit to $a"
 		vtlcmd $a exit
@@ -290,9 +290,9 @@ case "$1" in
 	fi
 	;;
     shutdown)
-	# Remove kernel moduel (vtl) along with messageQ key.
+	# Remove kernel module (mhvtl) along with messageQ key.
         echo "Removing mhvtl kernel module"
-	for a in `ps -ef|grep ^mhvtl | grep "\-q"|awk '{print $10}'`
+	for a in `ps -eo cmd |awk '/^vtltape -q/ {print $3}'`
 	do
 		echo "   Sending exit to $a"
 		vtlcmd $a exit
@@ -301,6 +301,10 @@ case "$1" in
 
 	# Send library daemon exit msg..
 	vtlcmd library  exit
+
+	# Sleep long enough for the daemons to see the exit commands.
+	sleep 1
+
 	rmmod mhvtl
 	Q_EXISTS=`ipcs -q|grep 4d61726b|awk '{print $2}'`
 	if [ "X$Q_EXISTS" != "X" ]; then
