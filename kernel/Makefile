@@ -51,7 +51,8 @@ distclean:
 	rm -rf .tmp_versions
 
 install:
-	install -o root -g bin -m 755 mhvtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/
+	install -o root -g root -m 755 mhvtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/
+	depmod -ae
 
 install-bkup:
 	cp mhvtl.ko ~/mhvtl-`uname -r`_`uname -m`.ko
