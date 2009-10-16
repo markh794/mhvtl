@@ -774,9 +774,10 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	/* This should be more selective..
 	 * Only needed for cmds that alter the partitioning or format..
-	 */
+
 	if (!checkRestrictions(sam_stat))
 		return 0;
+	 */
 
 	if (cdb[0] == MODE_SELECT) {
 		block_descriptor_sz = buf[3];
