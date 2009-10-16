@@ -62,7 +62,7 @@ char vtl_driver_name[] = "vtllibrary";
 /*
  * The following should be dynamic (read from config file)
  *
- **** Warning Will Robertson (or is that Robinson ??) ****:
+ **** Danger Will Robinson!! ****:
  *   START_DRIVE HAS TO start at slot 1
  *	The Order of Drives with lowest start, followed by Picker, followed
  *	by MAP, finally Storage slots is IMPORTANT. - You have been warned.
@@ -217,7 +217,7 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 		MHVTL_DBG(3, "  Identifier length            : %d", p[i + 3]);
 		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 4]);
 		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 12]);
-		MHVTL_DBG(3, "  ASCII data                   : %s\n", &p[i + 28]);
+		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 28]);
 		i = (j + 1) * len;
 	}
 }
@@ -659,7 +659,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 
 	if (retVal == 0) {
 
-	/* WWR - The following depends on Drive 1 being in the lowest slot */
+	/* DWR - The following depends on Drive 1 being in the lowest slot */
 		if ((src_addr < maxDrive) && (dest_addr < maxDrive)) {
 			/* Move between drives */
 			if (move_drive2drive(src_addr, dest_addr, sam_stat))
@@ -910,7 +910,7 @@ static int determine_element_sz(uint8_t dvcid, uint8_t voltag)
 /*
  * Fill in element status page Header (8 bytes)
  */
-static int fill_element_status_page(uint8_t *p, uint16_t start,
+static int fill_element_status_page(uint8_t *p,
 					uint16_t element_count, uint8_t dvcid,
 					uint8_t voltag, uint8_t typeCode)
 {
@@ -998,7 +998,7 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 		/* Logic here depends on Storage slots being
 		 * higher (numerically) than MAP which is higher than
 		 * Picker, which is higher than the drive slot number..
-		 * See WWR: near top of this file !!
+		 * See DWR: near top of this file !!
 		 */
 
 		/* Special case - 'All types'
@@ -1066,111 +1066,219 @@ return 0;
 /*
  * Fill in Element status page header + each Element descriptor
  *
- * Returns number of bytes used to fill in data
+ * Returns zero on success, or error code if illegal request.
  */
-static int medium_transport_descriptor(uint8_t *p, uint16_t start,
-				uint16_t count, uint8_t dvcid, uint8_t voltag)
+static uint32_t medium_transport_descriptor(uint8_t *p, uint16_t start,
+		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
+		uint16_t *cur_count, uint32_t *cur_offset)
 {
-	uint16_t	len;
 	uint16_t	begin;
+	uint16_t	count, avail, space;
 
-	// Find first valid slot.
+	/* Find first valid slot. */
 	begin = find_first_matching_element(start, MEDIUM_TRANSPORT);
-
-	// Create Element Status Page Header.
-	len =
-	  fill_element_status_page(p,begin,count,dvcid,voltag,MEDIUM_TRANSPORT);
-
-	begin -= START_PICKER;	// Array starts at [0]
-	count = num_picker - begin;
-
-	// Now loop over each picker slot and fill in details.
-	len += fill_element_detail(&p[len], &picker_info[begin], count, voltag);
-
-return len;
-}
-
-/*
- * Fill in Element status page header + each Element descriptor
- *
- * Returns number of bytes used to fill in data
- */
-static int storage_element_descriptor(uint8_t *p, uint16_t start,
-				uint16_t count, uint8_t dvcid, uint8_t voltag)
-{
-	uint16_t	len;
-	uint16_t	begin;
-
-	begin = find_first_matching_element(start, STORAGE_ELEMENT);
-	len =
-	  fill_element_status_page(p,begin,count,dvcid,voltag,STORAGE_ELEMENT);
-
-	begin -= START_STORAGE;	// Array starts at [0]
-	count = num_storage - begin;
-
-	// Now loop over each picker slot and fill in details.
-	len += fill_element_detail(&p[len],&storage_info[begin],count,voltag);
-
-return len;
-}
-
-/*
- * Fill in Element status page header + each Element descriptor
- *
- * Returns number of bytes used to fill in data
- */
-static int map_element_descriptor(uint8_t *p, uint16_t start, uint16_t count,
-						uint8_t dvcid, uint8_t voltag)
-{
-	uint16_t	len;
-	uint16_t	begin;
-
-	begin = find_first_matching_element(start, MAP_ELEMENT);
-	len = fill_element_status_page(p,begin,count,dvcid,voltag,MAP_ELEMENT);
-
-	begin -= START_MAP;	// Array starts at [0]
-	count = num_map - begin;
-
-	// Now loop over each picker slot and fill in details.
-	len += fill_element_detail(&p[len], &map_info[begin], count, voltag);
-
-return len;
-}
-
-/*
- * Fill in Element status page header + each Element descriptor
- *
- * Returns number of bytes used to fill in data
- */
-static int data_transfer_descriptor(uint8_t *p, uint16_t start,
-				uint16_t count, uint8_t dvcid, uint8_t voltag)
-{
-	uint32_t	len;
-	uint16_t	drive;
-
-	drive = find_first_matching_element(start, DATA_TRANSFER);
-	len =
-	    fill_element_status_page(p,drive,count,dvcid,voltag,DATA_TRANSFER);
-
-	drive -= START_DRIVE;	// Array starts at [0]
-
-	MHVTL_DBG(2, "Starting at drive: %d, count %d", drive + 1, count);
-	MHVTL_DBG(2, "Element Length: %d for drive: %d",
-				determine_element_sz(dvcid, voltag),
-				drive);
-
-	/**** For each Data Transfer Element ****/
-	count += drive; // We want 'count' number of drive entries returned
-	for (; drive < count; drive++) {
-		MHVTL_DBG(3, "Processing drive %d, stopping after %d",
-					drive + 1, count);
-		len += fill_data_transfer_element( &p[len],
-					&drive_info[drive], dvcid, voltag);
+	if (begin == 0) {
+		return E_INVALID_FIELD_IN_CDB;
 	}
 
-	MHVTL_DBG(3, "Returning %d bytes", len);
+	/* The number of medium transports to report is the minimum of:
+	 * 1. the number the caller asked for (max_count - *cur_count).
+	 * 2. the number that remain starting at address begin, and
+	 * 3. the number that will fit in the remaining
+	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
+	 */
 
-return len;
+	avail = START_PICKER + num_picker - begin;
+	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
+	space = (max_bytes - *cur_offset - 8) / determine_element_sz(0, voltag);
+	count = space < count ? space : count;
+	if (count == 0) {
+		if (*cur_count == 0) {
+			return E_PARAMETER_LIST_LENGTH_ERR;
+		} else {
+			return 0;
+		}
+	}
+
+	/* Create Element Status Page Header. */
+	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
+		voltag, MEDIUM_TRANSPORT);
+
+	begin -= START_PICKER;	/* Array starts at [0] */
+
+	/* Now loop over each picker slot and fill in details. */
+	*cur_offset += fill_element_detail(&p[*cur_offset],
+		&picker_info[begin], count, voltag);
+
+	*cur_count += count;
+
+return 0;
+}
+
+/*
+ * Fill in Element status page header + each Element descriptor
+ *
+ * Returns zero on success, or error code if illegal request.
+ */
+static uint32_t storage_element_descriptor(uint8_t *p, uint16_t start,
+		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
+		uint16_t *cur_count, uint32_t *cur_offset)
+{
+	uint16_t	begin;
+	uint16_t	count, avail, space;
+
+	/* Find first valid slot. */
+	begin = find_first_matching_element(start, STORAGE_ELEMENT);
+	if (begin == 0) {
+		return E_INVALID_FIELD_IN_CDB;
+	}
+
+	/* The number of storage slots to report is the minimum of:
+	 * 1. the number the caller asked for (max_count - *cur_count).
+	 * 2. the number that remain starting at address begin, and
+	 * 3. the number that will fit in the remaining
+	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
+	 */
+
+	avail = START_STORAGE + num_storage - begin;
+	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
+	space = (max_bytes - *cur_offset - 8) / determine_element_sz(0, voltag);
+	count = space < count ? space : count;
+	if (count == 0) {
+		if (*cur_count == 0) {
+			return E_PARAMETER_LIST_LENGTH_ERR;
+		} else {
+			return 0;
+		}
+	}
+
+	/* Create Element Status Page Header. */
+	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
+		voltag, STORAGE_ELEMENT);
+
+	begin -= START_STORAGE;	/* Array starts at [0] */
+
+	/* Now loop over each storage slot and fill in details. */
+	*cur_offset += fill_element_detail(&p[*cur_offset],
+		&storage_info[begin], count, voltag);
+
+	*cur_count += count;
+
+return 0;
+}
+
+/*
+ * Fill in Element status page header + each Element descriptor
+ *
+ * Returns zero on success, or error code if illegal request.
+ */
+static uint32_t map_element_descriptor(uint8_t *p, uint16_t start,
+		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
+		uint16_t *cur_count, uint32_t *cur_offset)
+{
+	uint16_t	begin;
+	uint16_t	count, avail, space;
+
+	/* Find first valid slot. */
+	begin = find_first_matching_element(start, MAP_ELEMENT);
+	if (begin == 0) {
+		return E_INVALID_FIELD_IN_CDB;
+	}
+
+	/* The number of map elements to report is the minimum of:
+	 * 1. the number the caller asked for (max_count - *cur_count).
+	 * 2. the number that remain starting at address begin, and
+	 * 3. the number that will fit in the remaining
+	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
+	 */
+
+	avail = START_MAP + num_map - begin;
+	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
+	space = (max_bytes - *cur_offset - 8) / determine_element_sz(0, voltag);
+	count = space < count ? space : count;
+	if (count == 0) {
+		if (*cur_count == 0) {
+			return E_PARAMETER_LIST_LENGTH_ERR;
+		} else {
+			return 0;
+		}
+	}
+
+	/* Create Element Status Page Header. */
+	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
+		voltag, MAP_ELEMENT);
+
+	begin -= START_MAP;	/* Array starts at [0] */
+
+	/* Now loop over each map element and fill in details. */
+	*cur_offset += fill_element_detail(&p[*cur_offset],
+		&map_info[begin], count, voltag);
+
+	*cur_count += count;
+
+return 0;
+}
+
+/*
+ * Fill in Element status page header + each Element descriptor
+ *
+ * Returns zero on success, or error code if illegal request.
+ */
+static uint32_t data_transfer_descriptor(uint8_t *p, uint16_t start,
+		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
+		uint8_t dvcid, uint16_t *cur_count, uint32_t *cur_offset)
+{
+	uint16_t	begin;
+	uint16_t	count, avail, space;
+	uint16_t	i;
+
+	/* Find first valid slot. */
+	begin = find_first_matching_element(start, DATA_TRANSFER);
+	if (begin == 0) {
+		return E_INVALID_FIELD_IN_CDB;
+	}
+
+	/* The number of data transports to report is the minimum of:
+	 * 1. the number the caller asked for (max_count - *cur_count).
+	 * 2. the number that remain starting at address begin, and
+	 * 3. the number that will fit in the remaining
+	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
+	 */
+
+	avail = START_DRIVE + num_drives - begin;
+	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
+	space = (max_bytes - *cur_offset - 8) / determine_element_sz(dvcid, voltag);
+	count = space < count ? space : count;
+	if (count == 0) {
+		if (*cur_count == 0) {
+			return E_PARAMETER_LIST_LENGTH_ERR;
+		} else {
+			return 0;
+		}
+	}
+
+	/* Create Element Status Page Header. */
+	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
+		voltag, DATA_TRANSFER);
+
+	begin -= START_DRIVE;	/* Array starts at [0] */
+
+	MHVTL_DBG(2, "Starting at drive: %d, count %d", begin + 1, count);
+	MHVTL_DBG(2, "Element Length: %d for drive: %d",
+				determine_element_sz(dvcid, voltag),
+				begin);
+
+	/* Now loop over each data transfer element and fill in details. */
+	for (i = 0; i < count; i++) {
+		MHVTL_DBG(3, "Processing drive %d, stopping after %d",
+					begin + i + 1, begin + count);
+		*cur_offset += fill_data_transfer_element(&p[*cur_offset],
+			&drive_info[begin + i], dvcid, voltag);
+	}
+
+	*cur_count += count;
+
+return 0;
 }
 
 /*
@@ -1185,12 +1293,13 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	uint8_t	typeCode = cdb[1] & 0x0f;
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
 	uint16_t req_start_elem;
-	int a;
-	uint16_t number, n;
+	uint16_t number;
 	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
 	uint32_t alloc_len;
 	uint16_t start;	// First valid slot location
-	uint16_t len = 0;
+	uint32_t cur_offset;
+	uint16_t cur_count;
+	uint32_t ec;
 
 	req_start_elem = get_unaligned_be16(&cdb[2]);
 	number = get_unaligned_be16(&cdb[4]);
@@ -1232,126 +1341,97 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	/* Init buffer */
 	memset(buf, 0, alloc_len);
 
-	if (cdb[11] != 0x0) {	// Reserved byte..
+	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 	}
 
-	// Find first matching slot number which matches the typeCode.
+	/* Find first matching slot number which matches the typeCode. */
 	start = find_first_matching_element(req_start_elem, typeCode);
 	if (start == 0) {	// Nothing found..
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 	}
 
-	// Leave room for 'master' header which is filled in at the end...
-	p = &buf[8];
+	/* Leave room for 'master' header which is filled in at the end... */
+	p = buf;
+	cur_offset = 8;
+	cur_count = 0;
+	ec = 0;
 
 	switch(typeCode) {
 	case MEDIUM_TRANSPORT:
-		len =
-		  medium_transport_descriptor(p, start, number, dvcid, voltag);
+		ec = medium_transport_descriptor(p, start, number, alloc_len,
+			voltag, &cur_count, &cur_offset);
 		break;
 	case STORAGE_ELEMENT:
-		len =
-		  storage_element_descriptor(p, start, number, dvcid, voltag);
+		ec = storage_element_descriptor(p, start, number, alloc_len,
+			voltag, &cur_count, &cur_offset);
 		break;
 	case MAP_ELEMENT:
-		len =
-		  map_element_descriptor(p, start, number, dvcid, voltag);
+		ec = map_element_descriptor(p, start, number, alloc_len,
+			voltag, &cur_count, &cur_offset);
 		break;
 	case DATA_TRANSFER:
-		len =
-		  data_transfer_descriptor(p, start, number, dvcid, voltag);
+		ec = data_transfer_descriptor(p, start, number, alloc_len,
+			voltag, dvcid, &cur_count, &cur_offset);
 		break;
 	case ANY:
-		n = number;
-		MHVTL_DBG(3, "Any: Element Type: Starting at %d", start);
 		if (start < START_DRIVE + num_drives) {
-			MHVTL_DBG(3, "All element types");
-			len = data_transfer_descriptor(p,
-				(start > START_DRIVE ? start : START_DRIVE),
-				(number > num_drives ? num_drives : number),
-				dvcid, voltag);
-			number -= (number > num_drives ? num_drives : number);
-			a = medium_transport_descriptor(p + len,
-				(start > START_PICKER ? start : START_PICKER),
-				(number > num_picker ? num_picker : number),
-				dvcid, voltag);
-			number -= (number > num_picker ? num_picker : number);
-	        	len += a;
-	   		a = map_element_descriptor(p + len,
-				(start > START_MAP ? start : START_MAP),
-				(number > num_map ? num_map : number),
-				dvcid, voltag);
-			number -= (number > num_map ? num_map : number);
-	        	len += a;
-			a = storage_element_descriptor(p + len,
-				(start > START_STORAGE ? start : START_STORAGE),
-				(number > num_storage ? num_storage : number),
-				dvcid, voltag);
-	        	len += a;
-		} else if (start < START_PICKER + num_picker) {
-			MHVTL_DBG(3, "Picker, MAP & Storage element types");
-			a = medium_transport_descriptor(p + len,
-				(start > START_PICKER ? start : START_PICKER),
-				(number > num_picker ? num_picker : number),
-				dvcid, voltag);
-			number -= (number > num_picker ? num_picker : number);
-	        	len += a;
-	   		a = map_element_descriptor(p + len,
-				(start > START_MAP ? start : START_MAP),
-				(number > num_map ? num_map : number),
-				dvcid, voltag);
-			number -= (number > num_map ? num_map : number);
-	        	len += a;
-			a = storage_element_descriptor(p + len,
-				(start > START_STORAGE ? start : START_STORAGE),
-				(number > num_storage ? num_storage : number),
-				dvcid, voltag);
-	        	len += a;
-		} else if (start < START_MAP + num_map) {
-			MHVTL_DBG(3, "MAP & Storage element types");
-	   		a = map_element_descriptor(p + len,
-				(start > START_MAP ? start : START_MAP),
-				(number > num_map ? num_map : number),
-				dvcid, voltag);
-			number -= (number > num_map ? num_map : number);
-	        	len += a;
-			a = storage_element_descriptor(p + len,
-				(start > START_STORAGE ? start : START_STORAGE),
-				(number > num_storage ? num_storage : number),
-				dvcid, voltag);
-	        	len += a;
-		} else {
-			MHVTL_DBG(3, "Just Storage element types");
-			a = storage_element_descriptor(p + len,
-				(start > START_STORAGE ? start : START_STORAGE),
-				(number > num_storage ? num_storage : number),
-				dvcid, voltag);
-	        	len += a;
+			ec = data_transfer_descriptor(p, start, number,
+				alloc_len, voltag, dvcid, &cur_count,
+				&cur_offset);
+			if (ec != 0) {
+				break;
+			}
+			start = START_PICKER;
 		}
-		number = n;
+		if (start < START_PICKER + num_picker) {
+			ec = medium_transport_descriptor(p, start, number,
+				alloc_len, voltag, &cur_count, &cur_offset);
+			if (ec != 0) {
+				break;
+			}
+			start = START_MAP;
+		}
+		if (start < START_MAP + num_map) {
+			ec = map_element_descriptor(p, start, number,
+				alloc_len, voltag, &cur_count, &cur_offset);
+			if (ec != 0) {
+				break;
+			}
+			start = START_STORAGE;
+		}
+		if (start < START_STORAGE + num_storage) {
+			ec = storage_element_descriptor(p, start, number,
+				alloc_len, voltag, &cur_count, &cur_offset);
+			if (ec != 0) {
+				break;
+			}
+		}
 		break;
-	default:	// Illegal descriptor type.
+	default:	/* Illegal descriptor type. */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 		break;
 	}
+	if (ec != 0) {
+		mkSenseBuf(ILLEGAL_REQUEST, ec, sam_stat);
+		return(0);
+	}
 
-	// Now populate the 'main' header structure with byte count..
-	len += element_status_hdr(&buf[0], dvcid, voltag, start, number);
+	/* Now populate the 'main' header structure with byte count.. */
+	element_status_hdr(&buf[0], dvcid, voltag, start, cur_count);
 
-	MHVTL_DBG(3, "Returning %d bytes",
-			((len < alloc_len) ? len : alloc_len));
+	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
 
 	if (debug)
-		hex_dump(buf, (len < alloc_len) ? len : alloc_len);
+		hex_dump(buf, cur_offset);
 
 	decode_element_status(buf);
 
 	/* Return the smallest number */
-	return ((len < alloc_len) ? len : alloc_len);
+	return cur_offset;
 }
 
 /*
@@ -1391,7 +1471,7 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
 		put_unaligned_be16(sizeof(TapeAlert) - sizeof(TapeAlert.pcode_head), &TapeAlert.pcode_head.len);
 		b = memcpy(b, &TapeAlert, sizeof(TapeAlert));
 		retval += sizeof(TapeAlert);
-		setTapeAlert(&TapeAlert, 0);	// Clear flags after value read.
+		setTapeAlert(&TapeAlert, 0); /* Clear flags after value read. */
 		break;
 	default:
 		MHVTL_DBG(1, "Unknown log sense code: 0x%x", cdb[2] & 0x3f);
@@ -1555,7 +1635,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 		break;
 	}
-/*	MHVTL_DBG(2, "Returning %d bytes", ret); */
 
 	dbuf_p->sz = ret;
 
@@ -1834,12 +1913,12 @@ static void init_mode_pages(struct mode *m)
 		mp->pcodePointer[5] = 0x0f;
 		mp->pcodePointer[6] = 0x0f;
 		mp->pcodePointer[7] = 0x0f;
-		// [8-11] -> reserved
+		/* [8-11] -> reserved */
 		mp->pcodePointer[12] = 0x0f;
 		mp->pcodePointer[13] = 0x0f;
 		mp->pcodePointer[14] = 0x0f;
 		mp->pcodePointer[15] = 0x0f;
-		// [16-19] -> reserved
+		/* [16-19] -> reserved */
 	}
 
 	// Element Address Assignment mode page: SMC-3 7.3.3
