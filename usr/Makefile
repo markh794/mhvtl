@@ -15,6 +15,9 @@ VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
 PREFIX ?= /usr
+USER = vtl
+SUSER = root
+GROUP = vtl
 
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
@@ -78,12 +81,12 @@ distclean:
 
 install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)/lib
-	install -o root -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/lib/
+	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/lib/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
-	install -o root -g vtl -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
-	install -o root -g vtl -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
-	install -o vtl -g vtl -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
-	install -o vtl -g vtl -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
+	install -o $(SUSER) -g $(USER) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
+	install -o $(SUSER) -g $(USER) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
+	install -o $(USER) -g $(GROUP) -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
+	install -o $(USER) -g $(GROUP) -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_devices $(DESTDIR)$(PREFIX)/bin/
