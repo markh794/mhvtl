@@ -98,10 +98,10 @@ static uint8_t AKAD[32];
 
 /* Sense Data format bits & pieces */
 /* Incorrect Length Indicator */
-#define VALID 0x80
-#define FILEMARK 0x80
-#define EOM 0x40
-#define ILI 0x20
+#define SD_VALID 0x80
+#define SD_FILEMARK 0x80
+#define SD_EOM 0x40
+#define SD_ILI 0x20
 
 #ifndef Solaris
   /* I'm sure there must be a header where lseek64() is defined */
@@ -342,7 +342,7 @@ mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_vali
 	int difference = (int)requested - (int)processed;
 
 	/* No sense, ILI bit set */
-	mkSenseBuf(ILI, NO_ADDITIONAL_SENSE, sense_valid);
+	mkSenseBuf(SD_ILI, NO_ADDITIONAL_SENSE, sense_valid);
 
 	MHVTL_DBG(2, "Short block read: Requested: %d, Read: %d,"
 			" short by %d bytes",
@@ -1075,7 +1075,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 		skip_to_next_header(sam_stat);
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
-		mkSenseBuf(FILEMARK, E_MARK, sam_stat);
+		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(save_sense, &sense[3]);
 		return nread;
 		break;
@@ -1298,7 +1298,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 	}
 	if (c_pos.curr_blk >= max_tape_capacity) {
 		MHVTL_DBG(2, "End of Medium - Setting EOM flag");
-		mkSenseBuf(NO_SENSE|EOM_FLAG, NO_ADDITIONAL_SENSE, sam_stat);
+		mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	}
 
 	if (compressionFactor)
@@ -2319,9 +2319,9 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 				" Filemark: %s, EOM: %s, ILI: %s",
 					(long)dbuf_p->serialNo,
 					sense[2] & 0x0f, sense[12], sense[13],
-					(sense[2] & FILEMARK) ? "yes" : "no",
-					(sense[2] & EOM) ? "yes" : "no",
-					(sense[2] & ILI) ? "yes" : "no");
+					(sense[2] & SD_FILEMARK) ? "yes" : "no",
+					(sense[2] & SD_EOM) ? "yes" : "no",
+					(sense[2] & SD_ILI) ? "yes" : "no");
 		blk_sz = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
 		memcpy(dbuf_p->data, sense, blk_sz);
 		/* Clear out the request sense flag */

@@ -83,8 +83,6 @@ extern char vtl_driver_name[];
 
 #endif	/* MHVTL_DEBUG */
 
-#define EOM_FLAG 0x40
-
 #define STATUS_OK 0
 
 #define STATUS_QUEUE_CMD 0xfe
