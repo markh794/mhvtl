@@ -974,7 +974,7 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
 			/* calculate available data length */
 			ret_val += 2;
-			if (ret_val < alloc_len) {
+			if (ret_val <= alloc_len) {
 				/* add it to output */
 				buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
 				buf[byte_index++] = MAM_Attributes[indx].attribute;
@@ -1017,7 +1017,7 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
 				byte_index += 1;
 				attribute_length = ((uint16_t)buf[byte_index++] << 8);
 				attribute_length += buf[byte_index++];
-				if ((attribute = 0x408) &&
+				if ((attribute == 0x408) &&
 					(attribute_length == 1) &&
 						(buf[byte_index] == 0x80)) {
 					/* set media to worm */
