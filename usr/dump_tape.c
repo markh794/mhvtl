@@ -43,39 +43,40 @@ int debug;
 
 struct blk_header current_pos;
 
-void print_current_header(void) {
+void print_current_header(void)
+{
 	printf("Hdr:");
 	switch(current_pos.blk_type) {
-		case B_DATA:
-			if ((current_pos.blk_flags &&
+	case B_DATA:
+		if ((current_pos.blk_flags &&
+			(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
 				(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
-				== (BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
-				printf("Encrypted/cmp data");
-			else if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
-				printf("    Encrypted data");
-			else if (current_pos.blk_flags & BLKHDR_FLG_COMPRESSED)
-				printf("   Compressed data");
+			printf(" Encrypt/Comp data");
+		else if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
+			printf("    Encrypted data");
+		else if (current_pos.blk_flags & BLKHDR_FLG_COMPRESSED)
+			printf("   Compressed data");
 			else
-				printf("              data");
-			break;
-		case B_FILEMARK:
-			printf("          Filemark");
-			break;
-		case B_BOT:
-			printf(" Beginning of Tape");
-			break;
-		case B_BOT_V1:
-			printf("   Old format Tape");
-			break;
-		case B_EOD:
-			printf("       End of Data");
-			break;
-		case B_NOOP:
-			printf("      No Operation");
-			break;
-		default:
-			printf("      Unknown type");
-			break;
+		printf("             data");
+		break;
+	case B_FILEMARK:
+		printf("          Filemark");
+		break;
+	case B_BOT:
+		printf(" Beginning of Tape");
+		break;
+	case B_BOT_V1:
+		printf("   Old format Tape");
+		break;
+	case B_EOD:
+		printf("       End of Data");
+		break;
+	case B_NOOP:
+		printf("      No Operation");
+		break;
+	default:
+		printf("      Unknown type");
+		break;
 	}
 	printf("(%02x), %s %-6d, Blk No.: %" PRId64 ", prev %" PRId64
 			", cur %" PRId64 ", next %" PRId64 "\n",
