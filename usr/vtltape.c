@@ -302,7 +302,6 @@ static struct report_luns report_luns = {
 	0x00, 0x00, 0x00,			// 16 bytes in length..
 	};
 
-
 /*
  * Mode Pages defined for SSC-3 devices..
  */
@@ -801,6 +800,10 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 	}
 
+	/*
+		FIXME: Need to add code here to set/reset compression
+		MODE PAGE 0x0f
+	*/
 	if (debug)
 		hex_dump(buf, dbuf_p->sz);
 
@@ -2103,6 +2106,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
 						((cdb[7] << 8) | cdb[8]);
 		if (cdb[1] & 0x10) { /* Page Format: 1 - SPC, 0 - vendor uniq */
+			/* FIXME: Need to add something here */
 		}
 		dbuf_p->sz = resp_mode_select(cdev, cdb, dbuf_p);
 		break;
@@ -2881,7 +2885,6 @@ return (queue_id);
 static void init_mode_pages(struct mode *m)
 {
 	struct mode *mp;
-	uint32_t *lp;
 
 	// RW Error Recovery: SSC-3 8.3.5
 	if ((mp = alloc_mode_page(1, m, 12))) {
@@ -2903,12 +2906,12 @@ static void init_mode_pages(struct mode *m)
 	// Data compression: SSC-3 8.3.2
 	if ((mp = alloc_mode_page(0x0f, m, 16))) {
 		// Init rest of page data..
-		mp->pcodePointer[2] = 0xc0;	// Set Data Compression Enable
-		mp->pcodePointer[3] = 0x80;	// Set Data Decompression Enable
-		lp = (uint32_t *)&mp->pcodePointer[4];
-		*lp = htonl(COMPRESSION_TYPE);	// Compression Algorithm
-		lp++;
-		*lp = htonl(COMPRESSION_TYPE);	// Decompression algorithm
+		mp->pcodePointer[2] = 0xc0; /* Set Data Compression Enable */
+		mp->pcodePointer[3] = 0x80; /* Set Data Decompression Enable */
+		/* Compression Algorithm */
+		put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[4]);
+		/* Decompression Algorithm */
+		put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[8]);
 	}
 
 	// Device Configuration: SSC-3 8.3.3
