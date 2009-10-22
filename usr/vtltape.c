@@ -1051,12 +1051,9 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
 static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request_sz)
 {
 	loff_t nread = 0;
-/*
-	uint8_t	*comp_buf;
+	uint8_t	*cbuf = NULL;
 	uLongf uncompress_sz;
-	uLongf comp_buf_sz;
 	int z;
-*/
 	uint32_t save_sense;
 
 	MHVTL_DBG(3, "Request to read: %d bytes", request_sz);
@@ -1088,74 +1085,11 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 		break;
 	case B_BOT:
 		skip_to_next_header(sam_stat);
-		// Re-exec function.
+		/* Re-exec function. */
 		return readBlock(cdev, buf, sam_stat, request_sz);
 		break;
-/*
-	case B_COMPRESSED_DATA:
-		// If we are positioned at beginning of header, read it in.
-		if (c_pos.curr_blk == lseek64(datafile, 0, SEEK_CUR)) {
-			nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
-			if (nread == 0) {	// Error
-				syslog(LOG_DAEMON|LOG_ERR,
-					"Unable to read header: %m");
-				mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,
-								sam_stat);
-				return 0;
-			}
-		}
-		comp_buf_sz = c_pos.disk_blk_size + 80;
-		comp_buf = (uint8_t *)malloc(comp_buf_sz);
-		uncompress_sz = bufsize;
-		if (NULL == comp_buf) {
-			syslog(LOG_DAEMON|LOG_WARNING,
-				"Unable to alloc %ld bytes", comp_buf_sz);
-			mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,sam_stat);
-			return 0;
-		}
-		nread = read(datafile, comp_buf, c_pos.disk_blk_size);
-		if (nread == 0) {	// End of data - no more to read
-			if (verbose)
-				syslog(LOG_DAEMON|LOG_WARNING, "%s",
-				"End of data detected when reading from file");
-			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
-			free(comp_buf);
-			return 0;
-		} else if (nread < 0) {	// Error
-			syslog(LOG_DAEMON|LOG_ERR, "Read Error: %m");
-			mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,sam_stat);
-			free(comp_buf);
-			return 0;
-		}
-		z = uncompress((uint8_t *)buf,&uncompress_sz, comp_buf, nread);
-		if (z != Z_OK) {
-			mkSenseBuf(MEDIUM_ERROR,E_DECOMPRESSION_CRC,sam_stat);
-			if (z == Z_MEM_ERROR)
-				syslog(LOG_DAEMON|LOG_ERR,
-					"Not enough memory to decompress data");
-			else if (z == Z_BUF_ERROR)
-				syslog(LOG_DAEMON|LOG_ERR,
-					"Not enough memory in destination buf"
-					" to decompress data");
-			else if (z == Z_DATA_ERROR)
-				syslog(LOG_DAEMON|LOG_ERR,
-					"Input data corrput or incomplete");
-			free(comp_buf);
-			return 0;
-		}
-		nread = uncompress_sz;
-		// requested block and actual block size different
-		if (uncompress_sz != request_sz) {
-			syslog(LOG_DAEMON|LOG_WARNING,
-			"Short block read %ld %d", uncompress_sz, request_sz);
-			mk_sense_short_block(request_sz, uncompress_sz,
-								sam_stat);
-		}
-		free(comp_buf);
-		break;
-*/
 	case B_DATA:
-		// If we are positioned at beginning of header, read it in.
+		/* If we are positioned at beginning of header, read it in. */
 		if (c_pos.curr_blk == lseek64(datafile, 0, SEEK_CUR)) {
 			nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
 			if (nread == 0) {	// Error
@@ -1165,20 +1099,62 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 				return 0;
 			}
 		}
-		nread = read(datafile, buf, c_pos.disk_blk_size);
-		if (nread == 0) {	// End of data - no more to read
+
+		if (c_pos.blk_flags & BLKHDR_FLG_COMPRESSED) {
+			cbuf = malloc(compressBound(c_pos.blk_size));
+			if (! cbuf) {
+				MHVTL_DBG(1, "Out of memory");
+				mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC,
+								sam_stat);
+				return 0;
+			}
+			nread = read(datafile, cbuf, c_pos.disk_blk_size);
+		} else
+			nread = read(datafile, buf, c_pos.disk_blk_size);
+
+		if (nread == 0) {	/* End of data - no more to read */
 			MHVTL_DBG(1, "%s",
 				"End of data detected when reading from file");
 			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 			return nread;
-		} else if (nread < 0) {	// Error
+		} else if (nread < 0) {	/* Error */
 			MHVTL_DBG(1, "%m");
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
-		} else if (nread != request_sz) {
-			// requested block and actual block size different
-			mk_sense_short_block(request_sz, nread, sam_stat);
 		}
+		if (c_pos.blk_flags & BLKHDR_FLG_COMPRESSED) {
+			uncompress_sz = c_pos.blk_size;
+
+			z = uncompress((uint8_t *)buf, &uncompress_sz,
+					cbuf, nread);
+			nread = 0;
+			if (z != Z_OK)
+				mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC,
+							sam_stat);
+			switch (z) {
+			case Z_OK:
+				nread = uncompress_sz;
+				MHVTL_DBG(2, "Read %u (%u) bytes of compressed"
+					" data, have %u bytes for result",
+					(uint32_t)nread, c_pos.disk_blk_size,
+					c_pos.blk_size);
+				break;
+			case Z_MEM_ERROR:
+				MHVTL_DBG(1, "Not enough memory to decompress");
+				break;
+			case Z_DATA_ERROR:
+				MHVTL_DBG(1, "Block corrupt or incomplete");
+				break;
+			case Z_BUF_ERROR:
+				MHVTL_DBG(1, "Not enough memory in destination buf");
+				break;
+			}
+			nread = uncompress_sz;
+			free(cbuf);
+		}
+		/* requested block and actual block size different */
+		if (nread != request_sz)
+			mk_sense_short_block(request_sz, nread, sam_stat);
 		break;
 	default:
 		MHVTL_DBG(1, "Unknown blk header at offset %" PRId64
