@@ -132,7 +132,7 @@ static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
 static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
 static uint8_t MediaWriteProtect = 0;	/* True if virtual "write protect" switch is set */
 static int OK_to_write = 1;	// True if in correct position to start writing
-static int compressionFactor = 0;
+static int compressionFactor = 1;
 
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
@@ -512,6 +512,9 @@ static int mkNewHeader(char type, int size, int comp_size, uint8_t *sam_stat)
 			h.encryption_key[i] = KEY[i];
 		}
 	}
+
+	if ((type == B_DATA) && compressionFactor)
+		h.blk_flags |= BLKHDR_FLG_COMPRESSED;
 
 	nwrite = write(datafile, &h, sizeof(h));
 
@@ -1197,10 +1200,11 @@ static int rewriteMAM(struct MAM *mamp, uint8_t *sam_stat)
 static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 {
 	loff_t	nwrite = 0;
-	Bytef *dest_buf = src_buf;
+	Bytef *dest_buf;
 	uLong dest_len = src_sz;
 	uLong src_len = src_sz;
 	uint32_t local_ENCRYPT_MODE = 0;
+	int z;
 
 	if (c_pos.blk_number == 0) {
 		/* 3590 media must be formatted to allow encryption.
@@ -1242,14 +1246,14 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 				if (mam.MediumDensityCode == Drive_Native_Write_Density[drive_3592_J1A])
 					break;
 				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-			return 0;
-			break;
+				return 0;
+				break;
 			case drive_3592_E06:
 				if (mam.MediumDensityCode == Drive_Native_Write_Density[drive_3592_E05])
 					break;
 				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-			return 0;
-			break;
+				return 0;
+				break;
 			default:
 				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
 				return 0;
@@ -1258,6 +1262,40 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 		}
 	}
 
+	if (compressionFactor) {
+		int dest_sz;
+
+		dest_sz = compressBound(src_sz);
+		dest_buf = malloc(dest_sz);
+		if (!dest_buf) {
+			MHVTL_DBG(1, "malloc(%d) failed", dest_sz);
+			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+			return 0;
+		}
+		z = compress2(dest_buf, &dest_len, src_buf, src_sz,
+							compressionFactor);
+		if (z != Z_OK) {
+			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
+							sam_stat);
+			switch (z) {
+			case Z_MEM_ERROR:
+				MHVTL_DBG(1, "Not enough memory to compress "
+						"data");
+				break;
+			case Z_BUF_ERROR:
+				MHVTL_DBG(1, "Not enough memory in destination "
+						" buf to compress data");
+				break;
+			case Z_DATA_ERROR:
+				MHVTL_DBG(1, "Input data corrupt / incomplete");
+				break;
+			}
+		}
+		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
+					src_sz, (unsigned long)dest_len);
+	} else
+		dest_buf = src_buf;
+
 	nwrite = mkNewHeader(B_DATA, src_len, dest_len, sam_stat);
 	if (local_ENCRYPT_MODE)
 		ENCRYPT_MODE = local_ENCRYPT_MODE;
@@ -1265,15 +1303,17 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 	if (nwrite <= 0) {
 		MHVTL_DBG(1, "Failed to write header");
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-	} else {	// now write the block of data..
-		nwrite = write(datafile, dest_buf, dest_len);
-		if (nwrite <= 0) {
-			MHVTL_DBG(1, "%m: failed to write %ld bytes", dest_len);
-			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		} else if (nwrite != dest_len) {
-			MHVTL_DBG(1, "Did not write all data");
-			mk_sense_short_block(src_len, nwrite, sam_stat);
-		}
+		return 0;
+	}
+
+	// now write the block of data..
+	nwrite = write(datafile, dest_buf, dest_len);
+	if (nwrite <= 0) {
+		MHVTL_DBG(1, "%m: failed to write %ld bytes", dest_len);
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+	} else if (nwrite != dest_len) {
+		MHVTL_DBG(1, "Did not write all data");
+		mk_sense_short_block(src_len, nwrite, sam_stat);
 	}
 	if (c_pos.curr_blk >= max_tape_capacity) {
 		MHVTL_DBG(2, "End of Medium - Setting EOM flag");
@@ -2002,7 +2042,7 @@ int valid_encryption_blk(uint8_t *sam_stat)
  */
 static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint32_t blk_sz = 0;
+	uint32_t sz = 0;
 	uint32_t count;
 	uint32_t retval = 0;
 	int k;
@@ -2136,10 +2176,20 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case READ_6:
-		MHVTL_DBG(1, "Read_6 (%ld) : %d %s **",
+		if (cdb[1] & FIXED) { /* If - Fixed block read */
+			count = get_unaligned_be24(&cdb[2]);
+			sz = get_unaligned_be24(&blockDescriptorBlock[5]);
+			MHVTL_DBG(1, "READ_6 \"Fixed block read\" "
+				"under development - "
+				" Read %d blocks of %d size", count, sz);
+		} else { /* else - Variable block read */
+			sz = get_unaligned_be24(&cdb[2]);
+			count = 1;
+			MHVTL_DBG(1, "READ_6 (%ld) : %d bytes **",
 					(long)dbuf_p->serialNo,
-					blk_sz,
-					(cdb[1] & FIXED) ? "blocks" : "bytes");
+					sz);
+		}
+
 		/* If both FIXED & SILI bits set, invalid combo.. */
 		if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
 			MHVTL_DBG(1, "Supress ILI and Fixed block "
@@ -2166,29 +2216,17 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			break;
 		}
 
-		/* If - Fixed block read */
-		if (cdb[1] & FIXED) {
-			count = get_unaligned_be24(&cdb[2]);
-			blk_sz = get_unaligned_be24(&blockDescriptorBlock[5]);
-			MHVTL_DBG(1, "\"Fixed block read\" under development -"
-				" Read %d blocks of %d size", count, blk_sz);
-		/* else - Variable block read */
-		} else {
-			blk_sz = get_unaligned_be24(&cdb[2]);
-			count = 1;
-		}
-
 		buf = dbuf_p->data;
 		for (k = 0; k < count; k++) {
 			if (!valid_encryption_blk(sam_stat))
 				break;
-			retval = readBlock(cdev, buf, sam_stat, blk_sz);
+			retval = readBlock(cdev, buf, sam_stat, sz);
 			buf += retval;
 			dbuf_p->sz += retval;
 		}
 		/* Fix this for fixed block reads */
-		if (retval > (blk_sz * count))
-			retval = blk_sz * count;
+		if (retval > (sz * count))
+			retval = sz * count;
 		bytesRead += retval;
 		pg_read_err_counter.bytesProcessed = bytesRead;
 //		dbuf_p->sz += retval;
@@ -2302,12 +2340,12 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 					(sense[2] & SD_FILEMARK) ? "yes" : "no",
 					(sense[2] & SD_EOM) ? "yes" : "no",
 					(sense[2] & SD_ILI) ? "yes" : "no");
-		blk_sz = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
-		memcpy(dbuf_p->data, sense, blk_sz);
+		sz = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
+		memcpy(dbuf_p->data, sense, sz);
 		/* Clear out the request sense flag */
 		*sam_stat = 0;
 		memset(sense, 0, sizeof(sense));
-		dbuf_p->sz = blk_sz;
+		dbuf_p->sz = sz;
 		break;
 
 	case RESERVE:
@@ -2409,28 +2447,28 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		/* If Fixed block writes */
 		if (cdb[1] & FIXED) {
 			count = get_unaligned_be24(&cdb[2]);
-			blk_sz = get_unaligned_be24(&blockDescriptorBlock[5]);
+			sz = get_unaligned_be24(&blockDescriptorBlock[5]);
 			MHVTL_DBG(1, "WRITE_6: %d blks of %d bytes (%ld) **",
 						count,
-						blk_sz,
+						sz,
 						(long)dbuf_p->serialNo);
 		/* else - Variable Block writes */
 		} else {
 			count = 1;
-			blk_sz = get_unaligned_be24(&cdb[2]);
+			sz = get_unaligned_be24(&cdb[2]);
 			MHVTL_DBG(1, "WRITE_6: %d bytes (%ld) **",
-						blk_sz,
+						sz,
 						(long)dbuf_p->serialNo);
 		}
 
 		/* FIXME: Should handle this instead of 'check & warn' */
-		if ((blk_sz * count) > bufsize)
+		if ((sz * count) > bufsize)
 			MHVTL_DBG(1,
 			"Fatal: bufsize %d, requested write of %d bytes",
-							bufsize, blk_sz);
+							bufsize, sz);
 
 		/* Retrieve data from kernel */
-		dbuf_p->sz = blk_sz * count;
+		dbuf_p->sz = sz * count;
 		nread = retrieve_CDB_data(cdev, dbuf_p);
 
 		if (!checkRestrictions(sam_stat))
@@ -2439,7 +2477,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (OK_to_write) {
 			buf = dbuf_p->data;
 			for (k = 0; k < count; k++) {
-				retval = writeBlock(buf, blk_sz, sam_stat);
+				retval = writeBlock(buf, sz, sam_stat);
 				bytesWritten += retval;
 				buf += retval;
 				pg_write_err_counter.bytesProcessed =
@@ -2461,23 +2499,23 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 
 		dbuf_p->sz = get_unaligned_be32(&cdb[10]);
-		blk_sz = retrieve_CDB_data(cdev, dbuf_p);
+		sz = retrieve_CDB_data(cdev, dbuf_p);
 		MHVTL_DBG(1, "  --> Expected to read %d bytes"
-				", read %d", dbuf_p->sz, blk_sz);
+				", read %d", dbuf_p->sz, sz);
 		if (resp_write_attribute(cdb, dbuf_p, &mam))
 			rewriteMAM(&mam, sam_stat);
 		break;
 
 	case WRITE_FILEMARKS:
-		blk_sz = get_unaligned_be24(&cdb[2]);
+		sz = get_unaligned_be24(&cdb[2]);
 		MHVTL_DBG(1, "Write %d filemarks (%ld) **",
-						blk_sz,
+						sz,
 						(long)dbuf_p->serialNo);
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		while(blk_sz > 0) {
-			blk_sz--;
+		while(sz > 0) {
+			sz--;
 			mkNewHeader(B_FILEMARK, 0, 0, sam_stat);
 			mkEODHeader(sam_stat);
 		}
@@ -2496,8 +2534,8 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		count = get_unaligned_be16(&cdb[3]);
 		if (count) {
 			dbuf_p->sz = count;
-			blk_sz = retrieve_CDB_data(cdev, dbuf_p);
-			ProcessSendDiagnostic(cdb, 16, dbuf_p->data, blk_sz,
+			sz = retrieve_CDB_data(cdev, dbuf_p);
+			ProcessSendDiagnostic(cdb, 16, dbuf_p->data, sz,
 						dbuf_p);
 		}
 		break;
