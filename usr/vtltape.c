@@ -132,7 +132,7 @@ static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
 static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
 static uint8_t MediaWriteProtect = 0;	/* True if virtual "write protect" switch is set */
 static int OK_to_write = 1;	// True if in correct position to start writing
-static int compressionFactor = 1;
+static int compressionFactor = 0;
 
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
