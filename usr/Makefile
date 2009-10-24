@@ -8,6 +8,13 @@
 # 	all 	to build all utilities
 # 	clean	to clean up all intermediate files
 #
+#
+# Makefile magic
+# $@ is a variable that expands to the name of the file being built
+# $< is a variable that expands to the naem of the source file
+# @ at the beginning of the first line tell make not to echo the commands as it run it.
+#
+
 VER = $(shell grep Version ../mhvtl.spec|awk '{print $$2}')
 REL = $(shell grep Release ../mhvtl.spec|awk '{print $$2}')
 
@@ -22,6 +29,7 @@ GROUP = vtl
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
 CFLAGS += -DMHVTL_DEBUG
+CFLAGS += -DUSER=\"$(USER)\"
 
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 

@@ -3464,9 +3464,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	pw = getpwnam("vtl");	/* Find UID for user 'vtl' */
+	pw = getpwnam(USER);	/* Find UID for user 'vtl' */
 	if (!pw) {
-		MHVTL_DBG(1, "Unable to find user: vtl");
+		MHVTL_DBG(1, "Unable to find user: %s", USER);
 		exit(1);
 	}
 

@@ -2633,9 +2633,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	pw = getpwnam("vtl");	/* Find UID for user 'vtl' */
+	pw = getpwnam(USER);	/* Find UID for user 'vtl' */
 	if (!pw) {
-		printf("Unable to find user: vtl\n");
+		printf("Unable to find user: %s\n", USER);
 		exit(1);
 	}
 
