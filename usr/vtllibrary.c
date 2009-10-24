@@ -2633,9 +2633,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	pw = getpwnam(USER);	/* Find UID for user 'vtl' */
+	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
 	if (!pw) {
-		printf("Unable to find user: %s\n", USER);
+		printf("Unable to find user: %s\n", USR);
 		exit(1);
 	}
 
@@ -2739,8 +2739,8 @@ int main(int argc, char *argv[])
 		if (sid < 0)
 			exit(-1);
 
-		if ((chdir("/opt/vtl")) < 0) {
-			perror("Unable to change directory to /opt/vtl ");
+		if ((chdir(MHVTL_HOME_PATH)) < 0) {
+			perror("Unable to change directory ");
 			exit(-1);
 		}
 

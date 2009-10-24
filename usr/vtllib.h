@@ -25,7 +25,14 @@
   #include <byteswap.h>
 #endif
 
+#ifndef MHVTL_CONFIG_PATH
 #define MHVTL_CONFIG_PATH "/etc/mhvtl"
+#endif
+
+#ifndef MHVTL_HOME_PATH
+/* Where all the tape data files belong */
+#define MHVTL_HOME_PATH "/opt/vtl"
+#endif
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 
@@ -91,8 +98,6 @@ extern char vtl_driver_name[];
 
 #define SCSI_SN_LEN 16
 
-/* Where all the tape data files belong */
-#define HOME_PATH "/opt/vtl"
 
 /*
  * Process the LOG_SENSE page definations

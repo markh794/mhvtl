@@ -151,7 +151,7 @@ int skip_to_next_header(int datafile, char * sense_flg) {
 int main(int argc, char *argv[])
 {
 	int ofp;
-	char *dataFile = HOME_PATH;
+	char *dataFile = MHVTL_HOME_PATH;
 	char sense_flg;
 	loff_t nread;
 

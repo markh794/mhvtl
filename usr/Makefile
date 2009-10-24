@@ -22,14 +22,18 @@ VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
 PREFIX ?= /usr
-USER = vtl
+USR = vtl
 SUSER = root
 GROUP = vtl
+MHVTL_HOME_PATH ?= /opt/vtl
+MHVTL_CONFIG_PATH ?= /etc/mhvtl
 
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
 CFLAGS += -DMHVTL_DEBUG
-CFLAGS += -DUSER=\"$(USER)\"
+CFLAGS += -DUSR=\"$(USR)\"
+CFLAGS += -DMHVTL_HOME_PATH=\"$(MHVTL_HOME_PATH)\"
+CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
@@ -91,16 +95,13 @@ install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)/lib
 	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/lib/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
-	install -o $(SUSER) -g $(USER) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
-	install -o $(SUSER) -g $(USER) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
-	install -o $(USER) -g $(GROUP) -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
-	install -o $(USER) -g $(GROUP) -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
+	install -o $(SUSER) -g $(USR) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
+	install -o $(SUSER) -g $(USR) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
+	install -o $(USR) -g $(GROUP) -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
+	install -o $(USR) -g $(GROUP) -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_devices $(DESTDIR)$(PREFIX)/bin/
-	install -d -m 755 $(DESTDIR)/etc
-	install -d -m 755 $(DESTDIR)/etc/init.d
-	install -m 700 ../etc/mhvtl $(DESTDIR)/etc/init.d/
 
 tar:
 	make -C ../ tar

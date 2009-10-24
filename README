@@ -1,12 +1,7 @@
 
 vxtape virtual tape & library system.
 
-This package is composed of a kernel module (vtl) which is a pseudo HBA
-reporting it has attached:
- 1 x L700 medium changer (SMC target)
- 2 x Sony SDX-900V drives (SSC targets)
- 3 x Ultrium TD3 drives (SSC targets)
- 3 x Super DLT600 drives (SSC targets)
+This package is composed of a kernel module (mhvtl) which is a pseudo HBA
 
 The vtl is basically a stripped down scsi_debug kernel module + a char dev
 'back end' to pass the SCSI commands thru to user space daemons. It is the
@@ -19,6 +14,6 @@ comments always welcome. It has also been many years since I have done any c
 programming. Please be gentle..
 
 Mark Harvey
-markh794 at gmail dot com
-mark_harvey at symantec dot com
+markh794@gmail.com
+mark_harvey@symantec.com
 

@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
 	sprintf((char *)mam.MediumManufactureDate, "%d", (int)time(NULL));
 	sprintf((char *)mam.Barcode, "%-31s", pcl);
 
-	sprintf((char *)currentMedia, "%s/%s", HOME_PATH, pcl);
+	sprintf((char *)currentMedia, "%s/%s", MHVTL_HOME_PATH, pcl);
 	syslog(LOG_DAEMON|LOG_INFO, "%s being created", currentMedia);
 	file = creat((char *)currentMedia,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (file == -1) {

@@ -2629,7 +2629,7 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 	bytesWritten = 0;	// Global - Bytes written this load
 	bytesRead = 0;		// Global - Bytes rearead this load
 
-	sprintf(currentMedia ,"%s/%s", HOME_PATH, PCL);
+	sprintf(currentMedia ,"%s/%s", MHVTL_HOME_PATH, PCL);
 	MHVTL_DBG(2, "Opening file/media %s", currentMedia);
 	if ((datafile = open(currentMedia, O_RDWR|O_LARGEFILE)) == -1) {
 		MHVTL_DBG(1, "%s: open file/media failed, %m", currentMedia);
@@ -3357,7 +3357,7 @@ int main(int argc, char *argv[])
 
 	char *progname = argv[0];
 
-	char *dataFile = HOME_PATH;
+	char *dataFile = MHVTL_HOME_PATH;
 	char *name = "mhvtl";
 	int minor = 0;
 	struct passwd *pw;
@@ -3464,9 +3464,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	pw = getpwnam(USER);	/* Find UID for user 'vtl' */
+	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
 	if (!pw) {
-		MHVTL_DBG(1, "Unable to find user: %s", USER);
+		MHVTL_DBG(1, "Unable to find user: %s", USR);
 		exit(1);
 	}
 
@@ -3535,8 +3535,8 @@ int main(int argc, char *argv[])
 		if (sid < 0)
 			exit(-1);
 
-		if ((chdir("/opt/vtl")) < 0) {
-			perror("Unable to change directory to /opt/vtl ");
+		if ((chdir(MHVTL_HOME_PATH)) < 0) {
+			perror("Unable to change directory ");
 			exit(-1);
 		}
 

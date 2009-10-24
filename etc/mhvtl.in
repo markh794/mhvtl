@@ -27,8 +27,8 @@
 # chkconfig: - 30 30
 #
 
-USER=vtl
-MHVTL_CONFIG_PATH=/etc/mhvtl
+USER=@USR@
+MHVTL_CONFIG_PATH=@CONF_PATH@
 
 OPTIONS=
 
@@ -89,7 +89,7 @@ Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
-Drive: 4 CHANNEL: 0 TARGET: 3 LUN: 1
+Drive: 4 CHANNEL: 0 TARGET: 4 LUN: 0
  Vendor identification: QUANTUM 
  Product identification: SDLT600         
  Product revision level: 5500
