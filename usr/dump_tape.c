@@ -58,41 +58,77 @@ void print_current_header(void)
 			printf("   Compressed data");
 			else
 		printf("             data");
+
+		printf("(%02x), sz %6d/%-6d, Blk No.: %" PRId64 ", prev %" PRId64
+			", cur %" PRId64 ", next %" PRId64 "\n",
+			current_pos.blk_type,
+			current_pos.disk_blk_size,
+			current_pos.blk_size,
+			(loff_t)current_pos.blk_number,
+			current_pos.prev_blk,
+			current_pos.curr_blk,
+			current_pos.next_blk);
+		if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
+			printf("   => Encr key length %d, ukad length %d, "
+				"akad length %d\n",
+				current_pos.encryption_key_length,
+				current_pos.encryption_ukad_length,
+				current_pos.encryption_akad_length);
 		break;
 	case B_FILEMARK:
 		printf("          Filemark");
+		printf("(%02x), sz %13d, Blk No.: %" PRId64 ", prev %" PRId64
+			", cur %" PRId64 ", next %" PRId64 "\n",
+			current_pos.blk_type,
+			current_pos.blk_size,
+			(loff_t)current_pos.blk_number,
+			current_pos.prev_blk,
+			current_pos.curr_blk,
+			current_pos.next_blk);
 		break;
 	case B_BOT:
 		printf(" Beginning of Tape");
+		printf("(%02x), Capacity %6dMbytes"
+			", prev %" PRId64
+			", cur %" PRId64
+			", next %" PRId64 "\n",
+			current_pos.blk_type,
+			current_pos.blk_size,
+			current_pos.prev_blk,
+			current_pos.curr_blk,
+			current_pos.next_blk);
+		return;
 		break;
 	case B_BOT_V1:
 		printf("   Old format Tape");
 		break;
 	case B_EOD:
 		printf("       End of Data");
+		printf("(%02x), sz %13d, Blk No.: %" PRId64 ", prev %" PRId64
+			", cur %" PRId64 ", next %" PRId64 "\n",
+			current_pos.blk_type,
+			current_pos.blk_size,
+			(loff_t)current_pos.blk_number,
+			current_pos.prev_blk,
+			current_pos.curr_blk,
+			current_pos.next_blk);
 		break;
 	case B_NOOP:
 		printf("      No Operation");
 		break;
 	default:
 		printf("      Unknown type");
-		break;
-	}
-	printf("(%02x), %s %-6d, Blk No.: %" PRId64 ", prev %" PRId64
+		printf("(%02x), %6d/%-6d, Blk No.: %" PRId64 ", prev %" PRId64
 			", cur %" PRId64 ", next %" PRId64 "\n",
 			current_pos.blk_type,
-			(current_pos.blk_type == B_BOT) ? "Capacity" : "sz",
+			current_pos.disk_blk_size,
 			current_pos.blk_size,
 			(loff_t)current_pos.blk_number,
 			current_pos.prev_blk,
 			current_pos.curr_blk,
 			current_pos.next_blk);
-	if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
-		printf("   => Encr key length %d, ukad length %d, "
-			"akad length %d\n",
-			current_pos.encryption_key_length,
-			current_pos.encryption_ukad_length,
-			current_pos.encryption_akad_length);
+		break;
+	}
 }
 
 int skip_to_next_header(int datafile, char * sense_flg) {
