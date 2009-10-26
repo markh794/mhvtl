@@ -664,7 +664,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 	src_addr  = get_unaligned_be16(&cmd[4]);
 	dest_addr = get_unaligned_be16(&cmd[6]);
 	src_type = slot_type(src_addr);
-	dest_type =slot_type(dest_addr);
+	dest_type = slot_type(dest_addr);
 
 	if (verbose) {
 		if (cmd[11] && 0xc0)
@@ -741,7 +741,7 @@ static int determine_element_sz(uint8_t dvcid, uint8_t voltag, int type)
 static int fill_element_descriptor(uint8_t *p, int addr, int voltag, int dvcid)
 {
 	struct d_info *d = NULL;
-	struct s_info *s;
+	struct s_info *s = NULL;
 	int type = slot_type(addr);
 	int j = 0;
 
@@ -759,6 +759,12 @@ static int fill_element_descriptor(uint8_t *p, int addr, int voltag, int dvcid)
 	case STORAGE_ELEMENT:
 		s = slot2struct(addr);
 		break;
+	}
+
+	/* Should never occur, but better to trap then core */
+	if (! s) {
+		MHVTL_DBG(1, "Slot out of range");
+		return 0;
 	}
 
 	MHVTL_DBG(2, "Slot location: %d", s->slot_location);
