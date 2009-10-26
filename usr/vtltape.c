@@ -536,7 +536,7 @@ static int mkEODHeader(uint8_t *sam_stat)
 {
 	loff_t nwrite;
 
-	nwrite = mkNewHeader(B_EOD, sizeof(c_pos), sizeof(c_pos), sam_stat);
+	nwrite = mkNewHeader(B_EOD, 0, 0, sam_stat);
 	if (MediaType == MEDIA_TYPE_WORM)
 		OK_to_write = 1;
 
