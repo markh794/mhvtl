@@ -2114,8 +2114,8 @@ static	uint8_t last_cmd;
 		 */
 		MHVTL_DBG(2, "Current blk: %" PRId64 ", seek: %d",
 					c_pos.blk_number, count);
-		if (((uint32_t)(count - c_pos.blk_number) > count) &&
-						(count < c_pos.blk_number)) {
+		if (count < c_pos.blk_number && c_pos.blk_number - count > count)
+		{
 			resp_rewind(sam_stat);
 		}
 		if (MediaType == MEDIA_TYPE_WORM)
