@@ -2523,9 +2523,11 @@ static	uint8_t last_cmd;
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		while(sz > 0) {
-			sz--;
-			mkNewHeader(B_FILEMARK, 0, 0, sam_stat);
+		if (sz > 0) {
+			while(sz > 0) {
+				sz--;
+				mkNewHeader(B_FILEMARK, 0, 0, sam_stat);
+			}
 			mkEODHeader(sam_stat);
 		}
 		break;
