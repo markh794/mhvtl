@@ -2052,10 +2052,15 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	uint8_t *buf;
 	loff_t nread;
+static	uint8_t last_cmd;
 
 	dbuf_p->sz = 0;
 
-	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
+	if ((cdb[0] == READ_6 || cdb[0] == WRITE_6) && cdb[0] == last_cmd) {
+		MHVTL_DBG_PRT_CDB(2, dbuf_p->serialNo, cdb);
+	} else {
+		MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
+	}
 
 	/* Limited subset of commands don't need to check for power-on reset */
 	switch (cdb[0]) {
@@ -2179,13 +2184,15 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (cdb[1] & FIXED) { /* If - Fixed block read */
 			count = get_unaligned_be24(&cdb[2]);
 			sz = get_unaligned_be24(&blockDescriptorBlock[5]);
-			MHVTL_DBG(1, "READ_6 \"Fixed block read\" "
+			MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
+				"READ_6 \"Fixed block read\" "
 				"under development - "
 				" Read %d blocks of %d size", count, sz);
 		} else { /* else - Variable block read */
 			sz = get_unaligned_be24(&cdb[2]);
 			count = 1;
-			MHVTL_DBG(1, "READ_6 (%ld) : %d bytes **",
+			MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
+				"READ_6 (%ld) : %d bytes **",
 					(long)dbuf_p->serialNo,
 					sz);
 		}
@@ -2448,7 +2455,8 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (cdb[1] & FIXED) {
 			count = get_unaligned_be24(&cdb[2]);
 			sz = get_unaligned_be24(&blockDescriptorBlock[5]);
-			MHVTL_DBG(1, "WRITE_6: %d blks of %d bytes (%ld) **",
+			MHVTL_DBG(last_cmd == WRITE_6 ? 2 : 1,
+				"WRITE_6: %d blks of %d bytes (%ld) **",
 						count,
 						sz,
 						(long)dbuf_p->serialNo);
@@ -2456,7 +2464,8 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		} else {
 			count = 1;
 			sz = get_unaligned_be24(&cdb[2]);
-			MHVTL_DBG(1, "WRITE_6: %d bytes (%ld) **",
+			MHVTL_DBG(last_cmd == WRITE_6 ? 2 : 1,
+				"WRITE_6: %d bytes (%ld) **",
 						sz,
 						(long)dbuf_p->serialNo);
 		}
@@ -2612,6 +2621,8 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						(long)dbuf_p->serialNo);
 		break;
 	}
+
+	last_cmd = cdb[0];
 	return;
 }
 
