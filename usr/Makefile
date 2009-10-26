@@ -95,8 +95,8 @@ install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)/lib
 	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/lib/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
-	install -o $(SUSER) -g $(USR) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
-	install -o $(SUSER) -g $(USR) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
+	install -o $(SUSER) -g $(GROUP) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
+	install -o $(SUSER) -g $(GROUP) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
 	install -o $(USR) -g $(GROUP) -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
 	install -o $(USR) -g $(GROUP) -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
