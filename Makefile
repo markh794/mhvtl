@@ -70,7 +70,7 @@ tar:
 		 $(PARENTDIR)/doc \
 		 $(PARENTDIR)/kernel \
 		 $(PARENTDIR)/usr \
-		 $(PARENTDIR)/etc/mhvtl \
+		 $(PARENTDIR)/etc/ \
 		 $(PARENTDIR)/include \
 		 $(PARENTDIR)/Makefile \
 		 $(PARENTDIR)/README \
