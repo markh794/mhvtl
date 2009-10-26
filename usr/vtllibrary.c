@@ -96,6 +96,11 @@ uint64_t SPR_Reservation_Key;
 #define OPERATOR 	1
 #define ROBOT_ARM	0
 
+#define	VOLTAG_LEN	36	/* size of voltag area in RES descriptor */
+
+static int dvcid_len;
+static int dvcid_serial_only;
+
 static int bufsize = 1024 * 1024;
 int verbose = 0;
 int debug = 0;
@@ -187,10 +192,41 @@ static void usage(char *progname)
  int ioctl(int, int, void *);
 #endif
 
+/* Copy bytes from 'src' to 'dest, blank-filling to length 'len'.  There will
+ * not be a NULL byte at the end.
+*/
+
+static void blank_fill(uint8_t *dest, uint8_t *src, int len)
+{
+	int	i;
+
+	for (i = 0; i < len; i++) {
+		if (*src != '\0') {
+			*dest++ = *src++;
+		} else {
+			*dest++ = ' ';
+		}
+	}
+}
+
+/* Return the element type of a particular element address */
+
+static int slot_type(int addr)
+{
+	if ((addr >= START_DRIVE) && (addr < START_DRIVE + num_drives))
+		return DATA_TRANSFER;
+	if ((addr >= START_PICKER) && (addr < START_PICKER + num_picker))
+		return MEDIUM_TRANSPORT;
+	if ((addr >= START_MAP) && (addr < START_MAP + num_map))
+		return MAP_ELEMENT;
+	if ((addr >= START_STORAGE) && (addr < START_STORAGE + num_storage))
+		return STORAGE_ELEMENT;
+	return 0;
+}
 
 static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 {
-	int i, j;
+	int i, j, idlen;
 
 	i = 0;
 	for (j = 0; j < num_elem; j++) {
@@ -206,7 +242,7 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 					get_unaligned_be16(&p[i + 10]));
 		i += 12;
 		if (voltag) {
-			i += 36;
+			i += VOLTAG_LEN;
 			MHVTL_DBG(3, " Voltag info...");
 		}
 
@@ -214,10 +250,17 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 		MHVTL_DBG(3, "  Code Set                     : 0x%02x", p[i] & 0xf);
 		MHVTL_DBG(3, "  Identifier type              : 0x%02x",
 					p[i + 1] & 0xf);
-		MHVTL_DBG(3, "  Identifier length            : %d", p[i + 3]);
-		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 4]);
-		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 12]);
-		MHVTL_DBG(3, "  ASCII data                   : %s", &p[i + 28]);
+		idlen = p[i + 3];
+		MHVTL_DBG(3, "  Identifier length            : %d", idlen);
+		if (idlen) {
+			if (dvcid_serial_only) {
+				MHVTL_DBG(3, "  ASCII data                   : %10s", &p[i + 4]);
+			} else {
+				MHVTL_DBG(3, "  ASCII data                   : %8s", &p[i + 4]);
+				MHVTL_DBG(3, "  ASCII data                   : %16s", &p[i + 12]);
+				MHVTL_DBG(3, "  ASCII data                   : %10s", &p[i + 28]);
+			}
+		}
 		i = (j + 1) * len;
 	}
 }
@@ -225,34 +268,44 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
 static void decode_element_status(uint8_t *p)
 {
 	int voltag;
-	int len, elem_len;
-	int num_elements;
+	int elem_len;
+	int total_elements, total_bytes;
+	int page_elements, page_bytes;
 
 	MHVTL_DBG(3, "Element Status Data");
 	MHVTL_DBG(3, "  First element reported       : %d",
 					get_unaligned_be16(&p[0]));
-	num_elements = 	get_unaligned_be16(&p[2]);
-	MHVTL_DBG(3, "  Number of elements available : %d", num_elements);
-	MHVTL_DBG(3, "  Byte count of report         : %d",
-					get_unaligned_be24(&p[5]));
-	MHVTL_DBG(3, "Element Status Page");
-	MHVTL_DBG(3, "  Element Type code            : %d", p[8]);
-	MHVTL_DBG(3, "  Primary Vol Tag              : %s",
-					(p[9] & 0x80) ? "Yes" : "No");
-	voltag = (p[9] & 0x80) ? 1 : 0;
-	MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
-					(p[9] & 0x40) ? "Yes" : "No");
-	elem_len = get_unaligned_be16(&p[10]);
-	MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
-	MHVTL_DBG(3, "  Byte count of descriptor data: %d",
-					get_unaligned_be24(&p[13]));
+	total_elements = get_unaligned_be16(&p[2]);
+	MHVTL_DBG(3, "  Number of elements available : %d", total_elements);
+	total_bytes = get_unaligned_be24(&p[5]);
+	MHVTL_DBG(3, "  Byte count of report         : %d", total_bytes);
+	p += 8;
 
-	len = get_unaligned_be24(&p[13]);
+	while (total_elements && total_bytes) {
 
-	MHVTL_DBG(3, "Element Descriptor(s) : Length %d, Num of Elements %d",
-					len, num_elements);
+		MHVTL_DBG(3, "Element Status Page");
+		MHVTL_DBG(3, "  Element Type code            : %d", p[0]);
+		voltag = (p[1] & 0x80) ? 1 : 0;
+		MHVTL_DBG(3, "  Primary Vol Tag              : %s",
+					voltag ? "Yes" : "No");
+		MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
+					(p[1] & 0x40) ? "Yes" : "No");
+		elem_len = get_unaligned_be16(&p[2]);
+		MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
+		page_bytes = get_unaligned_be24(&p[5]);
+		MHVTL_DBG(3, "  Byte count of descriptor data: %d", page_bytes);
+		page_elements = page_bytes / elem_len;
+		p += 8;
 
-	dump_element_desc(&p[16], voltag, num_elements, elem_len);
+		MHVTL_DBG(3, "Element Descriptor(s) : Num of Elements %d",
+			page_elements);
+
+		dump_element_desc(p, voltag, page_elements, elem_len);
+
+		total_elements -= page_elements;
+		total_bytes -= page_bytes;
+		p += page_bytes;
+	}
 
 	fflush(NULL);
 }
@@ -272,20 +325,19 @@ static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
  */
 static struct s_info *slot2struct(int addr)
 {
-	if ((addr >= START_MAP) && (addr <= (START_MAP + num_map))) {
-		addr -= START_MAP;
+	switch (slot_type(addr)) {
+	case MAP_ELEMENT:
 		MHVTL_DBG(2, "slot2struct: MAP %d", addr);
-		return &map_info[addr];
-	}
-	if ((addr >= START_STORAGE) && (addr <= (START_STORAGE + num_storage))) {
-		addr -= START_STORAGE;
+		return &map_info[addr - START_MAP];
+	case STORAGE_ELEMENT:
 		MHVTL_DBG(2, "slot2struct: Storage %d", addr);
-		return &storage_info[addr];
-	}
-	if ((addr >= START_PICKER) && (addr <= (START_PICKER + num_picker))) {
-		addr -= START_PICKER;
+		return &storage_info[addr - START_STORAGE];
+	case MEDIUM_TRANSPORT:
 		MHVTL_DBG(2, "slot2struct: Picker %d", addr);
-		return &picker_info[addr];
+		return &picker_info[addr - START_PICKER];
+	case DATA_TRANSFER:
+		MHVTL_DBG(2, "slot2struct: Drive %d", addr);
+		return drive_info[addr - START_DRIVE].slot;
 	}
 
 // Should NEVER get here as we have performed bounds checking b4
@@ -299,8 +351,7 @@ return NULL;
  */
 static struct d_info *drive2struct(int addr)
 {
-	addr -= START_DRIVE;
-	return &drive_info[addr];
+	return &drive_info[addr - START_DRIVE];
 }
 
 /* Returns true if slot has media in it */
@@ -419,9 +470,7 @@ static void setDriveFull(struct d_info *d)
 /* Returns 1 (true) if slot is MAP slot */
 static int is_map_slot(struct s_info *s)
 {
-	int addr = s->slot_location;
-
-	if ((addr >= START_MAP) && (addr <= START_MAP + num_map))
+	if (slot_type(s->slot_location) == MAP_ELEMENT)
 		return 1;
 
 	return 0;
@@ -594,30 +643,28 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 /* Return OK if 'addr' is within either a MAP, Drive or Storage slot */
 static int valid_slot(int addr)
 {
-	int maxDrive = START_DRIVE + num_drives;
-	int maxStorage = START_STORAGE + num_storage;
-	int maxMAP   = START_MAP + num_map;
-
-	if (((addr >= START_DRIVE)  && (addr <= maxDrive)) ||
-	   ((addr >= START_MAP)     && (addr <= maxMAP))   ||
-	   ((addr >= START_STORAGE) && (addr <= maxStorage)))
+	switch (slot_type(addr)) {
+	case STORAGE_ELEMENT:
+	case MAP_ELEMENT:
+	case DATA_TRANSFER:
 		return 1;
-	else
-		return 0;
+	}
+	return 0;
 }
 
 /* Move a piece of medium from one slot to another */
 static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 {
 	int transport_addr;
-	int src_addr;
-	int dest_addr;
-	int maxDrive = START_DRIVE + num_drives;
+	int src_addr, src_type;
+	int dest_addr, dest_type;
 	int retVal = 0;	// Return a success status
 
 	transport_addr = get_unaligned_be16(&cmd[2]);
 	src_addr  = get_unaligned_be16(&cmd[4]);
 	dest_addr = get_unaligned_be16(&cmd[6]);
+	src_type = slot_type(src_addr);
+	dest_type =slot_type(dest_addr);
 
 	if (verbose) {
 		if (cmd[11] && 0xc0)
@@ -644,7 +691,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 
 	if (transport_addr == 0)
 		transport_addr = START_PICKER;
-	if (transport_addr > (START_PICKER + num_picker)) {
+	if (slot_type(transport_addr) != MEDIUM_TRANSPORT) {
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
@@ -658,16 +705,14 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 	}
 
 	if (retVal == 0) {
-
-	/* DWR - The following depends on Drive 1 being in the lowest slot */
-		if ((src_addr < maxDrive) && (dest_addr < maxDrive)) {
+		if (src_type == DATA_TRANSFER && dest_type == DATA_TRANSFER) {
 			/* Move between drives */
 			if (move_drive2drive(src_addr, dest_addr, sam_stat))
 				retVal = -1;
-		} else if (src_addr < maxDrive) {
+		} else if (src_type == DATA_TRANSFER) {
 			if (move_drive2slot(src_addr, dest_addr, sam_stat))
 				retVal = -1;
-		} else if (dest_addr < maxDrive) {
+		} else if (dest_type == DATA_TRANSFER) {
 			if (move_slot2drive(src_addr, dest_addr, sam_stat))
 				retVal = -1;
 		} else {   // Move between (non-drive) slots
@@ -680,20 +725,49 @@ return(retVal);
 }
 
 /*
- * Fill in skeleton of element descriptor data
+ * Calculate length of one element
+ */
+static int determine_element_sz(uint8_t dvcid, uint8_t voltag, int type)
+{
+	return 16 + (voltag ? VOLTAG_LEN : 0) +
+		(dvcid && (type == DATA_TRANSFER) ? dvcid_len : 0);
+}
+
+/*
+ * Fill in a single element descriptor
  *
  * Returns number of bytes in element data.
  */
-static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
+static int fill_element_descriptor(uint8_t *p, int addr, int voltag, int dvcid)
 {
+	struct d_info *d = NULL;
+	struct s_info *s;
+	int type = slot_type(addr);
 	int j = 0;
 
-	MHVTL_DBG(2, "Slot location: %d", s->slot_location);
-	put_unaligned_be16(s->slot_location, &p[j]);
+	switch (type) {
+	case DATA_TRANSFER:
+		d = drive2struct(addr);
+		s = slot2struct(addr);
+		break;
+	case MEDIUM_TRANSPORT:
+		s = slot2struct(addr);
+		break;
+	case MAP_ELEMENT:
+		s = slot2struct(addr);
+		break;
+	case STORAGE_ELEMENT:
+		s = slot2struct(addr);
+		break;
+	}
 
+	MHVTL_DBG(2, "Slot location: %d", s->slot_location);
+
+	put_unaligned_be16(s->slot_location, &p[j]);
 	j += 2;
+
 	p[j] = s->status;
-	if (is_map_slot(s)) {
+	if (type == MAP_ELEMENT) {
 		if (cap_closed)
 			p[j] |= STATUS_Access;
 		else
@@ -701,78 +775,6 @@ static int skel_element_descriptor(uint8_t *p, struct s_info *s, int voltag)
 	}
 	j++;
 
-	p[j++] = 0;	/* Reserved */
-	p[j++] = s->asc;  /* Additional Sense Code */
-	p[j++] = s->ascq; /* Additional Sense Code Qualifer */
-
-	j++;		/* Reserved */
-	j++;		/* Reserved */
-	j++;		/* Reserved */
-
-	/* bit 8 set if Source Storage Element is valid | s->occupied */
-	p[j] = (s->last_location > 0) ? 0x80 : 0;
-	/* 0 - empty, 1 - data, 2 cleaning tape */
-	p[j++] |= (s->cart_type & 0x0f);
-
-	/* Source Storage Element Address */
-	put_unaligned_be16(s->last_location, &p[j]);
-	j += 2;
-
-	if (voltag) {
-		MHVTL_DBG(2, "voltag set");
-
-		/* Barcode with trailing space(s) */
-		if ((s->status & STATUS_Full) &&
-		    !(s->internal_status & INSTATUS_NO_BARCODE))
-			snprintf((char *)&p[j], 32, "%-32s", s->barcode);
-		else
-			memset(&p[j], 0, 32);
-
-		j += 32;	/* Account for barcode */
-		j += 8;		/* Reserved */
-	} else {
-		j += 4;		/* Reserved */
-		MHVTL_DBG(2, "voltag cleared => no barcode");
-	}
-
-return j;
-}
-
-/*
- * Starts at slot 's' and works thru 'slot_count' number of slots
- * filling in details of contents of slot 's'
- *
- * Returns number of bytes used to fill in all details.
- */
-static int fill_element_detail(uint8_t *p, struct s_info *slot, int slot_count, int voltag)
-{
-	int k;
-	int j;
-
-	/**** For each Storage Element ****/
-	for (k = 0, j = 0; j < slot_count; j++, slot++) {
-		MHVTL_DBG(2, "Slot: %d, k = %d", slot->slot_location, k);
-		k += skel_element_descriptor( (uint8_t *)&p[k], slot, voltag);
-	}
-	MHVTL_DBG(3, "Returning %d bytes", k);
-
-return (k);
-}
-
-/*
- * Fill in details of Drive slot at *d into struct *p
- *
- * Return number of bytes in element.
- */
-static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvcid, uint8_t voltag )
-{
-	int j = 0;
-	int m;
-	char s[128];
-
-	put_unaligned_be16(d->slot->slot_location, &p[j]);
-	j+=2;
-	p[j++] = d->slot->status;
 	p[j++] = 0;	/* Reserved */
 
 /* Possible values for ASC/ASCQ for data transfer elements
@@ -786,109 +788,57 @@ static int fill_data_transfer_element(uint8_t *p, struct d_info *d, uint8_t dvci
  * 0x80/0x63 Drive operating with low module fan speed
  * 0x80/0x5f Drive being shutdown due to low module fan speed
  */
-	p[j++] = 0;	/* Additional Sense Code */
-	p[j++] = 0;	/* Additional Sense Code Qualifer */
+	p[j++] = s->asc;  /* Additional Sense Code */
+	p[j++] = s->ascq; /* Additional Sense Code Qualifer */
 
-//	p[j++] = 0xa0 | d->SCSI_LUN;	/* SCSI ID bit valid */
-	p[j++] = 0;	/* SCSI ID bit not-valid */
-	p[j++] = d->SCSI_ID;
 	j++;		/* Reserved */
-	if (d->slot->last_location > 0) {
-		/* bit 8 set if Source Storage Element is valid */
-		p[j++] = 0x80;
-
-		/* Source Storage Element Address */
-		put_unaligned_be16(d->slot->last_location, &p[j]);
-		j += 2;
+	if (type == DATA_TRANSFER) {
+		p[j++] = d->SCSI_ID;
 	} else {
-		j += 3;
+		j++;	/* Reserved */
 	}
+	j++;		/* Reserved */
+
+	/* bit 8 set if Source Storage Element is valid | s->occupied */
+	p[j] = (s->last_location > 0) ? 0x80 : 0;
+	/* 0 - empty, 1 - data, 2 cleaning tape */
+	p[j++] |= (s->cart_type & 0x0f);
+
+	/* Source Storage Element Address */
+	put_unaligned_be16(s->last_location, &p[j]);
+	j += 2;
 
 	MHVTL_DBG(2, "DVCID: %d, VOLTAG: %d, Index: %d", dvcid, voltag, j);
 
-	// Tidy up messy if/then/else into a 'case'
-	m = dvcid + dvcid + voltag;
-	switch(m) {
-	case 0:
-		MHVTL_DBG(2, "Voltag & DVCID are not set");
-		j += 4;
-		break;
-	case 1:
-		MHVTL_DBG(2, "Voltag set, DVCID not set");
-		if ((d->slot->status & STATUS_Full) &&
-		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
-			strncpy(s, (char *)d->slot->barcode, 10);
-			s[10] = '\0';
-			/* Barcode with trailing space(s) */
-			snprintf((char *)&p[j], 32, "%-32s", s);
-		} else {
-			memset(&p[j], 0, 32);
-		}
-		j += 32;	/* Account for barcode */
-		j += 8;		/* Reserved */
-		break;
-	case 2:
-		MHVTL_DBG(2, "Voltag not set, DVCID set");
+	if (voltag) {
+		/* Barcode with trailing space(s) */
+		if ((s->status & STATUS_Full) &&
+		    !(s->internal_status & INSTATUS_NO_BARCODE))
+			blank_fill(&p[j], s->barcode, VOLTAG_LEN);
+		else
+			memset(&p[j], 0, VOLTAG_LEN);
+
+		j += VOLTAG_LEN;	/* Account for barcode */
+	}
+
+	if (dvcid && type == DATA_TRANSFER) {
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
 		j++;		/* Reserved */
-		p[j++] = 34;	/* Identifier Length */
-
-		strncpy(s, d->inq_vendor_id, 8);
-		s[8] = '\0';
-		snprintf((char *)&p[j], 8, "%-8s", s);
-		MHVTL_DBG(2, "Vendor ID: \"%-8s\"", s);
-		j += 8;
-
-		strncpy(s, d->inq_product_id, 16);
-		s[16] = '\0';
-		snprintf((char *)&p[j], 16, "%-16s", s);
-		MHVTL_DBG(2, "Product ID: \"%-16s\"", s);
-		j += 16;
-
-		strncpy(s, d->inq_product_sno, 10);
-		s[10] = '\0';
-		snprintf((char *)&p[j], 10, "%-10s", s);
-		MHVTL_DBG(2, "Product S/No: \"%-10s\"", s);
-		j += 10;
-		break;
-	case 3:
-		MHVTL_DBG(2, "Voltag set, DVCID set");
-		if ((d->slot->status & STATUS_Full) &&
-		    !(d->slot->internal_status & INSTATUS_NO_BARCODE)) {
-			strncpy(s, (char *)d->slot->barcode, 10);
-			s[10] = '\0';
-			/* Barcode with trailing space(s) */
-			snprintf((char *)&p[j], 32, "%-32s", s);
+		p[j++] = dvcid_len;	/* Identifier Length */
+		if (dvcid_serial_only) {
+			blank_fill(&p[j], (uint8_t *)d->inq_product_sno, dvcid_len);
+			j += dvcid_len;
 		} else {
-			memset(&p[j], 0, 32);
+			blank_fill(&p[j], (uint8_t *)d->inq_vendor_id, 8);
+			j += 8;
+			blank_fill(&p[j], (uint8_t *)d->inq_product_id, 16);
+			j += 16;
+			blank_fill(&p[j], (uint8_t *)d->inq_product_sno, 10);
+			j += 10;
 		}
-		j += 32;	/* Account for barcode */
+	} else {
 		j += 4;		/* Reserved */
-
-		p[j++] = 2;	/* Code set 2 = ASCII */
-		p[j++] = 1;	/* Identifier type */
-		j++;		/* Reserved */
-		p[j++] = 34;	/* Identifier Length */
-
-		strncpy(s, d->inq_vendor_id, 8);
-		s[8] = '\0';
-		snprintf((char *)&p[j], 8, "%-8s", s);
-		MHVTL_DBG(2, "Vendor ID: \"%-8s\"", s);
-		j += 8;
-
-		strncpy(s, d->inq_product_id, 16);
-		s[16] = '\0';
-		snprintf((char *)&p[j], 16, "%-16s", s);
-		MHVTL_DBG(2, "Product ID: \"%-16s\"", s);
-		j += 16;
-
-		strncpy(s, d->inq_product_sno, 10);
-		s[10] = '\0';
-		snprintf((char *)&p[j], 10, "%-10s", s);
-		MHVTL_DBG(2, "Product S/No: \"%-10s\"", s);
-		j += 10;
-		break;
 	}
 	MHVTL_DBG(3, "Returning %d bytes", j);
 
@@ -896,28 +846,16 @@ return j;
 }
 
 /*
- * Calculate length of one element
- */
-static int determine_element_sz(uint8_t dvcid, uint8_t voltag)
-{
-
-	if (voltag) /* If voltag bit is set */
-		return  (dvcid == 0) ? 52 : 86;
-	else
-		return  (dvcid == 0) ? 16 : 50;
-}
-
-/*
  * Fill in element status page Header (8 bytes)
  */
-static int fill_element_status_page(uint8_t *p,
+static int fill_element_status_page_hdr(uint8_t *p,
 					uint16_t element_count, uint8_t dvcid,
 					uint8_t voltag, uint8_t typeCode)
 {
 	int	element_sz;
 	uint32_t	element_len;
 
-	element_sz = determine_element_sz(dvcid, voltag);
+	element_sz = determine_element_sz(dvcid, voltag, typeCode);
 
 	p[0] = typeCode;	/* Element type Code */
 
@@ -947,14 +885,9 @@ return(8);	/* Always 8 bytes in header */
  * Build the initial ELEMENT STATUS HEADER
  *
  */
-static int
-element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int count)
+static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
+					uint32_t byte_count)
 {
-	uint32_t byte_count;
-	int element_sz;
-
-	element_sz = determine_element_sz(dvcid, voltag);
-
 	MHVTL_DBG(2, "Building READ ELEMENT STATUS Header struct");
 	MHVTL_DBG(2, " Starting slot: %d, number of configured slots: %d",
 					start, count);
@@ -967,7 +900,6 @@ element_status_hdr(uint8_t *p, uint8_t dvcid, uint8_t voltag, int start, int cou
 	 * valid data.
 	 * The 'allocated length' indicates how much data can be returned.
 	 */
-	byte_count = 8 + (count * element_sz);
 	put_unaligned_be32(byte_count & 0xffffff, &p[4]);
 
 	MHVTL_DBG(2, " Element Status Data HEADER: "
@@ -992,7 +924,6 @@ return 8;	// Header is 8 bytes in size..
  */
 static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 {
-
 	switch(typeCode) {
 	case ANY:	// Don't care what 'type'
 		/* Logic here depends on Storage slots being
@@ -1008,53 +939,51 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 		if (start == 0)
 			return(START_DRIVE);
 
-		// Check we are within a storage slot range.
-		if ((start >= START_STORAGE) &&
-		   (start <= (START_STORAGE + num_storage)))
+		// If we are above Storage range, return nothing.
+		if (start >= START_STORAGE + num_storage)
+			return 0;
+		if (start >= START_STORAGE)
 			return(start);
 		// If we are above I/O Range -> return START_STORAGE
-		if (start > (START_MAP + num_map))
+		if (start >= START_MAP + num_map)
 			return(START_STORAGE);
-		// Must be within the I/O Range..
 		if (start >= START_MAP)
 			return(start);
 		// If we are above the Picker range -> Return I/O Range..
-		if (start > (START_PICKER + num_picker))
+		if (start >= START_PICKER + num_picker)
 			return START_MAP;
-		// Must be a valid picker slot..
 		if (start >= START_PICKER)
 			return (start);
-		// If we are starting above the valid drives, return Picker..
-		if (start > (START_DRIVE + num_drives))
+		// If we are above the Drive range, return Picker..
+		if (start >= START_DRIVE + num_drives)
 			return(START_PICKER);
-		// Must be a valid drive
 		if (start >= START_DRIVE)
 			return(start);
 		break;
 	case MEDIUM_TRANSPORT:	// Medium Transport.
 		if ((start >= START_PICKER) &&
-		   (start <= (START_PICKER + num_picker)))
+		   (start < (START_PICKER + num_picker)))
 			return start;
 		if (start < START_PICKER)
 			return START_PICKER;
 		break;
 	case STORAGE_ELEMENT:	// Storage Slots
 		if ((start >= START_STORAGE) &&
-		   (start <= (START_STORAGE + num_storage)))
+		   (start < (START_STORAGE + num_storage)))
 			return start;
 		if (start < START_STORAGE)
 			return START_STORAGE;
 		break;
 	case MAP_ELEMENT:	// Import/Export
 		if ((start >= START_MAP) &&
-		   (start <= (START_MAP + num_map)))
+		   (start < (START_MAP + num_map)))
 			return start;
 		if (start < START_MAP)
 			return START_MAP;
 		break;
 	case DATA_TRANSFER:	// Data transfer
 		if ((start >= START_DRIVE) &&
-		   (start <= (START_DRIVE + num_drives)))
+		   (start < (START_DRIVE + num_drives)))
 			return start;
 		if (start < START_DRIVE)
 			return START_DRIVE;
@@ -1068,186 +997,55 @@ return 0;
  *
  * Returns zero on success, or error code if illegal request.
  */
-static uint32_t medium_transport_descriptor(uint8_t *p, uint16_t start,
-		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
-		uint16_t *cur_count, uint32_t *cur_offset)
-{
-	uint16_t	begin;
-	uint16_t	count, avail, space;
-
-	/* Find first valid slot. */
-	begin = find_first_matching_element(start, MEDIUM_TRANSPORT);
-	if (begin == 0) {
-		return E_INVALID_FIELD_IN_CDB;
-	}
-
-	/* The number of medium transports to report is the minimum of:
-	 * 1. the number the caller asked for (max_count - *cur_count).
-	 * 2. the number that remain starting at address begin, and
-	 * 3. the number that will fit in the remaining
-	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
-	 */
-
-	avail = START_PICKER + num_picker - begin;
-	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
-	space = (max_bytes - *cur_offset - 8) / determine_element_sz(0, voltag);
-	count = space < count ? space : count;
-	if (count == 0) {
-		if (*cur_count == 0) {
-			return E_PARAMETER_LIST_LENGTH_ERR;
-		} else {
-			return 0;
-		}
-	}
-
-	/* Create Element Status Page Header. */
-	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
-		voltag, MEDIUM_TRANSPORT);
-
-	begin -= START_PICKER;	/* Array starts at [0] */
-
-	/* Now loop over each picker slot and fill in details. */
-	*cur_offset += fill_element_detail(&p[*cur_offset],
-		&picker_info[begin], count, voltag);
-
-	*cur_count += count;
-
-return 0;
-}
-
-/*
- * Fill in Element status page header + each Element descriptor
- *
- * Returns zero on success, or error code if illegal request.
- */
-static uint32_t storage_element_descriptor(uint8_t *p, uint16_t start,
-		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
-		uint16_t *cur_count, uint32_t *cur_offset)
-{
-	uint16_t	begin;
-	uint16_t	count, avail, space;
-
-	/* Find first valid slot. */
-	begin = find_first_matching_element(start, STORAGE_ELEMENT);
-	if (begin == 0) {
-		return E_INVALID_FIELD_IN_CDB;
-	}
-
-	/* The number of storage slots to report is the minimum of:
-	 * 1. the number the caller asked for (max_count - *cur_count).
-	 * 2. the number that remain starting at address begin, and
-	 * 3. the number that will fit in the remaining
-	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
-	 */
-
-	avail = START_STORAGE + num_storage - begin;
-	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
-	space = (max_bytes - *cur_offset - 8) / determine_element_sz(0, voltag);
-	count = space < count ? space : count;
-	if (count == 0) {
-		if (*cur_count == 0) {
-			return E_PARAMETER_LIST_LENGTH_ERR;
-		} else {
-			return 0;
-		}
-	}
-
-	/* Create Element Status Page Header. */
-	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
-		voltag, STORAGE_ELEMENT);
-
-	begin -= START_STORAGE;	/* Array starts at [0] */
-
-	/* Now loop over each storage slot and fill in details. */
-	*cur_offset += fill_element_detail(&p[*cur_offset],
-		&storage_info[begin], count, voltag);
-
-	*cur_count += count;
-
-return 0;
-}
-
-/*
- * Fill in Element status page header + each Element descriptor
- *
- * Returns zero on success, or error code if illegal request.
- */
-static uint32_t map_element_descriptor(uint8_t *p, uint16_t start,
-		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
-		uint16_t *cur_count, uint32_t *cur_offset)
-{
-	uint16_t	begin;
-	uint16_t	count, avail, space;
-
-	/* Find first valid slot. */
-	begin = find_first_matching_element(start, MAP_ELEMENT);
-	if (begin == 0) {
-		return E_INVALID_FIELD_IN_CDB;
-	}
-
-	/* The number of map elements to report is the minimum of:
-	 * 1. the number the caller asked for (max_count - *cur_count).
-	 * 2. the number that remain starting at address begin, and
-	 * 3. the number that will fit in the remaining
-	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
-	 */
-
-	avail = START_MAP + num_map - begin;
-	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
-	space = (max_bytes - *cur_offset - 8) / determine_element_sz(0, voltag);
-	count = space < count ? space : count;
-	if (count == 0) {
-		if (*cur_count == 0) {
-			return E_PARAMETER_LIST_LENGTH_ERR;
-		} else {
-			return 0;
-		}
-	}
-
-	/* Create Element Status Page Header. */
-	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
-		voltag, MAP_ELEMENT);
-
-	begin -= START_MAP;	/* Array starts at [0] */
-
-	/* Now loop over each map element and fill in details. */
-	*cur_offset += fill_element_detail(&p[*cur_offset],
-		&map_info[begin], count, voltag);
-
-	*cur_count += count;
-
-return 0;
-}
-
-/*
- * Fill in Element status page header + each Element descriptor
- *
- * Returns zero on success, or error code if illegal request.
- */
-static uint32_t data_transfer_descriptor(uint8_t *p, uint16_t start,
+static uint32_t fill_element_page(uint8_t *p, int type, uint16_t start,
 		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
 		uint8_t dvcid, uint16_t *cur_count, uint32_t *cur_offset)
 {
 	uint16_t	begin;
 	uint16_t	count, avail, space;
-	uint16_t	i;
+	int	min_addr, num_addr;
+	int j;
 
-	/* Find first valid slot. */
-	begin = find_first_matching_element(start, DATA_TRANSFER);
+	switch (type) {
+	case MEDIUM_TRANSPORT:
+		min_addr = START_PICKER;
+		num_addr = num_picker;
+		dvcid = 0;
+		break;
+	case STORAGE_ELEMENT:
+		min_addr = START_STORAGE;
+		num_addr = num_storage;
+		dvcid = 0;
+		break;
+	case MAP_ELEMENT:
+		min_addr = START_MAP;
+		num_addr = num_map;
+		dvcid = 0;
+		break;
+	case DATA_TRANSFER:
+		min_addr = START_DRIVE;
+		num_addr = num_drives;
+		break;
+	default:
+		return E_INVALID_FIELD_IN_CDB;
+	}
+
+	// Find first valid slot.
+	begin = find_first_matching_element(start, type);
 	if (begin == 0) {
 		return E_INVALID_FIELD_IN_CDB;
 	}
 
-	/* The number of data transports to report is the minimum of:
-	 * 1. the number the caller asked for (max_count - *cur_count).
-	 * 2. the number that remain starting at address begin, and
-	 * 3. the number that will fit in the remaining
-	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
-	 */
+	// The number of elements to report is the minimum of:
+	// 1. the number the caller asked for (max_count - *cur_count).
+	// 2. the number that remain starting at address begin, and
+	// 3. the number that will fit in the remaining
+	//    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
 
-	avail = START_DRIVE + num_drives - begin;
+	avail = min_addr + num_addr - begin;
 	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
-	space = (max_bytes - *cur_offset - 8) / determine_element_sz(dvcid, voltag);
+	space = (max_bytes - *cur_offset - 8) /
+				determine_element_sz(dvcid, voltag, type);
 	count = space < count ? space : count;
 	if (count == 0) {
 		if (*cur_count == 0) {
@@ -1257,25 +1055,17 @@ static uint32_t data_transfer_descriptor(uint8_t *p, uint16_t start,
 		}
 	}
 
-	/* Create Element Status Page Header. */
-	*cur_offset += fill_element_status_page(&p[*cur_offset], count, 0,
-		voltag, DATA_TRANSFER);
+	// Create Element Status Page Header.
+	*cur_offset += fill_element_status_page_hdr(&p[*cur_offset], count,
+		dvcid, voltag, type);
 
-	begin -= START_DRIVE;	/* Array starts at [0] */
+	// Now loop over each slot and fill in details.
 
-	MHVTL_DBG(2, "Starting at drive: %d, count %d", begin + 1, count);
-	MHVTL_DBG(2, "Element Length: %d for drive: %d",
-				determine_element_sz(dvcid, voltag),
-				begin);
-
-	/* Now loop over each data transfer element and fill in details. */
-	for (i = 0; i < count; i++) {
-		MHVTL_DBG(3, "Processing drive %d, stopping after %d",
-					begin + i + 1, begin + count);
-		*cur_offset += fill_data_transfer_element(&p[*cur_offset],
-			&drive_info[begin + i], dvcid, voltag);
+	for (j = 0; j < count; j++, begin++) {
+		MHVTL_DBG(2, "Slot: %d", begin);
+		*cur_offset += fill_element_descriptor(&p[*cur_offset],
+			begin, voltag, dvcid);
 	}
-
 	*cur_count += count;
 
 return 0;
@@ -1361,50 +1151,45 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 
 	switch(typeCode) {
 	case MEDIUM_TRANSPORT:
-		ec = medium_transport_descriptor(p, start, number, alloc_len,
-			voltag, &cur_count, &cur_offset);
-		break;
 	case STORAGE_ELEMENT:
-		ec = storage_element_descriptor(p, start, number, alloc_len,
-			voltag, &cur_count, &cur_offset);
-		break;
 	case MAP_ELEMENT:
-		ec = map_element_descriptor(p, start, number, alloc_len,
-			voltag, &cur_count, &cur_offset);
-		break;
 	case DATA_TRANSFER:
-		ec = data_transfer_descriptor(p, start, number, alloc_len,
-			voltag, dvcid, &cur_count, &cur_offset);
+		ec = fill_element_page(p, typeCode, start, number,
+			alloc_len, voltag, dvcid, &cur_count, &cur_offset);
 		break;
 	case ANY:
-		if (start < START_DRIVE + num_drives) {
-			ec = data_transfer_descriptor(p, start, number,
-				alloc_len, voltag, dvcid, &cur_count,
-				&cur_offset);
+		/* Logic here depends on Storage slots being
+		 * higher (numerically) than MAP which is higher than
+		 * Picker, which is higher than the drive slot number..
+		 * See DWR: near top of this file !!
+		 */
+		if (slot_type(start) == DATA_TRANSFER) {
+			ec = fill_element_page(p, DATA_TRANSFER, start, number,
+				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
 			if (ec != 0) {
 				break;
 			}
 			start = START_PICKER;
 		}
-		if (start < START_PICKER + num_picker) {
-			ec = medium_transport_descriptor(p, start, number,
-				alloc_len, voltag, &cur_count, &cur_offset);
+		if (slot_type(start) == MEDIUM_TRANSPORT) {
+			ec = fill_element_page(p, MEDIUM_TRANSPORT, start, number,
+				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
 			if (ec != 0) {
 				break;
 			}
 			start = START_MAP;
 		}
-		if (start < START_MAP + num_map) {
-			ec = map_element_descriptor(p, start, number,
-				alloc_len, voltag, &cur_count, &cur_offset);
+		if (slot_type(start) == MAP_ELEMENT) {
+			ec = fill_element_page(p, MAP_ELEMENT, start, number,
+				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
 			if (ec != 0) {
 				break;
 			}
 			start = START_STORAGE;
 		}
-		if (start < START_STORAGE + num_storage) {
-			ec = storage_element_descriptor(p, start, number,
-				alloc_len, voltag, &cur_count, &cur_offset);
+		if (slot_type(start) == STORAGE_ELEMENT) {
+			ec = fill_element_page(p, STORAGE_ELEMENT, start, number,
+				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
 			if (ec != 0) {
 				break;
 			}
@@ -1421,7 +1206,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	}
 
 	/* Now populate the 'main' header structure with byte count.. */
-	element_status_hdr(&buf[0], dvcid, voltag, start, cur_count);
+	fill_element_status_data_hdr(&buf[0], start, cur_count, cur_offset);
 
 	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
 
@@ -2740,7 +2525,7 @@ int main(int argc, char *argv[])
 			exit(-1);
 
 		if ((chdir(MHVTL_HOME_PATH)) < 0) {
-			perror("Unable to change directory ");
+			perror("Unable to change directory to " MHVTL_HOME_PATH);
 			exit(-1);
 		}
 
@@ -2749,6 +2534,18 @@ int main(int argc, char *argv[])
 	}
 
 	oom_adjust();
+
+	/* Tweak as necessary to properly mimic the specified library type. */
+
+	if (!strcmp(lunit.vendor_id, "SPECTRA ") &&
+		!strcmp(lunit.product_id, "PYTHON          "))
+	{
+		dvcid_len = 10;		/* size of dvcid area in RES descriptor */
+		dvcid_serial_only = 1;	/* dvcid area only contains a serial number */
+	} else {
+		dvcid_len = 34;		/* size of dvcid area in RES descriptor */
+		dvcid_serial_only = 0;	/* dvcid area contains vendor, product, serial */
+	}
 
 	for (;;) {
 		/* Check for any messages */
