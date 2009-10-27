@@ -762,7 +762,7 @@ static int fill_element_descriptor(uint8_t *p, int addr, int voltag, int dvcid)
 	}
 
 	/* Should never occur, but better to trap then core */
-	if (! s) {
+	if (!s) {
 		MHVTL_DBG(1, "Slot out of range");
 		return 0;
 	}
@@ -945,49 +945,49 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 		if (start == 0)
 			return(START_DRIVE);
 
-		// If we are above Storage range, return nothing.
+		/* If we are above Storage range, return nothing. */
 		if (start >= START_STORAGE + num_storage)
 			return 0;
 		if (start >= START_STORAGE)
 			return(start);
-		// If we are above I/O Range -> return START_STORAGE
+		/* If we are above I/O Range -> return START_STORAGE */
 		if (start >= START_MAP + num_map)
 			return(START_STORAGE);
 		if (start >= START_MAP)
 			return(start);
-		// If we are above the Picker range -> Return I/O Range..
+		/* If we are above the Picker range -> Return I/O Range.. */
 		if (start >= START_PICKER + num_picker)
 			return START_MAP;
 		if (start >= START_PICKER)
 			return (start);
-		// If we are above the Drive range, return Picker..
+		/* If we are above the Drive range, return Picker.. */
 		if (start >= START_DRIVE + num_drives)
 			return(START_PICKER);
 		if (start >= START_DRIVE)
 			return(start);
 		break;
-	case MEDIUM_TRANSPORT:	// Medium Transport.
+	case MEDIUM_TRANSPORT:	/* Medium Transport. */
 		if ((start >= START_PICKER) &&
 		   (start < (START_PICKER + num_picker)))
 			return start;
 		if (start < START_PICKER)
 			return START_PICKER;
 		break;
-	case STORAGE_ELEMENT:	// Storage Slots
+	case STORAGE_ELEMENT:	/* Storage Slots */
 		if ((start >= START_STORAGE) &&
 		   (start < (START_STORAGE + num_storage)))
 			return start;
 		if (start < START_STORAGE)
 			return START_STORAGE;
 		break;
-	case MAP_ELEMENT:	// Import/Export
+	case MAP_ELEMENT:	/* Import/Export */
 		if ((start >= START_MAP) &&
 		   (start < (START_MAP + num_map)))
 			return start;
 		if (start < START_MAP)
 			return START_MAP;
 		break;
-	case DATA_TRANSFER:	// Data transfer
+	case DATA_TRANSFER:	/* Data transfer */
 		if ((start >= START_DRIVE) &&
 		   (start < (START_DRIVE + num_drives)))
 			return start;
@@ -1038,9 +1038,8 @@ static uint32_t fill_element_page(uint8_t *p, int type, uint16_t start,
 
 	// Find first valid slot.
 	begin = find_first_matching_element(start, type);
-	if (begin == 0) {
+	if (begin == 0)
 		return E_INVALID_FIELD_IN_CDB;
-	}
 
 	// The number of elements to report is the minimum of:
 	// 1. the number the caller asked for (max_count - *cur_count).
@@ -1172,33 +1171,29 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		if (slot_type(start) == DATA_TRANSFER) {
 			ec = fill_element_page(p, DATA_TRANSFER, start, number,
 				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec != 0) {
+			if (ec)
 				break;
-			}
 			start = START_PICKER;
 		}
 		if (slot_type(start) == MEDIUM_TRANSPORT) {
 			ec = fill_element_page(p, MEDIUM_TRANSPORT, start, number,
 				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec != 0) {
+			if (ec)
 				break;
-			}
 			start = START_MAP;
 		}
 		if (slot_type(start) == MAP_ELEMENT) {
 			ec = fill_element_page(p, MAP_ELEMENT, start, number,
 				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec != 0) {
+			if (ec)
 				break;
-			}
 			start = START_STORAGE;
 		}
 		if (slot_type(start) == STORAGE_ELEMENT) {
 			ec = fill_element_page(p, STORAGE_ELEMENT, start, number,
 				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec != 0) {
+			if (ec)
 				break;
-			}
 		}
 		break;
 	default:	/* Illegal descriptor type. */
@@ -1797,7 +1792,7 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 
 	found = 0;
 	/* While read in a line */
-	while( fgets(b, MALLOC_SZ, conf) != NULL) {
+	while (fgets(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		MHVTL_DBG(3, "strlen: %ld", (long)strlen(b));
@@ -1874,7 +1869,7 @@ static void init_slot_info(void)
 	num_map = 0;
 	num_picker = 0;
 	/* While read in a line */
-	while(fgets(b, MALLOC_SZ, ctrl) != NULL) {
+	while (fgets(b, MALLOC_SZ, ctrl) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (sscanf(b, "Drive %d", &slt) > 0)
@@ -1919,7 +1914,7 @@ static void init_slot_info(void)
 	/* Rewind and parse config file again... */
 	rewind(ctrl);
 	barcode = s;
-	while( fgets(b, MALLOC_SZ, ctrl) != NULL) {
+	while (fgets(b, MALLOC_SZ, ctrl) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		barcode[0] = '\0';
@@ -2178,7 +2173,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	}
 
 	/* While read in a line */
-	while( fgets(b, MALLOC_SZ, conf) != NULL) {
+	while (fgets(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (strlen(b) == 1)	/* Reset drive number of blank line */
@@ -2365,7 +2360,7 @@ int main(int argc, char *argv[])
 	int	mlen, r_qid;
 	struct q_entry r_entry;
 
-	while(argc > 0) {
+	while (argc > 0) {
 		if (argv[0][0] == '-') {
 			switch (argv[0][1]) {
 			case 'd':
@@ -2544,13 +2539,16 @@ int main(int argc, char *argv[])
 	/* Tweak as necessary to properly mimic the specified library type. */
 
 	if (!strcmp(lunit.vendor_id, "SPECTRA ") &&
-		!strcmp(lunit.product_id, "PYTHON          "))
-	{
-		dvcid_len = 10;		/* size of dvcid area in RES descriptor */
-		dvcid_serial_only = 1;	/* dvcid area only contains a serial number */
+		!strcmp(lunit.product_id, "PYTHON          ")) {
+		/* size of dvcid area in RES descriptor */
+		dvcid_len = 10;
+		/* dvcid area only contains a serial number */
+		dvcid_serial_only = 1;
 	} else {
-		dvcid_len = 34;		/* size of dvcid area in RES descriptor */
-		dvcid_serial_only = 0;	/* dvcid area contains vendor, product, serial */
+		/* size of dvcid area in RES descriptor */
+		dvcid_len = 34;
+		/* dvcid area contains vendor, product, serial */
+		dvcid_serial_only = 0;
 	}
 
 	for (;;) {

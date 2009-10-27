@@ -560,7 +560,7 @@ static int skip_prev_filemark(uint8_t *sam_stat)
 
 	if (c_pos.blk_type == B_FILEMARK)
 		c_pos.blk_type = B_NOOP;
-	while(c_pos.blk_type != B_FILEMARK) {
+	while (c_pos.blk_type != B_FILEMARK) {
 		if (c_pos.blk_type == B_BOT) {
 			mkSenseBuf(NO_SENSE, E_BOM, sam_stat);
 			MHVTL_DBG(2, "Found Beginning of tape");
@@ -578,7 +578,7 @@ static int skip_prev_filemark(uint8_t *sam_stat)
 static int skip_next_filemark(uint8_t *sam_stat)
 {
 	// While blk header is NOT a filemark, keep skipping to next header
-	while(c_pos.blk_type != B_FILEMARK) {
+	while (c_pos.blk_type != B_FILEMARK) {
 		// END-OF-DATA -> Treat this as an error - return..
 		if (c_pos.blk_type == B_EOD) {
 			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
@@ -1108,7 +1108,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 
 		if (c_pos.blk_flags & BLKHDR_FLG_COMPRESSED) {
 			cbuf = malloc(compressBound(c_pos.blk_size));
-			if (! cbuf) {
+			if (!cbuf) {
 				MHVTL_DBG(1, "Out of memory");
 				mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC,
 								sam_stat);
@@ -1483,7 +1483,7 @@ static void resp_space(uint32_t count, int code, uint8_t *sam_stat)
 	// Space to end-of-data - Ignore 'count'
 	case 3:
 		MHVTL_DBG(1, "%s", "SCSI space to end-of-data **");
-		while(c_pos.blk_type != B_EOD)
+		while (c_pos.blk_type != B_EOD)
 			if (skip_to_next_header(sam_stat)) {
 				if (MediaType == MEDIA_TYPE_WORM)
 					OK_to_write = 1;
@@ -2114,13 +2114,13 @@ static	uint8_t last_cmd;
 		 */
 		MHVTL_DBG(2, "Current blk: %" PRId64 ", seek: %d",
 					c_pos.blk_number, count);
-		if (count < c_pos.blk_number && c_pos.blk_number - count > count)
-		{
+		if (count < c_pos.blk_number &&
+					c_pos.blk_number - count > count)
 			resp_rewind(sam_stat);
-		}
+
 		if (MediaType == MEDIA_TYPE_WORM)
 			OK_to_write = 0;
-		while(c_pos.blk_number != count) {
+		while (c_pos.blk_number != count) {
 			if (c_pos.blk_number > count) {
 				if (skip_to_prev_header(sam_stat) == -1)
 					break;
@@ -2524,7 +2524,7 @@ static	uint8_t last_cmd;
 			break;
 
 		if (sz > 0) {
-			while(sz > 0) {
+			while (sz > 0) {
 				sz--;
 				mkNewHeader(B_FILEMARK, 0, 0, sam_stat);
 			}
@@ -2642,7 +2642,7 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 	bytesWritten = 0;	// Global - Bytes written this load
 	bytesRead = 0;		// Global - Bytes rearead this load
 
-	sprintf(currentMedia ,"%s/%s", MHVTL_HOME_PATH, PCL);
+	sprintf(currentMedia, "%s/%s", MHVTL_HOME_PATH, PCL);
 	MHVTL_DBG(2, "Opening file/media %s", currentMedia);
 	if ((datafile = open(currentMedia, O_RDWR|O_LARGEFILE)) == -1) {
 		MHVTL_DBG(1, "%s: open file/media failed, %m", currentMedia);
@@ -3205,7 +3205,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	}
 
 	/* While read in a line */
-	while( fgets(b, MALLOC_SZ, conf) != NULL) {
+	while (fgets(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (strlen(b) == 1)	/* Reset drive number of blank line */
@@ -3399,7 +3399,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while(argc > 0) {
+	while (argc > 0) {
 		if (argv[0][0] == '-') {
 			switch (argv[0][1]) {
 			case 'd':
