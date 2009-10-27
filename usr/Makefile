@@ -27,6 +27,8 @@ SUSER = root
 GROUP = vtl
 MHVTL_HOME_PATH ?= /opt/vtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
+CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
+HOME_PATH = $(shell echo $(MHVTL_HOME_PATH) | sed -e s'/\//\\\//g')
 
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
@@ -38,7 +40,7 @@ CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
-	vtllibrary
+	vtllibrary make_vtl_media
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h \
 		be_byteshift.h \
@@ -69,10 +71,17 @@ vtltape:	vtltape.o q.h vtllib.o vtllib.h vtltape.h scsi.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o -L. -lz -lvtlscsi
 
+make_vtl_media:	make_vtl_media.in
+	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1
+	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' $@.1 > $@
+	rm -f $@.1
+
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
 		vtllib.o libvtlscsi.so z.o vtllibrary.o \
+		make_vtl_media \
+		make_vtl_media.1 \
 		spc.o
 
 tags:
@@ -89,6 +98,8 @@ distclean:
 	spc.o \
 	z.o z \
 	TAGS \
+	make_vtl_media \
+	make_vtl_media.1 \
 	vtllibrary vtllibrary.o
 
 install:
