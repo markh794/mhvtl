@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.16
-Release: 8beta
-Source: mhvtl-2009-10-27.tgz
+Release: 8
+Source: mhvtl-2009-11-10.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -162,6 +162,16 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Tue Nov 10 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.8
+- Reworked READ ELEMENT STATUS (Thanks to Kevan Rehm)
+- Fix EOD header size.
+- Makefile rework.
+  Honour PREFIX & DESTDIR.
+  User/group name defined.
+  Home paths for data files & config files defined.
+  Add compression support (disabled by default).
+
 * Thu Oct 9 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.7
   Fix REPORT ELMEMENT STATUS for All elements. TSM was core dumping.
