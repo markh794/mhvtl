@@ -1568,7 +1568,8 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 		buf[7] = 2;	/* list length (LSB) */
 		buf[8] = SUPPORTED_SECURITY_PROTOCOL_LIST;
 		buf[9] = CERTIFICATE_DATA;
-		ret = 10;
+		buf[10] = 0x20;
+		ret = 11;
 		break;
 
 	case CERTIFICATE_DATA:
@@ -2052,7 +2053,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	uint8_t *buf;
 	loff_t nread;
-static	uint8_t last_cmd;
+	static	uint8_t last_cmd;
 
 	dbuf_p->sz = 0;
 
