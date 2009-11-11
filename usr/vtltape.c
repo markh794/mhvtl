@@ -2629,6 +2629,74 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	return;
 }
 
+static void clear_worm_mode_pg(void)
+{
+	uint8_t *smp_dp;
+	struct mode *smp;
+
+	switch (lunit.drive_type) {
+	case drive_AIT4:
+		smp = find_pcode(0x31, sm);
+		if (smp) {
+			smp_dp = smp->pcodePointer;
+			smp_dp[4] = 0x00;
+		}
+		break;
+	case drive_3592_J1A:
+	case drive_3592_E05:
+	case drive_3592_E06:
+		smp = find_pcode(0x23, sm);
+		if (smp) {
+			smp_dp = smp->pcodePointer;
+			smp_dp[20] = 0x00;
+		}
+		break;
+	case drive_LTO3:
+	case drive_LTO4:
+		smp = find_pcode(0x1d, sm);
+		if (smp) {
+			smp_dp = smp->pcodePointer;
+			smp_dp[2] = 0x00;
+			smp_dp[4] = 0x01; /* Indicate label overwrite */
+		}
+		break;
+	}
+}
+
+static void set_worm_mode_pg(void)
+{
+	uint8_t *smp_dp;
+	struct mode *smp;
+
+	switch (lunit.drive_type) {
+	case drive_AIT4:
+		smp = find_pcode(0x31, sm);
+		if (smp) {
+			smp_dp = smp->pcodePointer;
+			smp_dp[4] = 0x40;
+		}
+		break;
+	case drive_3592_J1A:
+	case drive_3592_E05:
+	case drive_3592_E06:
+		smp = find_pcode(0x23, sm);
+		if (smp) {
+			smp_dp = smp->pcodePointer;
+			smp_dp[20] = 0x10;
+		}
+		break;
+	case drive_LTO3:
+	case drive_LTO4:
+		smp = find_pcode(0x1d, sm);
+		if (smp) {
+			smp_dp = smp->pcodePointer;
+			smp_dp[2] = 0x10;
+			smp_dp[4] = 0x01; /* Indicate label overwrite */
+		}
+		break;
+	}
+}
+
 /*
  * Attempt to load PCL - i.e. Open datafile and read in BOT header & MAM
  *
@@ -2714,14 +2782,17 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 	case MEDIA_TYPE_WORM:
 		setWORM();
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
+		set_worm_mode_pg();
 		break;
 
 	case MEDIA_TYPE_CLEAN:
+		clear_worm_mode_pg();
 		fg = 0x400;
 		MHVTL_DBG(1, "Cleaning cart loaded");
 		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	default:
+		clear_worm_mode_pg();
 		mkSenseBuf(UNIT_ATTENTION,E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	}
