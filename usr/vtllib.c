@@ -723,18 +723,19 @@ int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	log_opcode("Unknown service action A4 **", cdb, dbuf_p);
 	return 0;
 }
-
-int ProcessSendDiagnostic(uint8_t *cdb, int sz, uint8_t *buf, uint32_t block_size, struct vtl_ds *dbuf_p)
+#if !defined(ROS2)
+int ProcessSendDiagnostic(uint8_t *cdb, int sz, struct vtl_ds *dbuf_p)
 {
 	log_opcode("Send Diagnostics", cdb, dbuf_p);
 	return 0;
 }
 
-int ProcessReceiveDiagnostic(uint8_t *cdb, uint8_t *buf, struct vtl_ds *dbuf_p)
+int ProcessReceiveDiagnostic(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	log_opcode("Receive Diagnostics", cdb, dbuf_p);
 	return 0;
 }
+#endif
 
 /*
  * Send a ping message to the queue & wait for a response...

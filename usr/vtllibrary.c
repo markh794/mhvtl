@@ -1400,7 +1400,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case RECEIVE_DIAGNOSTIC:
 		MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
 						(long)dbuf_p->serialNo);
-		ret += ProcessReceiveDiagnostic(cdb, dbuf_p->data, dbuf_p);
+		ret += ProcessReceiveDiagnostic(cdb, dbuf_p);
 		break;
 
 	case SEND_DIAGNOSTIC:
@@ -1409,7 +1409,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (count) {
 			dbuf_p->sz = count;
 			block_size = retrieve_CDB_data(cdev, dbuf_p);
-			ProcessSendDiagnostic(cdb, 16, buf, block_size, dbuf_p);
+			ProcessSendDiagnostic(cdb, 16, dbuf_p);
 		}
 		break;
 
