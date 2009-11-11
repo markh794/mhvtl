@@ -3123,13 +3123,13 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 	if (lu->naa) { /* If defined in config file */
 		sscanf((const char *)lu->naa,
 			"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			&d[num + 4], 
-			&d[num + 5], 
-			&d[num + 6], 
-			&d[num + 7], 
-			&d[num + 8], 
-			&d[num + 9], 
-			&d[num + 10], 
+			&d[num + 4],
+			&d[num + 5],
+			&d[num + 6],
+			&d[num + 7],
+			&d[num + 8],
+			&d[num + 9],
+			&d[num + 10],
 			&d[num + 11]);
 	} else { /* Else munge the serial number */
 		ptr--;
