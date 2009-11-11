@@ -201,4 +201,16 @@
 #define E_UNENCRYPTED_DATA		0x7402
 #define E_INCORRECT_KEY			0x7403
 
+/* Suppress Incorrect Length Indicator */
+#define SILI		0x2
+/* Fixed block format */
+#define FIXED		0x1
+
+/* Sense Data format bits & pieces */
+/* Incorrect Length Indicator */
+#define SD_VALID	0x80
+#define SD_FILEMARK	0x80
+#define SD_EOM		0x40
+#define SD_ILI		0x20
+
 #endif

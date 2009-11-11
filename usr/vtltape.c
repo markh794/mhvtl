@@ -91,18 +91,6 @@ static uint8_t AKAD[32];
 
 #include <zlib.h>
 
-/* Suppress Incorrect Length Indicator */
-#define SILI  0x2
-/* Fixed block format */
-#define FIXED 0x1
-
-/* Sense Data format bits & pieces */
-/* Incorrect Length Indicator */
-#define SD_VALID 0x80
-#define SD_FILEMARK 0x80
-#define SD_EOM 0x40
-#define SD_ILI 0x20
-
 #ifndef Solaris
   /* I'm sure there must be a header where lseek64() is defined */
   loff_t lseek64(int, loff_t, int);
