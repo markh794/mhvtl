@@ -438,7 +438,7 @@ int oom_adjust(void);
 void log_opcode(char *opcode, uint8_t *SCpnt, struct vtl_ds *dbuf_p);
 int resp_a3_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
 int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
-int ProcessSendDiagnostic(uint8_t *cdb, int sz, struct vtl_ds *dbuf_p);
+int ProcessSendDiagnostic(uint8_t *cdb, unsigned int sz, struct vtl_ds *dbuf_p);
 int ProcessReceiveDiagnostic(uint8_t *cdb, struct vtl_ds *dbuf_p);
 
 struct vpd *alloc_vpd(uint16_t sz);

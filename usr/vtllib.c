@@ -724,7 +724,7 @@ int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	return 0;
 }
 #if !defined(ROS2)
-int ProcessSendDiagnostic(uint8_t *cdb, int sz, struct vtl_ds *dbuf_p)
+int ProcessSendDiagnostic(uint8_t *cdb, unsigned int sz, struct vtl_ds *dbuf_p)
 {
 	log_opcode("Send Diagnostics", cdb, dbuf_p);
 	return 0;
