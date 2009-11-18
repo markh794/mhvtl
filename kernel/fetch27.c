@@ -19,8 +19,16 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
 	unsigned long flags;
+	unsigned int sg_flags = SG_MITER_ATOMIC;
 
-	sg_miter_start(&miter, sgl, nents, SG_MITER_ATOMIC);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
+	if (to_buffer)
+		sg_flags |= SG_MITER_FROM_SG;
+	else
+		sg_flags |= SG_MITER_TO_SG;
+#endif
+
+	sg_miter_start(&miter, sgl, nents, sg_flags);
 
 	local_irq_save(flags);
 

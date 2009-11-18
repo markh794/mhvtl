@@ -1382,7 +1382,11 @@ void pseudo_0_release(struct device *dev)
 }
 
 static struct device pseudo_primary = {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
+	.init_name	= "pseudo_0",
+#else
 	.bus_id		= "pseudo_0",
+#endif
 	.release	= pseudo_0_release,
 };
 
@@ -1432,7 +1436,11 @@ static int vtl_add_adapter(void)
 	vtl_hba->dev.bus = &pseudo_lld_bus;
 	vtl_hba->dev.parent = &pseudo_primary;
 	vtl_hba->dev.release = &vtl_release_adapter;
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
+	dev_set_name(&vtl_hba->dev, "adapter%d", vtl_add_host);
+#else
 	sprintf(vtl_hba->dev.bus_id, "adapter%d", vtl_add_host);
+#endif
 
 	error = device_register(&vtl_hba->dev);
 	if (error) {
