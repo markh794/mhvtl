@@ -56,44 +56,44 @@ VERSION: 3
 # Each 'record' starts at column 1
 
 Library: 0 CHANNEL: 0 TARGET: 0 LUN: 0
- Vendor identification: STK 
- Product identification: L700
+ Vendor identification: SPECTRA
+ Product identification: PYTHON
  Product revision level: 5500
  Unit serial number: XYZZY
  NAA: 11:22:33:44:ab:cd:ef:00
 
 Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
- Vendor identification: QUANTUM 
- Product identification: SDLT600         
+ Vendor identification: QUANTUM
+ Product identification: SDLT600
  Product revision level: 5500
- Unit serial number: XYZZY_A1         
+ Unit serial number: XYZZY_A1
  NAA: 11:22:33:44:ab:cd:ef:01
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
 Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
- Vendor identification: QUANTUM 
- Product identification: SDLT600         
+ Vendor identification: QUANTUM
+ Product identification: SDLT600
  Product revision level: 5500
- Unit serial number: XYZZY_A2         
+ Unit serial number: XYZZY_A2
  NAA: 11:22:33:44:ab:cd:ef:02
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
 Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
- Vendor identification: QUANTUM 
- Product identification: SDLT600         
+ Vendor identification: QUANTUM
+ Product identification: SDLT600
  Product revision level: 5500
- Unit serial number: XYZZY_A3         
+ Unit serial number: XYZZY_A3
  NAA: 11:22:33:44:ab:cd:ef:03
  Max density: 0x46
  VPD: b0 04 00 02 01 00
 
 Drive: 4 CHANNEL: 0 TARGET: 4 LUN: 0
- Vendor identification: QUANTUM 
- Product identification: SDLT600         
+ Vendor identification: QUANTUM
+ Product identification: SDLT600
  Product revision level: 5500
- Unit serial number: XYZZY_A4         
+ Unit serial number: XYZZY_A4
  NAA: 11:22:33:44:ab:cd:ef:04
  Max density: 0x46
  VPD: b0 04 00 02 01 00

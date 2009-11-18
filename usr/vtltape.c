@@ -44,8 +44,8 @@
  *	0.12 to 0.14
  *
  * 0.16 Jun 2009
- * 	Moved SCSI Inquiry into user-space.
- * 	SCSI lu are created/destroyed as the daemon is started/shutdown
+ *	Moved SCSI Inquiry into user-space.
+ *	SCSI lu are created/destroyed as the daemon is started/shutdown
  */
 
 #define _XOPEN_SOURCE 500

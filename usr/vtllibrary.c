@@ -93,7 +93,7 @@ uint64_t SPR_Reservation_Key;
 
 #define CAP_CLOSED	1
 #define CAP_OPEN	0
-#define OPERATOR 	1
+#define OPERATOR	1
 #define ROBOT_ARM	0
 
 #define	VOLTAG_LEN	36	/* size of voltag area in RES descriptor */
