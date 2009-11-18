@@ -313,6 +313,7 @@ struct mode {
 /* v2 of the tape media
  * Between BOT & blk #1, is the MAM (Medium Auxiliary Memory)
  */
+#define MAM_VERSION 2
 struct MAM {
 	uint32_t tape_fmt_version;
 	uint32_t mam_fmt_version;
@@ -342,6 +343,7 @@ struct MAM {
 	uint8_t FormattedDensityCode;
 	uint8_t MediumDensityCode;
 	uint8_t MediumType;	// 0 -> Data, 1 -> WORM, 6 -> Clean
+	uint8_t MediaType;	/* LTO1, LTO2, AIT etc (Media_Type_list) */
 	uint64_t MAMCapacity;
 	uint16_t MediumTypeInformation;	// If Clean, max mount
 
@@ -367,7 +369,6 @@ struct MAM {
 
 	/* Pad to keep MAM to 1024 bytes */
 	uint8_t pad[1024 - 888];
-
 };
 
 #define MAM_FLAGS_ENCRYPTION_FORMAT 0x0001
@@ -395,8 +396,62 @@ enum drive_type_list {
 	drive_AIT4,
 	drive_10K_A,
 	drive_10K_B,
+	drive_DLT7K,
+	drive_DLT8K,
+	drive_SDLT,
+	drive_SDLT220,
+	drive_SDLT320,
 	drive_SDLT600,
 	drive_UNKNOWN /* Always last */
+};
+
+enum Media_Type_list {
+	Media_undefined,
+	Media_LTO1,
+	Media_LTO1_CLEAN,
+	Media_LTO2,
+	Media_LTO2_CLEAN,
+	Media_LTO3,
+	Media_LTO3_CLEAN,
+	Media_LTO3W,
+	Media_LTO4,
+	Media_LTO4_CLEAN,
+	Media_LTO4W,
+	Media_3592_JA,
+	Media_3592_JA_CLEAN,
+	Media_3592_JW,
+	Media_3592_JB,
+	Media_3592_JB_CLEAN,
+	Media_3592_JX,
+	Media_3592_JX_CLEAN,
+	Media_AIT1,
+	Media_AIT1_CLEAN,
+	Media_AIT2,
+	Media_AIT2_CLEAN,
+	Media_AIT3,
+	Media_AIT3_CLEAN,
+	Media_AIT4,
+	Media_AIT4_CLEAN,
+	Media_AIT4W,
+	Media_10K,
+	Media_10K_CLEAN,
+	Media_10KW,
+	Media_DLT2,
+	Media_DLT2_CLEAN,
+	Media_DLT3,
+	Media_DLT3_CLEAN,
+	Media_DLT4,
+	Media_DLT4_CLEAN,
+	Media_SDLT,
+	Media_SDLT_CLEAN,
+	Media_SDLT220,
+	Media_SDLT220_CLEAN,
+	Media_SDLT320,
+	Media_SDLT320_CLEAN,
+	Media_SDLT600,
+	Media_SDLT600_CLEAN,
+	Media_SDLT600W,
+	Media_UNKNOWN /* always last */
 };
 
 /* Logical Unit information */

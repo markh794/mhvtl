@@ -35,7 +35,7 @@
 #define BLKHDR_FLG_COMPRESSED 0x01
 #define BLKHDR_FLG_ENCRYPTED  0x02
 
-#define TAPE_FMT_VERSION	2
+#define TAPE_FMT_VERSION	3
 
 /*
  * Header before each block of data in 'file'

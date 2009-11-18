@@ -107,6 +107,9 @@ int reset = 1;		/* Tape drive has been 'reset' */
 #define TAPE_LOADED 1
 #define TAPE_LOAD_BAD 2
 
+#define MEDIA_WRITABLE 0
+#define MEDIA_READONLY 1
+
 static int bufsize = 1024 * 1024;
 static loff_t max_tape_capacity;	/* Max capacity of media */
 static int tapeLoaded = 0;	/* Default to Off-line */
@@ -117,7 +120,7 @@ static int datafile;		/* Global file handle - This goes against the
 static char *currentMedia;	/* filename of 'datafile' */
 static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
 static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
-static uint8_t MediaWriteProtect = 0;	/* True if virtual "write protect" switch is set */
+uint8_t MediaWriteProtect = MEDIA_WRITABLE;	/* True if virtual "write protect" switch is set */
 static int OK_to_write = 1;	// True if in correct position to start writing
 
 /* Pointer into Device config mode page */
@@ -136,25 +139,7 @@ struct lu_phy_attr lunit;
 
 static struct MAM mam;
 
-enum Media_Type_list {
-	Media_undefined,
-	Media_LTO1,
-	Media_LTO2,
-	Media_LTO3,
-	Media_LTO3W,
-	Media_LTO4,
-	Media_LTO4W,
-	Media_3592_JA,
-	Media_3592_JW,
-	Media_3592_JB,
-	Media_3592_JX,
-	Media_AIT4,
-	Media_AIT4W,
-	Media_10K,
-	Media_10KW,
-	Media_SDLT600,
-	Media_UNKNOWN /* always last */
-} Media_Type;
+uint8_t Media_Type;
 
 static int Drive_Native_Write_Density[drive_UNKNOWN + 1];
 static int Media_Native_Write_Density[Media_UNKNOWN + 1];
@@ -2762,27 +2747,27 @@ static void set_worm_mode_pg(void)
 static int load_tape(char *PCL, uint8_t *sam_stat)
 {
 	loff_t nread;
-	uint64_t fg = 0;	// TapeAlert flags
+	uint64_t fg = 0;	/* TapeAlert flags */
 
-	bytesWritten = 0;	// Global - Bytes written this load
-	bytesRead = 0;		// Global - Bytes rearead this load
+	bytesWritten = 0;	/* Global - Bytes written this load */
+	bytesRead = 0;		/* Global - Bytes rearead this load */
 
 	sprintf(currentMedia, "%s/%s", MHVTL_HOME_PATH, PCL);
 	MHVTL_DBG(2, "Opening file/media %s", currentMedia);
 	if ((datafile = open(currentMedia, O_RDWR|O_LARGEFILE)) == -1) {
 		MHVTL_DBG(1, "%s: open file/media failed, %s", currentMedia,
 					strerror(errno));
-		return 0;	// Unsuccessful load
+		return TAPE_UNLOADED;	/* Unsuccessful load */
 	}
 
-	// Now read in header information from just opened datafile
+	/* Now read in header information from just opened datafile */
 	nread = read(datafile, &c_pos, sizeof(c_pos));
 	if (nread < 0) {
 		MHVTL_DBG(1, "%s: %s",
 			 "Error reading header in datafile, load failed",
 				strerror(errno));
 		close(datafile);
-		return 0;	// Unsuccessful load
+		return TAPE_UNLOADED;	/* Unsuccessful load */
 	} else if (nread < sizeof(c_pos)) {	// Did not read anything...
 		MHVTL_DBG(1, "%s: %s",
 				 "Error: Not a tape format, load failed",
@@ -2800,25 +2785,25 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 		close(datafile);
 		goto unsuccessful;
 	}
-	// FIXME: Need better validation checking here !!
+	/* FIXME: Need better validation checking here !! */
 	 if (c_pos.next_blk != (sizeof(struct blk_header) + sizeof(struct MAM))) {
 		MHVTL_DBG(1, "MAM size incorrect, load failed"
 			" - Expected size: %d, size found: %" PRId64,
 			(int)(sizeof(struct blk_header) + sizeof(struct MAM)),
 				c_pos.next_blk);
 		close(datafile);
-		return 0;	// Unsuccessful load
+		return TAPE_UNLOADED;	// Unsuccessful load
 	}
 	nread = read(datafile, &mam, sizeof(mam));
 	if (nread < 0) {
 		mediaSerialNo[0] = '\0';
 		MHVTL_DBG(1, "Can not read MAM from mounted media");
-		return 0;	// Unsuccessful load
+		return TAPE_UNLOADED;	// Unsuccessful load
 	}
 	// Set TapeAlert flg 32h =>
 	//	Lost Statics
 	if (mam.record_dirty != 0) {
-		fg = 0x02000000000000ull;
+		fg |= 0x02000000000000ull;
 		MHVTL_DBG(1, "Previous unload was not clean");
 	}
 
@@ -2827,7 +2812,7 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 
 	blockDescriptorBlock[0] = mam.MediumDensityCode;
 	mam.record_dirty = 1;
-	// Increment load count
+	/* Increment load count */
 	updateMAM(&mam, sam_stat, 1);
 
 	/* resp_rewind() will clean up for us..
@@ -2846,7 +2831,7 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 
 	case MEDIA_TYPE_CLEAN:
 		clear_worm_mode_pg();
-		fg = 0x400;
+		fg |= 0x400;
 		MHVTL_DBG(1, "Cleaning cart loaded");
 		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
@@ -2864,63 +2849,196 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);
 
-	switch (mam.MediumDensityCode) {
-	case medium_density_code_lto1:
-		Media_Type = Media_LTO1;
+	switch (mam.MediaType) {
+	case Media_LTO1:
 		MHVTL_DBG(1, "LTO1 media");
+		if (mam.MediumType == MEDIA_TYPE_CLEAN)
+			Media_Type = Media_LTO1_CLEAN;
+		else if (mam.MediumType == MEDIA_TYPE_WORM)
+			goto mismatchmedia;
+		else
+			Media_Type = Media_LTO1;
+		switch (lunit.drive_type) {
+		case drive_LTO1:
+		case drive_LTO2:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		case drive_LTO3:
+		case drive_LTO4:
+			MediaWriteProtect = MEDIA_READONLY;
+			MHVTL_DBG(1, "LTO-1 media in an LTO3/4 drive - "
+					"setting read-only");
+			break;
+		default:
+			goto mismatchmedia;
+		}
 		break;
-	case medium_density_code_lto2:
-		Media_Type = Media_LTO2;
+	case Media_LTO2:
 		MHVTL_DBG(1, "LTO2 media");
+		if (mam.MediumType == MEDIA_TYPE_CLEAN)
+			Media_Type = Media_LTO2_CLEAN;
+		else if (mam.MediumType == MEDIA_TYPE_WORM)
+			goto mismatchmedia;
+		else
+			Media_Type = Media_LTO2;
+		switch (lunit.drive_type) {
+		case drive_LTO1:
+		case drive_LTO2:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		case drive_LTO3:
+		case drive_LTO4:
+			MediaWriteProtect = MEDIA_READONLY;
+			MHVTL_DBG(1, "LTO-2 media in an LTO3/4 drive - "
+					"setting read-only");
+			break;
+		default:
+			goto mismatchmedia;
+		}
 		break;
-	case medium_density_code_lto3:
-		Media_Type = Media_LTO3;
+	case Media_LTO3:
 		MHVTL_DBG(1, "LTO3 media");
+		if (mam.MediumType == MEDIA_TYPE_CLEAN)
+			Media_Type = Media_LTO3_CLEAN;
+		else if (mam.MediumType == MEDIA_TYPE_WORM)
+			goto mismatchmedia;
+		else
+			Media_Type = Media_LTO3;
+		switch (lunit.drive_type) {
+		case drive_LTO1:
+			MHVTL_DBG(1, "LTO-3 media in an LTO1 drive - "
+					"failed load");
+			goto mismatchmedia;
+			break;
+		case drive_LTO2:
+		case drive_LTO3:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		case drive_LTO4:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		default:
+			goto mismatchmedia;
+		}
 		break;
-	case medium_density_code_lto4:
+	case Media_LTO4:
 		Media_Type = Media_LTO4;
 		MHVTL_DBG(1, "LTO4 media");
+		switch (lunit.drive_type) {
+		case drive_LTO1:
+		case drive_LTO2:
+			MediaWriteProtect = MEDIA_READONLY;
+			break;
+		case drive_LTO3:
+		case drive_LTO4:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		default:
+			goto mismatchmedia;
+		}
 		break;
-	case medium_density_code_j1a:
-		Media_Type = Media_3592_JA;
-		MHVTL_DBG(1,"3592-JA media");
+	case Media_DLT3:
+		Media_Type = Media_DLT3;
+		MHVTL_DBG(1,"DLT-3 media");
 		break;
-	case medium_density_code_e05:
-		Media_Type = Media_3592_JA;
-		MHVTL_DBG(1, "3592-JA media");
+	case Media_DLT4:
+		Media_Type = Media_DLT4;
+		MHVTL_DBG(1,"DLT-4 media");
 		break;
-	case medium_density_code_e06:
-		Media_Type = Media_3592_JA;
-		MHVTL_DBG(1, "3592-JA media");
+	case Media_SDLT:
+		Media_Type = Media_SDLT;
+		MHVTL_DBG(1,"SDLT media");
+		switch (lunit.drive_type) {
+		case drive_SDLT:
+		case drive_SDLT220:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		default:
+			goto mismatchmedia;
+		}
 		break;
-	case medium_density_code_ait4:
-		Media_Type = Media_AIT4;
-		MHVTL_DBG(1, "AIT4 media");
 		break;
-	case medium_density_code_10kA:
-		Media_Type = Media_10K;
-		MHVTL_DBG(1, "10K-A media");
+	case Media_SDLT220:
+		Media_Type = Media_SDLT220;
+		MHVTL_DBG(1, "SDLT 220 media");
+		switch (lunit.drive_type) {
+		case drive_SDLT:
+		case drive_SDLT220:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		default:
+			goto mismatchmedia;
+		}
 		break;
-	case medium_density_code_10kB:
-		Media_Type = Media_10K;
-		MHVTL_DBG(1, "10K-B media");
 		break;
-//	FIXME: denisty_code_600 is same as LTO1..
-//	case medium_density_code_600:
-//		Media_Type = Media_SDLT600;
-//		break;
+	case Media_SDLT320:
+		Media_Type = Media_SDLT320;
+		MHVTL_DBG(1, "SDLT 320 media");
+		switch (lunit.drive_type) {
+		case drive_SDLT:
+			MediaWriteProtect = MEDIA_READONLY;
+			break;
+		case drive_SDLT220:
+		case drive_SDLT320:
+		case drive_SDLT600:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		default:
+			goto mismatchmedia;
+		}
+		break;
+		break;
+	case Media_SDLT600:
+		Media_Type = Media_SDLT600;
+		MHVTL_DBG(1, "SDLT 600 media");
+		switch (lunit.drive_type) {
+		case drive_SDLT:
+		case drive_SDLT220:
+			MediaWriteProtect = MEDIA_READONLY;
+			break;
+		case drive_SDLT320:
+		case drive_SDLT600:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		default:
+			goto mismatchmedia;
+		}
+		break;
 	default:
 		Media_Type = Media_UNKNOWN;
 		MHVTL_DBG(1, "unknown media");
 		break;
 	}
 
-	return 1;	// Return successful load
+	MediaWriteProtect = MEDIA_WRITABLE;
+
+	switch (lunit.drive_type) {
+	case drive_LTO1:
+		if (Media_Type != Media_LTO1)
+			goto mismatchmedia;
+		break;
+	}
+
+	blockDescriptorBlock[0] = mam.MediumDensityCode;
+
+	setSeqAccessDevice(&seqAccessDevice, fg);
+	setTapeAlert(&TapeAlert, fg);
+
+	return TAPE_LOADED;	// Return successful load
 
 unsuccessful:
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);
-	return 2;
+	return TAPE_LOAD_BAD;
+
+mismatchmedia:
+	fg |= 0x800;	/* Unsupported format */
+	setSeqAccessDevice(&seqAccessDevice, fg);
+	setTapeAlert(&TapeAlert, fg);
+	MHVTL_DBG(1, "Tape %s failed to load with type %d in drive type %d",
+			PCL, Media_Type, lunit.drive_type);
+	close(datafile);
+	return TAPE_LOAD_BAD;
 }
 
 

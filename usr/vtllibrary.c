@@ -570,6 +570,31 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 return 0;
 }
 
+/* Expect a response from tape drive on load success/failure
+ * Returns 0 on success
+ * non-zero on load failure
+ */
+static int check_tape_load(uint8_t *pcl)
+{
+	int mlen, r_qid;
+	int q_priority = LIBRARY_Q;
+	struct q_entry r_entry;
+
+	/* Initialise message queue as necessary */
+	r_qid = init_queue();
+	if (r_qid == -1) {
+		printf("Could not initialise message queue\n");
+		exit(1);
+	}
+
+	mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, MSG_NOERROR);
+	if (mlen > 0) {
+		r_entry.mtext[mlen] = '\0';
+		MHVTL_DBG(2, "Received \"%s\" from message Q", r_entry.mtext);
+	}
+	return strncmp("Loaded OK", r_entry.mtext, 9);
+}
+
 static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 {
 	struct s_info *src;
@@ -589,9 +614,6 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 		return 1;
 	}
 
-	move_cart(src, dest->slot);
-	setDriveFull(dest);
-
 	sprintf(cmd, "lload %s", dest->slot->barcode);
 	/* Remove traling spaces */
 	for (x = 6; x < 16; x++)
@@ -599,10 +621,19 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 			cmd[x] = '\0';
 			break;
 		}
+
 	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %d",
 					cmd, dest->slot->slot_location);
 
 	send_msg(cmd, dest->slot->slot_location);
+
+	if (check_tape_load(dest->slot->barcode)) {
+		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		return 1;
+	}
+
+	move_cart(src, dest->slot);
+	setDriveFull(dest);
 
 return 0;
 }
@@ -2358,7 +2389,7 @@ int main(int argc, char *argv[])
 	struct passwd *pw;
 
 	/* Message Q */
-	int	mlen, r_qid;
+	int mlen, r_qid;
 	struct q_entry r_entry;
 
 	while (argc > 0) {

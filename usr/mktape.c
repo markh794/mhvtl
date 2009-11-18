@@ -18,8 +18,6 @@
 #include "vtltape.h"
 #include "vtllib.h"
 
-const char *mktapeVersion = "$Id: mktape.c 2008-02-14 19:58:44 markh Exp $";
-
 #ifndef Solaris
   loff_t lseek64(int, loff_t, int);
 #endif
@@ -37,6 +35,8 @@ void usage(char *progname) {
 	printf("                   LTO2\n");
 	printf("                   LTO3\n");
 	printf("                   LTO4\n");
+	printf("                   DLT3\n");
+	printf("                   DLT4\n");
 	printf("                   SDLT1\n");
 	printf("                   SDLT2\n");
 	printf("                   SDLT3\n");
@@ -49,8 +49,10 @@ void usage(char *progname) {
 
 static unsigned int set_params(struct MAM *mam, char *density)
 {
+	mam->MediaType = Media_undefined;
 	if (!(strncmp(density, "LTO1", 4))) {
 		mam->MediumDensityCode = medium_density_code_lto1;
+		mam->MediaType = Media_LTO1;
 		mam->MediumLength = htonl(384);	// 384 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 1/8T", 12);
@@ -60,6 +62,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	}
 	if (!(strncmp(density, "LTO2", 4))) {
 		mam->MediumDensityCode = medium_density_code_lto2;
+		mam->MediaType = Media_LTO2;
 		mam->MediumLength = htonl(512);	// 512 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 2/8T", 12);
@@ -69,6 +72,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	}
 	if (!(strncmp(density, "LTO3", 4))) {
 		mam->MediumDensityCode = medium_density_code_lto3;
+		mam->MediaType = Media_LTO3;
 		mam->MediumLength = htonl(704);	// 704 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 3/8T", 12);
@@ -78,6 +82,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	}
 	if (!(strncmp(density, "LTO4", 4))) {
 		mam->MediumDensityCode = medium_density_code_lto4;
+		mam->MediaType = Media_LTO4;
 		mam->MediumLength = htonl(896);	// 896 tracks
 		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "Ultrium 4/8T", 12);
@@ -88,6 +93,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
 	if (!(strncmp(density, "AIT1", 4))) {
 		mam->MediumDensityCode = 0x30;
+		mam->MediaType = Media_AIT1;
 		mam->MediumLength = htonl(384);	// 384 tracks
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape1", 20);
@@ -97,6 +103,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	}
 	if (!(strncmp(density, "AIT2", 4))) {
 		mam->MediumDensityCode = 0x31;
+		mam->MediaType = Media_AIT2;
 		mam->MediumLength = htonl(384);	// 384 tracks
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape2", 20);
@@ -106,6 +113,7 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	}
 	if (!(strncmp(density, "AIT3", 4))) {
 		mam->MediumDensityCode = 0x32;
+		mam->MediaType = Media_AIT3;
 		mam->MediumLength = htonl(384);	// 384 tracks
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape3", 20);
@@ -115,12 +123,55 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	}
 	if (!(strncmp(density, "AIT4", 4))) {
 		mam->MediumDensityCode = 0x33;
+		mam->MediaType = Media_AIT4;
 		mam->MediumLength = htonl(384);	// 384 tracks
 		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mam->media_info.description, "AdvIntelligentTape4", 20);
 		memcpy(&mam->media_info.density_name, "AIT-4  ", 6);
 		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
 		mam->media_info.bits_per_mm = htonl(0x17d6);
+	}
+	if (!(strncmp(density, "DLT3", 4))) {
+		mam->MediumDensityCode = 0x0;
+		mam->MediaType = Media_DLT3;
+		memcpy(&mam->media_info.description, "DLT4000 media", 13);
+		memcpy(&mam->media_info.density_name, "DLT-III", 7);
+		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+	}
+	if (!(strncmp(density, "DLT4", 4))) {
+		mam->MediumDensityCode = 0x0;
+		mam->MediaType = Media_DLT4;
+		memcpy(&mam->media_info.description, "DLT7000 media", 13);
+		memcpy(&mam->media_info.density_name, "DLT-IV", 6);
+		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+	}
+	if (!(strncmp(density, "SDLT1", 5))) {
+		mam->MediumDensityCode = 0x0;
+		mam->MediaType = Media_SDLT;
+		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.density_name, "SDLT-1", 6);
+		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+	}
+	if (!(strncmp(density, "SDLT2", 5))) {
+		mam->MediumDensityCode = 0x0;
+		mam->MediaType = Media_SDLT220;
+		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.density_name, "SDLT220", 7);
+		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+	}
+	if (!(strncmp(density, "SDLT3", 5))) {
+		mam->MediumDensityCode = 0x0;
+		mam->MediaType = Media_SDLT320;
+		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.density_name, "SDLT320", 7);
+		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+	}
+	if (!(strncmp(density, "SDLT4", 5))) {
+		mam->MediumDensityCode = 0x0;
+		mam->MediaType = Media_SDLT600;
+		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.density_name, "SDLT600", 7);
+		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
 	}
 
 	return 0;
@@ -139,6 +190,12 @@ int main(int argc, char *argv[])
 	char *density = NULL;
 	uint32_t size;
 	struct MAM mam;
+
+	if (sizeof(struct MAM) != 1024) {
+		printf("Structure of MAM incorrect size: %d\n",
+						(int)sizeof(struct MAM));
+		exit(2);
+	}
 
 	if (argc < 2) {
 		usage(progname);
@@ -221,9 +278,9 @@ int main(int argc, char *argv[])
 	memset((uint8_t *)&mam, 0, sizeof(mam));
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
+	mam.mam_fmt_version = MAM_VERSION;
 	mam.max_capacity = htonll(size * 1048576);
 
-	set_params(&mam, density);
 	mam.MAMSpaceRemaining = htonll(sizeof(mam.pad));
 	memcpy(&mam.MediumManufacturer, "VERITAS ", 8);
 	memcpy(&mam.ApplicationVendor, "vtl-0.16", 8);
@@ -237,6 +294,7 @@ int main(int argc, char *argv[])
 	} else {
 		mam.MediumType = MEDIA_TYPE_DATA; // Normal data cart
 	}
+	set_params(&mam, density);
 
 	sprintf((char *)mam.MediumSerialNumber, "%s_%d", pcl, (int)time(NULL));
 	sprintf((char *)mam.MediumManufactureDate, "%d", (int)time(NULL));

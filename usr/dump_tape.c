@@ -148,12 +148,21 @@ int skip_to_next_header(int datafile, char * sense_flg) {
 	return 0;
 }
 
+static void print_mam(struct MAM *mam)
+{
+	printf("Media density code: 0x%02x\n", mam->MediumDensityCode);
+	printf("Media type code   : 0x%02x\n", mam->MediaType);
+	printf("Media description : %s\n", mam->media_info.description);
+}
+
+
 int main(int argc, char *argv[])
 {
 	int ofp;
 	char *dataFile = MHVTL_HOME_PATH;
 	char sense_flg;
 	loff_t nread;
+	struct MAM mam;
 
 	if (argc < 2) {
 		printf("Usage: dump_file -f <media>\n");
@@ -194,6 +203,8 @@ int main(int argc, char *argv[])
 	}
 	nread = read(ofp, &current_pos, sizeof(current_pos));
 	print_current_header();
+	nread = read(ofp, &mam, sizeof(struct MAM));
+	print_mam(&mam);
 	while (current_pos.blk_type != B_EOD) {
 		nread = skip_to_next_header(ofp, &sense_flg);
 		if (nread == -1)
