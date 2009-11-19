@@ -19,7 +19,9 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
 	unsigned long flags;
-	unsigned int sg_flags = SG_MITER_ATOMIC;
+	/* Do not use SG_MITER_ATOMIC flag on the sg_miter_start() call */
+	unsigned int sg_flags = 0;
+	unsigned int rem;
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
 	if (to_buffer)
@@ -38,11 +40,18 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		len = min(miter.length, buflen - offset);
 
 		if (to_buffer)
-			copy_to_user(buf, miter.addr, len);
+			rem = copy_to_user(buf, miter.addr, len);
 		else {
-			copy_from_user(miter.addr, buf + offset, len);
+			rem = copy_from_user(miter.addr, buf + offset, len);
 			flush_kernel_dcache_page(miter.page);
 		}
+		if (rem)
+			printk(KERN_DEBUG "mhvtl: %s(): "
+				"copy_%s_user() failed, rem %ld, buf 0x%llx, "
+				"miter.addr 0x%llx, len %d\n",
+				__func__, (to_buffer) ? "to" : "from", rem,
+				(unsigned long long int)(buf + offset),
+				(long long unsigned int)miter.addr, len);
 
 		offset += len;
 	}
@@ -53,13 +62,13 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 	return offset;
 }
 
-size_t vtl_copy_from_user(struct scatterlist *sgl, unsigned int nents,
+static size_t vtl_copy_from_user(struct scatterlist *sgl, unsigned int nents,
 			char __user *buf, size_t buflen)
 {
 	return vtl_sg_copy_user(sgl, nents, buf, buflen, 0);
 }
 
-size_t vtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
+static size_t vtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
 			char __user *buf, size_t buflen)
 {
 	return vtl_sg_copy_user(sgl, nents, buf, buflen, 1);
