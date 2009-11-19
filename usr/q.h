@@ -42,8 +42,7 @@ struct q_entry {
 
 // void warn(char *);
 int enter(char *, int);
-int send_msg(char *, int);
+int send_msg(char *cmd, int q_id);
 int serve(void);
 int init_queue(void);
-
 

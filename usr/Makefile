@@ -61,15 +61,15 @@ dump_tape:	dump_tape.o vtltape.h scsi.h ../kernel/vtl_common.h
 mktape:	mktape.o vtltape.h q.h vtllib.h ../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o mktape mktape.o
 
-vtllibrary:	vtllibrary.o q.h vtllib.o vtllib.h scsi.h \
+vtllibrary:	vtllibrary.o q.h q.o vtllib.o vtllib.h scsi.h \
 		be_byteshift.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o q.o -L. -lvtlscsi
 
-vtltape:	vtltape.o q.h vtllib.o vtllib.h vtltape.h scsi.h \
+vtltape:	vtltape.o q.h q.o vtllib.o vtllib.h vtltape.h scsi.h \
 		be_byteshift.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtltape vtltape.o -L. -lz -lvtlscsi
+	$(CC) $(CFLAGS) -o vtltape vtltape.o q.o -L. -lz -lvtlscsi
 
 make_vtl_media:	make_vtl_media.in
 	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1

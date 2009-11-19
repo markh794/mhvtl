@@ -1656,17 +1656,6 @@ static int processMessageQ(char *mtext)
 return 0;
 }
 
-int init_queue(void)
-{
-	int	queue_id;
-
-	/* Attempt to create or open message queue */
-	if ( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
-		syslog(LOG_DAEMON|LOG_ERR, "%s %m", "msgget failed");
-
-return (queue_id);
-}
-
 static void init_mode_pages(struct mode *m)
 {
 

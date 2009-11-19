@@ -6,31 +6,53 @@
  */
 
 #include <stdio.h>
+#include <syslog.h>
 #include "q.h"
 
-void
-warn(char *s) {
+void warn(char *s)
+{
 	fprintf(stderr, "Warning: %s\n", s);
 }
 
-int
-init_queue(void) {
-int	queue_id;
+int init_queue(void)
+{
+	int queue_id;
 
-/* Attempt to create or open message queue */
-if ( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
-	perror("msgget failed");
+	/* Attempt to create or open message queue */
+	queue_id = msgget(QKEY, IPC_CREAT | QPERM);
+	if (queue_id == -1) {
+		char s[245];
+		switch(errno) {
+		case EACCES:
+			strcpy(s, "Operation not permitted");
+			break;
+		case EEXIST:
+			strcpy(s, "Message Q already exists");
+			break;
+		case ENOENT:
+			strcpy(s, "Message Q does not exist");
+			break;
+		case ENOSPC:
+			strcpy(s, "Exceeded max num of message queues");
+			break;
+		default:
+			strcpy(s, "errno not valid");
+			break;
+		}
+		syslog(LOG_DAEMON|LOG_ERR, "msgget(%d) failed %s, %s",
+				QKEY, strerror(errno), s);
+	}
 
-return (queue_id);
+	return (queue_id);
 }
 
-void
-proc_obj(struct q_entry *msg) {
+void proc_obj(struct q_entry *msg)
+{
 	printf("Priority: %ld name: %s\n", msg->mtype, msg->mtext);
 }
 
-int
-enter(char *objname, int priority) {
+int enter(char *objname, int priority)
+{
 	int len, s_qid;
 	struct q_entry s_entry;	/* Structure to hold message */
 
@@ -62,28 +84,28 @@ enter(char *objname, int priority) {
 	}
 }
 
-int
-serve(void) {
-int	mlen, r_qid;
-struct q_entry r_entry;
+int serve(void)
+{
+	int mlen, r_qid;
+	struct q_entry r_entry;
 
-/* Initialise message queue as necessary */
-if ((r_qid = init_queue()) == -1)
-	return (-1);
-
-/* Get and process next message, waiting if necessary */
-for (;;) {
-	if ((mlen = msgrcv(r_qid, &r_entry, MAXOBN,
-				(-1 * MAXPRIOR), MSG_NOERROR)) == -1) {
-		perror("msgrcv failed");
+	/* Initialise message queue as necessary */
+	if ((r_qid = init_queue()) == -1)
 		return (-1);
-	} else {
-		/* Make sure we've a string */
-		r_entry.mtext[mlen]='\0';
 
-		/* Process object name */
-		proc_obj(&r_entry);
+	/* Get and process next message, waiting if necessary */
+	for (;;) {
+		if ((mlen = msgrcv(r_qid, &r_entry, MAXOBN,
+					(-1 * MAXPRIOR), MSG_NOERROR)) == -1) {
+			perror("msgrcv failed");
+			return (-1);
+		} else {
+			/* Make sure we've a string */
+			r_entry.mtext[mlen]='\0';
+
+			/* Process object name */
+			proc_obj(&r_entry);
+		}
 	}
-  }
 }
 

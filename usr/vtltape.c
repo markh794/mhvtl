@@ -2971,17 +2971,6 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 return 0;
 }
 
-int init_queue(void)
-{
-	int	queue_id;
-
-	/* Attempt to create or open message queue */
-	if ( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
-		syslog(LOG_DAEMON|LOG_ERR, "%s %m", "msgget failed");
-
-return (queue_id);
-}
-
 /*
  * Initialise structure data for mode pages.
  * - Allocate memory for each mode page & init to 0
