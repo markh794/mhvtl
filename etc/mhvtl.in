@@ -68,7 +68,7 @@ Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
  Product revision level: 5500
  Unit serial number: XYZZY_A1
  NAA: 11:22:33:44:ab:cd:ef:01
- Max density: 0x46
+ Compression: 1
  VPD: b0 04 00 02 01 00
 
 Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
@@ -77,25 +77,25 @@ Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
  Product revision level: 5500
  Unit serial number: XYZZY_A2
  NAA: 11:22:33:44:ab:cd:ef:02
- Max density: 0x46
+ Compression: 1
  VPD: b0 04 00 02 01 00
 
 Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
- Vendor identification: QUANTUM
- Product identification: SDLT600
+ Vendor identification: IBM
+ Product identification: ULT3580-TD4
  Product revision level: 5500
  Unit serial number: XYZZY_A3
  NAA: 11:22:33:44:ab:cd:ef:03
- Max density: 0x46
+ Compression: 1
  VPD: b0 04 00 02 01 00
 
 Drive: 4 CHANNEL: 0 TARGET: 4 LUN: 0
- Vendor identification: QUANTUM
- Product identification: SDLT600
+ Vendor identification: IBM
+ Product identification: ULT3580-TD4
  Product revision level: 5500
  Unit serial number: XYZZY_A4
  NAA: 11:22:33:44:ab:cd:ef:04
- Max density: 0x46
+ Compression: 1
  VPD: b0 04 00 02 01 00
 
 VTL_CONF

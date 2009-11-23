@@ -3229,7 +3229,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
-	int indx, n = 0;
+	int indx;
 	struct vtl_ctl tmpctl;
 	int found = 0;
 
@@ -3279,6 +3279,12 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				sprintf(lu->product_rev, "%-4s", s);
 			if (sscanf(b, " Vendor identification: %s", s))
 				sprintf(lu->vendor_id, "%-8s", s);
+			if (sscanf(b, " Compression: %d", &i)) {
+				compressionFactor = i;
+				MHVTL_DBG(1, "Setting compression to %d", i);
+			}
+/* FIXME: Change to use 'Media rw:' & 'Media ro' */
+/*
 			if (sscanf(b, " Density : %s", s)) {
 				lu->supported_density[n] =
 					(uint8_t)strtol(s, NULL, 16);
@@ -3287,6 +3293,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 						lu->supported_density[n]);
 				n++;
 			}
+*/
 			i = sscanf(b,
 				" NAA: %x:%x:%x:%x:%x:%x:%x:%x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
