@@ -747,6 +747,17 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 return(REPORT_DENSITY_LEN);
 }
 
+static void enable_compression(int lvl)
+{
+/* FIXME: Update MODE PAGES 0x0f & 0x10 */
+	compressionFactor = Z_BEST_SPEED;
+}
+
+static void disable_compression(void)
+{
+/* FIXME: Update MODE PAGES 0x0f & 0x10 */
+	compressionFactor = Z_NO_COMPRESSION;
+}
 
 /*
  * Process the MODE_SELECT command
@@ -757,6 +768,7 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint8_t *buf = dbuf_p->data;
 	int block_descriptor_sz;
 	uint8_t *bdb = NULL;
+	int pgoff;
 	int long_lba = 0;
 	int count;
 
@@ -773,11 +785,13 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		block_descriptor_sz = buf[3];
 		if (block_descriptor_sz)
 			bdb = &buf[4];
+		pgoff = 4 + block_descriptor_sz;
 	} else {
 		block_descriptor_sz = get_unaligned_be16(&buf[6]);
 		long_lba = buf[4] & 1;
 		if (block_descriptor_sz)
 			bdb = &buf[8];
+		pgoff = 8 + block_descriptor_sz;
 	}
 
 	if (bdb) {
@@ -791,16 +805,33 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 	}
 
-	/*
-		FIXME: Need to add code here to set/reset compression
-		MODE PAGE 0x0f
-	*/
 	if (debug)
 		hex_dump(buf, dbuf_p->sz);
 
+	while (pgoff < dbuf_p->sz) {
+		switch (buf[pgoff + 0]) {
+		case 0x0f:
+			if (buf[pgoff + 2] & 0x80) /* DCE bit set */
+				enable_compression(Z_BEST_SPEED);
+			else
+				disable_compression();
+			break;
+
+		case 0x10:
+			if (buf[pgoff + 14]) /* Select Data Compression Alg */
+				enable_compression(Z_BEST_SPEED);
+			else
+				disable_compression();
+			break;
+
+		default:
+			break;
+		}
+		pgoff += buf[pgoff + 1] + 1;
+	}
+
 	return 0;
 }
-
 
 static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
@@ -2984,26 +3015,26 @@ static void init_mode_pages(struct mode *m)
 {
 	struct mode *mp;
 
-	// RW Error Recovery: SSC-3 8.3.5
+	/* RW Error Recovery: SSC-3 8.3.5 */
 	if ((mp = alloc_mode_page(1, m, 12))) {
-		// Init rest of page data..
+		/* Init rest of page data.. */
 	}
 
-	// Disconnect-Reconnect: SPC-3 7.4.8
+	/* Disconnect-Reconnect: SPC-3 7.4.8 */
 	if ((mp = alloc_mode_page(2, m, 16))) {
-		mp->pcodePointer[2] = 50; // Buffer full ratio
-		mp->pcodePointer[3] = 50; // Buffer enpty ratio
+		mp->pcodePointer[2] = 50; // Buffer full ratio */
+		mp->pcodePointer[3] = 50; // Buffer enpty ratio */
 		mp->pcodePointer[10] = 4;
 	}
 
-	// Control: SPC-3 7.4.6
+	/* Control: SPC-3 7.4.6 */
 	if ((mp = alloc_mode_page(0x0a, m, 12))) {
-		// Init rest of page data..
+		/* Init rest of page data.. */
 	}
 
-	// Data compression: SSC-3 8.3.2
+	/* Data compression: SSC-3 8.3.2 */
 	if ((mp = alloc_mode_page(0x0f, m, 16))) {
-		// Init rest of page data..
+		/* Init rest of page data.. */
 		mp->pcodePointer[2] = 0xc0; /* Set Data Compression Enable */
 		mp->pcodePointer[3] = 0x80; /* Set Data Decompression Enable */
 		/* Compression Algorithm */
@@ -3012,43 +3043,43 @@ static void init_mode_pages(struct mode *m)
 		put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[8]);
 	}
 
-	// Device Configuration: SSC-3 8.3.3
+	/* Device Configuration: SSC-3 8.3.3 */
 	if ((mp = alloc_mode_page(0x10, m, 16))) {
-		// Write delay time (100mSec intervals)
+		/* Write delay time (100mSec intervals) */
 		mp->pcodePointer[7] = 0x64;
-		// Block Identifiers Supported
+		/* Block Identifiers Supported */
 		mp->pcodePointer[8] = 0x40;
-		// Enable EOD & Sync at early warning
+		/* Enable EOD & Sync at early warning */
 		mp->pcodePointer[10] = 0x18;
-		// Select Data Compression
+		/* Select Data Compression */
 		mp->pcodePointer[14] = 0x01;
-		// WTRE (WORM handling)
+		/* WTRE (WORM handling) */
 		mp->pcodePointer[15] = 0x80;
 	}
 
-	// Medium Partition: SSC-3 8.3.4
+	/* Medium Partition: SSC-3 8.3.4 */
 	if ((mp = alloc_mode_page(0x11, m, 16))) {
-		// Init rest of page data..
+		/* Init rest of page data.. */
 	}
 
-	// Extended: SPC-3 - Not used here.
-	// Extended Device (Type Specific): SPC-3 - Not used here
+	/* Extended: SPC-3 - Not used here. */
+	/* Extended Device (Type Specific): SPC-3 - Not used here */
 
-	// Power condition: SPC-3 7.4.12
+	/* Power condition: SPC-3 7.4.12 */
 	mp = alloc_mode_page(0x1a, m, 12);
 	if (mp) {
-		// Init rest of page data..
+		/* Init rest of page data.. */
 	}
 
-	// Informational Exception Control: SPC-3 7.4.11 (TapeAlert)
+	/* Informational Exception Control: SPC-3 7.4.11 (TapeAlert) */
 	if ((mp = alloc_mode_page(0x1c, m, 12))) {
 		mp->pcodePointer[2] = 0x08;
 		mp->pcodePointer[3] = 0x03;
 	}
 
-	// Medium configuration: SSC-3 8.3.7
+	/* Medium configuration: SSC-3 8.3.7 */
 	if ((mp = alloc_mode_page(0x1d, m, 32))) {
-		// Init rest of page data..
+		/* Init rest of page data.. */
 	}
 }
 
@@ -3280,7 +3311,10 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			if (sscanf(b, " Vendor identification: %s", s))
 				sprintf(lu->vendor_id, "%-8s", s);
 			if (sscanf(b, " Compression: %d", &i)) {
-				compressionFactor = i;
+				if ((i > 0) && (i < 10))
+					enable_compression(i);
+				else
+					disable_compression();
 				MHVTL_DBG(1, "Setting compression to %d", i);
 			}
 /* FIXME: Change to use 'Media rw:' & 'Media ro' */
