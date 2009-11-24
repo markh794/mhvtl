@@ -94,7 +94,6 @@ static uint8_t AKAD[32];
 #ifndef Solaris
   /* I'm sure there must be a header where lseek64() is defined */
   loff_t lseek64(int, loff_t, int);
-//  int open64(char *, int);
   int ioctl(int, int, void *);
 #endif
 
@@ -120,7 +119,12 @@ static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
 static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
 static uint8_t MediaWriteProtect = 0;	/* True if virtual "write protect" switch is set */
 static int OK_to_write = 1;	// True if in correct position to start writing
-static int compressionFactor = 0;
+
+/* Pointer into Device config mode page */
+static uint8_t *compressionFactor = NULL;
+
+/* Default value read from config file */
+static int configCompressionFactor = 0;
 
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
@@ -501,7 +505,7 @@ static int mkNewHeader(char type, int size, int comp_size, uint8_t *sam_stat)
 		}
 	}
 
-	if ((type == B_DATA) && compressionFactor)
+	if ((type == B_DATA) && *compressionFactor)
 		h.blk_flags |= BLKHDR_FLG_COMPRESSED;
 
 	nwrite = write(datafile, &h, sizeof(h));
@@ -749,14 +753,44 @@ return(REPORT_DENSITY_LEN);
 
 static void enable_compression(int lvl)
 {
-/* FIXME: Update MODE PAGES 0x0f & 0x10 */
-	compressionFactor = Z_BEST_SPEED;
+	struct mode *m;
+	uint8_t *p;
+
+	if (lvl)
+		configCompressionFactor = lvl;
+
+	/* Find pointer to Data Compression mode Page */
+	m = find_pcode(0x0f, sm);
+	if (m) {
+		p = m->pcodePointer;
+		p[2] |= 0x80;	/* Set data compression enable */
+	}
+	/* Find pointer to Device Configuration mode Page */
+	m = find_pcode(0x10, sm);
+	if (m) {
+		p = m->pcodePointer;
+		p[14] = configCompressionFactor;
+	}
 }
 
 static void disable_compression(void)
 {
-/* FIXME: Update MODE PAGES 0x0f & 0x10 */
-	compressionFactor = Z_NO_COMPRESSION;
+	struct mode *m;
+	uint8_t *p;
+
+
+	/* Find pointer to Data Compression mode Page */
+	m = find_pcode(0x0f, sm);
+	if (m) {
+		p = m->pcodePointer;
+		p[2] &= 0x7f;	/* clear data compression enable */
+	}
+	/* Find pointer to Device Configuration mode Page */
+	m = find_pcode(0x10, sm);
+	if (m) {
+		p = m->pcodePointer;
+		p[14] = Z_NO_COMPRESSION;
+	}
 }
 
 /*
@@ -812,14 +846,14 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		switch (buf[pgoff + 0]) {
 		case 0x0f:
 			if (buf[pgoff + 2] & 0x80) /* DCE bit set */
-				enable_compression(Z_BEST_SPEED);
+				enable_compression(0);
 			else
 				disable_compression();
 			break;
 
 		case 0x10:
 			if (buf[pgoff + 14]) /* Select Data Compression Alg */
-				enable_compression(Z_BEST_SPEED);
+				enable_compression(0);
 			else
 				disable_compression();
 			break;
@@ -1281,7 +1315,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 		}
 	}
 
-	if (compressionFactor) {
+	if (*compressionFactor) {
 		int dest_sz;
 
 		dest_sz = compressBound(src_sz);
@@ -1292,7 +1326,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 			return 0;
 		}
 		z = compress2(dest_buf, &dest_len, src_buf, src_sz,
-							compressionFactor);
+							*compressionFactor);
 		if (z != Z_OK) {
 			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
 							sam_stat);
@@ -1339,7 +1373,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 		mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	}
 
-	if (compressionFactor)
+	if (*compressionFactor)
 		free(dest_buf);
 
 	/* Write END-OF-DATA marker */
@@ -3052,9 +3086,12 @@ static void init_mode_pages(struct mode *m)
 		/* Enable EOD & Sync at early warning */
 		mp->pcodePointer[10] = 0x18;
 		/* Select Data Compression */
-		mp->pcodePointer[14] = 0x01;
+		mp->pcodePointer[14] = Z_BEST_SPEED;
 		/* WTRE (WORM handling) */
 		mp->pcodePointer[15] = 0x80;
+
+		/* Set pointer to 'Compression Algorithm' */
+		compressionFactor = &mp->pcodePointer[14];
 	}
 
 	/* Medium Partition: SSC-3 8.3.4 */
