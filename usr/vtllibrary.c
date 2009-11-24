@@ -858,8 +858,8 @@ static int fill_element_status_page_hdr(uint8_t *p,
 					uint16_t element_count, uint8_t dvcid,
 					uint8_t voltag, uint8_t typeCode)
 {
-	int	element_sz;
-	uint32_t	element_len;
+	int element_sz;
+	uint32_t element_len;
 
 	element_sz = determine_element_sz(dvcid, voltag, typeCode);
 
@@ -1007,9 +1007,9 @@ static uint32_t fill_element_page(uint8_t *p, int type, uint16_t start,
 		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
 		uint8_t dvcid, uint16_t *cur_count, uint32_t *cur_offset)
 {
-	uint16_t	begin;
-	uint16_t	count, avail, space;
-	int	min_addr, num_addr;
+	uint16_t begin;
+	uint16_t count, avail, space;
+	int min_addr, num_addr;
 	int j;
 
 	switch (type) {
@@ -1036,16 +1036,18 @@ static uint32_t fill_element_page(uint8_t *p, int type, uint16_t start,
 		return E_INVALID_FIELD_IN_CDB;
 	}
 
-	// Find first valid slot.
+	/* Find first valid slot. */
 	begin = find_first_matching_element(start, type);
 	if (begin == 0)
 		return E_INVALID_FIELD_IN_CDB;
 
-	// The number of elements to report is the minimum of:
-	// 1. the number the caller asked for (max_count - *cur_count).
-	// 2. the number that remain starting at address begin, and
-	// 3. the number that will fit in the remaining
-	//    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
+	/*
+	 *   The number of elements to report is the minimum of:
+	 * 1. the number the caller asked for (max_count - *cur_count).
+	 * 2. the number that remain starting at address begin, and
+	 * 3. the number that will fit in the remaining
+	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
+	 */
 
 	avail = min_addr + num_addr - begin;
 	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
@@ -1053,18 +1055,17 @@ static uint32_t fill_element_page(uint8_t *p, int type, uint16_t start,
 				determine_element_sz(dvcid, voltag, type);
 	count = space < count ? space : count;
 	if (count == 0) {
-		if (*cur_count == 0) {
+		if (*cur_count == 0)
 			return E_PARAMETER_LIST_LENGTH_ERR;
-		} else {
+		else
 			return 0;
-		}
 	}
 
-	// Create Element Status Page Header.
+	/* Create Element Status Page Header. */
 	*cur_offset += fill_element_status_page_hdr(&p[*cur_offset], count,
 		dvcid, voltag, type);
 
-	// Now loop over each slot and fill in details.
+	/* Now loop over each slot and fill in details. */
 
 	for (j = 0; j < count; j++, begin++) {
 		MHVTL_DBG(2, "Slot: %d", begin);
