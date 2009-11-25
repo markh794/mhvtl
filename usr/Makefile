@@ -39,6 +39,12 @@ CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
+ifeq ($(shell uname -m),x86_64)
+LIBDIR = lib64
+else
+LIBDIR = lib
+endif
+
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary make_vtl_media
 
@@ -103,8 +109,8 @@ distclean:
 	vtllibrary vtllibrary.o
 
 install:
-	install -d -m 755 $(DESTDIR)$(PREFIX)/lib
-	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/lib/
+	install -d -m 755 $(DESTDIR)$(PREFIX)/$(LIBDIR)
+	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/$(LIBDIR)/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
