@@ -1729,7 +1729,8 @@ static struct d_info *init_d_struct(int size)
 	if (dp)
 		memset(dp, 0, sizeof(size * sizeof(d_info)));
 	else
-		syslog(LOG_DAEMON|LOG_ERR, "d_struct() Malloc failed: %m");
+		syslog(LOG_DAEMON|LOG_ERR, "d_struct() Malloc failed: %s",
+					strerror(errno));
 return dp;
 }
 
@@ -1746,7 +1747,8 @@ static struct s_info *init_s_struct(int size)
 	if (sp)
 		memset(sp, 0, sizeof(size * sizeof(s_info)));
 	else
-		syslog(LOG_DAEMON|LOG_ERR, "s_struct() Malloc failed: %m");
+		syslog(LOG_DAEMON|LOG_ERR, "s_struct() Malloc failed: %s",
+					strerror(errno));
 
 return sp;
 }
@@ -1765,7 +1767,8 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		MHVTL_DBG(1, "Can not open config file %s : %m", config);
+		MHVTL_DBG(1, "Can not open config file %s : %s", config,
+					strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -1836,7 +1839,8 @@ static void init_slot_info(void)
 
 	ctrl = fopen(conf , "r");
 	if (!ctrl) {
-		MHVTL_DBG(1, "Can not open config file %s : %m", conf);
+		MHVTL_DBG(1, "Can not open config file %s : %s", conf,
+					strerror(errno));
 		exit(1);
 	}
 
@@ -2147,7 +2151,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		MHVTL_DBG(1, "Can not open config file %s : %m", config);
+		MHVTL_DBG(1, "Can not open config file %s : %s", config,
+					strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -2448,8 +2453,10 @@ int main(int argc, char *argv[])
 
 	if ((cdev = chrdev_open(name, minor)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
-				"Could not open /dev/%s%d: %m", name, minor);
-		printf("Could not open /dev/%s%d: %m", name, minor);
+				"Could not open /dev/%s%d: %s", name, minor,
+					strerror(errno));
+		printf("Could not open /dev/%s%d: %s", name, minor,
+					strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}
@@ -2551,14 +2558,16 @@ int main(int argc, char *argv[])
 			r_qid = init_queue();
 			if (r_qid == -1)
 				syslog(LOG_DAEMON|LOG_ERR,
-					"Can not open message queue: %m");
+					"Can not open message queue: %s",
+					strerror(errno));
 		}
 		if (exit_status)	// Process a 'exit' messageQ
 			goto exit;
 
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
 		if (ret < 0) {
-			syslog(LOG_DAEMON|LOG_WARNING, "ret: %d : %m", ret);
+			syslog(LOG_DAEMON|LOG_WARNING, "ret: %d : %s", ret,
+					strerror(errno));
 		} else {
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {

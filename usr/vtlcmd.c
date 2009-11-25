@@ -76,7 +76,8 @@ int check_media(char *barcode)
 	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
 	if (datafile < 0) {
 		char errmsg[128];
-		sprintf(errmsg, "Could not open %s: %m", currentMedia);
+		sprintf(errmsg, "Could not open %s: %s",
+				currentMedia, strerror(errno));
 		fprintf(stderr, "%s\n", errmsg);
 		return 1;
 	}
@@ -102,7 +103,8 @@ int checkMessageQ(struct q_entry *r_entry, int q_prority, int * r_qid)
 	} else if (mlen < 0) {
 		if ((*r_qid = init_queue()) == -1) {
 			syslog(LOG_DAEMON|LOG_ERR,
-				"Can not open message queue: %m");
+				"Can not open message queue: %s",
+					strerror(errno));
 			mlen = -2;
 		}
 	}

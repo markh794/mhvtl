@@ -386,7 +386,8 @@ static int skip_to_next_header(uint8_t *sam_stat)
 	}
 	if (nread == -1) {
 		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
-		MHVTL_DBG(1, "Unable to read next block header: %m");
+		MHVTL_DBG(1, "Unable to read next block header: %s",
+						strerror(errno));
 		return -1;
 	}
 	// Position to start of header (rewind over header)
@@ -515,8 +516,9 @@ static int mkNewHeader(char type, int size, int comp_size, uint8_t *sam_stat)
 	 */
 	if (nwrite <= 0) {
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		MHVTL_DBG(1, "Write failure, pos: %" PRId64 ": %m",
-						h.curr_blk);
+		MHVTL_DBG(1, "Write failure, pos: %" PRId64 ": %s",
+						h.curr_blk,
+						strerror(errno));
 		return nwrite;
 	}
 	memcpy(&c_pos, &h, sizeof(h)); // Update where we think we are..
@@ -1152,7 +1154,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 		if (c_pos.curr_blk == lseek64(datafile, 0, SEEK_CUR)) {
 			nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
 			if (nread == 0) {	// Error
-				MHVTL_DBG(1, "%m");
+				MHVTL_DBG(1, "%s", strerror(errno));
 				mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,
 								sam_stat);
 				return 0;
@@ -1177,7 +1179,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 			return nread;
 		} else if (nread < 0) {	/* Error */
-			MHVTL_DBG(1, "%m");
+			MHVTL_DBG(1, "%s", strerror(errno));
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
@@ -1362,7 +1364,8 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 	// now write the block of data..
 	nwrite = write(datafile, dest_buf, dest_len);
 	if (nwrite <= 0) {
-		MHVTL_DBG(1, "%m: failed to write %ld bytes", dest_len);
+		MHVTL_DBG(1, "%s: failed to write %ld bytes",
+				strerror(errno), dest_len);
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 	} else if (nwrite != dest_len) {
 		MHVTL_DBG(1, "Did not write all data");
@@ -1395,7 +1398,8 @@ static int rawRewind(uint8_t *sam_stat)
 	// Start at beginning of datafile..
 	retval = lseek64(datafile, 0L, SEEK_SET);
 	if (retval < 0) {
-		MHVTL_DBG(1, "Can't seek to beginning of file: %m");
+		MHVTL_DBG(1, "Can't seek to beginning of file: %s",
+					strerror(errno));
 		val = 1;
 	}
 
@@ -1405,7 +1409,7 @@ static int rawRewind(uint8_t *sam_stat)
 	 */
 	retval = read(datafile, &c_pos, sizeof(c_pos));
 	if (retval != sizeof(c_pos)) {
-		MHVTL_DBG(1, "Can't read header: %m");
+		MHVTL_DBG(1, "Can't read header: %s", strerror(errno));
 		val = 1;
 	}
 
@@ -2765,20 +2769,23 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 	sprintf(currentMedia, "%s/%s", MHVTL_HOME_PATH, PCL);
 	MHVTL_DBG(2, "Opening file/media %s", currentMedia);
 	if ((datafile = open(currentMedia, O_RDWR|O_LARGEFILE)) == -1) {
-		MHVTL_DBG(1, "%s: open file/media failed, %m", currentMedia);
+		MHVTL_DBG(1, "%s: open file/media failed, %s", currentMedia,
+					strerror(errno));
 		return 0;	// Unsuccessful load
 	}
 
 	// Now read in header information from just opened datafile
 	nread = read(datafile, &c_pos, sizeof(c_pos));
 	if (nread < 0) {
-		MHVTL_DBG(1, "%s: %m",
-			 "Error reading header in datafile, load failed");
+		MHVTL_DBG(1, "%s: %s",
+			 "Error reading header in datafile, load failed",
+				strerror(errno));
 		close(datafile);
 		return 0;	// Unsuccessful load
 	} else if (nread < sizeof(c_pos)) {	// Did not read anything...
-		MHVTL_DBG(1, "%s: %m",
-				 "Error: Not a tape format, load failed");
+		MHVTL_DBG(1, "%s: %s",
+				 "Error: Not a tape format, load failed",
+				strerror(errno));
 		/* TapeAlert - Unsupported format */
 		fg = 0x800;
 		close(datafile);
@@ -3303,8 +3310,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %m",
-								config);
+		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %s",
+						config, strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -3632,7 +3639,8 @@ int main(int argc, char *argv[])
 
 	if ((cdev = chrdev_open(name, minor)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
-				"Could not open /dev/%s%d: %m", name, minor);
+				"Could not open /dev/%s%d: %s", name, minor,
+						strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}
@@ -3694,7 +3702,8 @@ int main(int argc, char *argv[])
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
 				syslog(LOG_DAEMON|LOG_ERR,
-					"Can not open message queue: %m");
+					"Can not open message queue: %s",
+							strerror(errno));
 			}
 		}
 		if (exit_status)	/* Received a 'exit' message */
@@ -3702,7 +3711,8 @@ int main(int argc, char *argv[])
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
 		if (ret < 0) {
 			MHVTL_DBG(2,
-				"ioctl(VTL_POLL_AND_GET_HEADER: %d : %m", ret);
+				"ioctl(VTL_POLL_AND_GET_HEADER: %d : %s", ret,
+							strerror(errno));
 		} else {
 			if (debug)
 				printf("ioctl(VX_TAPE_POLL_STATUS) "

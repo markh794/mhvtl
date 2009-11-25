@@ -61,7 +61,8 @@ int send_msg(char *cmd, int q_id)
 	strncpy(s_entry.mtext, cmd, len);
 
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
-		syslog(LOG_DAEMON|LOG_ERR, "msgsnd failed: %m");
+		syslog(LOG_DAEMON|LOG_ERR, "msgsnd failed: %s",
+					strerror(errno));
 		return (-1);
 	} else {
 		return (0);
@@ -595,7 +596,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 		pseudo = open(pseudo_filename, O_WRONLY);
 		if (pseudo < 0) {
 			sprintf(errmsg, "Could not open %s", pseudo_filename);
-			MHVTL_DBG(1, "%s : %m", errmsg);
+			MHVTL_DBG(1, "%s : %s", errmsg, strerror(errno));
 			perror("Cound not open 'add_lu'");
 			exit(-1);
 		}
@@ -607,7 +608,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 		break;
 	case -1:
 		perror("Failed to fork()");
-		MHVTL_DBG(1, "Fail to fork() %m");
+		MHVTL_DBG(1, "Fail to fork() %s", strerror(errno));
 		return 0;
 		break;
 	default:
@@ -675,12 +676,14 @@ int oom_adjust(void)
 	sprintf(path, "/proc/%d/oom_adj", getpid());
 	fd = open(path, O_WRONLY);
 	if (fd < 0) {
-		MHVTL_DBG(3, "Can't open oom-killer's pardon %s, %m", path);
+		MHVTL_DBG(3, "Can't open oom-killer's pardon %s, %s",
+				path, strerror(errno));
 		return 0;
 	}
 	ret = write(fd, "-17\n", 4);
 	if (ret < 0) {
-		MHVTL_DBG(3, "Can't adjust oom-killer's pardon %s, %m", path);
+		MHVTL_DBG(3, "Can't adjust oom-killer's pardon %s, %s",
+				path, strerror(errno));
 	}
 	close(fd);
 	return 0;
