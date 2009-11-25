@@ -1,6 +1,8 @@
 /* $Id: vtl_common.h,v 1.1 2009/01/26 14:29:18 $ */
 
 /* Common stuff for kernel and usr programs */
+#ifndef VTL_COMMON_H
+#define VTL_COMMON_H
 
 #define SENSE_BUF_SIZE	38
 /* Max cdb size */
@@ -53,3 +55,6 @@ struct vtl_ctl {
 #if !defined(TRUE)
   #define TRUE 1
 #endif
+
+#endif /* VTL_COMMON_H */
+
