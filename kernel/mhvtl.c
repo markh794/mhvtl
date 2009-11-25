@@ -344,7 +344,8 @@ static void mhvtl_prt_cdb(char *f, uint64_t sn, uint8_t *s, int l)
 	int i;
 
 	if (sn)
-		printk("mhvtl: %s (%lld) %d bytes\n", f, sn, l);
+		printk("mhvtl: %s (%llu) %d bytes\n",
+			 f, (long long unsigned)sn, l);
 	else
 		printk("mhvtl: %s (%d bytes)\n", f, l);
 

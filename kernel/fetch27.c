@@ -49,8 +49,9 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 			printk(KERN_DEBUG "mhvtl: %s(): "
 				"copy_%s_user() failed, rem %ld, buf 0x%llx, "
 				"miter.addr 0x%llx, len %d\n",
-				__func__, (to_buffer) ? "to" : "from", rem,
-				(unsigned long long int)(buf + offset),
+				__func__, (to_buffer) ? "to" : "from",
+				(long)rem,
+				(long long unsigned int)(buf + offset),
 				(long long unsigned int)miter.addr, len);
 
 		offset += len;
