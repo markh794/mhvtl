@@ -1,4 +1,6 @@
 
+#ifndef _SECURITY_PROTOCOL_H_
+#define _SECURITY_PROTOCOL_H_
 /*
  * Security Protocol IN/OUT
  *
@@ -43,3 +45,4 @@ struct sa {
 };
 
 
+#endif /*  _SECURITY_PROTOCOL_H_ */

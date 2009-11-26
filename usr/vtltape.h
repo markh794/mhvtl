@@ -21,6 +21,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef _VTLTAPE_H_
+#define _VTLTAPE_H_
+
 /* Block type definitations */
 #define B_DATA		11
 #define B_FILEMARK	 3
@@ -89,3 +92,5 @@ struct blk_header {
 #define medium_density_code_10kA	0x4a
 #define medium_density_code_10kB	0x4b
 #define medium_density_code_600		0x40
+
+#endif /* _VTLTAPE_H_ */

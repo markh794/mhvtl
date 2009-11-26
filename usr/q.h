@@ -23,6 +23,9 @@
  * Message key - My 2 seconds of fame :-)
  */
 
+#ifndef _Q_H_
+#define _Q_H_
+
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -46,3 +49,4 @@ int send_msg(char *cmd, int q_id);
 int serve(void);
 int init_queue(void);
 
+#endif /* _Q_H_ */

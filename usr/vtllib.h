@@ -20,6 +20,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#ifndef _VTLLIB_H_
+#define _VTLLIB_H_
+
 #ifndef Solaris
   #include <endian.h>
   #include <byteswap.h>
@@ -451,3 +454,4 @@ void get_sn_inquiry(int, struct vtl_sn_inquiry *);
 int check_for_running_daemons(int minor);
 
 void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);
+#endif /*  _VTLLIB_H_ */
