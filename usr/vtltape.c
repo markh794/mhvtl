@@ -1318,12 +1318,13 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 	}
 
 	if (*compressionFactor) {
-		int dest_sz;
-
-		dest_sz = compressBound(src_sz);
-		dest_buf = malloc(dest_sz);
+		dest_len = compressBound(src_sz);
+		MHVTL_DBG(2, "Compression: src sz %d, dest sz %ld, "
+				"Compression factor %d",
+				src_sz, (unsigned long)dest_len, *compressionFactor);
+		dest_buf = malloc(dest_len);
 		if (!dest_buf) {
-			MHVTL_DBG(1, "malloc(%d) failed", dest_sz);
+			MHVTL_DBG(1, "malloc(%d) failed", (int)dest_len);
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 			return 0;
 		}
@@ -1339,7 +1340,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 				break;
 			case Z_BUF_ERROR:
 				MHVTL_DBG(1, "Not enough memory in destination "
-						" buf to compress data");
+						"buf to compress data");
 				break;
 			case Z_DATA_ERROR:
 				MHVTL_DBG(1, "Input data corrupt / incomplete");
@@ -1365,7 +1366,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 	nwrite = write(datafile, dest_buf, dest_len);
 	if (nwrite <= 0) {
 		MHVTL_DBG(1, "%s: failed to write %ld bytes",
-				strerror(errno), dest_len);
+				strerror(errno), (unsigned long)dest_len);
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 	} else if (nwrite != dest_len) {
 		MHVTL_DBG(1, "Did not write all data");
