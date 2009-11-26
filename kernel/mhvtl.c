@@ -96,8 +96,10 @@ struct scatterlist;
 /* SCSI command definations not covered in default scsi.h */
 #define WRITE_ATTRIBUTE 0x8d
 #define SECURITY_PROTOCOL_OUT 0xb5
-#define VTL_VERSION "0.16.3"
-static const char *vtl_version_date = "20090827-0";
+#ifndef MHVTL_VERSION
+#define MHVTL_VERSION "0.16.9"
+#endif
+static const char *vtl_version_date = "20091129-0";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -1067,7 +1069,7 @@ module_param_named(add_lu, vtl_add_lu, int, 0);
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert + Mark Harvey");
 MODULE_DESCRIPTION("SCSI vtl adapter driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(VTL_VERSION);
+MODULE_VERSION(MHVTL_VERSION);
 
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def: fixed)");
 MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
@@ -1084,7 +1086,7 @@ static char vtl_parm_info[256];
 static const char *vtl_info(struct Scsi_Host *shp)
 {
 	sprintf(vtl_parm_info, "mhvtl: version %s [%s], "
-		"opts=0x%x", VTL_VERSION,
+		"opts=0x%x", MHVTL_VERSION,
 		vtl_version_date, vtl_opts);
 	return vtl_parm_info;
 }
@@ -1124,7 +1126,7 @@ static int vtl_proc_info(struct Scsi_Host *host, char *buffer,
 		"scsi_level=%d\n"
 		"number of aborts=%d, device_reset=%d, bus_resets=%d, "
 		"host_resets=%d \n",
-		VTL_VERSION, vtl_version_date, vtl_num_tgts,
+		MHVTL_VERSION, vtl_version_date, vtl_num_tgts,
 		vtl_opts, vtl_every_nth,
 		vtl_cmnd_count,
 		vtl_max_luns,
