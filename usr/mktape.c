@@ -126,11 +126,6 @@ static unsigned int set_params(struct MAM *mam, char *density)
 	return 0;
 }
 
-/* SLES 9 problem when this struct inside main()
- * glibc memory corruption messages.
- */
-struct MAM mam;
-
 int main(int argc, char *argv[])
 {
 	int file;
@@ -143,6 +138,7 @@ int main(int argc, char *argv[])
 	char *mediaCapacity = NULL;
 	char *density = NULL;
 	uint32_t size;
+	struct MAM mam;
 
 	if (argc < 2) {
 		usage(progname);
