@@ -750,3 +750,14 @@ int check_for_running_daemons(int minor)
 	return 0;
 }
 
+/* Abort if string length > len */
+void checkstrlen(char *s, int len)
+{
+	if (strlen(s) > len) {
+		MHVTL_DBG(1, "String %s is > %d... Aborting", s, len);
+		printf("String %s longer than %d chars\n", s, len);
+		printf("Please fix config file\n");
+		abort();
+	}
+}
+

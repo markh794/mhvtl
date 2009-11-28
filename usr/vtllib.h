@@ -454,4 +454,6 @@ void get_sn_inquiry(int, struct vtl_sn_inquiry *);
 int check_for_running_daemons(int minor);
 
 void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);
+void checkstrlen(char *s, int len);
+
 #endif /*  _VTLLIB_H_ */

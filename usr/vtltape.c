@@ -3347,14 +3347,22 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			unsigned int c, d, e, f, g, h, j, k;
 			int i;
 
-			if (sscanf(b, " Unit serial number: %s", s))
+			if (sscanf(b, " Unit serial number: %s", s)) {
+				checkstrlen(s, SCSI_SN_LEN);
 				sprintf(lu->lu_serial_no, "%-10s", s);
-			if (sscanf(b, " Product identification: %s", s))
+			}
+			if (sscanf(b, " Product identification: %s", s)) {
+				checkstrlen(s, PRODUCT_ID_LEN);
 				sprintf(lu->product_id, "%-16s", s);
-			if (sscanf(b, " Product revision level: %s", s))
+			}
+			if (sscanf(b, " Product revision level: %s", s)) {
+				checkstrlen(s, PRODUCT_REV_LEN);
 				sprintf(lu->product_rev, "%-4s", s);
-			if (sscanf(b, " Vendor identification: %s", s))
+			}
+			if (sscanf(b, " Vendor identification: %s", s)) {
+				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
+			}
 			if (sscanf(b, " Compression: %d", &i)) {
 				if ((i > 0) && (i < 10))
 					enable_compression(i);

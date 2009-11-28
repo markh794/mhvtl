@@ -54,6 +54,7 @@ VERSION: 3
 #
 # Each 'record' is sperated by one (or more) blank lines.
 # Each 'record' starts at column 1
+# Serial num max len is 10.
 
 Library: 0 CHANNEL: 0 TARGET: 0 LUN: 0
  Vendor identification: SPECTRA

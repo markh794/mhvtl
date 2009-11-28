@@ -1659,10 +1659,9 @@ return 0;
 
 static void init_mode_pages(struct mode *m)
 {
-
 	struct mode *mp;
 
-	// Disconnect-Reconnect: SPC-3 7.4.8
+	/* Disconnect-Reconnect: SPC-3 7.4.8 */
 	mp = alloc_mode_page(2, m, 16);
 	if (mp) {
 		mp->pcodePointer[2] = 50;	// Buffer full ratio
@@ -2187,14 +2186,22 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			unsigned int c, d, e, f, g, h, j, k;
 			int i;
 
-			if (sscanf(b, " Unit serial number: %s", s))
+			if (sscanf(b, " Unit serial number: %s", s)) {
+				checkstrlen(s, SCSI_SN_LEN);
 				sprintf(lu->lu_serial_no, "%-10s", s);
-			if (sscanf(b, " Product identification: %s", s))
+			}
+			if (sscanf(b, " Product identification: %s", s)) {
+				checkstrlen(s, PRODUCT_ID_LEN);
 				sprintf(lu->product_id, "%-16s", s);
-			if (sscanf(b, " Product revision level: %s", s))
+			}
+			if (sscanf(b, " Product revision level: %s", s)) {
+				checkstrlen(s, PRODUCT_REV_LEN);
 				sprintf(lu->product_rev, "%-4s", s);
-			if (sscanf(b, " Vendor identification: %s", s))
+			}
+			if (sscanf(b, " Vendor identification: %s", s)) {
+				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
+			}
 			if (sscanf(b, " Density : %s", s)) {
 				lu->supported_density[n] =
 					(uint8_t)strtol(s, NULL, 16);
@@ -2239,7 +2246,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	} else
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				(int)strlen(lu->lu_serial_no),
-				(int)__LINE__);
+				__LINE__);
 
 	/* Device Identification */
 	pg = 0x83 & 0x7f;
@@ -2258,9 +2265,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		lu_vpd[pg]->vpd_update = update_vpd_b1;
 		lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
 	} else
-		syslog(LOG_DAEMON|LOG_WARNING,
-			"%s: could not malloc(%d) line %d",
-				__func__, VPD_B1_SZ, __LINE__);
+		MHVTL_DBG(1, "Could not malloc(%d) line %d",
+				VPD_B1_SZ, __LINE__);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
 	pg = 0xB2 & 0x7f;
@@ -2399,14 +2405,14 @@ int main(int argc, char *argv[])
 	memset(sense, 0, sizeof(sense));
 	reset = 1;
 
-	init_slot_info();
-	init_mode_pages(sm);
-	initTapeAlert(&TapeAlert);
 	/* One of these days, we will support multiple libraries */
 	if (!init_lu(&lunit, q_priority - LIBRARY_Q, &ctl)) {
 		printf("Can not find entry for '%d' in config file\n", minor);
 		exit(1);
 	}
+	init_slot_info();
+	init_mode_pages(sm);
+	initTapeAlert(&TapeAlert);
 
 	child_cleanup = add_lu((q_priority == LIBRARY_Q) ? 0 : q_priority, &ctl);
 	if (! child_cleanup) {
