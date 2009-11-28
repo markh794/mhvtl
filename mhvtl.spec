@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.16
-Release: 8
-Source: mhvtl-2009-11-10.tgz
+Release: 9
+Source: mhvtl-2009-11-29.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -162,6 +162,19 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Sun Nov 29 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.9
+- Check string length in device.conf and abort if too long.
+- Compression now working.
+  Set up via MODE SELECT op code.
+  Set default compression in device.conf 'Compression: X'
+   Where 0 is off, 9 is max.
+- Defaults with SPECTRA/PYTHON library
+- Fix kernel module compile on 2.6.31+ (Ubuntu 9.10)
+- Fix kernel silent data corruption
+- Set kernel ENABLE_CLUSTERING to enable > 512k blocks on x86_64
+- SPIN/SPOUT: Return correct list of supported pages.
+
 * Tue Nov 10 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.8
 - Reworked READ ELEMENT STATUS (Thanks to Kevan Rehm)
