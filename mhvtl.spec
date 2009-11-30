@@ -2,7 +2,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
 Release: 1
-Source: mhvtl-2009-12-02.tgz
+Source: mhvtl-2009-12-15.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -170,10 +170,26 @@ fi
         Where factor : 1 Fastest compression -> 9 Best compression
              enabled : 0 => Compression disabled, 1 => Compression enabled
 
-* Wed Dec 02 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Tue Dec 15 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.1
 - Fix data silent data corruption.
-- Bumped max number of LUNs
+- Add tests for media/drive type. i.e. Only allow LTO media in LTO drives.
+- Increased max number of LUNs from 7 to 32
+- Changed ' Compression: factor X enabled Y' to same as 0.16 branch.
+
+* Tue Dec 01 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.0
+- Kevan Rehm reworked media format. The 'old' format suffered from performance
+  problems. The larger the defined tape capacity, the longer it took to
+  seek/position due to the sequential walk of header structures.
+
+  The new tape format consists of three files.
+   .data - Data file.
+   .indx - Arrary of one header structure per written tape block or filemark.
+   .meta - MAM, followed by meta header structure, followed by variable length
+           of filemark block numbers
+   Each Physical Cartridge Label (PCL) is located under its own directory
+   MHVTL_HOME_PATH/<PCL>/
 
 * Sun Nov 29 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.9
