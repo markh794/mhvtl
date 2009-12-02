@@ -35,7 +35,7 @@
 #define QKEY	(key_t)0x4d61726b	// Identifying key for queue
 #define QPERM	0660		// Permissions for queue
 #define MAXOBN	1024		// Maxmum lenght of message for Q.
-#define MAXPRIOR 32		// max priority level
+#define MAXPRIOR 256		// max priority level
 #define LIBRARY_Q 32768		// Priority for Library controller
 
 struct q_entry {
