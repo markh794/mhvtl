@@ -117,7 +117,7 @@ static const char vtl_driver_name[] = "mhvtl";
 /* Default values for driver parameters */
 #define DEF_NUM_HOST   1
 #define DEF_NUM_TGTS   0
-#define DEF_MAX_LUNS   7
+#define DEF_MAX_LUNS   32
 #define DEF_DELAY   1
 #define DEF_EVERY_NTH   0
 #define DEF_NUM_PARTS   0
