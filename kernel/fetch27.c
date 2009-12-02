@@ -40,7 +40,7 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		len = min(miter.length, buflen - offset);
 
 		if (to_buffer)
-			rem = copy_to_user(buf, miter.addr, len);
+			rem = copy_to_user(buf + offset, miter.addr, len);
 		else {
 			rem = copy_from_user(miter.addr, buf + offset, len);
 			flush_kernel_dcache_page(miter.page);
