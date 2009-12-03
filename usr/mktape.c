@@ -41,6 +41,8 @@ void usage(char *progname) {
 	printf("                   SDLT2\n");
 	printf("                   SDLT3\n");
 	printf("                   SDLT4\n");
+	printf("                   T10KA\n");
+	printf("                   T10KB\n");
 	printf("                   AIT1\n");
 	printf("                   AIT2\n");
 	printf("                   AIT3\n");
@@ -175,6 +177,22 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		memcpy(&mam->media_info.description, "SDLT II media", 13);
 		memcpy(&mam->media_info.density_name, "SDLT600", 7);
 		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+		mam->media_info.bits_per_mm = htonl(233000);
+	}
+	if (!(strncmp(density, "T10KA", 5))) {
+		mam->MediumDensityCode = 0x4a;
+		mam->MediaType = Media_T10KA;
+		memcpy(&mam->media_info.description, "STK T10KA media", 15);
+		memcpy(&mam->media_info.density_name, "T10000A", 7);
+		memcpy(&mam->AssigningOrganization_1, "STK", 3);
+		mam->media_info.bits_per_mm = htonl(233000);
+	}
+	if (!(strncmp(density, "T10KB", 5))) {
+		mam->MediumDensityCode = 0x4b;
+		mam->MediaType = Media_T10KB;
+		memcpy(&mam->media_info.description, "STK T10Kb media", 15);
+		memcpy(&mam->media_info.density_name, "T10000B", 7);
+		memcpy(&mam->AssigningOrganization_1, "STK", 3);
 		mam->media_info.bits_per_mm = htonl(233000);
 	}
 

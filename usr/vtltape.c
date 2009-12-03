@@ -3004,18 +3004,22 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 			goto mismatchmedia;
 		}
 		break;
+	case Media_T10KA:
+	case Media_T10KB:
+		MHVTL_DBG(1, "T10000A media");
+		switch (lunit.drive_type) {
+		case drive_10K_A:
+		case drive_10K_B:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
+		default:
+			goto mismatchmedia;
+		}
+		break;
 	default:
 		Media_Type = Media_UNKNOWN;
-		MHVTL_DBG(1, "unknown media");
-		break;
-	}
-
-	MediaWriteProtect = MEDIA_WRITABLE;
-
-	switch (lunit.drive_type) {
-	case drive_LTO1:
-		if (Media_Type != Media_LTO1)
-			goto mismatchmedia;
+		MediaWriteProtect = MEDIA_WRITABLE;
+		MHVTL_DBG(1, "Unknown media, Defaulting to writable");
 		break;
 	}
 
