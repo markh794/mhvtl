@@ -146,32 +146,36 @@ static unsigned int set_params(struct MAM *mam, char *density)
 		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
 	}
 	if (!(strncmp(density, "SDLT1", 5))) {
-		mam->MediumDensityCode = 0x0;
+		mam->MediumDensityCode = 0x48;
 		mam->MediaType = Media_SDLT;
-		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.description, "SDLT I media", 12);
 		memcpy(&mam->media_info.density_name, "SDLT-1", 6);
 		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+		mam->media_info.bits_per_mm = htonl(133000);
 	}
 	if (!(strncmp(density, "SDLT2", 5))) {
-		mam->MediumDensityCode = 0x0;
+		mam->MediumDensityCode = 0x48;
 		mam->MediaType = Media_SDLT220;
-		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.description, "SDLT I media", 12);
 		memcpy(&mam->media_info.density_name, "SDLT220", 7);
 		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+		mam->media_info.bits_per_mm = htonl(133000);
 	}
 	if (!(strncmp(density, "SDLT3", 5))) {
-		mam->MediumDensityCode = 0x0;
+		mam->MediumDensityCode = 0x49;
 		mam->MediaType = Media_SDLT320;
-		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.description, "SDLT I media", 12);
 		memcpy(&mam->media_info.density_name, "SDLT320", 7);
 		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+		mam->media_info.bits_per_mm = htonl(190000);
 	}
 	if (!(strncmp(density, "SDLT4", 5))) {
-		mam->MediumDensityCode = 0x0;
+		mam->MediumDensityCode = 0x4a;
 		mam->MediaType = Media_SDLT600;
-		memcpy(&mam->media_info.description, "SDLT media", 10);
+		memcpy(&mam->media_info.description, "SDLT II media", 13);
 		memcpy(&mam->media_info.density_name, "SDLT600", 7);
 		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+		mam->media_info.bits_per_mm = htonl(233000);
 	}
 
 	return 0;
