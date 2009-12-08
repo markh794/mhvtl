@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Designed to be called from vtl rc script
+# Designed to be called from mhvtl rc script
 #
 # * Copyright (C) 2005 Mark Harvey markh794@gmail.com
 # *                                mark_harvey@symantec.com
