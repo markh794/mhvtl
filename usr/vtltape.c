@@ -3486,7 +3486,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				sprintf(lu->vendor_id, "%-8s", s);
 			}
 			if (sscanf(b, " Compression: %d", &i)) {
-				if ((i > 0) && (i < 10))
+				if ((i > Z_NO_COMPRESSION)
+						&& (i <= Z_BEST_COMPRESSION))
 					enable_compression(i);
 				else
 					disable_compression();
