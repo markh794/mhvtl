@@ -614,7 +614,7 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 		return 1;
 	}
 
-	sprintf(cmd, "lload %s", dest->slot->barcode);
+	sprintf(cmd, "lload %s", src->barcode);
 	/* Remove traling spaces */
 	for (x = 6; x < 16; x++)
 		if (cmd[x] == ' ') {
@@ -627,7 +627,7 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 
 	send_msg(cmd, dest->slot->slot_location);
 
-	if (check_tape_load(dest->slot->barcode)) {
+	if (check_tape_load(src->barcode)) {
 		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return 1;
 	}
