@@ -55,6 +55,11 @@ VERSION: 3
 # Each 'record' is sperated by one (or more) blank lines.
 # Each 'record' starts at column 1
 # Serial num max len is 10.
+# Compression: factor <value> enabled [0|1]
+#     Where <value> is zlib compression factor 1 = Fastest compression
+#                                              9 = Best compression
+#         enabled 1 - Compression is enabled,
+#         enabled 0 - Compression is disabled
 
 Library: 0 CHANNEL: 0 TARGET: 0 LUN: 0
  Vendor identification: SPECTRA
@@ -69,7 +74,7 @@ Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
  Product revision level: 5500
  Unit serial number: XYZZY_A1
  NAA: 11:22:33:44:ab:cd:ef:01
- Compression: 1
+ Compression: factor 1 enabled 1
  VPD: b0 04 00 02 01 00
 
 Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
@@ -78,7 +83,7 @@ Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
  Product revision level: 5500
  Unit serial number: XYZZY_A2
  NAA: 11:22:33:44:ab:cd:ef:02
- Compression: 1
+ Compression: factor 1 enabled 1
  VPD: b0 04 00 02 01 00
 
 Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
@@ -87,7 +92,7 @@ Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
  Product revision level: 5500
  Unit serial number: XYZZY_A3
  NAA: 11:22:33:44:ab:cd:ef:03
- Compression: 1
+ Compression: factor 1 enabled 1
  VPD: b0 04 00 02 01 00
 
 Drive: 4 CHANNEL: 0 TARGET: 4 LUN: 0
@@ -96,7 +101,7 @@ Drive: 4 CHANNEL: 0 TARGET: 4 LUN: 0
  Product revision level: 5500
  Unit serial number: XYZZY_A4
  NAA: 11:22:33:44:ab:cd:ef:04
- Compression: 1
+ Compression: factor 1 enabled 1
  VPD: b0 04 00 02 01 00
 
 VTL_CONF

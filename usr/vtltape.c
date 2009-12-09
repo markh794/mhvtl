@@ -127,7 +127,7 @@ static int OK_to_write = 1;	// True if in correct position to start writing
 static uint8_t *compressionFactor = NULL;
 
 /* Default value read from config file */
-static int configCompressionFactor = 0;
+static int configCompressionFactor = Z_BEST_SPEED;
 
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
@@ -742,6 +742,9 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 return(REPORT_DENSITY_LEN);
 }
 
+/* If lvl is passed, save this value as configured value,
+ * otherwise use 'configCompressionFactor'
+ */
 static void enable_compression(int lvl)
 {
 	struct mode *m;
@@ -3489,7 +3492,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
 			}
-			if (sscanf(b, " Compression: %d", &i)) {
+			if (sscanf(b, " Compression: factor %d enabled %d",
+							&i, &j)) {
+				if (j)
+					enable_compression(i);
+				else
+					disable_compression();
+				MHVTL_DBG(1, "%s compression : %d",
+					(j) ? "Enabling" : "Disabling", i);
+			} else if (sscanf(b, " Compression: %d", &i)) {
 				if ((i > Z_NO_COMPRESSION)
 						&& (i <= Z_BEST_COMPRESSION))
 					enable_compression(i);
@@ -3497,17 +3508,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 					disable_compression();
 				MHVTL_DBG(1, "Setting compression to %d", i);
 			}
-/* FIXME: Change to use 'Media rw:' & 'Media ro' */
-/*
-			if (sscanf(b, " Density : %s", s)) {
-				lu->supported_density[n] =
-					(uint8_t)strtol(s, NULL, 16);
-				MHVTL_DBG(2, "Supported density: 0x%x (%d)",
-						lu->supported_density[n],
-						lu->supported_density[n]);
-				n++;
-			}
-*/
 			i = sscanf(b,
 				" NAA: %x:%x:%x:%x:%x:%x:%x:%x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
