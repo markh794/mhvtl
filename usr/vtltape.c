@@ -742,16 +742,10 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 return(REPORT_DENSITY_LEN);
 }
 
-/* If lvl is passed, save this value as configured value,
- * otherwise use 'configCompressionFactor'
- */
-static void enable_compression(int lvl)
+static void enable_compression(void)
 {
 	struct mode *m;
 	uint8_t *p;
-
-	if (lvl)
-		configCompressionFactor = lvl;
 
 	/* Find pointer to Data Compression mode Page */
 	m = find_pcode(0x0f, sm);
@@ -840,14 +834,14 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		switch (buf[pgoff + 0]) {
 		case 0x0f:
 			if (buf[pgoff + 2] & 0x80) /* DCE bit set */
-				enable_compression(0);
+				enable_compression();
 			else
 				disable_compression();
 			break;
 
 		case 0x10:
 			if (buf[pgoff + 14]) /* Select Data Compression Alg */
-				enable_compression(0);
+				enable_compression();
 			else
 				disable_compression();
 			break;
@@ -3223,7 +3217,7 @@ static void init_mode_pages(struct mode *m)
 		/* Enable EOD & Sync at early warning */
 		mp->pcodePointer[10] = 0x18;
 		/* Select Data Compression */
-		mp->pcodePointer[14] = Z_BEST_SPEED;
+		mp->pcodePointer[14] = configCompressionFactor;
 		/* WTRE (WORM handling) */
 		mp->pcodePointer[15] = 0x80;
 
@@ -3494,19 +3488,24 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			}
 			if (sscanf(b, " Compression: factor %d enabled %d",
 							&i, &j)) {
+				configCompressionFactor = i;
 				if (j)
-					enable_compression(i);
+					enable_compression();
 				else
 					disable_compression();
 				MHVTL_DBG(1, "%s compression : %d",
 					(j) ? "Enabling" : "Disabling", i);
 			} else if (sscanf(b, " Compression: %d", &i)) {
 				if ((i > Z_NO_COMPRESSION)
-						&& (i <= Z_BEST_COMPRESSION))
-					enable_compression(i);
-				else
+						&& (i <= Z_BEST_COMPRESSION)) {
+					configCompressionFactor = i;
+					enable_compression();
+					MHVTL_DBG(1, "Setting compression %d",
+								i);
+				} else {
 					disable_compression();
-				MHVTL_DBG(1, "Setting compression to %d", i);
+					MHVTL_DBG(1, "No compression");
+				}
 			}
 			i = sscanf(b,
 				" NAA: %x:%x:%x:%x:%x:%x:%x:%x",
