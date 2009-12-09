@@ -690,6 +690,7 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 {
 	uint8_t *buf = dbuf_p->data;
 	int len = dbuf_p->sz;
+	uint64_t max_cap;
 
 	// Zero out buf
 	memset(buf, 0, len);
@@ -705,20 +706,23 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 	buf[7] = 0;
 
 
-	// Bits per mm (only 24bits in len MS Byte should be 0).
-	put_unaligned_be32(mam.media_info.bits_per_mm, &buf[8]);
-
-	// Media Width (tenths of mm)
-	put_unaligned_be32(mam.MediumWidth, &buf[12]);
-
-	// Tracks
-	put_unaligned_be16(mam.MediumLength, &buf[14]);
-
-	// Capacity
-	put_unaligned_be32(mam.max_capacity, &buf[16]);
 
 	// Assigning Oranization (8 chars long)
 	if (tapeLoaded == TAPE_LOADED) {
+		max_cap = ntohll(mam.max_capacity);
+
+		/* Bits per mm (only 24bits in len MS Byte should be 0). */
+		put_unaligned_be32(mam.media_info.bits_per_mm, &buf[8]);
+
+		/* Media Width (tenths of mm) */
+		put_unaligned_be32(mam.MediumWidth, &buf[12]);
+
+		/* Tracks */
+		put_unaligned_be16(mam.MediumLength, &buf[14]);
+
+		/* Capacity */
+		put_unaligned_be32(max_cap, &buf[16]);
+
 		snprintf((char *)&buf[20], 8, "%-8s",
 					mam.AssigningOrganization_1);
 		// Density Name (8 chars long)
@@ -728,11 +732,11 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 		snprintf((char *)&buf[36], 18, "%-18s",
 					mam.media_info.description);
 	} else {
-		snprintf((char *)&buf[20], 8, "%-8s", "LTO-CVE");
+		snprintf((char *)&buf[20], 8, "%-8s", "unknown");
 		// Density Name (8 chars long)
-		snprintf((char *)&buf[28], 8, "%-8s", "U-18");
+		snprintf((char *)&buf[28], 8, "%-8s", "mhvtl");
 		// Description (18 chars long)
-		snprintf((char *)&buf[36], 18, "%-18s", "Ultrium 1/8T");
+		snprintf((char *)&buf[36], 18, "%-18s", "Virtual Media");
 	}
 
 return(REPORT_DENSITY_LEN);
