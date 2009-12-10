@@ -18,10 +18,9 @@
 #include "vtltape.h"
 #include "vtllib.h"
 
-#ifndef Solaris
-  loff_t lseek64(int, loff_t, int);
-#endif
+/* The following variables are needed for the MHVTL_DBG() macro to work. */
 
+char vtl_driver_name[] = "mktape";
 int verbose = 0;
 int debug = 0;
 
@@ -49,151 +48,151 @@ void usage(char *progname) {
 	printf("                   AIT4\n\n");
 }
 
-static unsigned int set_params(struct MAM *mam, char *density)
+static unsigned int set_params(struct MAM *mamp, char *density)
 {
-	mam->MediaType = Media_undefined;
+	mamp->MediaType = Media_undefined;
 	if (!(strncmp(density, "LTO1", 4))) {
-		mam->MediumDensityCode = medium_density_code_lto1;
-		mam->MediaType = Media_LTO1;
-		mam->MediumLength = htonl(384);	// 384 tracks
-		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "Ultrium 1/8T", 12);
-		memcpy(&mam->media_info.density_name, "U-18  ", 6);
-		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
-		mam->media_info.bits_per_mm = htonl(4880);
+		mamp->MediumDensityCode = medium_density_code_lto1;
+		mamp->MediaType = Media_LTO1;
+		mamp->MediumLength = htonl(384);	// 384 tracks
+		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "Ultrium 1/8T", 12);
+		memcpy(&mamp->media_info.density_name, "U-18  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		mamp->media_info.bits_per_mm = htonl(4880);
 	}
 	if (!(strncmp(density, "LTO2", 4))) {
-		mam->MediumDensityCode = medium_density_code_lto2;
-		mam->MediaType = Media_LTO2;
-		mam->MediumLength = htonl(512);	// 512 tracks
-		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "Ultrium 2/8T", 12);
-		memcpy(&mam->media_info.density_name, "U-28  ", 6);
-		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
-		mam->media_info.bits_per_mm = htonl(7398);
+		mamp->MediumDensityCode = medium_density_code_lto2;
+		mamp->MediaType = Media_LTO2;
+		mamp->MediumLength = htonl(512);	// 512 tracks
+		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "Ultrium 2/8T", 12);
+		memcpy(&mamp->media_info.density_name, "U-28  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		mamp->media_info.bits_per_mm = htonl(7398);
 	}
 	if (!(strncmp(density, "LTO3", 4))) {
-		mam->MediumDensityCode = medium_density_code_lto3;
-		mam->MediaType = Media_LTO3;
-		mam->MediumLength = htonl(704);	// 704 tracks
-		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "Ultrium 3/8T", 12);
-		memcpy(&mam->media_info.density_name, "U-316 ", 6);
-		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
-		mam->media_info.bits_per_mm = htonl(9638);
+		mamp->MediumDensityCode = medium_density_code_lto3;
+		mamp->MediaType = Media_LTO3;
+		mamp->MediumLength = htonl(704);	// 704 tracks
+		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "Ultrium 3/8T", 12);
+		memcpy(&mamp->media_info.density_name, "U-316 ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		mamp->media_info.bits_per_mm = htonl(9638);
 	}
 	if (!(strncmp(density, "LTO4", 4))) {
-		mam->MediumDensityCode = medium_density_code_lto4;
-		mam->MediaType = Media_LTO4;
-		mam->MediumLength = htonl(896);	// 896 tracks
-		mam->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "Ultrium 4/8T", 12);
-		memcpy(&mam->media_info.density_name, "U-416  ", 6);
-		memcpy(&mam->AssigningOrganization_1, "LTO-CVE", 7);
-		mam->media_info.bits_per_mm = htonl(12725);
+		mamp->MediumDensityCode = medium_density_code_lto4;
+		mamp->MediaType = Media_LTO4;
+		mamp->MediumLength = htonl(896);	// 896 tracks
+		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "Ultrium 4/8T", 12);
+		memcpy(&mamp->media_info.density_name, "U-416  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		mamp->media_info.bits_per_mm = htonl(12725);
 	}
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
 	if (!(strncmp(density, "AIT1", 4))) {
-		mam->MediumDensityCode = 0x30;
-		mam->MediaType = Media_AIT1;
-		mam->MediumLength = htonl(384);	// 384 tracks
-		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "AdvIntelligentTape1", 20);
-		memcpy(&mam->media_info.density_name, "AIT-1 ", 6);
-		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
-		mam->media_info.bits_per_mm = htonl(0x11d7);
+		mamp->MediumDensityCode = 0x30;
+		mamp->MediaType = Media_AIT1;
+		mamp->MediumLength = htonl(384);	// 384 tracks
+		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "AdvIntelligentTape1", 20);
+		memcpy(&mamp->media_info.density_name, "AIT-1 ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
+		mamp->media_info.bits_per_mm = htonl(0x11d7);
 	}
 	if (!(strncmp(density, "AIT2", 4))) {
-		mam->MediumDensityCode = 0x31;
-		mam->MediaType = Media_AIT2;
-		mam->MediumLength = htonl(384);	// 384 tracks
-		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "AdvIntelligentTape2", 20);
-		memcpy(&mam->media_info.density_name, "AIT-2  ", 6);
-		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
-		mam->media_info.bits_per_mm = htonl(0x17d6);
+		mamp->MediumDensityCode = 0x31;
+		mamp->MediaType = Media_AIT2;
+		mamp->MediumLength = htonl(384);	// 384 tracks
+		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "AdvIntelligentTape2", 20);
+		memcpy(&mamp->media_info.density_name, "AIT-2  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
+		mamp->media_info.bits_per_mm = htonl(0x17d6);
 	}
 	if (!(strncmp(density, "AIT3", 4))) {
-		mam->MediumDensityCode = 0x32;
-		mam->MediaType = Media_AIT3;
-		mam->MediumLength = htonl(384);	// 384 tracks
-		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "AdvIntelligentTape3", 20);
-		memcpy(&mam->media_info.density_name, "AIT-3  ", 6);
-		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
-		mam->media_info.bits_per_mm = htonl(0x17d6);
+		mamp->MediumDensityCode = 0x32;
+		mamp->MediaType = Media_AIT3;
+		mamp->MediumLength = htonl(384);	// 384 tracks
+		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "AdvIntelligentTape3", 20);
+		memcpy(&mamp->media_info.density_name, "AIT-3  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
+		mamp->media_info.bits_per_mm = htonl(0x17d6);
 	}
 	if (!(strncmp(density, "AIT4", 4))) {
-		mam->MediumDensityCode = 0x33;
-		mam->MediaType = Media_AIT4;
-		mam->MediumLength = htonl(384);	// 384 tracks
-		mam->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mam->media_info.description, "AdvIntelligentTape4", 20);
-		memcpy(&mam->media_info.density_name, "AIT-4  ", 6);
-		memcpy(&mam->AssigningOrganization_1, "SONY", 4);
-		mam->media_info.bits_per_mm = htonl(0x17d6);
+		mamp->MediumDensityCode = 0x33;
+		mamp->MediaType = Media_AIT4;
+		mamp->MediumLength = htonl(384);	// 384 tracks
+		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "AdvIntelligentTape4", 20);
+		memcpy(&mamp->media_info.density_name, "AIT-4  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
+		mamp->media_info.bits_per_mm = htonl(0x17d6);
 	}
 	if (!(strncmp(density, "DLT3", 4))) {
-		mam->MediumDensityCode = 0x0;
-		mam->MediaType = Media_DLT3;
-		memcpy(&mam->media_info.description, "DLT4000 media", 13);
-		memcpy(&mam->media_info.density_name, "DLT-III", 7);
-		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+		mamp->MediumDensityCode = 0x0;
+		mamp->MediaType = Media_DLT3;
+		memcpy(&mamp->media_info.description, "DLT4000 media", 13);
+		memcpy(&mamp->media_info.density_name, "DLT-III", 7);
+		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 	}
 	if (!(strncmp(density, "DLT4", 4))) {
-		mam->MediumDensityCode = 0x0;
-		mam->MediaType = Media_DLT4;
-		memcpy(&mam->media_info.description, "DLT7000 media", 13);
-		memcpy(&mam->media_info.density_name, "DLT-IV", 6);
-		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
+		mamp->MediumDensityCode = 0x0;
+		mamp->MediaType = Media_DLT4;
+		memcpy(&mamp->media_info.description, "DLT7000 media", 13);
+		memcpy(&mamp->media_info.density_name, "DLT-IV", 6);
+		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 	}
 	if (!(strncmp(density, "SDLT1", 5))) {
-		mam->MediumDensityCode = 0x48;
-		mam->MediaType = Media_SDLT;
-		memcpy(&mam->media_info.description, "SDLT I media", 12);
-		memcpy(&mam->media_info.density_name, "SDLT-1", 6);
-		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
-		mam->media_info.bits_per_mm = htonl(133000);
+		mamp->MediumDensityCode = 0x48;
+		mamp->MediaType = Media_SDLT;
+		memcpy(&mamp->media_info.description, "SDLT I media", 12);
+		memcpy(&mamp->media_info.density_name, "SDLT-1", 6);
+		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
+		mamp->media_info.bits_per_mm = htonl(133000);
 	}
 	if (!(strncmp(density, "SDLT2", 5))) {
-		mam->MediumDensityCode = 0x48;
-		mam->MediaType = Media_SDLT220;
-		memcpy(&mam->media_info.description, "SDLT I media", 12);
-		memcpy(&mam->media_info.density_name, "SDLT220", 7);
-		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
-		mam->media_info.bits_per_mm = htonl(133000);
+		mamp->MediumDensityCode = 0x48;
+		mamp->MediaType = Media_SDLT220;
+		memcpy(&mamp->media_info.description, "SDLT I media", 12);
+		memcpy(&mamp->media_info.density_name, "SDLT220", 7);
+		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
+		mamp->media_info.bits_per_mm = htonl(133000);
 	}
 	if (!(strncmp(density, "SDLT3", 5))) {
-		mam->MediumDensityCode = 0x49;
-		mam->MediaType = Media_SDLT320;
-		memcpy(&mam->media_info.description, "SDLT I media", 12);
-		memcpy(&mam->media_info.density_name, "SDLT320", 7);
-		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
-		mam->media_info.bits_per_mm = htonl(190000);
+		mamp->MediumDensityCode = 0x49;
+		mamp->MediaType = Media_SDLT320;
+		memcpy(&mamp->media_info.description, "SDLT I media", 12);
+		memcpy(&mamp->media_info.density_name, "SDLT320", 7);
+		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
+		mamp->media_info.bits_per_mm = htonl(190000);
 	}
 	if (!(strncmp(density, "SDLT4", 5))) {
-		mam->MediumDensityCode = 0x4a;
-		mam->MediaType = Media_SDLT600;
-		memcpy(&mam->media_info.description, "SDLT II media", 13);
-		memcpy(&mam->media_info.density_name, "SDLT600", 7);
-		memcpy(&mam->AssigningOrganization_1, "QUANTUM", 7);
-		mam->media_info.bits_per_mm = htonl(233000);
+		mamp->MediumDensityCode = 0x4a;
+		mamp->MediaType = Media_SDLT600;
+		memcpy(&mamp->media_info.description, "SDLT II media", 13);
+		memcpy(&mamp->media_info.density_name, "SDLT600", 7);
+		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
+		mamp->media_info.bits_per_mm = htonl(233000);
 	}
 	if (!(strncmp(density, "T10KA", 5))) {
-		mam->MediumDensityCode = 0x4a;
-		mam->MediaType = Media_T10KA;
-		memcpy(&mam->media_info.description, "STK T10KA media", 15);
-		memcpy(&mam->media_info.density_name, "T10000A", 7);
-		memcpy(&mam->AssigningOrganization_1, "STK", 3);
-		mam->media_info.bits_per_mm = htonl(233000);
+		mamp->MediumDensityCode = 0x4a;
+		mamp->MediaType = Media_T10KA;
+		memcpy(&mamp->media_info.description, "STK T10KA media", 15);
+		memcpy(&mamp->media_info.density_name, "T10000A", 7);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		mamp->media_info.bits_per_mm = htonl(233000);
 	}
 	if (!(strncmp(density, "T10KB", 5))) {
-		mam->MediumDensityCode = 0x4b;
-		mam->MediaType = Media_T10KB;
-		memcpy(&mam->media_info.description, "STK T10Kb media", 15);
-		memcpy(&mam->media_info.density_name, "T10000B", 7);
-		memcpy(&mam->AssigningOrganization_1, "STK", 3);
-		mam->media_info.bits_per_mm = htonl(233000);
+		mamp->MediumDensityCode = 0x4b;
+		mamp->MediaType = Media_T10KB;
+		memcpy(&mamp->media_info.description, "STK T10Kb media", 15);
+		memcpy(&mamp->media_info.density_name, "T10000B", 7);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		mamp->media_info.bits_per_mm = htonl(233000);
 	}
 
 	return 0;
@@ -201,17 +200,14 @@ static unsigned int set_params(struct MAM *mam, char *density)
 
 int main(int argc, char *argv[])
 {
-	int file;
-	struct blk_header h;
-	uint8_t currentMedia[1024];
-	long nwrite;
+	unsigned char sam_stat;
 	char *progname = argv[0];
 	char *pcl = NULL;
 	char *mediaType = NULL;
 	char *mediaCapacity = NULL;
 	char *density = NULL;
-	uint32_t size;
-	struct MAM mam;
+	uint64_t size;
+	struct stat statb;
 
 	if (sizeof(struct MAM) != 1024) {
 		printf("Structure of MAM incorrect size: %d\n",
@@ -286,16 +282,21 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	sscanf(mediaCapacity, "%d", &size);
+	sscanf(mediaCapacity, "%" PRId64, &size);
 	if (size == 0)
 		size = 8000;
 
-	h.blk_type = B_BOT;
-	h.blk_number = 0;
-	h.blk_size = size;
-	h.curr_blk = 0;
-	h.prev_blk = 0;
-	h.next_blk = sizeof(mam) + sizeof(h);
+	/* Verify that the MHVTL home directory exists. */
+
+	if (stat(MHVTL_HOME_PATH, &statb) < 0 && errno == ENOENT) {
+		if (mkdir(MHVTL_HOME_PATH, 0770) < 0) {
+			printf("Cannot create PCL %s, directory " MHVTL_HOME_PATH
+				" does not exist and cannot be created\n", pcl);
+			exit(1);
+		}
+	}
+
+	/* Initialize the contents of the MAM to be used for the new PCL. */
 
 	memset((uint8_t *)&mam, 0, sizeof(mam));
 
@@ -305,7 +306,7 @@ int main(int argc, char *argv[])
 
 	mam.MAMSpaceRemaining = htonll(sizeof(mam.pad));
 	memcpy(&mam.MediumManufacturer, "VERITAS ", 8);
-	memcpy(&mam.ApplicationVendor, "vtl-0.16", 8);
+	memcpy(&mam.ApplicationVendor, "vtl-0.18", 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (! strncmp("clean", mediaType, 5)) {
@@ -322,37 +323,7 @@ int main(int argc, char *argv[])
 	sprintf((char *)mam.MediumManufactureDate, "%d", (int)time(NULL));
 	sprintf((char *)mam.Barcode, "%-31s", pcl);
 
-	sprintf((char *)currentMedia, "%s/%s", MHVTL_HOME_PATH, pcl);
-	syslog(LOG_DAEMON|LOG_INFO, "%s being created", currentMedia);
-	file = creat((char *)currentMedia,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
-	if (file == -1) {
-		perror("Failed creating file");
-		exit(2);
-	}
-	nwrite = write(file, &h, sizeof(h));
-	if (nwrite <= 0) {
-		perror("Unable to write header");
-		exit(1);
-	}
-	nwrite = write(file, &mam, sizeof(mam));
-	if (nwrite <= 0) {
-		perror("Unable to write MAM");
-		exit(1);
-	}
-	memset(&h, 0, sizeof(h));
-	h.blk_type = B_EOD;
-	h.blk_number = 0;
-	h.curr_blk = lseek64(file, 0, SEEK_CUR);
-	h.prev_blk = 0;
-	h.next_blk = h.curr_blk;
+	/* Create the PCL using the initialized MAM. */
 
-	nwrite = write(file, &h, sizeof(h));
-	if (nwrite <= 0) {
-		perror("Unable to write header");
-		exit(1);
-	}
-	close(file);
-
-exit(0);
+	exit(create_tape(pcl, &mam, &sam_stat));
 }
-

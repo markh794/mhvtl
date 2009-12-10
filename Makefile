@@ -21,7 +21,7 @@ PREFIX ?= /usr
 USR = vtl
 SUSER ?=root
 GROUP = vtl
-MHVTL_HOME_PATH ?= /opt/vtl
+MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 
 export PREFIX DESTDIR

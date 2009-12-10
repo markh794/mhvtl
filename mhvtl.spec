@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
-Version: 0.16
-Release: 11
-Source: mhvtl-2009-12-16.tgz
+Version: 0.18
+Release: 1
+Source: mhvtl-2009-12-02.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -171,7 +171,7 @@ fi
              enabled : 0 => Compression disabled, 1 => Compression enabled
 
 * Wed Dec 02 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.10
+- Bumped version to 0.18.1
 - Fix data silent data corruption.
 - Bumped max number of LUNs
 

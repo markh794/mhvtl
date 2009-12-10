@@ -21,6 +21,12 @@ REL = $(shell grep Release ../mhvtl.spec|awk '{print $$2}')
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
+ifeq ($(shell uname -m),x86_64)
+LIBDIR=lib64
+else
+LIBDIR=lib
+endif
+
 PREFIX ?= /usr
 USR = vtl
 SUSER = root
@@ -55,27 +61,31 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h \
 	$(CC) $(CFLAGS) -c -fpic spc.c
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o
 
-dump_messageQ:	dump_messageQ.c q.h
-	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.c
+dump_messageQ:	dump_messageQ.o q.o q.h
+	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.o q.o
 
 vtlcmd:	vtlcmd.o q.o q.h
 	$(CC) $(CFLAGS) -o vtlcmd q.o vtlcmd.o
 
-dump_tape:	dump_tape.o vtltape.h scsi.h ../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o dump_tape dump_tape.o
+dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
+		../kernel/vtl_common.h
+	$(CC) $(CFLAGS) -o dump_tape dump_tape.o vtlcart.o -L. -lvtlscsi
 
-mktape:	mktape.o vtltape.h q.h vtllib.h ../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o mktape mktape.o
+mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h q.h vtllib.h \
+		../kernel/vtl_common.h
+	$(CC) $(CFLAGS) -o mktape mktape.o vtlcart.o -L. -lvtlscsi
 
-vtllibrary:	vtllibrary.o q.h q.o vtllib.o vtllib.h scsi.h \
+vtllibrary:	vtllibrary.o q.o q.h vtllib.h scsi.h \
+		libvtlscsi.so \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o q.o -L. -lvtlscsi
 
-vtltape:	vtltape.o q.h q.o vtllib.o vtllib.h vtltape.h scsi.h \
+vtltape:	vtltape.o vtlcart.o q.o q.h vtllib.h vtltape.h scsi.h \
+		libvtlscsi.so \
 		be_byteshift.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtltape vtltape.o q.o -L. -lz -lvtlscsi
+	$(CC) $(CFLAGS) -o vtltape vtltape.o vtlcart.o q.o -lz -L. -lvtlscsi
 
 make_vtl_media:	make_vtl_media.in
 	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1
@@ -86,9 +96,7 @@ clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
 		vtllib.o libvtlscsi.so z.o vtllibrary.o \
-		make_vtl_media \
-		make_vtl_media.1 \
-		spc.o
+		vtlcart.o spc.o
 
 tags:
 	etags *.c *.h ../kernel/*.h
@@ -101,7 +109,7 @@ distclean:
 	dump_messageQ.o dump_messageQ \
 	core mktape mktape.o \
 	vtllib.o libvtlscsi.so \
-	spc.o \
+	vtlcart.o spc.o \
 	z.o z \
 	TAGS \
 	make_vtl_media \
@@ -116,6 +124,7 @@ install:
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
 	install -o $(USR) -g $(GROUP) -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
 	install -o $(USR) -g $(GROUP) -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
+	install -o $(USR) -g $(GROUP) -m 750 dump_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_devices $(DESTDIR)$(PREFIX)/bin/

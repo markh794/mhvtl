@@ -29,16 +29,6 @@
 #include <syslog.h>
 #include "q.h"
 
-int
-init_queue(void) {
-int	queue_id;
-
-/* Attempt to create or open message queue */
-if ( (queue_id = msgget(QKEY, IPC_CREAT | QPERM)) == -1)
-	perror("msgget failed");
-
-return (queue_id);
-}
 
 int
 main(int argc, char **argv) {

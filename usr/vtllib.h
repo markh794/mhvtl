@@ -27,6 +27,10 @@
   #include <endian.h>
   #include <byteswap.h>
 #endif
+#include <inttypes.h>
+#include <sys/types.h>
+
+#include "vtl_common.h"
 
 #ifndef MHVTL_CONFIG_PATH
 #define MHVTL_CONFIG_PATH "/etc/mhvtl"
@@ -65,6 +69,8 @@
 
 #else
 extern char vtl_driver_name[];
+extern int debug;
+extern int verbose;
 
 #define MHVTL_DBG_NO_FUNC(lvl, format, arg...) {		\
 	if (debug)						\
@@ -474,8 +480,14 @@ struct lu_phy_attr {
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 };
 
-int send_msg(char *, int);
+extern uint8_t sense[SENSE_BUF_SIZE];
+
+/* Used by Mode Sense - if set, return block descriptor */
+extern uint8_t blockDescriptorBlock[8];
+
+
 int check_reset(uint8_t *);
+void reset_device(void);
 void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
 void resp_allow_prevent_removal(uint8_t *, uint8_t *);
 void resp_log_select(uint8_t *, uint8_t *);
@@ -484,7 +496,6 @@ int resp_read_position(loff_t, uint8_t *, uint8_t *);
 int resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
 int resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
-//int32_t resp_write_attribute(uint8_t *, uint64_t, struct MAM *, uint8_t *);
 struct mode *find_pcode(uint8_t, struct mode *);
 struct mode *alloc_mode_page(uint8_t, struct mode *, int);
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);

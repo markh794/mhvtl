@@ -34,138 +34,32 @@
 #include "vtllib.h"
 #include "vtltape.h"
 
-#ifndef Solaris
-  loff_t lseek64(int, loff_t, int);
-#endif
+/* The following variables are needed for the MHVTL_DBG() macro to work. */
 
-int verbose;
-int debug;
+char vtl_driver_name[] = "dump_tape";
+int verbose = 0;
+int debug = 0;
 
-struct blk_header current_pos;
 
-void print_current_header(void)
+struct blk_header *c_pos;
+
+static void print_mam_info(void)
 {
-	printf("Hdr:");
-	switch(current_pos.blk_type) {
-	case B_DATA:
-		if ((current_pos.blk_flags &&
-			(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
-				(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
-			printf(" Encrypt/Comp data");
-		else if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
-			printf("    Encrypted data");
-		else if (current_pos.blk_flags & BLKHDR_FLG_COMPRESSED)
-			printf("   Compressed data");
-			else
-		printf("             data");
-
-		printf("(%02x), sz %6d/%-6d, Blk No.: %" PRId64 ", prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			current_pos.blk_type,
-			current_pos.disk_blk_size,
-			current_pos.blk_size,
-			(loff_t)current_pos.blk_number,
-			current_pos.prev_blk,
-			current_pos.curr_blk,
-			current_pos.next_blk);
-		if (current_pos.blk_flags & BLKHDR_FLG_ENCRYPTED)
-			printf("   => Encr key length %d, ukad length %d, "
-				"akad length %d\n",
-				current_pos.encryption_key_length,
-				current_pos.encryption_ukad_length,
-				current_pos.encryption_akad_length);
-		break;
-	case B_FILEMARK:
-		printf("          Filemark");
-		printf("(%02x), sz %13d, Blk No.: %" PRId64 ", prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			current_pos.blk_type,
-			current_pos.blk_size,
-			(loff_t)current_pos.blk_number,
-			current_pos.prev_blk,
-			current_pos.curr_blk,
-			current_pos.next_blk);
-		break;
-	case B_BOT:
-		printf(" Beginning of Tape");
-		printf("(%02x), Capacity %6dMbytes"
-			", prev %" PRId64
-			", cur %" PRId64
-			", next %" PRId64 "\n",
-			current_pos.blk_type,
-			current_pos.blk_size,
-			current_pos.prev_blk,
-			current_pos.curr_blk,
-			current_pos.next_blk);
-		return;
-		break;
-	case B_BOT_V1:
-		printf("   Old format Tape");
-		break;
-	case B_EOD:
-		printf("       End of Data");
-		printf("(%02x), sz %13d, Blk No.: %" PRId64 ", prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			current_pos.blk_type,
-			current_pos.blk_size,
-			(loff_t)current_pos.blk_number,
-			current_pos.prev_blk,
-			current_pos.curr_blk,
-			current_pos.next_blk);
-		break;
-	case B_NOOP:
-		printf("      No Operation");
-		break;
-	default:
-		printf("      Unknown type");
-		printf("(%02x), %6d/%-6d, Blk No.: %" PRId64 ", prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			current_pos.blk_type,
-			current_pos.disk_blk_size,
-			current_pos.blk_size,
-			(loff_t)current_pos.blk_number,
-			current_pos.prev_blk,
-			current_pos.curr_blk,
-			current_pos.next_blk);
-		break;
-	}
-}
-
-int skip_to_next_header(int datafile, char * sense_flg) {
-	loff_t nread;
-	loff_t pos;
-
-	pos = lseek64(datafile, current_pos.next_blk, SEEK_SET);
-	if (pos != current_pos.next_blk) {
-		printf("Error reading datafile while forward SPACEing!!\n");
-		return -1;
-	}
-	nread = read(datafile, &current_pos, sizeof(current_pos));
-	if (nread <= 0) {
-		printf("Error reading datafile while forward SPACEing!!\n");
-		return -1;
-	}
-	return 0;
-}
-
-static void print_mam(struct MAM *mam)
-{
-	printf("Media density code: 0x%02x\n", mam->MediumDensityCode);
-	printf("Media type code   : 0x%02x\n", mam->MediaType);
-	printf("Media description : %s\n", mam->media_info.description);
+	printf("Media density code: 0x%02x\n", mam.MediumDensityCode);
+	printf("Media type code   : 0x%02x\n", mam.MediaType);
+	printf("Media description : %s\n", mam.media_info.description);
+	printf("Tape Capacity     : %" PRId64 "\n", ntohll(mam.max_capacity));
 }
 
 
 int main(int argc, char *argv[])
 {
-	int ofp;
-	char *dataFile = MHVTL_HOME_PATH;
-	char sense_flg;
-	loff_t nread;
-	struct MAM mam;
+	uint8_t sam_stat;
+	char *pcl = NULL;
+	int rc;
 
 	if (argc < 2) {
-		printf("Usage: dump_file -f <media>\n");
+		printf("Usage: dump_file -f <pcl>\n");
 		exit(1);
 	}
 
@@ -178,8 +72,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'f':
 				if (argc > 1) {
-					printf("argv: -f %s\n", argv[1]);
-					dataFile = argv[1];
+					pcl = argv[1];
 				} else {
 					puts("    More args needed for -f\n");
 					exit(1);
@@ -194,23 +87,27 @@ int main(int argc, char *argv[])
 		argc--;
 	}
 
-	printf("Data file is : %s\n", dataFile);
-
-	if ((ofp = open(dataFile, O_RDWR|O_LARGEFILE)) == -1) {
-		fprintf(stderr, "%s, ", dataFile);
-		perror("Could not open");
+	if (pcl == NULL) {
+		printf("Usage: dump_file -f <pcl>\n");
 		exit(1);
 	}
-	nread = read(ofp, &current_pos, sizeof(current_pos));
-	print_current_header();
-	nread = read(ofp, &mam, sizeof(struct MAM));
-	print_mam(&mam);
-	while (current_pos.blk_type != B_EOD) {
-		nread = skip_to_next_header(ofp, &sense_flg);
-		if (nread == -1)
-			break;
-		else
-			print_current_header();
+
+	printf("PCL is : %s\n", pcl);
+
+	if ((rc = load_tape(pcl, &sam_stat)) != 0) {
+		fprintf(stderr, "PCL %s cannot be dumped, load_tape() returned %d\n",
+			pcl, rc);
+		exit(1);
 	}
-return (0);
+
+	print_mam_info();
+
+	while (c_pos->blk_type != B_EOD) {
+		print_raw_header();
+		position_blocks_forw(1, &sam_stat);
+	}
+	print_raw_header();
+	unload_tape(&sam_stat);
+
+	return (0);
 }

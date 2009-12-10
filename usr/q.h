@@ -43,7 +43,7 @@ struct q_entry {
 	char mtext[MAXOBN+1];
 };
 
-// void warn(char *);
+
 int enter(char *, int);
 int send_msg(char *cmd, int q_id);
 int serve(void);

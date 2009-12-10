@@ -28,6 +28,7 @@
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <err.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -35,7 +36,6 @@
 #include <inttypes.h>
 #include "be_byteshift.h"
 #include "scsi.h"
-#include "q.h"
 #include "vtl_common.h"
 #include "vtllib.h"
 
@@ -43,31 +43,10 @@
 	int ioctl(int, int, void *);
 #endif
 
-extern uint8_t blockDescriptorBlock[];
-extern int verbose;
-extern int debug;
+static int reset = 0;
 
-int send_msg(char *cmd, int q_id)
-{
-	int len, s_qid;
-	struct q_entry s_entry;
-	len = strlen(cmd);
-
-	s_qid = init_queue();
-	if (s_qid == -1)
-		return (-1);
-
-	s_entry.mtype = (long)q_id;
-	strncpy(s_entry.mtext, cmd, len);
-
-	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
-		syslog(LOG_DAEMON|LOG_ERR, "msgsnd failed: %s",
-					strerror(errno));
-		return (-1);
-	} else {
-		return (0);
-	}
-}
+uint8_t sense[SENSE_BUF_SIZE];
+uint8_t blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
 
 void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb)
 {
@@ -128,7 +107,6 @@ void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb)
  * Fills in a global array with current sense data
  * Sets 'sam status' to SAM_STAT_CHECK_CONDITION.
  */
-extern uint8_t sense[];
 
 void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 {
@@ -146,8 +124,6 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 				sense[2], sense[12], sense[13]);
 }
 
-extern int reset;
-
 int check_reset(uint8_t *sam_stat)
 {
 	int retval = reset;
@@ -157,6 +133,12 @@ int check_reset(uint8_t *sam_stat)
 		reset = 0;
 	}
 return(retval);
+}
+
+void
+reset_device(void)
+{
+	reset = 1;
 }
 
 /*

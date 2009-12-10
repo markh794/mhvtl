@@ -51,8 +51,12 @@ distclean:
 	rm -rf .tmp_versions
 
 install:
-	install -o root -g root -m 644 mhvtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/
-	depmod -ae
+	install -o root -g root -m 644 mhvtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/; \
+	depmod -ae; \
+	if [ -f "/etc/modprobe.d/unsupported-modules" ]; then \
+		sed -e 's/^allow_unsupported_modules 0/allow_unsupported_modules 1/' /etc/modprobe.d/unsupported-modules > /etc/new; \
+		/bin/mv /etc/new /etc/modprobe.d/unsupported-modules; \
+	fi
 
 install-bkup:
 	cp mhvtl.ko ~/mhvtl-`uname -r`_`uname -m`.ko

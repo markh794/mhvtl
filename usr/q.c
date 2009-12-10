@@ -46,7 +46,28 @@ int init_queue(void)
 	return (queue_id);
 }
 
-void proc_obj(struct q_entry *msg)
+int send_msg(char *cmd, int q_id)
+{
+	int len, s_qid;
+	struct q_entry s_entry;
+	len = strlen(cmd);
+
+	s_qid = init_queue();
+	if (s_qid == -1)
+		return (-1);
+
+	s_entry.mtype = (long)q_id;
+	strncpy(s_entry.mtext, cmd, len);
+
+	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
+		syslog(LOG_DAEMON|LOG_ERR, "msgsnd failed: %s", strerror(errno));
+		return (-1);
+	} else {
+		return (0);
+	}
+}
+
+static void proc_obj(struct q_entry *msg)
 {
 	printf("Priority: %ld name: %s\n", msg->mtype, msg->mtext);
 }
@@ -68,7 +89,8 @@ int enter(char *objname, int priority)
 	}
 
 	/* Initialize message queue as nessary */
-	if ( (s_qid = init_queue()) == -1)
+	s_qid = init_queue();
+	if (s_qid == -1)
 		return (-1);
 
 	/* Initialize s_entry */
@@ -90,7 +112,8 @@ int serve(void)
 	struct q_entry r_entry;
 
 	/* Initialise message queue as necessary */
-	if ((r_qid = init_queue()) == -1)
+	r_qid = init_queue();
+	if (r_qid == -1)
 		return (-1);
 
 	/* Get and process next message, waiting if necessary */

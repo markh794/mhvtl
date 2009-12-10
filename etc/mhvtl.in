@@ -252,13 +252,12 @@ case "$1" in
 	fi
 
 	chown -R $USER:$USER $MHVTL_CONFIG_PATH
-	chmod 770 /opt/vtl
 
 	# creating devices
 	make_vtl_devices $USER > /dev/null
 
 	# Now correct file permissions..
-	chown -R $USER:$USER /opt/vtl /dev/mhvtl[0-9]
+	chown -R $USER:$USER /dev/mhvtl[0-9]
 
 	# Build Library media
 	make_vtl_media $USER

@@ -80,10 +80,6 @@ static int num_map = 0x0020;
 #define START_STORAGE	0x0400
 static int num_storage = 0x0800;
 
-uint32_t SPR_Reservation_Generation;
-uint8_t SPR_Reservation_Type;
-uint64_t SPR_Reservation_Key;
-
 // Element type codes
 #define ANY			0
 #define MEDIUM_TRANSPORT	1
@@ -106,10 +102,7 @@ int verbose = 0;
 int debug = 0;
 static int libraryOnline = 1;		/* Default to Off-line */
 static int cap_closed = CAP_CLOSED;	/* CAP open/closed status */
-int reset = 1;				/* Poweron reset */
 static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
-
-uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
 
 struct lu_phy_attr lunit;
 
@@ -178,7 +171,6 @@ static struct mode sm[] = {
 	{0x00, 0x00, 0x00, NULL, }, // NULL terminator
 	};
 
-uint8_t blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0, };
 
 static void usage(char *progname)
 {
@@ -2434,7 +2426,7 @@ int main(int argc, char *argv[])
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
-	reset = 1;
+	reset_device();	/* power-on reset */
 
 	/* One of these days, we will support multiple libraries */
 	if (!init_lu(&lunit, q_priority - LIBRARY_Q, &ctl)) {
@@ -2490,10 +2482,10 @@ int main(int argc, char *argv[])
 
 	if ((cdev = chrdev_open(name, minor)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
-				"Could not open /dev/%s%d: %s", name, minor,
-					strerror(errno));
-		printf("Could not open /dev/%s%d: %s", name, minor,
-					strerror(errno));
+				"Could not open /dev/%s%d: %s",
+					name, minor, strerror(errno));
+		printf("Could not open /dev/%s%d: %s",
+					name, minor, strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}

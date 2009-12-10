@@ -46,18 +46,9 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-extern int verbose;
-extern int debug;
-extern int reset;
-
-extern uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
-extern uint8_t sense_flg;
-
-extern uint8_t blockDescriptorBlock[];
-
-extern uint32_t SPR_Reservation_Generation;
-extern uint8_t SPR_Reservation_Type;
-extern uint64_t SPR_Reservation_Key;
+uint32_t SPR_Reservation_Generation;
+uint8_t SPR_Reservation_Type;
+uint64_t SPR_Reservation_Key;
 
 struct vpd *alloc_vpd(uint16_t sz)
 {

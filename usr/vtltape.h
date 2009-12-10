@@ -24,11 +24,11 @@
 #ifndef _VTLTAPE_H_
 #define _VTLTAPE_H_
 
+#include "vtllib.h"
+
 /* Block type definitations */
 #define B_DATA		11
 #define B_FILEMARK	 3
-#define B_BOT_V1	 4	// Beginning of Tape TAPE_FMT_VERSION 1
-#define B_BOT		14	// Beginning of Tape TAPE_FMT_VERSION 2
 #define B_EOD		 5	// End of data
 #define B_NOOP		 8	// No Operation - fake it
 
@@ -37,6 +37,16 @@
 
 #define TAPE_FMT_VERSION	3
 
+struct	encryption {
+	uint32_t	key_length;
+	uint32_t	ukad_length;
+	uint32_t	akad_length;
+	uint32_t	pad;
+	uint8_t		key[32];
+	uint8_t		ukad[32];
+	uint8_t		akad[32];
+};
+
 /*
  * Header before each block of data in 'file'
  *
@@ -44,38 +54,27 @@
  *	blk_size	-> Uncompressed size of data block
  *		   (Specifies capacity of tape (used in BOT header) in Mbytes.
  *	disk_blk_size	-> Amount of space block takes up in 'file'
- *	prev_blk	-> Allow quick seek
- *	curr_blk	-> Allow quick seek
- *	next_blk	-> Allow quick seek
- * encryption_key_length   -> what length was the key used to 'encrypt' this block
- * encryption_ukad_length  -> what length was the ukad used to 'encrypt' this block
- * encryption_akad_length  -> what length was the akad used to 'encrypt' this block
- * encryption_key  -> what key was used to 'encrypt' this block
- * encryption_ukad -> what ukad was used to 'encrypt' this block
- * encryption_kkad -> what akad was used to 'encrypt' this block
+ * encryption.key_length   -> what length was the key used to 'encrypt' this block
+ * encryption.ukad_length  -> what length was the ukad used to 'encrypt' this block
+ * encryption.akad_length  -> what length was the akad used to 'encrypt' this block
+ * encryption.key  -> what key was used to 'encrypt' this block
+ * encryption.ukad -> what ukad was used to 'encrypt' this block
+ * encryption.kkad -> what akad was used to 'encrypt' this block
  */
+
 struct blk_header {
 	uint32_t	blk_type;
+	uint32_t	blk_flags;
+	uint32_t	blk_number;
 	uint32_t	blk_size;
 	uint32_t	disk_blk_size;
-	uint32_t	blk_flags;
-	loff_t		blk_number;
-	loff_t		prev_blk;
-	loff_t		curr_blk;
-	loff_t		next_blk;
-	uint32_t	unused;	/* Available */
-	uint32_t	encryption_key_length;
-	uint32_t	encryption_ukad_length;
-	uint32_t	encryption_akad_length;
-	uint8_t		encryption_key[32];
-	uint8_t		encryption_ukad[32];
-	uint8_t		encryption_akad[32];
+	uint32_t	pad;
+	struct encryption encryption;
+
 	/*
 	 * Add other things right here...
 	 * Be careful to keep data 64bit aligned
 	 */
-	/* Adjust pad to mantain a 512byte structure */
-	char		pad[352];
 };
 
 /* Default tape size specified in Mbytes */
@@ -92,5 +91,46 @@ struct blk_header {
 #define medium_density_code_10kA	0x4a
 #define medium_density_code_10kB	0x4b
 #define medium_density_code_600		0x4a
+
+/* Sense Data format bits & pieces */
+/* Incorrect Length Indicator */
+#define SD_VALID 0x80
+#define SD_FILEMARK 0x80
+#define SD_EOM 0x40
+#define SD_ILI 0x20
+
+/* The remainder of this file defines the interface between the tape drive
+   software and the implementation of a tape cartridge as one or more disk
+   files.
+*/
+
+extern struct MAM mam;
+extern struct blk_header *c_pos;
+extern int OK_to_write;
+
+int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat);
+
+int load_tape(const char *pcl, uint8_t *sam_stat);
+void unload_tape(uint8_t *sam_stat);
+
+int rewind_tape(uint8_t *sam_stat);
+int position_to_eod(uint8_t *sam_stat);
+int position_to_block(uint32_t blk_no, uint8_t *sam_stat);
+int position_blocks_forw(uint32_t count, uint8_t *sam_stat);
+int position_blocks_back(uint32_t count, uint8_t *sam_stat);
+int position_filemarks_forw(uint32_t count, uint8_t *sam_stat);
+int position_filemarks_back(uint32_t count, uint8_t *sam_stat);
+
+uint32_t read_tape_block(uint8_t *buf, uint32_t size, uint8_t *sam_stat);
+
+int write_filemarks(uint32_t count, uint8_t *sam_stat);
+int write_tape_block(const uint8_t *buf, uint32_t uncomp_size,
+	uint32_t comp_size, const struct encryption *cp, uint8_t *sam_stat);
+int format_tape(uint8_t *sam_stat);
+
+int rewriteMAM(uint8_t *sam_stat);
+uint64_t current_tape_offset(void);
+
+void print_raw_header(void);
 
 #endif /* _VTLTAPE_H_ */

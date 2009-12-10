@@ -74,22 +74,26 @@ char vtl_driver_name[] = "vtltape";
 
 /* Variables for simple, single initiator, SCSI Reservation system */
 static int I_am_SPC_2_Reserved;
-uint32_t SPR_Reservation_Generation;
-uint8_t SPR_Reservation_Type;
-uint64_t SPR_Reservation_Key;
 
 /* Variables for simple, logical only SCSI Encryption system */
 static uint32_t KEY_INSTANCE_COUNTER;
 static uint32_t DECRYPT_MODE;
 static uint32_t ENCRYPT_MODE;
-static uint32_t KEY_LENGTH;
-static uint32_t UKAD_LENGTH;
-static uint32_t AKAD_LENGTH;
-static uint8_t KEY[32];
-static uint8_t UKAD[32];
-static uint8_t AKAD[32];
+static struct encryption encryption;
+
+#define	UKAD_LENGTH	encryption.ukad_length
+#define	AKAD_LENGTH	encryption.akad_length
+#define	KEY_LENGTH	encryption.key_length
+#define	UKAD		encryption.ukad
+#define	AKAD		encryption.akad
+#define	KEY		encryption.key
 
 #include <zlib.h>
+
+/* Suppress Incorrect Length Indicator */
+#define SILI  0x2
+/* Fixed block format */
+#define FIXED 0x1
 
 #ifndef Solaris
   /* I'm sure there must be a header where lseek64() is defined */
@@ -97,31 +101,22 @@ static uint8_t AKAD[32];
   int ioctl(int, int, void *);
 #endif
 
-int send_msg(char *, int);
-
 int verbose = 0;
 int debug = 0;
-int reset = 1;		/* Tape drive has been 'reset' */
 
 #define TAPE_UNLOADED 0
 #define TAPE_LOADED 1
-#define TAPE_LOAD_BAD 2
+#define TAPE_LOAD_CORRUPT 2
+#define TAPE_LOAD_BAD 3
 
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
 
-static int bufsize = 1024 * 1024;
-static loff_t max_tape_capacity;	/* Max capacity of media */
+static int bufsize = 2 * 1024 * 1024;
 static int tapeLoaded = TAPE_UNLOADED;	/* Default to Off-line */
 static int inLibrary = 0;	/* Default to stand-alone drive */
-static int datafile;		/* Global file handle - This goes against the
-			grain, however the handle is passed to every function
-			anyway. */
-static char *currentMedia;	/* filename of 'datafile' */
 static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
-static uint8_t MediaType = 0;	/* 0 = Data, 1 WORM, 6 = Cleaning. */
 uint8_t MediaWriteProtect = MEDIA_WRITABLE;	/* True if virtual "write protect" switch is set */
-static int OK_to_write = 1;	// True if in correct position to start writing
 
 /* Pointer into Device config mode page */
 static uint8_t *compressionFactor = NULL;
@@ -133,11 +128,8 @@ static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
 static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
 
-uint8_t sense[SENSE_BUF_SIZE]; /* Request sense buffer */
-
 struct lu_phy_attr lunit;
 
-static struct MAM mam;
 
 uint8_t Media_Type;
 
@@ -284,7 +276,6 @@ static struct report_luns report_luns = {
  */
 
 // Used by Mode Sense - if set, return block descriptor
-uint8_t blockDescriptorBlock[8] = {0x40, 0, 0, 0, 0, 0, 0, 0, };
 
 static struct mode sm[] = {
 //	Page,  subpage, len, 'pointer to data struct'
@@ -300,17 +291,15 @@ static struct mode sm[] = {
 	{0x00, 0x00, 0x00, NULL, },	// NULL terminator
 	};
 
-//static loff_t	currentPosition = 0;
-static struct blk_header c_pos;
-
 static void usage(char *progname) {
-	printf("Usage: %s -q <Q number> [-d] [-v] [-f file]\n",
-						 progname);
-	printf("       Where file == data file\n");
+	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
+	printf("       Where:\n");
 	printf("              'q number' is the queue priority number\n");
 	printf("              'd' == debug\n");
 	printf("              'v' == verbose\n");
 }
+
+static void unloadTape(uint8_t *sam_stat);
 
 static void
 mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_valid)
@@ -326,254 +315,6 @@ mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_vali
 
 	/* Now fill in the datablock with number of bytes not read/written */
 	put_unaligned_be32(difference, &sense[3]);
-}
-
-static loff_t read_header(struct blk_header *h, int size, uint8_t *sam_stat)
-{
-	loff_t nread;
-
-	nread = read(datafile, h, size);
-	if (nread < 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-		nread = 0;
-	} else if (nread == 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
-		nread = 0;
-	}
-	return nread;
-}
-
-static loff_t position_to_curr_header(uint8_t *sam_stat)
-{
-	return (lseek64(datafile, c_pos.curr_blk, SEEK_SET));
-}
-
-static int skip_to_next_header(uint8_t *sam_stat)
-{
-	loff_t nread;
-
-	if (c_pos.blk_type == B_EOD) {
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
-		MHVTL_DBG(1, "End of data detected while forward SPACEing!!");
-		return -1;
-	}
-
-	if (c_pos.next_blk != lseek64(datafile, c_pos.next_blk, SEEK_SET)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
-		MHVTL_DBG(1, "Unable to seek to next block header");
-		return -1;
-	}
-	nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
-	if (nread == 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
-		MHVTL_DBG(1, "Unable to read next block header");
-		return -1;
-	}
-	if (nread == -1) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
-		MHVTL_DBG(1, "Unable to read next block header: %s",
-						strerror(errno));
-		return -1;
-	}
-	// Position to start of header (rewind over header)
-	if (c_pos.curr_blk != position_to_curr_header(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
-		MHVTL_DBG(1, "Error positing in datafile. Offset: %" PRId64,
-				c_pos.curr_blk);
-		return -1;
-	}
-	return 0;
-}
-
-static int skip_to_prev_header(uint8_t *sam_stat)
-{
-	loff_t nread;
-
-	// Position to previous header
-	MHVTL_DBG(3, "Positioning to c_pos.prev_blk: %" PRId64,
-				c_pos.prev_blk);
-	if (c_pos.prev_blk != lseek64(datafile, c_pos.prev_blk, SEEK_SET)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-		MHVTL_DBG(1, "Error position in datafile !!");
-		return -1;
-	}
-	// Read in header
-	MHVTL_DBG(3, "Reading in header: %d bytes", (int)sizeof(c_pos));
-
-	nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
-	if (nread == 0) {
-		MHVTL_DBG(1, "Error reading datafile while reverse SPACEing");
-		return -1;
-	}
-	if (c_pos.blk_type == B_BOT) {
-		MHVTL_DBG(3, "Found Beginning Of Tape, "
-				"Skipping to next header..");
-		skip_to_next_header(sam_stat);
-		mkSenseBuf(MEDIUM_ERROR, E_BOM, sam_stat);
-		MHVTL_DBG(3, "Found BOT!!");
-		return -1;
-	}
-
-	// Position to start of header (rewind over header)
-	if (c_pos.curr_blk != position_to_curr_header(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR,sam_stat);
-		MHVTL_DBG(1, "Error position in datafile !!");
-		return -1;
-	}
-	MHVTL_DBG(3, "Rewinding over header just read in: "
-			"curr_position: %" PRId64, c_pos.curr_blk);
-	return 0;
-}
-
-/*
- * Create & write a new block header
- */
-static int mkNewHeader(char type, int size, int comp_size, uint8_t *sam_stat)
-{
-	struct blk_header h;
-	loff_t nwrite;
-
-	memset(&h, 0, sizeof(h));
-
-	h.blk_type = type;	/* Header type */
-	h.blk_size = size;	/* Size of uncompressed data */
-	h.disk_blk_size = comp_size; /* For when I do compression.. */
-	h.curr_blk = lseek64(datafile, 0, SEEK_CUR); // Update current position
-	h.blk_number = c_pos.blk_number;
-
-	/* If we are writing a new EOD marker,
-	 *  - then set next pointer to itself
-	 * else
-	 *  - Set pointer to next header (header size + size of data)
-	 */
-	if (type == B_EOD)
-		h.next_blk = h.curr_blk;
-	else
-		h.next_blk = h.curr_blk + comp_size + sizeof(h);
-
-	if (h.curr_blk == c_pos.curr_blk) {
-	/* If current pos == last header read in we are about to overwrite the
-	 * current header block
-	 */
-		h.prev_blk = c_pos.prev_blk;
-		h.blk_number = c_pos.blk_number;
-	} else if (h.curr_blk == c_pos.next_blk) {
-	/* New header block at end of data file.. */
-		h.prev_blk = c_pos.curr_blk;
-		h.blk_number = c_pos.blk_number + 1;
-	} else {
-		MHVTL_DBG(1, "Position error blk No: %" PRId64
-			", Pos: %" PRId64
-			", Exp: %" PRId64,
-				h.blk_number, h.curr_blk, c_pos.curr_blk);
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
-		return 0;
-	}
-        /* handle encryption processing */
-	if ((type == B_DATA) && (ENCRYPT_MODE == 2)) {
-		int i;
-
-		h.blk_flags |= BLKHDR_FLG_ENCRYPTED;
-		h.encryption_ukad_length = UKAD_LENGTH;
-
-		for (i = 0; i < UKAD_LENGTH; ++i) {
-			h.encryption_ukad[i] = UKAD[i];
-		}
-
-		h.encryption_akad_length = AKAD_LENGTH;
-		for (i = 0; i < AKAD_LENGTH; ++i) {
-			h.encryption_akad[i] = AKAD[i];
-		}
-
-		h.encryption_key_length = KEY_LENGTH;
-		for (i = 0; i < KEY_LENGTH; ++i) {
-			h.encryption_key[i] = KEY[i];
-		}
-	}
-
-	if ((type == B_DATA) && *compressionFactor)
-		h.blk_flags |= BLKHDR_FLG_COMPRESSED;
-
-	nwrite = write(datafile, &h, sizeof(h));
-
-	/*
-	 * If write was successful, update c_pos with this header block.
-	 */
-	if (nwrite <= 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		MHVTL_DBG(1, "Write failure, pos: %" PRId64 ": %s",
-						h.curr_blk,
-						strerror(errno));
-		return nwrite;
-	}
-	memcpy(&c_pos, &h, sizeof(h)); // Update where we think we are..
-
-	return nwrite;
-}
-
-static int mkEODHeader(uint8_t *sam_stat)
-{
-	loff_t nwrite;
-
-	nwrite = mkNewHeader(B_EOD, 0, 0, sam_stat);
-	if (MediaType == MEDIA_TYPE_WORM)
-		OK_to_write = 1;
-
-	/* If we have just written a END OF DATA marker,
-	 * rewind to just before it. */
-	// Position to start of header (rewind over header)
-	if (c_pos.curr_blk != position_to_curr_header(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR,E_SEQUENTIAL_POSITION_ERR,sam_stat);
-		MHVTL_DBG(1, "Failed to write EOD header");
-		return -1;
-	}
-	return nwrite;
-}
-
-/*
- *
- */
-
-static int skip_prev_filemark(uint8_t *sam_stat)
-{
-
-	if (c_pos.blk_type == B_FILEMARK)
-		c_pos.blk_type = B_NOOP;
-	while (c_pos.blk_type != B_FILEMARK) {
-		if (c_pos.blk_type == B_BOT) {
-			mkSenseBuf(NO_SENSE, E_BOM, sam_stat);
-			MHVTL_DBG(2, "Found Beginning of tape");
-			return -1;
-		}
-		if (skip_to_prev_header(sam_stat))
-			return -1;
-	}
-	return 0;
-}
-
-/*
- *
- */
-static int skip_next_filemark(uint8_t *sam_stat)
-{
-	// While blk header is NOT a filemark, keep skipping to next header
-	while (c_pos.blk_type != B_FILEMARK) {
-		// END-OF-DATA -> Treat this as an error - return..
-		if (c_pos.blk_type == B_EOD) {
-			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
-			MHVTL_DBG(2, "%s", "Found end of media");
-			if (MediaType == MEDIA_TYPE_WORM)
-				OK_to_write = 1;
-			return -1;
-		}
-		if (skip_to_next_header(sam_stat))
-			return -1;	// On error
-	}
-	// Position to header AFTER the FILEMARK..
-	if (skip_to_next_header(sam_stat))
-		return -1;
-
-	return 0;
 }
 
 /***********************************************************************/
@@ -610,7 +351,7 @@ static int checkRestrictions(uint8_t *sam_stat)
 		break;
 	}
 
-	switch (MediaType) {
+	switch (mam.MediumType) {
 	case MEDIA_TYPE_CLEAN:
 		mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED, sam_stat);
 		MHVTL_DBG(2, "Can not write - Cleaning cart");
@@ -620,7 +361,7 @@ static int checkRestrictions(uint8_t *sam_stat)
 		/* If we are not at end of data for a write
 		 * and media is defined as WORM, fail...
 		 */
-		if (c_pos.blk_type == B_EOD)
+		if (c_pos->blk_type == B_EOD)
 			OK_to_write = 1;	// OK to append to end of 'tape'
 		if (!OK_to_write) {
 			MHVTL_DBG(1, "Failed attempt to overwrite WORM data");
@@ -944,9 +685,11 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		TapeCapacity.pcode_head.len = htons(sizeof(TapeCapacity) -
 					sizeof(TapeCapacity.pcode_head));
 		if (tapeLoaded == TAPE_LOADED) {
+			uint64_t max_cap = ntohll(mam.max_capacity);
+
 			TapeCapacity.value01 =
-				htonl(max_tape_capacity - c_pos.curr_blk);
-			TapeCapacity.value03 = htonl(max_tape_capacity);
+				htonl(mam.remaining_capacity);
+			TapeCapacity.value03 = htonll(max_cap);
 		} else {
 			TapeCapacity.value01 = 0;
 			TapeCapacity.value03 = 0;
@@ -1093,12 +836,14 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
-static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request_sz)
+static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 {
-	loff_t nread = 0;
-	uint8_t	*cbuf = NULL;
+	uint32_t disk_blk_size, blk_size;
 	uLongf uncompress_sz;
+	uint8_t	*cbuf, *c2buf;
 	int z;
+	uint32_t tgtsize, rc;
+	loff_t nread = 0;
 	uint32_t save_sense;
 
 	MHVTL_DBG(3, "Request to read: %d bytes", request_sz);
@@ -1109,127 +854,137 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 		return 0;
 	}
 
-	/* Read in block of data */
-	switch (c_pos.blk_type) {
-	case B_FILEMARK:
+	/* Handle the simple, non-data cases first. */
+
+	if (c_pos->blk_type == B_FILEMARK) {
 		MHVTL_DBG(1, "Expected to find hdr type: %d, found: %d",
-					B_DATA, c_pos.blk_type);
-		skip_to_next_header(sam_stat);
+					B_DATA, c_pos->blk_type);
+		position_blocks_forw(1, sam_stat);
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
 		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(save_sense, &sense[3]);
-		return nread;
-		break;
-	case B_EOD:
+		return 0;
+	}
+
+	if (c_pos->blk_type == B_EOD) {
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(save_sense, &sense[3]);
-		return nread;
-		break;
-	case B_BOT:
-		skip_to_next_header(sam_stat);
-		/* Re-exec function. */
-		return readBlock(cdev, buf, sam_stat, request_sz);
-		break;
-	case B_DATA:
-		/* If we are positioned at beginning of header, read it in. */
-		if (c_pos.curr_blk == lseek64(datafile, 0, SEEK_CUR)) {
-			nread = read_header(&c_pos, sizeof(c_pos), sam_stat);
-			if (nread == 0) {	// Error
-				MHVTL_DBG(1, "%s", strerror(errno));
-				mkSenseBuf(MEDIUM_ERROR,E_UNRECOVERED_READ,
-								sam_stat);
-				return 0;
-			}
-		}
+		return 0;
+	}
 
-		if (c_pos.blk_flags & BLKHDR_FLG_COMPRESSED) {
-			cbuf = malloc(compressBound(c_pos.blk_size));
-			if (!cbuf) {
-				MHVTL_DBG(1, "Out of memory");
-				mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC,
-								sam_stat);
-				return 0;
-			}
-			nread = read(datafile, cbuf, c_pos.disk_blk_size);
-		} else
-			nread = read(datafile, buf, c_pos.disk_blk_size);
+	if (c_pos->blk_type != B_DATA) {
+		MHVTL_DBG(1, "Unknown blk header at offset %u"
+				" - Abort read cmd", c_pos->blk_number);
+		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+		return 0;
+	}
 
-		if (nread == 0) {	/* End of data - no more to read */
-			MHVTL_DBG(1, "%s",
-				"End of data detected when reading from file");
-			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
-			return nread;
-		} else if (nread < 0) {	/* Error */
-			MHVTL_DBG(1, "%s", strerror(errno));
+	/* We have a data block to read.  Check if the target read buffer is
+	   smaller than the actual (uncompressed) block.
+	*/
+
+	tgtsize = request_sz < c_pos->blk_size ?  request_sz : c_pos->blk_size;
+
+	/* If the tape block is uncompressed, we can read the number of bytes
+	   we need directly into the scsi read buffer and we are done.
+	*/
+
+	if (!(c_pos->blk_flags & BLKHDR_FLG_COMPRESSED)) {
+		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize)
+		{
+			MHVTL_DBG(1, "read failed, %s", strerror(errno));
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
-		if (c_pos.blk_flags & BLKHDR_FLG_COMPRESSED) {
-			uncompress_sz = c_pos.blk_size;
+		if (tgtsize != request_sz)
+			mk_sense_short_block(request_sz, tgtsize, sam_stat);
+		return tgtsize;
+	}
 
-			z = uncompress((uint8_t *)buf, &uncompress_sz,
-					cbuf, nread);
-			nread = 0;
-			if (z != Z_OK)
-				mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC,
-							sam_stat);
-			switch (z) {
-			case Z_OK:
-				nread = uncompress_sz;
-				MHVTL_DBG(2, "Read %u (%u) bytes of compressed"
-					" data, have %u bytes for result",
-					(uint32_t)nread, c_pos.disk_blk_size,
-					c_pos.blk_size);
-				break;
-			case Z_MEM_ERROR:
-				MHVTL_DBG(1, "Not enough memory to decompress");
-				break;
-			case Z_DATA_ERROR:
-				MHVTL_DBG(1, "Block corrupt or incomplete");
-				break;
-			case Z_BUF_ERROR:
-				MHVTL_DBG(1, "Not enough memory in destination buf");
-				break;
-			}
-			nread = uncompress_sz;
-			free(cbuf);
-		}
-		/* requested block and actual block size different */
-		if (nread != request_sz)
-			mk_sense_short_block(request_sz, nread, sam_stat);
-		break;
-	default:
-		MHVTL_DBG(1, "Unknown blk header at offset %" PRId64
-				" - Abort read cmd", c_pos.curr_blk);
-		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+	/* The tape block is compressed.  Save field values we will need after
+	   the read causes the tape block to advance.
+	*/
+
+	blk_size = c_pos->blk_size;
+	disk_blk_size = c_pos->disk_blk_size;
+
+	/* Malloc a buffer to hold the compressed data, and read the
+	   data into it.
+	*/
+
+	cbuf = malloc(disk_blk_size);
+	if (!cbuf) {
+		MHVTL_DBG(1, "Out of memory");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
+	}
+
+	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
+	if (nread != disk_blk_size) {
+		MHVTL_DBG(1, "read failed, %s", strerror(errno));
+		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+		free(cbuf);
+		return 0;
+	}
+
+	/* If the scsi read buffer is at least as big as the size of
+	   the uncompressed data then we can uncompress directly into
+	   the read buffer.  If not, then we need an extra buffer to
+	   uncompress into, then memcpy the subrange we need to the
+	   read buffer.
+	*/
+
+	if (tgtsize < blk_size) {
+		if ((c2buf = malloc(blk_size)) == NULL) {
+			MHVTL_DBG(1, "Out of memory");
+			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+			free(cbuf);
+			return 0;
+		}
+	} else {
+		c2buf = buf;
+	}
+
+	rc = tgtsize;
+	uncompress_sz = blk_size;
+	z = uncompress(c2buf, &uncompress_sz, cbuf, disk_blk_size);
+
+	switch (z) {
+	case Z_OK:
+		MHVTL_DBG(2, "Read %u (%u) bytes of compressed"
+			" data, have %u bytes for result",
+			(uint32_t)nread, disk_blk_size,
+			tgtsize);
+		break;
+	case Z_MEM_ERROR:
+		MHVTL_DBG(1, "Not enough memory to decompress");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+		break;
+	case Z_DATA_ERROR:
+		MHVTL_DBG(1, "Block corrupt or incomplete");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+		break;
+	case Z_BUF_ERROR:
+		MHVTL_DBG(1, "Not enough memory in destination buf");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
 		break;
 	}
-	// Now read in subsequent header
-	skip_to_next_header(sam_stat);
+	free(cbuf);
 
-	return nread;
-}
-
-/*
- * Writes data in struct mam back to beginning of datafile..
- * Returns 0 if nothing written or -1 on error
- */
-static int rewriteMAM(struct MAM *mamp, uint8_t *sam_stat)
-{
-	loff_t nwrite = 0;
-
-	// Rewrite MAM data
-	nwrite = pwrite(datafile, mamp, sizeof(mam), sizeof(struct blk_header));
-	if (nwrite != sizeof(mam)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-		return -1;
+	if (c2buf != buf) {
+		memcpy(buf, c2buf, rc);
+		free(c2buf);
 	}
 
-	return 0;
+	if (rc != request_sz)
+		mk_sense_short_block(request_sz, rc, sam_stat);
+	return rc;
 }
 
 
@@ -1238,14 +993,20 @@ static int rewriteMAM(struct MAM *mamp, uint8_t *sam_stat)
  */
 static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 {
-	loff_t	nwrite = 0;
 	Bytef *dest_buf;
-	uLong dest_len = src_sz;
+	uLong dest_len;
 	uLong src_len = src_sz;
-	uint32_t local_ENCRYPT_MODE = 0;
+	struct encryption *cryptop;
+	int rc;
 	int z;
 
-	if (c_pos.blk_number == 0) {
+	/* Determine whether or not to store the crypto info in the tape
+	   blk_header.  (We may adjust this decision below for the 3592.)
+	*/
+
+	cryptop = ENCRYPT_MODE == 2 ? &encryption : NULL;
+
+	if (c_pos->blk_number == 0) {
 		/* 3590 media must be formatted to allow encryption.
 		 * This is done by writting an ANSI like label
 		 * (NBU label is close enough) to the tape while
@@ -1254,8 +1015,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 		 */
 		if (lunit.drive_type == drive_3592_E06) {
 			if (ENCRYPT_MODE == 2) {
-				local_ENCRYPT_MODE = ENCRYPT_MODE;
-				ENCRYPT_MODE = 0;
+				cryptop = NULL;
 				mam.Flags |= MAM_FLAGS_ENCRYPTION_FORMAT;
 			} else
 				mam.Flags &= ~MAM_FLAGS_ENCRYPTION_FORMAT;
@@ -1267,7 +1027,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 
 		mam.MediumDensityCode = blockDescriptorBlock[0];
 		mam.FormattedDensityCode = blockDescriptorBlock[0];
-		rewriteMAM(&mam, sam_stat);
+		rewriteMAM(sam_stat);
 	} else {
 		/* Extra check for 3592 to be sure the cartridge is
 		 * formatted for encryption
@@ -1305,7 +1065,8 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 		dest_len = compressBound(src_sz);
 		MHVTL_DBG(2, "Compression: src sz %d, dest sz %ld, "
 				"Compression factor %d",
-				src_sz, (unsigned long)dest_len, *compressionFactor);
+					src_sz, (unsigned long)dest_len,
+					*compressionFactor);
 		dest_buf = malloc(dest_len);
 		if (!dest_buf) {
 			MHVTL_DBG(1, "malloc(%d) failed", (int)dest_len);
@@ -1333,204 +1094,57 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 		}
 		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
 					src_sz, (unsigned long)dest_len);
-	} else
+	} else {
 		dest_buf = src_buf;
-
-	nwrite = mkNewHeader(B_DATA, src_len, dest_len, sam_stat);
-	if (local_ENCRYPT_MODE)
-		ENCRYPT_MODE = local_ENCRYPT_MODE;
-
-	if (nwrite <= 0) {
-		MHVTL_DBG(1, "Failed to write header");
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		return 0;
+		dest_len = 0;	// no compression
 	}
 
-	// now write the block of data..
-	nwrite = write(datafile, dest_buf, dest_len);
-	if (nwrite <= 0) {
-		MHVTL_DBG(1, "%s: failed to write %ld bytes",
-				strerror(errno), (unsigned long)dest_len);
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-	} else if (nwrite != dest_len) {
-		MHVTL_DBG(1, "Did not write all data");
-		mk_sense_short_block(src_len, nwrite, sam_stat);
-	}
-	if (c_pos.curr_blk >= max_tape_capacity) {
-		MHVTL_DBG(2, "End of Medium - Setting EOM flag");
-		mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
-	}
+	rc = write_tape_block(dest_buf, src_len, dest_len, cryptop, sam_stat);
 
-	if (*compressionFactor)
+	if (*compressionFactor != Z_NO_COMPRESSION)
 		free(dest_buf);
 
-	/* Write END-OF-DATA marker */
-	nwrite = mkEODHeader(sam_stat);
-	if (nwrite <= 0)
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+	if (rc)
+		return 0;
+
+	if (current_tape_offset() >= ntohll(mam.max_capacity)) {
+		mam.remaining_capacity = htonll(0);
+		MHVTL_DBG(2, "End of Medium - Setting EOM flag");
+		mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
+	} else {
+		uint64_t max_capacity = ntohll(mam.max_capacity);
+		mam.remaining_capacity = htonll(max_capacity -
+			current_tape_offset());
+	}
 
 	return src_len;
 }
 
 /*
- * Rewind 'tape'.
- */
-static int rawRewind(uint8_t *sam_stat)
-{
-	off64_t retval;
-	int val = 0;
-
-	// Start at beginning of datafile..
-	retval = lseek64(datafile, 0L, SEEK_SET);
-	if (retval < 0) {
-		MHVTL_DBG(1, "Can't seek to beginning of file: %s",
-					strerror(errno));
-		val = 1;
-	}
-
-	/*
-	 * Read header..
-	 * If this is not the BOT header we are in trouble
-	 */
-	retval = read(datafile, &c_pos, sizeof(c_pos));
-	if (retval != sizeof(c_pos)) {
-		MHVTL_DBG(1, "Can't read header: %s", strerror(errno));
-		val = 1;
-	}
-
-	return val;
-}
-
-/*
- * Rewind to beginning of data file and the position to first data header.
- *
- * Return 0 -> Not loaded.
- *        1 -> Load OK
- *        2 -> format corrupt.
- */
-static int resp_rewind(uint8_t *sam_stat)
-{
-	loff_t nread = 0;
-
-	if (rawRewind(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-		return 2;
-	}
-
-	if (c_pos.blk_type != B_BOT) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-		return 2;
-	}
-	nread = read(datafile, &mam, sizeof(struct MAM));
-	if (nread != sizeof(struct MAM)) {
-		MHVTL_DBG(1, "read MAM short - corrupt");
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-		memset(&mam, 0, sizeof(struct MAM));
-		return 2;
-	}
-
-	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
-		MHVTL_DBG(1, "Incorrect media format");
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-		return 2;
-	}
-
-	MHVTL_DBG(2, "MAM: media S/No. %s", mam.MediumSerialNumber);
-
-	if (skip_to_next_header(sam_stat))
-		return 2;
-
-	MediaType = mam.MediumType;
-	switch (MediaType) {
-	case MEDIA_TYPE_CLEAN:
-		OK_to_write = 0;
-		break;
-	case MEDIA_TYPE_WORM:
-		/* Special condition...
-		* If we
-		* - rewind,
-		* - write filemark
-		* - EOD
-		* We set this as writable media as the tape is blank.
-		*/
-		if (c_pos.blk_type != B_EOD)
-			OK_to_write = 0;
-
-		// Check that this header is a filemark and the next header
-		//  is End of Data. If it is, we are OK to write
-		if (c_pos.blk_type == B_FILEMARK) {
-			skip_to_next_header(sam_stat);
-			if (c_pos.blk_type == B_EOD)
-				OK_to_write = 1;
-		}
-		// Now we have to go thru thru the rewind again..
-		if (rawRewind(sam_stat)) {
-			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
-			return 2;
-		}
-
-		// No need to do all previous error checking...
-		skip_to_next_header(sam_stat);
-		break;
-	case MEDIA_TYPE_DATA:
-		OK_to_write = 1;	// Reset flag to OK.
-		break;
-	}
-
-	MHVTL_DBG(1, "Media is %s",
-				(OK_to_write) ? "writable" : "not writable");
-
-	return 1;
-}
-
-/*
  * Space over (to) x filemarks. Setmarks not supported as yet.
  */
-static void resp_space(uint32_t count, int code, uint8_t *sam_stat)
+static void resp_space(int32_t count, int code, uint8_t *sam_stat)
 {
-
 	switch (code) {
 	// Space 'count' blocks
 	case 0:
-		MHVTL_DBG(1, "SCSI space 0x%02x blocks **", count);
-		if (count > 0xff000000) {
-			// Moved backwards. Disable writing..
-			if (MediaType == MEDIA_TYPE_WORM)
-				OK_to_write = 0;
-			for (;count > 0; count++)
-				if (skip_to_prev_header(sam_stat))
-					return;
+		if (count >= 0) {
+			position_blocks_forw(count, sam_stat);
 		} else {
-			for (;count > 0; count--)
-				if (skip_to_next_header(sam_stat))
-					return;
+			position_blocks_back(-count, sam_stat);
 		}
 		break;
 	// Space 'count' filemarks
 	case 1:
-		MHVTL_DBG(1, "SCSI space 0x%02x filemarks **", count);
-		if (count > 0xff000000) {	// skip backwards..
-			// Moved backwards. Disable writing..
-			if (MediaType == MEDIA_TYPE_WORM)
-				OK_to_write = 0;
-			for (;count > 0; count++)
-				if (skip_prev_filemark(sam_stat))
-					return;
+		if (count >= 0) {
+			position_filemarks_forw(count, sam_stat);
 		} else {
-			for (;count > 0; count--)
-				if (skip_next_filemark(sam_stat))
-					return;
+			position_filemarks_back(-count, sam_stat);
 		}
 		break;
 	// Space to end-of-data - Ignore 'count'
 	case 3:
-		MHVTL_DBG(1, "%s", "SCSI space to end-of-data **");
-		while (c_pos.blk_type != B_EOD)
-			if (skip_to_next_header(sam_stat)) {
-				if (MediaType == MEDIA_TYPE_WORM)
-					OK_to_write = 1;
-				return;
-			}
+		position_to_eod(sam_stat);
 		break;
 
 	default:
@@ -1796,46 +1410,46 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		buf[2] = 0;	/* List length (MSB) */
 		buf[3] = 12;	/* List length (MSB) */
 		if (sizeof(loff_t) > 32)
-			put_unaligned_be64(c_pos.blk_number, &buf[4]);
+			put_unaligned_be64(c_pos->blk_number, &buf[4]);
 		else
-			put_unaligned_be32(c_pos.blk_number, &buf[8]);
-		if (c_pos.blk_type != B_DATA)
+			put_unaligned_be32(c_pos->blk_number, &buf[8]);
+		if (c_pos->blk_type != B_DATA)
 			buf[12] = 0x2; /* not a logical block */
 		else
 			buf[12] = 0x3; /* not encrypted */
 		buf[13] = 0x01; /* Algorithm Index */
 		ret = 16;
-		if (c_pos.blk_flags & BLKHDR_FLG_ENCRYPTED) {
+		if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 			correct_key = TRUE;
 			indx = 16;
-			if (c_pos.encryption_ukad_length) {
-				buf[3] += 4 + c_pos.encryption_ukad_length;
+			if (c_pos->encryption.ukad_length) {
+				buf[3] += 4 + c_pos->encryption.ukad_length;
 				buf[indx++] = 0x00;
 				buf[indx++] = 0x01;
 				buf[indx++] = 0x00;
-				buf[indx++] = c_pos.encryption_ukad_length;
-				for (count = 0; count < c_pos.encryption_ukad_length; ++count) {
-					buf[indx++] = c_pos.encryption_ukad[count];
+				buf[indx++] = c_pos->encryption.ukad_length;
+				for (count = 0; count < c_pos->encryption.ukad_length; ++count) {
+					buf[indx++] = c_pos->encryption.ukad[count];
 				}
-				ret += 4 + c_pos.encryption_ukad_length;
+				ret += 4 + c_pos->encryption.ukad_length;
 			}
-			if (c_pos.encryption_akad_length) {
-				buf[3] += 4 + c_pos.encryption_akad_length;
+			if (c_pos->encryption.akad_length) {
+				buf[3] += 4 + c_pos->encryption.akad_length;
 				buf[indx++] = 0x01;
 				buf[indx++] = 0x03;
 				buf[indx++] = 0x00;
-				buf[indx++] = c_pos.encryption_akad_length;
-				for (count = 0; count < c_pos.encryption_akad_length; ++count) {
-					buf[indx++] = c_pos.encryption_akad[count];
+				buf[indx++] = c_pos->encryption.akad_length;
+				for (count = 0; count < c_pos->encryption.akad_length; ++count) {
+					buf[indx++] = c_pos->encryption.akad[count];
 				}
-				ret += 4 + c_pos.encryption_akad_length;
+				ret += 4 + c_pos->encryption.akad_length;
 			}
 			/* compare the keys */
 			if (correct_key) {
-				if (c_pos.encryption_key_length != KEY_LENGTH)
+				if (c_pos->encryption.key_length != KEY_LENGTH)
 					correct_key = FALSE;
-				for (count = 0; count < c_pos.encryption_key_length; ++count) {
-					if (c_pos.encryption_key[count] != KEY[count]) {
+				for (count = 0; count < c_pos->encryption.key_length; ++count) {
+					if (c_pos->encryption.key[count] != KEY[count]) {
 						correct_key = FALSE;
 						break;
 					}
@@ -1988,7 +1602,7 @@ static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
 /*
  * Update MAM contents with current counters
  */
-static void updateMAM(struct MAM *mamp, uint8_t *sam_stat, int loadCount)
+static void updateMAM(uint8_t *sam_stat, int loadCount)
 {
 	uint64_t bw;		// Bytes Written
 	uint64_t br;		// Bytes Read
@@ -1997,26 +1611,26 @@ static void updateMAM(struct MAM *mamp, uint8_t *sam_stat, int loadCount)
 	MHVTL_DBG(2, "updateMAM(%d)", loadCount);
 
 	// Update bytes written this load.
-	put_unaligned_be64(bytesWritten, &mamp->WrittenInLastLoad);
-	put_unaligned_be64(bytesRead, &mamp->ReadInLastLoad);
+	put_unaligned_be64(bytesWritten, &mam.WrittenInLastLoad);
+	put_unaligned_be64(bytesRead, &mam.ReadInLastLoad);
 
 	// Update total bytes read/written
-	bw = get_unaligned_be64(&mamp->WrittenInMediumLife);
+	bw = get_unaligned_be64(&mam.WrittenInMediumLife);
 	bw += bytesWritten;
-	put_unaligned_be64(bw, &mamp->WrittenInMediumLife);
+	put_unaligned_be64(bw, &mam.WrittenInMediumLife);
 
-	br = get_unaligned_be64(&mamp->ReadInMediumLife);
+	br = get_unaligned_be64(&mam.ReadInMediumLife);
 	br += bytesRead;
-	put_unaligned_be64(br, &mamp->ReadInMediumLife);
+	put_unaligned_be64(br, &mam.ReadInMediumLife);
 
 	// Update load count
 	if (loadCount) {
-		load = get_unaligned_be64(&mamp->LoadCount);
+		load = get_unaligned_be64(&mam.LoadCount);
 		load++;
-		put_unaligned_be64(load, &mamp->LoadCount);
+		put_unaligned_be64(load, &mam.LoadCount);
 	}
 
-	rewriteMAM(mamp, sam_stat);
+	rewriteMAM(sam_stat);
 }
 
 /*
@@ -2029,15 +1643,15 @@ int valid_encryption_blk(uint8_t *sam_stat)
 
 	/* decryption logic */
 	correct_key = TRUE;
-	if (c_pos.blk_flags & BLKHDR_FLG_ENCRYPTED) {
+	if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 		/* compare the keys */
 		if (DECRYPT_MODE > 1) {
-			if (c_pos.encryption_key_length != KEY_LENGTH) {
+			if (c_pos->encryption.key_length != KEY_LENGTH) {
 				mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
 			}
-			for (i = 0; i < c_pos.encryption_key_length; ++i) {
-				if (c_pos.encryption_key[i] != KEY[i]) {
+			for (i = 0; i < c_pos->encryption.key_length; ++i) {
+				if (c_pos->encryption.key[i] != KEY[i]) {
 					mkSenseBuf(DATA_PROTECT,
 							E_INCORRECT_KEY,
 							sam_stat);
@@ -2048,13 +1662,13 @@ int valid_encryption_blk(uint8_t *sam_stat)
 			/* STK requires the UKAD back to decrypt */
 			if ((lunit.drive_type == drive_10K_A) ||
 				    (lunit.drive_type == drive_10K_B)) {
-				if (c_pos.encryption_ukad_length != UKAD_LENGTH) {
+				if (c_pos->encryption.ukad_length != UKAD_LENGTH) {
 					mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY, sam_stat);
 					correct_key = FALSE;
 					return correct_key;
 				}
-				for (i = 0; i < c_pos.encryption_ukad_length; ++i) {
-					if (c_pos.encryption_ukad[i] != UKAD[i]) {
+				for (i = 0; i < c_pos->encryption.ukad_length; ++i) {
+					if (c_pos->encryption.ukad[i] != UKAD[i]) {
 						mkSenseBuf(DATA_PROTECT,
 								E_INCORRECT_KEY,
 								sam_stat);
@@ -2088,7 +1702,8 @@ int valid_encryption_blk(uint8_t *sam_stat)
 static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	uint32_t sz = 0;
-	uint32_t count;
+	uint32_t count, blk_no;
+	int32_t icount;
 	uint32_t retval = 0;
 	int k;
 	int code;
@@ -2097,14 +1712,22 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	uint8_t *buf;
 	loff_t nread;
-	static	uint8_t last_cmd;
+	static uint8_t last_cmd;
+	static int last_count;
 
 	dbuf_p->sz = 0;
 
 	if ((cdb[0] == READ_6 || cdb[0] == WRITE_6) && cdb[0] == last_cmd) {
 		MHVTL_DBG_PRT_CDB(2, dbuf_p->serialNo, cdb);
+		if ((++last_count % 50) == 0) {
+			MHVTL_DBG(1, "%dth contiguous %s request (%ld) ",
+				last_count,
+				last_cmd == READ_6 ? "READ_6" : "WRITE_6",
+				(long)dbuf_p->serialNo);
+		}
 	} else {
 		MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
+		last_count = 0;
 	}
 
 	/* Limited subset of commands don't need to check for power-on reset */
@@ -2140,40 +1763,26 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		if (c_pos.blk_number != 0) {
+		if (c_pos->blk_number != 0) {
 			MHVTL_DBG(2, "Not at beginning **");
 			mkSenseBuf(ILLEGAL_REQUEST,E_POSITION_PAST_BOM,
 							sam_stat);
 			break;
 		}
-		mkEODHeader(sam_stat);
+		format_tape(sam_stat);
 		break;
 
 	case SEEK_10:	// Thats LOCATE_BLOCK for SSC devices...
 		MHVTL_DBG(1, "Fast Block Locate (%ld) **",
 						(long)dbuf_p->serialNo);
-		count = get_unaligned_be32(&cdb[3]);
+		blk_no = get_unaligned_be32(&cdb[3]);
 
 		/* If we want to seek closer to beginning of file than
 		 * we currently are, rewind and seek from there
 		 */
-		MHVTL_DBG(2, "Current blk: %" PRId64 ", seek: %d",
-					c_pos.blk_number, count);
-		if (count < c_pos.blk_number &&
-					c_pos.blk_number - count > count)
-			resp_rewind(sam_stat);
-
-		if (MediaType == MEDIA_TYPE_WORM)
-			OK_to_write = 0;
-		while (c_pos.blk_number != count) {
-			if (c_pos.blk_number > count) {
-				if (skip_to_prev_header(sam_stat) == -1)
-					break;
-			} else {
-				if (skip_to_next_header(sam_stat) == -1)
-					break;
-			}
-		}
+		MHVTL_DBG(2, "Current blk: %d, seek: %d",
+					c_pos->blk_number, blk_no);
+		position_to_block(blk_no, sam_stat);
 		break;
 
 	case LOG_SELECT:	// Set or reset LOG stats.
@@ -2244,15 +1853,14 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 		/* If both FIXED & SILI bits set, invalid combo.. */
 		if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
-			MHVTL_DBG(1, "Supress ILI and Fixed block "
+			MHVTL_DBG(1, "Suppress ILI and Fixed block "
 					"read not allowed by SSC3");
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sam_stat);
-			reset = 0;
 			break;
 		}
 		if (tapeLoaded == TAPE_LOADED) {
-			if (MediaType == MEDIA_TYPE_CLEAN) {
+			if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 				MHVTL_DBG(3, "Cleaning cart loaded");
 				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
 								sam_stat);
@@ -2272,7 +1880,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		for (k = 0; k < count; k++) {
 			if (!valid_encryption_blk(sam_stat))
 				break;
-			retval = readBlock(cdev, buf, sam_stat, sz);
+			retval = readBlock(buf, sz, sam_stat);
 			buf += retval;
 			dbuf_p->sz += retval;
 		}
@@ -2349,7 +1957,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (tapeLoaded == TAPE_UNLOADED) {
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		} else if ((service_action == 0) || (service_action == 1)) {
-			dbuf_p->sz = resp_read_position(c_pos.blk_number,
+			dbuf_p->sz = resp_read_position(c_pos->blk_number,
 							dbuf_p->data, sam_stat);
 		} else {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
@@ -2411,8 +2019,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case REZERO_UNIT:	/* Rewind */
 		MHVTL_DBG(1, "Rewinding (%ld) **", (long)dbuf_p->serialNo);
-		resp_rewind(sam_stat);
-		sleep(1);
+		rewind_tape(sam_stat);
 		break;
 
 	case ERASE_6:
@@ -2421,51 +2028,39 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		/* Rewind and postition just after the first header. */
-		resp_rewind(sam_stat);
-
-		if (ftruncate(datafile, c_pos.curr_blk)) {
-			MHVTL_DBG(1, "Failed to truncate datafile");
-		}
-
-		/* Position to just before first header. */
-		position_to_curr_header(sam_stat);
-
-		/* Write EOD header */
-		mkEODHeader(sam_stat);
-		sleep(2);
+		rewind_tape(sam_stat);
+		format_tape(sam_stat);
 		break;
 
 	case SPACE:
-		MHVTL_DBG(1, "SPACE (%ld) **", (long)dbuf_p->serialNo);
 		count = get_unaligned_be24(&cdb[2]);
 		code = cdb[1] & 0x07;
+		MHVTL_DBG(1, "SPACE (%ld) ** code %u, count %u",
+			(long)dbuf_p->serialNo, code, count);
 
-		/* Can return a '2s complement' to seek backwards */
-		if (cdb[2] & 0x80)
-			count += (0xff << 24);
+		/* 'count' is only a 24-bit value.  If the top bit is set, it
+		   should be treated as a twos-complement negative number.
+		*/
 
-		resp_space(count, code, sam_stat);
+		if (count >= 0x800000) {
+			icount = -(0xffffff - count + 1);
+		} else {
+			icount = (int32_t)count;
+		}
+		resp_space(icount, code, sam_stat);
 		break;
 
 	case START_STOP:	/* Load/Unload cmd */
 		if (cdb[4] && 0x1) {
 			MHVTL_DBG(1, "Loading Tape (%ld) **",
 						(long)dbuf_p->serialNo);
-			tapeLoaded = resp_rewind(sam_stat);
+			rewind_tape(sam_stat);
 		} else if (tapeLoaded == TAPE_UNLOADED) {
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		} else {
-			mam.record_dirty = 0;
-			// Don't update load count on unload -done at load time
-			updateMAM(&mam, sam_stat, 0);
-			close(datafile);
-			tapeLoaded = TAPE_UNLOADED;
-			OK_to_write = 0;
-			clearWORM();
+			unloadTape(sam_stat);
 			MHVTL_DBG(1, "Unloading Tape (%ld)  **",
 						(long)dbuf_p->serialNo);
-			close(datafile);
 		}
 		break;
 
@@ -2557,24 +2152,17 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		MHVTL_DBG(1, "  --> Expected to read %d bytes"
 				", read %d", dbuf_p->sz, sz);
 		if (resp_write_attribute(cdb, dbuf_p, &mam))
-			rewriteMAM(&mam, sam_stat);
+			rewriteMAM(sam_stat);
 		break;
 
 	case WRITE_FILEMARKS:
-		sz = get_unaligned_be24(&cdb[2]);
-		MHVTL_DBG(1, "Write %d filemarks (%ld) **",
-						sz,
+		count = get_unaligned_be24(&cdb[2]);
+		MHVTL_DBG(1, "Write %d filemarks (%ld) **", count,
 						(long)dbuf_p->serialNo);
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		if (sz > 0) {
-			while (sz > 0) {
-				sz--;
-				mkNewHeader(B_FILEMARK, 0, 0, sam_stat);
-			}
-			mkEODHeader(sam_stat);
-		}
+		write_filemarks(count, sam_stat);
 		break;
 
 	case RECEIVE_DIAGNOSTIC:
@@ -2742,88 +2330,81 @@ static void set_worm_mode_pg(void)
 /*
  * Attempt to load PCL - i.e. Open datafile and read in BOT header & MAM
  *
- * Return 0 on failure, 1 on success
+ * Returns:
+ * == 0 -> Load OK
+ * == 1 -> Tape already loaded.
+ * == 2 -> format corrupt.
+ * == 3 -> cartridge does not exist or cannot be opened.
  */
 
-static int load_tape(char *PCL, uint8_t *sam_stat)
+static int loadTape(char *PCL, uint8_t *sam_stat)
 {
-	loff_t nread;
-	uint64_t fg = 0;	/* TapeAlert flags */
+	int rc;
+	uint64_t fg = 0;	// TapeAlert flags
 
 	bytesWritten = 0;	/* Global - Bytes written this load */
 	bytesRead = 0;		/* Global - Bytes rearead this load */
 
-	sprintf(currentMedia, "%s/%s", MHVTL_HOME_PATH, PCL);
-	MHVTL_DBG(2, "Opening file/media %s", currentMedia);
-	if ((datafile = open(currentMedia, O_RDWR|O_LARGEFILE)) == -1) {
-		MHVTL_DBG(1, "%s: open file/media failed, %s", currentMedia,
-					strerror(errno));
-		return TAPE_UNLOADED;	/* Unsuccessful load */
-	}
-
-	/* Now read in header information from just opened datafile */
-	nread = read(datafile, &c_pos, sizeof(c_pos));
-	if (nread < 0) {
-		MHVTL_DBG(1, "%s: %s",
-			"Error reading header in datafile, load failed",
-				strerror(errno));
-		close(datafile);
-		return TAPE_UNLOADED;	/* Unsuccessful load */
-	} else if (nread < sizeof(c_pos)) {	// Did not read anything...
-		MHVTL_DBG(1, "%s: %s",
-				"Error: Not a tape format, load failed",
-				strerror(errno));
-		/* TapeAlert - Unsupported format */
-		fg = 0x800;
-		close(datafile);
-		goto unsuccessful;
-	}
-	if (c_pos.blk_type != B_BOT) {
-		MHVTL_DBG(1, "Header type: %d not valid, load failed",
-							c_pos.blk_type);
-		/* TapeAlert - Unsupported format */
-		fg = 0x800;
-		close(datafile);
-		goto unsuccessful;
-	}
-	/* FIXME: Need better validation checking here !! */
-	if (c_pos.next_blk != (sizeof(struct blk_header) + sizeof(struct MAM))) {
-		MHVTL_DBG(1, "MAM size incorrect, load failed"
-			" - Expected size: %d, size found: %" PRId64,
-			(int)(sizeof(struct blk_header) + sizeof(struct MAM)),
-				c_pos.next_blk);
-		close(datafile);
-		return TAPE_UNLOADED;	// Unsuccessful load
-	}
-	nread = read(datafile, &mam, sizeof(mam));
-	if (nread < 0) {
+	rc = load_tape(PCL, sam_stat);
+	if (rc) {
 		mediaSerialNo[0] = '\0';
-		MHVTL_DBG(1, "Can not read MAM from mounted media");
-		return TAPE_UNLOADED;	// Unsuccessful load
+		if (rc == 2) {
+			/* TapeAlert - Unsupported format */
+			fg = 0x800;
+			setSeqAccessDevice(&seqAccessDevice, fg);
+			setTapeAlert(&TapeAlert, fg);
+		}
+		return rc;
 	}
-	// Set TapeAlert flg 32h =>
-	//	Lost Statics
-	if (mam.record_dirty != 0) {
-		fg |= 0x02000000000000ull;
-		MHVTL_DBG(1, "Previous unload was not clean");
-	}
-
-	max_tape_capacity = (loff_t)c_pos.blk_size * (loff_t)1048576;
-	MHVTL_DBG(1, "Tape capacity: %" PRId64, max_tape_capacity);
-
-	blockDescriptorBlock[0] = mam.MediumDensityCode;
-	mam.record_dirty = 1;
-	/* Increment load count */
-	updateMAM(&mam, sam_stat, 1);
-
-	/* resp_rewind() will clean up for us..
-	 * - It also set up media type & if we can write to media
-	 */
-	resp_rewind(sam_stat);
+	tapeLoaded = TAPE_LOADED;
 
 	strncpy((char *)mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
-	switch (MediaType) {
+
+	MHVTL_DBG(2, "MAM: media S/No. %s", mam.MediumSerialNumber);
+
+	switch(mam.MediumType) {
+	case MEDIA_TYPE_DATA:
+		OK_to_write = 1;	// Reset flag to OK.
+		break;
+	case MEDIA_TYPE_CLEAN:
+		OK_to_write = 0;
+		break;
+	case MEDIA_TYPE_WORM:
+		/* Special condition...
+		* If we
+		* - rewind,
+		* - write filemark
+		* - EOD
+		* We set this as writable media as the tape is blank.
+		*/
+		if (c_pos->blk_type == B_EOD) {
+			OK_to_write = 1;
+		} else if (c_pos->blk_type != B_FILEMARK) {
+			OK_to_write = 0;
+
+		/* Check that this header is a filemark and
+		 * the next header is End of Data.
+		 * If it is, we are OK to write
+		 */
+		} else if (position_to_block(1, sam_stat)) {
+			OK_to_write = 0;
+		} else {
+			if (c_pos->blk_type == B_EOD) {
+				OK_to_write = 1;
+			} else {
+				OK_to_write = 0;
+			}
+			if (rewind_tape(sam_stat)) {
+			}
+		}
+		break;
+	}
+
+	MHVTL_DBG(1, "Media is %s",
+				(OK_to_write) ? "writable" : "not writable");
+
+	switch (mam.MediumType) {
 	case MEDIA_TYPE_WORM:
 		setWORM();
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
@@ -2841,6 +2422,19 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 		mkSenseBuf(UNIT_ATTENTION,E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	}
+
+	// Set TapeAlert flg 32h =>
+	//	Lost Statics
+	if (mam.record_dirty != 0) {
+		fg = 0x02000000000000ull;
+		MHVTL_DBG(1, "Previous unload was not clean");
+	}
+
+	MHVTL_DBG(1, "Tape capacity: %" PRId64, ntohll(mam.max_capacity));
+
+	mam.record_dirty = 1;
+	// Increment load count
+	updateMAM(sam_stat, 1);
 
 	blockDescriptorBlock[0] = mam.MediumDensityCode;
 	MHVTL_DBG(1, "Setting MediumDensityCode to 0x%02x",
@@ -3031,18 +2625,12 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 
 	return TAPE_LOADED;	// Return successful load
 
-unsuccessful:
-	setSeqAccessDevice(&seqAccessDevice, fg);
-	setTapeAlert(&TapeAlert, fg);
-	return TAPE_LOAD_BAD;
-
 mismatchmedia:
 	fg |= 0x800;	/* Unsupported format */
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);
 	MHVTL_DBG(1, "Tape %s failed to load with type %d in drive type %d",
 			PCL, Media_Type, lunit.drive_type);
-	close(datafile);
 	return TAPE_LOAD_BAD;
 }
 
@@ -3050,7 +2638,8 @@ mismatchmedia:
 /* Strip (recover) the 'Physical Cartridge Label'
  *   Well at least the data filename which relates to the same thing
  */
-static char * strip_PCL(char *p, int start) {
+static char * strip_PCL(char *p, int start)
+{
 	char *q;
 
 	/* p += 4 (skip over 'load' string)
@@ -3067,6 +2656,25 @@ static char * strip_PCL(char *p, int start) {
 //	printf(":\nmedia ID:%s, p: %lx, q: %lx\n", p, &p, &q);
 
 return p;
+}
+
+static void
+unloadTape(uint8_t *sam_stat)
+{
+	switch (tapeLoaded) {
+	case TAPE_LOADED:
+		mam.record_dirty = 0;
+		// Don't update load count on unload -done at load time
+		updateMAM(sam_stat, 0);
+		unload_tape(sam_stat);
+		clearWORM();
+		break;
+	default:
+		MHVTL_DBG(2, "Tape not mounted");
+		break;
+	}
+	OK_to_write = 0;
+	tapeLoaded = TAPE_UNLOADED;
 }
 
 static int processMessageQ(char *mtext, uint8_t *sam_stat)
@@ -3088,7 +2696,7 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			send_msg("Load failed", LIBRARY_Q);
 		} else {
 			pcl = strip_PCL(mtext, 6); // 'lload ' => offset of 6
-			tapeLoaded = load_tape(pcl, sam_stat);
+			loadTape(pcl, sam_stat);
 			if (tapeLoaded == TAPE_LOADED)
 				sprintf(s, "Loaded OK: %s\n", pcl);
 			else
@@ -3105,28 +2713,13 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
 			pcl = strip_PCL(mtext, 4);
-			tapeLoaded = load_tape(pcl, sam_stat);
+			loadTape(pcl, sam_stat);
 		}
 	}
 
 	if (!strncmp(mtext, "unload", 6)) {
-		switch (tapeLoaded) {
-		case TAPE_LOADED:
-			mam.record_dirty = 0;
-			// Don't update load count on unload -done at load time
-			updateMAM(&mam, sam_stat, 0);
-			/* Fall thru to case 2: */
-		case TAPE_LOAD_BAD:
-			OK_to_write = 0;
-			clearWORM();
-			MHVTL_DBG(1, "Library requested tape unload");
-			close(datafile);
-			break;
-		default:
-			MHVTL_DBG(2, "Tape not mounted");
-			break;
-		}
-		tapeLoaded = TAPE_UNLOADED;
+		unloadTape(sam_stat);
+		MHVTL_DBG(1, "Library requested tape unload");
 	}
 
 	if (!strncmp(mtext, "exit", 4)) {
@@ -3636,7 +3229,6 @@ int main(int argc, char *argv[])
 
 	char *progname = argv[0];
 
-	char *dataFile = MHVTL_HOME_PATH;
 	char *name = "mhvtl";
 	int minor = 0;
 	struct passwd *pw;
@@ -3652,13 +3244,6 @@ int main(int argc, char *argv[])
 	int	mlen, r_qid;
 	struct q_entry r_entry;
 
-	if (sizeof(struct blk_header) != 512) {
-		MHVTL_DBG(1, "Something wrong with blk_header data struct.\n"
-			"Needs to be exactly 512 bytes in size. Currently: %d",
-			(int)sizeof(struct blk_header));
-		exit(1);
-	}
-
 	if (argc < 2) {
 		usage(argv[0]);
 		printf("  -- Not enough parameters --\n");
@@ -3671,16 +3256,6 @@ int main(int argc, char *argv[])
 			case 'd':
 				debug++;
 				verbose = 9;	// If debug, make verbose...
-				break;
-			case 'f':
-				if (argc > 1) {
-					printf("argv: -f %s\n", argv[1]);
-					dataFile = argv[1];
-				} else {
-					usage(progname);
-					puts("    More args needed for -f\n");
-					exit(1);
-				}
 				break;
 			case 'v':
 				verbose++;
@@ -3720,7 +3295,7 @@ int main(int argc, char *argv[])
 	memset(sense, 0, sizeof(sense));
 
 	/* Powered on / reset flag */
-	reset = 1;
+	reset_device();
 
 	init_mode_pages(sm);
 	initTapeAlert(&TapeAlert);
@@ -3786,14 +3361,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	currentMedia = (char *)malloc(sizeof(dataFile) + 1024);
-	if (NULL == currentMedia) {
-		perror("Could not allocate memory -- exiting");
-		exit(1);
-	}
-
-	strncpy(currentMedia, dataFile, sizeof(dataFile));
-
 	/* If debug, don't fork/run in background */
 	if (!debug) {
 		switch (pid = fork()) {
@@ -3816,7 +3383,7 @@ int main(int argc, char *argv[])
 			exit(-1);
 
 		if ((chdir(MHVTL_HOME_PATH)) < 0) {
-			perror("Unable to change directory ");
+			perror("Unable to change directory to " MHVTL_HOME_PATH);
 			exit(-1);
 		}
 
@@ -3845,8 +3412,8 @@ int main(int argc, char *argv[])
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
 		if (ret < 0) {
 			MHVTL_DBG(2,
-				"ioctl(VTL_POLL_AND_GET_HEADER: %d : %s", ret,
-							strerror(errno));
+				"ioctl(VTL_POLL_AND_GET_HEADER: %d : %s",
+							ret, strerror(errno));
 		} else {
 			if (debug)
 				printf("ioctl(VX_TAPE_POLL_STATUS) "
@@ -3904,4 +3471,3 @@ exit:
 	free(buf);
 	exit(0);
 }
-

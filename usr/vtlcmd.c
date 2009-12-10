@@ -72,13 +72,11 @@ int check_media(char *barcode)
 	char currentMedia[1024];
 	int datafile;
 
-	sprintf((char *)currentMedia, "%s/%s", MHVTL_HOME_PATH, barcode);
+	sprintf((char *)currentMedia, "%s/%s/data", MHVTL_HOME_PATH, barcode);
 	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
 	if (datafile < 0) {
-		char errmsg[128];
-		sprintf(errmsg, "Could not open %s: %s",
-				currentMedia, strerror(errno));
-		fprintf(stderr, "%s\n", errmsg);
+		fprintf(stderr, "Could not open %s: %s\n", currentMedia,
+			strerror(errno));
 		return 1;
 	}
 
@@ -262,36 +260,3 @@ int main(int argc, char **argv)
 
 exit(0);
 }
-
-int send_msg(char *objname, int priority)
-{
-	int len, s_qid;
-	struct q_entry s_entry;	/* Structure to hold message */
-
-	/* Validate name length, priority level */
-	if ((len = strlen(objname)) > MAXOBN) {
-		printf("Name too long\n");
-		return -1;
-	}
-
-	if (priority > LIBRARY_Q || priority < 0) {
-		printf("Invalid priority level\n");
-		return -1;
-	}
-
-	/* Initialize message queue as nessary */
-	if ((s_qid = init_queue()) == -1)
-		return -1;
-
-	/* Initialize s_entry */
-	s_entry.mtype = (long)priority;
-	strncpy(s_entry.mtext, objname, MAXOBN);
-
-	/* Send message, waiting if nessary */
-	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
-		perror("msgsnd failed");
-		return -1;
-	}
-	return 0;
-}
-

@@ -19,7 +19,7 @@
  *        module options to "modprobe vtl num_tgts=2" [20021221]
  *
  *	Mark Harvey 2005-6-1
- * 
+ *
  *	markh794@gmail.com
  *	  or
  *	Current employ address: mark_harvey@symantec.com
@@ -347,7 +347,7 @@ static void mhvtl_prt_cdb(char *f, uint64_t sn, uint8_t *s, int l)
 
 	if (sn)
 		printk("mhvtl: %s (%llu) %d bytes\n",
-			 f, (long long unsigned)sn, l);
+				f, (long long unsigned)sn, l);
 	else
 		printk("mhvtl: %s (%d bytes)\n", f, l);
 
