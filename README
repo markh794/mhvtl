@@ -1,5 +1,5 @@
 
-vxtape virtual tape & library system.
+mhvtl: A Virtual Tape & Library system.
 
 This package is composed of a kernel module (mhvtl) which is a pseudo HBA
 
