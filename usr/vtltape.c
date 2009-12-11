@@ -463,7 +463,7 @@ static int mkNewHeader(char type, int size, int comp_size, uint8_t *sam_stat)
 		h.blk_number = c_pos.blk_number + 1;
 	} else {
 		MHVTL_DBG(1, "Position error blk No: %" PRId64
-			 ", Pos: %" PRId64
+			", Pos: %" PRId64
 			", Exp: %" PRId64,
 				h.blk_number, h.curr_blk, c_pos.curr_blk);
 		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
@@ -610,7 +610,7 @@ static int checkRestrictions(uint8_t *sam_stat)
 		break;
 	}
 
-	switch(MediaType) {
+	switch (MediaType) {
 	case MEDIA_TYPE_CLEAN:
 		mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED, sam_stat);
 		MHVTL_DBG(2, "Can not write - Cleaning cart");
@@ -1002,12 +1002,10 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 					/* add it to output */
 					buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
 					buf[byte_index++] = MAM_Attributes[indx].attribute;
-					buf[byte_index++] = (MAM_Attributes[indx].read_only << 7) |
-					                    MAM_Attributes[indx].format;
+					buf[byte_index++] = (MAM_Attributes[indx].read_only << 7) | MAM_Attributes[indx].format;
 					buf[byte_index++] = MAM_Attributes[indx].length >> 8;
 					buf[byte_index++] = MAM_Attributes[indx].length;
-					memcpy(&buf[byte_index], MAM_Attributes[indx].value,
-					       MAM_Attributes[indx].length);
+					memcpy(&buf[byte_index], MAM_Attributes[indx].value, MAM_Attributes[indx].length);
 					byte_index += MAM_Attributes[indx].length;
 				}
 			}
@@ -1112,7 +1110,7 @@ static int readBlock(int cdev, uint8_t *buf, uint8_t *sam_stat, uint32_t request
 	}
 
 	/* Read in block of data */
-	switch(c_pos.blk_type) {
+	switch (c_pos.blk_type) {
 	case B_FILEMARK:
 		MHVTL_DBG(1, "Expected to find hdr type: %d, found: %d",
 					B_DATA, c_pos.blk_type);
@@ -1282,7 +1280,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 
 		if ((Media_Native_Write_Density[Media_Type] == -1) &&
 			(mam.MediumDensityCode != Drive_Native_Write_Density[lunit.drive_type])) {
-			switch(lunit.drive_type) {
+			switch (lunit.drive_type) {
 			case drive_3592_E05:
 				if (mam.MediumDensityCode == Drive_Native_Write_Density[drive_3592_J1A])
 					break;
@@ -1443,7 +1441,7 @@ static int resp_rewind(uint8_t *sam_stat)
 		return 2;
 
 	MediaType = mam.MediumType;
-	switch(MediaType) {
+	switch (MediaType) {
 	case MEDIA_TYPE_CLEAN:
 		OK_to_write = 0;
 		break;
@@ -1491,7 +1489,7 @@ static int resp_rewind(uint8_t *sam_stat)
 static void resp_space(uint32_t count, int code, uint8_t *sam_stat)
 {
 
-	switch(code) {
+	switch (code) {
 	// Space 'count' blocks
 	case 0:
 		MHVTL_DBG(1, "SCSI space 0x%02x blocks **", count);
@@ -1605,7 +1603,7 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
-	switch(sps) {
+	switch (sps) {
 	case SUPPORTED_SECURITY_PROTOCOL_LIST:
 		memset(buf, 0, alloc_len);
 		buf[6] = 0;	/* list length (MSB) */
@@ -1653,7 +1651,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
 	memset(buf, 0, alloc_len);
-	switch(sps) {
+	switch (sps) {
 	case ENCR_IN_SUPPORT_PAGES:
 		put_unaligned_be16(ENCR_IN_SUPPORT_PAGES, &buf[0]);
 		put_unaligned_be16(16, &buf[2]); /* List length */
@@ -1871,7 +1869,7 @@ static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 	if (inc_512)
 		alloc_len = alloc_len * 512;
 
-	switch(cdb[1]) {
+	switch (cdb[1]) {
 	case SECURITY_PROTOCOL_INFORMATION:
 		return resp_spin_page_0(buf, sps, alloc_len, sam_stat);
 		break;
@@ -2040,8 +2038,9 @@ int valid_encryption_blk(uint8_t *sam_stat)
 			}
 			for (i = 0; i < c_pos.encryption_key_length; ++i) {
 				if (c_pos.encryption_key[i] != KEY[i]) {
-					mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY,
-						           sam_stat);
+					mkSenseBuf(DATA_PROTECT,
+							E_INCORRECT_KEY,
+							sam_stat);
 					correct_key = FALSE;
 					break;
 				}
@@ -2056,8 +2055,9 @@ int valid_encryption_blk(uint8_t *sam_stat)
 				}
 				for (i = 0; i < c_pos.encryption_ukad_length; ++i) {
 					if (c_pos.encryption_ukad[i] != UKAD[i]) {
-						mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY,
-						           sam_stat);
+						mkSenseBuf(DATA_PROTECT,
+								E_INCORRECT_KEY,
+								sam_stat);
 						correct_key = FALSE;
 						break;
 					}
@@ -2143,7 +2143,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (c_pos.blk_number != 0) {
 			MHVTL_DBG(2, "Not at beginning **");
 			mkSenseBuf(ILLEGAL_REQUEST,E_POSITION_PAST_BOM,
-								 sam_stat);
+							sam_stat);
 			break;
 		}
 		mkEODHeader(sam_stat);
@@ -2765,13 +2765,13 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 	nread = read(datafile, &c_pos, sizeof(c_pos));
 	if (nread < 0) {
 		MHVTL_DBG(1, "%s: %s",
-			 "Error reading header in datafile, load failed",
+			"Error reading header in datafile, load failed",
 				strerror(errno));
 		close(datafile);
 		return TAPE_UNLOADED;	/* Unsuccessful load */
 	} else if (nread < sizeof(c_pos)) {	// Did not read anything...
 		MHVTL_DBG(1, "%s: %s",
-				 "Error: Not a tape format, load failed",
+				"Error: Not a tape format, load failed",
 				strerror(errno));
 		/* TapeAlert - Unsupported format */
 		fg = 0x800;
@@ -2787,7 +2787,7 @@ static int load_tape(char *PCL, uint8_t *sam_stat)
 		goto unsuccessful;
 	}
 	/* FIXME: Need better validation checking here !! */
-	 if (c_pos.next_blk != (sizeof(struct blk_header) + sizeof(struct MAM))) {
+	if (c_pos.next_blk != (sizeof(struct blk_header) + sizeof(struct MAM))) {
 		MHVTL_DBG(1, "MAM size incorrect, load failed"
 			" - Expected size: %d, size found: %" PRId64,
 			(int)(sizeof(struct blk_header) + sizeof(struct MAM)),
@@ -3146,7 +3146,7 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 		else
 			verbose = 3;
 		syslog(LOG_DAEMON|LOG_NOTICE, "Verbose: %s at level %d",
-				 verbose ? "enabled" : "disabled", verbose);
+				verbose ? "enabled" : "disabled", verbose);
 	}
 
 	if (!strncmp(mtext, "TapeAlert", 9)) {
@@ -3659,7 +3659,7 @@ int main(int argc, char *argv[])
 			(int)sizeof(struct blk_header));
 		exit(1);
 	}
-		
+
 	if (argc < 2) {
 		usage(argv[0]);
 		printf("  -- Not enough parameters --\n");
@@ -3739,7 +3739,7 @@ int main(int argc, char *argv[])
 	media_density_init();
 
 	child_cleanup = add_lu(q_priority, &ctl);
-	if (! child_cleanup) {
+	if (!child_cleanup) {
 		MHVTL_DBG(1, "Could not create logical unit");
 		exit(1);
 	}
@@ -3752,11 +3752,11 @@ int main(int argc, char *argv[])
 
 	if (setgid(pw->pw_gid)) {
 		perror("Unable to change gid");
-		exit (1);
+		exit(1);
 	}
 	if (setuid(pw->pw_uid)) {
 		perror("Unable to change uid");
-		exit (1);
+		exit(1);
 	}
 
 	/* Initialise message queue as necessary */
@@ -3797,16 +3797,16 @@ int main(int argc, char *argv[])
 
 	/* If debug, don't fork/run in background */
 	if (!debug) {
-		switch(pid = fork()) {
+		switch (pid = fork()) {
 		case 0:         /* Child */
 			break;
 		case -1:
 			perror("Failed to fork daemon");
-			exit (-1);
+			exit(-1);
 			break;
 		default:
 			MHVTL_DBG(1, "vtltape process PID is %d", (int)pid);
-			exit (0);
+			exit(0);
 			break;
 		}
 
@@ -3862,7 +3862,7 @@ int main(int argc, char *argv[])
 				}
 			}
 			fflush(NULL);
-			switch(ret) {
+			switch (ret) {
 			case VTL_QUEUE_CMD:	/* A cdb to process */
 				cmd = malloc(sizeof(struct vtl_header));
 				if (!cmd) {
