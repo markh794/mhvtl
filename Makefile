@@ -71,6 +71,7 @@ tar:
 		 $(PARENTDIR)/kernel \
 		 $(PARENTDIR)/usr \
 		 $(PARENTDIR)/etc/ \
+		 $(PARENTDIR)/scripts/ \
 		 $(PARENTDIR)/include \
 		 $(PARENTDIR)/Makefile \
 		 $(PARENTDIR)/README \
