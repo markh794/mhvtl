@@ -112,7 +112,7 @@ int reset = 1;		/* Tape drive has been 'reset' */
 
 static int bufsize = 1024 * 1024;
 static loff_t max_tape_capacity;	/* Max capacity of media */
-static int tapeLoaded = 0;	/* Default to Off-line */
+static int tapeLoaded = TAPE_UNLOADED;	/* Default to Off-line */
 static int inLibrary = 0;	/* Default to stand-alone drive */
 static int datafile;		/* Global file handle - This goes against the
 			grain, however the handle is passed to every function
@@ -3117,7 +3117,6 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			updateMAM(&mam, sam_stat, 0);
 			/* Fall thru to case 2: */
 		case TAPE_LOAD_BAD:
-			tapeLoaded = TAPE_UNLOADED;
 			OK_to_write = 0;
 			clearWORM();
 			MHVTL_DBG(1, "Library requested tape unload");
@@ -3125,9 +3124,9 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			break;
 		default:
 			MHVTL_DBG(2, "Tape not mounted");
-			tapeLoaded = TAPE_UNLOADED;
 			break;
 		}
+		tapeLoaded = TAPE_UNLOADED;
 	}
 
 	if (!strncmp(mtext, "exit", 4)) {
