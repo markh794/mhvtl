@@ -2356,7 +2356,6 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		}
 		return rc;
 	}
-	tapeLoaded = TAPE_LOADED;
 
 	strncpy((char *)mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
@@ -2696,7 +2695,7 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			send_msg("Load failed", LIBRARY_Q);
 		} else {
 			pcl = strip_PCL(mtext, 6); // 'lload ' => offset of 6
-			loadTape(pcl, sam_stat);
+			tapeLoaded = loadTape(pcl, sam_stat);
 			if (tapeLoaded == TAPE_LOADED)
 				sprintf(s, "Loaded OK: %s\n", pcl);
 			else
@@ -2713,7 +2712,7 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
 			pcl = strip_PCL(mtext, 4);
-			loadTape(pcl, sam_stat);
+			tapeLoaded = loadTape(pcl, sam_stat);
 		}
 	}
 
