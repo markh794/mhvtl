@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.16
-Release: 10
-Source: mhvtl-2009-12-02.tgz
+Release: 11
+Source: mhvtl-2009-12-16.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -162,8 +162,16 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Wed Dec 16 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.16.11
+- Add tests for media/drive type. i.e. Only allow LTO media in LTO drives.
+- New defination for 'Compression:' in device.conf (Thanks Kevan Rehm)
+  ' Compression: factor [1-9] enabled [0|1]'
+        Where factor : 1 Fastest compression -> 9 Best compression
+             enabled : 0 => Compression disabled, 1 => Compression enabled
+
 * Wed Dec 02 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.16.9
+- Bumped version to 0.16.10
 - Fix data silent data corruption.
 - Bumped max number of LUNs
 
