@@ -176,6 +176,9 @@ fi
 - Add tests for media/drive type. i.e. Only allow LTO media in LTO drives.
 - Increased max number of LUNs from 7 to 32
 - Changed ' Compression: factor X enabled Y' to same as 0.16 branch.
+  ' Compression: factor [1-9] enabled [0|1]'
+        Where factor : 1 Fastest compression -> 9 Best compression
+             enabled : 0 => Compression disabled, 1 => Compression enabled
 
 * Tue Dec 01 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.0
