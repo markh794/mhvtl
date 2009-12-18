@@ -12,9 +12,10 @@ requires: zlib
 %description
 A Virtual tape library and tape drives:
 
-VTL consists of a pseudo HBA kernel driver and a number of userspace daemons.
+Used to emulate hardware robot & tape drives:
 
-User-space daemon(s) act as the target devices.
+VTL consists of a pseudo HBA kernel driver and user-space daemons which
+function as the SCSI target.
 
 Communication between the kernel module and the daemons is achieved
 via /dev/vtl? device nodes.
