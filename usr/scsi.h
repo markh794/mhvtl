@@ -96,6 +96,7 @@
 #define	READ_16			0x88
 #define READ_ATTRIBUTE		0x8c
 #define READ_BLOCK_LIMITS	0x05
+#define READ_BUFFER		0x3c
 #define	READ_ELEMENT_STATUS	0xb8
 #define READ_MEDIA_SERIAL_NUMBER	0xab
 #define	READ_POSITION		0x34
@@ -119,6 +120,7 @@
 #define	WRITE_12		0xaa
 #define	WRITE_16		0x8a
 #define WRITE_ATTRIBUTE		0x8d
+#define WRITE_BUFFER		0x3b
 #define	WRITE_FILEMARKS		0x10
 
 /* Service codes */
@@ -177,6 +179,7 @@
 #define E_INVALID_FIELD_IN_CDB		0x2400
 #define E_LUN_NOT_SUPPORTED		0x2500
 #define E_INVALID_FIELD_IN_PARMS	0x2600
+#define E_MEDIUM_INCOMPATIBLE		0x3000
 #define E_SAVING_PARMS_UNSUP		0x3900
 #define E_MEDIUM_DEST_FULL		0x3b0d
 #define E_MEDIUM_SRC_EMPTY		0x3b0e
