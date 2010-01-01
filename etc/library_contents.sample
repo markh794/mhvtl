@@ -1,18 +1,16 @@
 # Define how many tape drives you want in the vtl..
-# The 'XYZZY_...' is the serial number assigned to
-# this tape device.
 
-Drive 1: XYZZY_1
-Drive 2: XYZZY_2
-Drive 3: XYZZY_3
-Drive 4: XYZZY_4
-Drive 5: XYZZY_5
-Drive 6: XYZZY_6
-Drive 7: XYZZY_7
-Drive 8: XYZZY_8
+Drive 1:
+Drive 2:
+Drive 3:
+Drive 4:
+Drive 5:
+Drive 6:
+Drive 7:
+Drive 8:
 
 # Place holder for the robotic arm. Not really used.
-Picker 1:
+Picker 1: 
 
 # Media Access Port
 # (mailslots, Cartridge Access Port, <insert your favourate name here>)

@@ -4,15 +4,6 @@ USR ?= vtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
-
-# If insserv is executable, run it otherwise use 'echo'
-INSSERV = $(shell if test -x /sbin/insserv; \
-	then \
-		echo /sbin/insserv; \
-	else \
-		echo echo; \
-	fi)
-
 $(RCFILE): $(RCFILE).in
 	sed -e s'/@USR@/$(USR)/' $< > $@.1
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' $@.1 > $@
@@ -34,5 +25,5 @@ install:
 	install -d -m 755 /etc
 	install -d -m 755 /etc/init.d
 	install -m 700 $(RCFILE) /etc/init.d/
-	$(INSSERV) $(RCFILE)
+	insserv $(RCFILE)
 

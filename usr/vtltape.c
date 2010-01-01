@@ -71,6 +71,7 @@
 #include "spc.h"
 
 char vtl_driver_name[] = "vtltape";
+long my_id = 0;
 
 /* Variables for simple, single initiator, SCSI Reservation system */
 static int I_am_SPC_2_Reserved;
@@ -2356,6 +2357,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		}
 		return rc;
 	}
+	tapeLoaded = TAPE_LOADED;
 
 	strncpy((char *)mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
@@ -2676,15 +2678,15 @@ unloadTape(uint8_t *sam_stat)
 	tapeLoaded = TAPE_UNLOADED;
 }
 
-static int processMessageQ(char *mtext, uint8_t *sam_stat)
+static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 {
 	char * pcl;
 	char s[128];
 
-	MHVTL_DBG(1, "Q msg : %s", mtext);
+	MHVTL_DBG(1, "Q snd_id %ld msg : %s", msg->snd_id, msg->text);
 
 	/* Tape Load message from Library */
-	if (!strncmp(mtext, "lload", 5)) {
+	if (!strncmp(msg->text, "lload", 5)) {
 		if ( ! inLibrary) {
 			MHVTL_DBG(2, "lload & drive not in library");
 			return (0);
@@ -2692,62 +2694,62 @@ static int processMessageQ(char *mtext, uint8_t *sam_stat)
 
 		if (tapeLoaded != TAPE_UNLOADED) {
 			MHVTL_DBG(2, "Tape already mounted");
-			send_msg("Load failed", LIBRARY_Q);
+			send_msg("Load failed", msg->snd_id);
 		} else {
-			pcl = strip_PCL(mtext, 6); // 'lload ' => offset of 6
-			tapeLoaded = loadTape(pcl, sam_stat);
+			pcl = strip_PCL(msg->text, 6); // 'lload ' => offset of 6
+			loadTape(pcl, sam_stat);
 			if (tapeLoaded == TAPE_LOADED)
 				sprintf(s, "Loaded OK: %s\n", pcl);
 			else
 				sprintf(s, "Load failed: %s\n", pcl);
-			send_msg(s, LIBRARY_Q);
+			send_msg(s, msg->snd_id);
 		}
 	}
 
 	/* Tape Load message from User space */
-	if (!strncmp(mtext, "load", 4)) {
+	if (!strncmp(msg->text, "load", 4)) {
 		if (inLibrary)
 			MHVTL_DBG(2, "Warn: Tape assigned to library");
 		if (tapeLoaded == TAPE_LOADED) {
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
-			pcl = strip_PCL(mtext, 4);
-			tapeLoaded = loadTape(pcl, sam_stat);
+			pcl = strip_PCL(msg->text, 4);
+			loadTape(pcl, sam_stat);
 		}
 	}
 
-	if (!strncmp(mtext, "unload", 6)) {
+	if (!strncmp(msg->text, "unload", 6)) {
 		unloadTape(sam_stat);
 		MHVTL_DBG(1, "Library requested tape unload");
 	}
 
-	if (!strncmp(mtext, "exit", 4)) {
-		MHVTL_DBG(1, "Notice to exit : %s", mtext);
+	if (!strncmp(msg->text, "exit", 4)) {
+		MHVTL_DBG(1, "Notice to exit : %s", msg->text);
 		return 1;
 	}
 
-	if (!strncmp(mtext, "Register", 8)) {
+	if (!strncmp(msg->text, "Register", 8)) {
 		inLibrary = 1;
-		MHVTL_DBG(1, "Notice from Library controller : %s", mtext);
+		MHVTL_DBG(1, "Notice from Library controller : %s", msg->text);
 	}
 
-	if (!strncmp(mtext, "verbose", 7)) {
+	if (!strncmp(msg->text, "verbose", 7)) {
 		if (verbose)
 			verbose--;
 		else
 			verbose = 3;
 		syslog(LOG_DAEMON|LOG_NOTICE, "Verbose: %s at level %d",
-				verbose ? "enabled" : "disabled", verbose);
+				 verbose ? "enabled" : "disabled", verbose);
 	}
 
-	if (!strncmp(mtext, "TapeAlert", 9)) {
+	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
-		sscanf(mtext, "TapeAlert %" PRIx64, &flg);
+		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
 		setTapeAlert(&TapeAlert, flg);
 		setSeqAccessDevice(&seqAccessDevice, flg);
 	}
 
-	if (!strncmp(mtext, "debug", 5)) {
+	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug) {
 			debug--;
 		} else {
@@ -3220,7 +3222,6 @@ int main(int argc, char *argv[])
 {
 	int cdev;
 	int ret;
-	int q_priority = 0;
 	int exit_status = 0;
 	long pollInterval = 50000L;
 	uint8_t *buf;
@@ -3261,7 +3262,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'q':
 				if (argc > 1)
-					q_priority = atoi(argv[1]);
+					my_id = atoi(argv[1]);
 				break;
 			default:
 				usage(progname);
@@ -3274,16 +3275,16 @@ int main(int argc, char *argv[])
 		argc--;
 	}
 
-	if (q_priority <= 0 || q_priority > MAXPRIOR) {
+	if (my_id <= 0 || my_id > MAXPRIOR) {
 		usage(progname);
-		if (q_priority == 0)
-			puts("    queue priority not specified\n");
+		if (my_id == 0)
+			puts("    -q must be specified\n");
 		else
-			printf("    queue prority out of range [1 - %d]\n",
-						MAXPRIOR);
+			printf("    -q value out of range [1 - %d]\n",
+				MAXPRIOR);
 		exit(1);
 	}
-	minor = q_priority;	// Minor == Message Queue priority
+	minor = my_id;	// Minor == Message Queue priority
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, MHVTL_VERSION);
@@ -3311,8 +3312,8 @@ int main(int argc, char *argv[])
 	/* Setup Media_Density */
 	media_density_init();
 
-	child_cleanup = add_lu(q_priority, &ctl);
-	if (!child_cleanup) {
+	child_cleanup = add_lu(my_id, &ctl);
+	if (! child_cleanup) {
 		MHVTL_DBG(1, "Could not create logical unit");
 		exit(1);
 	}
@@ -3394,11 +3395,10 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		/* Check for anything in the messages Q */
-		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
+		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			r_entry.mtext[mlen] = '\0';
 			exit_status =
-				processMessageQ(r_entry.mtext, &sam_status);
+				processMessageQ(&r_entry.msg, &sam_status);
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
 				syslog(LOG_DAEMON|LOG_ERR,

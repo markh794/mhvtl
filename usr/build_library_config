@@ -34,8 +34,7 @@ fi
 
 USER=$1
 TMP=/var/tmp/_build.$$
-DRIVECONFIG=$MHVTL_CONFIG_PATH/device.conf
-LIBCONTENTS=$MHVTL_CONFIG_PATH/library_contents
+DEVICE_CONF=$MHVTL_CONFIG_PATH/device.conf
 OPTIONS=""
 
 # rc script will make sure this exists...
@@ -51,8 +50,8 @@ else
 	OPTIONS=""
 fi
 
-if [ ! -f $DRIVECONFIG ]; then
-	echo "Sorry, Can't continue - no $DRIVECONFIG"
+if [ ! -f $DEVICE_CONF ]; then
+	echo "Sorry, Can't continue - no $DEVICE_CONF"
 	exit 1
 fi
 
@@ -66,32 +65,36 @@ fi
 # OK, we know the module is loaded..
 MAJOR=`grep mhvtl /proc/devices|awk '{print $1}'`
 
-# First we need to setup & configure drives.
-# Once all the drives are setup, query devices for config &
-# build library structure based on information found.
-count=`grep ^Drive $LIBCONTENTS|wc -l`
-
-for a in `seq $count`
-do
-	grep "^Drive $a" $DRIVECONFIG
+function create_minor
+{
+	typeset minor=$1
 
 	# Make sure device node exists..
 	# A better bet would be to configure udev...
-	if [ ! -c /dev/mhvtl$count ]; then
-		if [ -a /dev/mhvtl$count ]; then
+	if [ ! -c /dev/mhvtl$minor ]; then
+		if [ -a /dev/mhvtl$minor ]; then
 			# Exists but not a char device... remove..
-			rm /dev/mhvtl$count
+			rm /dev/mhvtl$minor
 		fi
-		mknod /dev/mhvtl$count c $major $count
-		chown $USER:$USER /dev/mhvtl$count
+		mknod /dev/mhvtl$minor c $major $minor
+		chown $USER:$USER /dev/mhvtl$minor
 	fi
+}
 
-	# Start daemon for new lu
+# First we need to setup & configure drives.
+
+for a in $(awk '$1 == "Drive:" {print $2}' $DEVICE_CONF)
+do
+	create_minor $a
 	vtltape -q $a $OPTIONS
 done
 
-# now start the library daemon
-vtllibrary -q 0 $OPTIONS
+# Now we need to setup & configure libraries.
+
+for a in $(awk '$1 == "Library:" {print $2}' $DEVICE_CONF)
+do
+	create_minor $a
+	vtllibrary -q $a $OPTIONS
+done
 
 rm -f $TMP
-

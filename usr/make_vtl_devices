@@ -36,6 +36,7 @@ if [ "X$MHVTL_CONFIG_PATH" == "X" ]; then
 else
 	. $MHVTL_CONFIG_PATH/mhvtl.conf
 fi
+DEVICE_CONF=$MHVTL_CONFIG_PATH/device.conf
 
 umask 002
 
@@ -44,11 +45,7 @@ if [ "X" == "X$MAJOR" ]; then
 	exit 1
 fi
 
-count=`grep "Drive" $MHVTL_CONFIG_PATH/library_contents|wc -l`
-count=`expr $count + 1`
-echo "Number of devices to create : $count"
-
-for (( a=0 ; a < $count ; a++)); do
+for a in $(awk '$1 == "Drive:" || $1 == "Library:" {print $2}' $DEVICE_CONF); do
 	if [ -c /dev/mhvtl$a ]; then
 		rm -f /dev/mhvtl$a
 	fi

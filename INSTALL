@@ -1,5 +1,5 @@
 
-MH Virtual Tape & Library system.
+mh virtual tape & library system.
 
 
 Instructions assume reader is familiar with the kernel build process.
@@ -139,13 +139,6 @@ Enjoy.
 Please feel free in letting me know if this works for you.
 
 Bug fixes and suggestions always welcome.
-
-Coding Style: To follow the Linux kernel coding style.
-Included under the 'scripts' subdirectory is the Linux kernel 'checkpatch.pl'
-Please run against any potential patches & fix recommendations before
-sending for inclusion. Thanks.
-e.g.
-scripts/checkpatch.pl ~/patch/0001-name-of-your-patch
 
 markh794@gmail.com
 mark_harvey@symantec.com

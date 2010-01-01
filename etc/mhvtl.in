@@ -52,16 +52,15 @@ VERSION: 3
 # NAA format is an 8 hex byte value seperated by ':'
 # Note: NAA is part of inquiry VPD 0x83
 #
-# Each 'record' is sperated by one (or more) blank lines.
+# Each 'record' is separated by one (or more) blank lines.
 # Each 'record' starts at column 1
 # Serial num max len is 10.
-# Compression: factor <value> enabled [0|1]
-#     Where <value> is zlib compression factor 1 = Fastest compression
-#                                              9 = Best compression
-#         enabled 1 - Compression is enabled,
-#         enabled 0 - Compression is disabled
+# Compression: factor X enabled 0|1
+#     Where X is zlib compression factor	1 = Fastest compression
+#						9 = Best compression
+#     enabled 0 == off, 1 == on
 
-Library: 0 CHANNEL: 0 TARGET: 0 LUN: 0
+Library: 10 CHANNEL: 0 TARGET: 0 LUN: 0
  Vendor identification: SPECTRA
  Product identification: PYTHON
  Product revision level: 5500
@@ -69,6 +68,7 @@ Library: 0 CHANNEL: 0 TARGET: 0 LUN: 0
  NAA: 11:22:33:44:ab:cd:ef:00
 
 Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
+ Library ID: 10 Slot: 1
  Vendor identification: QUANTUM
  Product identification: SDLT600
  Product revision level: 5500
@@ -78,6 +78,7 @@ Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
  VPD: b0 04 00 02 01 00
 
 Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
+ Library ID: 10 Slot: 2
  Vendor identification: QUANTUM
  Product identification: SDLT600
  Product revision level: 5500
@@ -87,6 +88,7 @@ Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
  VPD: b0 04 00 02 01 00
 
 Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
+ Library ID: 10 Slot: 3
  Vendor identification: IBM
  Product identification: ULT3580-TD4
  Product revision level: 5500
@@ -96,6 +98,7 @@ Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
  VPD: b0 04 00 02 01 00
 
 Drive: 4 CHANNEL: 0 TARGET: 4 LUN: 0
+ Library ID: 10 Slot: 4
  Vendor identification: IBM
  Product identification: ULT3580-TD4
  Product revision level: 5500
@@ -147,18 +150,21 @@ if [ $EXIST -eq 0 ]; then
 fi
 
 # Now check for for 'library_contents'
-if [ ! -f $MHVTL_CONFIG_PATH/library_contents ]; then
-	echo
-	echo "Could not locate library config file: $MHVTL_CONFIG_PATH/library_contents"
-	echo "Creating a default one"
-	echo "Please stop mhvtl & edit $MHVTL_CONFIG_PATH/library_contents to suit your requirements"
-	cat > $MHVTL_CONFIG_PATH/library_contents << CONF_SAMPLE
+LIBLIST=`awk '$1 == "Library:" {print $2}' $MHVTL_CONFIG_PATH/device.conf`
+for LIBID in $LIBLIST
+do
+	if [ ! -f $MHVTL_CONFIG_PATH/library_contents.$LIBID ]; then
+		echo
+		echo "Could not locate library config file: $MHVTL_CONFIG_PATH/library_contents.$LIBID"
+		echo "Creating a default one"
+		echo "Please stop mhvtl & edit $MHVTL_CONFIG_PATH/library_contents.$LIBID to suit your requirements"
+		cat > $MHVTL_CONFIG_PATH/library_contents.$LIBID << CONF_SAMPLE
 VERSION: 2
 
-Drive 1: XYZZY_A1
-Drive 2: XYZZY_A2
-Drive 3: XYZZY_A3
-Drive 4: XYZZY_A4
+Drive 1:
+Drive 2:
+Drive 3:
+Drive 4:
 
 Picker 1:
 
@@ -218,7 +224,8 @@ Slot 31: CLN001L1
 Slot 32: CLN002L1
 Slot 33: CLN003L1
 CONF_SAMPLE
-fi
+	fi
+done
 
 case "$1" in
     start)
@@ -257,7 +264,7 @@ case "$1" in
 	make_vtl_devices $USER > /dev/null
 
 	# Now correct file permissions..
-	chown -R $USER:$USER /dev/mhvtl[0-9]
+	chown -R $USER:$USER /dev/mhvtl[0-9]*
 
 	# Build Library media
 	make_vtl_media $USER
@@ -288,7 +295,12 @@ case "$1" in
 		usleep 100 > /dev/null 2>&1 /dev/null
 	done
 
-	vtlcmd library exit
+	for a in `ps -eo cmd |awk '/^vtllibrary -q/ {print $3}'`
+	do
+		echo "   Sending exit to $a"
+		vtlcmd $a exit
+		usleep 100 > /dev/null 2>&1 /dev/null
+	done
 
 	if [ -f /etc/rc.status ]; then
 		rc_status -v
@@ -304,8 +316,12 @@ case "$1" in
 		usleep 100 > /dev/null 2>&1 /dev/null
 	done
 
-	# Send library daemon exit msg..
-	vtlcmd library  exit
+	for a in `ps -eo cmd |awk '/^vtllibrary -q/ {print $3}'`
+	do
+		echo "   Sending exit to $a"
+		vtlcmd $a exit
+		usleep 100 > /dev/null 2>&1 /dev/null
+	done
 
 	# Sleep long enough for the daemons to see the exit commands.
 	sleep 1

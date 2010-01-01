@@ -58,6 +58,7 @@
 #include "be_byteshift.h"
 
 char vtl_driver_name[] = "vtllibrary";
+long my_id = 0;
 
 /*
  * The following should be dynamic (read from config file)
@@ -134,6 +135,7 @@ struct d_info {
 	char inq_product_id[16];
 	char inq_product_rev[4];
 	char inq_product_sno[10];
+	long drv_id;		/* drive's send_msg queue ID */
 	char online;		/* Physical status of drive */
 	int SCSI_BUS;
 	int SCSI_ID;
@@ -174,8 +176,9 @@ static struct mode sm[] = {
 
 static void usage(char *progname)
 {
-	printf("Usage: %s [-d] [-v]\n", progname);
-	printf("      Where file == data file\n");
+	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
+	printf("      Where\n");
+	printf("             'q number' is the queue priority number\n");
 	printf("             'd' == debug -> Don't run as daemon\n");
 	printf("             'v' == verbose -> Extra info logged via syslog\n");
 }
@@ -510,20 +513,20 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 	move_cart(src->slot, dest->slot);
 
 	// Send 'unload' message to drive b4 the move..
-	send_msg("unload", src->slot->slot_location);
+	send_msg("unload", src->drv_id);
 
 	sprintf(cmd, "lload %s", dest->slot->barcode);
 
-	/* Remove traling spaces */
+	/* Remove trailing spaces */
 	for (x = 6; x < 16; x++)
 		if (cmd[x] == ' ') {
 			cmd[x] = '\0';
 			break;
 		}
-	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %d",
-					cmd, dest->slot->slot_location);
+	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %ld",
+					cmd, dest->drv_id);
 
-	send_msg(cmd, dest->slot->slot_location);
+	send_msg(cmd, dest->drv_id);
 
 return 0;
 }
@@ -554,7 +557,7 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 	}
 
 	// Send 'unload' message to drive b4 the move..
-	send_msg("unload", src->slot->slot_location);
+	send_msg("unload", src->drv_id);
 
 	move_cart(src->slot, dest);
 	setDriveEmpty(src);
@@ -569,7 +572,6 @@ return 0;
 static int check_tape_load(uint8_t *pcl)
 {
 	int mlen, r_qid;
-	int q_priority = LIBRARY_Q;
 	struct q_entry r_entry;
 
 	/* Initialise message queue as necessary */
@@ -579,12 +581,11 @@ static int check_tape_load(uint8_t *pcl)
 		exit(1);
 	}
 
-	mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, MSG_NOERROR);
+	mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0) {
-		r_entry.mtext[mlen] = '\0';
-		MHVTL_DBG(2, "Received \"%s\" from message Q", r_entry.mtext);
+		MHVTL_DBG(2, "Received \"%s\" from message Q", r_entry.msg.text);
 	}
-	return strncmp("Loaded OK", r_entry.mtext, 9);
+	return strncmp("Loaded OK", r_entry.msg.text, 9);
 }
 
 static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
@@ -614,10 +615,10 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 			break;
 		}
 
-	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %d",
-					cmd, dest->slot->slot_location);
+	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %ld",
+					cmd, dest->drv_id);
 
-	send_msg(cmd, dest->slot->slot_location);
+	send_msg(cmd, dest->drv_id);
 
 	if (check_tape_load(src->barcode)) {
 		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
@@ -1454,12 +1455,12 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 /*
  * Respond to messageQ 'list map' by sending a list of PCLs to messageQ
  */
-static void list_map(void)
+static void list_map(struct q_msg *msg)
 {
 	struct s_info *sp;
 	int	a;
-	char msg[MAXOBN];
-	char *c = msg;
+	char buf[MAXOBN];
+	char *c = buf;
 	*c = '\0';
 
 	for (a = START_MAP; a < START_MAP + num_map; a++) {
@@ -1471,8 +1472,8 @@ static void list_map(void)
 			MHVTL_DBG(2, "MAP slot %d empty", a - START_MAP);
 		}
 	}
-	MHVTL_DBG(2, "map contents: %s", msg);
-	send_msg(msg, LIBRARY_Q + 1);
+	MHVTL_DBG(2, "map contents: %s", buf);
+	send_msg(buf, msg->snd_id);
 }
 
 /*
@@ -1528,42 +1529,43 @@ int already_in_slot(char *barcode)
 #define MALLOC_SZ 1024
 
 /* Return zero - failed, non-zero - success */
-static int load_map(char *msg)
+static int load_map(struct q_msg *msg)
 {
 	struct s_info *sp = NULL;
 	char *barcode;
 	int slt;
 	int i;
 	int str_len;
+	char *text = &msg->text[9];	/* skip past "load map " */
 
-	MHVTL_DBG(2, "Loading %s into MAP", msg);
+	MHVTL_DBG(2, "Loading %s into MAP", text);
 
 	if (cap_closed) {
-		send_msg("MAP not opened", LIBRARY_Q + 1);
+		send_msg("MAP not opened", msg->snd_id);
 		return 0;
 	}
 
-	str_len = strlen(msg);
+	str_len = strlen(text);
 	barcode = NULL;
 	for (i = 0; i < str_len; i++)
-		if (isalnum(msg[i])) {
-			barcode = &msg[i];
+		if (isalnum(text[i])) {
+			barcode = &text[i];
 			break;
 		}
 
 	/* No barcode - reject load */
 	if (! barcode) {
-		send_msg("Bad barcode", LIBRARY_Q + 1);
+		send_msg("Bad barcode", msg->snd_id);
 		return 0;
 	}
 
 	if (already_in_slot(barcode)) {
-		send_msg("barcode already in library", LIBRARY_Q + 1);
+		send_msg("barcode already in library", msg->snd_id);
 		return 0;
 	}
 
 	if (strlen(barcode) > 10) {
-		send_msg("barcode length too long", LIBRARY_Q + 1);
+		send_msg("barcode length too long", msg->snd_id);
 		return 0;
 	}
 
@@ -1582,41 +1584,41 @@ static int load_map(char *msg)
 		setImpExpStatus(sp, OPERATOR);
 		sp->slot_location = slt + START_MAP - 1;
 		sp->internal_status = 0;
-		send_msg("OK", LIBRARY_Q + 1);
+		send_msg("OK", msg->snd_id);
 		return 1;
 	}
-	send_msg("MAP Full", LIBRARY_Q + 1);
+	send_msg("MAP Full", msg->snd_id);
 	return 0;
 }
 
-static void open_map(void)
+static void open_map(struct q_msg *msg)
 {
 	MHVTL_DBG(1, "Called");
 
 	cap_closed = CAP_OPEN;
-	send_msg("OK", LIBRARY_Q + 1);
+	send_msg("OK", msg->snd_id);
 }
 
-static void close_map(void)
+static void close_map(struct q_msg *msg)
 {
 	MHVTL_DBG(1, "Called");
 
 	cap_closed = CAP_CLOSED;
-	send_msg("OK", LIBRARY_Q + 1);
+	send_msg("OK", msg->snd_id);
 }
 
 /*
  * Respond to messageQ 'empty map' by clearing 'ocuplied' status in map slots.
  * Return 0 on failure, non-zero - success.
  */
-static int empty_map(void)
+static int empty_map(struct q_msg *msg)
 {
 	struct s_info *sp;
 	int	a;
 
 	if (cap_closed) {
 		MHVTL_DBG(1, "MAP slot empty failed - CAP Not open");
-		send_msg("Can't empty map while MAP is closed", LIBRARY_Q + 1);
+		send_msg("Can't empty map while MAP is closed", msg->snd_id);
 		return 0;
 	}
 
@@ -1627,19 +1629,19 @@ static int empty_map(void)
 			MHVTL_DBG(2, "MAP slot %d emptied", a - START_MAP);
 		}
 	}
-	send_msg("OK", LIBRARY_Q + 1);
+	send_msg("OK", msg->snd_id);
 	return 1;
 }
 
 /*
  * Return 1, exit program
  */
-static int processMessageQ(char *mtext)
+static int processMessageQ(struct q_msg *msg)
 {
 
-	MHVTL_DBG(3, "Q msg : %s", mtext);
+	MHVTL_DBG(3, "Q snd_id %ld msg : %s", msg->snd_id, msg->text);
 
-	if (! strncmp(mtext, "debug", 5)) {
+	if (! strncmp(msg->text, "debug", 5)) {
 		if (debug) {
 			debug--;
 		} else {
@@ -1647,28 +1649,28 @@ static int processMessageQ(char *mtext)
 			verbose = 2;
 		}
 	}
-	if (! strncmp(mtext, "empty map", 9))
-		empty_map();
-	if (! strncmp(mtext, "exit", 4))
+	if (! strncmp(msg->text, "empty map", 9))
+		empty_map(msg);
+	if (! strncmp(msg->text, "exit", 4))
 		return 1;
-	if (! strncmp(mtext, "open map", 8))
-		open_map();
-	if (! strncmp(mtext, "close map", 9))
-		close_map();
-	if (! strncmp(mtext, "list map", 8))
-		list_map();
-	if (! strncmp(mtext, "load map ", 9))
-		load_map(&mtext[9]);
-	if (! strncmp(mtext, "offline", 7))
+	if (! strncmp(msg->text, "open map", 8))
+		open_map(msg);
+	if (! strncmp(msg->text, "close map", 9))
+		close_map(msg);
+	if (! strncmp(msg->text, "list map", 8))
+		list_map(msg);
+	if (! strncmp(msg->text, "load map ", 9))
+		load_map(msg);
+	if (! strncmp(msg->text, "offline", 7))
 		libraryOnline = 0;
-	if (! strncmp(mtext, "online", 6))
+	if (! strncmp(msg->text, "online", 6))
 		libraryOnline = 1;
-	if (! strncmp(mtext, "TapeAlert", 9)) {
+	if (! strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
-		sscanf(mtext, "TapeAlert %" PRIx64, &flg);
+		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
 		setTapeAlert(&TapeAlert, flg);
 	}
-	if (! strncmp(mtext, "verbose", 7)) {
+	if (! strncmp(msg->text, "verbose", 7)) {
 		if (verbose)
 			verbose--;
 		else
@@ -1783,8 +1785,8 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
-	int indx;
-	int found;
+	int slot;
+	long drv_id, lib_id;
 	struct d_info *dp = NULL;
 
 	conf = fopen(config , "r");
@@ -1805,22 +1807,22 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 		exit(1);
 	}
 
-	found = 0;
+	drv_id = -1;
+
 	/* While read in a line */
 	while (fgets(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		MHVTL_DBG(3, "strlen: %ld", (long)strlen(b));
-		if (sscanf(b, "Drive: %d", &indx)) {
-			MHVTL_DBG(2, "Found Drive %d", indx);
-			if (indx > 0) {
-				indx--;
-				dp = &drv[indx];
-			}
-
-			if (indx > drive_count)
-				goto done;
-
+		if (sscanf(b, "Drive: %ld", &drv_id) > 0) {
+			continue;
+		}
+		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2 &&
+			lib_id == my_id && slot <= drive_count && drv_id >= 0)
+		{
+			MHVTL_DBG(2, "Found Drive %ld in slot %d", drv_id, slot);
+			dp = &drv[slot-1];
+			dp->drv_id = drv_id;
+			continue;
 		}
 		if (dp) {
 			if (sscanf(b, " Unit serial number: %s", s) > 0)
@@ -1832,11 +1834,12 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 			if (sscanf(b, " Vendor identification: %s", s) > 0)
 				strncpy(dp->inq_vendor_id, s, 8);
 		}
-		if (strlen(b) == 1)	/* Blank line => Reset device pointer */
+		if (strlen(b) == 1) { /* Blank line => Reset device pointer */
+			drv_id = -1;
 			dp = NULL;
+		}
 	}
 
-done:
 	free(b);
 	free(s);
 	fclose(conf);
@@ -1849,7 +1852,7 @@ done:
  */
 static void init_slot_info(void)
 {
-	char *conf=MHVTL_CONFIG_PATH"/library_contents";
+	char conf[1024];
 	FILE *ctrl;
 	struct d_info *dp = NULL;
 	struct s_info *sp = NULL;
@@ -1859,6 +1862,7 @@ static void init_slot_info(void)
 	int slt;
 	int x;
 
+	sprintf(conf, MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
 	ctrl = fopen(conf , "r");
 	if (!ctrl) {
 		MHVTL_DBG(1, "Can not open config file %s : %s", conf,
@@ -2362,7 +2366,6 @@ int main(int argc, char *argv[])
 {
 	int cdev;
 	int ret;
-	int q_priority = 0;
 	int exit_status = 0;
 	long pollInterval = 0L;
 	uint8_t *buf;
@@ -2377,7 +2380,6 @@ int main(int argc, char *argv[])
 
 	char *progname = argv[0];
 	char *name = "mhvtl";
-	uint8_t	minor = 0;
 	struct passwd *pw;
 
 	/* Message Q */
@@ -2396,7 +2398,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'q':
 				if (argc > 1)
-					q_priority = atoi(argv[1]);
+					my_id = atoi(argv[1]);
 				break;
 			default:
 				usage(progname);
@@ -2409,12 +2411,14 @@ int main(int argc, char *argv[])
 		argc--;
 	}
 
-	if (q_priority != 0) {
+	if (my_id <= 0 || my_id > MAXPRIOR) {
 		usage(progname);
-		printf("    queue prority must be 0\n");
+		if (my_id == 0)
+			printf("    -q must be specified\n");
+		else
+			printf("    -q value out of range [1 - %d]\n",
+				MAXPRIOR);
 		exit(1);
-	} else {
-		q_priority = LIBRARY_Q;
 	}
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
@@ -2428,16 +2432,15 @@ int main(int argc, char *argv[])
 	memset(sense, 0, sizeof(sense));
 	reset_device();	/* power-on reset */
 
-	/* One of these days, we will support multiple libraries */
-	if (!init_lu(&lunit, q_priority - LIBRARY_Q, &ctl)) {
-		printf("Can not find entry for '%d' in config file\n", minor);
+	if (!init_lu(&lunit, my_id, &ctl)) {
+		printf("Can not find entry for '%ld' in config file\n", my_id);
 		exit(1);
 	}
 	init_slot_info();
 	init_mode_pages(sm);
 	initTapeAlert(&TapeAlert);
 
-	child_cleanup = add_lu((q_priority == LIBRARY_Q) ? 0 : q_priority, &ctl);
+	child_cleanup = add_lu(my_id, &ctl);
 	if (! child_cleanup) {
 		printf("Could not create logical unit\n");
 		exit(1);
@@ -2467,25 +2470,24 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (check_for_running_daemons(minor)) {
+	if (check_for_running_daemons(my_id)) {
 		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
 		exit(2);
 	}
 
-	/* Clear out message Q by reading anthing there.. */
-	mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
+	/* Clear out message Q by reading anything there. */
+	mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 	while (mlen > 0) {
-		r_entry.mtext[mlen] = '\0';
-		MHVTL_DBG(2, "Found \"%s\" still in message Q", r_entry.mtext);
-		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
+		MHVTL_DBG(2, "Found \"%s\" still in message Q", r_entry.msg.text);
+		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 	}
 
-	if ((cdev = chrdev_open(name, minor)) == -1) {
+	if ((cdev = chrdev_open(name, my_id)) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
-				"Could not open /dev/%s%d: %s",
-					name, minor, strerror(errno));
-		printf("Could not open /dev/%s%d: %s",
-					name, minor, strerror(errno));
+				"Could not open /dev/%s%ld: %s",
+					name, my_id, strerror(errno));
+		printf("Could not open /dev/%s%ld: %s",
+					name, my_id, strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}
@@ -2500,10 +2502,10 @@ int main(int argc, char *argv[])
 	 * controlling library's message Q id
 	 */
 	for (a = 0; a < num_drives; a++) {
-		send_msg("Register", a + 1);
+		dp = &drive_info[a];
+		send_msg("Register", dp->drv_id);
 
 		if (debug) {
-			dp = &drive_info[a];
 
 			MHVTL_DBG(3, "\nDrive %d", a);
 
@@ -2579,10 +2581,9 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		/* Check for any messages */
-		mlen = msgrcv(r_qid, &r_entry, MAXOBN, q_priority, IPC_NOWAIT);
+		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			r_entry.mtext[mlen] = '\0';
-			exit_status = processMessageQ(r_entry.mtext);
+			exit_status = processMessageQ(&r_entry.msg);
 		} else if (mlen < 0) {
 			r_qid = init_queue();
 			if (r_qid == -1)

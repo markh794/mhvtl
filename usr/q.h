@@ -32,21 +32,30 @@
 #include <string.h>
 #include <errno.h>
 
+#define	MAXTEXTLEN	1024
+
+struct	q_msg {
+	long snd_id;
+	char text[MAXTEXTLEN+1];
+};
+
 #define QKEY	(key_t)0x4d61726b	// Identifying key for queue
 #define QPERM	0660		// Permissions for queue
-#define MAXOBN	1024		// Maxmum lenght of message for Q.
+#define MAXOBN	sizeof(struct q_msg)	// Maximum length of message for Q.
 #define MAXPRIOR 256		// max priority level
-#define LIBRARY_Q 32768		// Priority for Library controller
+#define VTLCMD_Q 32768		// Priority for vtlcmd
 
 struct q_entry {
-	long mtype;
-	char mtext[MAXOBN+1];
+	long rcv_id;
+	struct q_msg msg;
 };
 
 
-int enter(char *, int);
-int send_msg(char *cmd, int q_id);
+int enter(char *, long rcv_id);
+int send_msg(char *cmd, long rcv_id);
 int serve(void);
 int init_queue(void);
+
+extern long my_id;
 
 #endif /* _Q_H_ */

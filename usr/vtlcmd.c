@@ -36,11 +36,17 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 
+long my_id = VTLCMD_Q;
+
+#define TYPE_UNKNOWN 0
+#define TYPE_LIBRARY 1
+#define TYPE_DRIVE 2
+
 void usage(char *progname)
 {
-	fprintf(stderr, "Usage: %s DriveNo. <command>\n", progname);
+	fprintf(stderr, "Usage: %s DeviceNo. <command>\n", progname);
 	fprintf(stderr, "       version: %s\n\n", MHVTL_VERSION);
-	fprintf(stderr, "       Where 'DriveNo' is the messageQ number"
+	fprintf(stderr, "       Where 'DeviceNo' is the messageQ number"
 			" associated with tape daemon\n");
 	fprintf(stderr, "       Where 'command' can be:\n");
 	fprintf(stderr, "           verbose   -> To enable verbose logging\n");
@@ -50,7 +56,9 @@ void usage(char *progname)
 	fprintf(stderr, "           TapeAlert # "
 			"-> 64bit TapeAlert mask\n");
 	fprintf(stderr, "           exit      -> To shutdown drive daemon\n");
-	fprintf(stderr, "\nUsage: %s library <command>\n", progname);
+	fprintf(stderr, "\nUsage: %s DeviceNO <command>\n", progname);
+	fprintf(stderr, "       Where 'DeviceNo' is the messageQ number"
+			" associated with library daemon\n");
 	fprintf(stderr, "       Where 'command' can be:\n");
 	fprintf(stderr, "           verbose   -> To enable verbose logging\n");
 	fprintf(stderr, "           debug     -> To enable debug logging\n");
@@ -95,10 +103,8 @@ int checkMessageQ(struct q_entry *r_entry, int q_prority, int * r_qid)
 {
 	int mlen = 0;
 
-	mlen = msgrcv(*r_qid, r_entry, MAXOBN, q_prority, IPC_NOWAIT);
-	if (mlen > 0) {
-		r_entry->mtext[mlen] = '\0';
-	} else if (mlen < 0) {
+	mlen = msgrcv(*r_qid, r_entry, MAXOBN, my_id, IPC_NOWAIT);
+	if (mlen < 0) {
 		if ((*r_qid = init_queue()) == -1) {
 			syslog(LOG_DAEMON|LOG_ERR,
 				"Can not open message queue: %s",
@@ -121,15 +127,15 @@ int checkResponse(void)
 		return 0;
 	}
 
-	while((ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid)) < 0) {
+	while((ret = checkMessageQ(&r_entry, my_id, &r_qid)) < 0) {
 		if (ret == -2)
 			break;	// Opening messageQ problem..
 		sleep(1);
 	}
 
-	printf("Message: %s\n", r_entry.mtext);
+	printf("Message: %s\n", r_entry.msg.text);
 
-	if (! strncmp("OK", r_entry.mtext, 2))
+	if (! strncmp("OK", r_entry.msg.text, 2))
 		return 1;
 
 return 0;
@@ -148,13 +154,13 @@ void displayResponse(void)
 		return;
 	}
 
-	while((ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid)) < 0) {
+	while((ret = checkMessageQ(&r_entry, my_id, &r_qid)) < 0) {
 		if (ret == -2)
 			break;	// Opening messageQ problem..
 		sleep(1);
 	}
 
-	printf("%s\n", r_entry.mtext);
+	printf("%s\n", r_entry.msg.text);
 
 }
 
@@ -164,17 +170,21 @@ void clear_message_q(void)
 	int r_qid = 0;
 	int ret;
 
-	ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid);
-	r_entry.mtext[0] = '\0';
+	ret = checkMessageQ(&r_entry, my_id, &r_qid);
+	r_entry.msg.text[0] = '\0';
 	while (ret > 0) {
-		ret = checkMessageQ(&r_entry, LIBRARY_Q + 1, &r_qid);
-		r_entry.mtext[0] = '\0';
+		ret = checkMessageQ(&r_entry, my_id, &r_qid);
+		r_entry.msg.text[0] = '\0';
 	}
 }
 
 int main(int argc, char **argv)
 {
-	int driveNo;
+	char *config = MHVTL_CONFIG_PATH"/device.conf";
+	FILE *conf;
+	char b[1024];
+	int device_type = TYPE_UNKNOWN;
+	long deviceNo, indx;
 	int count;
 	char buf[1024];
 	char *p;
@@ -195,16 +205,37 @@ int main(int argc, char **argv)
 
 	p = buf;
 	buf[0] = '\0';
-	if (! strncmp(argv[1], "library", 7)) {
-		driveNo = LIBRARY_Q;
-	} else {
-		driveNo = atoi(argv[1]);
-		if (driveNo == 0)
-			driveNo = LIBRARY_Q;
-		else if ((driveNo < 0) || (driveNo > LIBRARY_Q)) {
-			printf("Invalid drive number\n");
-			exit(1);
+	deviceNo = atol(argv[1]);
+	if ((deviceNo < 0) || (deviceNo >= VTLCMD_Q)) {
+		printf("Invalid device number\n");
+		exit(1);
+	}
+
+	conf = fopen(config , "r");
+	if (!conf) {
+		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %s",
+						config, strerror(errno));
+		perror("Can not open config file");
+		exit(1);
+	}
+
+	/* While read in a line */
+	while (fgets(b, sizeof(b), conf) != NULL) {
+		if (sscanf(b, "Drive: %ld ", &indx) == 1 && indx == deviceNo) {
+			device_type = TYPE_DRIVE;
+			break;
 		}
+		if (sscanf(b, " Library: %ld ", &indx) == 1 && indx == deviceNo) {
+			device_type = TYPE_LIBRARY;
+			break;
+		}
+	}
+	fclose(conf);
+
+	if (device_type == TYPE_UNKNOWN) {
+		fprintf(stderr, "No device is configured with device number %ld\n",
+			deviceNo);
+		exit(1);
 	}
 
 	/* Concat all args into one string */
@@ -222,7 +253,7 @@ int main(int argc, char **argv)
 	clear_message_q();
 
 	/* Check for the existance of a datafile first - abort if not there */
-	if (driveNo == LIBRARY_Q)
+	if (device_type == TYPE_LIBRARY)
 		if (! strncmp(argv[2], "load", 4))
 			if (check_media(argv[4])) {
 				printf("Hint: Use the 'mktape' command to "
@@ -230,12 +261,12 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 
-	if (send_msg(buf, driveNo) < 0) {
+	if (send_msg(buf, deviceNo) < 0) {
 		printf("Enter failure\n");
 		exit(1);
 	}
 
-	if (driveNo == LIBRARY_Q) {
+	if (device_type == TYPE_LIBRARY) {
 		if (! strncmp(argv[2], "open", 4))
 			displayResponse();
 

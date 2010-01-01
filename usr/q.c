@@ -5,6 +5,7 @@
  * Advanced inter-process communications
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <syslog.h>
 #include "q.h"
@@ -46,18 +47,19 @@ int init_queue(void)
 	return (queue_id);
 }
 
-int send_msg(char *cmd, int q_id)
+int send_msg(char *cmd, long rcv_id)
 {
 	int len, s_qid;
 	struct q_entry s_entry;
-	len = strlen(cmd);
 
 	s_qid = init_queue();
 	if (s_qid == -1)
 		return (-1);
 
-	s_entry.mtype = (long)q_id;
-	strncpy(s_entry.mtext, cmd, len);
+	s_entry.rcv_id = rcv_id;
+	s_entry.msg.snd_id = my_id;
+	strcpy(s_entry.msg.text, cmd);
+	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_entry, msg.text);
 
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR, "msgsnd failed: %s", strerror(errno));
@@ -67,24 +69,25 @@ int send_msg(char *cmd, int q_id)
 	}
 }
 
-static void proc_obj(struct q_entry *msg)
+static void proc_obj(struct q_entry *q_entry)
 {
-	printf("Priority: %ld name: %s\n", msg->mtype, msg->mtext);
+	printf("rcv_id: %ld, snd_id: %ld, text: %s\n",
+		q_entry->rcv_id, q_entry->msg.snd_id, q_entry->msg.text);
 }
 
-int enter(char *objname, int priority)
+int enter(char *objname, long rcv_id)
 {
 	int len, s_qid;
 	struct q_entry s_entry;	/* Structure to hold message */
 
-	/* Validate name length, priority level */
-	if ((len = strlen(objname)) > MAXOBN) {
+	/* Validate name length, rcv_id */
+	if (strlen(objname) > MAXTEXTLEN) {
 		warn("Name too long");
 		return (-1);
 	}
 
-	if (priority > 32764 || priority < 0) {
-		warn("Invalid priority level");
+	if (rcv_id > 32764 || rcv_id < 0) {
+		warn("Invalid rcv_id");
 		return(-1);
 	}
 
@@ -94,8 +97,10 @@ int enter(char *objname, int priority)
 		return (-1);
 
 	/* Initialize s_entry */
-	s_entry.mtype = (long)priority;
-	strncpy(s_entry.mtext, objname, MAXOBN);
+	s_entry.rcv_id = rcv_id;
+	s_entry.msg.snd_id = my_id;
+	strcpy(s_entry.msg.text, objname);
+	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_msg, text);
 
 	/* Send message, waiting if nessary */
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
@@ -123,9 +128,6 @@ int serve(void)
 			perror("msgrcv failed");
 			return (-1);
 		} else {
-			/* Make sure we've a string */
-			r_entry.mtext[mlen]='\0';
-
 			/* Process object name */
 			proc_obj(&r_entry);
 		}
