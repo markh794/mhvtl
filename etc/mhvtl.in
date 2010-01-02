@@ -39,13 +39,54 @@ if [ -f /etc/rc.status ]; then
 	rc_reset
 fi
 
+# add_library(DEV_ID, Channel, target, lun, Vendor, ProdID, Prod_rev, SNo.)
+add_library()
+{
+ID=$1
+CH=$2
+TARGET=$3
+LUN=$4
+printf "Library: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
+		$ID $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
+echo " Vendor identification: $5" >> $MHVTL_CONFIG_PATH/device.conf
+echo " Product identification: $6" >> $MHVTL_CONFIG_PATH/device.conf
+echo " Product revision level: $7" >> $MHVTL_CONFIG_PATH/device.conf
+echo " Unit serial number: $8" >> $MHVTL_CONFIG_PATH/device.conf
+printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
+		$ID $CH $TAGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
+echo "" >> $MHVTL_CONFIG_PATH/device.conf
+}
+
+# add_library(DEV_ID, Channel, target, lun, Vendor, ProdID, Prod_rev, SNo., libID, drive_no)
+add_drive()
+{
+ID=$1
+CH=$2
+TARGET=$3
+LUN=$4
+LIB=$9
+SLOT=$a
+printf "Drive: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
+		$ID $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
+printf " Library ID: %02d Slot: %02d\n" \
+		$LIB $SLOT >> $MHVTL_CONFIG_PATH/device.conf
+echo " Vendor identification: $5" >> $MHVTL_CONFIG_PATH/device.conf
+echo " Product identification: $6" >> $MHVTL_CONFIG_PATH/device.conf
+echo " Product revision level: $7" >> $MHVTL_CONFIG_PATH/device.conf
+echo " Unit serial number: $8" >> $MHVTL_CONFIG_PATH/device.conf
+printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
+		$ID $CH $TAGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
+echo " Compression: factor 1 enabled 1" >> $MHVTL_CONFIG_PATH/device.conf
+echo "" >> $MHVTL_CONFIG_PATH/device.conf
+}
+
 # Create a 'device.conf' if it does not exist...
 if [ ! -f $MHVTL_CONFIG_PATH/device.conf ]; then
 
 mkdir -p $MHVTL_CONFIG_PATH
 cat > $MHVTL_CONFIG_PATH/device.conf << VTL_CONF
 
-VERSION: 3
+VERSION: 4
 
 # VPD page format:
 # <page #> <Length> <x> <x+1>... <x+n>
@@ -60,54 +101,18 @@ VERSION: 3
 #						9 = Best compression
 #     enabled 0 == off, 1 == on
 
-Library: 10 CHANNEL: 0 TARGET: 0 LUN: 0
- Vendor identification: SPECTRA
- Product identification: PYTHON
- Product revision level: 5500
- Unit serial number: XYZZY
- NAA: 11:22:33:44:ab:cd:ef:00
-
-Drive: 1 CHANNEL: 0 TARGET: 1 LUN: 0
- Library ID: 10 Slot: 1
- Vendor identification: QUANTUM
- Product identification: SDLT600
- Product revision level: 5500
- Unit serial number: XYZZY_A1
- NAA: 11:22:33:44:ab:cd:ef:01
- Compression: factor 1 enabled 1
- VPD: b0 04 00 02 01 00
-
-Drive: 2 CHANNEL: 0 TARGET: 2 LUN: 0
- Library ID: 10 Slot: 2
- Vendor identification: QUANTUM
- Product identification: SDLT600
- Product revision level: 5500
- Unit serial number: XYZZY_A2
- NAA: 11:22:33:44:ab:cd:ef:02
- Compression: factor 1 enabled 1
- VPD: b0 04 00 02 01 00
-
-Drive: 3 CHANNEL: 0 TARGET: 3 LUN: 0
- Library ID: 10 Slot: 3
- Vendor identification: IBM
- Product identification: ULT3580-TD4
- Product revision level: 5500
- Unit serial number: XYZZY_A3
- NAA: 11:22:33:44:ab:cd:ef:03
- Compression: factor 1 enabled 1
- VPD: b0 04 00 02 01 00
-
-Drive: 4 CHANNEL: 0 TARGET: 4 LUN: 0
- Library ID: 10 Slot: 4
- Vendor identification: IBM
- Product identification: ULT3580-TD4
- Product revision level: 5500
- Unit serial number: XYZZY_A4
- NAA: 11:22:33:44:ab:cd:ef:04
- Compression: factor 1 enabled 1
- VPD: b0 04 00 02 01 00
-
 VTL_CONF
+
+# index Channel target LUN Vendor ProdID ProdRev S/No
+add_library 10 0 0 0 "SPECTRA" "PYTHON" "550V"  "XYZZY_A"
+# index Channel target LUN Vendor ProdID ProdRev S/No lib# DriveNo
+add_drive   11 0 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A1" 10 1
+add_drive   12 0 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A2" 10 2
+
+add_library 30 1 0 0 "SPECTRA" "PYTHON" "550V"  "XYZZY_B"
+add_drive   31 1 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B1" 30 1
+add_drive   32 1 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B2" 30 2
+
 fi
 
 # Create a 'mhvtl.conf' if it does not exist...
@@ -122,7 +127,7 @@ MHVTL_CONFIG_PATH=$MHVTL_CONFIG_PATH
 # Default media capacity (500 M)
 CAPACITY=500
 
-# Set default verbosity [0|1]
+# Set default verbosity [0|1|2|3]
 VERBOSE=1
 
 # Set kernel module debuging [0|1]
@@ -190,40 +195,18 @@ MAP 4:
 # Trailing "JW" - WORM 3592+
 # Trailing "JX" - WORM 3592E05+
 #
-Slot 1: SDLT01S3
-Slot 2: SDLT02S3
-Slot 3: SDLT03S3
-Slot 4: SDLT04S3
-Slot 5: SDLT05S3
-Slot 6: SDLT06S3
-Slot 7: SDLT07S3
-Slot 8: SDLT08S3
-Slot 9: SDLT09S3
-Slot 10:
-Slot 11: ULT001L1
-Slot 12: ULT002L2
-Slot 13: ULT003L3
-Slot 14: ULT004L4
-Slot 15: ULT005L1
-Slot 16: ULT006L2
-Slot 17: ULT007L3
-Slot 18: ULT008L4
-Slot 19: ULT009L1
-Slot 20:
-Slot 21: 8MM001X4
-Slot 22: 8MM002X4
-Slot 23: 8MM003X4
-Slot 24: 8MM004X4
-Slot 25:
-Slot 26:
-Slot 27:
-Slot 28:
-Slot 29:
-Slot 30:
-Slot 31: CLN001L1
-Slot 32: CLN002L1
-Slot 33: CLN003L1
 CONF_SAMPLE
+
+		for a in `seq 1 10`; do
+			printf "Slot $a: DD%02d%02dS3\n" $LIBID $a \
+				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		done
+		for a in `seq 11 20`; do
+			printf "Slot $a: UD%02d%02dL4\n" $LIBID $a \
+				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		done
+		echo "Slot 21: CLN000S3" >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		echo "Slot 22: CLN001L4" >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 	fi
 done
 
