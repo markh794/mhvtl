@@ -1,0 +1,87 @@
+VERSION: 2
+
+Drive 1:
+Drive 2:
+Drive 3:
+Drive 4:
+Drive 5:
+Drive 6:
+Drive 7:
+Drive 8:
+Drive 9:
+
+Picker 1:
+
+MAP 1:
+MAP 2:
+MAP 3:
+MAP 4:
+
+# Slot 1 - ?, no gaps
+# Slot N: [barcode]
+# [barcode]
+# a barcode is comprised of three fields: [Leading] [identifier] [Trailing]
+# Leading "CLN" -- cleaning tape
+# Leading "W" -- WORM tape
+# Leading "NOBAR" -- will appear to have no barcode
+# If the barcode is at least 8 character long, then the last two characters are
+Trailing
+# Trailing "S3" - SDLT600
+# Trailing "X4" - AIT-4
+# Trailing "L1" - LTO 1
+# Trailing "TA" - T10000+
+# Trailing "JA" - 3592+
+# Trailing "JB" - 3592E05+
+# Trailing "JW" - WORM 3592+
+# Trailing "JX" - WORM 3592E05+
+#
+Slot 01: L40001S3
+Slot 02: L40002S3
+Slot 03: L40003S3
+Slot 04: L40004S3
+Slot 05: L40005S3
+Slot 06: L40006S3
+Slot 07: L40007S3
+Slot 08: L40008S3
+Slot 09: L40009S3
+Slot 10: L40010S3
+Slot 11: L40011S3
+Slot 12: L40012S3
+Slot 13: L40013S3
+Slot 14: L40014S3
+Slot 15: L40015S3
+Slot 16: L40016S3
+Slot 17: L40017S3
+Slot 18: L40018S3
+Slot 19: L40019S3
+Slot 20: L40020S3
+Slot 21: L40021S3
+Slot 22: L40022S3
+Slot 23: L40023S3
+Slot 24: L40024S3
+Slot 25: L40025S3
+Slot 26: L40026S3
+Slot 27: L40027S3
+Slot 28: L40028S3
+Slot 29: L40029S3
+Slot 30: L40030S3
+Slot 31: L40031S3
+Slot 32: L40032S3
+Slot 33: L40033S3
+Slot 34: L40034S3
+Slot 35: L40035S3
+Slot 36: L40036S3
+Slot 37: L40037S3
+Slot 38: L40038S3
+Slot 39: L40039S3
+Slot 40: L40040S3
+Slot 41: L40041S3
+Slot 42: L40042S3
+Slot 43: L40043S3
+Slot 44: L40044S3
+Slot 45: L40045S3
+Slot 46: L40046S3
+Slot 47: L40047S3
+Slot 48: L40048S3
+Slot 49: L40049S3
+Slot 50: L40050S3
