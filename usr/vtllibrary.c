@@ -1816,10 +1816,12 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 		if (sscanf(b, "Drive: %ld", &drv_id) > 0) {
 			continue;
 		}
-		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2 &&
-			lib_id == my_id && slot <= drive_count && drv_id >= 0)
-		{
-			MHVTL_DBG(2, "Found Drive %ld in slot %d", drv_id, slot);
+		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2
+					&& lib_id == my_id
+					&& slot <= drive_count
+					&& drv_id >= 0) {
+			MHVTL_DBG(2, "Found Drive %ld in slot %d",
+					drv_id, slot);
 			dp = &drv[slot-1];
 			dp->drv_id = drv_id;
 			continue;
@@ -2482,7 +2484,8 @@ int main(int argc, char *argv[])
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 	}
 
-	if ((cdev = chrdev_open(name, my_id)) == -1) {
+	cdev = chrdev_open(name, my_id);
+	if (cdev == -1) {
 		syslog(LOG_DAEMON|LOG_ERR,
 				"Could not open /dev/%s%ld: %s",
 					name, my_id, strerror(errno));
