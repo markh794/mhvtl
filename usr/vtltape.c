@@ -2014,7 +2014,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		MHVTL_DBG(1, "Reserve (%ld) **", (long)dbuf_p->serialNo);
 		if (!SPR_Reservation_Type && !SPR_Reservation_Key)
 			I_am_SPC_2_Reserved = 1;
-		if (!SPR_Reservation_Type & SPR_Reservation_Key)
+		if (!SPR_Reservation_Type && SPR_Reservation_Key)
 			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		break;
 
