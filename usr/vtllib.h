@@ -374,8 +374,8 @@ struct MAM {
 	} media_info;
 
 	/* Pad to keep MAM to 1024 bytes */
-	uint8_t pad[1024 - 888];
-};
+	uint8_t pad[1024 - 876];
+} __attribute__((packed));
 
 #define MAM_FLAGS_ENCRYPTION_FORMAT 0x0001
 
