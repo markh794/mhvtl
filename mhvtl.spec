@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 1
-Source: mhvtl-2009-12-15.tgz
+Release: 2
+Source: mhvtl-2010-01-28.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -163,6 +163,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu Jan 28 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.2
+- Add support for multiple libraries on single host
+- pack MAM struct so it's 1024 bytes on both 32 & 64bit hosts
+- Updated URL after google moved it
+
 * Wed Dec 16 2009 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.16.11
 - Add tests for media/drive type. i.e. Only allow LTO media in LTO drives.
