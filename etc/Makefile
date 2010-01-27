@@ -25,5 +25,5 @@ install:
 	install -d -m 755 /etc
 	install -d -m 755 /etc/init.d
 	install -m 700 $(RCFILE) /etc/init.d/
-	insserv $(RCFILE)
+	test ! -x /sbin/insserv || /sbin/insserv $(RCFILE)
 

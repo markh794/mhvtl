@@ -39,7 +39,7 @@ if [ -f /etc/rc.status ]; then
 	rc_reset
 fi
 
-# add_library(DEV_ID, Channel, target, lun, Vendor, ProdID, Prod_rev, SNo.)
+# add_library(DEV_ID, Channel, target, lun, Vend, Prod, ProdRev, S/No)
 add_library()
 {
 ID=$1
@@ -53,11 +53,13 @@ echo " Product identification: $6" >> $MHVTL_CONFIG_PATH/device.conf
 echo " Product revision level: $7" >> $MHVTL_CONFIG_PATH/device.conf
 echo " Unit serial number: $8" >> $MHVTL_CONFIG_PATH/device.conf
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
-		$ID $CH $TAGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
+		$ID $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
 echo "" >> $MHVTL_CONFIG_PATH/device.conf
 }
 
-# add_library(DEV_ID, Channel, target, lun, Vendor, ProdID, Prod_rev, SNo., libID, drive_no)
+# FIXME: How to parse 10th arg in bash ?
+# Hack.. Use 'Target' as the drive index.
+# add_drive(DEV_ID, Channel, target, lun, Vend, Prod, ProdRev, S/No libID)
 add_drive()
 {
 ID=$1
@@ -65,7 +67,7 @@ CH=$2
 TARGET=$3
 LUN=$4
 LIB=$9
-SLOT=$a
+SLOT=$TARGET
 printf "Drive: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
 		$ID $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
 printf " Library ID: %02d Slot: %02d\n" \
@@ -75,7 +77,7 @@ echo " Product identification: $6" >> $MHVTL_CONFIG_PATH/device.conf
 echo " Product revision level: $7" >> $MHVTL_CONFIG_PATH/device.conf
 echo " Unit serial number: $8" >> $MHVTL_CONFIG_PATH/device.conf
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
-		$ID $CH $TAGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
+		$LIB $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
 echo " Compression: factor 1 enabled 1" >> $MHVTL_CONFIG_PATH/device.conf
 echo "" >> $MHVTL_CONFIG_PATH/device.conf
 }
@@ -103,15 +105,20 @@ VERSION: 4
 
 VTL_CONF
 
-# index Channel target LUN Vendor ProdID ProdRev S/No
-add_library 10 0 0 0 "SPECTRA" "PYTHON" "550V"  "XYZZY_A"
-# index Channel target LUN Vendor ProdID ProdRev S/No lib# DriveNo
-add_drive   11 0 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A1" 10 1
-add_drive   12 0 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A2" 10 2
 
-add_library 30 1 0 0 "SPECTRA" "PYTHON" "550V"  "XYZZY_B"
-add_drive   31 1 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B1" 30 1
-add_drive   32 1 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B2" 30 2
+#         index channel target LUN Vendor ProdID ProdRev S/No
+add_library 10 0 0 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_A"
+#         index channel target LUN Vendor ProdID ProdRev S/No Lib#
+add_drive   11 0 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A1" 10
+add_drive   12 0 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A2" 10
+add_drive   13 0 3 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A3" 10
+add_drive   14 0 4 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A4" 10
+
+add_library 30 1 0 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_B"
+add_drive   31 1 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B1" 30
+add_drive   32 1 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B2" 30
+add_drive   33 1 3 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B3" 30
+add_drive   34 1 4 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B4" 30
 
 fi
 
@@ -163,13 +170,17 @@ do
 		echo "Could not locate library config file: $MHVTL_CONFIG_PATH/library_contents.$LIBID"
 		echo "Creating a default one"
 		echo "Please stop mhvtl & edit $MHVTL_CONFIG_PATH/library_contents.$LIBID to suit your requirements"
-		cat > $MHVTL_CONFIG_PATH/library_contents.$LIBID << CONF_SAMPLE
-VERSION: 2
 
-Drive 1:
-Drive 2:
-Drive 3:
-Drive 4:
+		echo "VERSION: 2" > $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		echo "" > $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		# Count number of drives in this library
+		DRV_COUNT=`grep "Library ID: $LIBID" $MHVTL_CONFIG_PATH/device.conf|wc -l`
+		# Add a 'Drive X:' for each drive
+		for a in `seq 1 $DRV_COUNT`
+		do
+			printf "Drive %d:\n" $a >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		done
+		cat >> $MHVTL_CONFIG_PATH/library_contents.$LIBID << CONF_SAMPLE
 
 Picker 1:
 
@@ -205,8 +216,8 @@ CONF_SAMPLE
 			printf "Slot $a: UD%02d%02dL4\n" $LIBID $a \
 				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		done
-		echo "Slot 21: CLN000S3" >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
-		echo "Slot 22: CLN001L4" >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		printf "Slot 21: CLN%02d0S3\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		printf "Slot 22: CLN%02d1L4\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 	fi
 done
 
