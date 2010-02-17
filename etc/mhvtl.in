@@ -122,6 +122,13 @@ add_drive   34 1 4 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B4" 30
 
 fi
 
+# Give up is device.conf is at wrong version..
+V=`grep VERSION: $MHVTL_CONFIG_PATH/device.conf|awk '{print $2}'`
+if [ '$V' ne '4' ]; then
+	echo " $MHVTL_CONFIG_PATH/device.conf is not correct version"
+	exit 1;
+fi
+
 # Create a 'mhvtl.conf' if it does not exist...
 if [ ! -f $MHVTL_CONFIG_PATH/mhvtl.conf ]; then
 
