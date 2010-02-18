@@ -30,9 +30,9 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		sg_flags |= SG_MITER_TO_SG;
 #endif
 
-	sg_miter_start(&miter, sgl, nents, sg_flags);
-
 	local_irq_save(flags);
+
+	sg_miter_start(&miter, sgl, nents, sg_flags);
 
 	while (sg_miter_next(&miter) && offset < buflen) {
 		unsigned int len;
