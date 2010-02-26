@@ -60,6 +60,7 @@
 #include <linux/cdev.h>
 
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
 
 #include <linux/stat.h>
@@ -282,6 +283,7 @@ static void vtl_max_tgts_luns(void);
 static int vtl_slave_alloc(struct scsi_device *);
 static int vtl_slave_configure(struct scsi_device *);
 static void vtl_slave_destroy(struct scsi_device *);
+static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
 static int vtl_queuecommand(struct scsi_cmnd *,
 				   void (*done) (struct scsi_cmnd *));
 static int vtl_b_ioctl(struct scsi_device *, int, void __user *);
@@ -307,6 +309,7 @@ static struct scsi_host_template vtl_driver_template = {
 	.slave_destroy =	vtl_slave_destroy,
 	.ioctl =		vtl_b_ioctl,
 	.queuecommand =		vtl_queuecommand,
+	.change_queue_depth =	vtl_change_queue_depth,
 	.eh_abort_handler =	vtl_abort,
 	.eh_bus_reset_handler = vtl_bus_reset,
 	.eh_device_reset_handler = vtl_device_reset,
@@ -314,7 +317,7 @@ static struct scsi_host_template vtl_driver_template = {
 	.can_queue =		VTL_CANQUEUE,
 	.this_id =		15,
 	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
-	.cmd_per_lun =		7,
+	.cmd_per_lun =		32,
 	.max_sectors =		4096,
 	.unchecked_isa_dma = 	0,
 	.use_clustering = 	ENABLE_CLUSTERING,
@@ -616,6 +619,19 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		break;
 	}
 	return schedule_resp(SCpnt, lu, done, errsts);
+}
+
+static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth)
+{
+	printk("mhvtl %s(%d)\n", __func__, qdepth);
+
+	if (qdepth < 1)
+		qdepth = 1;
+	else if (qdepth > sdev->host->cmd_per_lun)
+		qdepth = sdev->host->cmd_per_lun;
+
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	return sdev->queue_depth;
 }
 
 static struct vtl_queued_cmd *lookup_sqcp(struct vtl_lu_info *lu,
