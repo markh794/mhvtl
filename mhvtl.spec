@@ -83,11 +83,11 @@ if ! getent group vtl > /dev/null 2>&1; then
 fi
 if ! getent passwd vtl > /dev/null 2>&1; then
  if [ -f /etc/SuSE-release ]; then
-   useradd --system -g vtl -c "VTL daemon" -d /opt/vtl -m -s /bin/bash vtl
+   useradd --system -g vtl -c "VTL daemon" -d /opt/mhvtl -m -s /bin/bash vtl
  elif [ -f /etc/redhat-release ]; then
-   useradd -r -g vtl -c "VTL daemon" -s /bin/bash vtl
+   useradd -r -g vtl -c "VTL daemon" -d /opt/mhvtl -s /bin/bash vtl
  else
-   useradd -g vtl -c "VTL daemon" -s /bin/bash vtl
+   useradd -g vtl -c "VTL daemon" -d /opt/mhvtl -s /bin/bash vtl
  fi
 fi
 if [ -x /etc/init.d/vtl ]; then
