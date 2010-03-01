@@ -2020,7 +2020,10 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case REZERO_UNIT:	/* Rewind */
 		MHVTL_DBG(1, "Rewinding (%ld) **", (long)dbuf_p->serialNo);
-		rewind_tape(sam_stat);
+		if (tapeLoaded == TAPE_UNLOADED)
+			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		else
+			rewind_tape(sam_stat);
 		break;
 
 	case ERASE_6:
