@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 2
-Source: mhvtl-2010-01-28.tgz
+Release: 3
+Source: mhvtl-2010-03-03.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -163,6 +163,13 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu Mar 03 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.3
+- Test media mounted before REWIND (TSM seems to ignore previous TUR)
+- Make creation of media home dir more robust
+- Add queue depth callback - Defaults to 32.
+- Conversion script of old config files to new format
+
 * Thu Jan 28 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.2
 - Add support for multiple libraries on single host
