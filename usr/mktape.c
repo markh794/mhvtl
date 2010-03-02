@@ -18,6 +18,12 @@
 #include "vtltape.h"
 #include "vtllib.h"
 
+#if defined _LARGEFILE64_SOURCE
+void *largefile_support = "large file support";
+#else
+void *largefile_support = "No largefile support";
+#endif
+
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
 
 char vtl_driver_name[] = "mktape";
