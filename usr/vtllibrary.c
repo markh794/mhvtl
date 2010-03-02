@@ -1389,14 +1389,20 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case RESERVE:
 	case RESERVE_10:
+		MHVTL_DBG(1, "%s", "RESERVE UNIT **");
+		if (check_reset(sam_stat))
+			break;
+		break;
+
 	case RELEASE:
 	case RELEASE_10:
+		MHVTL_DBG(1, "%s", "RELEASE UNIT **");
 		if (check_reset(sam_stat))
 			break;
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
-		MHVTL_DBG(1, "%s", "Rewinding **");
+		MHVTL_DBG(1, "%s", "Rezero **");
 		if (check_reset(sam_stat))
 			break;
 		sleep(1);
@@ -1407,14 +1413,14 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			break;
 		if (cdb[4] && 0x1) {
 			libraryOnline = 1;
-			MHVTL_DBG(1, "%s", "Library online **");
+			MHVTL_DBG(1, "%s", "Library now online **");
 		} else {
 			libraryOnline = 0;
-			MHVTL_DBG(1, "%s", "Library offline **");
+			MHVTL_DBG(1, "%s", "Library now offline **");
 		}
 		break;
 	case TEST_UNIT_READY:	// Return OK by default
-		MHVTL_DBG(1, "%s %s", "Test Unit Ready :",
+		MHVTL_DBG(1, "%s %s", "Test Unit Ready : Returning => ",
 					(libraryOnline == 0) ? "No" : "Yes");
 		if (check_reset(sam_stat))
 			break;
