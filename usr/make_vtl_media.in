@@ -68,6 +68,12 @@ if [ $CAPACITY -eq 0 ]; then
 	CAPACITY=500
 fi
 
+if [ ! -d $MHVTL_HOME_PATH ]; then
+	mkdir -p $MHVTL_HOME_PATH
+	chmod 750 $MHVTL_HOME_PATH
+	chown $USER:$USER $MHVTL_HOME_PATH
+fi
+
 # Create any media specified in library config.
 umask 002
 
