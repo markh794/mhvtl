@@ -29,7 +29,10 @@ export PREFIX DESTDIR
 CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
 CLFLAGS=-shared
 
-all:	usr etc
+all:	usr etc scripts
+
+scripts:	patch
+	$(MAKE) -C scripts MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
 
 etc:	patch
 	$(MAKE) -C etc USR=$(USR) GROUP=$(GROUP) MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
@@ -49,21 +52,26 @@ patch:
 clean:
 	$(MAKE) -C usr clean
 	$(MAKE) -C etc clean
+	$(MAKE) -C scripts clean
 
 distclean:
 	$(MAKE) -C usr distclean
 	$(MAKE) -C etc distclean
+	$(MAKE) -C scripts distclean
 	$(MAKE) -C kernel distclean
 
 install:
 	$(MAKE) usr
 	$(MAKE) -C usr install $(PREFIX) $(DESTDIR)
+	$(MAKE) scripts
+	$(MAKE) -C scripts install
 	$(MAKE) etc
 	$(MAKE) -C etc install
 
 tar:
 	$(MAKE) distclean
 	$(MAKE) etc
+	$(MAKE) scripts
 	test -d ../$(PARENTDIR) || ln -s mhvtl ../$(PARENTDIR)
 	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`-$(VERSION)$(EXTRAVERSION).tgz  --exclude=.git \
 		 $(PARENTDIR)/man \

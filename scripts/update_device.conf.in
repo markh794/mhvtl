@@ -5,7 +5,7 @@
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License
+# the Free Software Foundation; version 2 of the License.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -23,8 +23,8 @@ my $if;
 my $lib;
 my $slt = 1;
 my $num_drives = 0;
-my $old_device_conf = "/etc/mhvtl/device.conf";
-my $new_device_conf = "/etc/mhvtl/device.conf_$$";
+my $old_device_conf = "@CONF_PATH@/device.conf";
+my $new_device_conf = "@CONF_PATH@/device.conf_$$";
 
 if (! -e $old_device_conf ) {
 	die "Can not find $old_device_conf";
@@ -51,8 +51,8 @@ close IF;
 
 # Now create new temporary device.conf
 $lib = $num_drives + 1;
-open(IF, " < $old_device_conf") || die "Can't open $old_device_conf";
-open(OF, " > $new_device_conf") || die "Can't open $new_device_conf";
+open(IF, " < $old_device_conf") || die "Can't open $old_device_conf for reading";
+open(OF, " > $new_device_conf") || die "Can't open $new_device_conf for writing";
 while($if = <IF>) {
 	# Update library 'index' with max drives + 1
 	$if =~ s/^Library:\s(\d+)/Library: $lib/g;
@@ -74,10 +74,10 @@ unlink($old_device_conf);
 system("mv $new_device_conf $old_device_conf");
 
 # Now 'move' library_contents to library_contents.$lib
-$new_device_conf = "/etc/mhvtl/library_contents.$lib";
-$old_device_conf = "/etc/mhvtl/library_contents";
-open(IF, " < $old_device_conf") || die "Can't open $old_device_conf";
-open(OF, " > $new_device_conf") || die "Can't open $new_device_conf";
+$new_device_conf = "@CONF_PATH@/library_contents.$lib";
+$old_device_conf = "@CONF_PATH@/library_contents";
+open(IF, " < $old_device_conf") || die "Can't open $old_device_conf for reading";
+open(OF, " > $new_device_conf") || die "Can't open $new_device_conf for writing";
 while($if = <IF>) {
 	print OF $if;
 }
