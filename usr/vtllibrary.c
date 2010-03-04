@@ -1232,7 +1232,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	}
 
 	/* Now populate the 'main' header structure with byte count.. */
-	fill_element_status_data_hdr(&buf[0], start, cur_count, cur_offset);
+	fill_element_status_data_hdr(&buf[0], start, cur_count, cur_offset - 8);
 
 	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
 
