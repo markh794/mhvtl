@@ -124,7 +124,7 @@ fi
 
 # Give up is device.conf is at wrong version..
 V=`grep VERSION: $MHVTL_CONFIG_PATH/device.conf|awk '{print $2}'`
-if [ '$V' ne '4' ]; then
+if [ $V -ne 4 ]; then
 	echo " $MHVTL_CONFIG_PATH/device.conf is not correct version"
 	exit 1;
 fi
@@ -245,9 +245,9 @@ case "$1" in
 		exit 1
 	fi
 	vtlMidVersion=`grep version /proc/scsi/mhvtl/$hba 2> /dev/null|awk '{print $5}'|awk -F. '{print $2}'`
-	if [ $vtlMidVersion -ne 16 ]; then
+	if [ $vtlMidVersion -ne 18 ]; then
 		echo "Incorrect kernel module for these daemons."
-		echo -e "Should be at 0.16.x\n"
+		echo -e "Should be at 0.18.x\n"
 		echo -e "Please see http://linuxvtl.googlepages.com\n"
 		exit 1
 	fi
