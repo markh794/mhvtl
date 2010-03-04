@@ -31,6 +31,8 @@ Note: Currently, the kernel module needs to be built separately. For
 
 %build
 make RPM_OPT_FLAGS="$RPM_OPT_FLAGS" VERSION=%{version}.%{release} usr
+make RPM_OPT_FLAGS="$RPM_OPT_FLAGS" VERSION=%{version}.%{release} etc
+make RPM_OPT_FLAGS="$RPM_OPT_FLAGS" VERSION=%{version}.%{release} scripts
 
 %install
 [ "%{buildroot}" != "/" ] && rm -rf %[buildroot}
