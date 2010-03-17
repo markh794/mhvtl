@@ -621,6 +621,33 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 	return schedule_resp(SCpnt, lu, done, errsts);
 }
 
+/* FIXME: I don't know what version this inline routine was introduced */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+
+#define MSG_SIMPLE_TAG	0x20
+#define MSG_ORDERED_TAG	0x22
+
+/**
+ * scsi_get_tag_type - get the type of tag the device supports
+ * @sdev:	the scsi device
+ *
+ * Notes:
+ *	If the drive only supports simple tags, returns MSG_SIMPLE_TAG
+ *	if it supports all tag types, returns MSG_ORDERED_TAG.
+ */
+static inline int scsi_get_tag_type(struct scsi_device *sdev)
+{
+	if (!sdev->tagged_supported)
+		return 0;
+	if (sdev->ordered_tags)
+		return MSG_ORDERED_TAG;
+	if (sdev->simple_tags)
+		return MSG_SIMPLE_TAG;
+	return 0;
+}
+
+#endif
+
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	printk("mhvtl %s(%d)\n", __func__, qdepth);
