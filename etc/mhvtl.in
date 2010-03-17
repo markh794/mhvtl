@@ -259,6 +259,11 @@ case "$1" in
 		sleep 1
 	fi
 
+	if [ ! -z "`ps --user $USER|grep -v TIME`" ]; then
+		echo "mhvtl already running..."
+		exit 1
+	fi
+
 	chown -R $USER:$USER $MHVTL_CONFIG_PATH
 
 	# creating devices
@@ -289,6 +294,12 @@ case "$1" in
 
     stop)
         echo "shutdown of mhvtl"
+
+	if [ -z "`ps --user $USER|grep -v TIME`" ]; then
+		echo "mhvtl not running..."
+		exit 0
+	fi
+
 	for a in `ps -eo cmd |awk '/^vtltape -q/ {print $3}'`
 	do
 		echo "   Sending exit to $a"
