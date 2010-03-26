@@ -18,7 +18,6 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 {
 	unsigned int offset = 0;
 	struct sg_mapping_iter miter;
-	unsigned long flags;
 	/* Do not use SG_MITER_ATOMIC flag on the sg_miter_start() call */
 	unsigned int sg_flags = 0;
 	unsigned int rem;
@@ -29,8 +28,6 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 	else
 		sg_flags |= SG_MITER_TO_SG;
 #endif
-
-	local_irq_save(flags);
 
 	sg_miter_start(&miter, sgl, nents, sg_flags);
 
@@ -59,7 +56,6 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 
 	sg_miter_stop(&miter);
 
-	local_irq_restore(flags);
 	return offset;
 }
 

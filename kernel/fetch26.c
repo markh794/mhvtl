@@ -25,10 +25,6 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 	int i;
 	int ret;
 
-	unsigned long flags;
-
-	local_irq_save(flags);
-
 	for_each_sg(sgl, sg, nents, i) {
 		struct page *page;
 		int n = 0;
@@ -71,8 +67,6 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		if (!buflen)
 			break;
 	}
-
-	local_irq_restore(flags);
 
 	return buf_off;
 }
