@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 4
-Source: mhvtl-2010-03-05.tgz
+Release: 5
+Source: mhvtl-2010-04-01.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -165,6 +165,12 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu Apr 01 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.5
+- Silence warning regarding local_irq_save() - Thanks to Norm Lunda
+- Re-work param parsing used by vtlcmd - Thanks to Herbert Stadler
+- Fix homepage URL
+
 * Fri Mar 05 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.4
 - Fix syntax in rc script. Reported by Nabil
