@@ -58,7 +58,7 @@ fi
 # Test for new interface to dynamically add logical units.
 if [ ! -f /sys/bus/pseudo/drivers/mhvtl/add_lu ]; then
 	echo "Sorry, Can't continue - No kernel module loaded or out of date ??"
-	echo "Please visit http://linuxvtl.googlepages.com for latest release"
+	echo "Please visit http://sites.google.com/site/linuxvtl2/"
 	exit 1
 fi
 

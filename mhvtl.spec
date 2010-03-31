@@ -6,7 +6,7 @@ Source: mhvtl-2010-03-05.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
-URL: http://sites.google.com/site/mhvtl2/
+URL: http://sites.google.com/site/linuxvtl2/
 requires: zlib
 
 %description
