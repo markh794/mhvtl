@@ -130,9 +130,9 @@ int isnumeric(char *str)
 	return 1;
 }
 
-void PrintErrorExit(char *prog)
+void PrintErrorExit(char *prog, char *s)
 {
-	fprintf(stderr, "Please check command, parameters wrong.\n\n");
+	fprintf(stderr, "Please check command, parameter \'%s\' wrong.\n\n", s);
 	usage(prog);
 	exit(1);
 }
@@ -147,9 +147,9 @@ void Check_TapeAlert(int argc, char **argv)
 		if (argc == 4)
 			return;
 
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "TapeAlert");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "TapeAlert");
 }
 
 void Check_Load(int argc, char **argv)
@@ -159,15 +159,15 @@ void Check_Load(int argc, char **argv)
 			if (argc == 5)
 				return;
 
-			PrintErrorExit(argv[0]);
+			PrintErrorExit(argv[0], "load map");
 		}
 
 		if (argc == 4)
 			return;
 
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "load");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "load");
 }
 
 void Check_Unload(int argc, char **argv)
@@ -176,22 +176,22 @@ void Check_Unload(int argc, char **argv)
 		if (argc == 4)
 			return;
 
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "unload");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "unload");
 }
 
 void Check_List(int argc, char **argv)
 {
 	if (argc > 3) {
-		if (!strcmp(argv[3], "map")) {
+		if (!strcmp(argv[3], "map list")) {
 			if (argc == 4)
 				return;
 
 		}
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "map list");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "map list");
 }
 
 void Check_Empty(int argc, char **argv)
@@ -202,9 +202,9 @@ void Check_Empty(int argc, char **argv)
 				return;
 
 		}
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "empty map");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "empty map");
 }
 
 void Check_Open(int argc, char **argv)
@@ -215,9 +215,9 @@ void Check_Open(int argc, char **argv)
 				return;
 
 		}
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "open map");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "open map");
 }
 
 void Check_Close(int argc, char **argv)
@@ -228,9 +228,9 @@ void Check_Close(int argc, char **argv)
 				return;
 
 		}
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "close map");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "close map");
 }
 
 void Check_Params(int argc, char **argv)
@@ -246,19 +246,19 @@ void Check_Params(int argc, char **argv)
 				if (argc == 3)
 					return;
 
-				PrintErrorExit(argv[0]);
+				PrintErrorExit(argv[0], "verbose");
 			}
 			if (!strcmp(argv[2], "debug")) {
 				if (argc == 3)
 					return;
 
-				PrintErrorExit(argv[0]);
+				PrintErrorExit(argv[0], "debug");
 			}
 			if (!strcmp(argv[2], "exit")) {
 				if (argc == 3)
 					return;
 
-				PrintErrorExit(argv[0]);
+				PrintErrorExit(argv[0], "exit");
 			}
 			if (!strcmp(argv[2], "TapeAlert")) {
 				Check_TapeAlert(argc, argv);
@@ -280,13 +280,13 @@ void Check_Params(int argc, char **argv)
 				if (argc == 3)
 					return;
 
-				PrintErrorExit(argv[0]);
+				PrintErrorExit(argv[0], "online");
 			}
 			if (!strcmp(argv[2], "offline")) {
 				if (argc == 3)
 					return;
 
-				PrintErrorExit(argv[0]);
+				PrintErrorExit(argv[0], "offline");
 			}
 			if (!strcmp(argv[2], "list")) {
 				Check_List(argc, argv);
@@ -304,11 +304,11 @@ void Check_Params(int argc, char **argv)
 				Check_Close(argc, argv);
 				return;
 			}
-			PrintErrorExit(argv[0]);
+			PrintErrorExit(argv[0], "check param");
 		}
-		PrintErrorExit(argv[0]);
+		PrintErrorExit(argv[0], "");
 	}
-	PrintErrorExit(argv[0]);
+	PrintErrorExit(argv[0], "");
 }
 
 /* Open a new queue (for answers from server) */
