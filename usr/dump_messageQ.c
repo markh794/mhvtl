@@ -19,7 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *	FIXME: Make into user friendly utility :-)
+ * Modification History:
+ *    2010-03-31 hstadler - source code revision, argument checking
  *
  * Dump any existing data in the messageQ.
  */
@@ -29,24 +30,74 @@
 #include <syslog.h>
 #include "q.h"
 
-long my_id = 0;
+long my_id;
 
-int
-main(int argc, char **argv) {
-int	mlen, r_qid;
-struct q_entry r_entry;
+void usage(char *prog)
+{
+	fprintf(stdout, "Usage  : %s [-h|-help]\n", prog);
+	fprintf(stdout, "Version: %s\n\n", MHVTL_VERSION);
+	fprintf(stdout, "Dumping message queue content of "
+		"library/tape queue.\n");
+	fprintf(stdout, "Primarily used for debugging purposes.\n\n");
+}
 
-	/* Initialize message queue as nessary */
-	if ( (r_qid = init_queue()) == -1)
-		return (-1);
+int main(int argc, char **argv)
+{
+	int r_qid;
+	long mcounter = 0;
+	long count;
+	struct q_entry r_entry;
 
-	mlen = msgrcv(r_qid, &r_entry, MAXOBN, 0, IPC_NOWAIT);
-	if (mlen > 0) {
-		printf("Rcv_id : %ld, Snd_id : %ld, Message : %s\n",
-			r_entry.rcv_id, r_entry.msg.snd_id, r_entry.msg.text);
-	} else {
-		printf("Nothing found in message Q\n");
+	my_id = 0;
+
+	/* checking several positions of -h/-help */
+	for (count = 1; count < argc; count++) {
+		if (!strcmp(argv[count], "-h")) {
+			usage(argv[0]);
+			exit(1);
+		}
+		if (!strcmp(argv[count], "-?")) {
+			usage(argv[0]);
+			exit(1);
+		}
+		if (!strcmp(argv[count], "/h")) {
+			usage(argv[0]);
+			exit(1);
+		}
+		if (!strcmp(argv[count], "/?")) {
+			usage(argv[0]);
+			exit(1);
+		}
+		if (!strcmp(argv[count], "-help")) {
+			usage(argv[0]);
+			exit(1);
+		}
 	}
-exit(0);
+
+	if (argc > 1) {
+		printf("Invalid option: %s\n", argv[1]);
+		printf("Try '%s -h' for more information\n", argv[0]);
+		exit(1);
+	}
+
+	/* Initialize message queue as necessary */
+	r_qid = init_queue();
+	if (r_qid == -1)
+		exit(1);
+
+	while (msgrcv(r_qid, &r_entry, MAXOBN, 0, IPC_NOWAIT) > 0) {
+		mcounter++;
+		if (mcounter == 1) {
+			printf("\nDump Message Queue Content\n\n");
+			printf("%6s %6s %6s %-55s\n", "MessNo", "RcvID",
+				"SndID", "MessageText");
+		}
+		printf("%6ld %6ld %6ld %-55s\n", mcounter, r_entry.rcv_id,
+			r_entry.msg.snd_id, r_entry.msg.text);
+	}
+	if (mcounter == 0)
+		printf("Message queue empty\n");
+
+	exit(0);
 }
 
