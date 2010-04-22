@@ -298,7 +298,6 @@ static int vtl_open(struct inode *, struct file *);
 static int vtl_release(struct inode *, struct file *);
 
 static struct device pseudo_primary;
-static struct bus_type pseudo_lld_bus;
 
 static struct scsi_host_template vtl_driver_template = {
 	.proc_info =		vtl_proc_info,
