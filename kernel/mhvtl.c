@@ -1348,7 +1348,6 @@ static void do_remove_driverfs_files(void)
 
 static int __init mhvtl_init(void)
 {
-	int host_to_add;
 	int ret;
 
 	memset(&devp, 0, sizeof(devp));
@@ -1356,62 +1355,81 @@ static int __init mhvtl_init(void)
 	vtl_Major = register_chrdev(vtl_Major, "mhvtl", &vtl_fops);
 	if (vtl_Major < 0) {
 		printk(KERN_WARNING "mhvtl: can't get major number\n");
-		return vtl_Major;
+		goto register_chrdev_error;
 	}
 
 	ret = device_register(&pseudo_primary);
 	if (ret < 0) {
 		printk(KERN_WARNING "mhvtl: device_register error: %d\n", ret);
-		goto dev_unreg;
+		goto device_register_error;
 	}
+
 	ret = bus_register(&pseudo_lld_bus);
 	if (ret < 0) {
 		printk(KERN_WARNING "mhvtl: bus_register error: %d\n", ret);
-		goto bus_unreg;
+		goto bus_register_error;
 	}
+
 	ret = driver_register(&vtl_driverfs_driver);
 	if (ret < 0) {
 		printk(KERN_WARNING "mhvtl: driver_register error: %d\n", ret);
-		goto driver_unreg;
+		goto driver_register_error;
 	}
+
 	ret = do_create_driverfs_files();
 	if (ret < 0) {
-		printk(KERN_WARNING "mhvtl: driver_create_file error: %d\n", ret);
-		goto del_files;
+		printk(KERN_WARNING "mhvtl: driver_create_file "
+			"error: %d\n", ret);
+		goto do_create_driverfs_error;
 	}
 
 	vtl_driver_template.proc_name = (char *)vtl_driver_name;
 
-	host_to_add = vtl_add_host;
 	vtl_add_host = 0;
 
 	if (vtl_add_adapter()) {
 		printk(KERN_ERR "mhvtl: %s vtl_add_adapter failed\n", __func__);
-		goto del_files;
+		goto vtl_add_adapter_error;
 	}
 
 	MHVTL_DBG(1, "Built %d host%s\n",
 		       vtl_add_host, (vtl_add_host == 1) ? "" : "s");
+
 	return 0;
-del_files:
+
+vtl_add_adapter_error:
 	do_remove_driverfs_files();
-driver_unreg:
+
+do_create_driverfs_error:
 	driver_unregister(&vtl_driverfs_driver);
-bus_unreg:
+
+driver_register_error:
 	bus_unregister(&pseudo_lld_bus);
-dev_unreg:
+
+bus_register_error:
 	device_unregister(&pseudo_primary);
 
-	return ret;
+device_register_error:
+	unregister_chrdev(vtl_Major, "mhvtl");
+
+register_chrdev_error:
+
+	return -EFAULT;
 }
 
 static void __exit vtl_exit(void)
 {
-	int k = vtl_add_host;
+	int k;
 
 	stop_all_queued();
-	for (; k; k--)
+
+	for (k = vtl_add_host; k; k--)
 		vtl_remove_adapter();
+
+	if (vtl_add_host != 0)
+		printk(KERN_WARNING "mhvtl %s: vtl_remove_adapter "
+			"error at line %d\n", __func__, __LINE__);
+
 	do_remove_driverfs_files();
 	driver_unregister(&vtl_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
@@ -1495,6 +1513,7 @@ static int vtl_add_adapter(void)
 	}
 
 	vtl_add_host++;
+
 	return error;
 }
 
@@ -1715,7 +1734,13 @@ static int vtl_remove_lu(int minor, char __user *arg)
 		ret = -EFAULT;
 		goto give_up;
 	}
+
 	vtl_hba = vtl_get_hba_entry();
+	if (!vtl_hba) {
+		ret = 0;
+		goto give_up;
+	}
+
 	MHVTL_DBG(1, "ioctl to remove device <c t l> "
 		"<%02d %02d %02d>, hba: %p\n",
 			ctl.channel, ctl.id, ctl.lun, vtl_hba);
