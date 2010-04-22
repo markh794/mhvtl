@@ -479,6 +479,8 @@ static void dump_queued_list(void)
 	struct vtl_hba_info *vtl_hba;
 
 	vtl_hba = vtl_get_hba_entry();
+	if (!vtl_hba)
+		return;
 
 	/* Now that the work list is split per lu, we have to check each
 	 * lu to see if we can find the serial number in question
@@ -993,10 +995,13 @@ static void stop_all_queued(void)
 	struct vtl_lu_info *lu;
 
 	vtl_hba = vtl_get_hba_entry();
+	if (!vtl_hba)
+		return;
 
 	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
 		spin_lock_irqsave(&lu->cmd_list_lock, iflags);
-		list_for_each_entry_safe(sqcp, n, &lu->cmd_list, queued_sibling) {
+		list_for_each_entry_safe(sqcp, n, &lu->cmd_list,
+			queued_sibling) {
 			if (sqcp->state && sqcp->a_cmnd) {
 				del_timer_sync(&sqcp->cmnd_timer);
 				sqcp->state = CMD_STATE_FREE;
