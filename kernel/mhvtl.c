@@ -35,8 +35,10 @@
  *	I've used it for testing NetBackup - but there is no reason any
  *	other backup utility could not use it as well.
  *
- *	Requires Linux kernel 2.6.10 for the 'generic' circular buffer
- *	- My thanks to Stelian Pop
+ * Modification History:
+ *    2010-04-18 hstadler - some source code revision in mhvtl_init,
+ *			    mhvtl_exit, some return code checking
+ *
  *
  */
 
