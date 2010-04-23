@@ -1217,8 +1217,7 @@ opts_done:
 	vtl_cmnd_count = 0;
 	return count;
 }
-DRIVER_ATTR(opts, S_IRUGO | S_IWUSR, vtl_opts_show,
-	    vtl_opts_store);
+DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, vtl_opts_show, vtl_opts_store);
 
 static ssize_t vtl_dsense_show(struct device_driver *ddp, char *buf)
 {
@@ -1235,8 +1234,7 @@ static ssize_t vtl_dsense_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(dsense, S_IRUGO | S_IWUSR, vtl_dsense_show,
-	    vtl_dsense_store);
+DRIVER_ATTR(dsense, S_IRUGO|S_IWUSR, vtl_dsense_show, vtl_dsense_store);
 
 static ssize_t vtl_num_tgts_show(struct device_driver *ddp, char *buf)
 {
@@ -1254,8 +1252,7 @@ static ssize_t vtl_num_tgts_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(num_tgts, S_IRUGO | S_IWUSR, vtl_num_tgts_show,
-	    vtl_num_tgts_store);
+DRIVER_ATTR(num_tgts, S_IRUGO|S_IWUSR, vtl_num_tgts_show, vtl_num_tgts_store);
 
 
 static ssize_t vtl_every_nth_show(struct device_driver *ddp, char *buf)
@@ -1274,7 +1271,7 @@ static ssize_t vtl_every_nth_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(every_nth, S_IRUGO | S_IWUSR, vtl_every_nth_show,
+DRIVER_ATTR(every_nth, S_IRUGO|S_IWUSR, vtl_every_nth_show,
 	    vtl_every_nth_store);
 
 static ssize_t vtl_max_luns_show(struct device_driver *ddp, char *buf)
@@ -1293,8 +1290,7 @@ static ssize_t vtl_max_luns_store(struct device_driver *ddp,
 	}
 	return -EINVAL;
 }
-DRIVER_ATTR(max_luns, S_IRUGO | S_IWUSR, vtl_max_luns_show,
-	    vtl_max_luns_store);
+DRIVER_ATTR(max_luns, S_IRUGO|S_IWUSR, vtl_max_luns_show, vtl_max_luns_store);
 
 static ssize_t vtl_scsi_level_show(struct device_driver *ddp, char *buf)
 {
