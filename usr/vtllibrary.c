@@ -1588,7 +1588,7 @@ static int load_map(struct q_msg *msg)
 					STATUS_Full;
 		/* Media placed by operator */
 		setImpExpStatus(sp, OPERATOR);
-		sp->slot_location = slt + START_MAP - 1;
+		sp->slot_location = slt + START_MAP;
 		sp->internal_status = 0;
 		send_msg("OK", msg->snd_id);
 		return 1;
