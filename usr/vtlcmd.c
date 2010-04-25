@@ -183,15 +183,11 @@ void Check_Unload(int argc, char **argv)
 
 void Check_List(int argc, char **argv)
 {
-	if (argc > 3) {
-		if (!strcmp(argv[3], "map list")) {
-			if (argc == 4)
-				return;
-
-		}
-		PrintErrorExit(argv[0], "map list");
-	}
-	PrintErrorExit(argv[0], "map list");
+	if (argc != 4)
+		PrintErrorExit(argv[0], "list map : too many args");
+	else
+		if (strcmp(argv[3], "map"))
+			PrintErrorExit(argv[0], "list map : Can only list map");
 }
 
 void Check_Empty(int argc, char **argv)
@@ -200,7 +196,6 @@ void Check_Empty(int argc, char **argv)
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
 				return;
-
 		}
 		PrintErrorExit(argv[0], "empty map");
 	}
@@ -213,7 +208,6 @@ void Check_Open(int argc, char **argv)
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
 				return;
-
 		}
 		PrintErrorExit(argv[0], "open map");
 	}
@@ -226,7 +220,6 @@ void Check_Close(int argc, char **argv)
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
 				return;
-
 		}
 		PrintErrorExit(argv[0], "close map");
 	}
