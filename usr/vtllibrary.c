@@ -81,7 +81,7 @@ static int num_map = 0x0020;
 #define START_STORAGE	0x0400
 static int num_storage = 0x0800;
 
-// Element type codes
+/* Element type codes */
 #define ANY			0
 #define MEDIUM_TRANSPORT	1
 #define STORAGE_ELEMENT		2
@@ -108,16 +108,16 @@ static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
 struct lu_phy_attr lunit;
 
 struct s_info { /* Slot Info */
-	uint8_t cart_type; // 0 = Unknown, 1 = Data medium, 2 = Cleaning
+	uint8_t cart_type; /* 0 = Unknown, 1 = Data medium, 2 = Cleaning */
 	uint8_t barcode[11];
 	uint32_t slot_location;
 	uint32_t last_location;
-	uint8_t	status;	// Used for MAP status.
-	uint8_t	asc;	// Additional Sense Code
-	uint8_t	ascq;	// Additional Sense Code Qualifier
-	uint8_t internal_status; // internal states
+	uint8_t	status;	/* Used for MAP status. */
+	uint8_t	asc;	/* Additional Sense Code */
+	uint8_t	ascq;	/* Additional Sense Code Qualifier */
+	uint8_t internal_status; /* internal states */
 };
-// status definitions (byte[2] in the element descriptor)
+/* status definitions (byte[2] in the element descriptor) */
 #define STATUS_Full      0x01
 #define STATUS_ImpExp    0x02
 #define STATUS_Except    0x04
@@ -126,7 +126,7 @@ struct s_info { /* Slot Info */
 #define STATUS_InEnab    0x20
 #define STATUS_Reserved6 0x40
 #define STATUS_Reserved7 0x80
-// internal_status definitions:
+/* internal_status definitions: */
 #define INSTATUS_NO_BARCODE 0x01
 
 /* Drive Info */
@@ -162,15 +162,15 @@ static struct TapeAlert_page TapeAlert;
  */
 
 static struct mode sm[] = {
-//	Page,  subpage, len, 'pointer to data struct'
-	{0x02, 0x00, 0x00, NULL, }, // Disconnect Reconnect - SPC3
-	{0x0a, 0x00, 0x00, NULL, }, // Control Extension - SPC3
-	{0x1a, 0x00, 0x00, NULL, }, // Power condition - SPC3
-	{0x1c, 0x00, 0x00, NULL, }, // Informational Exception Ctrl SPC3-8.3.6
-	{0x1d, 0x00, 0x00, NULL, }, // Element Address Assignment - SMC3-7.3.3
-	{0x1e, 0x00, 0x00, NULL, }, // Transport Geometry - SMC3-7.3.4
-	{0x1f, 0x00, 0x00, NULL, }, // Device Capabilities - SMC3-7.3.2
-	{0x00, 0x00, 0x00, NULL, }, // NULL terminator
+/*	Page,  subpage, len, 'pointer to data struct' */
+	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
+	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
+	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
+	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SPC3-8.3.6 */
+	{0x1d, 0x00, 0x00, NULL, }, /* Element Addr Assignment - SMC3-7.3.3 */
+	{0x1e, 0x00, 0x00, NULL, }, /* Transport Geometry - SMC3-7.3.4 */
+	{0x1f, 0x00, 0x00, NULL, }, /* Device Capabilities - SMC3-7.3.2 */
+	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
 	};
 
 
@@ -335,7 +335,7 @@ static struct s_info *slot2struct(int addr)
 		return drive_info[addr - START_DRIVE].slot;
 	}
 
-// Should NEVER get here as we have performed bounds checking b4
+/* Should NEVER get here as we have performed bounds checking b4 */
 	MHVTL_DBG(1, "Arrr... slot2struct returning NULL");
 
 return NULL;
@@ -512,7 +512,7 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 
 	move_cart(src->slot, dest->slot);
 
-	// Send 'unload' message to drive b4 the move..
+	/* Send 'unload' message to drive b4 the move.. */
 	send_msg("unload", src->drv_id);
 
 	sprintf(cmd, "lload %s", dest->slot->barcode);
@@ -556,7 +556,7 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 		}
 	}
 
-	// Send 'unload' message to drive b4 the move..
+	/* Send 'unload' message to drive b4 the move.. */
 	send_msg("unload", src->drv_id);
 
 	move_cart(src->slot, dest);
@@ -682,7 +682,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 	int transport_addr;
 	int src_addr, src_type;
 	int dest_addr, dest_type;
-	int retVal = 0;	// Return a success status
+	int retVal = 0;	/* Return a success status */
 
 	transport_addr = get_unaligned_be16(&cmd[2]);
 	src_addr  = get_unaligned_be16(&cmd[4]);
@@ -706,11 +706,11 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return -1;
 	}
-	if (cmd[11] == 0xc0) {	// Invalid combo of Extend/retract I/O port
+	if (cmd[11] == 0xc0) {	/* Invalid combo of Extend/retract I/O port */
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		return -1;
 	}
-	if (cmd[11]) // Must be an Extend/Retract I/O port cmd.. NO-OP
+	if (cmd[11]) /* Must be an Extend/Retract I/O port cmd.. NO-OP */
 		return 0;
 
 	if (transport_addr == 0)
@@ -739,7 +739,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 		} else if (dest_type == DATA_TRANSFER) {
 			if (move_slot2drive(src_addr, dest_addr, sam_stat))
 				retVal = -1;
-		} else {   // Move between (non-drive) slots
+		} else {   /* Move between (non-drive) slots */
 			if (move_slot2slot(src_addr, dest_addr, sam_stat))
 				retVal = -1;
 		}
@@ -943,7 +943,7 @@ static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
 	MHVTL_DBG(3, "  Total byte count         : %d",
 					get_unaligned_be32(&p[4]));
 
-return 8;	// Header is 8 bytes in size..
+return 8;	/* Header is 8 bytes in size.. */
 }
 
 /*
@@ -955,7 +955,7 @@ return 8;	// Header is 8 bytes in size..
 static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 {
 	switch(typeCode) {
-	case ANY:	// Don't care what 'type'
+	case ANY:	/* Don't care what 'type' */
 		/* Logic here depends on Storage slots being
 		 * higher (numerically) than MAP which is higher than
 		 * Picker, which is higher than the drive slot number..
@@ -1116,7 +1116,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 	uint16_t number;
 	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
 	uint32_t alloc_len;
-	uint16_t start;	// First valid slot location
+	uint16_t start;	/* First valid slot location */
 	uint32_t cur_offset;
 	uint16_t cur_count;
 	uint32_t ec;
@@ -1168,7 +1168,7 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 
 	/* Find first matching slot number which matches the typeCode. */
 	start = find_first_matching_element(req_start_elem, typeCode);
-	if (start == 0) {	// Nothing found..
+	if (start == 0) {	/* Nothing found.. */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
 		return(0);
 	}
@@ -1332,7 +1332,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		ret += spc_inquiry(cdb, dbuf_p, &lunit);
 		break;
 
-	case LOG_SELECT:	// Set or reset LOG stats.
+	case LOG_SELECT:	/* Set or reset LOG stats. */
 		MHVTL_DBG(1, "%s", "LOG SELECT **");
 		if (check_reset(sam_stat))
 			break;
@@ -1408,7 +1408,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		sleep(1);
 		break;
 
-	case START_STOP:	// Load/Unload cmd
+	case START_STOP:	/* Load/Unload cmd */
 		if (check_reset(sam_stat))
 			break;
 		if (cdb[4] && 0x1) {
@@ -1419,7 +1419,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			MHVTL_DBG(1, "%s", "Library now offline **");
 		}
 		break;
-	case TEST_UNIT_READY:	// Return OK by default
+	case TEST_UNIT_READY:	/* Return OK by default */
 		MHVTL_DBG(1, "%s %s", "Test Unit Ready : Returning => ",
 					(libraryOnline == 0) ? "No" : "Yes");
 		if (check_reset(sam_stat))
@@ -1695,22 +1695,22 @@ static void init_mode_pages(struct mode *m)
 	/* Disconnect-Reconnect: SPC-3 7.4.8 */
 	mp = alloc_mode_page(2, m, 16);
 	if (mp) {
-		mp->pcodePointer[2] = 50;	// Buffer full ratio
-		mp->pcodePointer[3] = 50;	// Buffer empty ratio
+		mp->pcodePointer[2] = 50;	/* Buffer full ratio */
+		mp->pcodePointer[3] = 50;	/* Buffer empty ratio */
 	}
 
-	// Control: SPC-3 7.4.6
+	/* Control: SPC-3 7.4.6 */
 	mp = alloc_mode_page(0x0a, m, 12);
 
-	// Power condition: SPC-3 7.4.12
+	/* Power condition: SPC-3 7.4.12 */
 	mp = alloc_mode_page(0x1a, m, 12);
 
-	// Informational Exception Control: SPC-3 7.4.11 (TapeAlert)
+	/* Informational Exception Control: SPC-3 7.4.11 (TapeAlert) */
 	mp = alloc_mode_page(0x1c, m, 12);
 	if (mp)
 		mp->pcodePointer[2] = 0x08;
 
-	// Device Capabilities mode page: SMC-3 7.3.2
+	/* Device Capabilities mode page: SMC-3 7.3.2 */
 	mp = alloc_mode_page(0x1f, m, 20);
 	if (mp) {
 		mp->pcodePointer[2] = 0x0f;
@@ -1727,22 +1727,22 @@ static void init_mode_pages(struct mode *m)
 		/* [16-19] -> reserved */
 	}
 
-	// Element Address Assignment mode page: SMC-3 7.3.3
+	/* Element Address Assignment mode page: SMC-3 7.3.3 */
 	mp = alloc_mode_page(0x1d, m, 20);
 	if (mp) {
 		uint8_t *p = mp->pcodePointer;
 
-		put_unaligned_be16(START_PICKER, &p[2]); // First transport.
-		put_unaligned_be16(num_picker, &p[4]); // No. transport elem.
-		put_unaligned_be16(START_STORAGE, &p[6]); // First storage slot
-		put_unaligned_be16(num_storage, &p[8]);	// No. of storage slots
-		put_unaligned_be16(START_MAP, &p[10]); // First i/e address
-		put_unaligned_be16(num_map, &p[12]); // No. of i/e slots
-		put_unaligned_be16(START_DRIVE, &p[14]); // First Drives
-		put_unaligned_be16(num_drives, &p[16]); // No. of dives
+		put_unaligned_be16(START_PICKER, &p[2]); /* First transport. */
+		put_unaligned_be16(num_picker, &p[4]); /* No. transport elem. */
+		put_unaligned_be16(START_STORAGE, &p[6]); /* First storage */
+		put_unaligned_be16(num_storage, &p[8]);	/* No. of storage slt */
+		put_unaligned_be16(START_MAP, &p[10]); /* First i/e address */
+		put_unaligned_be16(num_map, &p[12]); /* No. of i/e slots */
+		put_unaligned_be16(START_DRIVE, &p[14]); /* First Drives */
+		put_unaligned_be16(num_drives, &p[16]); /* No. of dives */
 	}
 
-	// Transport Geometry Parameters mode page: SMC-3 7.3.4
+	/* Transport Geometry Parameters mode page: SMC-3 7.3.4 */
 	mp = alloc_mode_page(0x1e, m, 4);
 }
 
@@ -1878,7 +1878,7 @@ static void init_slot_info(void)
 		exit(1);
 	}
 
-	// Grab a couple of generic MALLOC_SZ buffers..
+	/* Grab a couple of generic MALLOC_SZ buffers.. */
 	s = malloc(MALLOC_SZ);
 	if (!s) {
 		perror("Could not allocate memory");
@@ -2399,7 +2399,7 @@ int main(int argc, char *argv[])
 			switch (argv[0][1]) {
 			case 'd':
 				debug++;
-				verbose = 9;	// If debug, make verbose...
+				verbose = 9;	/* If debug, make verbose... */
 				break;
 			case 'v':
 				verbose++;
@@ -2600,7 +2600,7 @@ int main(int argc, char *argv[])
 					"Can not open message queue: %s",
 					strerror(errno));
 		}
-		if (exit_status)	// Process a 'exit' messageQ
+		if (exit_status)	/* Process a 'exit' messageQ */
 			goto exit;
 
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
