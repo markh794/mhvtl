@@ -10,7 +10,7 @@
 #include <syslog.h>
 #include "q.h"
 
-void warn(char *s)
+static void warn(char *s)
 {
 	fprintf(stderr, "Warning: %s\n", s);
 }
