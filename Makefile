@@ -23,6 +23,8 @@ SUSER ?=root
 GROUP = vtl
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
+CHECK_CC = cgcc
+CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 
 export PREFIX DESTDIR
 
@@ -42,6 +44,11 @@ usr:	patch
 
 kernel: patch
 	$(MAKE) -C kernel
+
+.PHONY:check
+check:	ARCH=$(shell sh script/checkarch.sh)
+check:
+	CC=$(CHECK_CC_FLAGS) $(MAKE) all
 
 tags:
 	$(MAKE) -C usr tags
