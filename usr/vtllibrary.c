@@ -465,6 +465,7 @@ static void setDriveFull(struct d_info *d)
 /* Returns 1 (true) if slot is MAP slot */
 static int is_map_slot(struct s_info *s)
 {
+	MHVTL_DBG(2, "slot type %d", slot_type(s->slot_location));
 	if (slot_type(s->slot_location) == MAP_ELEMENT)
 		return 1;
 
@@ -531,6 +532,15 @@ static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 return 0;
 }
 
+static int map_access_ok(struct s_info *s)
+{
+	if (is_map_slot(s)) {
+		if (! cap_closed)
+			return 0;
+	}
+	return 1;
+}
+
 static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 {
 	struct d_info *src;
@@ -539,7 +549,7 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 	src  = drive2struct(src_addr);
 	dest = slot2struct(dest_addr);
 
-	if ( ! driveOccupied(src)) {
+	if (! driveOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
@@ -548,12 +558,10 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 		return 1;
 	}
 
-	if (is_map_slot(dest)) {
-		if (! cap_closed) {
-			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
+	if (! map_access_ok(dest)) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
 						sam_stat);
 			return 1;
-		}
 	}
 
 	/* Send 'unload' message to drive b4 the move.. */
@@ -651,12 +659,16 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 		return 1;
 	}
 
-	if (is_map_slot(dest)) {
-		if (! cap_closed) {
-			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
+	if (! map_access_ok(src)) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
 						sam_stat);
 			return 1;
-		}
+	}
+
+	if (! map_access_ok(dest)) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
+						sam_stat);
+			return 1;
 	}
 
 	move_cart(src, dest);
