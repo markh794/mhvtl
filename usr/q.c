@@ -44,7 +44,7 @@ int init_queue(void)
 				QKEY, strerror(errno), s);
 	}
 
-	return (queue_id);
+	return queue_id;
 }
 
 int send_msg(char *cmd, long rcv_id)
@@ -54,7 +54,7 @@ int send_msg(char *cmd, long rcv_id)
 
 	s_qid = init_queue();
 	if (s_qid == -1)
-		return (-1);
+		return -1;
 
 	s_entry.rcv_id = rcv_id;
 	s_entry.msg.snd_id = my_id;
@@ -63,10 +63,10 @@ int send_msg(char *cmd, long rcv_id)
 
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
 		syslog(LOG_DAEMON|LOG_ERR, "msgsnd failed: %s", strerror(errno));
-		return (-1);
-	} else {
-		return (0);
+		return -1;
 	}
+
+	return 0;
 }
 
 static void proc_obj(struct q_entry *q_entry)
@@ -83,18 +83,18 @@ int enter(char *objname, long rcv_id)
 	/* Validate name length, rcv_id */
 	if (strlen(objname) > MAXTEXTLEN) {
 		warn("Name too long");
-		return (-1);
+		return -1;
 	}
 
 	if (rcv_id > 32764 || rcv_id < 0) {
 		warn("Invalid rcv_id");
-		return(-1);
+		return -1;
 	}
 
 	/* Initialize message queue as nessary */
 	s_qid = init_queue();
 	if (s_qid == -1)
-		return (-1);
+		return -1;
 
 	/* Initialize s_entry */
 	s_entry.rcv_id = rcv_id;
@@ -105,10 +105,10 @@ int enter(char *objname, long rcv_id)
 	/* Send message, waiting if nessary */
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
 		perror("msgsnd failed");
-		return (-1);
-	} else {
-		return (0);
+		return -1;
 	}
+
+	return 0;
 }
 
 int serve(void)
@@ -119,14 +119,14 @@ int serve(void)
 	/* Initialise message queue as necessary */
 	r_qid = init_queue();
 	if (r_qid == -1)
-		return (-1);
+		return -1;
 
 	/* Get and process next message, waiting if necessary */
 	for (;;) {
 		if ((mlen = msgrcv(r_qid, &r_entry, MAXOBN,
 					(-1 * MAXPRIOR), MSG_NOERROR)) == -1) {
 			perror("msgrcv failed");
-			return (-1);
+			return -1;
 		} else {
 			/* Process object name */
 			proc_obj(&r_entry);
