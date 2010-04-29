@@ -352,13 +352,13 @@ static struct d_info *drive2struct(int addr)
 /* Returns true if slot has media in it */
 static int slotOccupied(struct s_info *s)
 {
-	return(s->status & STATUS_Full);
+	return s->status & STATUS_Full;
 }
 
 /* Returns true if drive has media in it */
 static int driveOccupied(struct d_info *d)
 {
-	return(slotOccupied(d->slot));
+	return slotOccupied(d->slot);
 }
 
 /*
@@ -757,7 +757,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 		}
 	}
 
-return(retVal);
+return retVal;
 }
 
 /*
@@ -920,7 +920,7 @@ static int fill_element_status_page_hdr(uint8_t *p,
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 
 
-return(8);	/* Always 8 bytes in header */
+return 8;	/* Always 8 bytes in header */
 }
 
 /*
@@ -979,28 +979,28 @@ static int find_first_matching_element(uint16_t start, uint8_t typeCode)
 		 * Beginning slot
 		 */
 		if (start == 0)
-			return(START_DRIVE);
+			return START_DRIVE;
 
 		/* If we are above Storage range, return nothing. */
 		if (start >= START_STORAGE + num_storage)
 			return 0;
 		if (start >= START_STORAGE)
-			return(start);
+			return start;
 		/* If we are above I/O Range -> return START_STORAGE */
 		if (start >= START_MAP + num_map)
-			return(START_STORAGE);
+			return START_STORAGE;
 		if (start >= START_MAP)
-			return(start);
+			return start;
 		/* If we are above the Picker range -> Return I/O Range.. */
 		if (start >= START_PICKER + num_picker)
 			return START_MAP;
 		if (start >= START_PICKER)
-			return (start);
+			return start;
 		/* If we are above the Drive range, return Picker.. */
 		if (start >= START_DRIVE + num_drives)
-			return(START_PICKER);
+			return START_PICKER;
 		if (start >= START_DRIVE)
-			return(start);
+			return start;
 		break;
 	case MEDIUM_TRANSPORT:	/* Medium Transport. */
 		if ((start >= START_PICKER) &&
@@ -1175,14 +1175,14 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
-		return(0);
+		return 0;
 	}
 
 	/* Find first matching slot number which matches the typeCode. */
 	start = find_first_matching_element(req_start_elem, typeCode);
 	if (start == 0) {	/* Nothing found.. */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
-		return(0);
+		return 0;
 	}
 
 	/* Leave room for 'master' header which is filled in at the end... */
@@ -1235,12 +1235,12 @@ static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
 		break;
 	default:	/* Illegal descriptor type. */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
-		return(0);
+		return 0;
 		break;
 	}
 	if (ec != 0) {
 		mkSenseBuf(ILLEGAL_REQUEST, ec, sam_stat);
-		return(0);
+		return 0;
 	}
 
 	/* Now populate the 'main' header structure with byte count.. */
