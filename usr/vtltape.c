@@ -2692,7 +2692,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	if (!strncmp(msg->text, "lload", 5)) {
 		if ( ! inLibrary) {
 			MHVTL_DBG(2, "lload & drive not in library");
-			return (0);
+			return 0;
 		}
 
 		if (tapeLoaded != TAPE_UNLOADED) {
