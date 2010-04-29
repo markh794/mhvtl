@@ -109,5 +109,5 @@ int main(int argc, char *argv[])
 	print_raw_header();
 	unload_tape(&sam_stat);
 
-	return (0);
+	return 0;
 }

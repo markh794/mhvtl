@@ -213,7 +213,7 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	if (dbuf_p->sz != 24) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_PARAMETER_LIST_LENGTH_ERR, sam_stat);
-		return(-1);
+		return -1;
 	}
 
 	SA = cdb[1] & 0x1f;
@@ -333,7 +333,7 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	MHVTL_DBG(2, "Reservation key now: 0x%.8x 0x%.8x\n",
 			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
 			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
-	return(0);
+	return 0;
 }
 
 /*
@@ -362,29 +362,29 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case 0: /* READ KEYS */
 		put_unaligned_be32(SPR_Reservation_Generation, &buf[0]);
 		if (!SPR_Reservation_Key)
-			return(8);
+			return 8;
 		buf[7] = 8;
 		put_unaligned_be64(SPR_Reservation_Key, &buf[8]);
-		return(16);
+		return 16;
 	case 1: /* READ RESERVATON */
 		put_unaligned_be32(SPR_Reservation_Generation, &buf[0]);
 		if (!SPR_Reservation_Type)
-			return(8);
+			return 8;
 		buf[7] = 16;
 		put_unaligned_be64(SPR_Reservation_Key, &buf[8]);
 		buf[21] = SPR_Reservation_Type;
-		return(24);
+		return 24;
 	case 2: /* REPORT CAPABILITIES */
 		buf[1] = 8;
 		buf[2] = 0x10;
 		buf[3] = 0x80;
 		buf[4] = 0x08;
-		return(8);
+		return 8;
 	case 3: /* READ FULL STATUS */
 	default:
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		break;
 	}
-	return(0);
+	return 0;
 }
 

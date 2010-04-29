@@ -132,7 +132,7 @@ int check_reset(uint8_t *sam_stat)
 		mkSenseBuf(UNIT_ATTENTION, E_POWERON_RESET, sam_stat);
 		reset = 0;
 	}
-return(retval);
+return retval;
 }
 
 void
@@ -240,7 +240,7 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 	buf[6] = buf[10] = (pos >> 8);
 	buf[7] = buf[11] = pos;
 
-	return(READ_POSITION_LONG_LEN);
+	return READ_POSITION_LONG_LEN;
 }
 
 #define READ_POSITION_LEN 20
@@ -258,7 +258,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 	buf[7] = buf[11] = pos;
 	MHVTL_DBG(1, "Position %ld", (long)pos);
 
-	return(READ_POSITION_LEN);
+	return READ_POSITION_LEN;
 }
 
 #define READBLOCKLIMITS_ARR_SZ 6
@@ -330,7 +330,7 @@ struct mode *find_pcode(uint8_t pcode, struct mode *m)
 static int add_pcode(struct mode *m, uint8_t *p)
 {
 	memcpy(p, m->pcodePointer, m->pcodeSize);
-	return(m->pcodeSize);
+	return m->pcodeSize;
 }
 
 /*
@@ -357,9 +357,9 @@ struct mode * alloc_mode_page(uint8_t pcode, struct mode *m, int size)
 					 - sizeof(mp->pcodePointer[0])
 					 - sizeof(mp->pcodePointer[1]);
 		}
-		return(mp);
+		return mp;
 	}
-	return(NULL);
+	return NULL;
 }
 
 
@@ -416,7 +416,7 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 
 	if (0x3 == pcontrol) {  /* Saving values not supported */
 		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
-		return (0);
+		return 0;
 	}
 
 	memset(buf, 0, alloc_len);	/* Set return data to null */
@@ -429,7 +429,7 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 	if (0 != subpcode) { /* TODO: Control Extension page */
 		MHVTL_DBG(1, "Non-zero sub-page sense code not supported");
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		return(0);
+		return 0;
 	}
 
 	MHVTL_DBG(3, "pcode: 0x%02x", pcode);
@@ -453,7 +453,7 @@ int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WritePro
 		if (0 == len) {	/* Page not found.. */
 		MHVTL_DBG(2, "Unknown mode page : %d", pcode);
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		return (0);
+		return 0;
 		}
 
 	/* Fill in header.. */

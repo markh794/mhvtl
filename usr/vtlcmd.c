@@ -335,7 +335,7 @@ int CreateNewQueue(void)
 		}
 	}
 
-	return (queue_id);
+	return queue_id;
 }
 
 /* Open an alreay opened queue (opened by server) */
@@ -368,7 +368,7 @@ int OpenExistingQueue(key_t key)
 		}
 	}
 
-	return (queue_id);
+	return queue_id;
 }
 
 int KillPrivateQueue(long queue_id)
@@ -376,7 +376,7 @@ int KillPrivateQueue(long queue_id)
 	long rc;
 	rc = msgctl(queue_id, IPC_RMID, NULL);
 
-	return (rc);
+	return rc;
 }
 
 /* Send command to queue */
@@ -391,9 +391,9 @@ int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf)
 
 	int len = strlen(s_entry.msg.text) + 1 + sizeof(s_entry.msg.snd_id);
 	if (msgsnd(ReceiverQid, &s_entry, len, 0) == -1)
-		return(-1);
+		return -1;
 
-	return(0);
+	return 0;
 }
 
 int main(int argc, char **argv)
