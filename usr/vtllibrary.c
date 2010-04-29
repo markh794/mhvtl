@@ -535,7 +535,7 @@ return 0;
 static int map_access_ok(struct s_info *s)
 {
 	if (is_map_slot(s)) {
-		if (! cap_closed)
+		if (!cap_closed)
 			return 0;
 	}
 	return 1;
@@ -549,7 +549,7 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 	src  = drive2struct(src_addr);
 	dest = slot2struct(dest_addr);
 
-	if (! driveOccupied(src)) {
+	if (!driveOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
@@ -558,7 +558,7 @@ static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 		return 1;
 	}
 
-	if (! map_access_ok(dest)) {
+	if (!map_access_ok(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
 						sam_stat);
 			return 1;
@@ -606,11 +606,11 @@ static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
 	src  = slot2struct(src_addr);
 	dest = drive2struct(dest_addr);
 
-	if ( ! slotOccupied(src)) {
+	if (!slotOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
-	if ( driveOccupied(dest)) {
+	if (driveOccupied(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return 1;
 	}
@@ -650,7 +650,7 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 	MHVTL_DBG(1, "Moving from slot %d to slot %d",
 				src->slot_location, dest->slot_location);
 
-	if (! slotOccupied(src)) {
+	if (!slotOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
 		return 1;
 	}
@@ -659,13 +659,13 @@ static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
 		return 1;
 	}
 
-	if (! map_access_ok(src)) {
+	if (!map_access_ok(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
 						sam_stat);
 			return 1;
 	}
 
-	if (! map_access_ok(dest)) {
+	if (!map_access_ok(dest)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
 						sam_stat);
 			return 1;
@@ -731,11 +731,11 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
-	if (! valid_slot(src_addr)) {
+	if (!valid_slot(src_addr)) {
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
-	if (! valid_slot(dest_addr)) {
+	if (!valid_slot(dest_addr)) {
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
 		retVal = -1;
 	}
@@ -1436,7 +1436,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 					(libraryOnline == 0) ? "No" : "Yes");
 		if (check_reset(sam_stat))
 			break;
-		if ( ! libraryOnline)
+		if (!libraryOnline)
 			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
 		break;
 
@@ -1525,7 +1525,7 @@ int already_in_slot(char *barcode)
 	for (slt = 0; slt < num_map; slt++) {
 		sp = &map_info[slt];
 		if (slotOccupied(sp)) {
-			if (! strncmp((char *)sp->barcode, barcode, len)) {
+			if (!strncmp((char *)sp->barcode, barcode, len)) {
 				MHVTL_DBG(3, "Match: %s %s",
 					sp->barcode, barcode);
 				return 1;
@@ -1537,7 +1537,7 @@ int already_in_slot(char *barcode)
 	for (slt = 0; slt < num_storage; slt++) {
 		sp = &storage_info[slt];
 		if (slotOccupied(sp)) {
-			if (! strcmp((char *)sp->barcode, barcode))
+			if (!strcmp((char *)sp->barcode, barcode))
 				return 1;
 		}
 	}
@@ -1572,7 +1572,7 @@ static int load_map(struct q_msg *msg)
 		}
 
 	/* No barcode - reject load */
-	if (! barcode) {
+	if (!barcode) {
 		send_msg("Bad barcode", msg->snd_id);
 		return 0;
 	}
@@ -1659,7 +1659,7 @@ static int processMessageQ(struct q_msg *msg)
 
 	MHVTL_DBG(3, "Q snd_id %ld msg : %s", msg->snd_id, msg->text);
 
-	if (! strncmp(msg->text, "debug", 5)) {
+	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug) {
 			debug--;
 		} else {
@@ -1667,28 +1667,28 @@ static int processMessageQ(struct q_msg *msg)
 			verbose = 2;
 		}
 	}
-	if (! strncmp(msg->text, "empty map", 9))
+	if (!strncmp(msg->text, "empty map", 9))
 		empty_map(msg);
-	if (! strncmp(msg->text, "exit", 4))
+	if (!strncmp(msg->text, "exit", 4))
 		return 1;
-	if (! strncmp(msg->text, "open map", 8))
+	if (!strncmp(msg->text, "open map", 8))
 		open_map(msg);
-	if (! strncmp(msg->text, "close map", 9))
+	if (!strncmp(msg->text, "close map", 9))
 		close_map(msg);
-	if (! strncmp(msg->text, "list map", 8))
+	if (!strncmp(msg->text, "list map", 8))
 		list_map(msg);
-	if (! strncmp(msg->text, "load map ", 9))
+	if (!strncmp(msg->text, "load map ", 9))
 		load_map(msg);
-	if (! strncmp(msg->text, "offline", 7))
+	if (!strncmp(msg->text, "offline", 7))
 		libraryOnline = 0;
-	if (! strncmp(msg->text, "online", 6))
+	if (!strncmp(msg->text, "online", 6))
 		libraryOnline = 1;
-	if (! strncmp(msg->text, "TapeAlert", 9)) {
+	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
 		setTapeAlert(&TapeAlert, flg);
 	}
-	if (! strncmp(msg->text, "verbose", 7)) {
+	if (!strncmp(msg->text, "verbose", 7)) {
 		if (verbose)
 			verbose--;
 		else
@@ -2461,7 +2461,7 @@ int main(int argc, char *argv[])
 	initTapeAlert(&TapeAlert);
 
 	child_cleanup = add_lu(my_id, &ctl);
-	if (! child_cleanup) {
+	if (!child_cleanup) {
 		printf("Could not create logical unit\n");
 		exit(1);
 	}
