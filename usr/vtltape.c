@@ -128,6 +128,7 @@ static int configCompressionFactor = Z_BEST_SPEED;
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
 static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
+static loff_t capacity_unit = 1;
 
 struct lu_phy_attr lunit;
 
@@ -686,11 +687,13 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		TapeCapacity.pcode_head.len = htons(sizeof(TapeCapacity) -
 					sizeof(TapeCapacity.pcode_head));
 		if (tapeLoaded == TAPE_LOADED) {
-			uint64_t max_cap = ntohll(mam.max_capacity);
+			uint64_t cap;
 
-			TapeCapacity.value01 =
-				htonl(mam.remaining_capacity);
-			TapeCapacity.value03 = htonll(max_cap);
+			cap = htonll(mam.remaining_capacity) / capacity_unit;
+			TapeCapacity.value01 = htonl(cap);
+
+			cap = htonll(mam.max_capacity) / capacity_unit;
+			TapeCapacity.value03 = htonl(cap);
 		} else {
 			TapeCapacity.value01 = 0;
 			TapeCapacity.value03 = 0;
@@ -2921,6 +2924,8 @@ static void config_lu(struct lu_phy_attr *lu)
 	if (!strncasecmp(lu->product_id, "ULT", 3)) {
 		char *dup_product_id;
 
+		capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
 		/* Ultrium drives */
 		dup_product_id = strchr(lu->product_id, '-');
 		if (!dup_product_id)
@@ -2943,9 +2948,11 @@ static void config_lu(struct lu_phy_attr *lu)
 			MHVTL_DBG(1, "LTO 4 drive");
 		}
 	} else if (!strncasecmp(lu->product_id, "SDLT600", 7)) {
+		capacity_unit = 1L << 20; /* Capacity units in MBytes */
 		lu->drive_type = drive_SDLT600;
 		MHVTL_DBG(1, "SDLT600 drive");
 	} else if (!strncasecmp(lu->product_id, "SDX-900", 7)) {
+		capacity_unit = 1L << 10; /* Capacity units in KBytes */
 		lu->drive_type = drive_AIT4;
 		MHVTL_DBG(1, "AIT4 drive");
 	} else if (!strncasecmp(lu->product_id, "03592J1A", 8)) {
