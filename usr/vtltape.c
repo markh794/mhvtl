@@ -119,6 +119,8 @@ static int inLibrary = 0;	/* Default to stand-alone drive */
 static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
 uint8_t MediaWriteProtect = MEDIA_WRITABLE;	/* True if virtual "write protect" switch is set */
 
+static loff_t capacity_unit = 1;
+
 /* Pointer into Device config mode page */
 static uint8_t *compressionFactor = NULL;
 
@@ -128,7 +130,6 @@ static int configCompressionFactor = Z_BEST_SPEED;
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
 static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
-static loff_t capacity_unit = 1;
 
 struct lu_phy_attr lunit;
 
@@ -3300,6 +3301,16 @@ int main(int argc, char *argv[])
 	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, MHVTL_VERSION);
 	if (verbose)
 		printf("%s: version %s\n", progname, MHVTL_VERSION);
+
+	/* FIXME: Trying to track down why RedHat 5.4 32bit does not
+	 * like backing files > 2G
+	 */
+	if (sizeof(loff_t) < 5) {
+		printf("WARNING: datafiles > 2G not supported\n"
+			"Please report to markh794@gmail.com\n");
+		syslog(LOG_DAEMON|LOG_INFO,
+			"WARNING: datafiles > 2G not supported\n");
+	}
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
