@@ -3074,11 +3074,14 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			unsigned int c, d, e, f, g, h, j, k;
 			int i;
 
+			memset(s, 0x20, MALLOC_SZ);
+
 			if (sscanf(b, " Unit serial number: %s", s)) {
 				checkstrlen(s, SCSI_SN_LEN);
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			}
-			if (sscanf(b, " Product identification: %s", s)) {
+			if (sscanf(b, " Product identification: %16c", s)) {
+				s[PRODUCT_ID_LEN] = 0;
 				checkstrlen(s, PRODUCT_ID_LEN);
 				sprintf(lu->product_id, "%-16s", s);
 			}

@@ -131,10 +131,10 @@ struct s_info { /* Slot Info */
 
 /* Drive Info */
 struct d_info {
-	char inq_vendor_id[8];
-	char inq_product_id[16];
-	char inq_product_rev[4];
-	char inq_product_sno[10];
+	char inq_vendor_id[10];
+	char inq_product_id[18];
+	char inq_product_rev[6];
+	char inq_product_sno[12];
 	long drv_id;		/* drive's send_msg queue ID */
 	char online;		/* Physical status of drive */
 	int SCSI_BUS;
@@ -1544,7 +1544,7 @@ int already_in_slot(char *barcode)
 	return 0;
 }
 
-#define MALLOC_SZ 1024
+#define MALLOC_SZ 512
 
 /* Return zero - failed, non-zero - success */
 static int load_map(struct q_msg *msg)
@@ -1806,6 +1806,7 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 	int slot;
 	long drv_id, lib_id;
 	struct d_info *dp = NULL;
+	int z, found;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -1847,8 +1848,21 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 		if (dp) {
 			if (sscanf(b, " Unit serial number: %s", s) > 0)
 				strncpy(dp->inq_product_sno, s, 10);
-			if (sscanf(b, " Product identification: %s", s) > 0)
+			if (sscanf(b, " Product identification: %16c", s) > 0) {
+				/* Space fill string */
+				found = 0;
+				for (z = 0; z < 16; z++) {
+					if (s[z] == '\n')
+						found = 1;
+					if (found)
+						s[z] = 0x20;
+				}
+				s[z] = 0;
 				strncpy(dp->inq_product_id, s, 16);
+				dp->inq_product_id[16] = 0;
+				MHVTL_DBG(3, "id: \'%s\', inq_product_id: \'%s\'",
+					s, dp->inq_product_id);
+			}
 			if (sscanf(b, " Product revision level: %s", s) > 0)
 				strncpy(dp->inq_product_rev, s, 4);
 			if (sscanf(b, " Vendor identification: %s", s) > 0)

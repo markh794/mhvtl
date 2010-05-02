@@ -32,7 +32,7 @@
 
 long my_id;
 
-void usage(char *prog)
+static void usage(char *prog)
 {
 	fprintf(stdout, "Usage  : %s [-h|-help]\n", prog);
 	fprintf(stdout, "Version: %s\n\n", MHVTL_VERSION);
