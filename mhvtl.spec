@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 5
-Source: mhvtl-2010-04-01.tgz
+Release: 6
+Source: mhvtl-2010-05-02.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -165,6 +165,17 @@ fi
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
 
 %changelog
+* Thu May 02 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.5
+- Support VENDOR ID with embedded spaces
+- Fix 'vtlcmd list map'
+- Fix import of media via MAP (off-by-one)
+- Return TapeCapacity LOG SENSE in bytes/KB/MB depending on drive type
+- Honour MAP status (return error if MAP is open and robot attempts to
+  move media in/out of MAP)
+- General cleanup of kernel module (thanks to Herbert Stadler)
+- Relax dependencies on /proc in faviour of /sys
+
 * Thu Apr 01 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.5
 - Silence warning regarding local_irq_save() - Thanks to Norm Lunda
