@@ -1331,11 +1331,24 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 
 	switch (cdb[0]) {
+	case REPORT_LUN:
+	case REQUEST_SENSE:
+	case MODE_SELECT:
+	case INQUIRY:
+		break;
+	default:
+		if (check_reset(sam_stat))
+			return 0;
+	}
+
+	switch (cdb[0]) {
 	case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
 	case INITIALIZE_ELEMENT_STATUS:
 		MHVTL_DBG(1, "%s", "INITIALIZE ELEMENT **");
-		if (check_reset(sam_stat))
+		if (!libraryOnline) {
+			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
 			break;
+		}
 		sleep(1);
 		break;
 
@@ -1346,8 +1359,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case LOG_SELECT:	/* Set or reset LOG stats. */
 		MHVTL_DBG(1, "%s", "LOG SELECT **");
-		if (check_reset(sam_stat))
-			break;
 		resp_log_select(cdb, sam_stat);
 		break;
 	case LOG_SENSE:
@@ -1370,20 +1381,18 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case MOVE_MEDIUM:
-		MHVTL_DBG(1, "%s", "MOVE MEDIUM **");
-		if (check_reset(sam_stat))
+		if (!libraryOnline) {
+			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
 			break;
+		}
+		MHVTL_DBG(1, "%s", "MOVE MEDIUM **");
 		k = resp_move_medium(cdb, buf, sam_stat);
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
-		if (check_reset(sam_stat))
-			break;
 		resp_allow_prevent_removal(cdb, sam_stat);
 		break;
 	case READ_ELEMENT_STATUS:
 		MHVTL_DBG(1, "%s", "READ ELEMENT STATUS **");
-		if (check_reset(sam_stat))
-			break;
 		ret += resp_read_element_status(cdb, buf, sam_stat);
 		break;
 
@@ -1402,27 +1411,23 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case RESERVE:
 	case RESERVE_10:
 		MHVTL_DBG(1, "%s", "RESERVE UNIT **");
-		if (check_reset(sam_stat))
-			break;
 		break;
 
 	case RELEASE:
 	case RELEASE_10:
 		MHVTL_DBG(1, "%s", "RELEASE UNIT **");
-		if (check_reset(sam_stat))
-			break;
 		break;
 
 	case REZERO_UNIT:	/* Rewind */
-		MHVTL_DBG(1, "%s", "Rezero **");
-		if (check_reset(sam_stat))
+		if (!libraryOnline) {
+			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
 			break;
+		}
+		MHVTL_DBG(1, "%s", "Rezero **");
 		sleep(1);
 		break;
 
 	case START_STOP:	/* Load/Unload cmd */
-		if (check_reset(sam_stat))
-			break;
 		if (cdb[4] && 0x1) {
 			libraryOnline = 1;
 			MHVTL_DBG(1, "%s", "Library now online **");
@@ -1434,8 +1439,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case TEST_UNIT_READY:	/* Return OK by default */
 		MHVTL_DBG(1, "%s %s", "Test Unit Ready : Returning => ",
 					(libraryOnline == 0) ? "No" : "Yes");
-		if (check_reset(sam_stat))
-			break;
 		if (!libraryOnline)
 			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
 		break;
@@ -1459,8 +1462,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	default:
 		MHVTL_DBG(1,  "%s", "******* Unsupported command **********");
 		MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
-		if (check_reset(sam_stat))
-			break;
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 		break;
 	}
