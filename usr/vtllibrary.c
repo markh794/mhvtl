@@ -1807,7 +1807,7 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 	int slot;
 	long drv_id, lib_id;
 	struct d_info *dp = NULL;
-	int z, found;
+	int z, flg;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -1851,11 +1851,11 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 				strncpy(dp->inq_product_sno, s, 10);
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
 				/* Space fill string */
-				found = 0;
+				flg = 0;
 				for (z = 0; z < 16; z++) {
 					if (s[z] == '\n')
-						found = 1;
-					if (found)
+						flg = 1;
+					if (flg)
 						s[z] = 0x20;
 				}
 				s[z] = 0;
@@ -2209,6 +2209,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	int indx, n = 0;
 	struct vtl_ctl tmpctl;
 	int found = 0;
+	int flg, z;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -2252,9 +2253,20 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				checkstrlen(s, SCSI_SN_LEN);
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			}
-			if (sscanf(b, " Product identification: %s", s)) {
-				checkstrlen(s, PRODUCT_ID_LEN);
-				sprintf(lu->product_id, "%-16s", s);
+			if (sscanf(b, " Product identification: %16c", s) > 0) {
+				/* Space fill string */
+				flg = 0;
+				for (z = 0; z < 16; z++) {
+					if (s[z] == '\n')
+						flg = 1;
+					if (flg)
+						s[z] = 0x20;
+				}
+				s[z] = 0;
+				strncpy(lu->product_id, s, 16);
+				lu->product_id[16] = 0;
+				MHVTL_DBG(3, "id: \'%s\', product_id: \'%s\'",
+					s, lu->product_id);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
