@@ -102,12 +102,12 @@ int check_media(char *barcode)
 }
 
 /* Display the answer from daemon/service */
-void DisplayResponse(int msqid)
+void DisplayResponse(int msqid, char *s)
 {
 	struct q_entry	r_entry;
 
 	if (msgrcv(msqid, &r_entry, MAXOBN, VTLCMD_Q, 0) > 0)
-		printf("%s\n", r_entry.msg.text);
+		printf("%s%s\n", s, r_entry.msg.text);
 }
 
 int ishex(char *str)
@@ -238,19 +238,16 @@ void Check_Params(int argc, char **argv)
 			if (!strcmp(argv[2], "verbose")) {
 				if (argc == 3)
 					return;
-
 				PrintErrorExit(argv[0], "verbose");
 			}
 			if (!strcmp(argv[2], "debug")) {
 				if (argc == 3)
 					return;
-
 				PrintErrorExit(argv[0], "debug");
 			}
 			if (!strcmp(argv[2], "exit")) {
 				if (argc == 3)
 					return;
-
 				PrintErrorExit(argv[0], "exit");
 			}
 			if (!strcmp(argv[2], "TapeAlert")) {
@@ -272,13 +269,11 @@ void Check_Params(int argc, char **argv)
 			if (!strcmp(argv[2], "online")) {
 				if (argc == 3)
 					return;
-
 				PrintErrorExit(argv[0], "online");
 			}
 			if (!strcmp(argv[2], "offline")) {
 				if (argc == 3)
 					return;
-
 				PrintErrorExit(argv[0], "offline");
 			}
 			if (!strcmp(argv[2], "list")) {
@@ -469,7 +464,6 @@ int main(int argc, char **argv)
 	}
 
 	/* Concat all args into one string */
-
 	p = buf;
 	buf[0] = '\0';
 
@@ -519,8 +513,8 @@ int main(int argc, char **argv)
 				fprintf(stderr, "Hint: Use command 'mktape' to "
 					"create media first\n");
 				exit(1);
-				}
 			}
+		}
 	}
 
 	long ReceiverQid;
@@ -530,56 +524,24 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* we should have an own queue for answers
-	long myPrivateQid;
-	if ( (myPrivateQid=CreateNewQueue()) == -1 ) {
-		fprintf(stderr, "cannot create new MessageQueue\n");
-		exit(1);
-	}*/
-
 	if (SendMsg(ReceiverQid, deviceNo, buf) < 0) {
 		fprintf(stderr, "Message Queue Error: send message\n");
-		/*KillPrivateQueue(myPrivateQid);*/
 		exit(1);
 	}
-
-	/* verbose,debug & exit don't answers so we can't display anything */
-
-	/*
-	if (device_type == TYPE_DRIVE) {
-		if (!strcmp(argv[2], "load")) {
-			DisplayResponse(ReceiverQid);
-		}
-		if (!strcmp(argv[2], "unload")) {
-			DisplayResponse(ReceiverQid);
-		}
-		if (!strcmp(argv[2], "exit")) {
-			DisplayResponse(ReceiverQid);
-		}
-	}
-	*/
 
 	if (device_type == TYPE_LIBRARY) {
 		if (!strcmp(argv[2], "open") && !strcmp(argv[3], "map"))
-			DisplayResponse(ReceiverQid);
-
+			DisplayResponse(ReceiverQid, "");
 		if (!strcmp(argv[2], "close") && !strcmp(argv[3], "map"))
-			DisplayResponse(ReceiverQid);
-
+			DisplayResponse(ReceiverQid, "");
 		if (!strcmp(argv[2], "empty") && !strcmp(argv[3], "map"))
-			DisplayResponse(ReceiverQid);
-
-		if (!strcmp(argv[2], "list") && !strcmp(argv[3], "map")) {
-			printf("Contents: ");
-			DisplayResponse(ReceiverQid);
-		}
-
+			DisplayResponse(ReceiverQid, "");
+		if (!strcmp(argv[2], "list") && !strcmp(argv[3], "map"))
+			DisplayResponse(ReceiverQid, "Contents: ");
 		if (!strcmp(argv[2], "load") && !strcmp(argv[3], "map"))
-			DisplayResponse(ReceiverQid);
-
+			DisplayResponse(ReceiverQid, "");
 	}
 
-	/*KillPrivateQueue(myPrivateQid);*/
 	exit(0);
 }
 
