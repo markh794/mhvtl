@@ -66,8 +66,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "U-18  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(4880);
-	}
-	if (!(strncmp(density, "LTO2", 4))) {
+	} else if (!(strncmp(density, "LTO2", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto2;
 		mamp->MediaType = Media_LTO2;
 		mamp->MediumLength = htonl(512);	// 512 tracks
@@ -76,8 +75,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "U-28  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(7398);
-	}
-	if (!(strncmp(density, "LTO3", 4))) {
+	} else if (!(strncmp(density, "LTO3", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto3;
 		mamp->MediaType = Media_LTO3;
 		mamp->MediumLength = htonl(704);	// 704 tracks
@@ -86,8 +84,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "U-316 ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(9638);
-	}
-	if (!(strncmp(density, "LTO4", 4))) {
+	} else if (!(strncmp(density, "LTO4", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto4;
 		mamp->MediaType = Media_LTO4;
 		mamp->MediumLength = htonl(896);	// 896 tracks
@@ -96,9 +93,8 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "U-416  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(12725);
-	}
+	} else if (!(strncmp(density, "AIT1", 4))) {
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
-	if (!(strncmp(density, "AIT1", 4))) {
 		mamp->MediumDensityCode = 0x30;
 		mamp->MediaType = Media_AIT1;
 		mamp->MediumLength = htonl(384);	// 384 tracks
@@ -107,8 +103,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "AIT-1 ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		mamp->media_info.bits_per_mm = htonl(0x11d7);
-	}
-	if (!(strncmp(density, "AIT2", 4))) {
+	} else if (!(strncmp(density, "AIT2", 4))) {
 		mamp->MediumDensityCode = 0x31;
 		mamp->MediaType = Media_AIT2;
 		mamp->MediumLength = htonl(384);	// 384 tracks
@@ -117,8 +112,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "AIT-2  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		mamp->media_info.bits_per_mm = htonl(0x17d6);
-	}
-	if (!(strncmp(density, "AIT3", 4))) {
+	} else if (!(strncmp(density, "AIT3", 4))) {
 		mamp->MediumDensityCode = 0x32;
 		mamp->MediaType = Media_AIT3;
 		mamp->MediumLength = htonl(384);	// 384 tracks
@@ -127,8 +121,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "AIT-3  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		mamp->media_info.bits_per_mm = htonl(0x17d6);
-	}
-	if (!(strncmp(density, "AIT4", 4))) {
+	} else if (!(strncmp(density, "AIT4", 4))) {
 		mamp->MediumDensityCode = 0x33;
 		mamp->MediaType = Media_AIT4;
 		mamp->MediumLength = htonl(384);	// 384 tracks
@@ -137,70 +130,67 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "AIT-4  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		mamp->media_info.bits_per_mm = htonl(0x17d6);
-	}
-	if (!(strncmp(density, "DLT3", 4))) {
+	} else if (!(strncmp(density, "DLT3", 4))) {
 		mamp->MediumDensityCode = 0x0;
 		mamp->MediaType = Media_DLT3;
 		memcpy(&mamp->media_info.description, "DLT4000 media", 13);
 		memcpy(&mamp->media_info.density_name, "DLT-III", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
-	}
-	if (!(strncmp(density, "DLT4", 4))) {
+	} else if (!(strncmp(density, "DLT4", 4))) {
 		mamp->MediumDensityCode = 0x0;
 		mamp->MediaType = Media_DLT4;
 		memcpy(&mamp->media_info.description, "DLT7000 media", 13);
 		memcpy(&mamp->media_info.density_name, "DLT-IV", 6);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
-	}
-	if (!(strncmp(density, "SDLT1", 5))) {
+	} else if (!(strncmp(density, "SDLT1", 5))) {
 		mamp->MediumDensityCode = 0x48;
 		mamp->MediaType = Media_SDLT;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT-1", 6);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(133000);
-	}
-	if (!(strncmp(density, "SDLT2", 5))) {
+	} else if (!(strncmp(density, "SDLT2", 5))) {
 		mamp->MediumDensityCode = 0x48;
 		mamp->MediaType = Media_SDLT220;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT220", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(133000);
-	}
-	if (!(strncmp(density, "SDLT3", 5))) {
+	} else if (!(strncmp(density, "SDLT3", 5))) {
 		mamp->MediumDensityCode = 0x49;
 		mamp->MediaType = Media_SDLT320;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT320", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(190000);
-	}
-	if (!(strncmp(density, "SDLT4", 5))) {
+	} else if (!(strncmp(density, "SDLT4", 5))) {
 		mamp->MediumDensityCode = 0x4a;
 		mamp->MediaType = Media_SDLT600;
 		memcpy(&mamp->media_info.description, "SDLT II media", 13);
 		memcpy(&mamp->media_info.density_name, "SDLT600", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(233000);
-	}
-	if (!(strncmp(density, "T10KA", 5))) {
+	} else if (!(strncmp(density, "T10KA", 5))) {
 		mamp->MediumDensityCode = 0x4a;
 		mamp->MediaType = Media_T10KA;
 		memcpy(&mamp->media_info.description, "STK T10KA media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000A", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		mamp->media_info.bits_per_mm = htonl(233000);
-	}
-	if (!(strncmp(density, "T10KB", 5))) {
+	} else if (!(strncmp(density, "T10KB", 5))) {
 		mamp->MediumDensityCode = 0x4b;
 		mamp->MediaType = Media_T10KB;
 		memcpy(&mamp->media_info.description, "STK T10Kb media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000B", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		mamp->media_info.bits_per_mm = htonl(233000);
-	}
+	} else
+		printf("'%s' is an invalid density\n", density);
 
+	if (mamp->MediaType == Media_undefined)	{
+		printf("mamp->MediaType is still Media_undefined, exiting\n");
+		exit(1);
+	}
 	return 0;
 }
 
