@@ -36,26 +36,30 @@ fi
 
 USER=$1
 
-# Im sure there is a better method then this...
+# I'm sure there is a better method then this...
+# There is.. Thanks to Gavin Barnard.
 set_density() {
 	density=$1
-	DENSITY="X"
+	regex='[A-Z0-9]{6,8}([SLXTJ])([1234ABWX])$'
 
-	A=`echo $density|awk '/L1$/'|wc -l`
-	if [ $A -eq 1 ]; then
-		DENSITY="LTO1"
-	fi
-	A=`echo $density|awk '/L2$/'|wc -l`
-	if [ $A -eq 1 ]; then
-		DENSITY="LTO2"
-	fi
-	A=`echo $density|awk '/L3$/'|wc -l`
-	if [ $A -eq 1 ]; then
-		DENSITY="LTO3"
-	fi
-	A=`echo $density|awk '/L4$/'|wc -l`
-	if [ $A -eq 1 ]; then
-		DENSITY="LTO4"
+	if [[ $density =~ $regex ]]; then
+		matches=${#BASH_REMATCH[*]}
+		if [ ${BASH_REMATCH[1]} = 'L' ]; then
+			DENSITY=`echo -e "LTO${BASH_REMATCH[2]}"`
+		fi
+		if [ ${BASH_REMATCH[1]} = 'S' ]; then
+			DENSITY=`echo -e "SDLT${BASH_REMATCH[2]}"`
+		fi
+		if [ ${BASH_REMATCH[1]} = 'X' ]; then
+			DENSITY=`echo -e "AIT${BASH_REMATCH[2]}"`
+		fi
+		if [ ${BASH_REMATCH[1]} = 'T' ]; then
+			DENSITY=`echo -e "T10K${BASH_REMATCH[2]}"`
+		fi
+		if [ ${BASH_REMATCH[1]} = 'J' ]; then
+#FIXME: please fix me when ever the J WORM TAPE are added to mktape
+			DENSITY=`echo -e "unknown tape density"`
+		fi
 	fi
 }
 
