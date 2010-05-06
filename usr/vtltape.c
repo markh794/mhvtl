@@ -3127,10 +3127,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 					c, d, e, f, g, h, j, k);
 				MHVTL_DBG(2, "Setting NAA: to %s", lu->naa);
 			} else if (i > 0) {
+				int y;
+
 				free(lu->naa);
 				lu->naa = NULL;
+				for (y = 0; y < MALLOC_SZ; y++)
+					if (b[y] == '\n')
+						b[y] = 0;
 				MHVTL_DBG(1, "NAA: Incorrect params %s"
-						" : NAA value unspecified", b);
+						" : using defaults", b);
 			}
 		}
 	}
