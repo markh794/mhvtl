@@ -3115,19 +3115,22 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				}
 			}
 			i = sscanf(b,
-				" NAA: %x:%x:%x:%x:%x:%x:%x:%x",
+				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
 			if (i == 8) {
 				if (lu->naa)
 					free(lu->naa);
-				lu->naa = malloc(24);
+				lu->naa = malloc(48);
 				if (lu->naa)
 					sprintf((char *)lu->naa,
 				"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					c, d, e, f, g, h, j, k);
 				MHVTL_DBG(2, "Setting NAA: to %s", lu->naa);
 			} else if (i > 0) {
-				MHVTL_DBG(1, "NAA: Incorrect num params %s", b);
+				free(lu->naa);
+				lu->naa = NULL;
+				MHVTL_DBG(1, "NAA: Incorrect params %s"
+						" : NAA value unspecified", b);
 			}
 		}
 	}
