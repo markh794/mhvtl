@@ -1,4 +1,6 @@
 
+#define _FILE_OFFSET_BITS 64
+
 #define _XOPEN_SOURCE 600	// for unistd.h pread/pwrite and fcntl.h posix_fadvise
 
 #include <sys/syslog.h>

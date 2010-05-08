@@ -48,6 +48,7 @@
  *	SCSI lu are created/destroyed as the daemon is started/shutdown
  */
 
+#define _FILE_OFFSET_BITS 64
 #define _XOPEN_SOURCE 500
 
 #include <unistd.h>
