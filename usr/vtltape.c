@@ -3069,6 +3069,15 @@ static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
+/* Remove newline from string */
+static void rmnl(char *s, int len)
+{
+	int i;
+	for (i = 0; i < len; i++)
+		if (s[i] == '\n')
+			s[i] = 0x20;	/* Replace newline with space */
+}
+
 #define VPD_83_SZ 52
 #define VPD_B0_SZ 4
 #define VPD_B1_SZ SCSI_SN_LEN
@@ -3136,19 +3145,23 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			if (sscanf(b, " Unit serial number: %s", s)) {
 				checkstrlen(s, SCSI_SN_LEN);
 				sprintf(lu->lu_serial_no, "%-10s", s);
+				rmnl(lu->lu_serial_no, SCSI_SN_LEN);
 			}
 			if (sscanf(b, " Product identification: %16c", s)) {
 				s[PRODUCT_ID_LEN] = 0;
 				checkstrlen(s, PRODUCT_ID_LEN);
 				sprintf(lu->product_id, "%-16s", s);
+				rmnl(lu->product_id, PRODUCT_ID_LEN);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
 				sprintf(lu->product_rev, "%-4s", s);
+				rmnl(lu->product_rev, PRODUCT_REV_LEN);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
+				rmnl(lu->vendor_id, VENDOR_ID_LEN);
 			}
 			if (sscanf(b, " Compression: factor %d enabled %d",
 							&i, &j)) {

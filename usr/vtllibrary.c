@@ -187,6 +187,20 @@ static void usage(char *progname)
  int ioctl(int, int, void *);
 #endif
 
+/* Remove newline from string and fill rest of 'len' with char 'c' */
+static void rmnl(char *s, unsigned char c, int len)
+{
+	int i;
+	int found = 0;
+
+	for (i = 0; i < len; i++) {
+		if (s[i] == '\n')
+			found = 1;
+		if (found)
+			s[i] = c;
+	}
+}
+
 /* Copy bytes from 'src' to 'dest, blank-filling to length 'len'.  There will
  * not be a NULL byte at the end.
 */
@@ -1847,10 +1861,12 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 			continue;
 		}
 		if (dp) {
-			if (sscanf(b, " Unit serial number: %s", s) > 0)
+			if (sscanf(b, " Unit serial number: %s", s) > 0) {
 				strncpy(dp->inq_product_sno, s, 10);
+				rmnl(dp->inq_product_sno, ' ', 10);
+			}
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
-				/* Space fill string */
+				/* replace '\n' and everything following with space (0x20) */
 				flg = 0;
 				for (z = 0; z < 16; z++) {
 					if (s[z] == '\n')
@@ -1864,10 +1880,14 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 				MHVTL_DBG(3, "id: \'%s\', inq_product_id: \'%s\'",
 					s, dp->inq_product_id);
 			}
-			if (sscanf(b, " Product revision level: %s", s) > 0)
+			if (sscanf(b, " Product revision level: %s", s) > 0) {
 				strncpy(dp->inq_product_rev, s, 4);
-			if (sscanf(b, " Vendor identification: %s", s) > 0)
+				rmnl(dp->inq_product_rev, ' ', 4);
+			}
+			if (sscanf(b, " Vendor identification: %s", s) > 0) {
 				strncpy(dp->inq_vendor_id, s, 8);
+				rmnl(dp->inq_vendor_id, ' ', 8);
+			}
 		}
 		if (strlen(b) == 1) { /* Blank line => Reset device pointer */
 			drv_id = -1;
@@ -2209,7 +2229,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	int indx, n = 0;
 	struct vtl_ctl tmpctl;
 	int found = 0;
-	int flg, z;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -2254,15 +2273,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			}
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
-				/* Space fill string */
-				flg = 0;
-				for (z = 0; z < 16; z++) {
-					if (s[z] == '\n')
-						flg = 1;
-					if (flg)
-						s[z] = 0x20;
-				}
-				s[z] = 0;
+				rmnl(s, ' ', 16);
 				strncpy(lu->product_id, s, 16);
 				lu->product_id[16] = 0;
 				MHVTL_DBG(3, "id: \'%s\', product_id: \'%s\'",
@@ -2271,10 +2282,12 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
 				sprintf(lu->product_rev, "%-4s", s);
+				rmnl(lu->product_rev, ' ', 4);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
+				rmnl(lu->vendor_id, ' ', 8);
 			}
 			if (sscanf(b, " Density : %s", s)) {
 				lu->supported_density[n] =
@@ -2297,13 +2310,10 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 					c, d, e, f, g, h, j, k);
 				MHVTL_DBG(2, "Setting NAA: to %s", lu->naa);
 			} else if (i > 0) {
-				int y;
-
 				free(lu->naa);
 				lu->naa = NULL;
-				for (y = 0; y < MALLOC_SZ; y++)
-					if (b[y] == '\n')
-						b[y] = 0;
+				/* Cleanup string (replace 'nl' with null) for logging */
+				rmnl(b, '\0', MALLOC_SZ);
 				MHVTL_DBG(1, "NAA: Incorrect params: %s"
 						", Using defaults", b);
 			}
@@ -2566,18 +2576,22 @@ int main(int argc, char *argv[])
 			MHVTL_DBG(3, "\nDrive %d", a);
 
 			strncpy(s, dp->inq_vendor_id, 8);
+			rmnl(s, ' ', 8);
 			s[8] = '\0';
 			MHVTL_DBG(3, "Vendor ID     : \"%s\"", s);
 
 			strncpy(s, dp->inq_product_id, 16);
+			rmnl(s, ' ', 16);
 			s[16] = '\0';
 			MHVTL_DBG(3, "Product ID    : \"%s\"", s);
 
 			strncpy(s, dp->inq_product_rev, 4);
+			rmnl(s, ' ', 4);
 			s[4] = '\0';
 			MHVTL_DBG(3, "Revision Level: \"%s\"", s);
 
 			strncpy(s, dp->inq_product_sno, 10);
+			rmnl(s, ' ', 10);
 			s[10] = '\0';
 			MHVTL_DBG(3, "Product S/No  : \"%s\"", s);
 
