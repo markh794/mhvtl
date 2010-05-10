@@ -671,6 +671,40 @@ int oom_adjust(void)
 	return 0;
 }
 
+/* fgets but replace '\n' with null */
+char *readline(char *buf, int len, FILE *s)
+{
+	int i;
+	char *ret;
+
+	ret = fgets(buf, len, s);
+	if (!ret)
+		return ret;
+
+	/* Skip blank line */
+	for (i = 1; i < len; i++)
+		if (buf[i] == '\n')
+			buf[i] = 0;
+
+	MHVTL_DBG(3, "%s", buf);
+	return ret;
+}
+
+/* Copy bytes from 'src' to 'dest, blank-filling to length 'len'.  There will
+ * not be a NULL byte at the end.
+*/
+void blank_fill(uint8_t *dest, uint8_t *src, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (*src != '\0')
+			*dest++ = *src++;
+		else
+			*dest++ = ' ';
+	}
+}
+
 void log_opcode(char *opcode, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	MHVTL_DBG(1, "*** Unsupported op code: %s ***", opcode);

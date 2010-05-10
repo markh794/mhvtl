@@ -201,22 +201,6 @@ static void rmnl(char *s, unsigned char c, int len)
 	}
 }
 
-/* Copy bytes from 'src' to 'dest, blank-filling to length 'len'.  There will
- * not be a NULL byte at the end.
-*/
-
-static void blank_fill(uint8_t *dest, uint8_t *src, int len)
-{
-	int	i;
-
-	for (i = 0; i < len; i++) {
-		if (*src != '\0') {
-			*dest++ = *src++;
-		} else {
-			*dest++ = ' ';
-		}
-	}
-}
 
 /* Return the element type of a particular element address */
 
@@ -1822,7 +1806,6 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 	int slot;
 	long drv_id, lib_id;
 	struct d_info *dp = NULL;
-	int z, flg;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -1845,7 +1828,7 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 	drv_id = -1;
 
 	/* While read in a line */
-	while (fgets(b, MALLOC_SZ, conf) != NULL) {
+	while (readline(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (sscanf(b, "Drive: %ld", &drv_id) > 0) {
@@ -1867,15 +1850,9 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 				rmnl(dp->inq_product_sno, ' ', 10);
 			}
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
-				/* replace '\n' and everything following with space (0x20) */
-				flg = 0;
-				for (z = 0; z < 16; z++) {
-					if (s[z] == '\n')
-						flg = 1;
-					if (flg)
-						s[z] = 0x20;
-				}
-				s[z] = 0;
+				/* sscanf does not NULL terminate */
+				/* 25 is len of ' Product identification: ' */
+				s[strlen(b) - 25] = '\0';
 				strncpy(dp->inq_product_id, s, 16);
 				dp->inq_product_id[16] = 0;
 				MHVTL_DBG(3, "id: \'%s\', inq_product_id: \'%s\'",
@@ -1945,7 +1922,7 @@ static void init_slot_info(void)
 	num_map = 0;
 	num_picker = 0;
 	/* While read in a line */
-	while (fgets(b, MALLOC_SZ, ctrl) != NULL) {
+	while (readline(b, MALLOC_SZ, ctrl) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (sscanf(b, "Drive %d", &slt) > 0)
@@ -1990,7 +1967,7 @@ static void init_slot_info(void)
 	/* Rewind and parse config file again... */
 	rewind(ctrl);
 	barcode = s;
-	while (fgets(b, MALLOC_SZ, ctrl) != NULL) {
+	while (readline(b, MALLOC_SZ, ctrl) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		barcode[0] = '\0';
@@ -2250,7 +2227,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	}
 
 	/* While read in a line */
-	while (fgets(b, MALLOC_SZ, conf) != NULL) {
+	while (readline(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (strlen(b) == 1)	/* Reset drive number of blank line */
@@ -2274,21 +2251,19 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			}
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
-				rmnl(s, ' ', 16);
+				/* sscanf does not NULL terminate */
+				i = strlen(b) - 25; /* len of ' Product identification: ' */
+				s[i] = '\0';
 				strncpy(lu->product_id, s, 16);
 				lu->product_id[16] = 0;
-				MHVTL_DBG(3, "id: \'%s\', product_id: \'%s\'",
-					s, lu->product_id);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
 				sprintf(lu->product_rev, "%-4s", s);
-				rmnl(lu->product_rev, ' ', 4);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
-				rmnl(lu->vendor_id, ' ', 8);
 			}
 			if (sscanf(b, " Density : %s", s)) {
 				lu->supported_density[n] =

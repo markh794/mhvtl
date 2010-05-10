@@ -507,6 +507,9 @@ void hex_dump(uint8_t *, int);
 int chrdev_open(char *name, uint8_t);
 int oom_adjust(void);
 
+char *readline(char *s, int len, FILE *f);
+void blank_fill(uint8_t *dest, uint8_t *src, int len);
+
 void log_opcode(char *opcode, uint8_t *SCpnt, struct vtl_ds *dbuf_p);
 int resp_a3_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
 int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
