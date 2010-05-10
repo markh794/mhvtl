@@ -70,7 +70,6 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 	struct vpd *vpd_pg;
 	unsigned char key = ILLEGAL_REQUEST;
 	uint16_t asc = E_INVALID_FIELD_IN_CDB;
-	int ret = 0;
 	uint8_t *data = ds->data;
 
 	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2]))
@@ -101,7 +100,6 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 		data[4] = len - 5;	/* Additional Length */
 
 		ds->sz = len;
-		ret = SAM_STAT_GOOD;
 	} else if (cdb[1] & 0x2) {
 		/* CmdDt bit is set */
 		/* We do not support it now. */
@@ -109,7 +107,6 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 		data[5] = 0;
 		len = 6;
 		ds->sz = len;
-		ret = SAM_STAT_GOOD;
 	} else if (cdb[1] & 0x1) {
 		uint8_t pcode = cdb[2];
 
@@ -134,7 +131,6 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 			data[3] = cnt;
 			data[4] = 0x0;
 			len = cnt + 4;
-			ret = SAM_STAT_GOOD;
 		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
 			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
 
@@ -146,7 +142,6 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 			data[3] = vpd_pg->sz & 0xff;
 			memcpy(&data[4], vpd_pg->data, vpd_pg->sz);
 			len = vpd_pg->sz + 4;
-			ret = SAM_STAT_GOOD;
 		}
 	}
 
