@@ -410,6 +410,7 @@ enum drive_type_list {
 	drive_SDLT220,
 	drive_SDLT320,
 	drive_SDLT600,
+	drive_SDLT_S4,
 	drive_UNKNOWN /* Always last */
 };
 
@@ -468,6 +469,9 @@ enum Media_Type_list {
 	Media_SDLT600,
 	Media_SDLT600_CLEAN,
 	Media_SDLT600W,
+	Media_SDLT_S4,
+	Media_SDLT_S4_CLEAN,
+	Media_SDLT_S4W,
 	Media_UNKNOWN /* always last */
 };
 
