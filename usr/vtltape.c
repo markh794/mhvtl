@@ -2525,11 +2525,13 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			MediaWriteProtect = MEDIA_WRITABLE;
 			break;
 		case drive_LTO3:
-		case drive_LTO4:
 			MediaWriteProtect = MEDIA_READONLY;
 			MHVTL_DBG(1, "LTO-1 media in an LTO3/4 drive - "
 					"setting read-only");
 			break;
+		case drive_LTO4:
+			MHVTL_DBG(1, "LTO-1 media in an LTO4 drive - "
+					"failed load");
 		default:
 			goto mismatchmedia;
 		}
@@ -2544,13 +2546,18 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			Media_Type = Media_LTO2;
 		switch (lunit.drive_type) {
 		case drive_LTO1:
+			MHVTL_DBG(1, "LTO-2 media in an LTO1 drive - "
+					"failed load");
+			goto mismatchmedia;
 		case drive_LTO2:
 			MediaWriteProtect = MEDIA_WRITABLE;
 			break;
 		case drive_LTO3:
+			MediaWriteProtect = MEDIA_WRITABLE;
+			break;
 		case drive_LTO4:
 			MediaWriteProtect = MEDIA_READONLY;
-			MHVTL_DBG(1, "LTO-2 media in an LTO3/4 drive - "
+			MHVTL_DBG(1, "LTO-2 media in an LTO4 drive - "
 					"setting read-only");
 			break;
 		default:
@@ -2567,11 +2574,10 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			Media_Type = Media_LTO3;
 		switch (lunit.drive_type) {
 		case drive_LTO1:
-			MHVTL_DBG(1, "LTO-3 media in an LTO1 drive - "
+		case drive_LTO2:
+			MHVTL_DBG(1, "LTO-3 media in an LTO1/2 drive - "
 					"failed load");
 			goto mismatchmedia;
-			break;
-		case drive_LTO2:
 		case drive_LTO3:
 			MediaWriteProtect = MEDIA_WRITABLE;
 			break;
@@ -2588,9 +2594,10 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		switch (lunit.drive_type) {
 		case drive_LTO1:
 		case drive_LTO2:
-			MediaWriteProtect = MEDIA_READONLY;
-			break;
 		case drive_LTO3:
+			MHVTL_DBG(1, "LTO-4 media in an LTO1/2/3 drive - "
+					"failed load");
+			goto mismatchmedia;
 		case drive_LTO4:
 			MediaWriteProtect = MEDIA_WRITABLE;
 			break;
