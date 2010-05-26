@@ -937,16 +937,25 @@ failed:
 	return rc;
 }
 
-int
-format_tape(uint8_t *sam_stat)
+void zero_filemark_count(void)
 {
-	if (!tape_loaded(sam_stat)) {
-		return -1;
-	}
+	free(filemarks);
+	filemark_alloc = 0;
+	filemarks = NULL;
 
-	if (check_for_overwrite(sam_stat)) {
+	meta.filemark_count = 0;
+	rewrite_meta_file();
+}
+
+int format_tape(uint8_t *sam_stat)
+{
+	if (!tape_loaded(sam_stat))
 		return -1;
-	}
+
+	if (check_for_overwrite(sam_stat))
+		return -1;
+
+	zero_filemark_count();
 
 	return mkEODHeader(raw_pos.hdr.blk_number, raw_pos.data_offset);
 }
