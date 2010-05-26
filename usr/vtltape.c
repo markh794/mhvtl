@@ -379,10 +379,10 @@ static int checkRestrictions(uint8_t *sam_stat)
 	}
 
 	/* over-ride the above IF the virtual write protect switch is on */
-	if (OK_to_write && MediaWriteProtect) {
+	if (OK_to_write && MediaWriteProtect)
 		OK_to_write = 0;
+	if (!OK_to_write)
 		mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-	}
 
 	MHVTL_DBG(2, "returning %s",
 				(OK_to_write) ? "Writable" : "Non-writable");
