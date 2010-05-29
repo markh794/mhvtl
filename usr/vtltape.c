@@ -2031,8 +2031,11 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case SPACE:
 		count = get_unaligned_be24(&cdb[2]);
 		code = cdb[1] & 0x07;
-		MHVTL_DBG(1, "SPACE (%ld) ** code %u, count %u",
-			(long)dbuf_p->serialNo, code, count);
+		MHVTL_DBG(1, "SPACE (%ld) ** %u %s%s",
+			(long)dbuf_p->serialNo,
+			count,
+			(code) ? "filemark" : "block",
+			(count == 1) ? "" : "s");
 
 		/* 'count' is only a 24-bit value.  If the top bit is set, it
 		   should be treated as a twos-complement negative number.
