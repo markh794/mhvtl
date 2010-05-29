@@ -34,17 +34,15 @@
 #include <syslog.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <assert.h>
 #include "be_byteshift.h"
 #include "scsi.h"
 #include "vtl_common.h"
 #include "vtllib.h"
 
-/*
- * Define DEBUG to 0 and recompile to remove most debug messages.
- * or DEFINE TO 1 to make the -d (debug operation) mode more chatty
- */
-
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+extern unsigned char sense[];
 
 uint32_t SPR_Reservation_Generation;
 uint8_t SPR_Reservation_Type;
@@ -383,3 +381,23 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	return 0;
 }
 
+void spc_request_sense(unsigned char *cdb, struct vtl_ds *dbuf_p)
+{
+	int sz;
+
+	MHVTL_DBG(1, "Request Sense (%ld) : key/ASC/ASCQ "
+			"[0x%02x 0x%02x 0x%02x]"
+			" Filemark: %s, EOM: %s, ILI: %s",
+				(long)dbuf_p->serialNo,
+				sense[2] & 0x0f, sense[12], sense[13],
+				(sense[2] & SD_FILEMARK) ? "yes" : "no",
+				(sense[2] & SD_EOM) ? "yes" : "no",
+				(sense[2] & SD_ILI) ? "yes" : "no");
+	sz = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
+	assert(dbuf_p->data);
+	/* Clear out the request sense flag */
+	dbuf_p->sam_stat = 0;
+	dbuf_p->sz = min((int)sz, (int)sizeof(sense));
+	memcpy(dbuf_p->data, sense, dbuf_p->sz);
+	memset(sense, 0, dbuf_p->sz);
+}

@@ -1396,15 +1396,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case REQUEST_SENSE:
-		MHVTL_DBG(1, "%s", "SCSI REQUEST SENSE **");
-		MHVTL_DBG(1, "Sense key/ASC/ASCQ [0x%02x 0x%02x 0x%02x]",
-					sense[2], sense[12], sense[13]);
-		block_size = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
-		memcpy(buf, sense, block_size);
-		/* Clear out the request sense flag */
-		*sam_stat = 0;
-		memset(sense, 0, sizeof(sense));
-		ret += block_size;
+		spc_request_sense(cdb, dbuf_p);
 		break;
 
 	case RESERVE:

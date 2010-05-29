@@ -1896,7 +1896,6 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			retval = sz * count;
 		bytesRead += retval;
 		pg_read_err_counter.bytesProcessed = bytesRead;
-//		dbuf_p->sz += retval;
 		break;
 
 	case READ_ATTRIBUTE:
@@ -1999,20 +1998,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case REQUEST_SENSE:
-		MHVTL_DBG(1, "Request Sense (%ld) : key/ASC/ASCQ "
-				"[0x%02x 0x%02x 0x%02x]"
-				" Filemark: %s, EOM: %s, ILI: %s",
-					(long)dbuf_p->serialNo,
-					sense[2] & 0x0f, sense[12], sense[13],
-					(sense[2] & SD_FILEMARK) ? "yes" : "no",
-					(sense[2] & SD_EOM) ? "yes" : "no",
-					(sense[2] & SD_ILI) ? "yes" : "no");
-		sz = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
-		memcpy(dbuf_p->data, sense, sz);
-		/* Clear out the request sense flag */
-		*sam_stat = 0;
-		memset(sense, 0, sizeof(sense));
-		dbuf_p->sz = sz;
+		spc_request_sense(cdb, dbuf_p);
 		break;
 
 	case RESERVE:
@@ -2052,11 +2038,11 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		   should be treated as a twos-complement negative number.
 		*/
 
-		if (count >= 0x800000) {
+		if (count >= 0x800000)
 			icount = -(0xffffff - count + 1);
-		} else {
+		else
 			icount = (int32_t)count;
-		}
+
 		resp_space(icount, code, sam_stat);
 		break;
 

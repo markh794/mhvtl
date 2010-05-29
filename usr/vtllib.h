@@ -99,6 +99,18 @@ extern int verbose;
 
 #endif	/* MHVTL_DEBUG */
 
+#define min(x,y) ({		\
+	typeof(x) _x = (x);	\
+	typeof(y) _y = (y);	\
+	(void) (&_x == &_y);	\
+	_x < _y ? _x : _y; })
+
+#define max(x,y) ({		\
+	typeof(x) _x = (x);	\
+	typeof(y) _y = (y);	\
+	(void) (&_x == &_y);	\
+	_x > _y ? _x : _y; })
+
 #define STATUS_OK 0
 
 #define STATUS_QUEUE_CMD 0xfe
