@@ -108,8 +108,6 @@ int debug = 0;
 
 #define TAPE_UNLOADED 0
 #define TAPE_LOADED 1
-#define TAPE_LOAD_CORRUPT 2
-#define TAPE_LOAD_BAD 3
 
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
@@ -2502,9 +2500,10 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	switch (mam.MediaType) {
 	case Media_LTO1:
 		MHVTL_DBG(1, "LTO1 media");
-		if (mam.MediumType == MEDIA_TYPE_CLEAN)
+		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 			Media_Type = Media_LTO1_CLEAN;
-		else if (mam.MediumType == MEDIA_TYPE_WORM)
+			break;
+		} else if (mam.MediumType == MEDIA_TYPE_WORM)
 			goto mismatchmedia;
 		else
 			Media_Type = Media_LTO1;
@@ -2515,27 +2514,29 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			break;
 		case drive_LTO3:
 			MediaWriteProtect = MEDIA_READONLY;
-			MHVTL_DBG(1, "LTO-1 media in an LTO3/4 drive - "
+			MHVTL_DBG(1, "LTO1 media in an LTO3 drive - "
 					"setting read-only");
 			break;
 		case drive_LTO4:
-			MHVTL_DBG(1, "LTO-1 media in an LTO4 drive - "
+			MHVTL_DBG(1, "LTO1 media in an LTO4 drive - "
 					"failed load");
+			goto mismatchmedia;
 		default:
 			goto mismatchmedia;
 		}
 		break;
 	case Media_LTO2:
 		MHVTL_DBG(1, "LTO2 media");
-		if (mam.MediumType == MEDIA_TYPE_CLEAN)
+		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 			Media_Type = Media_LTO2_CLEAN;
-		else if (mam.MediumType == MEDIA_TYPE_WORM)
+			break;
+		} else if (mam.MediumType == MEDIA_TYPE_WORM)
 			goto mismatchmedia;
 		else
 			Media_Type = Media_LTO2;
 		switch (lunit.drive_type) {
 		case drive_LTO1:
-			MHVTL_DBG(1, "LTO-2 media in an LTO1 drive - "
+			MHVTL_DBG(1, "LTO2 media in an LTO1 drive - "
 					"failed load");
 			goto mismatchmedia;
 		case drive_LTO2:
@@ -2546,7 +2547,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			break;
 		case drive_LTO4:
 			MediaWriteProtect = MEDIA_READONLY;
-			MHVTL_DBG(1, "LTO-2 media in an LTO4 drive - "
+			MHVTL_DBG(1, "LTO2 media in an LTO4 drive - "
 					"setting read-only");
 			break;
 		default:
@@ -2555,16 +2556,17 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		break;
 	case Media_LTO3:
 		MHVTL_DBG(1, "LTO3 media");
-		if (mam.MediumType == MEDIA_TYPE_CLEAN)
+		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 			Media_Type = Media_LTO3_CLEAN;
-		else if (mam.MediumType == MEDIA_TYPE_WORM)
+			break;
+		} else if (mam.MediumType == MEDIA_TYPE_WORM)
 			goto mismatchmedia;
 		else
 			Media_Type = Media_LTO3;
 		switch (lunit.drive_type) {
 		case drive_LTO1:
 		case drive_LTO2:
-			MHVTL_DBG(1, "LTO-3 media in an LTO1/2 drive - "
+			MHVTL_DBG(1, "LTO3 media in an LTO1/2 drive - "
 					"failed load");
 			goto mismatchmedia;
 		case drive_LTO3:
@@ -2580,13 +2582,29 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	case Media_LTO4:
 		Media_Type = Media_LTO4;
 		MHVTL_DBG(1, "LTO4 media");
+		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
+			Media_Type = Media_LTO4_CLEAN;
+			break;
+		} else if (mam.MediumType == MEDIA_TYPE_WORM)
+			goto mismatchmedia;
+		else
+			Media_Type = Media_LTO4;
 		switch (lunit.drive_type) {
 		case drive_LTO1:
-		case drive_LTO2:
-		case drive_LTO3:
-			MHVTL_DBG(1, "LTO-4 media in an LTO1/2/3 drive - "
+			MHVTL_DBG(1, "LTO4 media in an LTO1 drive - "
 					"failed load");
 			goto mismatchmedia;
+			break;
+		case drive_LTO2:
+			MHVTL_DBG(1, "LTO4 media in an LTO2 drive - "
+					"failed load");
+			goto mismatchmedia;
+			break;
+		case drive_LTO3:
+			MHVTL_DBG(1, "LTO4 media in an LTO3 drive - "
+					"failed load");
+			goto mismatchmedia;
+			break;
 		case drive_LTO4:
 			MediaWriteProtect = MEDIA_WRITABLE;
 			break;
@@ -2596,11 +2614,11 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		break;
 	case Media_DLT3:
 		Media_Type = Media_DLT3;
-		MHVTL_DBG(1,"DLT-3 media");
+		MHVTL_DBG(1,"DLT3 media");
 		break;
 	case Media_DLT4:
 		Media_Type = Media_DLT4;
-		MHVTL_DBG(1,"DLT-4 media");
+		MHVTL_DBG(1,"DLT4 media");
 		break;
 	case Media_SDLT:
 		Media_Type = Media_SDLT;
@@ -2693,7 +2711,8 @@ mismatchmedia:
 	setTapeAlert(&TapeAlert, fg);
 	MHVTL_DBG(1, "Tape %s failed to load with type %d in drive type %d",
 			PCL, Media_Type, lunit.drive_type);
-	return TAPE_LOAD_BAD;
+	tapeLoaded = TAPE_UNLOADED;
+	return TAPE_UNLOADED;
 }
 
 
