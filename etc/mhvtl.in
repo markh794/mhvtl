@@ -34,6 +34,8 @@
 USER=@USR@
 MHVTL_CONFIG_PATH=@CONF_PATH@
 
+DEVICE_CONF=$MHVTL_CONFIG_PATH/device.conf
+
 OPTIONS=
 
 export PATH=$PATH:/usr/bin
@@ -51,14 +53,14 @@ CH=$2
 TARGET=$3
 LUN=$4
 printf "Library: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
-		$ID $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
-echo " Vendor identification: $5" >> $MHVTL_CONFIG_PATH/device.conf
-echo " Product identification: $6" >> $MHVTL_CONFIG_PATH/device.conf
-echo " Product revision level: $7" >> $MHVTL_CONFIG_PATH/device.conf
-echo " Unit serial number: $8" >> $MHVTL_CONFIG_PATH/device.conf
+		$ID $CH $TARGET $LUN >> $DEVICE_CONF
+echo " Vendor identification: $5" >> $DEVICE_CONF
+echo " Product identification: $6" >> $DEVICE_CONF
+echo " Product revision level: $7" >> $DEVICE_CONF
+echo " Unit serial number: $8" >> $DEVICE_CONF
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
-		$ID $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
-echo "" >> $MHVTL_CONFIG_PATH/device.conf
+		$ID $CH $TARGET $LUN >> $DEVICE_CONF
+echo "" >> $DEVICE_CONF
 }
 
 # add_drive(DevID, Channel, Target, Lun, Vend, Prod, ProdRev, S/No, LibID, Slot)
@@ -74,31 +76,86 @@ PRODUCTREV=$7
 UNITSERNO=$8
 LIB=$9
 
-# get arg 10
+# get arg 10 & 11
 shift 9
 SLOT=$1
+DENSITY=$2
 
 printf "Drive: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
-		$ID $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
+		$ID $CH $TARGET $LUN >> $DEVICE_CONF
 printf " Library ID: %02d Slot: %02d\n" \
-		$LIB $SLOT >> $MHVTL_CONFIG_PATH/device.conf
-echo " Vendor identification: $VENDORID" >> $MHVTL_CONFIG_PATH/device.conf
-echo " Product identification: $PRODUCTID" >> $MHVTL_CONFIG_PATH/device.conf
-echo " Product revision level: $PRODUCTREV" >> $MHVTL_CONFIG_PATH/device.conf
-echo " Unit serial number: $UNITSERNO" >> $MHVTL_CONFIG_PATH/device.conf
+		$LIB $SLOT >> $DEVICE_CONF
+echo " Vendor identification: $VENDORID" >> $DEVICE_CONF
+echo " Product identification: $PRODUCTID" >> $DEVICE_CONF
+echo " Product revision level: $PRODUCTREV" >> $DEVICE_CONF
+echo " Unit serial number: $UNITSERNO" >> $DEVICE_CONF
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
-		$LIB $CH $TARGET $LUN >> $MHVTL_CONFIG_PATH/device.conf
-echo " Compression: factor 1 enabled 1" >> $MHVTL_CONFIG_PATH/device.conf
-echo "" >> $MHVTL_CONFIG_PATH/device.conf
+		$LIB $CH $TARGET $LUN >> $DEVICE_CONF
+echo " Compression: factor 1 enabled 1" >> $DEVICE_CONF
+}
+
+add_ibm_ultrium_drive()
+{
+# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD1" "550V" $5 $6 $7 42
+echo " READ_WRITE: LTO_1"
+echo "" >> $DEVICE_CONF
+}
+
+add_ibm_ultrium_2_drive()
+{
+# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD2" "550V" $5 $6 $7 44
+echo " READ_ONLY: LTO_1" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_2" >> $DEVICE_CONF
+echo "" >> $DEVICE_CONF
+}
+
+add_ibm_ultrium_3_drive()
+{
+# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD3" "550V" $5 $6 $7 46
+echo " READ_ONLY: LTO_1" >> $DEVICE_CONF
+echo " READ_ONLY: LTO_2" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_3" >> $DEVICE_CONF
+echo " WORM: LTO_3" >> $DEVICE_CONF
+echo "" >> $DEVICE_CONF
+}
+
+add_ibm_ultrium_4_drive()
+{
+# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD4" "550V" $5 $6 $7 48
+echo " READ_ONLY: LTO_2" >> $DEVICE_CONF
+echo " READ_ONLY: LTO_3" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_4" >> $DEVICE_CONF
+echo " WORM: LTO_3" >> $DEVICE_CONF
+echo " WORM: LTO_4" >> $DEVICE_CONF
+echo " ENCRYPTION: LTO_4" >> $DEVICE_CONF
+echo "" >> $DEVICE_CONF
+}
+
+add_ibm_ultrium_5_drive()
+{
+# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD5" "550V" $5 $6 $7 50
+echo " READ_ONLY: LTO_3" >> $DEVICE_CONF
+echo " READ_ONLY: LTO_4" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_5" >> $DEVICE_CONF
+echo " WORM: LTO_4" >> $DEVICE_CONF
+echo " WORM: LTO_4" >> $DEVICE_CONF
+echo " ENCRYPTION: LTO_4" >> $DEVICE_CONF
+echo " ENCRYPTION: LTO_5" >> $DEVICE_CONF
+echo "" >> $DEVICE_CONF
 }
 
 # Create a 'device.conf' if it does not exist...
-if [ ! -f $MHVTL_CONFIG_PATH/device.conf ]; then
+if [ ! -f $DEVICE_CONF ]; then
 
 mkdir -p $MHVTL_CONFIG_PATH
-cat > $MHVTL_CONFIG_PATH/device.conf << VTL_CONF
+cat > $DEVICE_CONF << VTL_CONF
 
-VERSION: 4
+VERSION: 5
 
 # VPD page format:
 # <page #> <Length> <x> <x+1>... <x+n>
@@ -119,23 +176,23 @@ VTL_CONF
 #         index channel target LUN Vendor ProdID ProdRev S/No
 add_library 10 0 0 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_A"
 #         index channel target LUN Vendor ProdID ProdRev S/No Lib# Slot
-add_drive   11 0 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A1" 10 1
-add_drive   12 0 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A2" 10 2
-add_drive   13 0 3 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A3" 10 3
-add_drive   14 0 4 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_A4" 10 4
+add_ibm_ultrium_5_drive 11 0 1 0 "XYZZY_A1" 10 1
+add_ibm_ultrium_5_drive 12 0 2 0 "XYZZY_A2" 10 2
+add_ibm_ultrium_2_drive 13 0 3 0 "XYZZY_A3" 10 3
+add_ibm_ultrium_2_drive 14 0 4 0 "XYZZY_A4" 10 4
 
 add_library 30 1 0 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_B"
-add_drive   31 1 1 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B1" 30 1
-add_drive   32 1 2 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B2" 30 2
-add_drive   33 1 3 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B3" 30 3
-add_drive   34 1 4 0 "IBM" "ULT3580-TD4" "550V" "XYZZY_B4" 30 4 
+add_ibm_ultrium_4_drive 31 1 1 0 "XYZZY_B1" 30 1
+add_ibm_ultrium_4_drive 32 1 2 0 "XYZZY_B2" 30 2
+add_ibm_ultrium_4_drive 33 1 3 0 "XYZZY_B3" 30 3
+add_ibm_ultrium_4_drive 34 1 4 0 "XYZZY_B4" 30 4
 
 fi
 
 # Give up is device.conf is at wrong version..
-V=`grep VERSION: $MHVTL_CONFIG_PATH/device.conf|awk '{print $2}'`
-if [ $V -ne 4 ]; then
-	echo " $MHVTL_CONFIG_PATH/device.conf is not correct version"
+V=`grep VERSION: $DEVICE_CONF|awk '{print $2}'`
+if [ $V -lt 4 ]; then
+	echo " $DEVICE_CONF is not correct version"
 	exit 1;
 fi
 
@@ -179,7 +236,7 @@ if [ $EXIST -eq 0 ]; then
 fi
 
 # Now check for for 'library_contents'
-LIBLIST=`awk '$1 == "Library:" {print $2}' $MHVTL_CONFIG_PATH/device.conf`
+LIBLIST=`awk '$1 == "Library:" {print $2}' $DEVICE_CONF`
 for LIBID in $LIBLIST
 do
 	if [ ! -f $MHVTL_CONFIG_PATH/library_contents.$LIBID ]; then
@@ -191,7 +248,7 @@ do
 		echo "VERSION: 2" > $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		echo "" > $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		# Count number of drives in this library
-		DRV_COUNT=`grep "Library ID: $LIBID" $MHVTL_CONFIG_PATH/device.conf|wc -l`
+		DRV_COUNT=`grep "Library ID: $LIBID" $DEVICE_CONF|wc -l`
 		# Add a 'Drive X:' for each drive
 		for a in `seq 1 $DRV_COUNT`
 		do
@@ -225,16 +282,24 @@ MAP 4:
 #
 CONF_SAMPLE
 
+		# SDLT 600 Media
 		for a in `seq 1 10`; do
 			printf "Slot $a: DD%02d%02dS3\n" $LIBID $a \
 				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		done
+		# LTO-4 Media
 		for a in `seq 11 20`; do
 			printf "Slot $a: UD%02d%02dL4\n" $LIBID $a \
 				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		done
 		printf "Slot 21: CLN%02d0S3\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		printf "Slot 22: CLN%02d1L4\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		printf "Slot 23: CLN%02d2L5\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		# LTO-5 Media
+		for a in `seq 24 30`; do
+			printf "Slot $a: UD%02d%02dL5\n" $LIBID $a \
+				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		done
 	fi
 done
 

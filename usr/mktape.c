@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <inttypes.h>
+#include "list.h"
 #include "vtl_common.h"
 #include "vtltape.h"
 #include "vtllib.h"

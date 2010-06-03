@@ -133,4 +133,18 @@ uint64_t current_tape_offset(void);
 
 void print_raw_header(void);
 
+/* Load capabilities - density_status bits */
+#define	LOAD_INVALID		1
+#define	LOAD_RW			2
+#define	LOAD_RO			4
+#define	LOAD_WORM		8
+#define	LOAD_ENCRYPT		0x10
+#define	LOAD_FAIL		0x20
+
+struct media_details {
+	struct list_head siblings;
+	unsigned int density;		/* Media Type */
+	unsigned int density_status;	/* RO, RW, invalid or fail mount */
+};
+
 #endif /* _VTLTAPE_H_ */

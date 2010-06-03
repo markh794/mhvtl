@@ -360,10 +360,10 @@ struct MAM {
 	uint8_t MediumManufactureDate[12];
 	uint8_t FormattedDensityCode;
 	uint8_t MediumDensityCode;
-	uint8_t MediumType;	// 0 -> Data, 1 -> WORM, 6 -> Clean
+	uint8_t MediumType;	/* 0 -> Data, 1 -> WORM, 6 -> Clean */
 	uint8_t MediaType;	/* LTO1, LTO2, AIT etc (Media_Type_list) */
 	uint64_t MAMCapacity;
-	uint16_t MediumTypeInformation;	// If Clean, max mount
+	uint16_t MediumTypeInformation;	/* If Clean, max mount */
 
 	uint8_t ApplicationVendor[8];
 	uint8_t ApplicationName[32];
@@ -492,16 +492,18 @@ struct lu_phy_attr {
 	char ptype;
 	char removable;
 	uint8_t drive_type;
-	int drive_native_write_density[drive_UNKNOWN + 1];
 	char vendor_id[VENDOR_ID_LEN + 1];
 	char product_id[PRODUCT_ID_LEN + 1];
 	char product_rev[PRODUCT_REV_LEN + 1];
 	char lu_serial_no[SCSI_SN_LEN];
 	uint16_t version_desc[3];
-	uint8_t supported_density[8];
+
+	struct list_head supported_den_list;
+
+	int drive_native_write_density[drive_UNKNOWN + 1];
 	uint8_t *naa;
-	void *lu_private;	/* Private data struct per lu */
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
+	void *lu_private;	/* Private data struct per lu */
 };
 
 extern uint8_t sense[SENSE_BUF_SIZE];

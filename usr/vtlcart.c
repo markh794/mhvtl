@@ -16,6 +16,7 @@
 #include <zlib.h>
 
 #include "scsi.h"
+#include "list.h"
 #include "vtltape.h"
 #include "be_byteshift.h"
 
@@ -738,7 +739,8 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	if ((datafile = open(pcl_data, O_RDWR|O_LARGEFILE)) == -1) {
 		MHVTL_DBG(1, "open of pcl %s file %s failed, %s", pcl,
 			pcl_data, strerror(errno));
-		return 3;
+		rc = 3;
+		goto failed;
 	}
 	if ((indxfile = open(pcl_indx, O_RDWR|O_LARGEFILE)) == -1) {
 		MHVTL_DBG(1, "open of pcl %s file %s failed, %s", pcl,
@@ -838,7 +840,8 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	*/
 
 	if (check_filemarks_alloc(meta.filemark_count)) {
-		return -1;
+		rc = 3;
+		goto failed;
 	}
 
 	/* Now read in the filemark map. */
@@ -892,7 +895,8 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 		eod_data_offset = 0;
 	} else {
 		if (read_header(eod_blk_number - 1, sam_stat)) {
-			return -1;
+			rc = 3;
+			goto failed;
 		}
 		eod_data_offset = raw_pos.data_offset +
 			raw_pos.hdr.disk_blk_size;
@@ -916,7 +920,8 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	/* Now initialize raw_pos by reading in the first header, if any. */
 
 	if (read_header(0, sam_stat)) {
-		return -1;
+		rc = 3;
+		goto failed;
 	}
 
 	return 0;

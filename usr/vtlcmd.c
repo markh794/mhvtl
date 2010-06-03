@@ -48,6 +48,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include "list.h"
 #include "q.h"
 #include "vtl_common.h"
 #include "vtllib.h"
@@ -240,6 +241,11 @@ void Check_Params(int argc, char **argv)
 				if (argc == 3)
 					return;
 				PrintErrorExit(argv[0], "verbose");
+			}
+			if (!strcmp(argv[2], "dump")) {
+				if (argc == 3)
+					return;
+				PrintErrorExit(argv[0], "dump");
 			}
 			if (!strcmp(argv[2], "debug")) {
 				if (argc == 3)
@@ -499,6 +505,7 @@ int main(int argc, char **argv)
 		} else if (!strncmp(buf, "unload", 6)) {
 		} else if (!strncmp(buf, "verbose", 7)) {
 		} else if (!strncmp(buf, "debug", 5)) {
+		} else if (!strncmp(buf, "dump", 4)) {
 		} else if (!strncmp(buf, "exit", 4)) {
 		} else if (!strncmp(buf, "TapeAlert", 9)) {
 		} else {

@@ -52,6 +52,7 @@
 #include <pwd.h>
 #include "vtl_common.h"
 #include "scsi.h"
+#include "list.h"
 #include "q.h"
 #include "vtllib.h"
 #include "spc.h"
@@ -2196,7 +2197,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
-	int indx, n = 0;
+	int indx;
 	struct vtl_ctl tmpctl;
 	int found = 0;
 
@@ -2257,6 +2258,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
 			}
+/*
 			if (sscanf(b, " Density : %s", s)) {
 				lu->supported_density[n] =
 					(uint8_t)strtol(s, NULL, 16);
@@ -2265,6 +2267,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 						lu->supported_density[n]);
 				n++;
 			}
+*/
 			i = sscanf(b,
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);

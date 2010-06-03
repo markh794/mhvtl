@@ -66,9 +66,10 @@
 #include "be_byteshift.h"
 #include "vtl_common.h"
 #include "scsi.h"
+#include "list.h"
 #include "q.h"
-#include "vtltape.h"
 #include "vtllib.h"
+#include "vtltape.h"
 #include "spc.h"
 
 char vtl_driver_name[] = "vtltape";
@@ -128,12 +129,10 @@ static int configCompressionFactor = Z_BEST_SPEED;
 
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
-static unsigned char mediaSerialNo[34];	// Currently mounted media S/No.
+static unsigned char mediaSerialNo[34];	/* Currently mounted media S/No. */
 
 struct lu_phy_attr lunit;
 
-
-uint8_t Media_Type;
 
 static int Drive_Native_Write_Density[drive_UNKNOWN + 1];
 static int Media_Native_Write_Density[Media_UNKNOWN + 1];
@@ -186,111 +185,111 @@ struct MAM_Attributes_table {
 /* Log pages */
 static struct	Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
-	{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	// Temperature
+	{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	/* Temperature */
 	};
 
 static struct error_counter pg_write_err_counter = {
 	{ WRITE_ERROR_COUNTER, 0x00, 0x00, },
-	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, // Errors corrected with/o delay
-	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, // Errors corrected with delay
-	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, // Total rewrites
-	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, // Total errors corrected
-	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, // total times correct algorithm
-	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, // Total bytes processed
-	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, // Total uncorrected errors
-	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, // Write errors since last read
-	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, // Total raw write error flags
-	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, // Total dropout error count
-	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, // Total servo tracking
+	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, /* Errors corrected with/o delay */
+	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, /* Errors corrected with delay */
+	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, /* Total rewrites */
+	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, /* Total errors corrected */
+	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, /* total times correct algorithm */
+	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, /* Total bytes processed */
+	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, /* Total uncorrected errors */
+	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, /* Write errors since last read */
+	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, /* Total raw write error flags */
+	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, /* Total dropout error count */
+	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, /* Total servo tracking */
 	};
 static struct error_counter pg_read_err_counter = {
 	{ READ_ERROR_COUNTER, 0x00, 0x00, },
-	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, // Errors corrected with/o delay
-	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, // Errors corrected with delay
-	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, // Total rewrites/rereads
-	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, // Total errors corrected
-	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, // total times correct algorithm
-	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, // Total bytes processed
-	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, // Total uncorrected errors
-	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, // r/w errors since last read
-	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, // Total raw write error flags
-	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, // Total dropout error count
-	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, // Total servo tracking
+	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, /* Errors corrected with/o delay */
+	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, /* Errors corrected with delay */
+	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, /* Total rewrites/rereads */
+	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, /* Total errors corrected */
+	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, /* total times correct algorithm */
+	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, /* Total bytes processed */
+	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, /* Total uncorrected errors */
+	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, /* r/w errors since last read */
+	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, /* Total raw write error flags */
+	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, /* Total dropout error count */
+	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, /* Total servo tracking */
 	};
 
 static struct seqAccessDevice seqAccessDevice = {
 	{ SEQUENTIAL_ACCESS_DEVICE, 0x00, 0x54, },
-	{ 0x00, 0x00, 0x40, 0x08, }, 0x00,	// Write data b4 compression
-	{ 0x00, 0x01, 0x40, 0x08, }, 0x00,	// Write data after compression
-	{ 0x00, 0x02, 0x40, 0x08, }, 0x00,	// Read data b4 compression
-	{ 0x00, 0x03, 0x40, 0x08, }, 0x00,	// Read data after compression
-	{ 0x01, 0x00, 0x40, 0x08, }, 0x00,	// Cleaning required (TapeAlert)
-	{ 0x80, 0x00, 0x40, 0x04, }, 0x00,	// MBytes processed since clean
-	{ 0x80, 0x01, 0x40, 0x04, }, 0x00,	// Lifetime load cycle
-	{ 0x80, 0x02, 0x40, 0x04, }, 0x00,	// Lifetime cleaning cycles
+	{ 0x00, 0x00, 0x40, 0x08, }, 0x00, /* Write data b4 compression */
+	{ 0x00, 0x01, 0x40, 0x08, }, 0x00, /* Write data after compression */
+	{ 0x00, 0x02, 0x40, 0x08, }, 0x00, /* Read data b4 compression */
+	{ 0x00, 0x03, 0x40, 0x08, }, 0x00, /* Read data after compression */
+	{ 0x01, 0x00, 0x40, 0x08, }, 0x00, /* Cleaning required (TapeAlert) */
+	{ 0x80, 0x00, 0x40, 0x04, }, 0x00, /* MBytes processed since clean */
+	{ 0x80, 0x01, 0x40, 0x04, }, 0x00, /* Lifetime load cycle */
+	{ 0x80, 0x02, 0x40, 0x04, }, 0x00, /* Lifetime cleaning cycles */
 	};
 
 static struct TapeAlert_page TapeAlert;
 
 static struct DataCompression DataCompression = {
 	{ DATA_COMPRESSION, 0x00, 0x54, },
-	{ 0x00, 0x00, 0x40, 0x02, }, 0x00,	// Read Compression Ratio
-	{ 0x00, 0x00, 0x40, 0x02, }, 0x00,	// Write Compression Ratio
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// MBytes transferred to server
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// Bytes transferred to server
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// MBytes read from tape
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// Bytes read from tape
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,    // MBytes transferred from server
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// Bytes transferred from server
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// MBytes written to tape
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00,	// Bytes written to tape
+	{ 0x00, 0x00, 0x40, 0x02, }, 0x00, /* Read Compression Ratio */
+	{ 0x00, 0x00, 0x40, 0x02, }, 0x00, /* Write Compression Ratio */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes transferred to server */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes transferred to server */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes read from tape */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes read from tape */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes transferred from server */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes transferred from server */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes written to tape */
+	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes written to tape */
 	};
 
 static struct TapeUsage TapeUsage = {
 	{ TAPE_USAGE, 0x00, 0x54, },
-	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00,	// Thread count
-	{ 0x00, 0x02, 0xc0, 0x08, }, 0x00,	// Total data sets written
-	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00,	// Total write retries
-	{ 0x00, 0x04, 0xc0, 0x02, }, 0x00,	// Total Unrecovered write error
-	{ 0x00, 0x05, 0xc0, 0x02, }, 0x00,	// Total Suspended writes
-	{ 0x00, 0x06, 0xc0, 0x02, }, 0x00,	// Total Fatal suspended writes
-	{ 0x00, 0x07, 0xc0, 0x08, }, 0x00,	// Total data sets read
-	{ 0x00, 0x08, 0xc0, 0x04, }, 0x00,	// Total read retries
-	{ 0x00, 0x09, 0xc0, 0x02, }, 0x00,	// Total unrecovered read errors
-	{ 0x00, 0x0a, 0xc0, 0x02, }, 0x00,	// Total suspended reads
-	{ 0x00, 0x0b, 0xc0, 0x02, }, 0x00,	// Total Fatal suspended reads
+	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00, /* Thread count */
+	{ 0x00, 0x02, 0xc0, 0x08, }, 0x00, /* Total data sets written */
+	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00, /* Total write retries */
+	{ 0x00, 0x04, 0xc0, 0x02, }, 0x00, /* Total Unrecovered write error */
+	{ 0x00, 0x05, 0xc0, 0x02, }, 0x00, /* Total Suspended writes */
+	{ 0x00, 0x06, 0xc0, 0x02, }, 0x00, /* Total Fatal suspended writes */
+	{ 0x00, 0x07, 0xc0, 0x08, }, 0x00, /* Total data sets read */
+	{ 0x00, 0x08, 0xc0, 0x04, }, 0x00, /* Total read retries */
+	{ 0x00, 0x09, 0xc0, 0x02, }, 0x00, /* Total unrecovered read errors */
+	{ 0x00, 0x0a, 0xc0, 0x02, }, 0x00, /* Total suspended reads */
+	{ 0x00, 0x0b, 0xc0, 0x02, }, 0x00, /* Total Fatal suspended reads */
 	};
 
 static struct TapeCapacity TapeCapacity = {
 	{ TAPE_CAPACITY, 0x00, 0x54, },
-	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00,	// main partition remaining cap
-	{ 0x00, 0x02, 0xc0, 0x04, }, 0x00,	// Alt. partition remaining cap
-	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00,	// main partition max cap
-	{ 0x00, 0x04, 0xc0, 0x04, }, 0x00,	// Alt. partition max cap
+	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00, /* main partition remaining cap */
+	{ 0x00, 0x02, 0xc0, 0x04, }, 0x00, /* Alt. partition remaining cap */
+	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00, /* main partition max cap */
+	{ 0x00, 0x04, 0xc0, 0x04, }, 0x00, /* Alt. partition max cap */
 	};
 
 static struct report_luns report_luns = {
-	0x00, 0x00, 0x00,			// 16 bytes in length..
+	0x00, 0x00, 0x00,			/* 16 bytes in length.. */
 	};
 
 /*
  * Mode Pages defined for SSC-3 devices..
  */
 
-// Used by Mode Sense - if set, return block descriptor
+/* Used by Mode Sense - if set, return block descriptor */
 
 static struct mode sm[] = {
-//	Page,  subpage, len, 'pointer to data struct'
-	{0x01, 0x00, 0x00, NULL, },	// RW error recovery - SSC3-8.3.5
-	{0x02, 0x00, 0x00, NULL, },	// Disconnect Reconnect - SPC3
-	{0x0a, 0x00, 0x00, NULL, },	// Control Extension - SPC3
-	{0x0f, 0x00, 0x00, NULL, },	// Data Compression - SSC3-8.3.3
-	{0x10, 0x00, 0x00, NULL, },	// Device config - SSC3-8.3.3
-	{0x11, 0x00, 0x00, NULL, },	// Medium Partition - SSC3-8.3.4
-	{0x1a, 0x00, 0x00, NULL, },	// Power condition - SPC3
-	{0x1c, 0x00, 0x00, NULL, },  // Informational Exception Ctrl SSC3-8.3.6
-	{0x1d, 0x00, 0x00, NULL, },	// Medium configuration - SSC3-8.3.7
-	{0x00, 0x00, 0x00, NULL, },	// NULL terminator
+/*	Page,  subpage, len, 'pointer to data struct' */
+	{0x01, 0x00, 0x00, NULL, }, /* RW error recovery - SSC3-8.3.5 */
+	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
+	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
+	{0x0f, 0x00, 0x00, NULL, }, /* Data Compression - SSC3-8.3.3 */
+	{0x10, 0x00, 0x00, NULL, }, /* Device config - SSC3-8.3.3 */
+	{0x11, 0x00, 0x00, NULL, }, /* Medium Partition - SSC3-8.3.4 */
+	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
+	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SSC3-8.3.6 */
+	{0x1d, 0x00, 0x00, NULL, }, /* Medium configuration - SSC3-8.3.7 */
+	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
 	};
 
 static void usage(char *progname) {
@@ -325,7 +324,8 @@ mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_vali
  * Set TapeAlert status in seqAccessDevice
  */
 static void
-setSeqAccessDevice(struct seqAccessDevice * seqAccessDevicep, uint64_t flg) {
+setSeqAccessDevice(struct seqAccessDevice * seqAccessDevicep, uint64_t flg)
+{
 
 	seqAccessDevicep->TapeAlert = htonll(flg);
 }
@@ -337,7 +337,7 @@ setSeqAccessDevice(struct seqAccessDevice * seqAccessDevicep, uint64_t flg) {
 static int checkRestrictions(uint8_t *sam_stat)
 {
 
-	// Check that there is a piece of media loaded..
+	/* Check that there is a piece of media loaded.. */
 	switch (tapeLoaded) {
 	case TAPE_LOADED:	/* Do nothing */
 		break;
@@ -364,7 +364,7 @@ static int checkRestrictions(uint8_t *sam_stat)
 		 * and media is defined as WORM, fail...
 		 */
 		if (c_pos->blk_type == B_EOD)
-			OK_to_write = 1;	// OK to append to end of 'tape'
+			OK_to_write = 1; /* OK to append to end of 'tape' */
 		if (!OK_to_write) {
 			MHVTL_DBG(1, "Failed attempt to overwrite WORM data");
 			mkSenseBuf(DATA_PROTECT,
@@ -390,11 +390,12 @@ static int checkRestrictions(uint8_t *sam_stat)
 /*
  * Set WORM mode sense flg
  */
-static void setWORM(void) {
+static void setWORM(void)
+{
 	struct mode *m;
 	uint8_t *p;
 
-	// Find pointer to Medium Configuration Page
+	/* Find pointer to Medium Configuration Page */
 	m = find_pcode(0x1d, sm);
 	if (m) {
 		p = m->pcodePointer;
@@ -406,11 +407,12 @@ static void setWORM(void) {
 /*
  * Clears WORM mode sense flg
  */
-static void clearWORM(void) {
+static void clearWORM(void)
+{
 	struct mode *m;
 	uint8_t *p;
 
-	// Find pointer to Medium Configuration Page
+	/* Find pointer to Medium Configuration Page */
 	m = find_pcode(0x1d, sm);
 	if (m) {
 		p = m->pcodePointer;
@@ -435,22 +437,22 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 	int len = dbuf_p->sz;
 	uint64_t max_cap;
 
-	// Zero out buf
+	/* Zero out buf */
 	memset(buf, 0, len);
 
 	put_unaligned_be16(REPORT_DENSITY_LEN - 4, &buf[0]);
 
-	buf[2] = 0;	// Reserved
-	buf[3] = 0;	// Reserved
+	buf[2] = 0;	/* Reserved */
+	buf[3] = 0;	/* Reserved */
 
-	buf[4] = 0x40;	// Primary Density Code
-	buf[5] = 0x40;	// Secondary Density Code
-	buf[6] = 0xa0;	// WRTOK = 1, DUP = 0, DEFLT = 1: 1010 0000b
+	buf[4] = 0x40;	/* Primary Density Code */
+	buf[5] = 0x40;	/* Secondary Density Code */
+	buf[6] = 0xa0;	/* WRTOK = 1, DUP = 0, DEFLT = 1: 1010 0000b */
 	buf[7] = 0;
 
 
 
-	// Assigning Oranization (8 chars long)
+	/* Assigning Oranization (8 chars long) */
 	if (tapeLoaded == TAPE_LOADED) {
 		max_cap = ntohll(mam.max_capacity);
 
@@ -468,17 +470,17 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 
 		snprintf((char *)&buf[20], 8, "%-8s",
 					mam.AssigningOrganization_1);
-		// Density Name (8 chars long)
+		/* Density Name (8 chars long) */
 		snprintf((char *)&buf[28], 8, "%-8s",
 					mam.media_info.density_name);
-		// Description (18 chars long)
+		/* Description (18 chars long) */
 		snprintf((char *)&buf[36], 18, "%-18s",
 					mam.media_info.description);
 	} else {
 		snprintf((char *)&buf[20], 8, "%-8s", "unknown");
-		// Density Name (8 chars long)
+		/* Density Name (8 chars long) */
 		snprintf((char *)&buf[28], 8, "%-8s", "mhvtl");
-		// Description (18 chars long)
+		/* Description (18 chars long) */
 		snprintf((char *)&buf[36], 18, "%-18s", "Virtual Media");
 	}
 
@@ -734,7 +736,7 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 	MHVTL_DBG(2, "Read Attribute: 0x%x, allocation len: %d",
 							attribute, alloc_len);
 
-	memset(buf, 0, alloc_len);	// Clear memory
+	memset(buf, 0, alloc_len);	/* Clear memory */
 
 	if (cdb[1] == 0) {
 		/* Attribute Values */
@@ -1024,8 +1026,8 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 			} else
 				mam.Flags &= ~MAM_FLAGS_ENCRYPTION_FORMAT;
 		}
-		if (Media_Native_Write_Density[Media_Type])
-			blockDescriptorBlock[0] = Media_Native_Write_Density[Media_Type];
+		if (Media_Native_Write_Density[mam.MediaType])
+			blockDescriptorBlock[0] = Media_Native_Write_Density[mam.MediaType];
 		else
 			blockDescriptorBlock[0] = Drive_Native_Write_Density[lunit.drive_type];
 
@@ -1042,7 +1044,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 			return 0;
 		}
 
-		if ((Media_Native_Write_Density[Media_Type] == -1) &&
+		if ((Media_Native_Write_Density[mam.MediaType] == -1) &&
 			(mam.MediumDensityCode != Drive_Native_Write_Density[lunit.drive_type])) {
 			switch (lunit.drive_type) {
 			case drive_3592_E05:
@@ -1100,7 +1102,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 					src_sz, (unsigned long)dest_len);
 	} else {
 		dest_buf = src_buf;
-		dest_len = 0;	// no compression
+		dest_len = 0;	/* no compression */
 	}
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, cryptop, sam_stat);
@@ -1130,7 +1132,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 static void resp_space(int32_t count, int code, uint8_t *sam_stat)
 {
 	switch (code) {
-	// Space 'count' blocks
+	/* Space 'count' blocks */
 	case 0:
 		if (count >= 0) {
 			position_blocks_forw(count, sam_stat);
@@ -1138,7 +1140,7 @@ static void resp_space(int32_t count, int code, uint8_t *sam_stat)
 			position_blocks_back(-count, sam_stat);
 		}
 		break;
-	// Space 'count' filemarks
+	/* Space 'count' filemarks */
 	case 1:
 		if (count >= 0) {
 			position_filemarks_forw(count, sam_stat);
@@ -1146,7 +1148,7 @@ static void resp_space(int32_t count, int code, uint8_t *sam_stat)
 			position_filemarks_back(-count, sam_stat);
 		}
 		break;
-	// Space to end-of-data - Ignore 'count'
+	/* Space to end-of-data - Ignore 'count' */
 	case 3:
 		position_to_eod(sam_stat);
 		break;
@@ -1306,7 +1308,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		ret = 44;
 
 		MHVTL_DBG(2, "Drive type: %d, Media type: %d",
-				lunit.drive_type, Media_Type);
+				lunit.drive_type, mam.MediaType);
 
 		/* adjustments for each emulated drive type */
 		switch (lunit.drive_type) {
@@ -1331,7 +1333,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 			MHVTL_DBG(1, "LTO4 drive");
 			buf[4] = 0x1; /* CFG_P == 01b */
 			if (tapeLoaded == TAPE_LOADED) {
-				if (Media_Type == Media_LTO4) {
+				if (mam.MediaType == Media_LTO4) {
 					MHVTL_DBG(1, "LTO4 Medium");
 					buf[24] |= 0x80; /* AVFMV */
 				}
@@ -1596,17 +1598,17 @@ static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
  */
 static void updateMAM(uint8_t *sam_stat, int loadCount)
 {
-	uint64_t bw;		// Bytes Written
-	uint64_t br;		// Bytes Read
-	uint64_t load;	// load count
+	uint64_t bw;		/* Bytes Written */
+	uint64_t br;		/* Bytes Read */
+	uint64_t load;	/* load count */
 
 	MHVTL_DBG(2, "updateMAM(%d)", loadCount);
 
-	// Update bytes written this load.
+	/* Update bytes written this load. */
 	put_unaligned_be64(bytesWritten, &mam.WrittenInLastLoad);
 	put_unaligned_be64(bytesRead, &mam.ReadInLastLoad);
 
-	// Update total bytes read/written
+	/* Update total bytes read/written */
 	bw = get_unaligned_be64(&mam.WrittenInMediumLife);
 	bw += bytesWritten;
 	put_unaligned_be64(bw, &mam.WrittenInMediumLife);
@@ -1615,7 +1617,7 @@ static void updateMAM(uint8_t *sam_stat, int loadCount)
 	br += bytesRead;
 	put_unaligned_be64(br, &mam.ReadInMediumLife);
 
-	// Update load count
+	/* Update load count */
 	if (loadCount) {
 		load = get_unaligned_be64(&mam.LoadCount);
 		load++;
@@ -1735,7 +1737,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			return;
 	}
 
-	// Now process SCSI command.
+	/* Now process SCSI command. */
 	switch (cdb[0]) {
 	case ALLOW_MEDIUM_REMOVAL:
 		MHVTL_DBG(1, "%s MEDIA removal (%ld) **",
@@ -1749,7 +1751,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		dbuf_p->sz = spc_inquiry(cdb, dbuf_p, &lunit);
 		break;
 
-	case FORMAT_UNIT:	// That's FORMAT_MEDIUM for an SSC device...
+	case FORMAT_UNIT:	/* That's FORMAT_MEDIUM for an SSC device... */
 		MHVTL_DBG(1, "Format Medium (%ld) **",
 						(long)dbuf_p->serialNo);
 
@@ -1765,7 +1767,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		format_tape(sam_stat);
 		break;
 
-	case SEEK_10:	// Thats LOCATE_BLOCK for SSC devices...
+	case SEEK_10:	/* Thats LOCATE_BLOCK for SSC devices... */
 		MHVTL_DBG(1, "Fast Block Locate (%ld) **",
 						(long)dbuf_p->serialNo);
 		blk_no = get_unaligned_be32(&cdb[3]);
@@ -1778,7 +1780,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		position_to_block(blk_no, sam_stat);
 		break;
 
-	case LOG_SELECT:	// Set or reset LOG stats.
+	case LOG_SELECT:	/* Set or reset LOG stats. */
 		MHVTL_DBG(1, "LOG SELECT (%ld) **", (long)dbuf_p->serialNo);
 		resp_log_select(cdb, sam_stat);
 		break;
@@ -1973,7 +1975,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case REPORT_LUN:
 		MHVTL_DBG(1, "Report LUNs (%ld) **", (long)dbuf_p->serialNo);
-		// Minimum allocation length is 16 bytes.
+		/* Minimum allocation length is 16 bytes. */
 		if (get_unaligned_be32(&cdb[6]) < 16) {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sam_stat);
@@ -2049,7 +2051,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 		break;
 
-	case TEST_UNIT_READY:	// Return OK by default
+	case TEST_UNIT_READY:	/* Return OK by default */
 		MHVTL_DBG(1, "Test Unit Ready (%ld) : %s",
 				(long)dbuf_p->serialNo,
 				(tapeLoaded == TAPE_UNLOADED) ? "No" : "Yes");
@@ -2358,6 +2360,7 @@ static void set_worm_mode_pg(void)
 		break;
 	case drive_LTO3:
 	case drive_LTO4:
+	case drive_LTO5:
 		smp = find_pcode(0x1d, sm);
 		if (smp) {
 			smp_dp = smp->pcodePointer;
@@ -2366,6 +2369,58 @@ static void set_worm_mode_pg(void)
 		}
 		break;
 	}
+}
+
+static int density_to_int(char *s)
+{
+	int ret = Media_undefined;
+
+	if(!strncmp(s, "LTO_1", 5))
+		ret = Media_LTO1;
+	if(!strncmp(s, "LTO_2", 5))
+		ret = Media_LTO2;
+	if(!strncmp(s, "LTO_3_WORM", 10))
+		ret = Media_LTO3W;
+	if(!strncmp(s, "LTO_4_WORM", 10))
+		ret = Media_LTO4W;
+	if(!strncmp(s, "LTO_5_WORM", 10))
+		ret = Media_LTO5W;
+	if(!strncmp(s, "LTO_6_WORM", 10))
+		ret = Media_LTO6W;
+	if(!strncmp(s, "LTO_3", 5))
+		ret = Media_LTO3;
+	if(!strncmp(s, "LTO_4", 5))
+		ret = Media_LTO4;
+	if(!strncmp(s, "LTO_5", 5))
+		ret = Media_LTO5;
+	if(!strncmp(s, "LTO_6", 5))
+		ret = Media_LTO6;
+	if(!strncmp(s, "SDLT1", 5))
+		ret = Media_SDLT;
+	if(!strncmp(s, "SDLT220", 7))
+		ret = Media_SDLT220;
+	if(!strncmp(s, "SDLT320", 7))
+		ret = Media_SDLT320;
+	if(!strncmp(s, "SDLT600", 7))
+		ret = Media_SDLT600;
+	if(!strncmp(s, "DLT-S4", 6))
+		ret = Media_SDLT_S4;
+
+	MHVTL_DBG(2, "Converting \'%s\' to int %d", s, ret);
+	return ret;
+}
+
+static struct media_details *density_lookup(struct list_head *mdl, int density)
+{
+	struct media_details *m_detail;
+
+	MHVTL_DBG(2, "Looking for density: %d", density);
+
+	list_for_each_entry(m_detail, mdl, siblings) {
+		if (m_detail->density == density)
+			return m_detail;
+	}
+	return NULL;
 }
 
 /*
@@ -2381,7 +2436,8 @@ static void set_worm_mode_pg(void)
 static int loadTape(char *PCL, uint8_t *sam_stat)
 {
 	int rc;
-	uint64_t fg = 0;	// TapeAlert flags
+	uint64_t fg = 0;	/* TapeAlert flags */
+	struct media_details *m_details;
 
 	bytesWritten = 0;	/* Global - Bytes written this load */
 	bytesRead = 0;		/* Global - Bytes rearead this load */
@@ -2406,10 +2462,16 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	switch(mam.MediumType) {
 	case MEDIA_TYPE_DATA:
-		OK_to_write = 1;	// Reset flag to OK.
+		OK_to_write = 1;	/* Reset flag to OK. */
+		clear_worm_mode_pg();
+		mkSenseBuf(UNIT_ATTENTION, E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
 		OK_to_write = 0;
+		clear_worm_mode_pg();
+		fg |= 0x400;
+		MHVTL_DBG(1, "Cleaning cart loaded");
+		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	case MEDIA_TYPE_WORM:
 		/* Special condition...
@@ -2436,36 +2498,16 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			} else {
 				OK_to_write = 0;
 			}
-			if (rewind_tape(sam_stat)) {
-			}
+			rewind_tape(sam_stat);
 		}
-		break;
-	}
-
-	MHVTL_DBG(1, "Media is %s",
-				(OK_to_write) ? "writable" : "not writable");
-
-	switch (mam.MediumType) {
-	case MEDIA_TYPE_WORM:
 		setWORM();
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
 		set_worm_mode_pg();
 		break;
-
-	case MEDIA_TYPE_CLEAN:
-		clear_worm_mode_pg();
-		fg |= 0x400;
-		MHVTL_DBG(1, "Cleaning cart loaded");
-		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
-		break;
-	default:
-		clear_worm_mode_pg();
-		mkSenseBuf(UNIT_ATTENTION,E_NOT_READY_TO_TRANSITION, sam_stat);
-		break;
 	}
 
-	// Set TapeAlert flg 32h =>
-	//	Lost Statics
+	/* Set TapeAlert flg 32h => */
+	/*	Lost Statics */
 	if (mam.record_dirty != 0) {
 		fg = 0x02000000000000ull;
 		MHVTL_DBG(1, "Previous unload was not clean");
@@ -2474,235 +2516,80 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	MHVTL_DBG(1, "Tape capacity: %" PRId64, ntohll(mam.max_capacity));
 
 	mam.record_dirty = 1;
-	// Increment load count
+	/* Increment load count */
 	updateMAM(sam_stat, 1);
+
+	/* If no media list defined, than allow all media mounts */
+	if (list_empty(&lunit.supported_den_list)) {
+		MHVTL_DBG(2, "Supported media list is empty, loading media");
+		goto loadOK;
+	}
+
+	m_details = density_lookup(&lunit.supported_den_list, mam.MediaType);
+	if (!m_details)	/* Media not defined.. Reject */
+		goto mismatchmedia;
+
+	/* Allow media to be either RO or RW */
+	if (m_details->density_status & LOAD_RO) {
+		MHVTL_DBG(2, "Config file: mounting READ ONLY");
+		MediaWriteProtect = MEDIA_READONLY;
+		OK_to_write = 0;
+	} else if (m_details->density_status & LOAD_RW) {
+		MHVTL_DBG(2, "Config file: mounting READ/WRITE");
+		MediaWriteProtect = MEDIA_WRITABLE;
+		OK_to_write = 1;
+	} else if (m_details->density_status & LOAD_FAIL) {
+		MHVTL_DBG(2, "Config file: LOAD FAILED");
+		goto mismatchmedia;
+	}
+	/* Now check for WORM and clear OK_to_write if set */
+	if (m_details->density_status & LOAD_WORM) {
+		MHVTL_DBG(2, "Config file: LOAD as WORM");
+		OK_to_write = 0;
+	}
+
+loadOK:
+	/* Update TapeAlert flags */
+	setSeqAccessDevice(&seqAccessDevice, fg);
+	setTapeAlert(&TapeAlert, fg);
+
+	MHVTL_DBG(1, "Media is %s",
+				(OK_to_write) ? "writable" : "not writable");
 
 	blockDescriptorBlock[0] = mam.MediumDensityCode;
 	MHVTL_DBG(1, "Setting MediumDensityCode to 0x%02x",
 			mam.MediumDensityCode);
 
-	// Update TapeAlert flags
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);
 
-	switch (mam.MediaType) {
-	case Media_LTO1:
-		MHVTL_DBG(1, "LTO1 media");
-		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
-			Media_Type = Media_LTO1_CLEAN;
-			break;
-		} else if (mam.MediumType == MEDIA_TYPE_WORM)
-			goto mismatchmedia;
-		else
-			Media_Type = Media_LTO1;
-		switch (lunit.drive_type) {
-		case drive_LTO1:
-		case drive_LTO2:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		case drive_LTO3:
-			MediaWriteProtect = MEDIA_READONLY;
-			MHVTL_DBG(1, "LTO1 media in an LTO3 drive - "
-					"setting read-only");
-			break;
-		case drive_LTO4:
-			MHVTL_DBG(1, "LTO1 media in an LTO4 drive - "
-					"failed load");
-			goto mismatchmedia;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-	case Media_LTO2:
-		MHVTL_DBG(1, "LTO2 media");
-		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
-			Media_Type = Media_LTO2_CLEAN;
-			break;
-		} else if (mam.MediumType == MEDIA_TYPE_WORM)
-			goto mismatchmedia;
-		else
-			Media_Type = Media_LTO2;
-		switch (lunit.drive_type) {
-		case drive_LTO1:
-			MHVTL_DBG(1, "LTO2 media in an LTO1 drive - "
-					"failed load");
-			goto mismatchmedia;
-		case drive_LTO2:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		case drive_LTO3:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		case drive_LTO4:
-			MediaWriteProtect = MEDIA_READONLY;
-			MHVTL_DBG(1, "LTO2 media in an LTO4 drive - "
-					"setting read-only");
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-	case Media_LTO3:
-		MHVTL_DBG(1, "LTO3 media");
-		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
-			Media_Type = Media_LTO3_CLEAN;
-			break;
-		} else if (mam.MediumType == MEDIA_TYPE_WORM)
-			goto mismatchmedia;
-		else
-			Media_Type = Media_LTO3;
-		switch (lunit.drive_type) {
-		case drive_LTO1:
-		case drive_LTO2:
-			MHVTL_DBG(1, "LTO3 media in an LTO1/2 drive - "
-					"failed load");
-			goto mismatchmedia;
-		case drive_LTO3:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		case drive_LTO4:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-	case Media_LTO4:
-		Media_Type = Media_LTO4;
-		MHVTL_DBG(1, "LTO4 media");
-		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
-			Media_Type = Media_LTO4_CLEAN;
-			break;
-		} else if (mam.MediumType == MEDIA_TYPE_WORM)
-			goto mismatchmedia;
-		else
-			Media_Type = Media_LTO4;
-		switch (lunit.drive_type) {
-		case drive_LTO1:
-			MHVTL_DBG(1, "LTO4 media in an LTO1 drive - "
-					"failed load");
-			goto mismatchmedia;
-			break;
-		case drive_LTO2:
-			MHVTL_DBG(1, "LTO4 media in an LTO2 drive - "
-					"failed load");
-			goto mismatchmedia;
-			break;
-		case drive_LTO3:
-			MHVTL_DBG(1, "LTO4 media in an LTO3 drive - "
-					"failed load");
-			goto mismatchmedia;
-			break;
-		case drive_LTO4:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-	case Media_DLT3:
-		Media_Type = Media_DLT3;
-		MHVTL_DBG(1,"DLT3 media");
-		break;
-	case Media_DLT4:
-		Media_Type = Media_DLT4;
-		MHVTL_DBG(1,"DLT4 media");
-		break;
-	case Media_SDLT:
-		Media_Type = Media_SDLT;
-		MHVTL_DBG(1,"SDLT media");
-		switch (lunit.drive_type) {
-		case drive_SDLT:
-		case drive_SDLT220:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-		break;
-	case Media_SDLT220:
-		Media_Type = Media_SDLT220;
-		MHVTL_DBG(1, "SDLT 220 media");
-		switch (lunit.drive_type) {
-		case drive_SDLT:
-		case drive_SDLT220:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-		break;
-	case Media_SDLT320:
-		Media_Type = Media_SDLT320;
-		MHVTL_DBG(1, "SDLT 320 media");
-		switch (lunit.drive_type) {
-		case drive_SDLT:
-			MediaWriteProtect = MEDIA_READONLY;
-			break;
-		case drive_SDLT220:
-		case drive_SDLT320:
-		case drive_SDLT600:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-		break;
-	case Media_SDLT600:
-		Media_Type = Media_SDLT600;
-		MHVTL_DBG(1, "SDLT 600 media");
-		switch (lunit.drive_type) {
-		case drive_SDLT:
-		case drive_SDLT220:
-			MediaWriteProtect = MEDIA_READONLY;
-			break;
-		case drive_SDLT320:
-		case drive_SDLT600:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-	case Media_T10KA:
-	case Media_T10KB:
-		MHVTL_DBG(1, "T10000A media");
-		switch (lunit.drive_type) {
-		case drive_10K_A:
-		case drive_10K_B:
-			MediaWriteProtect = MEDIA_WRITABLE;
-			break;
-		default:
-			goto mismatchmedia;
-		}
-		break;
-	default:
-		Media_Type = Media_UNKNOWN;
-		MediaWriteProtect = MEDIA_WRITABLE;
-		MHVTL_DBG(1, "Unknown media, Defaulting to writable");
-		break;
-	}
-
-	blockDescriptorBlock[0] = mam.MediumDensityCode;
-
-	setSeqAccessDevice(&seqAccessDevice, fg);
-	setTapeAlert(&TapeAlert, fg);
-
-	return TAPE_LOADED;	// Return successful load
+	return TAPE_LOADED;	/* Return successful load */
 
 mismatchmedia:
+	unload_tape(sam_stat);
 	fg |= 0x800;	/* Unsupported format */
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);
 	MHVTL_DBG(1, "Tape %s failed to load with type %d in drive type %d",
-			PCL, Media_Type, lunit.drive_type);
+			PCL, mam.MediaType, lunit.drive_type);
 	tapeLoaded = TAPE_UNLOADED;
 	return TAPE_UNLOADED;
 }
 
+static void dump_linked_list(void)
+{
+	struct media_details *m_detail;
+	struct list_head *mdl;
+
+	MHVTL_DBG(3, "Dumping media type support");
+
+	mdl = &lunit.supported_den_list;
+
+	list_for_each_entry(m_detail, mdl, siblings) {
+		MHVTL_DBG(3, "Media type: 0x%02x, status: 0x%02x",
+				m_detail->density, m_detail->density_status)
+	}
+}
 
 /* Strip (recover) the 'Physical Cartridge Label'
  *   Well at least the data filename which relates to the same thing
@@ -2717,12 +2604,11 @@ static char * strip_PCL(char *p, int start)
 	for (p += start; *p == ' '; p++)
 		if ('\0' == *p)
 			break;
-	q = p;	// Set end-of-word marker to start of word.
+	q = p;	/* Set end-of-word marker to start of word. */
 	for (q = p; *q != '\0'; q++)
 		if (*q == ' ' || *q == '\t')
 			break;
-	*q = '\0';	// Set null terminated string
-//	printf(":\nmedia ID:%s, p: %lx, q: %lx\n", p, &p, &q);
+	*q = '\0';	/* Set null terminated string */
 
 return p;
 }
@@ -2733,7 +2619,7 @@ unloadTape(uint8_t *sam_stat)
 	switch (tapeLoaded) {
 	case TAPE_LOADED:
 		mam.record_dirty = 0;
-		// Don't update load count on unload -done at load time
+		/* Don't update load count on unload -done at load time */
 		updateMAM(sam_stat, 0);
 		unload_tape(sam_stat);
 		clearWORM();
@@ -2764,7 +2650,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			MHVTL_DBG(2, "Tape already mounted");
 			send_msg("Load failed", msg->snd_id);
 		} else {
-			pcl = strip_PCL(msg->text, 6); // 'lload ' => offset of 6
+			pcl = strip_PCL(msg->text, 6); /* 'lload ' => offset of 6 */
 			loadTape(pcl, sam_stat);
 			if (tapeLoaded == TAPE_LOADED)
 				sprintf(s, "Loaded OK: %s\n", pcl);
@@ -2818,13 +2704,23 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	}
 
 	if (!strncmp(msg->text, "debug", 5)) {
-		if (debug) {
-			debug--;
-		} else {
+		if (debug > 4) {
+			debug = 1;
+			printf("Debug: %d\n", debug);
+		} else if (debug > 1) {
+			printf("Debug: %d\n", debug);
 			debug++;
-			verbose = 2;
+		} else {
+			printf("Debug: %d\n", debug);
+			debug++;
+			verbose = 4;
 		}
 	}
+
+	if (!strncmp(msg->text, "dump", 4)) {
+		dump_linked_list();
+	}
+
 return 0;
 }
 
@@ -2848,8 +2744,8 @@ static void init_mode_pages(struct mode *m)
 
 	/* Disconnect-Reconnect: SPC-3 7.4.8 */
 	if ((mp = alloc_mode_page(2, m, 16))) {
-		mp->pcodePointer[2] = 50; // Buffer full ratio */
-		mp->pcodePointer[3] = 50; // Buffer enpty ratio */
+		mp->pcodePointer[2] = 50; /* Buffer full ratio */
+		mp->pcodePointer[3] = 50; /* Buffer enpty ratio */
 		mp->pcodePointer[10] = 4;
 	}
 
@@ -3073,6 +2969,36 @@ static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
+int add_drive_media_list(struct list_head *supported_den_list,
+					int status, char *s)
+{
+	struct media_details *m_detail;
+	int density = 0;
+
+	MHVTL_DBG(2, "Adding %s, status: %d", s, status);
+	density = density_to_int(s);
+	m_detail = density_lookup(supported_den_list, density);
+
+	if (!m_detail) {
+		MHVTL_DBG(2, "Adding new entry for %s", s);
+		m_detail = malloc(sizeof(struct media_details));
+		if (!m_detail) {
+			MHVTL_DBG(1, "Failed to allocate %d bytes",
+						(int)sizeof(m_detail));
+			return -ENOMEM;
+		}
+		m_detail->density = density;
+		m_detail->density_status = status;
+		list_add_tail(&m_detail->siblings, supported_den_list);
+	} else {
+		m_detail->density_status |= status;
+		MHVTL_DBG(2, "Already have an entry for %s, status: %02x",
+					s, m_detail->density_status);
+	}
+
+	return 0;
+}
+
 #define VPD_83_SZ 52
 #define VPD_B0_SZ 4
 #define VPD_B1_SZ SCSI_SN_LEN
@@ -3082,7 +3008,6 @@ static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
 #define MALLOC_SZ 512
 static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 {
-
 	struct vpd **lu_vpd = lu->lu_vpd;
 	uint8_t worm = 1;	/* Supports WORM */
 	int pg;
@@ -3096,6 +3021,11 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	int indx;
 	struct vtl_ctl tmpctl;
 	int found = 0;
+	struct list_head *den_list;
+
+	INIT_LIST_HEAD(&lu->supported_den_list);
+
+	den_list = &lu->supported_den_list;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -3199,6 +3129,26 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 						b[y] = 0;
 				MHVTL_DBG(1, "NAA: Incorrect params %s"
 						" : using defaults", b);
+			}
+			if (sscanf(b, " FAIL: %s", s)) {
+				add_drive_media_list(den_list, LOAD_FAIL, s);
+				MHVTL_DBG(1, "Fail loading: %s", s);
+			}
+			if (sscanf(b, " READ_ONLY: %s", s)) {
+				add_drive_media_list(den_list, LOAD_RO, s);
+				MHVTL_DBG(1, "Read Only: %s", s);
+			}
+			if (sscanf(b, " READ_WRITE: %s", s)) {
+				add_drive_media_list(den_list, LOAD_RW, s);
+				MHVTL_DBG(1, "Read Write: %s", s);
+			}
+			if (sscanf(b, " WORM: %s", s)) {
+				add_drive_media_list(den_list, LOAD_WORM, s);
+				MHVTL_DBG(1, "WORM: %s", s);
+			}
+			if (sscanf(b, " ENCRYPTION: %s", s)) {
+				add_drive_media_list(den_list, LOAD_ENCRYPT, s);
+				MHVTL_DBG(1, "Encryption %s", s);
 			}
 		}
 	}
@@ -3339,8 +3289,8 @@ int main(int argc, char *argv[])
 		if (argv[0][0] == '-') {
 			switch (argv[0][1]) {
 			case 'd':
-				debug++;
-				verbose = 9;	// If debug, make verbose...
+				debug = 4;
+				verbose = 9;	/* If debug, make verbose... */
 				break;
 			case 'v':
 				verbose++;
@@ -3369,7 +3319,7 @@ int main(int argc, char *argv[])
 				MAXPRIOR);
 		exit(1);
 	}
-	minor = my_id;	// Minor == Message Queue priority
+	minor = my_id;	/* Minor == Message Queue priority */
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, MHVTL_VERSION);
