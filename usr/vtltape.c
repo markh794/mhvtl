@@ -1235,12 +1235,14 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 
 	case CERTIFICATE_DATA:
 		memset(buf, 0, alloc_len);
-		put_unaligned_be16(sizeof(certificate), &buf[2]);
 		strncpy((char *)&buf[4], certificate, alloc_len - 4);
-		if (strlen(certificate) >= alloc_len - 4)
+		if (strlen(certificate) >= alloc_len - 4) {
+			put_unaligned_be16(alloc_len - 4, &buf[2]);
 			ret = alloc_len;
-		else
+		} else {
+			put_unaligned_be16(strlen(certificate), &buf[2]);
 			ret = strlen(certificate) + 4;
+		}
 		break;
 
 	default:
