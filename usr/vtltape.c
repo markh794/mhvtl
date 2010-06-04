@@ -1195,24 +1195,12 @@ static char *lookup_sp_specific(uint16_t field)
 
 /* FIXME:
  * Took this certificate from my Ubuntu install
- *          /usr/share/libssl-dev/demos/sign/key.pem
- * Need to insert a certificate of my own here...
+ *          /usr/share/doc/libssl-dev/demos/tunala/CA.pem
+ * 		I wonder if RIAA is in NZ ?
+ *
+ * Need to insert a valid certificate of my own here...
  */
-static char *certificate =
-"-----BEGIN CERTIFICATE-----\n"
-"MIICLDCCAdYCAQAwDQYJKoZIhvcNAQEEBQAwgaAxCzAJBgNVBAYTAlBUMRMwEQYD\n"
-"VQQIEwpRdWVlbnNsYW5kMQ8wDQYDVQQHEwZMaXNib2ExFzAVBgNVBAoTDk5ldXJv\n"
-"bmlvLCBMZGEuMRgwFgYDVQQLEw9EZXNlbnZvbHZpbWVudG8xGzAZBgNVBAMTEmJy\n"
-"dXR1cy5uZXVyb25pby5wdDEbMBkGCSqGSIb3DQEJARYMc2FtcG9AaWtpLmZpMB4X\n"
-"DTk2MDkwNTAzNDI0M1oXDTk2MTAwNTAzNDI0M1owgaAxCzAJBgNVBAYTAlBUMRMw\n"
-"EQYDVQQIEwpRdWVlbnNsYW5kMQ8wDQYDVQQHEwZMaXNib2ExFzAVBgNVBAoTDk5l\n"
-"dXJvbmlvLCBMZGEuMRgwFgYDVQQLEw9EZXNlbnZvbHZpbWVudG8xGzAZBgNVBAMT\n"
-"EmJydXR1cy5uZXVyb25pby5wdDEbMBkGCSqGSIb3DQEJARYMc2FtcG9AaWtpLmZp\n"
-"MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL7+aty3S1iBA/+yxjxv4q1MUTd1kjNw\n"
-"L4lYKbpzzlmC5beaQXeQ2RmGMTXU+mDvuqItjVHOK3DvPK7lTcSGftUCAwEAATAN\n"
-"BgkqhkiG9w0BAQQFAANBAFqPEKFjk6T6CKTHvaQeEAsX0/8YHPHqH/9AnhSjrwuX\n"
-"9EBc0n6bVGhN7XaXd6sJ7dym9sbsWxb+pJdurnkxjx4=\n"
-"-----END CERTIFICATE-----\n";
+#include "vtltape.pem"
 
 /*
  * Returns number of bytes in struct
