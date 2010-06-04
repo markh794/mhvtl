@@ -1190,6 +1190,8 @@ static char *lookup_sp_specific(uint16_t field)
 
 #define SUPPORTED_SECURITY_PROTOCOL_LIST 0
 #define CERTIFICATE_DATA		 1
+#define SECURITY_PROTOCOL_INFORMATION	0
+#define TAPE_DATA_ENCRYPTION		0x20
 
 /* FIXME:
  * Took this certificate from my Ubuntu install
@@ -1226,10 +1228,9 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 		memset(buf, 0, alloc_len);
 		buf[6] = 0;	/* list length (MSB) */
 		buf[7] = 2;	/* list length (LSB) */
-		buf[8] = SUPPORTED_SECURITY_PROTOCOL_LIST;
-		buf[9] = CERTIFICATE_DATA;
-		buf[10] = 0x20;
-		ret = 11;
+		buf[8] = SECURITY_PROTOCOL_INFORMATION;
+		buf[9] = TAPE_DATA_ENCRYPTION;
+		ret = 10;
 		break;
 
 	case CERTIFICATE_DATA:
@@ -1475,9 +1476,6 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 /*
  * Retrieve Security Protocol Information
  */
-#define SECURITY_PROTOCOL_INFORMATION 0
-#define TAPE_DATA_ENCRYPTION 0x20
-
 static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint16_t sps = get_unaligned_be16(&cdb[2]);
