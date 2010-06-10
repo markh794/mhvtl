@@ -285,7 +285,9 @@ static void vtl_max_tgts_luns(void);
 static int vtl_slave_alloc(struct scsi_device *);
 static int vtl_slave_configure(struct scsi_device *);
 static void vtl_slave_destroy(struct scsi_device *);
+#if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
+#endif
 static int vtl_queuecommand(struct scsi_cmnd *,
 				   void (*done) (struct scsi_cmnd *));
 static int vtl_b_ioctl(struct scsi_device *, int, void __user *);
@@ -310,7 +312,9 @@ static struct scsi_host_template vtl_driver_template = {
 	.slave_destroy =	vtl_slave_destroy,
 	.ioctl =		vtl_b_ioctl,
 	.queuecommand =		vtl_queuecommand,
+#if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 	.change_queue_depth =	vtl_change_queue_depth,
+#endif
 	.eh_abort_handler =	vtl_abort,
 	.eh_bus_reset_handler = vtl_bus_reset,
 	.eh_device_reset_handler = vtl_device_reset,
@@ -625,7 +629,12 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 }
 
 /* FIXME: I don't know what version this inline routine was introduced */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
+
+/* RedHat 4 appears to define 'scsi_get_tag_type' but doesn't understand
+ * change_queue_depth
+ * Disabling for kernel 2.6.9 (RedHat AS 4)
+ */
 
 #define MSG_SIMPLE_TAG	0x20
 #define MSG_ORDERED_TAG	0x22
@@ -651,6 +660,11 @@ static inline int scsi_get_tag_type(struct scsi_device *sdev)
 
 #endif
 
+/* RedHat 4 appears to define 'scsi_get_tag_type' but doesn't understand
+ * change_queue_depth
+ * Disabling for kernel 2.6.9 (RedHat AS 4)
+ */
+#if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
 	printk("mhvtl %s(%d)\n", __func__, qdepth);
@@ -663,6 +677,7 @@ static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
 	return sdev->queue_depth;
 }
+#endif
 
 static struct vtl_queued_cmd *lookup_sqcp(struct vtl_lu_info *lu,
 						unsigned long serialNo)
