@@ -1263,7 +1263,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 	switch (sps) {
 	case ENCR_IN_SUPPORT_PAGES:
 		put_unaligned_be16(ENCR_IN_SUPPORT_PAGES, &buf[0]);
-		put_unaligned_be16(16, &buf[2]); /* List length */
+		put_unaligned_be16(14, &buf[2]); /* List length */
 		put_unaligned_be16(ENCR_IN_SUPPORT_PAGES, &buf[4]);
 		put_unaligned_be16(ENCR_OUT_SUPPORT_PAGES, &buf[6]);
 		put_unaligned_be16(ENCR_CAPABILITIES, &buf[8]);
