@@ -2194,7 +2194,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 						(long)dbuf_p->serialNo);
 		dbuf_p->sz = resp_spin(cdb, dbuf_p->data, sam_stat);
 		MHVTL_DBG(3, "Returning %d bytes", dbuf_p->sz);
-		if (verbose > 2)
+		if (debug)
 			hex_dump(dbuf_p->data, dbuf_p->sz);
 		break;
 
