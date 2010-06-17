@@ -1345,9 +1345,9 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 
 	case ENCR_KEY_FORMATS:
 		put_unaligned_be16(ENCR_KEY_FORMATS, &buf[0]);
-		put_unaligned_be16(1, &buf[2]); /* List length */
-		buf[4] = 0;	/* Plain text */
-		ret = 5;
+		put_unaligned_be16(2, &buf[2]); /* List length */
+		put_unaligned_be16(0, &buf[4]);	/* Plain text */
+		ret = 6;
 		break;
 
 	case ENCR_KEY_MGT_CAPABILITIES:
