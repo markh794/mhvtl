@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 7
-Source: mhvtl-2010-05-08.tgz
+Release: 8
+Source: mhvtl-2010-06-23.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -167,15 +167,30 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Wed Jun 23 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.8
+- Several Security Protocol IN updates - thanks Albert Pauw
+  * Return certificate data
+  * Correct length for 'KEY FORMATS'
+  * Correct length for SPIN SUPPORTED PAGES
+- Fix kernel compile on RedHat AS4
+- Media/drive matching now 'dynamic' and defined in device.conf
+- Added man page for device.conf
+- Fix media corruption when media is 'formatted'
+- Add LTO5 & SDLT-S4 drive/media types
+- Handle INQUIRY correctly after media change (return SAM_STAT_GOOD)
+- Updated rc script so all devices created on Target & LUN. i.e. Don't use
+  channel. Some application software has trouble if only the channel is unique.
+
 * Sat May 08 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.18.6
+- Bumped version to 0.18.7
 - Allow media sizes larger than 2G on 32bit platforms
 - Implement STK vendor unique op code 'LOAD DISPLAY' -> logs via syslog.
 - Fix core dump on invalid data in NAA strings.
 - Support VENDOR ID for SMC device with embedded spaces
 
 * Thu May 02 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
-- Bumped version to 0.18.5
+- Bumped version to 0.18.6
 - Support VENDOR ID with embedded spaces
 - Fix 'vtlcmd list map'
 - Fix import of media via MAP (off-by-one)
