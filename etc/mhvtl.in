@@ -178,14 +178,14 @@ add_library 10 0 0 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_A"
 #         index channel target LUN Vendor ProdID ProdRev S/No Lib# Slot
 add_ibm_ultrium_5_drive 11 0 1 0 "XYZZY_A1" 10 1
 add_ibm_ultrium_5_drive 12 0 2 0 "XYZZY_A2" 10 2
-add_ibm_ultrium_2_drive 13 0 3 0 "XYZZY_A3" 10 3
-add_ibm_ultrium_2_drive 14 0 4 0 "XYZZY_A4" 10 4
+add_ibm_ultrium_4_drive 13 0 3 0 "XYZZY_A3" 10 3
+add_ibm_ultrium_4_drive 14 0 4 0 "XYZZY_A4" 10 4
 
-add_library 30 1 0 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_B"
-add_ibm_ultrium_4_drive 31 1 1 0 "XYZZY_B1" 30 1
-add_ibm_ultrium_4_drive 32 1 2 0 "XYZZY_B2" 30 2
-add_ibm_ultrium_4_drive 33 1 3 0 "XYZZY_B3" 30 3
-add_ibm_ultrium_4_drive 34 1 4 0 "XYZZY_B4" 30 4
+add_library 30 0 8 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_B"
+add_ibm_ultrium_4_drive 31 0 9 0 "XYZZY_B1" 30 1
+add_ibm_ultrium_4_drive 32 0 10 0 "XYZZY_B2" 30 2
+add_ibm_ultrium_4_drive 33 0 11 0 "XYZZY_B3" 30 3
+add_ibm_ultrium_4_drive 34 0 12 0 "XYZZY_B4" 30 4
 
 fi
 
