@@ -2528,6 +2528,8 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	if (!m_details)	/* Media not defined.. Reject */
 		goto mismatchmedia;
 
+	MHVTL_DBG(2, "Density Status: 0x%x", m_details->density_status);
+
 	/* Allow media to be either RO or RW */
 	if (m_details->density_status & LOAD_RO) {
 		MHVTL_DBG(2, "Config file: mounting READ ONLY");
@@ -2541,10 +2543,19 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		MHVTL_DBG(2, "Config file: LOAD FAILED");
 		goto mismatchmedia;
 	}
-	/* Now check for WORM and clear OK_to_write if set */
-	if (m_details->density_status & LOAD_WORM) {
-		MHVTL_DBG(2, "Config file: LOAD as WORM");
-		OK_to_write = 0;
+	/* Now check for WORM support */
+	if (mam.MediumType == MEDIA_TYPE_WORM) {
+		/* If media is WORM, check drive will allow mount */
+		if (m_details->density_status & (LOAD_WORM | LOAD_RW)) {
+			MHVTL_DBG(2, "Config file: Allow LOAD as R/W WORM");
+			OK_to_write = 1;
+		} else if (m_details->density_status & (LOAD_WORM | LOAD_RO)) {
+			MHVTL_DBG(2, "Config file: Allow LOAD as R/O WORM");
+			OK_to_write = 0;
+		} else {
+			MHVTL_DBG(2, "Config file: Fail LOAD as WORM");
+			goto mismatchmedia;
+		}
 	}
 
 loadOK:
@@ -2974,7 +2985,7 @@ int add_drive_media_list(struct list_head *supported_den_list,
 	struct media_details *m_detail;
 	int density = 0;
 
-	MHVTL_DBG(2, "Adding %s, status: %d", s, status);
+	MHVTL_DBG(2, "Adding %s, status: 0x%02x", s, status);
 	density = density_to_int(s);
 	m_detail = density_lookup(supported_den_list, density);
 
@@ -2990,8 +3001,10 @@ int add_drive_media_list(struct list_head *supported_den_list,
 		m_detail->density_status = status;
 		list_add_tail(&m_detail->siblings, supported_den_list);
 	} else {
+		MHVTL_DBG(2, "Existing status for %s, status: 0x%02x",
+					s, m_detail->density_status);
 		m_detail->density_status |= status;
-		MHVTL_DBG(2, "Already have an entry for %s, status: %02x",
+		MHVTL_DBG(2, "Already have an entry for %s, new status: 0x%02x",
 					s, m_detail->density_status);
 	}
 
@@ -3130,24 +3143,24 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 						" : using defaults", b);
 			}
 			if (sscanf(b, " FAIL: %s", s)) {
-				add_drive_media_list(den_list, LOAD_FAIL, s);
 				MHVTL_DBG(1, "Fail loading: %s", s);
+				add_drive_media_list(den_list, LOAD_FAIL, s);
 			}
 			if (sscanf(b, " READ_ONLY: %s", s)) {
-				add_drive_media_list(den_list, LOAD_RO, s);
 				MHVTL_DBG(1, "Read Only: %s", s);
+				add_drive_media_list(den_list, LOAD_RO, s);
 			}
 			if (sscanf(b, " READ_WRITE: %s", s)) {
-				add_drive_media_list(den_list, LOAD_RW, s);
 				MHVTL_DBG(1, "Read Write: %s", s);
+				add_drive_media_list(den_list, LOAD_RW, s);
 			}
 			if (sscanf(b, " WORM: %s", s)) {
-				add_drive_media_list(den_list, LOAD_WORM, s);
 				MHVTL_DBG(1, "WORM: %s", s);
+				add_drive_media_list(den_list, LOAD_WORM, s);
 			}
 			if (sscanf(b, " ENCRYPTION: %s", s)) {
-				add_drive_media_list(den_list, LOAD_ENCRYPT, s);
 				MHVTL_DBG(1, "Encryption %s", s);
+				add_drive_media_list(den_list, LOAD_ENCRYPT, s);
 			}
 		}
 	}
