@@ -10,9 +10,8 @@ One line per entry.
 Contains the following sections, Only the 'Slot' section should be populated. The other
 sections are used as place holders. e.g. If the number of MAP slots are to be changed
 within the VTL, change the number of entries in this configuration file.
-.IP "Drive #: [Serial Number]"
-Set the [Serial Number] to define the devices serial number at load time.
-If the serial number is not defined, one will be calculated based on HBA#, SCSI ID and LUN
+.IP "Drive #: "
+Note: Set the serial number of the drive in device.conf
 .IP "Picker #:"
 .IP "MAP #:"
 .IP "Slot #: [Barcode]"
@@ -48,3 +47,4 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .BR vtlcmd(1),
 .BR vtllibrary(1),
 .BR vtltape(1)
+.BR device.conf(5)
