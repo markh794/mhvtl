@@ -1213,9 +1213,9 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
+	memset(buf, 0, alloc_len);
 	switch (sps) {
 	case SUPPORTED_SECURITY_PROTOCOL_LIST:
-		memset(buf, 0, alloc_len);
 		buf[6] = 0;	/* list length (MSB) */
 		buf[7] = 2;	/* list length (LSB) */
 		buf[8] = SECURITY_PROTOCOL_INFORMATION;
@@ -1224,7 +1224,6 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 		break;
 
 	case CERTIFICATE_DATA:
-		memset(buf, 0, alloc_len);
 		strncpy((char *)&buf[4], certificate, alloc_len - 4);
 		if (strlen(certificate) >= alloc_len - 4) {
 			put_unaligned_be16(alloc_len - 4, &buf[2]);
