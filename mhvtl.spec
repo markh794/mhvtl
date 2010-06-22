@@ -72,6 +72,7 @@ install -m 644 man/vtlcmd.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtlcmd.1
 install -m 644 man/vtllibrary.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtllibrary.1
 install -m 644 man/vtltape.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtltape.1
 install -m 644 man/library_contents.5 $RPM_BUILD_ROOT/usr/share/man/man5/library_contents.5
+install -m 644 man/device.conf.5 $RPM_BUILD_ROOT/usr/share/man/man5/device.conf.5
 
 %pre
 if ! getent group vtl > /dev/null 2>&1; then
@@ -163,6 +164,7 @@ fi
 %doc %{_prefix}/share/man/man1/vtllibrary.1.gz
 %doc %{_prefix}/share/man/man1/vtltape.1.gz
 %doc %{_prefix}/share/man/man5/library_contents.5.gz
+%doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
 * Sat May 08 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
