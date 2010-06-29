@@ -421,6 +421,10 @@ static void clearWORM(void)
 	}
 }
 
+/* FIXME: Need to dump drive type index into meaningful string */
+void dump_drive_media_types(void)
+{
+}
 
 /*
  * Report density of media loaded.
@@ -2904,7 +2908,6 @@ static void config_lu(struct lu_phy_attr *lu)
 		if (!strncasecmp(dup_product_id, "-TD1", 4)) {
 			lu->drive_type = drive_LTO1;
 			MHVTL_DBG(1, "LTO 1 drive");
-
 		} else if (!strncasecmp(dup_product_id, "-TD2", 4)) {
 			lu->drive_type = drive_LTO2;
 			MHVTL_DBG(1, "LTO 2 drive");
@@ -2914,6 +2917,14 @@ static void config_lu(struct lu_phy_attr *lu)
 		} else if (!strncasecmp(dup_product_id, "-TD4", 4)) {
 			lu->drive_type = drive_LTO4;
 			MHVTL_DBG(1, "LTO 4 drive");
+		} else if (!strncasecmp(dup_product_id, "-TD5", 4)) {
+			lu->drive_type = drive_LTO5;
+			MHVTL_DBG(1, "LTO 5 drive");
+		} else if (!strncasecmp(dup_product_id, "-TD6", 4)) {
+			lu->drive_type = drive_LTO6;
+			MHVTL_DBG(1, "LTO 6 drive");
+		} else {
+			MHVTL_DBG(1, "Ultrium drive - but of unknown type");
 		}
 	} else if (!strncasecmp(lu->product_id, "SDLT600", 7)) {
 		capacity_unit = 1L << 20; /* Capacity units in MBytes */
@@ -3255,6 +3266,8 @@ static void media_density_init(void)
 	Drive_Native_Write_Density[drive_LTO2] = medium_density_code_lto2;
 	Drive_Native_Write_Density[drive_LTO3] = medium_density_code_lto3;
 	Drive_Native_Write_Density[drive_LTO4] = medium_density_code_lto4;
+	Drive_Native_Write_Density[drive_LTO5] = medium_density_code_lto5;
+	Drive_Native_Write_Density[drive_LTO6] = medium_density_code_lto6;
 	Drive_Native_Write_Density[drive_3592_J1A] = medium_density_code_j1a;
 	Drive_Native_Write_Density[drive_3592_E05] = medium_density_code_e05;
 	Drive_Native_Write_Density[drive_3592_E06] = medium_density_code_e06;
@@ -3362,6 +3375,9 @@ int main(int argc, char *argv[])
 	}
 
 	MHVTL_DBG(1, "starting...");
+
+	if (verbose > 2)
+		dump_drive_media_types();
 
 	/* Minor tweeks - setup WORM & SPIN/SPOUT customisations */
 	config_lu(&lunit);
