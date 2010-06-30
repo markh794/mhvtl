@@ -48,7 +48,7 @@ static int read_header(struct raw_header *h, uint8_t *sam_stat)
 
 	nread = read(datafile, h, sizeof(*h));
 	if (nread < 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	} else if (nread != sizeof(*h)) {
 		mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
@@ -96,7 +96,7 @@ static int skip_to_prev_header(uint8_t *sam_stat)
 	MHVTL_DBG(3, "Positioning to raw_pos.prev_blk: %" PRId64,
 				raw_pos.prev_blk);
 	if (raw_pos.prev_blk != lseek64(datafile, raw_pos.prev_blk, SEEK_SET)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		MHVTL_DBG(1, "Error position in datafile !!");
 		return -1;
 	}
@@ -372,12 +372,12 @@ int
 rewind_tape(uint8_t *sam_stat)
 {
 	if (rawRewind(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return 2;
 	}
 
 	if (raw_pos.hdr.blk_type != B_BOT) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return 2;
 	}
 
@@ -408,7 +408,7 @@ rewind_tape(uint8_t *sam_stat)
 		}
 		// Now we have to go thru thru the rewind again..
 		if (rawRewind(sam_stat)) {
-			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return 2;
 		}
 
@@ -541,7 +541,7 @@ rewriteMAM(uint8_t *sam_stat)
 	// Rewrite MAM data
 	nwrite = pwrite(datafile, &mam, sizeof(mam), sizeof(struct blk_header));
 	if (nwrite != sizeof(mam)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	}
 	MediumType = mam.MediumType;
@@ -687,7 +687,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		MHVTL_DBG(1, "Incorrect media format");
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		close(datafile);
 		datafile = -1;
 		return 2;

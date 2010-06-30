@@ -347,7 +347,7 @@ static int checkRestrictions(uint8_t *sam_stat)
 		return OK_to_write;
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		OK_to_write = 0;
 		return OK_to_write;
 		break;
@@ -1870,7 +1870,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			break;
 		} else {
 			MHVTL_DBG(1, "Media format corrupt");
-			mkSenseBuf(NOT_READY, E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			break;
 		}
 
@@ -1898,7 +1898,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			break;
 		} else if (tapeLoaded > TAPE_LOADED) {
 			MHVTL_DBG(1, "Failed due to \"media corrupt\"");
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			break;
 		}
 		/* Only support Service Action - Attribute Values */
@@ -1930,7 +1930,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (tapeLoaded == TAPE_LOADED || tapeLoaded == TAPE_UNLOADED)
 			dbuf_p->sz = resp_read_block_limits(dbuf_p, bufsize);
 		else
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		break;
 
 	case READ_MEDIA_SERIAL_NUMBER:
@@ -1943,7 +1943,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 								dbuf_p->data,
 								sam_stat);
 		} else
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		break;
 
 	case READ_POSITION:
@@ -2055,13 +2055,13 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case TEST_UNIT_READY:	/* Return OK by default */
-		MHVTL_DBG(1, "Test Unit Ready (%ld) : %s",
+		MHVTL_DBG(2, "Test Unit Ready (%ld) : %s",
 				(long)dbuf_p->serialNo,
 				(tapeLoaded == TAPE_UNLOADED) ? "No" : "Yes");
 		if (tapeLoaded == TAPE_UNLOADED)
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		if (tapeLoaded > TAPE_LOADED)
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT,sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 
 		break;
 
@@ -2133,7 +2133,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		} else if (tapeLoaded > TAPE_LOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			break;
 		}
 

@@ -111,7 +111,7 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 		nread = pread(indxfile, &raw_pos, sizeof(raw_pos),
 			blk_number * sizeof(raw_pos));
 		if (nread < 0) {
-			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return -1;
 		} else if (nread != sizeof(raw_pos)) {
 			mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
@@ -597,7 +597,7 @@ rewriteMAM(uint8_t *sam_stat)
 
 	nwrite = pwrite(metafile, &mam, sizeof(mam), 0);
 	if (nwrite != sizeof(mam)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	}
 
@@ -803,7 +803,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		MHVTL_DBG(1, "pcl %s MAM contains incorrect media format", pcl);
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FORMAT_CORRUPT, sam_stat);
+		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		rc = 2;
 		goto failed;
 	}
