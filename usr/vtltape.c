@@ -2149,8 +2149,17 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		count = get_unaligned_be24(&cdb[2]);
 		MHVTL_DBG(1, "Write %d filemarks (%ld) **", count,
 						(long)dbuf_p->serialNo);
-		if (!checkRestrictions(sam_stat))
-			break;
+		if (!checkRestrictions(sam_stat)) {
+			/* If restrictions & WORM media at block 0.. OK
+			 * Otherwise break out of case.
+			 */
+			if ((mam.MediumType == MEDIA_TYPE_WORM) &&
+						(c_pos->blk_number == 0)) {
+				/* Do nothing, but skip following break; */
+				MHVTL_DBG(1, "Erasing WORM media");
+			} else
+				break;
+		}
 
 		write_filemarks(count, sam_stat);
 		break;
@@ -2534,25 +2543,12 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	MHVTL_DBG(2, "Density Status: 0x%x", m_details->density_status);
 
-	/* Allow media to be either RO or RW */
-	if (m_details->density_status & LOAD_RO) {
-		MHVTL_DBG(2, "Config file: mounting READ ONLY");
-		MediaWriteProtect = MEDIA_READONLY;
-		OK_to_write = 0;
-	} else if (m_details->density_status & LOAD_RW) {
-		MHVTL_DBG(2, "Config file: mounting READ/WRITE");
-		MediaWriteProtect = MEDIA_WRITABLE;
-		OK_to_write = 1;
-	} else if (m_details->density_status & LOAD_FAIL) {
-		MHVTL_DBG(2, "Config file: LOAD FAILED");
-		goto mismatchmedia;
-	}
 	/* Now check for WORM support */
 	if (mam.MediumType == MEDIA_TYPE_WORM) {
 		/* If media is WORM, check drive will allow mount */
 		if (m_details->density_status & (LOAD_WORM | LOAD_RW)) {
+			/* Prev check will correctly set OK_to_write flag */
 			MHVTL_DBG(2, "Config file: Allow LOAD as R/W WORM");
-			OK_to_write = 1;
 		} else if (m_details->density_status & (LOAD_WORM | LOAD_RO)) {
 			MHVTL_DBG(2, "Config file: Allow LOAD as R/O WORM");
 			OK_to_write = 0;
@@ -2560,7 +2556,22 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			MHVTL_DBG(2, "Config file: Fail LOAD as WORM");
 			goto mismatchmedia;
 		}
-	}
+	} else if (mam.MediumType == MEDIA_TYPE_DATA) {
+		/* Allow media to be either RO or RW */
+		if (m_details->density_status & LOAD_RO) {
+			MHVTL_DBG(2, "Config file: mounting READ ONLY");
+			MediaWriteProtect = MEDIA_READONLY;
+			OK_to_write = 0;
+		} else if (m_details->density_status & LOAD_RW) {
+			MHVTL_DBG(2, "Config file: mounting READ/WRITE");
+			MediaWriteProtect = MEDIA_WRITABLE;
+			OK_to_write = 1;
+		} else if (m_details->density_status & LOAD_FAIL) {
+			MHVTL_DBG(2, "Config file: LOAD FAILED");
+			goto mismatchmedia;
+		}
+	} else	/* Can't write to cleaning media */
+		OK_to_write = 0;
 
 loadOK:
 	/* Update TapeAlert flags */

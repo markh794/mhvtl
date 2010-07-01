@@ -111,7 +111,7 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 		nread = pread(indxfile, &raw_pos, sizeof(raw_pos),
 			blk_number * sizeof(raw_pos));
 		if (nread < 0) {
-			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+			mkSenseBuf(MEDIUM_ERROR,E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return -1;
 		} else if (nread != sizeof(raw_pos)) {
 			mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
@@ -122,6 +122,8 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 	current_blk_number = raw_pos.hdr.blk_number;
 	current_data_offset = raw_pos.data_offset;
 
+	MHVTL_DBG(3, "Reading header %d at offset %ld",
+			current_blk_number, (unsigned long)current_data_offset);
 	return 0;
 }
 
@@ -342,12 +344,10 @@ position_to_eod(uint8_t *sam_stat)
  * != 0, failure
 */
 
-int
-position_to_block(uint32_t blk_number, uint8_t *sam_stat)
+int position_to_block(uint32_t blk_number, uint8_t *sam_stat)
 {
-	if (!tape_loaded(sam_stat)) {
+	if (!tape_loaded(sam_stat))
 		return -1;
-	}
 
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
@@ -362,11 +362,10 @@ position_to_block(uint32_t blk_number, uint8_t *sam_stat)
 	   semantics than other blocks when the tape is WORM.
 	*/
 
-	if (blk_number == 0) {
+	if (blk_number == 0)
 		return rewind_tape(sam_stat);
-	} else {
+	else
 		return read_header(blk_number, sam_stat);
-	}
 }
 
 /*
