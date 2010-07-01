@@ -1909,10 +1909,9 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 								sam_stat);
 			break;
 		}
-		{
 #ifdef MHVTL_DEBUG
+		{
 			uint8_t *p = dbuf_p->data;
-#endif
 			MHVTL_DBG(3,
 				" dump return data, length: %d", dbuf_p->sz);
 			for (k = 0; k < dbuf_p->sz; k += 8) {
@@ -1922,6 +1921,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 					p[k+4], p[k+5], p[k+6], p[k+7]);
 			}
 		}
+#endif
 		break;
 
 	case READ_BLOCK_LIMITS:
