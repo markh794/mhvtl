@@ -41,6 +41,7 @@ void usage(char *progname) {
 	printf("                   LTO2\n");
 	printf("                   LTO3\n");
 	printf("                   LTO4\n");
+	printf("                   LTO5\n");
 	printf("                   DLT3\n");
 	printf("                   DLT4\n");
 	printf("                   SDLT1\n");
@@ -92,6 +93,24 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mamp->media_info.description, "Ultrium 4/8T", 12);
 		memcpy(&mamp->media_info.density_name, "U-416  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		mamp->media_info.bits_per_mm = htonl(12725);
+	} else if (!(strncmp(density, "LTO5", 4))) {
+		mamp->MediumDensityCode = medium_density_code_lto5;
+		mamp->MediaType = Media_LTO5;
+		mamp->MediumLength = htonl(896);	// 896 tracks
+		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "Ultrium 5/8T", 12);
+		memcpy(&mamp->media_info.density_name, "U-516  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		mamp->media_info.bits_per_mm = htonl(12725);
+	} else if (!(strncmp(density, "LTO6", 4))) {
+		mamp->MediumDensityCode = medium_density_code_lto6;
+		mamp->MediaType = Media_LTO5;
+		mamp->MediumLength = htonl(896);	// 896 tracks
+		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		memcpy(&mamp->media_info.description, "Ultrium 6/8T", 12);
+		memcpy(&mamp->media_info.density_name, "U-616  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(12725);
 	} else if (!(strncmp(density, "AIT1", 4))) {

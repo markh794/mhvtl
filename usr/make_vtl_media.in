@@ -40,7 +40,7 @@ USER=$1
 # There is.. Thanks to Gavin Barnard.
 set_density() {
 	density=$1
-	regex='[A-Z0-9]{6,8}([SLXTJ])([1234ABWX])$'
+	regex='[A-Z0-9]{6,8}([SLXTJ])([123456ABWX])$'
 
 	if [[ $density =~ $regex ]]; then
 		matches=${#BASH_REMATCH[*]}
