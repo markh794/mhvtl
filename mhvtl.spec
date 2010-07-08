@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 8
-Source: mhvtl-2010-06-23.tgz
+Release: 9
+Source: mhvtl-2010-07-09.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -167,6 +167,11 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Wed Jul 09 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.9
+- Fix WORM media support - Bug report from Albert Pauw
+- Complete LTO5 media support
+
 * Wed Jun 23 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.8
 - Several Security Protocol IN updates - thanks Albert Pauw
