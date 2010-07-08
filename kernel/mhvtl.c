@@ -100,7 +100,7 @@ struct scatterlist;
 #define WRITE_ATTRIBUTE 0x8d
 #define SECURITY_PROTOCOL_OUT 0xb5
 #ifndef MHVTL_VERSION
-#define MHVTL_VERSION "0.18.6"
+#define MHVTL_VERSION "0.18.9"
 #endif
 static const char *vtl_version_date = "20100708-0";
 static const char vtl_driver_name[] = "mhvtl";
