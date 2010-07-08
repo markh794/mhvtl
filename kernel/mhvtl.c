@@ -610,7 +610,7 @@ static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
 		} else {
 			/* User space REQUEST SENSE */
 			errsts = q_cmd(SCpnt, done, lu);
-			if (errsts == 0)
+			if (!errsts)
 				return 0;
 		}
 		break;
@@ -1695,6 +1695,7 @@ static int put_user_data(int minor, char __user *arg)
 		if (copy_from_user(sqcp->a_cmnd->sense_buffer,
 						ds.sense_buf, SENSE_BUF_SIZE))
 			printk("Failed to retrieve autosense data\n");
+		sqcp->a_cmnd->sense_buffer[0] |= 0x70; /* force valid sense */
 		s = sqcp->a_cmnd->sense_buffer;
 		MHVTL_DBG(2, "Auto-Sense returned [key/ASC/ASCQ] "
 				"[%02x %02x %02x]\n",
