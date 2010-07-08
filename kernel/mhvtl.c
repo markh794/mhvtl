@@ -102,7 +102,7 @@ struct scatterlist;
 #ifndef MHVTL_VERSION
 #define MHVTL_VERSION "0.18.6"
 #endif
-static const char *vtl_version_date = "20100422-0";
+static const char *vtl_version_date = "20100708-0";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -1669,6 +1669,7 @@ static int put_user_data(int minor, char __user *arg)
 	struct vtl_queued_cmd *sqcp = NULL;
 	struct vtl_ds ds;
 	int ret = 0;
+	uint8_t *s;
 
 	if (copy_from_user((u8 *)&ds, (u8 *)arg, sizeof(struct vtl_ds))) {
 		ret = -EFAULT;
@@ -1694,6 +1695,12 @@ static int put_user_data(int minor, char __user *arg)
 		if (copy_from_user(sqcp->a_cmnd->sense_buffer,
 						ds.sense_buf, SENSE_BUF_SIZE))
 			printk("Failed to retrieve autosense data\n");
+		s = sqcp->a_cmnd->sense_buffer;
+		MHVTL_DBG(2, "Auto-Sense returned [key/ASC/ASCQ] "
+				"[%02x %02x %02x]\n",
+				s[2],
+				s[12],
+				s[13]);
 	} else
 		sqcp->a_cmnd->result = DID_OK << 16;
 	del_timer_sync(&sqcp->cmnd_timer);

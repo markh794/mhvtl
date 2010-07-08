@@ -121,6 +121,7 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 	sense[7] = SENSE_BUF_SIZE - 8;
 	put_unaligned_be16(sense_q, &sense[12]);
 
+	MHVTL_DBG(3, "Sense buf: %p", &sense);
 	MHVTL_DBG(1, "SENSE [Key/ASC/ASCQ] [%02x %02x %02x]",
 				sense[2], sense[12], sense[13]);
 }
@@ -535,10 +536,19 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
  */
 void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
-	MHVTL_DBG(2, "OP s/n: (%ld), sam_status: %d, sz: %d",
-			(unsigned long)ds->serialNo, ds->sam_stat, ds->sz);
+	uint8_t *s;
+
+	MHVTL_DBG(2, "OP s/n: (%ld), sz: %d, sam_status: %d",
+			(unsigned long)ds->serialNo,
+			ds->sz, ds->sam_stat);
 
 	ioctl(cdev, VTL_PUT_DATA, ds);
+
+	s = ds->sense_buf;
+
+	if (ds->sam_stat == SAM_STAT_CHECK_CONDITION)
+		MHVTL_DBG(3, "[Key/ASC/ASCQ] [%02x %02x %02x]",
+						s[2], s[12], s[13]);
 
 	ds->sam_stat = 0;
 }
