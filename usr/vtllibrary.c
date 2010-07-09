@@ -2402,7 +2402,6 @@ int main(int argc, char *argv[])
 {
 	int cdev;
 	int ret;
-	int exit_status = 0;
 	long pollInterval = 0L;
 	uint8_t *buf;
 
@@ -2624,7 +2623,8 @@ int main(int argc, char *argv[])
 		/* Check for any messages */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			exit_status = processMessageQ(&r_entry.msg);
+			if (processMessageQ(&r_entry.msg))
+				goto exit;
 		} else if (mlen < 0) {
 			r_qid = init_queue();
 			if (r_qid == -1)
@@ -2632,8 +2632,6 @@ int main(int argc, char *argv[])
 					"Can not open message queue: %s",
 					strerror(errno));
 		}
-		if (exit_status)	/* Process a 'exit' messageQ */
-			goto exit;
 
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
 		if (ret < 0) {
