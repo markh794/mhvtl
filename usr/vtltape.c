@@ -3293,7 +3293,6 @@ int main(int argc, char *argv[])
 {
 	int cdev;
 	int ret;
-	int exit_status = 0;
 	long pollInterval = 50000L;
 	uint8_t *buf;
 	pid_t child_cleanup, pid, sid;
@@ -3481,8 +3480,8 @@ int main(int argc, char *argv[])
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			exit_status =
-				processMessageQ(&r_entry.msg, &sam_status);
+			if (processMessageQ(&r_entry.msg, &sam_status))
+				goto exit;
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
 				syslog(LOG_DAEMON|LOG_ERR,
@@ -3490,8 +3489,6 @@ int main(int argc, char *argv[])
 							strerror(errno));
 			}
 		}
-		if (exit_status)	/* Received a 'exit' message */
-			goto exit;
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
 		if (ret < 0) {
 			MHVTL_DBG(2,
