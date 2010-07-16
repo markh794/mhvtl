@@ -2041,7 +2041,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case START_STOP:	/* Load/Unload cmd */
-		if (cdb[4] && 0x1) {
+		if (cdb[4] & 0x1) {
 			MHVTL_DBG(1, "Loading Tape (%ld) **",
 						(long)dbuf_p->serialNo);
 			rewind_tape(sam_stat);

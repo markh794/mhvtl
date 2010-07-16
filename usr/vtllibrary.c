@@ -702,7 +702,7 @@ static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
 	dest_type = slot_type(dest_addr);
 
 	if (verbose) {
-		if (cmd[11] && 0xc0)
+		if (cmd[11] & 0xc0)
 			syslog(LOG_DAEMON|LOG_INFO, "%s",
 				(cmd[11] & 0x80) ? "  Retract I/O port" :
 						   "  Extend I/O port");
@@ -862,7 +862,7 @@ static int fill_element_descriptor(uint8_t *p, int addr, int voltag, int dvcid)
 		j += VOLTAG_LEN;	/* Account for barcode */
 	}
 
-	if (dvcid && type == DATA_TRANSFER) {
+	if (dvcid && (type == DATA_TRANSFER)) {
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
 		j++;		/* Reserved */
@@ -1420,7 +1420,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case START_STOP:	/* Load/Unload cmd */
-		if (cdb[4] && 0x1) {
+		if (cdb[4] & 0x1) {
 			libraryOnline = 1;
 			MHVTL_DBG(1, "%s", "Library now online **");
 		} else {
