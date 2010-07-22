@@ -106,7 +106,7 @@ add_ibm_ultrium_2_drive()
 {
 # ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
 add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD2" "550V" $5 $6 $7 44
-echo " READ_ONLY: LTO_1" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_1" >> $DEVICE_CONF
 echo " READ_WRITE: LTO_2" >> $DEVICE_CONF
 echo "" >> $DEVICE_CONF
 }
@@ -116,7 +116,7 @@ add_ibm_ultrium_3_drive()
 # ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
 add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD3" "550V" $5 $6 $7 46
 echo " READ_ONLY: LTO_1" >> $DEVICE_CONF
-echo " READ_ONLY: LTO_2" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_2" >> $DEVICE_CONF
 echo " READ_WRITE: LTO_3" >> $DEVICE_CONF
 echo " WORM: LTO_3" >> $DEVICE_CONF
 echo "" >> $DEVICE_CONF
@@ -126,8 +126,9 @@ add_ibm_ultrium_4_drive()
 {
 # ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
 add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD4" "550V" $5 $6 $7 48
+echo " READ_ONLY: LTO_1" >> $DEVICE_CONF
 echo " READ_ONLY: LTO_2" >> $DEVICE_CONF
-echo " READ_ONLY: LTO_3" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_3" >> $DEVICE_CONF
 echo " READ_WRITE: LTO_4" >> $DEVICE_CONF
 echo " WORM: LTO_3" >> $DEVICE_CONF
 echo " WORM: LTO_4" >> $DEVICE_CONF
@@ -139,11 +140,12 @@ add_ibm_ultrium_5_drive()
 {
 # ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
 add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD5" "550V" $5 $6 $7 50
+echo " READ_ONLY: LTO_2" >> $DEVICE_CONF
 echo " READ_ONLY: LTO_3" >> $DEVICE_CONF
-echo " READ_ONLY: LTO_4" >> $DEVICE_CONF
+echo " READ_WRITE: LTO_4" >> $DEVICE_CONF
 echo " READ_WRITE: LTO_5" >> $DEVICE_CONF
 echo " WORM: LTO_4" >> $DEVICE_CONF
-echo " WORM: LTO_4" >> $DEVICE_CONF
+echo " WORM: LTO_5" >> $DEVICE_CONF
 echo " ENCRYPTION: LTO_4" >> $DEVICE_CONF
 echo " ENCRYPTION: LTO_5" >> $DEVICE_CONF
 echo "" >> $DEVICE_CONF
@@ -174,7 +176,7 @@ VTL_CONF
 
 
 #         index channel target LUN Vendor ProdID ProdRev S/No
-add_library 10 0 0 0 "SPECTRA" "PYTHON"  "550V"  "XYZZY_A"
+add_library 10 0 0 0 "STK" "L700"  "550V"  "XYZZY_A"
 #         index channel target LUN Vendor ProdID ProdRev S/No Lib# Slot
 add_ibm_ultrium_5_drive 11 0 1 0 "XYZZY_A1" 10 1
 add_ibm_ultrium_5_drive 12 0 2 0 "XYZZY_A2" 10 2
@@ -282,22 +284,21 @@ MAP 4:
 #
 CONF_SAMPLE
 
-		# SDLT 600 Media
-		for a in `seq 1 10`; do
-			printf "Slot $a: DD%02d%02dS3\n" $LIBID $a \
-				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
-		done
 		# LTO-4 Media
-		for a in `seq 11 20`; do
-			printf "Slot $a: UD%02d%02dL4\n" $LIBID $a \
+		for a in `seq 1 20`; do
+			printf "Slot $a: E0%02d%02dL4\n" $LIBID $a \
 				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		done
-		printf "Slot 21: CLN%02d0S3\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		printf "Slot 21: \n" >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		printf "Slot 22: CLN%02d1L4\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		printf "Slot 23: CLN%02d2L5\n" $LIBID >> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		for a in `seq 24 29`; do
+			printf "Slot $a:\n" \
+				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+		done
 		# LTO-5 Media
-		for a in `seq 24 30`; do
-			printf "Slot $a: UD%02d%02dL5\n" $LIBID $a \
+		for a in `seq 30 39`; do
+			printf "Slot $a: F0%02d%02dL5\n" $LIBID $a \
 				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		done
 	fi
