@@ -863,7 +863,6 @@ static int vtl_slave_configure(struct scsi_device *sdp)
 static void vtl_slave_destroy(struct scsi_device *sdp)
 {
 	struct vtl_lu_info *lu = (struct vtl_lu_info *)sdp->hostdata;
-	int minor;
 
 	MHVTL_DBG(2, "slave_destroy <%u %u %u %u>\n",
 		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
@@ -871,8 +870,7 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 		MHVTL_DBG(2, "Removing lu structure, minor %d\n", lu->minor);
 		/* make this slot avaliable for re-use */
 		lu->device_offline = 1;
-		minor = lu->minor;
-		devp[minor] = NULL;
+		devp[lu->minor] = NULL;
 		kfree(sdp->hostdata);
 		sdp->hostdata = NULL;
 	}
