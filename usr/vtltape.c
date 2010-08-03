@@ -2022,20 +2022,21 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case SPACE:
 		count = get_unaligned_be24(&cdb[2]);
 		code = cdb[1] & 0x07;
-		MHVTL_DBG(1, "SPACE (%ld) ** %u %s%s",
-			(long)dbuf_p->serialNo,
-			count,
-			(code) ? "filemark" : "block",
-			(count == 1) ? "" : "s");
 
 		/* 'count' is only a 24-bit value.  If the top bit is set, it
 		   should be treated as a twos-complement negative number.
 		*/
-
 		if (count >= 0x800000)
 			icount = -(0xffffff - count + 1);
 		else
 			icount = (int32_t)count;
+
+		MHVTL_DBG(1, "SPACE (%ld) ** %s %d %s%s",
+			(long)dbuf_p->serialNo,
+			(icount >= 0) ? "forward" : "back",
+			abs(icount),
+			(code) ? "filemark" : "block",
+			(1 == abs(icount)) ? "" : "s");
 
 		resp_space(icount, code, sam_stat);
 		break;
