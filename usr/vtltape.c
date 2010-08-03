@@ -1317,6 +1317,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		switch (lunit.drive_type) {
 		case drive_10K_A:
 		case drive_10K_B:
+			MHVTL_DBG(1, "T10000 drive");
 			buf[4] = 0x1; /* CFG_P == 01b */
 			if (tapeLoaded == TAPE_LOADED)
 				buf[24] |= 0x80; /* AVFMV */
@@ -1327,6 +1328,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 				buf[43] = 0x10; /* Encryption Algorithm Id */
 			break;
 		case drive_3592_E06:
+			MHVTL_DBG(1, "3592 drive");
 			if (tapeLoaded == TAPE_LOADED)
 				buf[24] |= 0x80; /* AVFMV */
 				buf[27] = 0x00; /* Max unauthenticated key data */
@@ -1338,6 +1340,21 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 			if (tapeLoaded == TAPE_LOADED) {
 				if (mam.MediaType == Media_LTO4) {
 					MHVTL_DBG(1, "LTO4 Medium");
+					buf[24] |= 0x80; /* AVFMV */
+				}
+			}
+			buf[32] |= 0x08; /* RDMC_C == 4 */
+			break;
+		case drive_LTO5:
+			MHVTL_DBG(1, "LTO5 drive");
+			buf[4] = 0x1; /* CFG_P == 01b */
+			if (tapeLoaded == TAPE_LOADED) {
+				if (mam.MediaType == Media_LTO4) {
+					MHVTL_DBG(1, "LTO4 Medium");
+					buf[24] |= 0x80; /* AVFMV */
+				}
+				if (mam.MediaType == Media_LTO5) {
+					MHVTL_DBG(1, "LTO5 Medium");
 					buf[24] |= 0x80; /* AVFMV */
 				}
 			}
