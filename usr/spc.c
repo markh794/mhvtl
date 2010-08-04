@@ -61,7 +61,7 @@ struct vpd *alloc_vpd(uint16_t sz)
 }
 
 #define INQUIRY_LEN 512
-int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
+int spc_inquiry_old(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 {
 	int len = 0;
 	struct vpd *vpd_pg;
@@ -145,6 +145,97 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 sense:
 	ds->sz = 0;
 	mkSenseBuf(key, asc, &ds->sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
+}
+
+int spc_inquiry(struct scsi_cmd *cmd)
+{
+	int len = 0;
+	struct vpd *vpd_pg;
+	unsigned char key = ILLEGAL_REQUEST;
+	uint16_t asc = E_INVALID_FIELD_IN_CDB;
+	uint8_t *data = cmd->dbuf_p->data;
+	uint8_t *cdb = cmd->scb;
+	struct lu_phy_attr *lu = cmd->lu;
+
+	MHVTL_DBG(1, "INQUIRY *** (%ld)", (long)cmd->dbuf_p->serialNo);
+
+	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2]))
+		goto sense;
+
+	memset(data, 0, INQUIRY_LEN);
+
+	if (!(cdb[1] & 0x3)) {
+		int i;
+		uint16_t *desc;
+
+		data[0] = lu->ptype;
+		data[1] = (lu->removable) ? 0x80 : 0;
+		data[2] = 5;	/* SPC-3 */
+		data[3] = 0x42;
+		data[7] = 0x02;
+
+		memset(data + 8, 0x20, 28);
+		memcpy(data + 8,  &lu->vendor_id, VENDOR_ID_LEN);
+		memcpy(data + 16, &lu->product_id, PRODUCT_ID_LEN);
+		memcpy(data + 32, &lu->product_rev, PRODUCT_REV_LEN);
+
+		desc = (uint16_t *)(data + 58);
+		for (i = 0; i < ARRAY_SIZE(lu->version_desc); i++)
+			*desc++ = htons(lu->version_desc[i]);
+
+		len = 66;
+		data[4] = len - 5;	/* Additional Length */
+
+	} else if (cdb[1] & 0x2) {
+		/* CmdDt bit is set */
+		/* We do not support it now. */
+		data[1] = 0x1;
+		data[5] = 0;
+		len = 6;
+
+	} else if (cdb[1] & 0x1) {
+		uint8_t pcode = cdb[2];
+
+		MHVTL_DBG(2, "Page code 0x%02x\n", pcode);
+
+		if (pcode == 0x00) {
+			uint8_t *p;
+			int i, cnt;
+
+			data[0] = lu->ptype;
+			data[1] = 0;
+			data[2] = 0;
+
+			cnt = 1;
+			p = data + 5;
+			for (i = 0; i < ARRAY_SIZE(lu->lu_vpd); i++) {
+				if (lu->lu_vpd[i]) {
+					*p++ = i | 0x80;
+					cnt++;
+				}
+			}
+			data[3] = cnt;
+			data[4] = 0x0;
+			len = cnt + 4;
+		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
+			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
+
+			MHVTL_DBG(2, "Found page 0x%x\n", pcode);
+
+			data[0] = lu->ptype;
+			data[1] = pcode;
+			data[2] = (vpd_pg->sz >> 8);
+			data[3] = vpd_pg->sz & 0xff;
+			memcpy(&data[4], vpd_pg->data, vpd_pg->sz);
+			len = vpd_pg->sz + 4;
+		}
+	}
+	cmd->dbuf_p->sz = len;
+	return SAM_STAT_GOOD;
+
+sense:
+	mkSenseBuf(key, asc, &cmd->dbuf_p->sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
 
@@ -393,7 +484,7 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	return sam_status;
 }
 
-void spc_request_sense(unsigned char *cdb, struct vtl_ds *dbuf_p)
+void spc_request_sense_old(unsigned char *cdb, struct vtl_ds *dbuf_p)
 {
 	int sz;
 
@@ -413,3 +504,265 @@ void spc_request_sense(unsigned char *cdb, struct vtl_ds *dbuf_p)
 	memcpy(dbuf_p->data, sense, dbuf_p->sz);
 	memset(sense, 0, dbuf_p->sz);
 }
+
+int spc_tur(struct scsi_cmd *cmd)
+{
+	MHVTL_DBG(1, "** %s (%ld) %s **", "Test Unit Ready : Returning => ",
+				(long)cmd->dbuf_p->serialNo,
+				(cmd->lu->online) ? "Online" : "Offline");
+	if (cmd->lu->online)
+		return SAM_STAT_GOOD;
+
+	mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, &cmd->dbuf_p->sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
+}
+
+int spc_illegal_op(struct scsi_cmd *cmd)
+{
+	MHVTL_DBG(1, "Illegal OP CODE");
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &cmd->dbuf_p->sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
+}
+
+int spc_request_sense(struct scsi_cmd *cmd)
+{
+	int sz;
+	uint8_t *sense_buf = cmd->dbuf_p->sense_buf;
+	uint8_t *cdb = cmd->scb;
+
+	MHVTL_DBG(1, "Request Sense (%ld) : key/ASC/ASCQ "
+			"[0x%02x 0x%02x 0x%02x]"
+			" Filemark: %s, EOM: %s, ILI: %s",
+				(long)cmd->dbuf_p->serialNo,
+				sense_buf[2] & 0x0f,
+				sense_buf[12],
+				sense_buf[13],
+				(sense_buf[2] & SD_FILEMARK) ? "yes" : "no",
+				(sense_buf[2] & SD_EOM) ? "yes" : "no",
+				(sense_buf[2] & SD_ILI) ? "yes" : "no");
+	sz = (cdb[4] < sizeof(sense_buf)) ? cdb[4] : sizeof(sense_buf);
+	assert(cmd->dbuf_p->data);
+	/* Clear out the request sense flag */
+	cmd->dbuf_p->sam_stat = 0;
+	memcpy(cmd->dbuf_p->data, sense_buf, cmd->dbuf_p->sz);
+	memset(sense_buf, 0, cmd->dbuf_p->sz);
+	return SAM_STAT_GOOD;
+}
+
+/*
+ * Log Select
+ *
+ * Set the logs to a known state.
+ *
+ * Currently a no-op
+ */
+static char LOG_SELECT_00[] = "Current threshold values";
+static char LOG_SELECT_01[] = "Current cumulative values";
+static char LOG_SELECT_10[] = "Default threshold values";
+static char LOG_SELECT_11[] = "Default cumulative values";
+
+int spc_log_select(struct scsi_cmd *cmd)
+{
+	uint8_t *cdb = cmd->scb;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	char pcr = cdb[1] & 0x1;
+	uint16_t parmList;
+	char *parmString = "Undefined";
+
+	parmList = ntohs((uint16_t)cdb[7]); /* bytes 7 & 8 are parm list. */
+
+	MHVTL_DBG(1, "LOG SELECT (%ld) %s",
+				(long)cmd->dbuf_p->serialNo,
+				(pcr) ? ": Parameter Code Reset **" : "**");
+
+	if (pcr) {	/* Check for Parameter code reset */
+		if (parmList) {	/* If non-zero, error */
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
+		switch ((cdb[2] & 0xc0) >> 5) {
+		case 0:
+			parmString = LOG_SELECT_00;
+			break;
+		case 1:
+			parmString = LOG_SELECT_01;
+			break;
+		case 2:
+			parmString = LOG_SELECT_10;
+			break;
+		case 3:
+			parmString = LOG_SELECT_11;
+			break;
+		}
+		MHVTL_DBG(1, "  %s", parmString);
+	}
+	return SAM_STAT_GOOD;
+}
+
+/*
+ * Process the MODE_SELECT command
+ */
+int spc_mode_select(struct scsi_cmd *cmd)
+{
+	MHVTL_DBG(1, "MODE SELECT (%ld) **", (long)cmd->dbuf_p->serialNo);
+
+	cmd->dbuf_p->sz = 0;
+	return SAM_STAT_GOOD;
+}
+
+/*
+ * Build mode sense data into *buf
+ * Return size of data.
+ */
+int spc_mode_sense(struct scsi_cmd *cmd)
+{
+	int pcontrol, pcode, subpcode;
+	int media_type;
+	int alloc_len, msense_6;
+	int dev_spec, len = 0;
+	int offset = 0;
+	uint8_t *ap;
+	struct mode *smp;	/* Struct mode pointer... */
+	int a;
+	int WriteProtect = 0;
+
+	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *scb = cmd->scb;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	struct mode *m = cmd->lu->mode_pages;
+
+#ifdef MHVTL_DEBUG
+	char *pcontrolString[] = {
+		"Current configuration",
+		"Every bit that can be modified",
+		"Power-on configuration",
+		"Power-on configuration"
+	};
+#endif
+
+	/* Disable Block Descriptors */
+	uint8_t blockDescriptorLen = (scb[1] & 0x8) ? 0 : 8;
+
+	MHVTL_DBG(1, "MODE SENSE (%ld) ***", (long)cmd->dbuf_p->serialNo);
+
+	/*
+	 pcontrol => page control
+		00 -> 0: Report current vaules
+		01 -> 1: Report Changable Vaules
+		10 -> 2: Report default values
+		11 -> 3: Report saved values
+	*/
+	pcontrol = (scb[2] & 0xc0) >> 6;
+	/* pcode -> Page Code */
+	pcode = scb[2] & 0x3f;
+	subpcode = scb[3];
+	msense_6 = (MODE_SENSE == scb[0]);
+
+	alloc_len = msense_6 ? scb[4] : ((scb[7] << 8) | scb[8]);
+	offset = msense_6 ? 4 : 8;
+
+	MHVTL_DBG(2, " Mode Sense %d byte version", (msense_6) ? 6 : 10);
+	MHVTL_DBG(2, " Page Control  : %s(0x%x)",
+				pcontrolString[pcontrol], pcontrol);
+	MHVTL_DBG(2, " Page Code     : 0x%x", pcode);
+	MHVTL_DBG(2, " Disable Block Descriptor => %s",
+				(blockDescriptorLen) ? "No" : "Yes");
+	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
+
+	if (0x3 == pcontrol) {  /* Saving values not supported */
+		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
+		return 0;
+	}
+
+	memset(buf, 0, alloc_len);	/* Set return data to null */
+	dev_spec = (WriteProtect ? 0x80 : 0x00) | 0x10;
+	media_type = 0x0;
+
+	offset += blockDescriptorLen;
+	ap = buf + offset;
+
+	if (0 != subpcode) { /* TODO: Control Extension page */
+		MHVTL_DBG(1, "Non-zero sub-page sense code not supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return 0;
+	}
+
+	MHVTL_DBG(3, "pcode: 0x%02x", pcode);
+
+	if (0x0 == pcode) {
+		len = 0;
+	} else if (0x3f == pcode) {	/* Return all pages */
+		for (a = 1; a < 0x3f; a++) { /* Walk thru all possibilities */
+			smp = find_pcode(a, m);
+			if (smp)
+				len += add_pcode(smp, (uint8_t *)ap + len);
+		}
+	} else {
+		smp = find_pcode(pcode, m);
+		if (smp)
+			len = add_pcode(smp, (uint8_t *)ap);
+	}
+	offset += len;
+
+	if (pcode != 0)	/* 0 = No page code requested */
+		if (0 == len) {	/* Page not found.. */
+		MHVTL_DBG(2, "Unknown mode page : %d", pcode);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return 0;
+		}
+
+	/* Fill in header.. */
+	if (msense_6) {
+		buf[0] = offset - 1;	/* size - sizeof(buf[0]) field */
+		buf[1] = media_type;
+		buf[2] = dev_spec;
+		buf[3] = blockDescriptorLen;
+		/* If the length > 0, copy Block Desc. */
+		if (blockDescriptorLen)
+			memcpy(&buf[4],blockDescriptorBlock,blockDescriptorLen);
+	} else {
+		put_unaligned_be16(offset - 2, &buf[0]);
+		buf[2] = media_type;
+		buf[3] = dev_spec;
+		put_unaligned_be16(blockDescriptorLen, &buf[6]);
+		/* If the length > 0, copy Block Desc. */
+		if (blockDescriptorLen)
+			memcpy(&buf[8],blockDescriptorBlock,blockDescriptorLen);
+	}
+
+	if (debug) {
+		printf("mode sense: Returning %d bytes\n", offset);
+		hex_dump(buf, offset);
+	}
+
+	cmd->dbuf_p->sz = offset;
+
+	return SAM_STAT_GOOD;
+}
+
+int spc_release(struct scsi_cmd *cmd)
+{
+	MHVTL_DBG(1, "RESERVE UNIT (%ld) **", (long)cmd->dbuf_p->serialNo);
+	return SAM_STAT_GOOD;
+}
+
+int spc_reserve(struct scsi_cmd *cmd)
+{
+	MHVTL_DBG(1, "RESERVE UNIT (%ld) **", (long)cmd->dbuf_p->serialNo);
+	return SAM_STAT_GOOD;
+}
+
+int spc_send_diagnostics(struct scsi_cmd *cmd)
+{
+	MHVTL_DBG(1, "SEND DIAGNOSTICS (%ld) **", (long)cmd->dbuf_p->serialNo);
+	return SAM_STAT_GOOD;
+}
+
+int spc_recv_diagnostics(struct scsi_cmd *cmd)
+{
+	MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
+						(long)cmd->dbuf_p->serialNo);
+	return SAM_STAT_GOOD;
+}
+

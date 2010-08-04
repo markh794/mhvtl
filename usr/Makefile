@@ -54,41 +54,43 @@ endif
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary make_vtl_media tapeexerciser
 
-libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h \
+libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic vtllib.c
 	$(CC) $(CFLAGS) -c -fpic spc.c
-	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o
+	$(CC) $(CFLAGS) -c -fpic smc.c
+	$(CC) $(CFLAGS) -c -fpic q.c
+	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o
 
 tapeexerciser:	tapeexerciser.c
 	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
 
-dump_messageQ:	dump_messageQ.o q.o q.h
-	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.o q.o
+dump_messageQ:	dump_messageQ.o
+	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.o -L. -lvtlscsi
 
-vtlcmd:	vtlcmd.o q.o q.h
-	$(CC) $(CFLAGS) -o vtlcmd q.o vtlcmd.o
+vtlcmd:	vtlcmd.o
+	$(CC) $(CFLAGS) -o vtlcmd vtlcmd.o
 
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o dump_tape dump_tape.o vtlcart.o -L. -lvtlscsi
 
-mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h q.h vtllib.h \
+mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o mktape mktape.o vtlcart.o -L. -lvtlscsi
 
-vtllibrary:	vtllibrary.o q.o q.h vtllib.h scsi.h \
+vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		libvtlscsi.so \
 		be_byteshift.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o q.o -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
 
-vtltape:	vtltape.o vtlcart.o q.o q.h vtllib.h vtltape.h scsi.h \
+vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		libvtlscsi.so \
 		be_byteshift.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtltape vtltape.o vtlcart.o q.o -lz -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o vtltape vtltape.o vtlcart.o -lz -L. -lvtlscsi
 
 make_vtl_media:	make_vtl_media.in
 	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1
@@ -99,7 +101,9 @@ clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
 		vtllib.o libvtlscsi.so z.o vtllibrary.o \
-		vtlcart.o spc.o tapeexerciser.o
+		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
+		dump_messageQ dump_tape make_vtl_media \
+		mktape vtlcmd vtllibrary vtltape tapeexerciser
 
 tags:
 	etags *.c *.h ../kernel/*.h
@@ -113,6 +117,7 @@ distclean:
 	core mktape mktape.o \
 	vtllib.o libvtlscsi.so \
 	vtlcart.o spc.o \
+	smc.o ssc.o \
 	z.o z \
 	TAGS \
 	make_vtl_media \

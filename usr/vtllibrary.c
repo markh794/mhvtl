@@ -56,31 +56,11 @@
 #include "q.h"
 #include "vtllib.h"
 #include "spc.h"
+#include "smc.h"
 #include "be_byteshift.h"
 
 char vtl_driver_name[] = "vtllibrary";
 long my_id = 0;
-
-/*
- * The following should be dynamic (read from config file)
- *
- **** Danger Will Robinson!! ****:
- *   START_DRIVE HAS TO start at slot 1
- *	The Order of Drives with lowest start, followed by Picker, followed
- *	by MAP, finally Storage slots is IMPORTANT. - You have been warned.
- *   Some of the logic in this source depends on it.
- */
-#define START_DRIVE	0x0001
-static int num_drives = 4;
-
-#define START_PICKER	0x0100
-static int num_picker = 1;
-
-#define START_MAP	0x0200
-static int num_map = 0x0020;
-
-#define START_STORAGE	0x0400
-static int num_storage = 0x0800;
 
 /* Element type codes */
 #define ANY			0
@@ -94,69 +74,23 @@ static int num_storage = 0x0800;
 #define OPERATOR	1
 #define ROBOT_ARM	0
 
-#define	VOLTAG_LEN	36	/* size of voltag area in RES descriptor */
+#define SMC_BUF_SIZE 1024 * 1024 /* Default size of buffer */
 
-static int dvcid_len;
-static int dvcid_serial_only;
-
-static int bufsize = 1024 * 1024;
 int verbose = 0;
 int debug = 0;
-static int libraryOnline = 1;		/* Default to Off-line */
-static int cap_closed = CAP_CLOSED;	/* CAP open/closed status */
 static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
 
 struct lu_phy_attr lunit;
 
-struct s_info { /* Slot Info */
-	uint8_t cart_type; /* 0 = Unknown, 1 = Data medium, 2 = Cleaning */
-	uint8_t barcode[11];
-	uint32_t slot_location;
-	uint32_t last_location;
-	uint8_t	status;	/* Used for MAP status. */
-	uint8_t	asc;	/* Additional Sense Code */
-	uint8_t	ascq;	/* Additional Sense Code Qualifier */
-	uint8_t internal_status; /* internal states */
-};
-/* status definitions (byte[2] in the element descriptor) */
-#define STATUS_Full      0x01
-#define STATUS_ImpExp    0x02
-#define STATUS_Except    0x04
-#define STATUS_Access    0x08
-#define STATUS_ExEnab    0x10
-#define STATUS_InEnab    0x20
-#define STATUS_Reserved6 0x40
-#define STATUS_Reserved7 0x80
-/* internal_status definitions: */
-#define INSTATUS_NO_BARCODE 0x01
-
-/* Drive Info */
-struct d_info {
-	char inq_vendor_id[10];
-	char inq_product_id[18];
-	char inq_product_rev[6];
-	char inq_product_sno[12];
-	long drv_id;		/* drive's send_msg queue ID */
-	char online;		/* Physical status of drive */
-	int SCSI_BUS;
-	int SCSI_ID;
-	int SCSI_LUN;
-	char tapeLoaded;	/* Tape is 'loaded' by drive */
-	struct s_info *slot;
-};
-
-static struct d_info *drive_info;
-static struct s_info *storage_info;
-static struct s_info *map_info;
-static struct s_info *picker_info;
+static struct smc_priv smc_slots;
 
 /* Log pages */
-static struct Temperature_page Temperature_pg = {
+struct Temperature_page Temperature_pg = {
 	{ TEMPERATURE_PAGE, 0x00, 0x06, },
 	{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	/* Temperature */
 	};
 
-static struct TapeAlert_page TapeAlert;
+struct TapeAlert_page TapeAlert;
 
 /*
  * Mode Pages defined for SMC-3 devices..
@@ -188,1083 +122,16 @@ static void usage(char *progname)
  int ioctl(int, int, void *);
 #endif
 
-/* Remove newline from string and fill rest of 'len' with char 'c' */
-static void rmnl(char *s, unsigned char c, int len)
-{
-	int i;
-	int found = 0;
-
-	for (i = 0; i < len; i++) {
-		if (s[i] == '\n')
-			found = 1;
-		if (found)
-			s[i] = c;
-	}
-}
-
-
-/* Return the element type of a particular element address */
-
-static int slot_type(int addr)
-{
-	if ((addr >= START_DRIVE) && (addr < START_DRIVE + num_drives))
-		return DATA_TRANSFER;
-	if ((addr >= START_PICKER) && (addr < START_PICKER + num_picker))
-		return MEDIUM_TRANSPORT;
-	if ((addr >= START_MAP) && (addr < START_MAP + num_map))
-		return MAP_ELEMENT;
-	if ((addr >= START_STORAGE) && (addr < START_STORAGE + num_storage))
-		return STORAGE_ELEMENT;
-	return 0;
-}
-
-static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len)
-{
-	int i, j, idlen;
-
-	i = 0;
-	for (j = 0; j < num_elem; j++) {
-		MHVTL_DBG(3, " Debug.... i = %d, len = %d", i, len);
-		MHVTL_DBG(3, "  Element Address             : %d",
-					get_unaligned_be16(&p[i]));
-		MHVTL_DBG(3, "  Status                      : 0x%02x",
-					p[i + 2]);
-		MHVTL_DBG(3, "  Medium type                 : %d",
-					p[i + 9] & 0x7);
-		if (p[i + 9] & 0x80)
-			MHVTL_DBG(3, "  Source Address              : %d",
-					get_unaligned_be16(&p[i + 10]));
-		i += 12;
-		if (voltag) {
-			i += VOLTAG_LEN;
-			MHVTL_DBG(3, " Voltag info...");
-		}
-
-		MHVTL_DBG(3, " Identification Descriptor");
-		MHVTL_DBG(3, "  Code Set                     : 0x%02x", p[i] & 0xf);
-		MHVTL_DBG(3, "  Identifier type              : 0x%02x",
-					p[i + 1] & 0xf);
-		idlen = p[i + 3];
-		MHVTL_DBG(3, "  Identifier length            : %d", idlen);
-		if (idlen) {
-			if (dvcid_serial_only) {
-				MHVTL_DBG(3, "  ASCII data                   : %10s", &p[i + 4]);
-			} else {
-				MHVTL_DBG(3, "  ASCII data                   : %8s", &p[i + 4]);
-				MHVTL_DBG(3, "  ASCII data                   : %16s", &p[i + 12]);
-				MHVTL_DBG(3, "  ASCII data                   : %10s", &p[i + 28]);
-			}
-		}
-		i = (j + 1) * len;
-	}
-}
-
-static void decode_element_status(uint8_t *p)
-{
-	int voltag;
-	int elem_len;
-	int total_elements, total_bytes;
-	int page_elements, page_bytes;
-
-	MHVTL_DBG(3, "Element Status Data");
-	MHVTL_DBG(3, "  First element reported       : %d",
-					get_unaligned_be16(&p[0]));
-	total_elements = get_unaligned_be16(&p[2]);
-	MHVTL_DBG(3, "  Number of elements available : %d", total_elements);
-	total_bytes = get_unaligned_be24(&p[5]);
-	MHVTL_DBG(3, "  Byte count of report         : %d", total_bytes);
-	p += 8;
-
-	while (total_elements && total_bytes) {
-
-		MHVTL_DBG(3, "Element Status Page");
-		MHVTL_DBG(3, "  Element Type code            : %d", p[0]);
-		voltag = (p[1] & 0x80) ? 1 : 0;
-		MHVTL_DBG(3, "  Primary Vol Tag              : %s",
-					voltag ? "Yes" : "No");
-		MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
-					(p[1] & 0x40) ? "Yes" : "No");
-		elem_len = get_unaligned_be16(&p[2]);
-		MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
-		page_bytes = get_unaligned_be24(&p[5]);
-		MHVTL_DBG(3, "  Byte count of descriptor data: %d", page_bytes);
-		page_elements = page_bytes / elem_len;
-		p += 8;
-
-		MHVTL_DBG(3, "Element Descriptor(s) : Num of Elements %d",
-			page_elements);
-
-		dump_element_desc(p, voltag, page_elements, elem_len);
-
-		total_elements -= page_elements;
-		total_bytes -= page_bytes;
-		p += page_bytes;
-	}
-
-	fflush(NULL);
-}
-
-
-/*
- * Process the MODE_SELECT command
- */
-static int resp_mode_select(int cdev, struct vtl_ds *dbuf_p)
-{
-
-	return retrieve_CDB_data(cdev, dbuf_p);
-}
-
-/*
- * Takes a slot number and returns a struct pointer to the slot
- */
-static struct s_info *slot2struct(int addr)
-{
-	switch (slot_type(addr)) {
-	case MAP_ELEMENT:
-		MHVTL_DBG(2, "slot2struct: MAP %d", addr);
-		return &map_info[addr - START_MAP];
-	case STORAGE_ELEMENT:
-		MHVTL_DBG(2, "slot2struct: Storage %d", addr);
-		return &storage_info[addr - START_STORAGE];
-	case MEDIUM_TRANSPORT:
-		MHVTL_DBG(2, "slot2struct: Picker %d", addr);
-		return &picker_info[addr - START_PICKER];
-	case DATA_TRANSFER:
-		MHVTL_DBG(2, "slot2struct: Drive %d", addr);
-		return drive_info[addr - START_DRIVE].slot;
-	}
-
-/* Should NEVER get here as we have performed bounds checking b4 */
-	MHVTL_DBG(1, "Arrr... slot2struct returning NULL");
-
-return NULL;
-}
-
-/*
- * Takes a Drive number and returns a struct pointer to the drive
- */
-static struct d_info *drive2struct(int addr)
-{
-	return &drive_info[addr - START_DRIVE];
-}
-
-/* Returns true if slot has media in it */
-static int slotOccupied(struct s_info *s)
-{
-	return s->status & STATUS_Full;
-}
-
-/* Returns true if drive has media in it */
-static int driveOccupied(struct d_info *d)
-{
-	return slotOccupied(d->slot);
-}
-
-/*
- * A value of 0 indicates that media movement from the I/O port
- * to the handler is denied; a value of 1 indicates that the movement
- * is permitted.
- */
-/*
-static void setInEnableStatus(struct s_info *s, int flg)
-{
-	if (flg)
-		s->status |= STATUS_InEnab;
-	else
-		s->status &= ~STATUS_InEnab;
-}
-*/
-/*
- * A value of 0 in the Export Enable field indicates that media movement
- * from the handler to the I/O port is denied. A value of 1 indicates that
- * movement is permitted.
- */
-/*
-static void setExEnableStatus(struct s_info *s, int flg)
-{
-	if (flg)
-		s->status |= STATUS_ExEnab;
-	else
-		s->status &= ~STATUS_ExEnab;
-}
-*/
-
-/*
- * A value of 1 indicates that a cartridge may be moved to/from
- * the drive (but not both).
- */
-/*
-static void setAccessStatus(struct s_info *s, int flg)
-{
-	if (flg)
-		s->status |= STATUS_Access;
-	else
-		s->status &= ~STATUS_Access;
-}
-*/
-
-/*
- * Reset to 0 indicates it is in normal state, set to 1 indicates an Exception
- * condition exists. An exception indicates the libary is uncertain of an
- * elements status.
- */
-/*
-static void setExceptStatus(struct s_info *s, int flg)
-{
-	if (flg)
-		s->status |= STATUS_Except;
-	else
-		s->status &= ~STATUS_Except;
-}
-*/
-
-/*
- * If set(1) then cartridge placed by operator
- * If clear(0), placed there by handler.
- */
-static void setImpExpStatus(struct s_info *s, int flg)
-{
-	if (flg)
-		s->status |= STATUS_ImpExp;
-	else
-		s->status &= ~STATUS_ImpExp;
-}
-
-/*
- * Sets the 'Full' bit true/false in the status field
- */
-static void setFullStatus(struct s_info *s, int flg)
-{
-	if (flg)
-		s->status |= STATUS_Full;
-	else
-		s->status &= ~STATUS_Full;
-}
-
-static void setSlotEmpty(struct s_info *s)
-{
-	setFullStatus(s, 0);
-}
-
-static void setDriveEmpty(struct d_info *d)
-{
-	setFullStatus(d->slot, 0);
-}
-
-static void setSlotFull(struct s_info *s)
-{
-	setFullStatus(s, 1);
-}
-
-static void setDriveFull(struct d_info *d)
-{
-	setFullStatus(d->slot, 1);
-}
-
-/* Returns 1 (true) if slot is MAP slot */
-static int is_map_slot(struct s_info *s)
-{
-	MHVTL_DBG(2, "slot type %d", slot_type(s->slot_location));
-	if (slot_type(s->slot_location) == MAP_ELEMENT)
-		return 1;
-
-	return 0;
-}
-
-/*
- * Logically move information from 'src' address to 'dest' address
- */
-static void move_cart(struct s_info *src, struct s_info *dest)
-{
-
-	dest->cart_type = src->cart_type;
-	memcpy(dest->barcode, src->barcode, 10);
-	dest->last_location = src->slot_location;
-	setSlotFull(dest);
-	if (is_map_slot(dest))
-		setImpExpStatus(dest, ROBOT_ARM); /* Placed by robot arm */
-
-	src->cart_type = 0;		/* Src slot no longer occupied */
-	memset(src->barcode, 0, 10);	/* Zero out barcode */
-	src->last_location = 0;		/* Forget where the old media was */
-	setSlotEmpty(src);		/* Clear Full bit */
-}
-
-/* Move media in drive 'src_addr' to drive 'dest_addr' */
-static int move_drive2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
-{
-	struct d_info *src;
-	struct d_info *dest;
-	char cmd[128];
-	int x;
-
-	src  = drive2struct(src_addr);
-	dest = drive2struct(dest_addr);
-
-	if (!driveOccupied(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
-		return 1;
-	}
-	if (driveOccupied(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
-		return 1;
-	}
-
-	move_cart(src->slot, dest->slot);
-
-	/* Send 'unload' message to drive b4 the move.. */
-	send_msg("unload", src->drv_id);
-
-	sprintf(cmd, "lload %s", dest->slot->barcode);
-
-	/* Remove trailing spaces */
-	for (x = 6; x < 16; x++)
-		if (cmd[x] == ' ') {
-			cmd[x] = '\0';
-			break;
-		}
-	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %ld",
-					cmd, dest->drv_id);
-
-	send_msg(cmd, dest->drv_id);
-
-return 0;
-}
-
-static int map_access_ok(struct s_info *s)
-{
-	if (is_map_slot(s)) {
-		if (!cap_closed)
-			return 0;
-	}
-	return 1;
-}
-
-static int move_drive2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
-{
-	struct d_info *src;
-	struct s_info *dest;
-
-	src  = drive2struct(src_addr);
-	dest = slot2struct(dest_addr);
-
-	if (!driveOccupied(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
-		return 1;
-	}
-	if ( slotOccupied(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
-		return 1;
-	}
-
-	if (!map_access_ok(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
-						sam_stat);
-			return 1;
-	}
-
-	/* Send 'unload' message to drive b4 the move.. */
-	send_msg("unload", src->drv_id);
-
-	move_cart(src->slot, dest);
-	setDriveEmpty(src);
-
-return 0;
-}
-
-/* Expect a response from tape drive on load success/failure
- * Returns 0 on success
- * non-zero on load failure
- */
-static int check_tape_load(uint8_t *pcl)
-{
-	int mlen, r_qid;
-	struct q_entry r_entry;
-
-	/* Initialise message queue as necessary */
-	r_qid = init_queue();
-	if (r_qid == -1) {
-		printf("Could not initialise message queue\n");
-		exit(1);
-	}
-
-	mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, MSG_NOERROR);
-	if (mlen > 0) {
-		MHVTL_DBG(2, "Received \"%s\" from msg Q", r_entry.msg.text);
-	}
-	return strncmp("Loaded OK", r_entry.msg.text, 9);
-}
-
-static int move_slot2drive(int src_addr, int dest_addr, uint8_t *sam_stat)
-{
-	struct s_info *src;
-	struct d_info *dest;
-	char cmd[128];
-	int x;
-
-	src  = slot2struct(src_addr);
-	dest = drive2struct(dest_addr);
-
-	if (!slotOccupied(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
-		return 1;
-	}
-	if (driveOccupied(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
-		return 1;
-	}
-
-	sprintf(cmd, "lload %s", src->barcode);
-	/* Remove traling spaces */
-	for (x = 6; x < 16; x++)
-		if (cmd[x] == ' ') {
-			cmd[x] = '\0';
-			break;
-		}
-
-	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %ld",
-					cmd, dest->drv_id);
-
-	send_msg(cmd, dest->drv_id);
-
-	if (check_tape_load(src->barcode)) {
-		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
-		return 1;
-	}
-
-	move_cart(src, dest->slot);
-	setDriveFull(dest);
-
-return 0;
-}
-
-static int move_slot2slot(int src_addr, int dest_addr, uint8_t *sam_stat)
-{
-	struct s_info *src;
-	struct s_info *dest;
-
-	src  = slot2struct(src_addr);
-	dest = slot2struct(dest_addr);
-
-	MHVTL_DBG(1, "Moving from slot %d to slot %d",
-				src->slot_location, dest->slot_location);
-
-	if (!slotOccupied(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
-		return 1;
-	}
-	if (slotOccupied(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
-		return 1;
-	}
-
-	if (!map_access_ok(src)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
-						sam_stat);
-			return 1;
-	}
-
-	if (!map_access_ok(dest)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
-						sam_stat);
-			return 1;
-	}
-
-	move_cart(src, dest);
-
-	return 0;
-}
-
-/* Return OK if 'addr' is within either a MAP, Drive or Storage slot */
-static int valid_slot(int addr)
-{
-	switch (slot_type(addr)) {
-	case STORAGE_ELEMENT:
-	case MAP_ELEMENT:
-	case DATA_TRANSFER:
-		return 1;
-	}
-	return 0;
-}
-
-/* Move a piece of medium from one slot to another */
-static int resp_move_medium(uint8_t *cmd, uint8_t *buf, uint8_t *sam_stat)
-{
-	int transport_addr;
-	int src_addr, src_type;
-	int dest_addr, dest_type;
-	int retVal = 0;	/* Return a success status */
-
-	transport_addr = get_unaligned_be16(&cmd[2]);
-	src_addr  = get_unaligned_be16(&cmd[4]);
-	dest_addr = get_unaligned_be16(&cmd[6]);
-	src_type = slot_type(src_addr);
-	dest_type = slot_type(dest_addr);
-
-	if (verbose) {
-		if (cmd[11] & 0xc0)
-			syslog(LOG_DAEMON|LOG_INFO, "%s",
-				(cmd[11] & 0x80) ? "  Retract I/O port" :
-						   "  Extend I/O port");
-		else
-			syslog(LOG_DAEMON|LOG_INFO,
-	 "Moving from slot %d to Slot %d using transport %d, Invert media: %s",
-					src_addr, dest_addr, transport_addr,
-					(cmd[10]) ? "yes" : "no");
-	}
-
-	if (cmd[10] != 0) {	/* Can not Invert media */
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		return -1;
-	}
-	if (cmd[11] == 0xc0) {	/* Invalid combo of Extend/retract I/O port */
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		return -1;
-	}
-	if (cmd[11]) /* Must be an Extend/Retract I/O port cmd.. NO-OP */
-		return 0;
-
-	if (transport_addr == 0)
-		transport_addr = START_PICKER;
-	if (slot_type(transport_addr) != MEDIUM_TRANSPORT) {
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		retVal = -1;
-	}
-	if (!valid_slot(src_addr)) {
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		retVal = -1;
-	}
-	if (!valid_slot(dest_addr)) {
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		retVal = -1;
-	}
-
-	if (retVal == 0) {
-		if (src_type == DATA_TRANSFER && dest_type == DATA_TRANSFER) {
-			/* Move between drives */
-			if (move_drive2drive(src_addr, dest_addr, sam_stat))
-				retVal = -1;
-		} else if (src_type == DATA_TRANSFER) {
-			if (move_drive2slot(src_addr, dest_addr, sam_stat))
-				retVal = -1;
-		} else if (dest_type == DATA_TRANSFER) {
-			if (move_slot2drive(src_addr, dest_addr, sam_stat))
-				retVal = -1;
-		} else {   /* Move between (non-drive) slots */
-			if (move_slot2slot(src_addr, dest_addr, sam_stat))
-				retVal = -1;
-		}
-	}
-
-return retVal;
-}
-
-/*
- * Calculate length of one element
- */
-static int determine_element_sz(uint8_t dvcid, uint8_t voltag, int type)
-{
-	return 16 + (voltag ? VOLTAG_LEN : 0) +
-		(dvcid && (type == DATA_TRANSFER) ? dvcid_len : 0);
-}
-
-/*
- * Fill in a single element descriptor
- *
- * Returns number of bytes in element data.
- */
-static int fill_element_descriptor(uint8_t *p, int addr, int voltag, int dvcid)
-{
-	struct d_info *d = NULL;
-	struct s_info *s = NULL;
-	int type = slot_type(addr);
-	int j = 0;
-
-	switch (type) {
-	case DATA_TRANSFER:
-		d = drive2struct(addr);
-		s = slot2struct(addr);
-		break;
-	case MEDIUM_TRANSPORT:
-		s = slot2struct(addr);
-		break;
-	case MAP_ELEMENT:
-		s = slot2struct(addr);
-		break;
-	case STORAGE_ELEMENT:
-		s = slot2struct(addr);
-		break;
-	}
-
-	/* Should never occur, but better to trap then core */
-	if (!s) {
-		MHVTL_DBG(1, "Slot out of range");
-		return 0;
-	}
-
-	MHVTL_DBG(2, "Slot location: %d", s->slot_location);
-
-	put_unaligned_be16(s->slot_location, &p[j]);
-	j += 2;
-
-	p[j] = s->status;
-	if (type == MAP_ELEMENT) {
-		if (cap_closed)
-			p[j] |= STATUS_Access;
-		else
-			p[j] &= ~STATUS_Access;
-	}
-	j++;
-
-	p[j++] = 0;	/* Reserved */
-
-/* Possible values for ASC/ASCQ for data transfer elements
- * 0x30/0x03 Cleaner cartridge present
- * 0x83/0x00 Barcode not scanned
- * 0x83/0x02 No magazine installed
- * 0x83/0x04 Tape drive not installed
- * 0x83/0x09 Unable to read bar code
- * 0x80/0x5d Drive operating in overheated state
- * 0x80/0x5e Drive being shutdown due to overheat condition
- * 0x80/0x63 Drive operating with low module fan speed
- * 0x80/0x5f Drive being shutdown due to low module fan speed
- */
-	p[j++] = s->asc;  /* Additional Sense Code */
-	p[j++] = s->ascq; /* Additional Sense Code Qualifer */
-
-	j++;		/* Reserved */
-	if (type == DATA_TRANSFER) {
-		p[j++] = d->SCSI_ID;
-	} else {
-		j++;	/* Reserved */
-	}
-	j++;		/* Reserved */
-
-	/* bit 8 set if Source Storage Element is valid | s->occupied */
-	p[j] = (s->last_location > 0) ? 0x80 : 0;
-	/* 0 - empty, 1 - data, 2 cleaning tape */
-	p[j++] |= (s->cart_type & 0x0f);
-
-	/* Source Storage Element Address */
-	put_unaligned_be16(s->last_location, &p[j]);
-	j += 2;
-
-	MHVTL_DBG(2, "DVCID: %d, VOLTAG: %d, Index: %d", dvcid, voltag, j);
-
-	if (voltag) {
-		/* Barcode with trailing space(s) */
-		if ((s->status & STATUS_Full) &&
-		    !(s->internal_status & INSTATUS_NO_BARCODE))
-			blank_fill(&p[j], s->barcode, VOLTAG_LEN);
-		else
-			memset(&p[j], 0, VOLTAG_LEN);
-
-		j += VOLTAG_LEN;	/* Account for barcode */
-	}
-
-	if (dvcid && (type == DATA_TRANSFER)) {
-		p[j++] = 2;	/* Code set 2 = ASCII */
-		p[j++] = 1;	/* Identifier type */
-		j++;		/* Reserved */
-		p[j++] = dvcid_len;	/* Identifier Length */
-		if (dvcid_serial_only) {
-			blank_fill(&p[j], (uint8_t *)d->inq_product_sno, dvcid_len);
-			j += dvcid_len;
-		} else {
-			blank_fill(&p[j], (uint8_t *)d->inq_vendor_id, 8);
-			j += 8;
-			blank_fill(&p[j], (uint8_t *)d->inq_product_id, 16);
-			j += 16;
-			blank_fill(&p[j], (uint8_t *)d->inq_product_sno, 10);
-			j += 10;
-		}
-	} else {
-		j += 4;		/* Reserved */
-	}
-	MHVTL_DBG(3, "Returning %d bytes", j);
-
-return j;
-}
-
-/*
- * Fill in element status page Header (8 bytes)
- */
-static int fill_element_status_page_hdr(uint8_t *p,
-					uint16_t element_count, uint8_t dvcid,
-					uint8_t voltag, uint8_t typeCode)
-{
-	int element_sz;
-	uint32_t element_len;
-
-	element_sz = determine_element_sz(dvcid, voltag, typeCode);
-
-	p[0] = typeCode;	/* Element type Code */
-
-	/* Primary Volume Tag set - Returning Barcode info */
-	p[1] = (voltag == 0) ? 0 : 0x80;
-
-	/* Number of bytes per element */
-	put_unaligned_be16(element_sz, &p[2]);
-
-	element_len = element_sz * element_count;
-
-	/* Total number of bytes in all element descriptors */
-	put_unaligned_be32(element_len & 0xffffff, &p[4]);
-
-	/* Reserved */
-	p[4] = 0;	/* Above mask should have already set this to 0... */
-
-	MHVTL_DBG(2, "Element Status Page Header: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x",
-			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
-
-
-return 8;	/* Always 8 bytes in header */
-}
-
-/*
- * Build the initial ELEMENT STATUS HEADER
- *
- */
-static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
-					uint32_t byte_count)
-{
-	MHVTL_DBG(2, "Building READ ELEMENT STATUS Header struct");
-	MHVTL_DBG(2, " Starting slot: %d, number of configured slots: %d",
-					start, count);
-
-	/* Start of ELEMENT STATUS DATA */
-	put_unaligned_be16(start, &p[0]);
-	put_unaligned_be16(count, &p[2]);
-
-	/* The byte_count should be the length required to return all of
-	 * valid data.
-	 * The 'allocated length' indicates how much data can be returned.
-	 */
-	put_unaligned_be32(byte_count & 0xffffff, &p[4]);
-
-	MHVTL_DBG(2, " Element Status Data HEADER: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x",
-			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
-	MHVTL_DBG(3, " Decoded:");
-	MHVTL_DBG(3, "  First element Address    : %d",
-					get_unaligned_be16(&p[0]));
-	MHVTL_DBG(3, "  Number elements reported : %d",
-					get_unaligned_be16(&p[2]));
-	MHVTL_DBG(3, "  Total byte count         : %d",
-					get_unaligned_be32(&p[4]));
-
-return 8;	/* Header is 8 bytes in size.. */
-}
-
-/*
- * Read Element Status command will pass 'start element address' & type of slot
- *
- * We return the first valid slot number which matches.
- * or zero on no matching slots..
- */
-static int find_first_matching_element(uint16_t start, uint8_t typeCode)
-{
-	switch(typeCode) {
-	case ANY:	/* Don't care what 'type' */
-		/* Logic here depends on Storage slots being
-		 * higher (numerically) than MAP which is higher than
-		 * Picker, which is higher than the drive slot number..
-		 * See DWR: near top of this file !!
-		 */
-
-		/* Special case - 'All types'
-		 * If Start is undefined/defined as '0', then return
-		 * Beginning slot
-		 */
-		if (start == 0)
-			return START_DRIVE;
-
-		/* If we are above Storage range, return nothing. */
-		if (start >= START_STORAGE + num_storage)
-			return 0;
-		if (start >= START_STORAGE)
-			return start;
-		/* If we are above I/O Range -> return START_STORAGE */
-		if (start >= START_MAP + num_map)
-			return START_STORAGE;
-		if (start >= START_MAP)
-			return start;
-		/* If we are above the Picker range -> Return I/O Range.. */
-		if (start >= START_PICKER + num_picker)
-			return START_MAP;
-		if (start >= START_PICKER)
-			return start;
-		/* If we are above the Drive range, return Picker.. */
-		if (start >= START_DRIVE + num_drives)
-			return START_PICKER;
-		if (start >= START_DRIVE)
-			return start;
-		break;
-	case MEDIUM_TRANSPORT:	/* Medium Transport. */
-		if ((start >= START_PICKER) &&
-		   (start < (START_PICKER + num_picker)))
-			return start;
-		if (start < START_PICKER)
-			return START_PICKER;
-		break;
-	case STORAGE_ELEMENT:	/* Storage Slots */
-		if ((start >= START_STORAGE) &&
-		   (start < (START_STORAGE + num_storage)))
-			return start;
-		if (start < START_STORAGE)
-			return START_STORAGE;
-		break;
-	case MAP_ELEMENT:	/* Import/Export */
-		if ((start >= START_MAP) &&
-		   (start < (START_MAP + num_map)))
-			return start;
-		if (start < START_MAP)
-			return START_MAP;
-		break;
-	case DATA_TRANSFER:	/* Data transfer */
-		if ((start >= START_DRIVE) &&
-		   (start < (START_DRIVE + num_drives)))
-			return start;
-		if (start < START_DRIVE)
-			return START_DRIVE;
-		break;
-	}
-return 0;
-}
-
-/*
- * Fill in Element status page header + each Element descriptor
- *
- * Returns zero on success, or error code if illegal request.
- */
-static uint32_t fill_element_page(uint8_t *p, int type, uint16_t start,
-		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
-		uint8_t dvcid, uint16_t *cur_count, uint32_t *cur_offset)
-{
-	uint16_t begin;
-	uint16_t count, avail, space;
-	int min_addr, num_addr;
-	int j;
-
-	switch (type) {
-	case MEDIUM_TRANSPORT:
-		min_addr = START_PICKER;
-		num_addr = num_picker;
-		dvcid = 0;
-		break;
-	case STORAGE_ELEMENT:
-		min_addr = START_STORAGE;
-		num_addr = num_storage;
-		dvcid = 0;
-		break;
-	case MAP_ELEMENT:
-		min_addr = START_MAP;
-		num_addr = num_map;
-		dvcid = 0;
-		break;
-	case DATA_TRANSFER:
-		min_addr = START_DRIVE;
-		num_addr = num_drives;
-		break;
-	default:
-		return E_INVALID_FIELD_IN_CDB;
-	}
-
-	/* Find first valid slot. */
-	begin = find_first_matching_element(start, type);
-	if (begin == 0)
-		return E_INVALID_FIELD_IN_CDB;
-
-	/*
-	 *   The number of elements to report is the minimum of:
-	 * 1. the number the caller asked for (max_count - *cur_count).
-	 * 2. the number that remain starting at address begin, and
-	 * 3. the number that will fit in the remaining
-	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
-	 */
-
-	avail = min_addr + num_addr - begin;
-	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
-	space = (max_bytes - *cur_offset - 8) /
-				determine_element_sz(dvcid, voltag, type);
-	count = space < count ? space : count;
-	if (count == 0) {
-		if (*cur_count == 0)
-			return E_PARAMETER_LIST_LENGTH_ERR;
-		else
-			return 0;
-	}
-
-	/* Create Element Status Page Header. */
-	*cur_offset += fill_element_status_page_hdr(&p[*cur_offset], count,
-		dvcid, voltag, type);
-
-	/* Now loop over each slot and fill in details. */
-
-	for (j = 0; j < count; j++, begin++) {
-		MHVTL_DBG(2, "Slot: %d", begin);
-		*cur_offset += fill_element_descriptor(&p[*cur_offset],
-			begin, voltag, dvcid);
-	}
-	*cur_count += count;
-
-return 0;
-}
-
-/*
- * Build READ ELEMENT STATUS data.
- *
- * Returns number of bytes to xfer back to host.
- */
-static int resp_read_element_status(uint8_t *cdb, uint8_t *buf,
-							uint8_t *sam_stat)
-{
-	uint8_t	*p;
-	uint8_t	typeCode = cdb[1] & 0x0f;
-	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
-	uint16_t req_start_elem;
-	uint16_t number;
-	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
-	uint32_t alloc_len;
-	uint16_t start;	/* First valid slot location */
-	uint32_t cur_offset;
-	uint16_t cur_count;
-	uint32_t ec;
-
-	req_start_elem = get_unaligned_be16(&cdb[2]);
-	number = get_unaligned_be16(&cdb[4]);
-	alloc_len = 0xffffff & get_unaligned_be32(&cdb[6]);
-
-	switch(typeCode) {
-	case ANY:
-		MHVTL_DBG(3, " Element type(%d) => All Elements", typeCode);
-		break;
-	case MEDIUM_TRANSPORT:
-		MHVTL_DBG(3, " Element type(%d) => Medium Transport", typeCode);
-		break;
-	case STORAGE_ELEMENT:
-		MHVTL_DBG(3, " Element type(%d) => Storage Elements", typeCode);
-		break;
-	case MAP_ELEMENT:
-		MHVTL_DBG(3, " Element type(%d) => Import/Export", typeCode);
-		break;
-	case DATA_TRANSFER:
-		MHVTL_DBG(3,
-			" Element type(%d) => Data Transfer Elements",typeCode);
-		break;
-	default:
-		MHVTL_DBG(3,
-			" Element type(%d) => Invalid type requested",typeCode);
-		break;
-	}
-	MHVTL_DBG(3, "  Starting Element Address: %d",req_start_elem);
-	MHVTL_DBG(3, "  Number of Elements      : %d",number);
-	MHVTL_DBG(3, "  Allocation length       : %d",alloc_len);
-	MHVTL_DBG(3, "  Device ID: %s, voltag: %s",
-					(dvcid == 0) ? "No" :  "Yes",
-					(voltag == 0) ? "No" :  "Yes" );
-
-	/* Set alloc_len to smallest value */
-	if (alloc_len > bufsize)
-		alloc_len = bufsize;
-
-	/* Init buffer */
-	memset(buf, 0, alloc_len);
-
-	if (cdb[11] != 0x0) {	/* Reserved byte.. */
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
-		return 0;
-	}
-
-	/* Find first matching slot number which matches the typeCode. */
-	start = find_first_matching_element(req_start_elem, typeCode);
-	if (start == 0) {	/* Nothing found.. */
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
-		return 0;
-	}
-
-	/* Leave room for 'master' header which is filled in at the end... */
-	p = buf;
-	cur_offset = 8;
-	cur_count = 0;
-	ec = 0;
-
-	switch(typeCode) {
-	case MEDIUM_TRANSPORT:
-	case STORAGE_ELEMENT:
-	case MAP_ELEMENT:
-	case DATA_TRANSFER:
-		ec = fill_element_page(p, typeCode, start, number,
-			alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-		break;
-	case ANY:
-		/* Logic here depends on Storage slots being
-		 * higher (numerically) than MAP which is higher than
-		 * Picker, which is higher than the drive slot number..
-		 * See DWR: near top of this file !!
-		 */
-		if (slot_type(start) == DATA_TRANSFER) {
-			ec = fill_element_page(p, DATA_TRANSFER, start, number,
-				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec)
-				break;
-			start = START_PICKER;
-		}
-		if (slot_type(start) == MEDIUM_TRANSPORT) {
-			ec = fill_element_page(p, MEDIUM_TRANSPORT, start, number,
-				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec)
-				break;
-			start = START_MAP;
-		}
-		if (slot_type(start) == MAP_ELEMENT) {
-			ec = fill_element_page(p, MAP_ELEMENT, start, number,
-				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec)
-				break;
-			start = START_STORAGE;
-		}
-		if (slot_type(start) == STORAGE_ELEMENT) {
-			ec = fill_element_page(p, STORAGE_ELEMENT, start, number,
-				alloc_len, voltag, dvcid, &cur_count, &cur_offset);
-			if (ec)
-				break;
-		}
-		break;
-	default:	/* Illegal descriptor type. */
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,sam_stat);
-		return 0;
-		break;
-	}
-	if (ec != 0) {
-		mkSenseBuf(ILLEGAL_REQUEST, ec, sam_stat);
-		return 0;
-	}
-
-	/* Now populate the 'main' header structure with byte count.. */
-	fill_element_status_data_hdr(&buf[0], start, cur_count, cur_offset - 8);
-
-	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
-
-	if (debug)
-		hex_dump(buf, cur_offset);
-
-	decode_element_status(buf);
-
-	/* Return the smallest number */
-	return cur_offset;
-}
-
 /*
  * Process the LOG_SENSE command
  *
  * Temperature page & tape alert pages only...
  */
 #define TAPE_ALERT 0x2e
-static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
+int smc_log_sense(struct scsi_cmd *cmd)
 {
-	uint8_t	*b = buf;
+	uint8_t	*b = cmd->dbuf_p->data;
+	uint8_t	*cdb = cmd->scb;
 	int retval = 0;
 
 	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x04,
@@ -1300,7 +167,172 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
 		retval = 2;
 		break;
 	}
-	return retval;
+	cmd->dbuf_p->sz = retval;
+	return SAM_STAT_GOOD;
+}
+
+struct device_type_template smc_template = {
+	.ops	= {
+		/* 0x00 -> 0x0f */
+		{spc_tur,},
+		{smc_rezero,},
+		{spc_illegal_op,},
+		{spc_request_sense,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{smc_initialize_element,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		/* 0x10 -> 0x1f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_inquiry,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_mode_select,},
+		{spc_reserve,},
+		{spc_release,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_mode_sense,},
+		{smc_start_stop,},
+		{spc_recv_diagnostics,},
+		{spc_send_diagnostics,},
+		{smc_allow_removal,},
+		{spc_illegal_op,},
+
+		[0x20 ... 0x3f] = {spc_illegal_op,},
+
+		/* 0x40 -> 0x4f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_log_select,},
+		{smc_log_sense,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		/* 0x50 -> 0x5f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_mode_select,},
+		{spc_reserve,},
+		{spc_release,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_mode_sense,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		[0x60 ... 0x9f] = {spc_illegal_op,},
+
+		/* 0xa0 -> 0xaf */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{smc_move_medium,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		/* 0xb0 -> 0xbf */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{smc_read_element_status,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		[0xc0 ... 0xdf] = {spc_illegal_op,},
+
+		/* 0xe0 -> 0xef */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{smc_initialize_element_range,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		[0xf0 ... 0xff] = {spc_illegal_op,},
+	}
+};
+
+__attribute__((constructor)) static void smc_init(void)
+{
+	device_type_register(&lunit, &smc_template);
+}
+
+/* Remove newline from string and fill rest of 'len' with char 'c' */
+static void rmnl(char *s, unsigned char c, int len)
+{
+	int i;
+	int found = 0;
+
+	for (i = 0; i < len; i++) {
+		if (s[i] == '\n')
+			found = 1;
+		if (found)
+			s[i] = c;
+	}
 }
 
 /*
@@ -1308,24 +340,26 @@ static int resp_log_sense(uint8_t *cdb, uint8_t *buf)
  * Process the SCSI command
  *
  * Called with:
- *	cdev     -> Char dev file handle,
- *	cdb    -> SCSI Command buffer pointer,
+ *	cdev          -> Char dev file handle,
+ *	cdb           -> SCSI Command buffer pointer,
  *	struct vtl_ds -> general purpose data structure... Need better name
  *
  * Return:
- *	success/failure
+ *	SAM status returned in struct vtl_ds.sam_stat
  */
-static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
+static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint32_t block_size = 0;
-	uint32_t ret = 0;
-	int k = 0;
-	struct mode *smp = sm;
-	uint32_t count;
+	uint8_t *sam_stat;
+	struct scsi_cmd _cmd;
+	struct scsi_cmd *cmd;
+	cmd = &_cmd;
 
-	/* Quick fix for POC */
-	uint8_t *buf = dbuf_p->data;
-	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	cmd->scb = cdb;
+	cmd->scb_len = 16;	/* fixme */
+	cmd->dbuf_p = dbuf_p;
+	cmd->lu = &lunit;
+
+	sam_stat = &dbuf_p->sam_stat;
 
 	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 
@@ -1338,135 +372,11 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 	default:
 		if (check_reset(sam_stat))
-			return 0;
+			return;
 	}
 
-	switch (cdb[0]) {
-	case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
-	case INITIALIZE_ELEMENT_STATUS:
-		MHVTL_DBG(1, "%s", "INITIALIZE ELEMENT **");
-		if (!libraryOnline) {
-			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
-			break;
-		}
-		sleep(1);
-		break;
-
-	case INQUIRY:
-		MHVTL_DBG(1, "%s", "INQUIRY **");
-		*sam_stat = spc_inquiry(cdb, dbuf_p, &lunit);
-		break;
-
-	case LOG_SELECT:	/* Set or reset LOG stats. */
-		MHVTL_DBG(1, "%s", "LOG SELECT **");
-		resp_log_select(cdb, sam_stat);
-		break;
-	case LOG_SENSE:
-		MHVTL_DBG(1, "%s", "LOG SENSE **");
-		ret = resp_log_sense(cdb, buf);
-		dbuf_p->sz = ret;
-		break;
-
-	case MODE_SELECT:
-	case MODE_SELECT_10:
-		MHVTL_DBG(1, "%s", "MODE SELECT **");
-		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
-						((cdb[7] << 8) | cdb[8]);
-		ret = resp_mode_select(cdev, dbuf_p);
-		dbuf_p->sz = ret;
-		break;
-
-	case MODE_SENSE:
-	case MODE_SENSE_10:
-		MHVTL_DBG(1, "%s", "MODE SENSE **");
-		ret = resp_mode_sense(cdb, buf, smp, 0, sam_stat);
-		dbuf_p->sz = ret;
-		break;
-
-	case MOVE_MEDIUM:
-		if (!libraryOnline) {
-			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
-			break;
-		}
-		MHVTL_DBG(1, "%s", "MOVE MEDIUM **");
-		k = resp_move_medium(cdb, buf, sam_stat);
-		break;
-
-	case ALLOW_MEDIUM_REMOVAL:
-		resp_allow_prevent_removal(cdb, sam_stat);
-		break;
-
-	case READ_ELEMENT_STATUS:
-		MHVTL_DBG(1, "%s", "READ ELEMENT STATUS **");
-		ret = resp_read_element_status(cdb, buf, sam_stat);
-		dbuf_p->sz = ret;
-		break;
-
-	case REQUEST_SENSE:
-		spc_request_sense(cdb, dbuf_p);
-		break;
-
-	case RESERVE:
-	case RESERVE_10:
-		MHVTL_DBG(1, "%s", "RESERVE UNIT **");
-		break;
-
-	case RELEASE:
-	case RELEASE_10:
-		MHVTL_DBG(1, "%s", "RELEASE UNIT **");
-		break;
-
-	case REZERO_UNIT:	/* Rewind */
-		if (!libraryOnline) {
-			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
-			break;
-		}
-		MHVTL_DBG(1, "%s", "Rezero **");
-		sleep(1);
-		break;
-
-	case START_STOP:	/* Load/Unload cmd */
-		if (cdb[4] & 0x1) {
-			libraryOnline = 1;
-			MHVTL_DBG(1, "%s", "Library now online **");
-		} else {
-			libraryOnline = 0;
-			MHVTL_DBG(1, "%s", "Library now offline **");
-		}
-		break;
-
-	case TEST_UNIT_READY:	/* Return OK by default */
-		MHVTL_DBG(1, "%s %s", "Test Unit Ready : Returning => ",
-					(libraryOnline == 0) ? "No" : "Yes");
-		if (!libraryOnline)
-			mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
-		break;
-
-	case RECEIVE_DIAGNOSTIC:
-		MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
-						(long)dbuf_p->serialNo);
-		ret = ProcessReceiveDiagnostic(cdb, dbuf_p);
-		dbuf_p->sz = ret;
-		break;
-
-	case SEND_DIAGNOSTIC:
-		MHVTL_DBG(1, "Send Diagnostic **");
-		count = get_unaligned_be16(&cdb[3]);
-		if (count) {
-			dbuf_p->sz = count;
-			block_size = retrieve_CDB_data(cdev, dbuf_p);
-			ProcessSendDiagnostic(cdb, 16, dbuf_p);
-		}
-		break;
-
-	default:
-		MHVTL_DBG(1,  "%s", "******* Unsupported command **********");
-		MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		break;
-	}
-
-	return 0;
+	*sam_stat = cmd->lu->dev_type_template->ops[cdb[0]].cmd_perform(cmd);
+	return;
 }
 
 /*
@@ -1474,19 +384,18 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
  */
 static void list_map(struct q_msg *msg)
 {
+	struct list_head *slot_head = &smc_slots.slot_list;
 	struct s_info *sp;
-	int	a;
 	char buf[MAXOBN];
 	char *c = buf;
 	*c = '\0';
 
-	for (a = START_MAP; a < START_MAP + num_map; a++) {
-		sp = slot2struct(a);
-		if (slotOccupied(sp)) {
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
 			strncat(c, (char *)sp->barcode, 10);
-			MHVTL_DBG(2, "MAP slot %d full", a - START_MAP);
+			MHVTL_DBG(2, "MAP slot %d full", sp->slot_location);
 		} else {
-			MHVTL_DBG(2, "MAP slot %d empty", a - START_MAP);
+			MHVTL_DBG(2, "MAP slot %d empty", sp->slot_location);
 		}
 	}
 	MHVTL_DBG(2, "map contents: %s", buf);
@@ -1515,14 +424,13 @@ return retval;
 /* Check existing MAP & Storage slots for existing barcode */
 int already_in_slot(char *barcode)
 {
+	struct list_head *slot_head = &smc_slots.slot_list;
 	struct s_info *sp = NULL;
-	int slt;
 	int len;
 
 	len = strlen(barcode);
 
-	for (slt = 0; slt < num_map; slt++) {
-		sp = &map_info[slt];
+	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp)) {
 			if (!strncmp((char *)sp->barcode, barcode, len)) {
 				MHVTL_DBG(3, "Match: %s %s",
@@ -1533,15 +441,22 @@ int already_in_slot(char *barcode)
 					sp->barcode, barcode);
 		}
 	}
-	for (slt = 0; slt < num_storage; slt++) {
-		sp = &storage_info[slt];
-		if (slotOccupied(sp)) {
-			if (!strcmp((char *)sp->barcode, barcode))
-				return 1;
-		}
-	}
 	return 0;
 }
+
+static struct s_info *locate_empty_map(void)
+{
+	struct s_info *sp = NULL;
+	struct list_head *slot_head = &smc_slots.slot_list;
+
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (!slotOccupied(sp) && sp->element_type == MAP_ELEMENT)
+			return sp;
+	}
+
+	return NULL;
+}
+
 
 #define MALLOC_SZ 512
 
@@ -1557,7 +472,7 @@ static int load_map(struct q_msg *msg)
 
 	MHVTL_DBG(2, "Loading %s into MAP", text);
 
-	if (cap_closed) {
+	if (smc_slots.cap_closed) {
 		send_msg("MAP not opened", msg->snd_id);
 		return 0;
 	}
@@ -1586,10 +501,8 @@ static int load_map(struct q_msg *msg)
 		return 0;
 	}
 
-	for (slt = 0; slt < num_map; slt++) {
-		sp = &map_info[slt];
-		if (slotOccupied(sp))
-			continue;
+	sp = locate_empty_map();
+	if (sp) {
 		snprintf((char *)sp->barcode, 10, "%-10s", barcode);
 		sp->barcode[10] = '\0';
 		/* 1 = data, 2 = Clean */
@@ -1612,7 +525,7 @@ static void open_map(struct q_msg *msg)
 {
 	MHVTL_DBG(1, "Called");
 
-	cap_closed = CAP_OPEN;
+	smc_slots.cap_closed = CAP_OPEN;
 	send_msg("OK", msg->snd_id);
 }
 
@@ -1620,7 +533,7 @@ static void close_map(struct q_msg *msg)
 {
 	MHVTL_DBG(1, "Called");
 
-	cap_closed = CAP_CLOSED;
+	smc_slots.cap_closed = CAP_CLOSED;
 	send_msg("OK", msg->snd_id);
 }
 
@@ -1631,21 +544,22 @@ static void close_map(struct q_msg *msg)
 static int empty_map(struct q_msg *msg)
 {
 	struct s_info *sp;
+	struct list_head *slot_head = &smc_slots.slot_list;
 	int	a;
 
-	if (cap_closed) {
+	if (smc_slots.cap_closed) {
 		MHVTL_DBG(1, "MAP slot empty failed - CAP Not open");
 		send_msg("Can't empty map while MAP is closed", msg->snd_id);
 		return 0;
 	}
 
-	for (a = START_MAP; a < START_MAP + num_map; a++) {
-		sp = slot2struct(a);
-		if (slotOccupied(sp)) {
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
 			setSlotEmpty(sp);
 			MHVTL_DBG(2, "MAP slot %d emptied", a - START_MAP);
 		}
 	}
+
 	send_msg("OK", msg->snd_id);
 	return 1;
 }
@@ -1679,9 +593,9 @@ static int processMessageQ(struct q_msg *msg)
 	if (!strncmp(msg->text, "load map ", 9))
 		load_map(msg);
 	if (!strncmp(msg->text, "offline", 7))
-		libraryOnline = 0;
+		lunit.online = 0;
 	if (!strncmp(msg->text, "online", 6))
-		libraryOnline = 1;
+		lunit.online = 1;
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
@@ -1744,59 +658,58 @@ static void init_mode_pages(struct mode *m)
 		uint8_t *p = mp->pcodePointer;
 
 		put_unaligned_be16(START_PICKER, &p[2]); /* First transport. */
-		put_unaligned_be16(num_picker, &p[4]); /* No. transport elem. */
+		put_unaligned_be16(smc_slots.num_picker, &p[4]);
 		put_unaligned_be16(START_STORAGE, &p[6]); /* First storage */
-		put_unaligned_be16(num_storage, &p[8]);	/* No. of storage slt */
+		put_unaligned_be16(smc_slots.num_storage, &p[8]);
 		put_unaligned_be16(START_MAP, &p[10]); /* First i/e address */
-		put_unaligned_be16(num_map, &p[12]); /* No. of i/e slots */
+		put_unaligned_be16(smc_slots.num_map, &p[12]);
 		put_unaligned_be16(START_DRIVE, &p[14]); /* First Drives */
-		put_unaligned_be16(num_drives, &p[16]); /* No. of dives */
+		put_unaligned_be16(smc_slots.num_drives, &p[16]);
 	}
 
 	/* Transport Geometry Parameters mode page: SMC-3 7.3.4 */
 	mp = alloc_mode_page(0x1e, m, 4);
 }
 
-/*
- * Allocate enough storage for (size) drives & init to zero
- * - Returns pointer or NULL on error
- */
-static struct d_info *init_d_struct(int size)
+static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
 {
-	struct d_info d_info;
-	struct d_info *dp;
+	struct smc_priv *slot_layout;
+	struct list_head *drive_list_head;
+	struct d_info *d;
 
-	dp = (struct d_info *)malloc(size * sizeof(d_info));
-	if (dp)
-		memset(dp, 0, sizeof(size * sizeof(d_info)));
-	else
-		syslog(LOG_DAEMON|LOG_ERR, "d_struct() Malloc failed: %s",
-					strerror(errno));
-return dp;
+	slot_layout = lu->lu_private;
+	drive_list_head = &slot_layout->drive_list;
+
+	list_for_each_entry(d, drive_list_head, siblings) {
+		if (d->slot->slot_location == drive_no)
+			return d;
+	}
+
+return NULL;
 }
 
-/*
- * Allocate enough storage for (size) elements & init to zero
- * - Returns pointer or NULL on error
- */
-static struct s_info *init_s_struct(int size)
+struct s_info *add_new_slot(struct lu_phy_attr *lu)
 {
-	struct s_info s_info;
-	struct s_info *sp;
+	struct s_info *new;
+	struct smc_priv *slot_layout;
+	struct list_head *slot_list_head;
 
-	sp = (struct s_info *)malloc(size * sizeof(s_info));
-	if (sp)
-		memset(sp, 0, sizeof(size * sizeof(s_info)));
-	else
-		syslog(LOG_DAEMON|LOG_ERR, "s_struct() Malloc failed: %s",
-					strerror(errno));
+	slot_layout = lu->lu_private;
+	slot_list_head = &slot_layout->slot_list;
 
-return sp;
+	new = malloc(sizeof(struct s_info));
+	if (!new) {
+		MHVTL_DBG(1, "Could not allocate memory for new slot struct");
+		exit(-ENOMEM);
+	}
+
+	list_add_tail(&new->siblings, slot_list_head);
+	return new;
 }
 
 /* Open device config file and update device information
  */
-static void update_drive_details(struct d_info *drv, int drive_count)
+static void update_drive_details(struct lu_phy_attr *lu)
 {
 	char *config=MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
@@ -1804,7 +717,9 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 	char *s;	/* Somewhere for sscanf to store results */
 	int slot;
 	long drv_id, lib_id;
-	struct d_info *dp = NULL;
+	struct d_info *dp;
+	struct s_info *sp;
+	struct smc_priv *slot_layout = lu->lu_private;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -1835,11 +750,25 @@ static void update_drive_details(struct d_info *drv, int drive_count)
 		}
 		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2
 					&& lib_id == my_id
-					&& slot <= drive_count
 					&& drv_id >= 0) {
 			MHVTL_DBG(2, "Found Drive %ld in slot %d",
 					drv_id, slot);
-			dp = &drv[slot-1];
+			dp = lookup_drive(lu, slot);
+			if (!dp) {
+				dp = malloc(sizeof(struct d_info));
+				if (!dp) {
+					MHVTL_DBG(1, "Couldn't malloc memory");
+					exit(-ENOMEM);
+				}
+				memset(dp, 0, sizeof(struct d_info));
+
+				sp = add_new_slot(lu);
+				sp->element_type = DATA_TRANSFER;
+				dp->slot = sp;
+				sp->drive = dp;
+				list_add_tail(&dp->siblings,
+						&slot_layout->drive_list);
+			}
 			dp->drv_id = drv_id;
 			continue;
 		}
@@ -1882,7 +811,7 @@ static void update_drive_details(struct d_info *drv, int drive_count)
  *
  * One very long and serial function...
  */
-static void init_slot_info(void)
+static void init_slot_info(struct lu_phy_attr *lu)
 {
 	char conf[1024];
 	FILE *ctrl;
@@ -1893,6 +822,7 @@ static void init_slot_info(void)
 	char *barcode;
 	int slt;
 	int x;
+	struct smc_priv *slot_layout = lu->lu_private;
 
 	sprintf(conf, MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
 	ctrl = fopen(conf , "r");
@@ -1914,56 +844,6 @@ static void init_slot_info(void)
 		exit(1);
 	}
 
-	/* First time thru the config file, determine the number of slots
-	 * so we know how much memory to alloc */
-	num_drives = 0;
-	num_storage = 0;
-	num_map = 0;
-	num_picker = 0;
-	/* While read in a line */
-	while (readline(b, MALLOC_SZ, ctrl) != NULL) {
-		if (b[0] == '#')	/* Ignore comments */
-			continue;
-		if (sscanf(b, "Drive %d", &slt) > 0)
-			num_drives++;
-		if (sscanf(b, "Slot %d", &slt) > 0)
-			num_storage++;
-		if (sscanf(b, "MAP %d", &slt) > 0)
-			num_map++;
-		if (sscanf(b, "Picker %d", &slt) > 0)
-			num_picker++;
-	}
-
-	MHVTL_DBG(1, "%d Drives, %d Storage slots", num_drives, num_storage);
-
-	/* Allocate enough memory for drives */
-	drive_info = init_d_struct(num_drives + 1);
-	if (drive_info) {
-		for (x = 0; x < num_drives; x++) {
-			dp = &drive_info[x];
-			dp->slot = init_s_struct(1);
-			if (!dp->slot)
-				exit(1);
-		}
-	} else
-		exit(1);
-
-	/* Allocate enough memory for storage slots */
-	storage_info = init_s_struct(num_storage + 1);
-	if (!storage_info)
-		exit(1);
-
-	/* Allocate enough memory for MAP slots */
-	map_info = init_s_struct(num_map + 1);
-	if (!map_info)
-		exit(1);
-
-	/* Allocate enough memory for picker slots */
-	picker_info = init_s_struct(num_picker + 1);
-	if (!picker_info)
-		exit(1);
-
-	/* Rewind and parse config file again... */
 	rewind(ctrl);
 	barcode = s;
 	while (readline(b, MALLOC_SZ, ctrl) != NULL) {
@@ -1972,11 +852,26 @@ static void init_slot_info(void)
 		barcode[0] = '\0';
 
 		x = sscanf(b, "Drive %d: %s", &slt, s);
-		if (x && slt > num_drives) {
-			MHVTL_DBG(1, "Too many drives");
-			continue;
+
+		if (x) {
+			dp = lookup_drive(lu, slt);
+			if (!dp) {
+				dp = malloc(sizeof(struct d_info));
+				if (!dp) {
+					MHVTL_DBG(1, "Couldn't malloc memory");
+					exit(-ENOMEM);
+				}
+				memset(dp, 0, sizeof(struct d_info));
+
+				sp = add_new_slot(lu);
+				sp->element_type = DATA_TRANSFER;
+				dp->slot = sp;
+				sp->drive = dp;
+				list_add_tail(&dp->siblings,
+						&slot_layout->drive_list);
+			}
 		}
-		dp = &drive_info[slt - 1];
+
 		switch (x) {
 		case 2:
 			/* Pull serial number out and fall thru to case 1*/
@@ -1987,15 +882,17 @@ static void init_slot_info(void)
 			dp->slot->status = STATUS_Access;
 			dp->slot->cart_type = 0;
 			dp->slot->internal_status = 0;
+			slot_layout->num_drives++;
 			break;
 		}
 
 		x = sscanf(b, "MAP %d: %s", &slt, barcode);
-		if (x && slt > num_map) {
-			MHVTL_DBG(1, "Too many MAPs");
-			continue;
+		if (x) {
+			sp = add_new_slot(lu);
+			sp->element_type = MAP_ELEMENT;
+			slot_layout->num_map++;
 		}
-		sp = &map_info[slt - 1];
+
 		switch (x) {
 		case 1:
 			sp->slot_location = slt + START_MAP - 1;
@@ -2024,11 +921,12 @@ static void init_slot_info(void)
 		}
 
 		x = sscanf(b, "Picker %d: %s", &slt, barcode);
-		if (x && slt > num_picker) {
-			MHVTL_DBG(1, "Too many pickers");
-			continue;
+		if (x) {
+			sp = add_new_slot(lu);
+			sp->element_type = MEDIUM_TRANSPORT;
+			slot_layout->num_picker++;
 		}
-		sp = &picker_info[slt - 1];
+
 		switch (x) {
 		case 1:
 			sp->slot_location = slt + START_PICKER - 1;
@@ -2053,11 +951,12 @@ static void init_slot_info(void)
 		}
 
 		x = sscanf(b, "Slot %d: %s", &slt, barcode);
-		if (x && (slt > num_storage)) {
-			MHVTL_DBG(1, "Storage slot %d out of range", slt);
-			continue;
+		if (x) {
+			sp = add_new_slot(lu);
+			sp->element_type = STORAGE_ELEMENT;
+			slot_layout->num_storage++;
 		}
-		sp = &storage_info[slt - 1];
+
 		switch (x) {
 		case 1:
 			sp->slot_location = slt + START_STORAGE - 1;
@@ -2086,12 +985,6 @@ static void init_slot_info(void)
 	fclose(ctrl);
 	free(b);
 	free(s);
-
-	/* Now update the details of each drive
-	 * Details contained in MHVTL_CONFIG_PATH/device.conf
-	 * Data keyed by device s/no
-	 */
-	update_drive_details(&drive_info[0], num_drives);
 }
 
 /* Set VPD data with device serial number */
@@ -2269,16 +1162,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
 			}
-/*
-			if (sscanf(b, " Density : %s", s)) {
-				lu->supported_density[n] =
-					(uint8_t)strtol(s, NULL, 16);
-				MHVTL_DBG(2, "Supported density: 0x%x (%d)",
-						lu->supported_density[n],
-						lu->supported_density[n]);
-				n++;
-			}
-*/
 			i = sscanf(b,
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
@@ -2294,7 +1177,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			} else if (i > 0) {
 				free(lu->naa);
 				lu->naa = NULL;
-				/* Cleanup string (replace 'nl' with null) for logging */
+				/* Cleanup string (replace 'nl' with null)
+				 * for logging */
 				rmnl(b, '\0', MALLOC_SZ);
 				MHVTL_DBG(1, "NAA: Incorrect params: %s"
 						", Using defaults", b);
@@ -2305,11 +1189,20 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	free(b);
 	free(s);
 
+	INIT_LIST_HEAD(&lu->supported_den_list);
+	INIT_LIST_HEAD(&lu->supported_log_pg);
+	INIT_LIST_HEAD(&lu->supported_mode_pg);
+	INIT_LIST_HEAD(&smc_slots.slot_list);
+	INIT_LIST_HEAD(&smc_slots.drive_list);
+
+	lu->mode_pages = &sm;
+
 	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
 	lu->removable = 1;	/* Supports removable media */
 	lu->version_desc[0] = 0x0300;	/* SPC-3 No version claimed */
 	lu->version_desc[1] = 0x0960;	/* iSCSI */
 	lu->version_desc[2] = 0x0200;	/* SSC */
+	lu->bufsize = SMC_BUF_SIZE;
 
 	/* Unit Serial Number */
 	pg = 0x80 & 0x7f;
@@ -2373,6 +1266,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				(int)strlen(lu->lu_serial_no),
 				(int)__LINE__);
 
+	lu->online = 1;
+	lu->lu_private = &smc_slots;
+	smc_slots.cap_closed = CAP_CLOSED;
 	return found;
 }
 
@@ -2416,11 +1312,13 @@ int main(int argc, char *argv[])
 	long pollInterval = 0L;
 	uint8_t *buf;
 
+	struct list_head *slot_head = &smc_slots.slot_list;
+	struct s_info *sp;
 	struct d_info *dp;
+
 	struct vtl_header vtl_cmd;
 	struct vtl_ctl ctl;
 	char s[100];
-	int a;
 
 	pid_t pid, sid, child_cleanup;
 
@@ -2482,7 +1380,8 @@ int main(int argc, char *argv[])
 		printf("Can not find entry for '%ld' in config file\n", my_id);
 		exit(1);
 	}
-	init_slot_info();
+	init_slot_info(&lunit);
+	update_drive_details(&lunit);
 	init_mode_pages(sm);
 	initTapeAlert(&TapeAlert);
 
@@ -2546,7 +1445,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	buf = (uint8_t *)malloc(bufsize);
+	buf = (uint8_t *)malloc(SMC_BUF_SIZE);
 	if (NULL == buf) {
 		perror("Problems allocating memory");
 		exit(1);
@@ -2555,38 +1454,40 @@ int main(int argc, char *argv[])
 	/* Send a message to each tape drive so they know the
 	 * controlling library's message Q id
 	 */
-	for (a = 0; a < num_drives; a++) {
-		dp = &drive_info[a];
-		send_msg("Register", dp->drv_id);
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (sp->element_type == DATA_TRANSFER) {
+			dp = sp->drive;
+			send_msg("Register", dp->drv_id);
 
-		if (debug) {
+			if (debug) {
 
-			MHVTL_DBG(3, "\nDrive %d", a);
+				MHVTL_DBG(3, "\nDrive %d", sp->slot_location);
 
-			strncpy(s, dp->inq_vendor_id, 8);
-			rmnl(s, ' ', 8);
-			s[8] = '\0';
-			MHVTL_DBG(3, "Vendor ID     : \"%s\"", s);
+				strncpy(s, dp->inq_vendor_id, 8);
+				rmnl(s, ' ', 8);
+				s[8] = '\0';
+				MHVTL_DBG(3, "Vendor ID     : \"%s\"", s);
 
-			strncpy(s, dp->inq_product_id, 16);
-			rmnl(s, ' ', 16);
-			s[16] = '\0';
-			MHVTL_DBG(3, "Product ID    : \"%s\"", s);
+				strncpy(s, dp->inq_product_id, 16);
+				rmnl(s, ' ', 16);
+				s[16] = '\0';
+				MHVTL_DBG(3, "Product ID    : \"%s\"", s);
 
-			strncpy(s, dp->inq_product_rev, 4);
-			rmnl(s, ' ', 4);
-			s[4] = '\0';
-			MHVTL_DBG(3, "Revision Level: \"%s\"", s);
+				strncpy(s, dp->inq_product_rev, 4);
+				rmnl(s, ' ', 4);
+				s[4] = '\0';
+				MHVTL_DBG(3, "Revision Level: \"%s\"", s);
 
-			strncpy(s, dp->inq_product_sno, 10);
-			rmnl(s, ' ', 10);
-			s[10] = '\0';
-			MHVTL_DBG(3, "Product S/No  : \"%s\"", s);
+				strncpy(s, dp->inq_product_sno, 10);
+				rmnl(s, ' ', 10);
+				s[10] = '\0';
+				MHVTL_DBG(3, "Product S/No  : \"%s\"", s);
 
-			MHVTL_DBG(3, "Drive location: %d",
+				MHVTL_DBG(3, "Drive location: %d",
 						dp->slot->slot_location);
-			MHVTL_DBG(3, "Drive occupied: %s",
+				MHVTL_DBG(3, "Drive occupied: %s",
 				(dp->slot->status & STATUS_Full) ? "No" : "Yes");
+			}
 		}
 	}
 
@@ -2627,14 +1528,14 @@ int main(int argc, char *argv[])
 	if (!strcmp(lunit.vendor_id, "SPECTRA ") &&
 		!strcmp(lunit.product_id, "PYTHON          ")) {
 		/* size of dvcid area in RES descriptor */
-		dvcid_len = 10;
+		smc_slots.dvcid_len = 10;
 		/* dvcid area only contains a serial number */
-		dvcid_serial_only = 1;
+		smc_slots.dvcid_serial_only = 1;
 	} else {
 		/* size of dvcid area in RES descriptor */
-		dvcid_len = 34;
+		smc_slots.dvcid_len = 34;
 		/* dvcid area contains vendor, product, serial */
-		dvcid_serial_only = 0;
+		smc_slots.dvcid_serial_only = 0;
 	}
 
 	for (;;) {
@@ -2690,7 +1591,6 @@ exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	free(buf);
-	free(drive_info);
 
 	exit(0);
 }

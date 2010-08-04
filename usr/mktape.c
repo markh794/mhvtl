@@ -30,6 +30,7 @@ void *largefile_support = "No largefile support";
 char vtl_driver_name[] = "mktape";
 int verbose = 0;
 int debug = 0;
+long my_id = 0;
 
 void usage(char *progname) {
 	printf("Usage: %s -m PCL -s size -t type -d density\n", progname);

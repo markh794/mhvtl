@@ -154,6 +154,32 @@ extern int verbose;
 #define MEDIA_TYPE_WORM 1
 #define MEDIA_TYPE_CLEAN 6
 
+/* status definitions (byte[2] in the element descriptor) */
+#define STATUS_Full      0x01
+#define STATUS_ImpExp    0x02
+#define STATUS_Except    0x04
+#define STATUS_Access    0x08
+#define STATUS_ExEnab    0x10
+#define STATUS_InEnab    0x20
+#define STATUS_Reserved6 0x40
+#define STATUS_Reserved7 0x80
+/* internal_status definitions: */
+#define INSTATUS_NO_BARCODE 0x01
+
+#define	VOLTAG_LEN	36	/* size of voltag area in RES descriptor */
+
+struct log_pg_list {
+	struct list_head siblings;
+	int log_pg_num;
+	void *p;
+};
+
+struct mode_pg_list {
+	struct list_head siblings;
+	int mode_pg_num;
+	void *p;
+};
+
 // Log Page header
 struct	log_pg_header {
 	uint8_t pcode;
@@ -496,11 +522,29 @@ enum Media_Type_list {
 	Media_UNKNOWN /* always last */
 };
 
+struct scsi_cmd {
+	uint8_t *scb;	/* SCSI Command Block */
+	int scb_len;
+	struct vtl_ds *dbuf_p;
+	struct lu_phy_attr *lu;
+};
+
+struct device_type_operations {
+	int (*cmd_perform)(struct scsi_cmd *cmd);
+	int (*pre_cmd_perform)(struct scsi_cmd *cmd, void *p);
+	int (*post_cmd_perform)(struct scsi_cmd *cmd, void *p);
+};
+
+struct device_type_template {
+	struct device_type_operations ops[256];
+};
+
 /* Logical Unit information */
 struct lu_phy_attr {
 	char ptype;
 	char removable;
 	uint8_t drive_type;
+	char online;
 	char vendor_id[VENDOR_ID_LEN + 1];
 	char product_id[PRODUCT_ID_LEN + 1];
 	char product_rev[PRODUCT_REV_LEN + 1];
@@ -509,17 +553,68 @@ struct lu_phy_attr {
 
 	struct list_head supported_den_list;
 
+	struct list_head supported_mode_pg;
+
+	struct list_head supported_log_pg;
+
+	struct device_type_template *dev_type_template;
+
+	/* FIXME: Convert to linked-list -> supported_mode_pg */
+	void *mode_pages;
+
 	int drive_native_write_density[drive_UNKNOWN + 1];
+	uint32_t bufsize;
 	uint8_t *naa;
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 	void *lu_private;	/* Private data struct per lu */
+};
+
+/* Drive Info */
+struct d_info {
+	struct list_head siblings;
+	char inq_vendor_id[10];
+	char inq_product_id[18];
+	char inq_product_rev[6];
+	char inq_product_sno[12];
+	long drv_id;		/* drive's send_msg queue ID */
+	char online;		/* Physical status of drive */
+	int SCSI_BUS;
+	int SCSI_ID;
+	int SCSI_LUN;
+	char tapeLoaded;	/* Tape is 'loaded' by drive */
+	struct s_info *slot;
+};
+
+struct s_info { /* Slot Info */
+	struct list_head siblings;
+	uint32_t slot_location;
+	uint32_t last_location;
+	struct d_info *drive;
+	uint8_t cart_type; /* 0 = Unknown, 1 = Data medium, 2 = Cleaning */
+	uint8_t barcode[11];
+	uint8_t	status;	/* Used for MAP status. */
+	uint8_t	asc;	/* Additional Sense Code */
+	uint8_t	ascq;	/* Additional Sense Code Qualifier */
+	uint8_t internal_status; /* internal states */
+	uint8_t element_type;
+};
+
+struct smc_priv {
+	struct list_head drive_list;
+	struct list_head slot_list;
+	int num_drives;
+	int num_picker;
+	int num_map;
+	int num_storage;
+	int dvcid_len;
+	char dvcid_serial_only;
+	char cap_closed;
 };
 
 extern uint8_t sense[SENSE_BUF_SIZE];
 
 /* Used by Mode Sense - if set, return block descriptor */
 extern uint8_t blockDescriptorBlock[8];
-
 
 int check_reset(uint8_t *);
 void reset_device(void);
@@ -564,5 +659,8 @@ int check_for_running_daemons(int minor);
 
 void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);
 void checkstrlen(char *s, int len);
+extern int device_type_register(struct lu_phy_attr *lu,
+					struct device_type_template *t);
+int add_pcode(struct mode *m, uint8_t *p);
 
 #endif /*  _VTLLIB_H_ */

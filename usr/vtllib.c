@@ -146,18 +146,6 @@ reset_device(void)
 }
 
 /*
- * Allow/Prevent media removal.
- *
- * basically a no-op but log the cmd.
- */
-
-void resp_allow_prevent_removal(uint8_t *cdb, uint8_t *sam_stat)
-{
-	MHVTL_DBG(1, "%s", (cdb[4]) ? "Prevent MEDIUM removal **" :
-					 "Allow MEDIUM Removal **");
-}
-
-/*
  * Log Select
  *
  * Set the logs to a known state.
@@ -173,8 +161,8 @@ void resp_log_select(uint8_t *cdb, uint8_t *sam_stat)
 {
 
 	char pcr = cdb[1] & 0x1;
-	uint16_t	parmList;
-	char	*parmString = "Undefined";
+	uint16_t parmList;
+	char *parmString = "Undefined";
 
 	parmList = ntohs((uint16_t)cdb[7]); /* bytes 7 & 8 are parm list. */
 
@@ -310,19 +298,19 @@ struct mode *find_pcode(uint8_t pcode, struct mode *m)
 {
 	int a;
 
-	MHVTL_DBG(3, "Entered: pcode 0x%x", pcode);
+	MHVTL_DBG(3, "Entered: pcode 0x%02x", pcode);
 
 	for (a = 0; a < 0x3f; a++, m++) { /* Possibility for 0x3f page codes */
 		if (m->pcode == 0x0)
 			break;	/* End of list */
 		if (m->pcode == pcode) {
-			MHVTL_DBG(2, "(0x%x): match pcode %d",
+			MHVTL_DBG(2, "Looking for 0x%02x: found pcode 0x%02x",
 					pcode, m->pcode);
 			return m;
 		}
 	}
 
-	MHVTL_DBG(3, "Page code 0x%x not found", pcode);
+	MHVTL_DBG(3, "Page code 0x%02x not found", pcode);
 
 	return NULL;
 }
@@ -331,7 +319,7 @@ struct mode *find_pcode(uint8_t pcode, struct mode *m)
  * Add data for pcode to buffer pointed to by p
  * Return: Number of chars moved.
  */
-static int add_pcode(struct mode *m, uint8_t *p)
+int add_pcode(struct mode *m, uint8_t *p)
 {
 	memcpy(p, m->pcodePointer, m->pcodeSize);
 	return m->pcodeSize;
@@ -505,19 +493,14 @@ void initTapeAlert(struct TapeAlert_page *ta)
 
 void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 {
+	int a;
+
 	MHVTL_DBG(2, "Setting TapeAlert flags 0x%.8x %.8x",
 				(uint32_t)(flg >> 32) & 0xffffffff,
 				(uint32_t)flg & 0xffffffff);
 
-	int a;
-	for (a = 0; a < 64; a++) {
+	for (a = 0; a < 64; a++)
 		ta->TapeAlert[a].value = (flg & (1ull << a)) ? 1 : 0;
-/*		MHVTL_DBG(2, "TapeAlert flag %016" PRIx64 " : %s",
- *				(uint64_t)1ull << a,
- *				(ta->TapeAlert[a].value) ? "set" : "unset");
- */
-	}
-
 }
 
 /*
@@ -869,5 +852,16 @@ void checkstrlen(char *s, int len)
 		printf("Please fix config file\n");
 		abort();
 	}
+}
+
+int device_type_register(struct lu_phy_attr *lu, struct device_type_template *t)
+{
+	lu->dev_type_template = t;
+	return 0;
+}
+
+void resp_allow_prevent_removal(uint8_t *cdb, uint8_t *sam_stat)
+{
+	MHVTL_DBG(1, "%s MEDIUM removal", (cdb[4]) ? "Allow" : "Prevent");
 }
 
