@@ -442,25 +442,22 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 	uint32_t blk_target;
 	int i;
 
-	if (!tape_loaded(sam_stat)) {
+	if (!tape_loaded(sam_stat))
 		return -1;
-	}
 
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
-	if (count < raw_pos.hdr.blk_number) {
+	if (count < raw_pos.hdr.blk_number)
 		blk_target = raw_pos.hdr.blk_number - count;
-	} else {
+	else
 		blk_target = 0;
-	}
 
 	/* Find the first filemark prior to our current position, if any. */
 
 	for (i = meta.filemark_count - 1; i <= meta.filemark_count; i--) {
-		if (filemarks[i] < raw_pos.hdr.blk_number) {
+		if (filemarks[i] < raw_pos.hdr.blk_number)
 			break;
-		}
 	}
 
 	/* If there is one, see if it is between our current position and our
@@ -468,14 +465,13 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 	*/
 
 	if (i >= 0) {
-		if (filemarks[i] < blk_target) {
+		if (filemarks[i] < blk_target)
 			return position_to_block(blk_target, sam_stat);
-		}
 
 		residual = raw_pos.hdr.blk_number - blk_target;
-		if (read_header(filemarks[i], sam_stat)) {
+		if (read_header(filemarks[i], sam_stat))
 			return -1;
-		}
+
 		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -483,9 +479,9 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 
 	if (count > raw_pos.hdr.blk_number) {
 		residual = count - raw_pos.hdr.blk_number;
-		if (read_header(0, sam_stat)) {
+		if (read_header(0, sam_stat))
 			return -1;
-		}
+
 		mkSenseBuf(NO_SENSE | SD_EOM, E_BOM, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;

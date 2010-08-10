@@ -1138,19 +1138,17 @@ static void resp_space(int32_t count, int code, uint8_t *sam_stat)
 	switch (code) {
 	/* Space 'count' blocks */
 	case 0:
-		if (count >= 0) {
+		if (count >= 0)
 			position_blocks_forw(count, sam_stat);
-		} else {
+		else
 			position_blocks_back(-count, sam_stat);
-		}
 		break;
 	/* Space 'count' filemarks */
 	case 1:
-		if (count >= 0) {
+		if (count >= 0)
 			position_filemarks_forw(count, sam_stat);
-		} else {
+		else
 			position_filemarks_back(-count, sam_stat);
-		}
 		break;
 	/* Space to end-of-data - Ignore 'count' */
 	case 3:
