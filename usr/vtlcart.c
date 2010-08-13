@@ -28,9 +28,9 @@
 */
 
 struct raw_header {
-	loff_t		data_offset;
+	loff_t	data_offset;
 	struct blk_header hdr;
-	char		pad[512 - sizeof(loff_t) - sizeof(struct blk_header)];
+	char pad[512 - sizeof(loff_t) - sizeof(struct blk_header)];
 };
 
 /* The .meta file consists of a MAM structure followed by a meta_header
@@ -40,8 +40,8 @@ struct raw_header {
 */
 
 struct	meta_header {
-	uint32_t	filemark_count;
-	char		pad[512 - sizeof(uint32_t)];
+	uint32_t filemark_count;
+	char pad[512 - sizeof(uint32_t)];
 };
 
 static char currentPCL[1024];
@@ -122,8 +122,9 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 	current_blk_number = raw_pos.hdr.blk_number;
 	current_data_offset = raw_pos.data_offset;
 
-	MHVTL_DBG(3, "Reading header %d at offset %ld",
-			current_blk_number, (unsigned long)current_data_offset);
+	MHVTL_DBG(3, "Reading header %d at offset %ld, type %ld",
+			current_blk_number, (unsigned long)current_data_offset,
+			(unsigned long)raw_pos.hdr.blk_type);
 	return 0;
 }
 
@@ -349,6 +350,8 @@ int position_to_block(uint32_t blk_number, uint8_t *sam_stat)
 	if (!tape_loaded(sam_stat))
 		return -1;
 
+	MHVTL_DBG(2, "Position to block %d", blk_number);
+
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
@@ -448,7 +451,14 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
-	if (count < raw_pos.hdr.blk_number)
+	/* Actually need to go back 1 less than number passed
+	 * i.e. If we are positioned at end of block X
+	 *      a back one block should put us at beginning of block X
+	 */
+	if ((raw_pos.hdr.blk_type == B_DATA) &&
+					(count < raw_pos.hdr.blk_number))
+		blk_target = raw_pos.hdr.blk_number - count + 1;
+	else if (count < raw_pos.hdr.blk_number)
 		blk_target = raw_pos.hdr.blk_number - count;
 	else
 		blk_target = 0;
@@ -463,7 +473,6 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 	/* If there is one, see if it is between our current position and our
 	   desired destination.
 	*/
-
 	if (i >= 0) {
 		if (filemarks[i] < blk_target)
 			return position_to_block(blk_target, sam_stat);
