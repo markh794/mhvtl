@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 9
-Source: mhvtl-2010-07-09.tgz
+Release: 10
+Source: mhvtl-2010-09-01.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -169,6 +169,18 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Wed Sep 01 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.10
+- Correct incorrect usage of & vs &&
+- Fix TapeAlert.
+  Error where the flags were not being set due to an earlier change.
+- Add extra verbage around positioning information. Trying to track down
+  a problem with HP Dataprotector when it spaces back a block.
+- Make tape media & drive type loading logs more readable.
+- New utility 'tapeexerciser' which I've been using to track down the
+  Dataprotector issue. A simple & basic 'st ioctl()' test utility.
+- Fix 'is vtl running' logic in rc script. Was broken if USER == root
+
 * Wed Jul 09 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.9
 - Fix WORM media support - Bug report from Albert Pauw
