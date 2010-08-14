@@ -506,14 +506,14 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 				(uint32_t)(flg >> 32) & 0xffffffff,
 				(uint32_t)flg & 0xffffffff);
 
-/*	int a;
+	int a;
 	for (a = 0; a < 64; a++) {
 		ta->TapeAlert[a].value = (flg & (1ull << a)) ? 1 : 0;
-		MHVTL_DBG(2, "TapeAlert flag %016" PRIx64 " : %s",
-				(uint64_t)1ull << a,
-				(ta->TapeAlert[a].value) ? "set" : "unset");
+/*		MHVTL_DBG(2, "TapeAlert flag %016" PRIx64 " : %s",
+ *				(uint64_t)1ull << a,
+ *				(ta->TapeAlert[a].value) ? "set" : "unset");
+ */
 	}
-*/
 
 }
 
