@@ -41,8 +41,6 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 extern unsigned char sense[];
 
 uint32_t SPR_Reservation_Generation;

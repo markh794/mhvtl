@@ -64,8 +64,6 @@ struct MAM mam;
 struct blk_header *c_pos = &raw_pos.hdr;
 int OK_to_write = 0;
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 static char * mhvtl_block_type_desc(int blk_type)
 {
 	int i;

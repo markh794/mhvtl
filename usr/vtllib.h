@@ -111,6 +111,8 @@ extern int verbose;
 	(void) (&_x == &_y);	\
 	_x > _y ? _x : _y; })
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 #define STATUS_OK 0
 
 #define STATUS_QUEUE_CMD 0xfe
@@ -413,6 +415,13 @@ enum drive_type_list {
 	drive_3592_J1A,
 	drive_3592_E05,
 	drive_3592_E06,
+	drive_DDS1,
+	drive_DDS2,
+	drive_DDS3,
+	drive_DDS4,
+	drive_AIT1,
+	drive_AIT2,
+	drive_AIT3,
 	drive_AIT4,
 	drive_10K_A,
 	drive_10K_B,

@@ -133,7 +133,6 @@ static unsigned char mediaSerialNo[34];	/* Currently mounted media S/No. */
 
 struct lu_phy_attr lunit;
 
-
 static int Drive_Native_Write_Density[drive_UNKNOWN + 1];
 static int Media_Native_Write_Density[Media_UNKNOWN + 1];
 
@@ -316,6 +315,50 @@ mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_vali
 
 	/* Now fill in the datablock with number of bytes not read/written */
 	put_unaligned_be32(difference, &sense[3]);
+}
+
+static const char *drive_name(int dt)
+{
+	static const struct {
+		int drv_type;
+		char *desc;
+	} drive_type_list[] = {
+		{ drive_undefined, "Undefined" },
+		{ drive_LTO1, "LTO1" },
+		{ drive_LTO2, "LTO2" },
+		{ drive_LTO3, "LTO3" },
+		{ drive_LTO4, "LTO4" },
+		{ drive_LTO5, "LTO5" },
+		{ drive_LTO6, "LTO6" },
+		{ drive_3592_J1A, "3592 J1A" },
+		{ drive_3592_E05, "3592 E05" },
+		{ drive_3592_E06, "3592 E06" },
+		{ drive_DDS1, "DDS1" },
+		{ drive_DDS2, "DDS2" },
+		{ drive_DDS3, "DDS3" },
+		{ drive_DDS4, "DDS4" },
+		{ drive_AIT4, "AIT1" },
+		{ drive_AIT4, "AIT2" },
+		{ drive_AIT4, "AIT3" },
+		{ drive_AIT4, "AIT4" },
+		{ drive_10K_A, "T10000A" },
+		{ drive_10K_B, "T10000B" },
+		{ drive_DLT7K, "DLT7000" },
+		{ drive_DLT8K, "DLT8000" },
+		{ drive_SDLT, "SDLT1" },
+		{ drive_SDLT220, "SDLT220" },
+		{ drive_SDLT320, "SDLT320" },
+		{ drive_SDLT600, "SDLT600" },
+		{ drive_SDLT_S4, "SDLT-S4" },
+		{ drive_UNKNOWN, "UNKNOWN" }, /* Always last */
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(drive_type_list); i++)
+		if (drive_type_list[i].drv_type == dt)
+			return drive_type_list[i].desc;
+
+	return "(UNKNOWN drive)";
 }
 
 /***********************************************************************/
@@ -1308,8 +1351,8 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		buf[43] = 0x14;	/* Encryption Algorithm Id */
 		ret = 44;
 
-		MHVTL_DBG(2, "Drive type: %d, Media type: %d",
-				lunit.drive_type, mam.MediaType);
+		MHVTL_DBG(2, "Drive type: %s, Media type: %d",
+				drive_name(lunit.drive_type), mam.MediaType);
 
 		/* adjustments for each emulated drive type */
 		switch (lunit.drive_type) {
@@ -2611,8 +2654,8 @@ mismatchmedia:
 	fg |= 0x800;	/* Unsupported format */
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);
-	MHVTL_DBG(1, "Tape %s failed to load with type %d in drive type %d",
-			PCL, mam.MediaType, lunit.drive_type);
+	MHVTL_DBG(1, "Tape %s failed to load with type %d in drive type %s",
+			PCL, mam.MediaType, drive_name(lunit.drive_type));
 	tapeLoaded = TAPE_UNLOADED;
 	return TAPE_UNLOADED;
 }
