@@ -58,10 +58,6 @@ static int filemark_alloc = 0;
 static int filemark_delta = 500;
 static uint32_t *filemarks = NULL;
 
-static uint32_t current_blk_number;
-static uint64_t current_data_offset;
-
-
 /* Globally visible variables. */
 
 struct MAM mam;
@@ -85,8 +81,8 @@ mkEODHeader(uint32_t blk_number, uint64_t data_offset)
 	raw_pos.hdr.blk_type = B_EOD;
 	raw_pos.hdr.blk_number = blk_number;
 
-	current_blk_number = eod_blk_number = blk_number;
-	current_data_offset = eod_data_offset = data_offset;
+	eod_blk_number = blk_number;
+	eod_data_offset = data_offset;
 
 	OK_to_write = 1;
 
@@ -105,25 +101,27 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 	loff_t nread;
 
 	if (blk_number > eod_blk_number) {
+		MHVTL_DBG(1, "Attempt to seek [%d] beyond EOD [%d]",
+				blk_number, end_blk_number);
 	} else if (blk_number == eod_blk_number) {
 		mkEODHeader(eod_blk_number, eod_data_offset);
 	} else {
 		nread = pread(indxfile, &raw_pos, sizeof(raw_pos),
 			blk_number * sizeof(raw_pos));
 		if (nread < 0) {
+			MHVTL_DBG(1, "Medium format corrupt");
 			mkSenseBuf(MEDIUM_ERROR,E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return -1;
 		} else if (nread != sizeof(raw_pos)) {
+			MHVTL_DBG(1, "Failed to read next header");
 			mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
 			return -1;
 		}
 	}
 
-	current_blk_number = raw_pos.hdr.blk_number;
-	current_data_offset = raw_pos.data_offset;
-
 	MHVTL_DBG(3, "Reading header %d at offset %ld, type %ld",
-			current_blk_number, (unsigned long)current_data_offset,
+			raw_pos.hdr.blk_number,
+			(unsigned long)raw_pos.data_offset,
 			(unsigned long)raw_pos.hdr.blk_type);
 	return 0;
 }
@@ -1152,9 +1150,8 @@ read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 	loff_t nread;
 	uint32_t iosize;
 
-	if (!tape_loaded(sam_stat)) {
+	if (!tape_loaded(sam_stat))
 		return -1;
-	}
 
 	/* The caller should have already verified that this is a
 	   B_DATA block before issuing this read, so we shouldn't have to
@@ -1171,13 +1168,17 @@ read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 	if (iosize > buf_size)
 		iosize = buf_size;
 
-	if ((nread = pread(datafile, buf, iosize, raw_pos.data_offset)) != iosize) {
+	nread = pread(datafile, buf, iosize, raw_pos.data_offset);
+	if (nread != iosize) {
+		MHVTL_DBG(1, "Failed to read %d bytes", iosize);
 		return -1;
 	}
 
 	// Now position to the following block.
 
 	if (read_header(raw_pos.hdr.blk_number + 1, sam_stat)) {
+		MHVTL_DBG(1, "Failed to read block header %d",
+				raw_pos.hdr.blk_number + 1);
 		return -1;
 	}
 
