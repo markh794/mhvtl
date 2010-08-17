@@ -64,6 +64,26 @@ struct MAM mam;
 struct blk_header *c_pos = &raw_pos.hdr;
 int OK_to_write = 0;
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+static char * mhvtl_block_type_desc(int blk_type)
+{
+	int i;
+
+	static const struct {
+		int blk_type;
+		char *desc;
+		} block_type_desc[] = {
+			{ B_FILEMARK, "FILEMARK" },
+			{ B_EOD, "END OF DATA" },
+			{ B_NOOP, "NO OP"},
+			{ B_DATA, "DATA" },
+		};
+	for (i = 0; i < ARRAY_SIZE(block_type_desc); i++)
+		if (block_type_desc[i].blk_type == blk_type)
+			return block_type_desc[i].desc;
+	return NULL;
+}
 
 /*
  * Returns:
@@ -102,7 +122,7 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 
 	if (blk_number > eod_blk_number) {
 		MHVTL_DBG(1, "Attempt to seek [%d] beyond EOD [%d]",
-				blk_number, end_blk_number);
+				blk_number, eod_blk_number);
 	} else if (blk_number == eod_blk_number) {
 		mkEODHeader(eod_blk_number, eod_data_offset);
 	} else {
@@ -119,10 +139,10 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 		}
 	}
 
-	MHVTL_DBG(3, "Reading header %d at offset %ld, type %ld",
+	MHVTL_DBG(3, "Reading header %d at offset %ld, type: %s",
 			raw_pos.hdr.blk_number,
 			(unsigned long)raw_pos.data_offset,
-			(unsigned long)raw_pos.hdr.blk_type);
+			mhvtl_block_type_desc(raw_pos.hdr.blk_type));
 	return 0;
 }
 
@@ -449,14 +469,18 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
+	MHVTL_DBG(2, "Position before movement: %d", raw_pos.hdr.blk_number);
+
 	/* Actually need to go back 1 less than number passed
 	 * i.e. If we are positioned at end of block X
 	 *      a back one block should put us at beginning of block X
 	 */
-	if ((raw_pos.hdr.blk_type == B_DATA) &&
+/*	if ((raw_pos.hdr.blk_type == B_DATA) &&
 					(count < raw_pos.hdr.blk_number))
 		blk_target = raw_pos.hdr.blk_number - count + 1;
 	else if (count < raw_pos.hdr.blk_number)
+*/
+	if (count < raw_pos.hdr.blk_number)
 		blk_target = raw_pos.hdr.blk_number - count;
 	else
 		blk_target = 0;
@@ -1152,6 +1176,8 @@ read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 
 	if (!tape_loaded(sam_stat))
 		return -1;
+
+	MHVTL_DBG(3, "Reading blk %ld", (unsigned long)raw_pos.hdr.blk_number);
 
 	/* The caller should have already verified that this is a
 	   B_DATA block before issuing this read, so we shouldn't have to
