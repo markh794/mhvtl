@@ -910,8 +910,7 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 	/* Handle the simple, non-data cases first. */
 
 	if (c_pos->blk_type == B_FILEMARK) {
-		MHVTL_DBG(1, "Expected to find hdr type: %d, found: %d",
-					B_DATA, c_pos->blk_type);
+		MHVTL_DBG(1, "Expected to find DATA header, found: FILEMARK");
 		position_blocks_forw(1, sam_stat);
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
