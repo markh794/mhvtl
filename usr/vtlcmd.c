@@ -314,28 +314,8 @@ int CreateNewQueue(void)
 	/* Attempt to create a message queue */
 	queue_id = msgget(IPC_PRIVATE,
 			IPC_CREAT|S_IRUSR|S_IWUSR|S_IWGRP|S_IWOTH);
-	if (queue_id == -1) {
-		switch (errno) {
-		case EACCES:
-			fprintf(stderr, "Message Queue Operation "
-				"not permitted\n");
-			break;
-		case EEXIST:
-			fprintf(stderr, "Message Queue already exists\n");
-			break;
-		case ENOENT:
-			fprintf(stderr, "Message Queue does not exist "
-				"(Service started \?\?)\n");
-			break;
-		case ENOSPC:
-			fprintf(stderr, "Exceeded max num of message queues\n");
-			break;
-		default:
-			fprintf(stderr, "Message Queue Error: %s\n",
-				strerror(errno));
-			break;
-		}
-	}
+	if (queue_id == -1)
+		fprintf(stderr, "%s %s\n", __func__, strerror(errno));
 
 	return queue_id;
 }
@@ -347,28 +327,8 @@ int OpenExistingQueue(key_t key)
 
 	/* Attempt to open an existing message queue */
 	queue_id = msgget(key, 0);
-	if (queue_id == -1) {
-		switch (errno) {
-		case EACCES:
-			fprintf(stderr, "Message Queue Operation "
-				"not permitted\n");
-			break;
-		case EEXIST:
-			fprintf(stderr, "Message Queue already exists\n");
-			break;
-		case ENOENT:
-			fprintf(stderr, "Message Queue does not exist "
-				"(Service started \?\?)\n");
-			break;
-		case ENOSPC:
-			fprintf(stderr, "Exceeded max num of message queues\n");
-			break;
-		default:
-			fprintf(stderr, "Message Queue Error: %s\n",
-				strerror(errno));
-			break;
-		}
-	}
+	if (queue_id == -1)
+		fprintf(stderr, "%s %s\n", __func__, strerror(errno));
 
 	return queue_id;
 }
