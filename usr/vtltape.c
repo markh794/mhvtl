@@ -361,6 +361,109 @@ static const char *drive_name(int dt)
 	return "(UNKNOWN drive)";
 }
 
+static const char *lookup_density_name(int den)
+{
+	static const struct {
+		int den_type;
+		char *desc;
+	} den_type_list[] = {
+		{ medium_density_code_lto1, "LTO1" },
+		{ medium_density_code_lto2, "LTO2" },
+		{ medium_density_code_lto3, "LTO3" },
+		{ medium_density_code_lto4, "LTO4" },
+		{ medium_density_code_lto5, "LTO5" },
+		{ medium_density_code_lto6, "LTO6" },
+		{ medium_density_code_j1a, "J1A" },
+		{ medium_density_code_e05, "E05" },
+		{ medium_density_code_e06, "E06" },
+		{ medium_density_code_ait4, "AIT4" },
+		{ medium_density_code_10kA, "T10000A" },
+		{ medium_density_code_10kB, "T10000B" },
+		{ medium_density_code_600, "SDLT600" },
+	};
+
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(den_type_list); i++)
+		if (den_type_list[i].den_type == den)
+			return den_type_list[i].desc;
+
+	return "(UNKNOWN density)";
+}
+
+static const char *lookup_media_type(int med)
+{
+	static const struct {
+		int med_type;
+		char *desc;
+	} med_type_list[] = {
+		{ Media_undefined, "Undefined" },
+		{ Media_LTO1, "LTO1 Data" },
+		{ Media_LTO1_CLEAN, "LTO1 Cleaning" },
+		{ Media_LTO2, "LTO2 Data" },
+		{ Media_LTO2_CLEAN, "LTO2 Cleaning" },
+		{ Media_LTO3, "LTO3 Data" },
+		{ Media_LTO3_CLEAN, "LTO3 Cleaning" },
+		{ Media_LTO3W, "LTO3 WORM" },
+		{ Media_LTO4, "LTO4 Data" },
+		{ Media_LTO4_CLEAN, "LTO4 Cleaning" },
+		{ Media_LTO4W, "LTO4 WORM" },
+		{ Media_LTO5, "LTO5 Data" },
+		{ Media_LTO5_CLEAN, "LTO5 Cleaning" },
+		{ Media_LTO5W, "LTO5 WORM" },
+		{ Media_LTO6, "LTO6 Data" },
+		{ Media_LTO6_CLEAN, "LTO6 Cleaning" },
+		{ Media_LTO6W, "LTO6 WORM" },
+		{ Media_3592_JA, "3592 JA Data" },
+		{ Media_3592_JA_CLEAN, "3592 JA Cleaning" },
+		{ Media_3592_JW, "3592 JA WORM" },
+		{ Media_3592_JB, "3592 JB Data" },
+		{ Media_3592_JB_CLEAN, "3592 JB Cleaning" },
+		{ Media_3592_JX, "3592 JX Data" },
+		{ Media_3592_JX_CLEAN, "3592 JX Cleaning" },
+		{ Media_AIT1, "AIT1 Data" },
+		{ Media_AIT1_CLEAN, "AIT1 Cleaning" },
+		{ Media_AIT2, "AIT2 Data" },
+		{ Media_AIT2_CLEAN, "AIT2 Cleaning" },
+		{ Media_AIT3, "AIT3 Data" },
+		{ Media_AIT3_CLEAN, "AIT3 Cleaning" },
+		{ Media_AIT4, "AIT4 Data" },
+		{ Media_AIT4_CLEAN, "AIT1 Cleaning" },
+		{ Media_AIT4W, "AIT4 WORM" },
+		{ Media_T10KA, "T10000A Data" },
+		{ Media_T10KA_CLEAN, "T10000A Cleaning" },
+		{ Media_T10KAW, "T10000A WORM" },
+		{ Media_T10KB, "T10000B Data" },
+		{ Media_T10KB_CLEAN, "T10000B Cleaning" },
+		{ Media_T10KBW, "T10000A WORM" },
+		{ Media_DLT2, "DLT2 Data" },
+		{ Media_DLT2_CLEAN, "DLT2 Cleaning" },
+		{ Media_DLT3, "DLT3 Data" },
+		{ Media_DLT3_CLEAN, "DLT3 Cleaning" },
+		{ Media_DLT4, "DLT4 Data" },
+		{ Media_DLT4_CLEAN, "DLT4 Cleaning" },
+		{ Media_SDLT, "SuperDLT Data" },
+		{ Media_SDLT_CLEAN, "SuperDLT Data" },
+		{ Media_SDLT220, "SuperDLT 220 Data" },
+		{ Media_SDLT220_CLEAN, "SuperDLT 220 Cleaning" },
+		{ Media_SDLT320, "SuperDLT 320 Data" },
+		{ Media_SDLT320_CLEAN, "SuperDLT 320 Cleaning" },
+		{ Media_SDLT600, "SuperDLT 600 Data" },
+		{ Media_SDLT600_CLEAN, "SuperDLT 600 Cleaning" },
+		{ Media_SDLT600W, "SuperDLT 600 WORM" },
+		{ Media_SDLT_S4, "SuperDLT S4 Data" },
+		{ Media_SDLT_S4_CLEAN, "SuperDLT S4 Cleaning" },
+		{ Media_SDLT_S4W, "SuperDLT S4 WORM" },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(med_type_list); i++)
+		if (med_type_list[i].med_type == med)
+			return med_type_list[i].desc;
+
+	return "(UNKNOWN media type)";
+}
+
 /***********************************************************************/
 
 /*
@@ -2528,7 +2631,8 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	strncpy((char *)mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
 
-	MHVTL_DBG(2, "MAM: media S/No. %s", mam.MediumSerialNumber);
+	MHVTL_DBG(1, "Media '%s' loaded with S/No. : %s",
+		lookup_media_type(mam.MediaType), mam.MediumSerialNumber);
 
 	switch(mam.MediumType) {
 	case MEDIA_TYPE_DATA:
@@ -2640,7 +2744,8 @@ loadOK:
 				(OK_to_write) ? "writable" : "not writable");
 
 	blockDescriptorBlock[0] = mam.MediumDensityCode;
-	MHVTL_DBG(1, "Setting MediumDensityCode to 0x%02x",
+	MHVTL_DBG(1, "Setting MediumDensityCode to %s (0x%02x)",
+			lookup_density_name(mam.MediumDensityCode),
 			mam.MediumDensityCode);
 
 	setSeqAccessDevice(&seqAccessDevice, fg);
