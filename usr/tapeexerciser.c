@@ -238,6 +238,13 @@ int main(int argc, char *argv[])
 	space_back_block(tape_fd, 1);
 	read_block(tape_fd, 64 * 1024);
 
+	rewind_tape(tape_fd);
+	read_block(tape_fd, 8 * 1024);
+	space_forward_filemark(tape_fd, 3);
+	read_block(tape_fd, 64 * 1024);
+	space_back_block(tape_fd, 1);
+	read_block(tape_fd, 64 * 1024);
+
 	printf("  =======================\n");
 	printf("    Querying type drive\n");
 	printf("  =======================\n");
@@ -259,8 +266,8 @@ int main(int argc, char *argv[])
 	printf("Drive is SM: %s\n", GMT_SM(mtstat.mt_gstat) ? "Yes" : "No");
 	printf("Drive is WRITE PROTECT: %s\n",
 				GMT_WR_PROT(mtstat.mt_gstat) ? "Yes" : "No");
-	printf("Drive does not have a tape in place : %s\n",
-				GMT_DR_OPEN(mtstat.mt_gstat) ? "Yes" : "No");
+	printf("Tape is %sloaded in the drive\n",
+				GMT_DR_OPEN(mtstat.mt_gstat) ? "not " : "");
 
 	err = ioctl(tape_fd, MTIOCPOS, &mtpos);
 	if (err)
