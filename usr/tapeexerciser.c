@@ -48,7 +48,7 @@ static int space_forward_block(int fd, int count)
 	int err;
 
 	printf("%s(%d)", __func__, count);
-	mtop.mt_op = MTBSF;	/* Forward count block */
+	mtop.mt_op = MTFSR;	/* Forward count block */
 	mtop.mt_count = count;
 	err = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
