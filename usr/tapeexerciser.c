@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/mtio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -116,6 +117,20 @@ static int rewind_tape(int fd)
 	return err;
 }
 
+static int read_block_position(int fd)
+{
+	struct mtpos mtpos;
+	int err;
+
+	err = ioctl(fd, MTIOCPOS, &mtpos);
+	if (err) {
+		printf("%s: %s\n", __func__, strerror(errno));
+		return -1;
+	}
+
+	return mtpos.mt_blkno;
+}
+
 static int read_block(int fd, int size)
 {
 	char *buf;
@@ -157,18 +172,17 @@ static int write_block(int fd, int size)
 static void usage(char *arg)
 {
 	printf("Usage: %s -f tape_path\n", arg);
+	printf("       WARNING: %s will overwrite the tape\n\n", arg);
 }
 
 int main(int argc, char *argv[])
 {
-	struct mtop mtop;
 	struct mtget mtstat;
 	struct mtpos mtpos;
 	char *dev = NULL;
 	int tape_fd;
 	int err;
 	int count;
-	char *buf;
 
 	if (argc != 3) {
 		usage(argv[0]);
@@ -226,31 +240,51 @@ int main(int argc, char *argv[])
 
 	rewind_tape(tape_fd);
 	read_block(tape_fd, 8 * 1024);
+	printf("Block %d\n", read_block_position(tape_fd));
 	space_forward_filemark(tape_fd, 3);
+	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 64 * 1024);
+	printf("Block %d\n", read_block_position(tape_fd));
 	space_back_block(tape_fd, 1);
+	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 32 * 1024);
+	printf("Block %d\n", read_block_position(tape_fd));
 
 	rewind_tape(tape_fd);
+	printf("Block %d\n", read_block_position(tape_fd));
 	printf("Note: following space_forward_filemark(100000) should error\n");
 	space_forward_filemark(tape_fd, 100000);
+	printf("Block %d\n", read_block_position(tape_fd));
 	space_back_filemark(tape_fd, 2);
+	printf("Block %d\n", read_block_position(tape_fd));
 	space_back_block(tape_fd, 1);
+	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 64 * 1024);
+	printf("Block %d\n", read_block_position(tape_fd));
 
 	rewind_tape(tape_fd);
+	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 8 * 1024);
+	printf("Block %d\n", read_block_position(tape_fd));
 	space_forward_filemark(tape_fd, 3);
+	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 64 * 1024);
+	printf("Block %d\n", read_block_position(tape_fd));
 	space_back_block(tape_fd, 1);
+	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 64 * 1024);
+	printf("Block %d\n", read_block_position(tape_fd));
+	space_forward_block(tape_fd, 1);
+	printf("Block %d\n", read_block_position(tape_fd));
 
+	err = ioctl(tape_fd, MTIOCGET, &mtstat); /* Query device status */
+	if (err) {
+		printf("%s: %s\n", __func__, strerror(errno));
+		exit(-1);
+	}
 	printf("  =======================\n");
 	printf("    Querying type drive\n");
 	printf("  =======================\n");
-	err = ioctl(tape_fd, MTIOCGET, &mtstat); /* Query device status */
-	if (err)
-		printf("%s: %s\n", __func__, strerror(errno));
 	printf("Status from tape device: type: %s\n",
 		(mtstat.mt_type == MT_ISSCSI1) ? "SCSI-1" : "SCSI-2");
 	printf("Position: fileno: %d, blockno: %d\n",
@@ -269,12 +303,9 @@ int main(int argc, char *argv[])
 	printf("Tape is %sloaded in the drive\n",
 				GMT_DR_OPEN(mtstat.mt_gstat) ? "not " : "");
 
-	err = ioctl(tape_fd, MTIOCPOS, &mtpos);
-	if (err)
-		printf("%s: %s\n", __func__, strerror(errno));
-	printf("Quering tape position: %ld\n", mtpos.mt_blkno);
 	printf("  =======================\n\n");
 
 	close(tape_fd);
+	exit(0);
 }
 

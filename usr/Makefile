@@ -52,7 +52,7 @@ LIBDIR = lib
 endif
 
 all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
-	vtllibrary make_vtl_media
+	vtllibrary make_vtl_media tapeexerciser
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h \
 		be_byteshift.h \
@@ -60,6 +60,9 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h \
 	$(CC) $(CFLAGS) -c -fpic vtllib.c
 	$(CC) $(CFLAGS) -c -fpic spc.c
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o
+
+tapeexerciser:	tapeexerciser.c
+	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
 
 dump_messageQ:	dump_messageQ.o q.o q.h
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.o q.o

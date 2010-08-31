@@ -57,6 +57,7 @@ install -m 750 usr/mktape $RPM_BUILD_ROOT/usr/bin/mktape
 install -m 700 usr/build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
 install -m 700 usr/make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
 install -m 700 usr/make_vtl_media $RPM_BUILD_ROOT/usr/bin/make_vtl_media
+install -m 700 usr/tapeexerciser $RPM_BUILD_ROOT/usr/bin/tapeexerciser
 
 %ifarch x86_64 amd64 ppc64
 install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
@@ -148,6 +149,7 @@ fi
 %{_prefix}/bin/vtltape
 %{_prefix}/bin/vtllibrary
 %{_prefix}/bin/mktape
+%{_prefix}/bin/tapeexerciser
 %{_prefix}/bin/build_library_config
 %{_prefix}/bin/make_vtl_devices
 %{_prefix}/bin/make_vtl_media
