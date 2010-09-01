@@ -430,6 +430,7 @@ position_blocks_forw(uint32_t count, uint8_t *sam_stat)
 		if (read_header(filemarks[i] + 1, sam_stat)) {
 			return -1;
 		}
+		MHVTL_DBG(2, "Filemark encountered: block %d", filemarks[i]);
 		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -440,6 +441,7 @@ position_blocks_forw(uint32_t count, uint8_t *sam_stat)
 		if (read_header(eod_blk_number, sam_stat)) {
 			return -1;
 		}
+		MHVTL_DBG(2, "EOD encountered");
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -501,6 +503,7 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 		if (read_header(filemarks[i], sam_stat))
 			return -1;
 
+		MHVTL_DBG(2, "Filemark encountered: block %d", filemarks[i]);
 		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -511,6 +514,7 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 		if (read_header(0, sam_stat))
 			return -1;
 
+		MHVTL_DBG(2, "BOM encountered");
 		mkSenseBuf(NO_SENSE | SD_EOM, E_BOM, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
