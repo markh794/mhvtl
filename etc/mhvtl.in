@@ -332,7 +332,7 @@ case "$1" in
 		sleep 1
 	fi
 
-	if [ ! -z "`ps --user $USER|grep -v TIME`" ]; then
+	if [ ! -z "`ps -ef|grep -v grep|egrep 'vtllibrary|vtltape'`" ]; then
 		echo "mhvtl already running..."
 		exit 1
 	fi
