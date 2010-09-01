@@ -275,6 +275,7 @@ int main(int argc, char *argv[])
 	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 64 * 1024);
 	printf("Block %d\n", read_block_position(tape_fd));
+	printf("Note: following space_forward_block() should error\n");
 	space_forward_block(tape_fd, 1);
 	printf("Block %d\n", read_block_position(tape_fd));
 
