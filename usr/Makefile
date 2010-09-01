@@ -99,7 +99,7 @@ clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
 		vtllib.o libvtlscsi.so z.o vtllibrary.o \
-		vtlcart.o spc.o
+		vtlcart.o spc.o tapeexerciser.o
 
 tags:
 	etags *.c *.h ../kernel/*.h
@@ -117,6 +117,7 @@ distclean:
 	TAGS \
 	make_vtl_media \
 	make_vtl_media.1 \
+	tapeexerciser tapeexerciser.o \
 	vtllibrary vtllibrary.o
 
 install:
