@@ -87,14 +87,14 @@ static int space_back_block(int fd, int count)
 	return err;
 }
 
-static int set_compression(int fd)
+static int set_compression(int fd, int state)
 {
 	struct mtop mtop;
 	int err;
 
 	printf("%s()", __func__);
 	mtop.mt_op = MTCOMPRESSION; /* Set compression */
-	mtop.mt_count = 1;
+	mtop.mt_count = state;
 	err = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
@@ -214,7 +214,8 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
-	set_compression(tape_fd);
+	/* Disable Compression */
+	set_compression(tape_fd, 0);
 
 	rewind_tape(tape_fd);
 	read_block(tape_fd, 8 * 1024);
