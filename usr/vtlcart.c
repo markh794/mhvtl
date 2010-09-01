@@ -471,15 +471,6 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 
 	MHVTL_DBG(2, "Position before movement: %d", raw_pos.hdr.blk_number);
 
-	/* Actually need to go back 1 less than number passed
-	 * i.e. If we are positioned at end of block X
-	 *      a back one block should put us at beginning of block X
-	 */
-/*	if ((raw_pos.hdr.blk_type == B_DATA) &&
-					(count < raw_pos.hdr.blk_number))
-		blk_target = raw_pos.hdr.blk_number - count + 1;
-	else if (count < raw_pos.hdr.blk_number)
-*/
 	if (count < raw_pos.hdr.blk_number)
 		blk_target = raw_pos.hdr.blk_number - count;
 	else

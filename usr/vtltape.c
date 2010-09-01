@@ -1453,8 +1453,9 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		buf[43] = 0x14;	/* Encryption Algorithm Id */
 		ret = 44;
 
-		MHVTL_DBG(2, "Drive type: %s, Media type: %d",
-				drive_name(lunit.drive_type), mam.MediaType);
+		MHVTL_DBG(2, "Drive type: %s, Media type: %s",
+				drive_name(lunit.drive_type),
+				lookup_media_type(mam.MediaType));
 
 		/* adjustments for each emulated drive type */
 		switch (lunit.drive_type) {
@@ -2758,8 +2759,10 @@ mismatchmedia:
 	fg |= 0x800;	/* Unsupported format */
 	setSeqAccessDevice(&seqAccessDevice, fg);
 	setTapeAlert(&TapeAlert, fg);
-	MHVTL_DBG(1, "Tape %s failed to load with type %d in drive type %s",
-			PCL, mam.MediaType, drive_name(lunit.drive_type));
+	MHVTL_DBG(1, "Tape %s failed to load with type '%s' in drive type '%s'",
+			PCL,
+			lookup_media_type(mam.MediaType),
+			drive_name(lunit.drive_type));
 	tapeLoaded = TAPE_UNLOADED;
 	return TAPE_UNLOADED;
 }
