@@ -22,7 +22,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 ExclusiveArch: i686 x86_64
 
 # Sources.
-Source0: http://sites.google.com/site/linuxvtl2/mhvtl-2010-10-01.tgz
+Source0: http://sites.google.com/site/linuxvtl2/mhvtl-2010-09-01.tgz
 Source10: kmodtool-mhvtl
 
 # If kversion isn't defined on the rpmbuild line, build for the current kernel.
@@ -31,10 +31,10 @@ Source10: kmodtool-mhvtl
 # Define the variants for each architecture.
 %define basevar ""
 %ifarch i686
-%define paevar PAE
+%define paevar PAE default smp
 %endif
 %ifarch i686 x86_64
-%define xenvar xen
+%define xenvar xen smp generic
 %endif
 
 # If kvariants isn't defined on the rpmbuild line, build all variants for this architecture.
