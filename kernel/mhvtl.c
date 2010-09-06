@@ -53,7 +53,6 @@
 #include <linux/genhd.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/moduleparam.h>
 #include <asm/uaccess.h>
@@ -100,9 +99,9 @@ struct scatterlist;
 #define WRITE_ATTRIBUTE 0x8d
 #define SECURITY_PROTOCOL_OUT 0xb5
 #ifndef MHVTL_VERSION
-#define MHVTL_VERSION "0.18.9"
+#define MHVTL_VERSION "0.18.11"
 #endif
-static const char *vtl_version_date = "20100708-0";
+static const char *vtl_version_date = "20100907-0";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -296,7 +295,6 @@ static int vtl_abort(struct scsi_cmnd *);
 static int vtl_bus_reset(struct scsi_cmnd *);
 static int vtl_device_reset(struct scsi_cmnd *);
 static int vtl_host_reset(struct scsi_cmnd *);
-static int vtl_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
 static const char * vtl_info(struct Scsi_Host *);
 static int vtl_open(struct inode *, struct file *);
 static int vtl_release(struct inode *, struct file *);
@@ -304,7 +302,6 @@ static int vtl_release(struct inode *, struct file *);
 static struct device pseudo_primary;
 
 static struct scsi_host_template vtl_driver_template = {
-	.proc_info =		vtl_proc_info,
 	.name =			"VTL",
 	.info =			vtl_info,
 	.slave_alloc =		vtl_slave_alloc,
@@ -1151,59 +1148,6 @@ static const char *vtl_info(struct Scsi_Host *shp)
 		"opts=0x%x", MHVTL_VERSION,
 		vtl_version_date, vtl_opts);
 	return vtl_parm_info;
-}
-
-/* vtl_proc_info
- * Used if the driver currently has no own support for /proc/scsi
- */
-static int vtl_proc_info(struct Scsi_Host *host, char *buffer,
-			 char **start, off_t offset, int length, int inout)
-{
-	int len, pos, begin;
-	int orig_length;
-
-	orig_length = length;
-
-	if (inout == 1) {
-		char arr[16];
-		int minLen = length > 15 ? 15 : length;
-
-		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-			return -EACCES;
-		memcpy(arr, buffer, minLen);
-		arr[minLen] = '\0';
-		if (1 != sscanf(arr, "%d", &pos))
-			return -EINVAL;
-		vtl_opts = pos;
-		if (vtl_every_nth != 0)
-			vtl_cmnd_count = 0;
-		return length;
-	}
-	begin = 0;
-	pos = len = sprintf(buffer, "mhvtl adapter driver, version "
-		"%s [%s]\n"
-		"num_tgts=%d, opts=0x%x, "
-		"every_nth=%d(curr:%d)\n"
-		"max_luns=%d,"
-		"scsi_level=%d\n"
-		"number of aborts=%d, device_reset=%d, bus_resets=%d, "
-		"host_resets=%d \n",
-		MHVTL_VERSION, vtl_version_date, vtl_num_tgts,
-		vtl_opts, vtl_every_nth,
-		vtl_cmnd_count,
-		vtl_max_luns,
-		vtl_scsi_level,
-		num_aborts, num_dev_resets, num_bus_resets, num_host_resets
-		);
-	if (pos < offset) {
-		len = 0;
-		begin = pos;
-	}
-	*start = buffer + (offset - begin);	/* Start of wanted data */
-	len -= (offset - begin);
-	if (len > length)
-		len = length;
-	return len;
 }
 
 static ssize_t vtl_opts_show(struct device_driver *ddp, char *buf)
