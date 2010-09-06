@@ -173,7 +173,7 @@ static const char vtl_driver_name[] = "mhvtl";
 #define SAM2_LUN_ADDRESS_METHOD 0
 
 /* Major number assigned to vtl driver => 0 means to ask for one */
-static int vtl_Major = 0;
+static int vtl_major = 0;
 
 #define DEF_MAX_MINOR_NO 256	/* Max number of minor nos. this driver will handle */
 
@@ -1234,6 +1234,12 @@ opts_done:
 }
 DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, vtl_opts_show, vtl_opts_store);
 
+static ssize_t vtl_major_show(struct device_driver *ddp, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_major);
+}
+DRIVER_ATTR(major, S_IRUGO, vtl_major_show, NULL);
+
 static ssize_t vtl_dsense_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_dsense);
@@ -1347,6 +1353,7 @@ static int do_create_driverfs_files(void)
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_opts);
+	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_major);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_scsi_level);
 	return ret;
 }
@@ -1354,6 +1361,7 @@ static int do_create_driverfs_files(void)
 static void do_remove_driverfs_files(void)
 {
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_scsi_level);
+	driver_remove_file(&vtl_driverfs_driver, &driver_attr_major);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_opts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_max_luns);
@@ -1367,8 +1375,8 @@ static int __init mhvtl_init(void)
 
 	memset(&devp, 0, sizeof(devp));
 
-	vtl_Major = register_chrdev(vtl_Major, "mhvtl", &vtl_fops);
-	if (vtl_Major < 0) {
+	vtl_major = register_chrdev(vtl_major, "mhvtl", &vtl_fops);
+	if (vtl_major < 0) {
 		printk(KERN_WARNING "mhvtl: can't get major number\n");
 		goto register_chrdev_error;
 	}
@@ -1425,7 +1433,7 @@ bus_register_error:
 	device_unregister(&pseudo_primary);
 
 device_register_error:
-	unregister_chrdev(vtl_Major, "mhvtl");
+	unregister_chrdev(vtl_major, "mhvtl");
 
 register_chrdev_error:
 
@@ -1449,7 +1457,7 @@ static void __exit vtl_exit(void)
 	driver_unregister(&vtl_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
 	device_unregister(&pseudo_primary);
-	unregister_chrdev(vtl_Major, "mhvtl");
+	unregister_chrdev(vtl_major, "mhvtl");
 }
 
 device_initcall(mhvtl_init);
