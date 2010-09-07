@@ -20,5 +20,5 @@ clean:
 
 .PHONY: install
 install:
-	install -m 700 $(RCFILE) /usr/bin/
+	install -m 700 $(RCFILE) $(DESTDIR)/usr/bin/
 
