@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -614,6 +616,85 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 	return 0;
 }
 
+static int chrdev_get_major(void)
+{
+	FILE *f;
+	char *filename = "/sys/bus/pseudo/drivers/mhvtl/major";
+	int ret = 0;
+	int x;
+	int majno;
+
+	f = fopen(filename, "r");
+	if (!f) {
+		MHVTL_DBG(1, "Can't open %s: %s", filename, strerror(errno));
+		ret = -1;
+		goto err;
+	}
+	x = fscanf(f, "%d", &majno);
+	if (!x) {
+		MHVTL_DBG(1, "Cant identify major number for mhvtl");
+		ret = -1;
+	} else
+		ret = majno;
+
+err:
+	fclose(f);
+	return ret;
+}
+
+int chrdev_chown(uint8_t minor, uid_t uid, uid_t gid)
+{
+	char pathname[64];
+	int x;
+
+	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%d", minor);
+
+	MHVTL_DBG(3, "chown(%s, %d, %d)", pathname, (int)uid, (int)gid);
+	x = chown(pathname, uid, uid);
+	if (x == -1) {
+		MHVTL_DBG(1, "Can't change ownership for device node mhvtl: %s",
+			strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+int chrdev_create(uint8_t minor)
+{
+	int majno;
+	int x;
+	int ret = 0;
+	dev_t dev;
+	char pathname[64];
+
+	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%d", minor);
+
+	majno = chrdev_get_major();
+	if (majno == -1) {
+		ret = -1;
+		goto err;
+	}
+
+	dev = makedev(majno, minor);
+	MHVTL_DBG(2, "Major number: %d, minor number: %d",
+			major(dev), minor(dev));
+	MHVTL_DBG(3, "mknod(%s, %02o, major: %d minor: %d",
+		pathname, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP,
+		major(dev), minor(dev));
+	x = mknod(pathname, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP, dev);
+	if (x < 0) {
+		if (errno == EEXIST) /* Success if node already exists */
+			return 0;
+
+		MHVTL_DBG(1, "Error creating device node for mhvtl: %s",
+			strerror(errno));
+		ret = -1;
+	}
+
+err:
+	return ret;
+}
+
 int chrdev_open(char *name, uint8_t minor)
 {
 	FILE *f;
@@ -624,7 +705,8 @@ int chrdev_open(char *name, uint8_t minor)
 
 	f = fopen("/proc/devices", "r");
 	if (!f) {
-		printf("Cannot open control path to the driver\n");
+		printf("Cannot open control path to the driver: %s\n",
+			strerror(errno));
 		return -1;
 	}
 

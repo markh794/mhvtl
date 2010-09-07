@@ -62,30 +62,10 @@ if [ ! -f /sys/bus/pseudo/drivers/mhvtl/add_lu ]; then
 	exit 1
 fi
 
-# OK, we know the module is loaded..
-MAJOR=`grep mhvtl /proc/devices|awk '{print $1}'`
-
-function create_minor
-{
-	typeset minor=$1
-
-	# Make sure device node exists..
-	# A better bet would be to configure udev...
-	if [ ! -c /dev/mhvtl$minor ]; then
-		if [ -a /dev/mhvtl$minor ]; then
-			# Exists but not a char device... remove..
-			rm /dev/mhvtl$minor
-		fi
-		mknod /dev/mhvtl$minor c $major $minor
-		chown $USER:$USER /dev/mhvtl$minor
-	fi
-}
-
 # First we need to setup & configure drives.
 
 for a in $(awk '$1 == "Drive:" {print $2}' $DEVICE_CONF)
 do
-	create_minor $a
 	vtltape -q $a $OPTIONS
 done
 
@@ -93,7 +73,6 @@ done
 
 for a in $(awk '$1 == "Library:" {print $2}' $DEVICE_CONF)
 do
-	create_minor $a
 	vtllibrary -q $a $OPTIONS
 done
 

@@ -3567,11 +3567,17 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (chrdev_create(minor)) {
+		MHVTL_DBG(1, "Unable to create device node mhvtl%d", minor);
+		exit(1);
+	}
+
 	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
 	if (!pw) {
 		MHVTL_DBG(1, "Unable to find user: %s", USR);
 		exit(1);
 	}
+	chrdev_chown(minor, pw->pw_uid, pw->pw_gid);
 
 	if (setgid(pw->pw_gid)) {
 		perror("Unable to change gid");

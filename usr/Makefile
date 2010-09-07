@@ -132,7 +132,6 @@ install:
 	install -o $(USR) -g $(GROUP) -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
-	install -m 700 make_vtl_devices $(DESTDIR)$(PREFIX)/bin/
 
 tar:
 	make -C ../ tar

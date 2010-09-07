@@ -339,12 +339,6 @@ case "$1" in
 
 	chown -R $USER:$USER $MHVTL_CONFIG_PATH
 
-	# creating devices
-	make_vtl_devices $USER > /dev/null
-
-	# Now correct file permissions..
-	chown -R $USER:$USER /dev/mhvtl[0-9]*
-
 	# Build Library media
 	make_vtl_media $USER
 	if [ $? != 0 ]; then

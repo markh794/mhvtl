@@ -2481,11 +2481,18 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (chrdev_create(my_id)) {
+		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);
+		exit(1);
+	}
+
 	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
 	if (!pw) {
 		printf("Unable to find user: %s\n", USR);
 		exit(1);
 	}
+
+	chrdev_chown(my_id, pw->pw_uid, pw->pw_gid);
 
 	/* Now that we have created the lu, drop root uid/gid */
 	if (setgid(pw->pw_gid)) {

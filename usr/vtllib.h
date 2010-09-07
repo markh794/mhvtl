@@ -540,6 +540,8 @@ void initTapeAlert(struct TapeAlert_page *);
 
 void hex_dump(uint8_t *, int);
 int chrdev_open(char *name, uint8_t);
+int chrdev_create(uint8_t minor);
+int chrdev_chown(uint8_t minor, uid_t uid, gid_t gid);
 int oom_adjust(void);
 
 char *readline(char *s, int len, FILE *f);

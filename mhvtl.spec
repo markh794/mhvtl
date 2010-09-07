@@ -55,7 +55,6 @@ install -m 750 -s usr/vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
 install -m 750 usr/vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
 install -m 750 usr/mktape $RPM_BUILD_ROOT/usr/bin/mktape
 install -m 700 usr/build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
-install -m 700 usr/make_vtl_devices $RPM_BUILD_ROOT/usr/bin/make_vtl_devices
 install -m 700 usr/make_vtl_media $RPM_BUILD_ROOT/usr/bin/make_vtl_media
 install -m 700 usr/tapeexerciser $RPM_BUILD_ROOT/usr/bin/tapeexerciser
 
@@ -66,7 +65,6 @@ install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
 %endif
 
 install -m 644 man/build_library_config.1 $RPM_BUILD_ROOT/usr/share/man/man1/build_library_config.1
-install -m 644 man/make_vtl_devices.1 $RPM_BUILD_ROOT/usr/share/man/man1/make_vtl_devices.1
 install -m 644 man/mktape.1 $RPM_BUILD_ROOT/usr/share/man/man1/mktape.1
 install -m 644 man/mhvtl.1 $RPM_BUILD_ROOT/usr/share/man/man1/mhvtl.1
 install -m 644 man/vtlcmd.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtlcmd.1
@@ -151,7 +149,6 @@ fi
 %{_prefix}/bin/mktape
 %{_prefix}/bin/tapeexerciser
 %{_prefix}/bin/build_library_config
-%{_prefix}/bin/make_vtl_devices
 %{_prefix}/bin/make_vtl_media
 %ifarch x86_64 amd64 ppc64
 %{_prefix}/lib64/libvtlscsi.so
@@ -159,7 +156,6 @@ fi
 %{_prefix}/lib/libvtlscsi.so
 %endif
 %doc %{_prefix}/share/man/man1/build_library_config.1.gz
-%doc %{_prefix}/share/man/man1/make_vtl_devices.1.gz
 %doc %{_prefix}/share/man/man1/mktape.1.gz
 %doc %{_prefix}/share/man/man1/vtlcmd.1.gz
 %doc %{_prefix}/share/man/man1/mhvtl.1.gz
