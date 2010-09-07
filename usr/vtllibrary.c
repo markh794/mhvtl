@@ -2149,6 +2149,11 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 		for (j = 11; j > 3; ptr--, j--)
 			d[num + j] = *ptr;
 	}
+	/* Bug reported by Stefan Hauser.
+	 * [num +4] is always 0x5x
+	 */
+	d[num + 4] &= 0x0f;
+	d[num + 4] |= 0x50;
 }
 
 static void update_vpd_b1(struct lu_phy_attr *lu, void *p)
@@ -2179,7 +2184,7 @@ static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
-#define VPD_83_SZ 52
+#define VPD_83_SZ 50
 #define VPD_B0_SZ 4
 #define VPD_B1_SZ SCSI_SN_LEN
 #define VPD_B2_SZ 8
