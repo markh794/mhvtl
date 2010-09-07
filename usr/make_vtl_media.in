@@ -36,11 +36,22 @@ fi
 
 USER=$1
 
+#dry='echo'
+
+run() {
+	if [ -x "$(which setuidgid)" ]; then
+		$dry setuidgid $USER $*
+	else
+		$dry su $USER -c "$*"
+	fi
+}
+
 # I'm sure there is a better method then this...
 # There is.. Thanks to Gavin Barnard.
 set_density() {
 	density=$1
 	regex='[A-Z0-9]{6,8}([SLXTJ])([123456ABWX])$'
+	#regex='[A-Z0-9]{4,6}([SLXTJ])([123456ABWX])[0-9]*$' # for bacula
 
 	if [[ $density =~ $regex ]]; then
 		matches=${#BASH_REMATCH[*]}
@@ -88,7 +99,7 @@ do
 	do
 		set_density $a
 		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			su $USER -c "mktape -s $CAPACITY -t clean -m $a -d $DENSITY"
+			run "mktape -s $CAPACITY -t clean -m $a -d $DENSITY"
 		fi
 	done
 
@@ -97,7 +108,7 @@ do
 	do
 		set_density $a
 		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			su $USER -c "mktape -s $CAPACITY -t WORM -m $a -d $DENSITY"
+			run "mktape -s $CAPACITY -t WORM -m $a -d $DENSITY"
 		fi
 	done
 
@@ -106,7 +117,7 @@ do
 	do
 		set_density $a
 		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			su $USER -c "mktape -s $CAPACITY -t data -m $a -d $DENSITY"
+			run "mktape -s $CAPACITY -t data -m $a -d $DENSITY"
 		fi
 	done
 done
