@@ -290,7 +290,8 @@ static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
 static int vtl_queuecommand(struct scsi_cmnd *,
 				   void (*done) (struct scsi_cmnd *));
 static int vtl_b_ioctl(struct scsi_device *, int, void __user *);
-static int vtl_c_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
+static long vtl_c_ioctl(struct file *, unsigned int, unsigned long);
+static int vtl_c_ioctl_bkl(struct inode *, struct file *, unsigned int, unsigned long);
 static int vtl_abort(struct scsi_cmnd *);
 static int vtl_bus_reset(struct scsi_cmnd *);
 static int vtl_device_reset(struct scsi_cmnd *);
@@ -328,7 +329,11 @@ static struct scsi_host_template vtl_driver_template = {
 
 static struct file_operations vtl_fops = {
 	.owner   =  THIS_MODULE,
-	.ioctl   =  vtl_c_ioctl,
+#if defined(HAVE_UNLOCKED_IOCTL)
+	.unlocked_ioctl   =  vtl_c_ioctl,
+#else
+	.ioctl   =  vtl_c_ioctl_bkl,
+#endif
 	.open    =  vtl_open,
 	.release =  vtl_release,
 };
@@ -1738,10 +1743,22 @@ give_up:
 	return ret;
 }
 
+static long vtl_c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	long ret;
+
+	lock_kernel();
+	ret = vtl_c_ioctl_bkl(inode, file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 /*
  * char device ioctl entry point
  */
-static int vtl_c_ioctl(struct inode *inode, struct file *file,
+static int vtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
 	unsigned int minor = iminor(inode);
