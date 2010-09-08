@@ -18,9 +18,9 @@ EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref
 
 PARENTDIR = mhvtl-$(VER)
 PREFIX ?= /usr
-USR = vtl
+USR ?= vtl
 SUSER ?=root
-GROUP = vtl
+GROUP ?= vtl
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CHECK_CC = cgcc
@@ -73,7 +73,7 @@ install:
 	$(MAKE) scripts
 	$(MAKE) -C scripts install
 	$(MAKE) etc
-	$(MAKE) -C etc install
+	$(MAKE) -C etc install USR=$(USR)
 
 tar:
 	$(MAKE) distclean
