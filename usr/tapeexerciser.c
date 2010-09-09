@@ -218,17 +218,11 @@ int main(int argc, char *argv[])
 	set_compression(tape_fd, 0);
 
 	rewind_tape(tape_fd);
-	read_block(tape_fd, 8 * 1024);
-	space_forward_filemark(tape_fd, 3);
-	read_block(tape_fd, 64 * 1024);
-	space_back_block(tape_fd, 1);
-	read_block(tape_fd, 64 * 1024);
-
-	rewind_tape(tape_fd);
 
 	write_block(tape_fd, 8 * 1024);
 	write_block(tape_fd, 64 * 1024);
 	write_filemarks(tape_fd, 1);
+	write_block(tape_fd, 64 * 1024);
 	write_block(tape_fd, 64 * 1024);
 	write_filemarks(tape_fd, 1);
 	write_block(tape_fd, 64 * 1024);
@@ -250,6 +244,13 @@ int main(int argc, char *argv[])
 	printf("Block %d\n", read_block_position(tape_fd));
 	read_block(tape_fd, 32 * 1024);
 	printf("Block %d\n", read_block_position(tape_fd));
+
+	rewind_tape(tape_fd);
+	space_forward_filemark(tape_fd, 3);
+	read_block(tape_fd, 64 * 1024);
+	space_forward_block(tape_fd, 1);
+	read_block(tape_fd, 64 * 1024);
+	printf("Did we error here ??\n");
 
 	rewind_tape(tape_fd);
 	printf("Block %d\n", read_block_position(tape_fd));
