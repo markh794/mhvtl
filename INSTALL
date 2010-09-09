@@ -25,10 +25,10 @@ SLES 9 & 10:
 
 
 2) Extract the mhvtl source code.
-# tar xvfz mhvtl-2009-11-02.tgz
+# tar xvfz mhvtl-2010-09-01.tgz
 
 3) Change directory into the kernel driver source.
-# cd mhvtl-0.16/kernel/
+# cd mhvtl-0.18/kernel/
 # make
 # make install
 
@@ -43,7 +43,7 @@ Pre-req to build/compile userspace:
 
 * To build an RPM 
   ===============
- cp vtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
+ cp mhvtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
  cd /usr/src/packages/SOURCE
  rpmbuild -tb mhvtl-YYYY-MM-DD.tar.gz
  <wait for rpm build to complete>
@@ -63,7 +63,7 @@ a group and user called 'vtl'
 
 Now build user space daemons:
 From the parent directory where you extracted the source.
-# cd mhvtl-0.16
+# cd mhvtl-0.18
 
 Build the binaries
 # make
@@ -131,7 +131,6 @@ Data Transfer Element 3:Empty
       Storage Element 35 IMPORT/EXPORT:Empty
       Storage Element 36 IMPORT/EXPORT:Empty
       Storage Element 37 IMPORT/EXPORT:Empty
-
 
 
 Enjoy.
