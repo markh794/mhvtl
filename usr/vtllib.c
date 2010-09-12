@@ -260,7 +260,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 	buf[5] = buf[9] = (pos >> 16);
 	buf[6] = buf[10] = (pos >> 8);
 	buf[7] = buf[11] = pos;
-	MHVTL_DBG(1, "Position %ld", (long)pos);
+	MHVTL_DBG(1, "Positioned at block %ld", (long)pos);
 
 	return READ_POSITION_LEN;
 }
