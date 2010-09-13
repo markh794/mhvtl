@@ -412,6 +412,7 @@ position_blocks_forw(uint32_t count, uint8_t *sam_stat)
 	/* Find the first filemark forward from our current position, if any. */
 
 	for (i = 0; i < meta.filemark_count; i++) {
+		MHVTL_DBG(3, "filemark at %ld", (unsigned long)filemarks[i]);
 		if (filemarks[i] >= raw_pos.hdr.blk_number) {
 			break;
 		}
@@ -479,6 +480,7 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 	/* Find the first filemark prior to our current position, if any. */
 
 	for (i = meta.filemark_count - 1; i <= meta.filemark_count; i--) {
+		MHVTL_DBG(3, "filemark at %ld", (unsigned long)filemarks[i]);
 		if (filemarks[i] < raw_pos.hdr.blk_number)
 			break;
 	}
