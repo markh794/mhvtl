@@ -1218,10 +1218,6 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 
 	if (*compressionFactor) {
 		dest_len = compressBound(src_sz);
-		MHVTL_DBG(2, "Compression: src sz %d, dest sz %ld, "
-				"Compression factor %d",
-					src_sz, (unsigned long)dest_len,
-					*compressionFactor);
 		dest_buf = malloc(dest_len);
 		if (!dest_buf) {
 			MHVTL_DBG(1, "malloc(%d) failed", (int)dest_len);
@@ -1247,8 +1243,10 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 				break;
 			}
 		}
-		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
-					src_sz, (unsigned long)dest_len);
+		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"
+				", Compression factor: %d",
+					src_sz, (unsigned long)dest_len,
+					*compressionFactor);
 	} else {
 		dest_buf = src_buf;
 		dest_len = 0;	/* no compression */

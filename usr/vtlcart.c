@@ -1143,6 +1143,8 @@ write_tape_block(const uint8_t *buffer, uint32_t blk_size, uint32_t comp_size,
 		return -1;
 	}
 
+	MHVTL_DBG(3, "Successfully wrote block: %u", blk_number);
+
 	return mkEODHeader(blk_number + 1, data_offset + disk_blk_size);
 }
 
