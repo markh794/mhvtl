@@ -1011,6 +1011,7 @@ write_filemarks(uint32_t count, uint8_t *sam_stat)
 	*/
 
 	if (count == 0) {
+		MHVTL_DBG(2, "Flushing data - 0 filemarks written");
 		fsync(datafile);
 		fsync(indxfile);
 		fsync(metafile);
