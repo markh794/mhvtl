@@ -175,13 +175,107 @@ static void usage(char *arg)
 	printf("       WARNING: %s will overwrite the tape\n\n", arg);
 }
 
+void write_tape_pattern_1(int fd)
+{
+	rewind_tape(fd);
+
+	write_block(fd, 8 * 1024);
+	write_block(fd, 64 * 1024);
+	write_filemarks(fd, 1);
+	write_block(fd, 64 * 1024);
+	write_block(fd, 64 * 1024);
+	write_block(fd, 64 * 1024);
+	write_block(fd, 64 * 1024);
+	write_block(fd, 64 * 1024);
+	write_filemarks(fd, 0);	/* Flush data */
+	write_filemarks(fd, 1);
+}
+
+void write_tape_pattern_2(int fd)
+{
+	rewind_tape(fd);
+
+	space_forward_filemark(fd, 1);
+	space_forward_block(fd, 5); /* should be at end filemark */
+
+	write_block(fd, 128 * 1024);
+	write_block(fd, 128 * 1024);
+	write_block(fd, 128 * 1024);
+	write_filemarks(fd, 1);
+	write_block(fd, 128 * 1024);
+	write_filemarks(fd, 1);
+	write_block(fd, 128 * 1024);
+	write_filemarks(fd, 2);
+}
+
+int read_test_1(int fd)
+{
+	rewind_tape(fd);
+	read_block(fd, 8 * 1024);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	space_forward_filemark(fd, 3);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	read_block(fd, 64 * 1024);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	space_back_block(fd, 1);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	read_block(fd, 32 * 1024);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	return 0;
+}
+
+int read_test_2(int fd)
+{
+	rewind_tape(fd);
+	space_forward_filemark(fd, 3);
+	read_block(fd, 64 * 1024);
+	space_forward_block(fd, 1);
+	read_block(fd, 64 * 1024);
+	printf("%s: Did we error here ??\n", __func__);
+
+	rewind_tape(fd);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	printf("%s: Note: following space_forward_filemark(100000)"
+		" should error\n", __func__);
+	space_forward_filemark(fd, 100000);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	space_back_filemark(fd, 2);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	space_back_block(fd, 1);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	read_block(fd, 64 * 1024);
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
+	return 0;
+}
+
+int read_test_3(int fd)
+{
+	rewind_tape(fd);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	read_block(fd, 8 * 1024);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	space_forward_filemark(fd, 3);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	read_block(fd, 64 * 1024);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	space_back_block(fd, 1);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	read_block(fd, 64 * 1024);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Note: following space_forward_block() should error\n",
+				__func__);
+	space_forward_block(fd, 1);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	struct mtget mtstat;
 	struct mtpos mtpos;
 	char *dev = NULL;
 	int tape_fd;
-	int err;
+	int err, rc;
 	int count;
 
 	if (argc != 3) {
@@ -217,68 +311,12 @@ int main(int argc, char *argv[])
 	/* Disable Compression */
 	set_compression(tape_fd, 0);
 
-	rewind_tape(tape_fd);
+	write_tape_pattern_1(tape_fd);
+	write_tape_pattern_2(tape_fd);
 
-	write_block(tape_fd, 8 * 1024);
-	write_block(tape_fd, 64 * 1024);
-	write_filemarks(tape_fd, 1);
-	write_block(tape_fd, 64 * 1024);
-	write_block(tape_fd, 64 * 1024);
-	write_filemarks(tape_fd, 1);
-	write_block(tape_fd, 64 * 1024);
-	write_filemarks(tape_fd, 1);
-	write_block(tape_fd, 64 * 1024);
-	write_filemarks(tape_fd, 1);
-	write_block(tape_fd, 64 * 1024);
-	write_filemarks(tape_fd, 1);
-	write_filemarks(tape_fd, 1);
-
-	rewind_tape(tape_fd);
-	read_block(tape_fd, 8 * 1024);
-	printf("Block %d\n", read_block_position(tape_fd));
-	space_forward_filemark(tape_fd, 3);
-	printf("Block %d\n", read_block_position(tape_fd));
-	read_block(tape_fd, 64 * 1024);
-	printf("Block %d\n", read_block_position(tape_fd));
-	space_back_block(tape_fd, 1);
-	printf("Block %d\n", read_block_position(tape_fd));
-	read_block(tape_fd, 32 * 1024);
-	printf("Block %d\n", read_block_position(tape_fd));
-
-	rewind_tape(tape_fd);
-	space_forward_filemark(tape_fd, 3);
-	read_block(tape_fd, 64 * 1024);
-	space_forward_block(tape_fd, 1);
-	read_block(tape_fd, 64 * 1024);
-	printf("Did we error here ??\n");
-
-	rewind_tape(tape_fd);
-	printf("Block %d\n", read_block_position(tape_fd));
-	printf("Note: following space_forward_filemark(100000) should error\n");
-	space_forward_filemark(tape_fd, 100000);
-	printf("Block %d\n", read_block_position(tape_fd));
-	space_back_filemark(tape_fd, 2);
-	printf("Block %d\n", read_block_position(tape_fd));
-	space_back_block(tape_fd, 1);
-	printf("Block %d\n", read_block_position(tape_fd));
-	read_block(tape_fd, 64 * 1024);
-	printf("Block %d\n", read_block_position(tape_fd));
-
-	rewind_tape(tape_fd);
-	printf("Block %d\n", read_block_position(tape_fd));
-	read_block(tape_fd, 8 * 1024);
-	printf("Block %d\n", read_block_position(tape_fd));
-	space_forward_filemark(tape_fd, 3);
-	printf("Block %d\n", read_block_position(tape_fd));
-	read_block(tape_fd, 64 * 1024);
-	printf("Block %d\n", read_block_position(tape_fd));
-	space_back_block(tape_fd, 1);
-	printf("Block %d\n", read_block_position(tape_fd));
-	read_block(tape_fd, 64 * 1024);
-	printf("Block %d\n", read_block_position(tape_fd));
-	printf("Note: following space_forward_block() should error\n");
-	space_forward_block(tape_fd, 1);
-	printf("Block %d\n", read_block_position(tape_fd));
+	rc = read_test_1(tape_fd);
+	rc = read_test_2(tape_fd);
+	rc = read_test_3(tape_fd);
 
 	err = ioctl(tape_fd, MTIOCGET, &mtstat); /* Query device status */
 	if (err) {
