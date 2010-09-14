@@ -2844,9 +2844,9 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			pcl = strip_PCL(msg->text, 6); /* 'lload ' => offset of 6 */
 			loadTape(pcl, sam_stat);
 			if (tapeLoaded == TAPE_LOADED)
-				sprintf(s, "Loaded OK: %s\n", pcl);
+				sprintf(s, "Loaded OK: %s", pcl);
 			else
-				sprintf(s, "Load failed: %s\n", pcl);
+				sprintf(s, "Load failed: %s", pcl);
 			send_msg(s, msg->snd_id);
 		}
 	}

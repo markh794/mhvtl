@@ -590,7 +590,7 @@ static int check_tape_load(uint8_t *pcl)
 
 	mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0) {
-		MHVTL_DBG(2, "Received \"%s\" from message Q", r_entry.msg.text);
+		MHVTL_DBG(2, "Received \"%s\" from msg Q", r_entry.msg.text);
 	}
 	return strncmp("Loaded OK", r_entry.msg.text, 9);
 }
