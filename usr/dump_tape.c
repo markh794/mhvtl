@@ -97,8 +97,10 @@ int main(int argc, char *argv[])
 
 	printf("PCL is : %s\n", pcl);
 
-	if ((rc = load_tape(pcl, &sam_stat)) != 0) {
-		fprintf(stderr, "PCL %s cannot be dumped, load_tape() returned %d\n",
+	rc = load_tape(pcl, &sam_stat);
+	if (rc) {
+		fprintf(stderr,
+			"PCL %s cannot be dumped, load_tape() returned %d\n",
 			pcl, rc);
 		exit(1);
 	}
