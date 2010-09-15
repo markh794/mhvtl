@@ -3526,9 +3526,13 @@ int main(int argc, char *argv[])
 	minor = my_id;	/* Minor == Message Queue priority */
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	syslog(LOG_DAEMON|LOG_INFO, "%s: version %s", progname, MHVTL_VERSION);
-	if (verbose)
+	if (verbose) {
+		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s, verbose log: %d",
+					progname, MHVTL_VERSION, verbose);
 		printf("%s: version %s\n", progname, MHVTL_VERSION);
+	} else
+		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s",
+					progname, MHVTL_VERSION);
 
 	/* FIXME: Trying to track down why RedHat 5.4 32bit does not
 	 * like backing files > 2G
