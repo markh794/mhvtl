@@ -2616,6 +2616,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	rc = load_tape(PCL, sam_stat);
 	if (rc) {
+		MHVTL_DBG(1, "Media load failed.. Unsupported format");
 		mediaSerialNo[0] = '\0';
 		if (rc == 2) {
 			/* TapeAlert - Unsupported format */
