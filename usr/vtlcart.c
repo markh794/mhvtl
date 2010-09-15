@@ -1045,11 +1045,14 @@ write_filemarks(uint32_t count, uint8_t *sam_stat)
 	for ( ; count > 0; count--, blk_number++) {
 		raw_pos.hdr.blk_number = blk_number;
 
+		MHVTL_DBG(3, "Writing filemark: block %d", blk_number);
+
 		nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
 			blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-			MHVTL_DBG(1, "Index file write failure, pos: %" PRId64 ": %s",
+			MHVTL_DBG(1, "Index file write failure,"
+					" pos: %" PRId64 ": %s",
 				blk_number * sizeof(raw_pos), strerror(errno));
 			return -1;
 		}
