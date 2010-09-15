@@ -3534,16 +3534,6 @@ int main(int argc, char *argv[])
 		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s",
 					progname, MHVTL_VERSION);
 
-	/* FIXME: Trying to track down why RedHat 5.4 32bit does not
-	 * like backing files > 2G
-	 */
-	if (sizeof(loff_t) < 5) {
-		printf("WARNING: datafiles > 2G not supported\n"
-			"Please report to markh794@gmail.com\n");
-		syslog(LOG_DAEMON|LOG_INFO,
-			"WARNING: datafiles > 2G not supported\n");
-	}
-
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
 
