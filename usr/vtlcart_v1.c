@@ -1,5 +1,30 @@
+/*
+ * Original tape format.
+ *
+ * Basically a double-linked-list headers followed by the block of data.
+ * Each header describes the header type (data, filemark, EOD etc
+ * along with pointer to previous and next block
+ *
+ * Copyright (C) 2005 - 2010 Mark Harvey       markh794@gmail.com
+ *                                          mark_harvey@symantec.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
-#define	_XOPEN_SOURCE	500	// for unistd.h pread() and pwrite() prototypes
+/* for unistd.h pread() and pwrite() prototypes */
+#define	_XOPEN_SOURCE	500
 
 #include <sys/syslog.h>
 #include <sys/stat.h>
@@ -16,7 +41,7 @@
 #include "vtltape.h"
 #include "be_byteshift.h"
 
-#define B_BOT           14      // Beginning of Tape TAPE_FMT_VERSION 2
+#define B_BOT           14      /* Beginning of Tape TAPE_FMT_VERSION 2 */
 
 struct raw_header {
 	loff_t		prev_blk;
