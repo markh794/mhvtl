@@ -1334,7 +1334,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case REQUEST_SENSE:
 	case MODE_SELECT:
 	case INQUIRY:
-		sam_stat = SAM_STAT_GOOD;
+		*sam_stat = SAM_STAT_GOOD;
 		break;
 	default:
 		if (check_reset(sam_stat))
