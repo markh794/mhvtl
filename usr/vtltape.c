@@ -2322,6 +2322,13 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 
 		write_filemarks(count, sam_stat);
+		if (count)
+			if (current_tape_offset() >= ntohll(mam.max_capacity)) {
+				mam.remaining_capacity = htonll(0);
+				MHVTL_DBG(2, "Setting EOM flag");
+				mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE,
+						sam_stat);
+			}
 		break;
 
 	case RECEIVE_DIAGNOSTIC:
