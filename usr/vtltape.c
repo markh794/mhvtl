@@ -2208,9 +2208,9 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		} else if (tapeLoaded == TAPE_UNLOADED) {
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		} else {
-			unloadTape(sam_stat);
 			MHVTL_DBG(1, "Unloading Tape (%ld)  **",
 						(long)dbuf_p->serialNo);
+			unloadTape(sam_stat);
 		}
 		break;
 
