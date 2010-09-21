@@ -1308,3 +1308,14 @@ print_raw_header(void)
 		break;
 	}
 }
+
+void print_metadata(void)
+{
+	int a;
+
+	printf("  Number of filemarks: %d\n", meta.filemark_count);
+
+	for (a = 0; a < meta.filemark_count; a++)
+		printf("Filemark: %d\n", filemarks[a]);
+}
+

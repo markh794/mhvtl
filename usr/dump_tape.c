@@ -107,6 +107,11 @@ int main(int argc, char *argv[])
 
 	print_mam_info();
 
+	if (verbose) {
+		printf("Dumping filemark meta info\n");
+		print_metadata();
+	}
+
 	while (c_pos->blk_type != B_EOD) {
 		print_raw_header();
 		position_blocks_forw(1, &sam_stat);
