@@ -269,6 +269,34 @@ int read_test_3(int fd)
 	return 0;
 }
 
+int read_test_4(int fd)
+{
+	rewind_tape(fd);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	space_forward_filemark(fd, 1);
+	printf("*** Should be at block 3 ==> \t");
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+
+	rewind_tape(fd);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	read_block(fd, 8 * 1024);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	space_forward_filemark(fd, 1);
+	printf("*** Should be at block 3 ==> \t");
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	read_block(fd, 64 * 1024);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	space_back_block(fd, 1);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	read_block(fd, 64 * 1024);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	space_forward_block(fd, 1);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	space_forward_filemark(fd, 1);
+	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	struct mtget mtstat;
@@ -317,6 +345,7 @@ int main(int argc, char *argv[])
 	rc = read_test_1(tape_fd);
 	rc = read_test_2(tape_fd);
 	rc = read_test_3(tape_fd);
+	rc = read_test_4(tape_fd);
 
 	err = ioctl(tape_fd, MTIOCGET, &mtstat); /* Query device status */
 	if (err) {
