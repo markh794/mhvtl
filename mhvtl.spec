@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 10
-Source: mhvtl-2010-09-01.tgz
+Release: 11
+Source: mhvtl-2010-09-23.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -165,6 +165,21 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Thu Sep 23 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.11
+- Bug fix: Off-by-one if a re-position & then overwrite a filemark.
+  Caused TSM & HP Dataprotector all sorts of problems.
+- Export kernel module 'major' number via /sys/bus/pseudo/drivers/mhvtl/major
+- Remove external script to create device nodes. Each daemon creates its own
+  device node at startup. Uses 'kernel module' major no. sys interface.
+- Fix potential NULL pointer usage in REQUEST SENSE
+- VPD page 0x83 NAA field fix
+- VPD page length fix (only 0x50 bytes in size not 0x52)
+- Hopefully removed last reference to /proc
+- Use setuidgid if availble instead of 'su $USER -c <vtltape|vtllibrary>'
+- Add kernel module RPM spec file for RedHat
+- Add Gentoo build
+
 * Wed Sep 01 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.10
 - Correct incorrect usage of & vs &&
