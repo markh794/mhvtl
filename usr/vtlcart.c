@@ -235,6 +235,8 @@ check_for_overwrite(uint8_t *sam_stat)
 		return 0;
 	}
 
+	MHVTL_DBG(2, "At block %ld", (unsigned long)raw_pos.hdr.blk_number);
+
 	/* We aren't at EOD so we are performing a rewrite.  Truncate
 	   the data and index files back to the current length.
 	*/
@@ -263,7 +265,10 @@ check_for_overwrite(uint8_t *sam_stat)
 	*/
 
 	for (i = 0; i < meta.filemark_count; i++) {
-		if (filemarks[i] > blk_number) {
+		MHVTL_DBG(2, "filemarks[%d] %d", i, filemarks[i]);
+		if (filemarks[i] >= blk_number) {
+			MHVTL_DBG(2, "Setting filemark_count from %d to %d",
+					meta.filemark_count, i);
 			meta.filemark_count = i;
 			return rewrite_meta_file();
 		}
