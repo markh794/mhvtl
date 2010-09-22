@@ -2480,14 +2480,14 @@ int main(int argc, char *argv[])
 	init_mode_pages(sm);
 	initTapeAlert(&TapeAlert);
 
-	child_cleanup = add_lu(my_id, &ctl);
-	if (!child_cleanup) {
-		printf("Could not create logical unit\n");
+	if (chrdev_create(my_id)) {
+		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);
 		exit(1);
 	}
 
-	if (chrdev_create(my_id)) {
-		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);
+	child_cleanup = add_lu(my_id, &ctl);
+	if (!child_cleanup) {
+		printf("Could not create logical unit\n");
 		exit(1);
 	}
 

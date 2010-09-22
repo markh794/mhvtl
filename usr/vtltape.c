@@ -3566,14 +3566,14 @@ int main(int argc, char *argv[])
 	/* Setup Media_Density */
 	media_density_init();
 
-	child_cleanup = add_lu(my_id, &ctl);
-	if (! child_cleanup) {
-		MHVTL_DBG(1, "Could not create logical unit");
+	if (chrdev_create(minor)) {
+		MHVTL_DBG(1, "Unable to create device node mhvtl%d", minor);
 		exit(1);
 	}
 
-	if (chrdev_create(minor)) {
-		MHVTL_DBG(1, "Unable to create device node mhvtl%d", minor);
+	child_cleanup = add_lu(my_id, &ctl);
+	if (! child_cleanup) {
+		MHVTL_DBG(1, "Could not create logical unit");
 		exit(1);
 	}
 

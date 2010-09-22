@@ -620,26 +620,24 @@ static int chrdev_get_major(void)
 {
 	FILE *f;
 	char *filename = "/sys/bus/pseudo/drivers/mhvtl/major";
-	int ret = 0;
+	int rc = 0;
 	int x;
 	int majno;
 
 	f = fopen(filename, "r");
 	if (!f) {
 		MHVTL_DBG(1, "Can't open %s: %s", filename, strerror(errno));
-		ret = -1;
-		goto err;
+		return -ENOENT;
 	}
 	x = fscanf(f, "%d", &majno);
 	if (!x) {
 		MHVTL_DBG(1, "Cant identify major number for mhvtl");
-		ret = -1;
+		rc = -1;
 	} else
-		ret = majno;
+		rc = majno;
 
-err:
 	fclose(f);
-	return ret;
+	return rc;
 }
 
 int chrdev_chown(uint8_t minor, uid_t uid, uid_t gid)
@@ -670,7 +668,8 @@ int chrdev_create(uint8_t minor)
 	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%d", minor);
 
 	majno = chrdev_get_major();
-	if (majno == -1) {
+	if (majno == -ENOENT) {
+		MHVTL_DBG(1, "** Incorrect version of kernel module loaded **");
 		ret = -1;
 		goto err;
 	}
