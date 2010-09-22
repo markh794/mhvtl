@@ -134,6 +134,8 @@ int rewriteMAM(uint8_t *sam_stat);
 uint64_t current_tape_offset(void);
 
 void print_raw_header(void);
+void print_filemark_count(void);
+void print_metadata(void);
 
 /* Load capabilities - density_status bits */
 #define	LOAD_INVALID		1
