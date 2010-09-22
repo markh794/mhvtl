@@ -54,7 +54,6 @@ static void print_mam_info(void)
 	printf("Tape Capacity     : %" PRId64 "\n", ntohll(mam.max_capacity));
 }
 
-
 int main(int argc, char *argv[])
 {
 	uint8_t sam_stat;
@@ -107,6 +106,7 @@ int main(int argc, char *argv[])
 
 	print_mam_info();
 
+	print_filemark_count();
 	if (verbose) {
 		printf("Dumping filemark meta info\n");
 		print_metadata();
