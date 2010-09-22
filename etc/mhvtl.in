@@ -313,7 +313,7 @@ case "$1" in
 	if [ ! -e /sys/module/mhvtl/version  ]; then
 		echo "No kernel module loaded to feed these daemons."
 		echo ""
-		echo "Need mhvtl kernel module version at least 0.18.0"
+		echo "Need mhvtl kernel module version at least 0.18.11"
 		echo ""
 		echo "Please see http://sites.google.com/site/linuxvtl2/"
 		exit 1
@@ -321,7 +321,14 @@ case "$1" in
 	vtlMidVersion=`cat /sys/module/mhvtl/version|awk -F. '{print $2}'`
 	if [ $vtlMidVersion -ne 18 ]; then
 		echo "Incorrect kernel module for these daemons."
-		echo -e "Should be at 0.18.x\n"
+		echo -e "Should be at 0.18.11\n"
+		echo -e "Please see http://sites.google.com/site/linuxvtl2/\n"
+		exit 1
+	fi
+	vtllsbVersion=`cat /sys/module/mhvtl/version|awk -F. '{print $3}'`
+	if [ $vtllsbVersion -lt 11 ]; then
+		echo "Incorrect kernel module for these daemons."
+		echo -e "Should be at least 0.18.11\n"
 		echo -e "Please see http://sites.google.com/site/linuxvtl2/\n"
 		exit 1
 	fi
