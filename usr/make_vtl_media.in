@@ -39,7 +39,7 @@ USER=$1
 #dry='echo'
 
 run() {
-	if [ -x "$(which setuidgid)" ]; then
+	if [ -x "$(which setuidgid >/dev/null 2>&1)" ]; then
 		$dry setuidgid $USER $*
 	else
 		$dry su $USER -c "$*"
