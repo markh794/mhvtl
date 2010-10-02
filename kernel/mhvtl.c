@@ -55,6 +55,7 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 #include <linux/blkdev.h>
