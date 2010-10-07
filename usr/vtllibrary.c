@@ -1354,7 +1354,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case INQUIRY:
 		MHVTL_DBG(1, "%s", "INQUIRY **");
-		ret += spc_inquiry(cdb, dbuf_p, &lunit);
+		*sam_stat = spc_inquiry(cdb, dbuf_p, &lunit);
 		break;
 
 	case LOG_SELECT:	/* Set or reset LOG stats. */
@@ -1363,7 +1363,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 	case LOG_SENSE:
 		MHVTL_DBG(1, "%s", "LOG SENSE **");
-		ret += resp_log_sense(cdb, buf);
+		ret = resp_log_sense(cdb, buf);
+		dbuf_p->sz = ret;
 		break;
 
 	case MODE_SELECT:
@@ -1371,13 +1372,15 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		MHVTL_DBG(1, "%s", "MODE SELECT **");
 		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
 						((cdb[7] << 8) | cdb[8]);
-		ret += resp_mode_select(cdev, dbuf_p);
+		ret = resp_mode_select(cdev, dbuf_p);
+		dbuf_p->sz = ret;
 		break;
 
 	case MODE_SENSE:
 	case MODE_SENSE_10:
 		MHVTL_DBG(1, "%s", "MODE SENSE **");
-		ret += resp_mode_sense(cdb, buf, smp, 0, sam_stat);
+		ret = resp_mode_sense(cdb, buf, smp, 0, sam_stat);
+		dbuf_p->sz = ret;
 		break;
 
 	case MOVE_MEDIUM:
@@ -1388,12 +1391,15 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		MHVTL_DBG(1, "%s", "MOVE MEDIUM **");
 		k = resp_move_medium(cdb, buf, sam_stat);
 		break;
+
 	case ALLOW_MEDIUM_REMOVAL:
 		resp_allow_prevent_removal(cdb, sam_stat);
 		break;
+
 	case READ_ELEMENT_STATUS:
 		MHVTL_DBG(1, "%s", "READ ELEMENT STATUS **");
-		ret += resp_read_element_status(cdb, buf, sam_stat);
+		ret = resp_read_element_status(cdb, buf, sam_stat);
+		dbuf_p->sz = ret;
 		break;
 
 	case REQUEST_SENSE:
@@ -1428,6 +1434,7 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			MHVTL_DBG(1, "%s", "Library now offline **");
 		}
 		break;
+
 	case TEST_UNIT_READY:	/* Return OK by default */
 		MHVTL_DBG(1, "%s %s", "Test Unit Ready : Returning => ",
 					(libraryOnline == 0) ? "No" : "Yes");
@@ -1438,7 +1445,8 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case RECEIVE_DIAGNOSTIC:
 		MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
 						(long)dbuf_p->serialNo);
-		ret += ProcessReceiveDiagnostic(cdb, dbuf_p);
+		ret = ProcessReceiveDiagnostic(cdb, dbuf_p);
+		dbuf_p->sz = ret;
 		break;
 
 	case SEND_DIAGNOSTIC:
@@ -1457,8 +1465,6 @@ static int processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 		break;
 	}
-
-	dbuf_p->sz = ret;
 
 	return 0;
 }

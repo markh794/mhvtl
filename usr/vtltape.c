@@ -1910,7 +1910,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case INQUIRY:
 		MHVTL_DBG(1, "INQUIRY (%ld) **", (long)dbuf_p->serialNo);
-		dbuf_p->sz = spc_inquiry(cdb, dbuf_p, &lunit);
+		*sam_stat = spc_inquiry(cdb, dbuf_p, &lunit);
 		break;
 
 	case FORMAT_UNIT:	/* That's FORMAT_MEDIUM for an SSC device... */

@@ -95,15 +95,12 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 
 		len = 66;
 		data[4] = len - 5;	/* Additional Length */
-
-		ds->sz = len;
 	} else if (cdb[1] & 0x2) {
 		/* CmdDt bit is set */
 		/* We do not support it now. */
 		data[1] = 0x1;
 		data[5] = 0;
 		len = 6;
-		ds->sz = len;
 	} else if (cdb[1] & 0x1) {
 		uint8_t pcode = cdb[2];
 
@@ -142,8 +139,11 @@ int spc_inquiry(uint8_t *cdb, struct vtl_ds *ds, struct lu_phy_attr *lu)
 		}
 	}
 
-	return len;
+	ds->sz = len;
+	return SAM_STAT_GOOD;
+
 sense:
+	ds->sz = 0;
 	mkSenseBuf(key, asc, &ds->sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
