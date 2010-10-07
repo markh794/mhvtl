@@ -519,7 +519,7 @@ int spc_tur(struct scsi_cmd *cmd)
 
 int spc_illegal_op(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "Illegal OP CODE");
+	MHVTL_DBG(1, "Unsupported OP CODE");
 	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &cmd->dbuf_p->sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
