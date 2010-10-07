@@ -2354,7 +2354,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (I_am_SPC_2_Reserved)
 			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		else
-			dbuf_p->sz = resp_spc_pri(cdb, dbuf_p);
+			*sam_stat = resp_spc_pri(cdb, dbuf_p);
 		break;
 
 	case PERSISTENT_RESERVE_OUT:
