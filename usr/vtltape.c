@@ -2175,6 +2175,10 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			break;
 
 		rewind_tape(sam_stat);
+
+		if (!checkRestrictions(sam_stat))
+			break;
+
 		format_tape(sam_stat);
 		break;
 
