@@ -288,6 +288,7 @@ static struct mode sm[] = {
 	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
 	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SSC3-8.3.6 */
 	{0x1d, 0x00, 0x00, NULL, }, /* Medium configuration - SSC3-8.3.7 */
+	{0x24, 0x00, 0x00, NULL, }, /* Vendor Specific (IBM Ultrium) */
 	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
 	};
 
@@ -2934,29 +2935,35 @@ return 0;
  * Return void  - Nothing
  */
 #define COMPRESSION_TYPE 0x10
+#define ENCR_C	1	/* Device supports Encryption */
+#define ENCR_E	4	/* Encryption is enabled */
 static void init_mode_pages(struct mode *m)
 {
 	struct mode *mp;
 
 	/* RW Error Recovery: SSC-3 8.3.5 */
-	if ((mp = alloc_mode_page(1, m, 12))) {
+	mp = alloc_mode_page(1, m, 12);
+	if (mp) {
 		/* Init rest of page data.. */
 	}
 
 	/* Disconnect-Reconnect: SPC-3 7.4.8 */
-	if ((mp = alloc_mode_page(2, m, 16))) {
+	mp = alloc_mode_page(2, m, 16);
+	if (mp) {
 		mp->pcodePointer[2] = 50; /* Buffer full ratio */
 		mp->pcodePointer[3] = 50; /* Buffer enpty ratio */
 		mp->pcodePointer[10] = 4;
 	}
 
 	/* Control: SPC-3 7.4.6 */
-	if ((mp = alloc_mode_page(0x0a, m, 12))) {
+	mp = alloc_mode_page(0x0a, m, 12);
+	if (mp) {
 		/* Init rest of page data.. */
 	}
 
 	/* Data compression: SSC-3 8.3.2 */
-	if ((mp = alloc_mode_page(0x0f, m, 16))) {
+	mp = alloc_mode_page(0x0f, m, 16);
+	if (mp) {
 		/* Init rest of page data.. */
 		mp->pcodePointer[2] = 0xc0; /* Set Data Compression Enable */
 		mp->pcodePointer[3] = 0x80; /* Set Data Decompression Enable */
@@ -2967,7 +2974,8 @@ static void init_mode_pages(struct mode *m)
 	}
 
 	/* Device Configuration: SSC-3 8.3.3 */
-	if ((mp = alloc_mode_page(0x10, m, 16))) {
+	mp = alloc_mode_page(0x10, m, 16);
+	if (mp) {
 		/* Write delay time (100mSec intervals) */
 		mp->pcodePointer[7] = 0x64;
 		/* Block Identifiers Supported */
@@ -2984,7 +2992,8 @@ static void init_mode_pages(struct mode *m)
 	}
 
 	/* Medium Partition: SSC-3 8.3.4 */
-	if ((mp = alloc_mode_page(0x11, m, 16))) {
+	mp = alloc_mode_page(0x11, m, 16);
+	if (mp) {
 		/* Init rest of page data.. */
 	}
 
@@ -2998,14 +3007,23 @@ static void init_mode_pages(struct mode *m)
 	}
 
 	/* Informational Exception Control: SPC-3 7.4.11 (TapeAlert) */
-	if ((mp = alloc_mode_page(0x1c, m, 12))) {
+	mp = alloc_mode_page(0x1c, m, 12);
+	if (mp) {
 		mp->pcodePointer[2] = 0x08;
 		mp->pcodePointer[3] = 0x03;
 	}
 
 	/* Medium configuration: SSC-3 8.3.7 */
-	if ((mp = alloc_mode_page(0x1d, m, 32))) {
+	mp = alloc_mode_page(0x1d, m, 32);
+	if (mp) {
 		/* Init rest of page data.. */
+	}
+
+	/* Vendor Unique (IBM Ultrium)
+	 * Page 151, table 118 */
+	mp = alloc_mode_page(0x24, m, 6);
+	if (mp) {
+		mp->pcodePointer[5] = ENCR_E | ENCR_C;
 	}
 }
 

@@ -351,7 +351,8 @@ struct mode * alloc_mode_page(uint8_t pcode, struct mode *m, int size)
 {
 	struct mode * mp;
 
-	if ((mp = find_pcode(pcode, m))) { /* Find correct page */
+	mp = find_pcode(pcode, m);	/* Find correct page */
+	if (mp) {
 		mp->pcodePointer = malloc(size);
 		if (mp->pcodePointer) {	/* If ! null, set size of data */
 			memset(mp->pcodePointer, 0, size);
