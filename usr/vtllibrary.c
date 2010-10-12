@@ -545,7 +545,6 @@ static int empty_map(struct q_msg *msg)
 {
 	struct s_info *sp;
 	struct list_head *slot_head = &smc_slots.slot_list;
-	int	a;
 
 	if (smc_slots.cap_closed) {
 		MHVTL_DBG(1, "MAP slot empty failed - CAP Not open");
@@ -556,7 +555,8 @@ static int empty_map(struct q_msg *msg)
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
 			setSlotEmpty(sp);
-			MHVTL_DBG(2, "MAP slot %d emptied", a - START_MAP);
+			MHVTL_DBG(2, "MAP slot %d emptied",
+					sp->slot_location - START_MAP);
 		}
 	}
 
