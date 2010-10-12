@@ -79,6 +79,10 @@ long my_id = 0;
 static int I_am_SPC_2_Reserved;
 
 /* Variables for simple, logical only SCSI Encryption system */
+
+#define ENCR_C	1	/* Device supports Encryption */
+#define ENCR_E	4	/* Encryption is enabled */
+
 static uint32_t KEY_INSTANCE_COUNTER;
 static uint32_t DECRYPT_MODE;
 static uint32_t ENCRYPT_MODE;
@@ -1628,6 +1632,18 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 	return ret;
 }
 
+/* Need to dynamically update mode page 0x24 with encryption status */
+static void update_encrypt_mode(int encrypt_mode)
+{
+	struct mode *smp;
+
+	smp = find_pcode(0x24, sm);
+	if (encrypt_mode)
+		smp->pcodePointer[5] |= ENCR_E;
+	else
+		smp->pcodePointer[5] &= ~ENCR_E;
+}
+
 /*
  * Retrieve Security Protocol Information
  */
@@ -1752,6 +1768,8 @@ static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		KEY_LENGTH = 0;
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 	}
+
+	update_encrypt_mode(ENCRYPT_MODE);
 
 	return 0;
 }
@@ -2935,8 +2953,6 @@ return 0;
  * Return void  - Nothing
  */
 #define COMPRESSION_TYPE 0x10
-#define ENCR_C	1	/* Device supports Encryption */
-#define ENCR_E	4	/* Encryption is enabled */
 static void init_mode_pages(struct mode *m)
 {
 	struct mode *mp;
@@ -3020,11 +3036,12 @@ static void init_mode_pages(struct mode *m)
 	}
 
 	/* Vendor Unique (IBM Ultrium)
-	 * Page 151, table 118 */
+	 * Page 151, table 118
+	 * Advise ENCRYPTION Capable device
+	 */
 	mp = alloc_mode_page(0x24, m, 6);
-	if (mp) {
-		mp->pcodePointer[5] = ENCR_E | ENCR_C;
-	}
+	if (mp)
+		mp->pcodePointer[5] = ENCR_C;
 }
 
 /* Set VPD data with device serial number */
