@@ -738,6 +738,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	}
 
 	drv_id = -1;
+	dp = NULL;
 
 	/* While read in a line */
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
