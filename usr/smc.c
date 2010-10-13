@@ -897,12 +897,12 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 		break;
 	default:	/* Illegal descriptor type. */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return 0;
+		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 	if (ec != 0) {
 		mkSenseBuf(ILLEGAL_REQUEST, ec, sam_stat);
-		return 0;
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	/* Now populate the 'main' header structure with byte count.. */
