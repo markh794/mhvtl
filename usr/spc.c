@@ -421,8 +421,6 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 /*
  * Process PERSITENT RESERVE IN scsi command
- * Returns bytes to return if OK
- *         or -1 on failure.
  */
 int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
@@ -453,7 +451,6 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		buf[7] = 8;
 		put_unaligned_be64(SPR_Reservation_Key, &buf[8]);
 		dbuf_p->sz = 16;
-		sam_status = SAM_STAT_GOOD;
 		break;
 	case 1: /* READ RESERVATON */
 		put_unaligned_be32(SPR_Reservation_Generation, &buf[0]);
@@ -465,7 +462,6 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		put_unaligned_be64(SPR_Reservation_Key, &buf[8]);
 		buf[21] = SPR_Reservation_Type;
 		dbuf_p->sz = 24;
-		sam_status = SAM_STAT_GOOD;
 		break;
 	case 2: /* REPORT CAPABILITIES */
 		buf[1] = 8;
@@ -672,7 +668,7 @@ int spc_mode_sense(struct scsi_cmd *cmd)
 
 	if (0x3 == pcontrol) {  /* Saving values not supported */
 		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
-		return 0;
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	memset(buf, 0, alloc_len);	/* Set return data to null */
@@ -685,7 +681,7 @@ int spc_mode_sense(struct scsi_cmd *cmd)
 	if (0 != subpcode) { /* TODO: Control Extension page */
 		MHVTL_DBG(1, "Non-zero sub-page sense code not supported");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return 0;
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	MHVTL_DBG(3, "pcode: 0x%02x", pcode);
@@ -709,7 +705,7 @@ int spc_mode_sense(struct scsi_cmd *cmd)
 		if (0 == len) {	/* Page not found.. */
 		MHVTL_DBG(2, "Unknown mode page : %d", pcode);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return 0;
+		return SAM_STAT_CHECK_CONDITION;
 		}
 
 	/* Fill in header.. */
