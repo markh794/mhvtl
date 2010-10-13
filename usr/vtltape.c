@@ -3134,8 +3134,27 @@ static void config_lu(struct lu_phy_attr *lu)
 		} else if (!strncasecmp(dup_product_id, "-TD6", 4)) {
 			lu->drive_type = drive_LTO6;
 			MHVTL_DBG(1, "LTO 6 drive");
+		} else if (!strncasecmp(dup_product_id, "-SCSI", 5)) {
+			/* HP Ultrium 4-SCSI */
+			dup_product_id--;
+			if (*dup_product_id == '1') {
+				lu->drive_type = drive_LTO1;
+				MHVTL_DBG(1, "HP LTO 1 drive");
+			} else if (*dup_product_id == '2') {
+				lu->drive_type = drive_LTO2;
+				MHVTL_DBG(1, "HP LTO 2 drive");
+			} else if (*dup_product_id == '3') {
+				lu->drive_type = drive_LTO3;
+				MHVTL_DBG(1, "HP LTO 3 drive");
+			} else if (*dup_product_id == '4') {
+				lu->drive_type = drive_LTO4;
+				MHVTL_DBG(1, "HP LTO 4 drive");
+			} else if (*dup_product_id == '5') {
+				lu->drive_type = drive_LTO5;
+				MHVTL_DBG(1, "HP LTO 5 drive");
+			}
 		} else {
-			MHVTL_DBG(1, "Ultrium drive - but of unknown type");
+			MHVTL_DBG(1, "Unknown Ultrium drive");
 		}
 	} else if (!strncasecmp(lu->product_id, "SDLT600", 7)) {
 		capacity_unit = 1L << 20; /* Capacity units in MBytes */
