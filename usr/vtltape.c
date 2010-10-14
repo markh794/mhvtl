@@ -2176,12 +2176,21 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (!checkRestrictions(sam_stat))
 			break;
 
-		rewind_tape(sam_stat);
-
-		if (!checkRestrictions(sam_stat))
+		if (c_pos->blk_number != 0) {
+			MHVTL_DBG(1, "Not at BOT.. Can't erase unless at BOT");
+			mkSenseBuf(NOT_READY, E_INVALID_FIELD_IN_CDB, sam_stat);
+			*sam_stat = SAM_STAT_CHECK_CONDITION;
 			break;
+		}
 
-		format_tape(sam_stat);
+		if (OK_to_write)
+			format_tape(sam_stat);
+		else {
+			MHVTL_DBG(1, "Attempt to erase Write-protected media");
+			mkSenseBuf(NOT_READY, E_MEDIUM_OVERWRITE_ATTEMPTED,
+						sam_stat);
+			*sam_stat = SAM_STAT_CHECK_CONDITION;
+		}
 		break;
 
 	case SPACE:
