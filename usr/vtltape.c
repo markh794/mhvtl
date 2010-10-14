@@ -1872,6 +1872,14 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	loff_t nread;
 	static uint8_t last_cmd;
 	static int last_count;
+	struct scsi_cmd _cmd;
+	struct scsi_cmd *cmd;
+	cmd = &_cmd;
+
+	cmd->scb = cdb;
+	cmd->scb_len = 16;	/* fixme */
+	cmd->dbuf_p = dbuf_p;
+	cmd->lu = &lunit;
 
 	dbuf_p->sz = 0;
 
@@ -1912,7 +1920,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case INQUIRY:
 		MHVTL_DBG(1, "INQUIRY (%ld) **", (long)dbuf_p->serialNo);
-		*sam_stat = spc_inquiry_old(cdb, dbuf_p, &lunit);
+		*sam_stat = spc_inquiry(cmd);
 		break;
 
 	case FORMAT_UNIT:	/* That's FORMAT_MEDIUM for an SSC device... */
