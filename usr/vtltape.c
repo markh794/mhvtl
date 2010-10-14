@@ -2158,7 +2158,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case REQUEST_SENSE:
-		spc_request_sense_old(cdb, dbuf_p);
+		*sam_stat = spc_request_sense(cmd);
 		break;
 
 	case RESERVE:

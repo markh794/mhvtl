@@ -394,27 +394,6 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	return sam_status;
 }
 
-void spc_request_sense_old(unsigned char *cdb, struct vtl_ds *dbuf_p)
-{
-	int sz;
-
-	MHVTL_DBG(1, "Request Sense (%ld) : key/ASC/ASCQ "
-			"[0x%02x 0x%02x 0x%02x]"
-			" Filemark: %s, EOM: %s, ILI: %s",
-				(long)dbuf_p->serialNo,
-				sense[2] & 0x0f, sense[12], sense[13],
-				(sense[2] & SD_FILEMARK) ? "yes" : "no",
-				(sense[2] & SD_EOM) ? "yes" : "no",
-				(sense[2] & SD_ILI) ? "yes" : "no");
-	sz = (cdb[4] < sizeof(sense)) ? cdb[4] : sizeof(sense);
-	assert(dbuf_p->data);
-	/* Clear out the request sense flag */
-	dbuf_p->sam_stat = 0;
-	dbuf_p->sz = min((int)sz, (int)sizeof(sense));
-	memcpy(dbuf_p->data, sense, dbuf_p->sz);
-	memset(sense, 0, dbuf_p->sz);
-}
-
 int spc_tur(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "** %s (%ld) %s **", "Test Unit Ready : Returning => ",

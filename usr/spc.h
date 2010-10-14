@@ -11,7 +11,6 @@ extern uint8_t SPR_Reservation_Type;
 
 int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p);
 int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p);
-void spc_request_sense_old(uint8_t *cdb, struct vtl_ds *dbuf_p);
 
 int spc_illegal_op(struct scsi_cmd *cmd);
 int spc_inquiry(struct scsi_cmd *cmd);
