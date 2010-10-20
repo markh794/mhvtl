@@ -55,13 +55,14 @@ all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary make_vtl_media tapeexerciser
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
-		be_byteshift.h \
+		ssc.c be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic vtllib.c
 	$(CC) $(CFLAGS) -c -fpic spc.c
 	$(CC) $(CFLAGS) -c -fpic smc.c
+	$(CC) $(CFLAGS) -c -fpic ssc.c
 	$(CC) $(CFLAGS) -c -fpic q.c
-	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o
+	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o ssc.o q.o 
 
 tapeexerciser:	tapeexerciser.c
 	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c

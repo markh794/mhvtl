@@ -71,6 +71,7 @@
 #include "vtllib.h"
 #include "vtltape.h"
 #include "spc.h"
+#include "ssc.h"
 
 char vtl_driver_name[] = "vtltape";
 long my_id = 0;
@@ -2417,6 +2418,12 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	case A4_SA:
 		resp_a4_service_action(cdb, dbuf_p);
+		break;
+
+	case ALLOW_OVERWRITE:
+		MHVTL_DBG(1, "ALLOW OVERWRITE (%ld) **",
+						(long)dbuf_p->serialNo);
+		*sam_stat = resp_allow_overwrite(cmd);
 		break;
 
 	case ACCESS_CONTROL_IN:
