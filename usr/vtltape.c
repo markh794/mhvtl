@@ -572,11 +572,6 @@ static void clearWORM(void)
 	}
 }
 
-/* FIXME: Need to dump drive type index into meaningful string */
-void dump_drive_media_types(void)
-{
-}
-
 /*
  * Report density of media loaded.
 
@@ -3617,9 +3612,6 @@ int main(int argc, char *argv[])
 	}
 
 	MHVTL_DBG(1, "starting...");
-
-	if (verbose > 2)
-		dump_drive_media_types();
 
 	/* Minor tweeks - setup WORM & SPIN/SPOUT customisations */
 	config_lu(&lunit);
