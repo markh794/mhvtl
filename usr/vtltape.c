@@ -2003,8 +2003,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			sz = get_unaligned_be24(&blockDescriptorBlock[5]);
 			MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
 				"READ_6 \"Fixed block read\" "
-				"under development - "
-				" Read %d blocks of %d size", count, sz);
+				" - Read %d blocks of %d size", count, sz);
 		} else { /* else - Variable block read */
 			sz = get_unaligned_be24(&cdb[2]);
 			count = 1;
@@ -2047,7 +2046,6 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			buf += retval;
 			dbuf_p->sz += retval;
 		}
-		/* Fix this for fixed block reads */
 		if (retval > (sz * count))
 			retval = sz * count;
 		bytesRead += retval;
