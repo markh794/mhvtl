@@ -60,9 +60,8 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 	$(CC) $(CFLAGS) -c -fpic vtllib.c
 	$(CC) $(CFLAGS) -c -fpic spc.c
 	$(CC) $(CFLAGS) -c -fpic smc.c
-	$(CC) $(CFLAGS) -c -fpic ssc.c
 	$(CC) $(CFLAGS) -c -fpic q.c
-	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o ssc.o q.o 
+	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o
 
 tapeexerciser:	tapeexerciser.c
 	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
@@ -88,10 +87,16 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
 
 vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
-		libvtlscsi.so \
+		libvtlscsi.so ssc.o default_ssc_pm.o \
+		ult3580_pm.o \
+		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		be_byteshift.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtltape vtltape.o vtlcart.o -lz -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o vtltape vtltape.o vtlcart.o ssc.o \
+		default_ssc_pm.o \
+		ult3580_pm.o \
+		ait_pm.o t10000_pm.o ibm_03592_pm.o \
+		-lz -L. -lvtlscsi
 
 make_vtl_media:	make_vtl_media.in
 	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1
@@ -103,6 +108,9 @@ clean:
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
 		vtllib.o libvtlscsi.so z.o vtllibrary.o \
 		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
+		default_ssc_pm.o \
+		ult3580_pm.o \
+		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		dump_messageQ dump_tape make_vtl_media \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
 
@@ -119,6 +127,9 @@ distclean:
 	vtllib.o libvtlscsi.so \
 	vtlcart.o spc.o \
 	smc.o ssc.o \
+	default_ssc_pm.o \
+	ult3580_pm.o \
+	ait_pm.o t10000_pm.o ibm_03592_pm.o \
 	z.o z \
 	TAGS \
 	make_vtl_media \

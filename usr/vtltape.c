@@ -75,19 +75,9 @@
 #include "ssc.h"
 
 char vtl_driver_name[] = "vtltape";
-long my_id = 0;
-
-/* Variables for simple, single initiator, SCSI Reservation system */
-static int I_am_SPC_2_Reserved;
 
 /* Variables for simple, logical only SCSI Encryption system */
 
-#define ENCR_C	1	/* Device supports Encryption */
-#define ENCR_E	4	/* Encryption is enabled */
-
-static uint32_t KEY_INSTANCE_COUNTER;
-static uint32_t DECRYPT_MODE;
-static uint32_t ENCRYPT_MODE;
 static struct encryption encryption;
 
 #define	UKAD_LENGTH	encryption.ukad_length
@@ -112,35 +102,15 @@ static struct encryption encryption;
 
 int verbose = 0;
 int debug = 0;
+long my_id;
 
-#define TAPE_UNLOADED 0
-#define TAPE_LOADED 1
 
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
 
-static int bufsize = 2 * 1024 * 1024;
-static int tapeLoaded = TAPE_UNLOADED;	/* Default to Off-line */
-static int inLibrary = 0;	/* Default to stand-alone drive */
-static uint8_t sam_status = 0;	/* Non-zero if Sense-data is valid */
-uint8_t MediaWriteProtect = MEDIA_WRITABLE;	/* True if virtual "write protect" switch is set */
-
-static loff_t capacity_unit = 1;
-
-/* Pointer into Device config mode page */
-static uint8_t *compressionFactor = NULL;
-
-/* Default value read from config file */
-static uint8_t configCompressionFactor = Z_BEST_SPEED;
-
-static uint64_t bytesRead = 0;
-static uint64_t bytesWritten = 0;
-static unsigned char mediaSerialNo[34];	/* Currently mounted media S/No. */
+struct priv_lu_ssc lu_ssc;
 
 struct lu_phy_attr lunit;
-
-static int Drive_Native_Write_Density[drive_UNKNOWN + 1];
-static int Media_Native_Write_Density[Media_UNKNOWN + 1];
 
 struct MAM_Attributes_table {
 	int attribute;
@@ -273,31 +243,6 @@ static struct TapeCapacity TapeCapacity = {
 	{ 0x00, 0x04, 0xc0, 0x04, }, 0x00, /* Alt. partition max cap */
 	};
 
-static struct report_luns report_luns = {
-	0x00, 0x00, 0x00,			/* 16 bytes in length.. */
-	};
-
-/*
- * Mode Pages defined for SSC-3 devices..
- */
-
-/* Used by Mode Sense - if set, return block descriptor */
-
-static struct mode sm[] = {
-/*	Page,  subpage, len, 'pointer to data struct' */
-	{0x01, 0x00, 0x00, NULL, }, /* RW error recovery - SSC3-8.3.5 */
-	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
-	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
-	{0x0f, 0x00, 0x00, NULL, }, /* Data Compression - SSC3-8.3.3 */
-	{0x10, 0x00, 0x00, NULL, }, /* Device config - SSC3-8.3.3 */
-	{0x11, 0x00, 0x00, NULL, }, /* Medium Partition - SSC3-8.3.4 */
-	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
-	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SSC3-8.3.6 */
-	{0x1d, 0x00, 0x00, NULL, }, /* Medium configuration - SSC3-8.3.7 */
-	{0x24, 0x00, 0x00, NULL, }, /* Vendor Specific (IBM Ultrium) */
-	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
-	};
-
 static void usage(char *progname) {
 	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
 	printf("       Where:\n");
@@ -306,7 +251,6 @@ static void usage(char *progname) {
 	printf("              'v' == verbose\n");
 }
 
-static void unloadTape(uint8_t *sam_stat);
 
 static void
 mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_valid)
@@ -497,97 +441,6 @@ setSeqAccessDevice(struct seqAccessDevice * seqAccessDevicep, uint64_t flg)
 }
 
 /*
- * Check for any write restrictions - e.g. WORM, or Clean Cartridge mounted.
- * Return 1 = OK to write, zero -> Can't write.
- */
-static int checkRestrictions(uint8_t *sam_stat)
-{
-
-	/* Check that there is a piece of media loaded.. */
-	switch (tapeLoaded) {
-	case TAPE_LOADED:	/* Do nothing */
-		break;
-	case TAPE_UNLOADED:
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-		OK_to_write = 0;
-		return OK_to_write;
-		break;
-	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-		OK_to_write = 0;
-		return OK_to_write;
-		break;
-	}
-
-	switch (mam.MediumType) {
-	case MEDIA_TYPE_CLEAN:
-		mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED, sam_stat);
-		MHVTL_DBG(1, "Can not write - Cleaning cart");
-		OK_to_write = 0;
-		break;
-	case MEDIA_TYPE_WORM:
-		/* If we are not at end of data for a write
-		 * and media is defined as WORM, fail...
-		 */
-		if (c_pos->blk_type == B_EOD)
-			OK_to_write = 1; /* OK to append to end of 'tape' */
-		if (!OK_to_write) {
-			MHVTL_DBG(1, "Failed attempt to overwrite WORM data");
-			mkSenseBuf(DATA_PROTECT,
-				E_MEDIUM_OVERWRITE_ATTEMPTED, sam_stat);
-		}
-		break;
-	case MEDIA_TYPE_DATA:
-		OK_to_write = 1;
-		break;
-	}
-
-	/* over-ride the above IF the virtual write protect switch is on */
-	if (OK_to_write && MediaWriteProtect)
-		OK_to_write = 0;
-	if (!OK_to_write)
-		mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-
-	MHVTL_DBG(2, "returning %s",
-				(OK_to_write) ? "Writable" : "Non-writable");
-	return OK_to_write;
-}
-
-/*
- * Set WORM mode sense flg
- */
-static void setWORM(void)
-{
-	struct mode *m;
-	uint8_t *p;
-
-	/* Find pointer to Medium Configuration Page */
-	m = find_pcode(0x1d, sm);
-	if (m) {
-		p = m->pcodePointer;
-		p[2] = 1;	/* Set WORMM bit */
-		MHVTL_DBG(2, "WORM mode page set");
-	}
-}
-
-/*
- * Clears WORM mode sense flg
- */
-static void clearWORM(void)
-{
-	struct mode *m;
-	uint8_t *p;
-
-	/* Find pointer to Medium Configuration Page */
-	m = find_pcode(0x1d, sm);
-	if (m) {
-		p = m->pcodePointer;
-		p[2] = 0;
-		MHVTL_DBG(2, "WORM mode page cleared");
-	}
-}
-
-/*
  * Report density of media loaded.
 
 FIXME:
@@ -596,7 +449,7 @@ FIXME:
  */
 
 #define REPORT_DENSITY_LEN 56
-static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
+int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 {
 	uint8_t *buf = dbuf_p->data;
 	int len = dbuf_p->sz;
@@ -615,10 +468,8 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 	buf[6] = 0xa0;	/* WRTOK = 1, DUP = 0, DEFLT = 1: 1010 0000b */
 	buf[7] = 0;
 
-
-
 	/* Assigning Oranization (8 chars long) */
-	if (tapeLoaded == TAPE_LOADED) {
+	if (lu_ssc.tapeLoaded == TAPE_LOADED) {
 		max_cap = ntohll(mam.max_capacity);
 
 		/* Bits per mm (only 24bits in len MS Byte should be 0). */
@@ -649,128 +500,19 @@ static int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 		snprintf((char *)&buf[36], 18, "%-18s", "Virtual Media");
 	}
 
-return(REPORT_DENSITY_LEN);
+return REPORT_DENSITY_LEN;
 }
 
-static void enable_compression(void)
-{
-	struct mode *m;
-	uint8_t *p;
-
-	/* Find pointer to Data Compression mode Page */
-	m = find_pcode(0x0f, sm);
-	if (m) {
-		p = m->pcodePointer;
-		p[2] |= 0x80;	/* Set data compression enable */
-	}
-	/* Find pointer to Device Configuration mode Page */
-	m = find_pcode(0x10, sm);
-	if (m) {
-		p = m->pcodePointer;
-		p[14] = configCompressionFactor;
-	}
-}
-
-static void disable_compression(void)
-{
-	struct mode *m;
-	uint8_t *p;
-
-
-	/* Find pointer to Data Compression mode Page */
-	m = find_pcode(0x0f, sm);
-	if (m) {
-		p = m->pcodePointer;
-		p[2] &= 0x7f;	/* clear data compression enable */
-	}
-	/* Find pointer to Device Configuration mode Page */
-	m = find_pcode(0x10, sm);
-	if (m) {
-		p = m->pcodePointer;
-		p[14] = Z_NO_COMPRESSION;
-	}
-}
-
-/*
- * Process the MODE_SELECT command
+/* FIXME: Needs to be converted to / moved into ssc.c
+ * log_pages need to be converted to a LIST first..
  */
-static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
+static uint8_t resp_log_sense(struct scsi_cmd *cmd)
 {
-	uint8_t *sam_stat = &dbuf_p->sam_stat;
-	uint8_t *buf = dbuf_p->data;
-	int block_descriptor_sz;
-	uint8_t *bdb = NULL;
-	int pgoff;
-	int long_lba = 0;
-	int count;
-
-	count = retrieve_CDB_data(cdev, dbuf_p);
-
-	/* This should be more selective..
-	 * Only needed for cmds that alter the partitioning or format..
-
-	if (!checkRestrictions(sam_stat))
-		return 0;
-	 */
-
-	if (cdb[0] == MODE_SELECT) {
-		block_descriptor_sz = buf[3];
-		if (block_descriptor_sz)
-			bdb = &buf[4];
-		pgoff = 4 + block_descriptor_sz;
-	} else {
-		block_descriptor_sz = get_unaligned_be16(&buf[6]);
-		long_lba = buf[4] & 1;
-		if (block_descriptor_sz)
-			bdb = &buf[8];
-		pgoff = 8 + block_descriptor_sz;
-	}
-
-	if (bdb) {
-		if (!long_lba) {
-			memcpy(blockDescriptorBlock, bdb, block_descriptor_sz);
-		} else {
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							sam_stat);
-			MHVTL_LOG("Warning can not "
-				"handle long descriptor block (long_lba bit)");
-		}
-	}
-
-	if (debug)
-		hex_dump(buf, dbuf_p->sz);
-
-	while (pgoff < dbuf_p->sz) {
-		switch (buf[pgoff + 0]) {
-		case 0x0f:
-			if (buf[pgoff + 2] & 0x80) /* DCE bit set */
-				enable_compression();
-			else
-				disable_compression();
-			break;
-
-		case 0x10:
-			if (buf[pgoff + 14]) /* Select Data Compression Alg */
-				enable_compression();
-			else
-				disable_compression();
-			break;
-
-		default:
-			break;
-		}
-		pgoff += buf[pgoff + 1] + 1;
-	}
-
-	return 0;
-}
-
-static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
-{
-	uint8_t	*b = dbuf_p->data;
+	uint8_t	*b = cmd->dbuf_p->data;
+	uint8_t *cdb = cmd->scb;
 	int retval = 0;
 	uint16_t *sp;
-	uint16_t alloc_len = dbuf_p->sz;
+	uint16_t alloc_len;
 	struct error_counter *_err_counter;
 
 	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x08,
@@ -784,6 +526,9 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 					TAPE_CAPACITY,
 					DATA_COMPRESSION,
 					};
+
+	MHVTL_DBG(1, "LOG SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
+	alloc_len = cmd->dbuf_p->sz = get_unaligned_be16(&cdb[7]);
 
 	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
@@ -801,8 +546,8 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		b = memcpy(b, &pg_write_err_counter,
 					sizeof(pg_write_err_counter));
 		_err_counter = (struct error_counter *)b;
-		/* FIXME: Need to byte-swap all other values too */
-		put_unaligned_be64(bytesWritten, &_err_counter->bytesProcessed);
+		put_unaligned_be64(lu_ssc.bytesWritten,
+					&_err_counter->bytesProcessed);
 		retval += sizeof(pg_write_err_counter);
 		break;
 	case READ_ERROR_COUNTER:	/* Read error page */
@@ -813,8 +558,8 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		b = memcpy(b, &pg_read_err_counter,
 					sizeof(pg_read_err_counter));
 		_err_counter = (struct error_counter *)b;
-		/* FIXME: Need to byte-swap all other values too */
-		put_unaligned_be64(bytesRead, &_err_counter->bytesProcessed);
+		put_unaligned_be64(lu_ssc.bytesRead,
+					&_err_counter->bytesProcessed);
 		retval += sizeof(pg_read_err_counter);
 		break;
 	case SEQUENTIAL_ACCESS_DEVICE:
@@ -860,13 +605,14 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		MHVTL_DBG(1, "LOG SENSE: Tape Capacity page");
 		TapeCapacity.pcode_head.len = htons(sizeof(TapeCapacity) -
 					sizeof(TapeCapacity.pcode_head));
-		if (tapeLoaded == TAPE_LOADED) {
+		if (lu_ssc.tapeLoaded == TAPE_LOADED) {
 			uint64_t cap;
 
-			cap = htonll(mam.remaining_capacity) / capacity_unit;
+			cap = htonll(mam.remaining_capacity) /
+					lu_ssc.capacity_unit;
 			TapeCapacity.value01 = htonl(cap);
 
-			cap = htonll(mam.max_capacity) / capacity_unit;
+			cap = htonll(mam.max_capacity) / lu_ssc.capacity_unit;
 			TapeCapacity.value03 = htonl(cap);
 		} else {
 			TapeCapacity.value01 = 0;
@@ -887,7 +633,8 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		retval = 2;
 		break;
 	}
-	return retval;
+	cmd->dbuf_p->sz = retval;
+	return SAM_STAT_GOOD;
 }
 
 /*
@@ -895,27 +642,30 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
  *
  * Fill in 'buf' with data and return number of bytes
  */
-static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
+int resp_read_attribute(struct scsi_cmd *cmd)
 {
-	uint16_t attribute;
+	uint16_t attrib;
 	uint32_t alloc_len;
 	int ret_val = 0;
 	int byte_index = 4;
 	int indx, found_attribute;
+	uint8_t *cdb = cmd->scb;
+	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
-	attribute = get_unaligned_be16(&cdb[8]);
+	attrib = get_unaligned_be16(&cdb[8]);
 	alloc_len = get_unaligned_be32(&cdb[10]);
 	MHVTL_DBG(2, "Read Attribute: 0x%x, allocation len: %d",
-							attribute, alloc_len);
+							attrib, alloc_len);
 
 	memset(buf, 0, alloc_len);	/* Clear memory */
 
 	if (cdb[1] == 0) {
 		/* Attribute Values */
 		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
-			if (attribute == MAM_Attributes[indx].attribute) {
+			if (attrib == MAM_Attributes[indx].attribute)
 				found_attribute = 1;
-			}
+
 			if (found_attribute) {
 				/* calculate available data length */
 				ret_val += MAM_Attributes[indx].length + 5;
@@ -962,28 +712,33 @@ static int resp_read_attribute(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
  *         or 1 if MAM needs to be written.
  *         or -1 on failure.
  */
-static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM *mamp)
+int resp_write_attribute(struct scsi_cmd *cmd)
 {
 	uint32_t alloc_len;
 	int byte_index;
-	int indx, attribute, attribute_length, found_attribute = 0;
+	int indx, attrib, attribute_length, found_attribute = 0;
+	struct MAM *mamp;
 	struct MAM mam_backup;
-	uint8_t *buf = dbuf_p->data;
-	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t *cdb = cmd->scb;
+	struct priv_lu_ssc *lu_priv;
 
 	alloc_len = get_unaligned_be32(&cdb[10]);
+	lu_priv = cmd->lu->lu_private;
+	mamp = lu_priv->mamp;
 
-	memcpy(&mam_backup, &mamp, sizeof(struct MAM));
+	memcpy(&mam_backup, mamp, sizeof(struct MAM));
 	for (byte_index = 4; byte_index < alloc_len; ) {
-		attribute = ((uint16_t)buf[byte_index++] << 8);
-		attribute += buf[byte_index++];
+		attrib = ((uint16_t)buf[byte_index++] << 8);
+		attrib += buf[byte_index++];
 		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
-			if (attribute == MAM_Attributes[indx].attribute) {
+			if (attrib == MAM_Attributes[indx].attribute) {
 				found_attribute = 1;
 				byte_index += 1;
 				attribute_length = ((uint16_t)buf[byte_index++] << 8);
 				attribute_length += buf[byte_index++];
-				if ((attribute == 0x408) &&
+				if ((attrib == 0x408) &&
 					(attribute_length == 1) &&
 						(buf[byte_index] == 0x80)) {
 					/* set media to worm */
@@ -1014,7 +769,7 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
-static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
+int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 {
 	uint32_t disk_blk_size, blk_size;
 	uLongf uncompress_sz;
@@ -1028,9 +783,8 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 
 	/* check for a zero length read
 	 * This is not an error, and shouldn't change the tape position */
-	if (request_sz == 0) {
+	if (request_sz == 0)
 		return 0;
-	}
 
 	switch (c_pos->blk_type) {
 	case B_DATA:
@@ -1045,6 +799,7 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 		return 0;
 		break;
 	case B_EOD:
+		MHVTL_DBG(1, "Expected to find DATA header, found: EOD");
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
@@ -1171,78 +926,32 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 
 /*
  * Return number of bytes written to 'file'
+ *
+ * Zero on error with sense buffer already filled in
  */
-static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
+int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 {
 	Bytef *dest_buf;
 	uLong dest_len;
 	uLong src_len = src_sz;
-	struct encryption *cryptop;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t *src_buf = cmd->dbuf_p->data;
+	struct priv_lu_ssc *lu_priv;
 	int rc;
 	int z;
 
+	lu_priv = cmd->lu->lu_private;
+
 	/* Determine whether or not to store the crypto info in the tape
-	   blk_header.  (We may adjust this decision below for the 3592.)
-	*/
+	 * blk_header.
+	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
+	 */
+	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
 
-	cryptop = ENCRYPT_MODE == 2 ? &encryption : NULL;
+	if (lu_priv->pm->valid_encryption_media)
+		lu_priv->pm->valid_encryption_media(cmd);
 
-	if (c_pos->blk_number == 0) {
-		/* 3590 media must be formatted to allow encryption.
-		 * This is done by writting an ANSI like label
-		 * (NBU label is close enough) to the tape while
-		 * an encryption key is in place. The drive doesn't
-		 * actually use the key, but sets the tape format
-		 */
-		if (lunit.drive_type == drive_3592_E06) {
-			if (ENCRYPT_MODE == 2) {
-				cryptop = NULL;
-				mam.Flags |= MAM_FLAGS_ENCRYPTION_FORMAT;
-			} else
-				mam.Flags &= ~MAM_FLAGS_ENCRYPTION_FORMAT;
-		}
-		if (Media_Native_Write_Density[mam.MediaType])
-			blockDescriptorBlock[0] = Media_Native_Write_Density[mam.MediaType];
-		else
-			blockDescriptorBlock[0] = Drive_Native_Write_Density[lunit.drive_type];
-
-		mam.MediumDensityCode = blockDescriptorBlock[0];
-		mam.FormattedDensityCode = blockDescriptorBlock[0];
-		rewriteMAM(sam_stat);
-	} else {
-		/* Extra check for 3592 to be sure the cartridge is
-		 * formatted for encryption
-		 */
-		if ((lunit.drive_type == drive_3592_E06) && ENCRYPT_MODE &&
-				!(mam.Flags & MAM_FLAGS_ENCRYPTION_FORMAT)) {
-			mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-			return 0;
-		}
-
-		if ((Media_Native_Write_Density[mam.MediaType] == -1) &&
-			(mam.MediumDensityCode != Drive_Native_Write_Density[lunit.drive_type])) {
-			switch (lunit.drive_type) {
-			case drive_3592_E05:
-				if (mam.MediumDensityCode == Drive_Native_Write_Density[drive_3592_J1A])
-					break;
-				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-				return 0;
-				break;
-			case drive_3592_E06:
-				if (mam.MediumDensityCode == Drive_Native_Write_Density[drive_3592_E05])
-					break;
-				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-				return 0;
-				break;
-			default:
-				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
-				return 0;
-				break;
-			}
-		}
-	}
-
-	if (*compressionFactor) {
+	if (*lu_priv->compressionFactor) {
 		dest_len = compressBound(src_sz);
 		dest_buf = malloc(dest_len);
 		if (!dest_buf) {
@@ -1251,10 +960,8 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 			return 0;
 		}
 		z = compress2(dest_buf, &dest_len, src_buf, src_sz,
-							*compressionFactor);
+						*lu_priv->compressionFactor);
 		if (z != Z_OK) {
-			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
-							sam_stat);
 			switch (z) {
 			case Z_MEM_ERROR:
 				MHVTL_LOG("Not enough memory to compress "
@@ -1268,22 +975,25 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 				MHVTL_LOG("Input data corrupt / incomplete");
 				break;
 			}
+			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
+							sam_stat);
+			return 0;
 		}
 		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"
 				", Compression factor: %d",
 					src_sz, (unsigned long)dest_len,
-					*compressionFactor);
+					*lu_priv->compressionFactor);
 	} else {
 		dest_buf = src_buf;
 		dest_len = 0;	/* no compression */
 	}
 
-	rc = write_tape_block(dest_buf, src_len, dest_len, cryptop, sam_stat);
+	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop, sam_stat);
 
-	if (*compressionFactor != Z_NO_COMPRESSION)
+	if (*lu_priv->compressionFactor != Z_NO_COMPRESSION)
 		free(dest_buf);
 
-	if (rc)
+	if (rc < 0)
 		return 0;
 
 	if (current_tape_offset() >= ntohll(mam.max_capacity)) {
@@ -1302,7 +1012,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 /*
  * Space over (to) x filemarks. Setmarks not supported as yet.
  */
-static void resp_space(int32_t count, int code, uint8_t *sam_stat)
+void resp_space(int32_t count, int code, uint8_t *sam_stat)
 {
 	switch (code) {
 	/* Space 'count' blocks */
@@ -1411,23 +1121,19 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 	return ret;
 }
 
-#define ENCR_IN_SUPPORT_PAGES		0
-#define ENCR_OUT_SUPPORT_PAGES		1
-#define ENCR_CAPABILITIES		0x10
-#define ENCR_KEY_FORMATS		0x11
-#define ENCR_KEY_MGT_CAPABILITIES	0x12
-#define ENCR_DATA_ENCR_STATUS		0x20
-#define ENCR_NEXT_BLK_ENCR_STATUS	0x21
-
-#define ENCR_SET_DATA_ENCRYPTION	0x10
-
 /*
  * Return number of valid bytes in data structure
  */
-static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sam_stat)
+static int resp_spin_page_20(struct scsi_cmd *cmd)
 {
 	int ret = 0;
 	int indx, count, correct_key;
+	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
+	uint32_t alloc_len = get_unaligned_be32(&cmd->scb[6]);
+	struct priv_lu_ssc *lu_priv;
+	lu_priv = cmd->lu->lu_private;
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
@@ -1454,66 +1160,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		break;
 
 	case ENCR_CAPABILITIES:
-		put_unaligned_be16(ENCR_CAPABILITIES, &buf[0]);
-		put_unaligned_be16(40, &buf[2]); /* List length */
-
-		buf[20] = 1;	/* Algorithm index */
-		buf[21] = 0;	/* Reserved */
-		put_unaligned_be16(0x14, &buf[22]); /* Descriptor length */
-		buf[24] = 0x3a;	/* MAC C/DED_C DECRYPT_C = 2 ENCRYPT_C = 2 */
-		buf[25] = 0x10;	/* NONCE_C = 1 */
-		/* Max unauthenticated key data */
-		put_unaligned_be16(0x20, &buf[26]);
-		/* Max authenticated  key data */
-		put_unaligned_be16(0x0c, &buf[28]);
-		/* Key size */
-		put_unaligned_be16(0x20, &buf[30]);
-		buf[32] = 0x01;	/* EAREM */
-		/* buf 12 - 19 reserved */
-
-		buf[40] = 0;	/* Encryption Algorithm Id */
-		buf[41] = 0x01;	/* Encryption Algorithm Id */
-		buf[42] = 0;	/* Encryption Algorithm Id */
-		buf[43] = 0x14;	/* Encryption Algorithm Id */
-		ret = 44;
-
-		MHVTL_DBG(2, "Drive type: %s, Media type: %s",
-				drive_name(lunit.drive_type),
-				lookup_media_type(mam.MediaType));
-
-		/* adjustments for each emulated drive type */
-		switch (lunit.drive_type) {
-		case drive_10K_A:
-		case drive_10K_B:
-			buf[4] = 0x1; /* CFG_P == 01b */
-			if (tapeLoaded == TAPE_LOADED)
-				buf[24] |= 0x80; /* AVFMV */
-				buf[27] = 0x1e; /* Max unauthenticated key data */
-				buf[29] = 0x00; /* Max authenticated key data */
-				buf[32] |= 0x42; /* DKAD_C == 1, RDMC_C == 1 */
-				buf[40] = 0x80; /* Encryption Algorithm Id */
-				buf[43] = 0x10; /* Encryption Algorithm Id */
-			break;
-		case drive_3592_E06:
-			if (tapeLoaded == TAPE_LOADED)
-				buf[24] |= 0x80; /* AVFMV */
-				buf[27] = 0x00; /* Max unauthenticated key data */
-				buf[32] |= 0x0e; /* RDMC_C == 7 */
-			break;
-		case drive_LTO4:
-			MHVTL_DBG(1, "LTO4 drive");
-			buf[4] = 0x1; /* CFG_P == 01b */
-			if (tapeLoaded == TAPE_LOADED) {
-				if (mam.MediaType == Media_LTO4) {
-					MHVTL_DBG(1, "LTO4 Medium");
-					buf[24] |= 0x80; /* AVFMV */
-				}
-			}
-			buf[32] |= 0x08; /* RDMC_C == 4 */
-			break;
-		default:
-			break;
-		}
+		ret = lu_priv->pm->encryption_capabilities(cmd);
 		break;
 
 	case ENCR_KEY_FORMATS:
@@ -1538,10 +1185,10 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		put_unaligned_be16(ENCR_DATA_ENCR_STATUS, &buf[0]);
 		put_unaligned_be16(0x20, &buf[2]); /* List length */
 		buf[4] = 0x21;	/* I_T Nexus scope and Key Scope */
-		buf[5] = ENCRYPT_MODE;
-		buf[6] = DECRYPT_MODE;
+		buf[5] = lu_priv->ENCRYPT_MODE;
+		buf[6] = lu_priv->DECRYPT_MODE;
 		buf[7] = 0x01;	/* Algorithm Index */
-		put_unaligned_be32(KEY_INSTANCE_COUNTER, &buf[8]);
+		put_unaligned_be32(lu_priv->KEY_INSTANCE_COUNTER, &buf[8]);
 		ret = 24;
 		indx = 24;
 		if (UKAD_LENGTH) {
@@ -1569,7 +1216,7 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 		break;
 
 	case ENCR_NEXT_BLK_ENCR_STATUS:
-		if (tapeLoaded != TAPE_LOADED) {
+		if (lu_priv->tapeLoaded != TAPE_LOADED) {
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		}
@@ -1636,43 +1283,19 @@ static int resp_spin_page_20(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uin
 	return ret;
 }
 
-/* Need to dynamically update mode page 0x24 with encryption status */
-static void update_encrypt_mode(int encrypt_mode)
-{
-	struct mode *smp;
-
-	smp = find_pcode(0x24, sm);
-	if (encrypt_mode)
-		smp->pcodePointer[5] |= ENCR_E;
-	else
-		smp->pcodePointer[5] &= ~ENCR_E;
-}
-
 /*
  * Retrieve Security Protocol Information
  */
-static int resp_spin(struct scsi_cmd *cmd)
+uint8_t resp_spin(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *buf = cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
-	uint16_t sps = get_unaligned_be16(&cdb[2]);
+	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint32_t alloc_len = get_unaligned_be32(&cdb[6]);
 	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
 
 	cmd->dbuf_p->sz = 0;
-	switch (cmd->lu->drive_type) {
-	case drive_LTO4:
-	case drive_LTO5:
-	case drive_3592_E05:
-	case drive_3592_E06:
-	case drive_10K_A:
-	case drive_10K_B:
-		break;
-	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
 
 	if (inc_512)
 		alloc_len = alloc_len * 512;
@@ -1682,7 +1305,7 @@ static int resp_spin(struct scsi_cmd *cmd)
 		cmd->dbuf_p->sz = resp_spin_page_0(buf, sps, alloc_len, sam_stat);
 		break;
 	case TAPE_DATA_ENCRYPTION:
-		cmd->dbuf_p->sz = resp_spin_page_20(buf, sps, alloc_len, sam_stat);
+		cmd->dbuf_p->sz = resp_spin_page_20(cmd);
 		break;
 	default:
 		MHVTL_DBG(1, "Security protocol 0x%04x unknown", cdb[1]);
@@ -1692,29 +1315,18 @@ static int resp_spin(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-static int resp_spout(struct scsi_cmd *cmd)
+uint8_t resp_spout(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t	*buf = cmd->dbuf_p->data;
+	struct priv_lu_ssc *lu_priv;
 	int count;
 #ifdef MHVTL_DEBUG
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint8_t inc_512 = (cmd->scb[4] & 0x80) ? 1 : 0;
 #endif
 
-	cmd->dbuf_p->sz = 0;
-	switch (cmd->lu->drive_type) {
-	case drive_LTO4:
-	case drive_LTO5:
-	case drive_3592_E05:
-	case drive_3592_E06:
-	case drive_10K_A:
-	case drive_10K_B:
-		break;
-	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
+	lu_priv = cmd->lu->lu_private;
 
 	if (cmd->scb[1] != TAPE_DATA_ENCRYPTION) {
 		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cmd->scb[1]);
@@ -1734,9 +1346,9 @@ static int resp_spout(struct scsi_cmd *cmd)
 		return 0;
 	}
 
-	KEY_INSTANCE_COUNTER++;
-	ENCRYPT_MODE = buf[6];
-	DECRYPT_MODE = buf[7];
+	lu_ssc.KEY_INSTANCE_COUNTER++;
+	lu_ssc.ENCRYPT_MODE = buf[6];
+	lu_ssc.DECRYPT_MODE = buf[7];
 	UKAD_LENGTH = 0;
 	AKAD_LENGTH = 0;
 	KEY_LENGTH = get_unaligned_be16(&buf[18]);
@@ -1746,7 +1358,7 @@ static int resp_spout(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(2, "Encrypt mode: %d Decrypt mode: %d, "
 			"ukad len: %d akad len: %d",
-				ENCRYPT_MODE, DECRYPT_MODE,
+				lu_ssc.ENCRYPT_MODE, lu_ssc.DECRYPT_MODE,
 				UKAD_LENGTH, AKAD_LENGTH);
 
 	if (cmd->dbuf_p->sz > (19 + KEY_LENGTH + 4)) {
@@ -1778,7 +1390,7 @@ static int resp_spout(struct scsi_cmd *cmd)
 		if ((UKAD_LENGTH > 0) || (AKAD_LENGTH > 12))
 			count = TRUE;
 		/* This drive will not accept a KAD if not encrypting */
-		if (!ENCRYPT_MODE && (UKAD_LENGTH || AKAD_LENGTH))
+		if (!lu_ssc.ENCRYPT_MODE && (UKAD_LENGTH || AKAD_LENGTH))
 			count = TRUE;
 		break;
 	case drive_LTO4:
@@ -1786,7 +1398,7 @@ static int resp_spout(struct scsi_cmd *cmd)
 		if ((UKAD_LENGTH > 32) || (AKAD_LENGTH > 12))
 			count = TRUE;
 		/* This drive will not accept a KAD if not encrypting */
-		if (!ENCRYPT_MODE && (UKAD_LENGTH || AKAD_LENGTH))
+		if (!lu_ssc.ENCRYPT_MODE && (UKAD_LENGTH || AKAD_LENGTH))
 			count = TRUE;
 		break;
 	default:
@@ -1795,9 +1407,9 @@ static int resp_spout(struct scsi_cmd *cmd)
 
 	/* For some reason, this command needs to be failed */
 	if (count) {
-		KEY_INSTANCE_COUNTER--;
-		ENCRYPT_MODE = 0;
-		DECRYPT_MODE = buf[7];
+		lu_ssc.KEY_INSTANCE_COUNTER--;
+		lu_ssc.ENCRYPT_MODE = 0;
+		lu_ssc.DECRYPT_MODE = buf[7];
 		UKAD_LENGTH = 0;
 	        AKAD_LENGTH = 0;
 		KEY_LENGTH = 0;
@@ -1805,7 +1417,8 @@ static int resp_spout(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	update_encrypt_mode(ENCRYPT_MODE);
+	if (!lu_priv->pm->update_encryption_mode)
+		lu_priv->pm->update_encryption_mode(NULL, lu_ssc.ENCRYPT_MODE);
 
 	return SAM_STAT_GOOD;
 }
@@ -1822,16 +1435,16 @@ static void updateMAM(uint8_t *sam_stat, int loadCount)
 	MHVTL_DBG(2, "updateMAM(%d)", loadCount);
 
 	/* Update bytes written this load. */
-	put_unaligned_be64(bytesWritten, &mam.WrittenInLastLoad);
-	put_unaligned_be64(bytesRead, &mam.ReadInLastLoad);
+	put_unaligned_be64(lu_ssc.bytesWritten, &mam.WrittenInLastLoad);
+	put_unaligned_be64(lu_ssc.bytesRead, &mam.ReadInLastLoad);
 
 	/* Update total bytes read/written */
 	bw = get_unaligned_be64(&mam.WrittenInMediumLife);
-	bw += bytesWritten;
+	bw += lu_ssc.bytesWritten;
 	put_unaligned_be64(bw, &mam.WrittenInMediumLife);
 
 	br = get_unaligned_be64(&mam.ReadInMediumLife);
-	br += bytesRead;
+	br += lu_ssc.bytesRead;
 	put_unaligned_be64(br, &mam.ReadInMediumLife);
 
 	/* Update load count */
@@ -1842,61 +1455,6 @@ static void updateMAM(uint8_t *sam_stat, int loadCount)
 	}
 
 	rewriteMAM(sam_stat);
-}
-
-/*
- * Returns true if blk header has correct encryption key data
- */
-int valid_encryption_blk(uint8_t *sam_stat)
-{
-	int correct_key;
-	int i;
-
-	/* decryption logic */
-	correct_key = TRUE;
-	if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
-		/* compare the keys */
-		if (DECRYPT_MODE > 1) {
-			if (c_pos->encryption.key_length != KEY_LENGTH) {
-				mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY, sam_stat);
-				correct_key = FALSE;
-			}
-			for (i = 0; i < c_pos->encryption.key_length; ++i) {
-				if (c_pos->encryption.key[i] != KEY[i]) {
-					mkSenseBuf(DATA_PROTECT,
-							E_INCORRECT_KEY,
-							sam_stat);
-					correct_key = FALSE;
-					break;
-				}
-			}
-			/* STK requires the UKAD back to decrypt */
-			if ((lunit.drive_type == drive_10K_A) ||
-				    (lunit.drive_type == drive_10K_B)) {
-				if (c_pos->encryption.ukad_length != UKAD_LENGTH) {
-					mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY, sam_stat);
-					correct_key = FALSE;
-					return correct_key;
-				}
-				for (i = 0; i < c_pos->encryption.ukad_length; ++i) {
-					if (c_pos->encryption.ukad[i] != UKAD[i]) {
-						mkSenseBuf(DATA_PROTECT,
-								E_INCORRECT_KEY,
-								sam_stat);
-						correct_key = FALSE;
-						break;
-					}
-				}
-			} /* End if STK 10K */
-		} else {
-			mkSenseBuf(DATA_PROTECT, E_UNABLE_TO_DECRYPT, sam_stat);
-			correct_key = FALSE;
-		}
-	} else if (DECRYPT_MODE == 2) {
-		mkSenseBuf(DATA_PROTECT, E_UNENCRYPTED_DATA, sam_stat);
-		correct_key = FALSE;
-	}
-	return correct_key;
 }
 
 /*
@@ -1912,27 +1470,20 @@ int valid_encryption_blk(uint8_t *sam_stat)
  */
 static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint32_t sz = 0;
-	uint32_t count, blk_no;
-	int32_t icount;
-	uint32_t retval = 0;
-	int k;
-	int code;
-	int service_action;
-	struct mode *smp = sm;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
-	uint8_t *buf;
-	loff_t nread;
 	static uint8_t last_cmd;
 	static int last_count;
+	struct priv_lu_ssc *lu_priv;
 	struct scsi_cmd _cmd;
 	struct scsi_cmd *cmd;
 	cmd = &_cmd;
+	lu_priv = &lu_ssc;
 
 	cmd->scb = cdb;
 	cmd->scb_len = 16;	/* fixme */
 	cmd->dbuf_p = dbuf_p;
 	cmd->lu = &lunit;
+	cmd->cdev = cdev;
 
 	dbuf_p->sz = 0;
 
@@ -1962,673 +1513,10 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			return;
 	}
 
-	/* Now process SCSI command. */
-	switch (cdb[0]) {
-	case ALLOW_MEDIUM_REMOVAL:
-		MHVTL_DBG(1, "%s MEDIA removal (%ld) **",
-					(cdb[4]) ? "Prevent" : "Allow",
-					(long)dbuf_p->serialNo);
-		resp_allow_prevent_removal(cdb, sam_stat);
-		break;
-
-	case INQUIRY:
-		*sam_stat = spc_inquiry(cmd);
-		break;
-
-	case FORMAT_UNIT:	/* That's FORMAT_MEDIUM for an SSC device... */
-		MHVTL_DBG(1, "Format Medium (%ld) **",
-						(long)dbuf_p->serialNo);
-
-		if (!checkRestrictions(sam_stat))
-			break;
-
-		if (c_pos->blk_number != 0) {
-			MHVTL_DBG(2, "Not at beginning **");
-			mkSenseBuf(ILLEGAL_REQUEST,E_POSITION_PAST_BOM,
-							sam_stat);
-			break;
-		}
-		format_tape(sam_stat);
-		break;
-
-	case SEEK_10:	/* Thats LOCATE_BLOCK for SSC devices... */
-		MHVTL_DBG(1, "Fast Block Locate (%ld) **",
-						(long)dbuf_p->serialNo);
-		blk_no = get_unaligned_be32(&cdb[3]);
-
-		/* If we want to seek closer to beginning of file than
-		 * we currently are, rewind and seek from there
-		 */
-		MHVTL_DBG(2, "Current blk: %d, seek: %d",
-					c_pos->blk_number, blk_no);
-		position_to_block(blk_no, sam_stat);
-		break;
-
-	case LOG_SELECT:	/* Set or reset LOG stats. */
-		MHVTL_DBG(1, "LOG SELECT (%ld) **", (long)dbuf_p->serialNo);
-		resp_log_select(cdb, sam_stat);
-		break;
-
-	case LOG_SENSE:
-		MHVTL_DBG(1, "LOG SENSE (%ld) **", (long)dbuf_p->serialNo);
-		dbuf_p->sz = get_unaligned_be16(&cdb[7]);
-		retval = resp_log_sense(cdb, dbuf_p);
-		/* Only return number of bytes allocated by initiator */
-		if (dbuf_p->sz > retval)
-			dbuf_p->sz = retval;
-		break;
-
-	case MODE_SELECT:
-	case MODE_SELECT_10:
-		MHVTL_DBG(1, "MODE SELECT (%ld) **", (long)dbuf_p->serialNo);
-		dbuf_p->sz = (MODE_SELECT == cdb[0]) ? cdb[4] :
-						((cdb[7] << 8) | cdb[8]);
-		if (cdb[1] & 0x10) { /* Page Format: 1 - SPC, 0 - vendor uniq */
-			/* FIXME: Need to add something here */
-		}
-		dbuf_p->sz = resp_mode_select(cdev, cdb, dbuf_p);
-		break;
-
-	case MODE_SENSE:
-	case MODE_SENSE_10:
-		MHVTL_DBG(1, "MODE SENSE (%ld) **", (long)dbuf_p->serialNo);
-		dbuf_p->sz = resp_mode_sense(cdb, dbuf_p->data, smp, MediaWriteProtect, sam_stat);
-		break;
-
-	case READ_10:
-		MHVTL_DBG(1, "READ_10 (%ld) op code not currently supported",
-						(long)dbuf_p->serialNo);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		break;
-
-	case READ_12:
-		MHVTL_DBG(1, "READ_12 (%ld) op code not currently supported",
-						(long)dbuf_p->serialNo);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		break;
-
-	case READ_16:
-		MHVTL_DBG(1, "READ_16 (%ld) op code not currently supported",
-						(long)dbuf_p->serialNo);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		break;
-
-	case READ_6:
-		if (cdb[1] & FIXED) { /* If - Fixed block read */
-			count = get_unaligned_be24(&cdb[2]);
-			sz = get_unaligned_be24(&blockDescriptorBlock[5]);
-			MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
-				"READ_6 \"Fixed block read\" "
-				" - Read %d blocks of %d size", count, sz);
-		} else { /* else - Variable block read */
-			sz = get_unaligned_be24(&cdb[2]);
-			count = 1;
-			MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
-				"READ_6 (%ld) : %d bytes **",
-					(long)dbuf_p->serialNo,
-					sz);
-		}
-
-		/* If both FIXED & SILI bits set, invalid combo.. */
-		if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
-			MHVTL_DBG(1, "Suppress ILI and Fixed block "
-					"read not allowed by SSC3");
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sam_stat);
-			break;
-		}
-		if (tapeLoaded == TAPE_LOADED) {
-			if (mam.MediumType == MEDIA_TYPE_CLEAN) {
-				MHVTL_DBG(1, "Cleaning media loaded");
-				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
-								sam_stat);
-				break;
-			}
-		} else if (tapeLoaded == TAPE_UNLOADED) {
-			MHVTL_DBG(3, "No media loaded");
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-			break;
-		} else {
-			MHVTL_LOG("Media format corrupt");
-			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-			break;
-		}
-
-		buf = dbuf_p->data;
-		for (k = 0; k < count; k++) {
-			if (!valid_encryption_blk(sam_stat))
-				break;
-			retval = readBlock(buf, sz, cdb[1] & SILI, sam_stat);
-			buf += retval;
-			dbuf_p->sz += retval;
-		}
-		if (retval > (sz * count))
-			retval = sz * count;
-		bytesRead += retval;
-		break;
-
-	case READ_ATTRIBUTE:
-		MHVTL_DBG(1, "Read Attribute (%ld) **",
-						(long)dbuf_p->serialNo);
-		if (tapeLoaded == TAPE_UNLOADED) {
-			MHVTL_LOG("Failed due to \"no media loaded\"");
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-			break;
-		} else if (tapeLoaded > TAPE_LOADED) {
-			MHVTL_LOG("Failed due to \"media corrupt\"");
-			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-			break;
-		}
-		/* Only support Service Action - Attribute Values */
-		if (cdb[1] < 2)
-			dbuf_p->sz = resp_read_attribute(cdb, dbuf_p->data, sam_stat);
-		else {
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sam_stat);
-			break;
-		}
-#ifdef MHVTL_DEBUG
-		{
-			uint8_t *p = dbuf_p->data;
-			MHVTL_DBG(3,
-				" dump return data, length: %d", dbuf_p->sz);
-			for (k = 0; k < dbuf_p->sz; k += 8) {
-				MHVTL_DBG(3, " 0x%02x 0x%02x 0x%02x 0x%02x"
-					" 0x%02x 0x%02x 0x%02x 0x%02x",
-					p[k+0], p[k+1], p[k+2], p[k+3],
-					p[k+4], p[k+5], p[k+6], p[k+7]);
-			}
-		}
-#endif
-		break;
-
-	case READ_BLOCK_LIMITS:
-		MHVTL_DBG(1, "Read block limits (%ld) **",
-						(long)dbuf_p->serialNo);
-		if (tapeLoaded == TAPE_LOADED || tapeLoaded == TAPE_UNLOADED)
-			dbuf_p->sz = resp_read_block_limits(dbuf_p, bufsize);
-		else
-			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-		break;
-
-	case READ_MEDIA_SERIAL_NUMBER:
-		MHVTL_DBG(1, "Read Medium Serial No. (%ld) **",
-						(long)dbuf_p->serialNo);
-		if (tapeLoaded == TAPE_UNLOADED)
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
-		else if (tapeLoaded == TAPE_LOADED) {
-			dbuf_p->sz = resp_read_media_serial(mediaSerialNo,
-								dbuf_p->data,
-								sam_stat);
-		} else
-			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-		break;
-
-	case READ_POSITION:
-		MHVTL_DBG(1, "Read Position (%ld) **",
-						(long)dbuf_p->serialNo);
-		service_action = cdb[1] & 0x1f;
-/* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
-		if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-		} else if ((service_action == 0) || (service_action == 1)) {
-			dbuf_p->sz = resp_read_position(c_pos->blk_number,
-							dbuf_p->data, sam_stat);
-		} else {
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sam_stat);
-		}
-		break;
-
-	case RELEASE:
-	case RELEASE_10:
-		MHVTL_DBG(1, "Release (%ld) **", (long)dbuf_p->serialNo);
-		if (!SPR_Reservation_Type && SPR_Reservation_Key)
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
-		I_am_SPC_2_Reserved = 0;
-		break;
-
-	case REPORT_DENSITY:
-		MHVTL_DBG(1, "Report Density (%ld) **", (long)dbuf_p->serialNo);
-		dbuf_p->sz = get_unaligned_be16(&cdb[7]);
-		dbuf_p->sz = resp_report_density((cdb[1] & 0x01), dbuf_p);
-		break;
-
-	case REPORT_LUN:
-		MHVTL_DBG(1, "Report LUNs (%ld) **", (long)dbuf_p->serialNo);
-		/* Minimum allocation length is 16 bytes. */
-		if (get_unaligned_be32(&cdb[6]) < 16) {
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sam_stat);
-			break;
-		}
-		report_luns.size = htonl(sizeof(report_luns) - 8);
-		resp_report_lun(&report_luns, dbuf_p->data, sam_stat);
-		break;
-
-	case REQUEST_SENSE:
-		*sam_stat = spc_request_sense(cmd);
-		break;
-
-	case RESERVE:
-	case RESERVE_10:
-		MHVTL_DBG(1, "Reserve (%ld) **", (long)dbuf_p->serialNo);
-		if (!SPR_Reservation_Type && !SPR_Reservation_Key)
-			I_am_SPC_2_Reserved = 1;
-		if (!SPR_Reservation_Type && SPR_Reservation_Key)
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
-		break;
-
-	case REZERO_UNIT:	/* Rewind */
-		MHVTL_DBG(1, "Rewinding (%ld) **", (long)dbuf_p->serialNo);
-		if (tapeLoaded == TAPE_UNLOADED)
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-		else
-			rewind_tape(sam_stat);
-		break;
-
-	case ERASE_6:
-		MHVTL_DBG(1, "Erasing (%ld) **", (long)dbuf_p->serialNo);
-
-		if (!checkRestrictions(sam_stat))
-			break;
-
-		if (c_pos->blk_number != 0) {
-			MHVTL_DBG(1, "Not at BOT.. Can't erase unless at BOT");
-			mkSenseBuf(NOT_READY, E_INVALID_FIELD_IN_CDB, sam_stat);
-			*sam_stat = SAM_STAT_CHECK_CONDITION;
-			break;
-		}
-
-		if (OK_to_write)
-			format_tape(sam_stat);
-		else {
-			MHVTL_DBG(1, "Attempt to erase Write-protected media");
-			mkSenseBuf(NOT_READY, E_MEDIUM_OVERWRITE_ATTEMPTED,
-						sam_stat);
-			*sam_stat = SAM_STAT_CHECK_CONDITION;
-		}
-		break;
-
-	case SPACE:
-		count = get_unaligned_be24(&cdb[2]);
-		code = cdb[1] & 0x07;
-
-		/* 'count' is only a 24-bit value.  If the top bit is set, it
-		   should be treated as a twos-complement negative number.
-		*/
-
-		if (count >= 0x800000)
-			icount = -(0xffffff - count + 1);
-		else
-			icount = (int32_t)count;
-
-		MHVTL_DBG(1, "SPACE (%ld) ** %s %d %s%s",
-			(long)dbuf_p->serialNo,
-			(icount >= 0) ? "forward" : "back",
-			abs(icount),
-			(code) ? "filemark" : "block",
-			(1 == abs(icount)) ? "" : "s");
-
-		if (icount != 0)
-			resp_space(icount, code, sam_stat);
-
-		break;
-
-	case START_STOP:	/* Load/Unload cmd */
-		if (cdb[4] & 0x1) {
-			MHVTL_DBG(1, "Loading Tape (%ld) **",
-						(long)dbuf_p->serialNo);
-			rewind_tape(sam_stat);
-		} else if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-		} else {
-			MHVTL_DBG(1, "Unloading Tape (%ld)  **",
-						(long)dbuf_p->serialNo);
-			unloadTape(sam_stat);
-		}
-		break;
-
-	case TEST_UNIT_READY:	/* Return OK by default */
-		MHVTL_DBG(2, "Test Unit Ready (%ld) : %s",
-				(long)dbuf_p->serialNo,
-				(tapeLoaded == TAPE_UNLOADED) ? "No" : "Yes");
-		if (tapeLoaded == TAPE_UNLOADED)
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-		if (tapeLoaded > TAPE_LOADED)
-			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-
-		break;
-
-	case WRITE_10:
-		MHVTL_DBG(1, "WRITE_10 op code not currently supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		break;
-
-	case WRITE_12:
-		MHVTL_DBG(1, "WRITE_12 op code not currently supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		break;
-
-	case WRITE_16:
-		MHVTL_DBG(1, "WRITE_16 op code not currently supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		break;
-
-	case WRITE_6:
-		/* If Fixed block writes */
-		if (cdb[1] & FIXED) {
-			count = get_unaligned_be24(&cdb[2]);
-			sz = get_unaligned_be24(&blockDescriptorBlock[5]);
-			MHVTL_DBG(last_cmd == WRITE_6 ? 2 : 1,
-				"WRITE_6: %d blks of %d bytes (%ld) **",
-						count,
-						sz,
-						(long)dbuf_p->serialNo);
-		/* else - Variable Block writes */
-		} else {
-			count = 1;
-			sz = get_unaligned_be24(&cdb[2]);
-			MHVTL_DBG(last_cmd == WRITE_6 ? 2 : 1,
-				"WRITE_6: %d bytes (%ld) **",
-						sz,
-						(long)dbuf_p->serialNo);
-		}
-
-		/* FIXME: Should handle this instead of 'check & warn' */
-		if ((sz * count) > bufsize)
-			MHVTL_LOG(
-			"Fatal: bufsize %d, requested write of %d bytes",
-							bufsize, sz);
-
-		/* Retrieve data from kernel */
-		dbuf_p->sz = sz * count;
-		nread = retrieve_CDB_data(cdev, dbuf_p);
-
-		if (!checkRestrictions(sam_stat))
-			break;
-
-		if (OK_to_write) {
-			buf = dbuf_p->data;
-			for (k = 0; k < count; k++) {
-				retval = writeBlock(buf, sz, sam_stat);
-				bytesWritten += retval;
-				buf += retval;
-			}
-		}
-		break;
-
-	case WRITE_ATTRIBUTE:
-		MHVTL_DBG(1, "Write Attributes (%ld) **",
-						(long)dbuf_p->serialNo);
-
-		if (tapeLoaded == TAPE_UNLOADED) {
-			mkSenseBuf(NOT_READY,E_MEDIUM_NOT_PRESENT, sam_stat);
-			break;
-		} else if (tapeLoaded > TAPE_LOADED) {
-			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-			break;
-		}
-
-		dbuf_p->sz = get_unaligned_be32(&cdb[10]);
-		sz = retrieve_CDB_data(cdev, dbuf_p);
-		MHVTL_DBG(1, "  --> Expected to read %d bytes"
-				", read %d", dbuf_p->sz, sz);
-		if (resp_write_attribute(cdb, dbuf_p, &mam))
-			rewriteMAM(sam_stat);
-		break;
-
-	case WRITE_FILEMARKS:
-		count = get_unaligned_be24(&cdb[2]);
-		MHVTL_DBG(1, "Write %d filemarks (%ld) **", count,
-						(long)dbuf_p->serialNo);
-		if (!checkRestrictions(sam_stat)) {
-			/* If restrictions & WORM media at block 0.. OK
-			 * Otherwise break out of case.
-			 */
-			if ((mam.MediumType == MEDIA_TYPE_WORM) &&
-						(c_pos->blk_number == 0)) {
-				/* Do nothing, but skip following break; */
-				MHVTL_LOG("Erasing WORM media");
-			} else
-				break;
-		}
-
-		write_filemarks(count, sam_stat);
-		if (count)
-			if (current_tape_offset() >= ntohll(mam.max_capacity)) {
-				mam.remaining_capacity = htonll(0);
-				MHVTL_DBG(2, "Setting EOM flag");
-				mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE,
-						sam_stat);
-			}
-		break;
-
-	case RECEIVE_DIAGNOSTIC:
-		MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
-						(long)dbuf_p->serialNo);
-		dbuf_p->sz = ProcessReceiveDiagnostic(cdb, dbuf_p);
-		break;
-
-	case SEND_DIAGNOSTIC:
-		MHVTL_DBG(1, "Send Diagnostic (%ld) **",
-						(long)dbuf_p->serialNo);
-		count = get_unaligned_be16(&cdb[3]);
-		if (count) {
-			dbuf_p->sz = count;
-			sz = retrieve_CDB_data(cdev, dbuf_p);
-			ProcessSendDiagnostic(cdb, 16, dbuf_p);
-		}
-		break;
-
-	case PERSISTENT_RESERVE_IN:
-		MHVTL_DBG(1, "PERSISTENT RESERVE IN (%ld) **",
-						(long)dbuf_p->serialNo);
-		if (I_am_SPC_2_Reserved)
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
-		else
-			*sam_stat = resp_spc_pri(cdb, dbuf_p);
-		break;
-
-	case PERSISTENT_RESERVE_OUT:
-		MHVTL_DBG(1, "PERSISTENT RESERVE OUT (%ld) **",
-						(long)dbuf_p->serialNo);
-		if (I_am_SPC_2_Reserved) {
-			MHVTL_DBG(1, "SPC 2 reserved");
-			*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
-		} else {
-			dbuf_p->sz = get_unaligned_be32(&cdb[5]);
-			nread = retrieve_CDB_data(cdev, dbuf_p);
-			resp_spc_pro(cdb, dbuf_p);
-		}
-		break;
-
-	case SECURITY_PROTOCOL_IN:
-		MHVTL_DBG(1, "Security Protocol In (%ld) **",
-						(long)dbuf_p->serialNo);
-		*sam_stat = resp_spin(cmd);
-		MHVTL_DBG(3, "Returning %d bytes", dbuf_p->sz);
-		if (debug)
-			hex_dump(dbuf_p->data, dbuf_p->sz);
-		break;
-
-	case SECURITY_PROTOCOL_OUT:
-		MHVTL_DBG(1, "Security Protocol Out (%ld) **",
-						(long)dbuf_p->serialNo);
-		dbuf_p->sz = get_unaligned_be32(&cdb[6]);
-		/* Check for '512 increment' bit & multiply sz by 512 if set */
-		dbuf_p->sz *= (cdb[4] & 0x80) ? 512 : 1;
-
-		nread = retrieve_CDB_data(cdev, dbuf_p);
-		*sam_stat = resp_spout(cmd);
-		MHVTL_DBG(3, "Returning %d bytes", dbuf_p->sz);
-		break;
-
-	case A3_SA:
-		resp_a3_service_action(cdb, dbuf_p);
-		break;
-
-	case A4_SA:
-		resp_a4_service_action(cdb, dbuf_p);
-		break;
-
-	case ALLOW_OVERWRITE:
-		MHVTL_DBG(1, "ALLOW OVERWRITE (%ld) **",
-						(long)dbuf_p->serialNo);
-		*sam_stat = resp_allow_overwrite(cmd);
-		break;
-
-	case ACCESS_CONTROL_IN:
-		MHVTL_DBG(1, "ACCESS CONTROL IN (%ld) **",
-						(long)dbuf_p->serialNo);
-		break;
-
-	case ACCESS_CONTROL_OUT:
-		MHVTL_DBG(1, "ACCESS CONTROL OUT (%ld) **",
-						(long)dbuf_p->serialNo);
-		break;
-
-	case EXTENDED_COPY:
-		MHVTL_DBG(1, "EXTENDED COPY (%ld) **",
-						(long)dbuf_p->serialNo);
-		break;
-
-	case LOAD_DISPLAY:
-		MHVTL_DBG(1, "LOAD DISPLAY (%ld) - T10000 specific **",
-						(long)dbuf_p->serialNo);
-		if ((lunit.drive_type == drive_10K_A) ||
-					(lunit.drive_type == drive_10K_B)) {
-			unsigned char *d;
-			char str1[9];
-			char str2[9];
-
-			dbuf_p->sz = cdb[4];
-			nread = retrieve_CDB_data(cdev, dbuf_p);
-			d = dbuf_p->data;
-			memcpy(str1, &d[1], 8);
-			str1[8] = 0;
-			memcpy(str2, &d[9], 8);
-			str2[8] = 0;
-
-			MHVTL_DBG(3, "Raw data: %02x  "
-				"%02x %02x %02x %02x %02x %02x %02x %02x  "
-				"%02x %02x %02x %02x %02x %02x %02x %02x",
-				d[0], d[1], d[2], d[3], d[4],
-				d[5], d[6], d[7], d[8],
-				d[9], d[10], d[11], d[12],
-				d[13], d[14], d[15], d[16]);
-
-			switch (d[0] >> 5) { /* Bits 5, 6 & 7 are overlay */
-			case 0:
-				MHVTL_DBG(1, "Display \'%s\' until next"
-					" command that initiates tape motion",
-		/* Low/High bit */	(d[0] & 2) ? str2 : str1);
-				break;
-			case 1:
-				MHVTL_DBG(1, "Maintain \'%s\' until the"
-					" cartridge is unloaded",
-		/* Low/High bit */	(d[0] & 2) ? str2 : str1);
-				break;
-			case 2:
-				MHVTL_DBG(1, "Maintain \'%s\' until the drive"
-					" is next loaded", str1);
-				break;
-			case 3:
-				MHVTL_DBG(1, "Physically access tape drive with"
-					"out changing the msg");
-				break;
-			case 7:
-				MHVTL_DBG(1, "Display \'%s\' until the tape"
-					" drive is unloaded then \'%s\'",
-						str1, str2);
-				break;
-			}
-			MHVTL_DBG(2, "Load display: msg1: %s msg2: %s",
-						str1, str2);
-		}
-		dbuf_p->sz = 0;
-		break;
-
-	default:
-		MHVTL_DBG(1, "Unknown OP code (%ld) **",
-						(long)dbuf_p->serialNo);
-
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		*sam_stat = SAM_STAT_CHECK_CONDITION;
-		break;
-	}
+	*sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
 
 	last_cmd = cdb[0];
 	return;
-}
-
-static void clear_worm_mode_pg(void)
-{
-	uint8_t *smp_dp;
-	struct mode *smp;
-
-	switch (lunit.drive_type) {
-	case drive_AIT4:
-		smp = find_pcode(0x31, sm);
-		if (smp) {
-			smp_dp = smp->pcodePointer;
-			smp_dp[4] = 0x00;
-		}
-		break;
-	case drive_3592_J1A:
-	case drive_3592_E05:
-	case drive_3592_E06:
-		smp = find_pcode(0x23, sm);
-		if (smp) {
-			smp_dp = smp->pcodePointer;
-			smp_dp[20] = 0x00;
-		}
-		break;
-	case drive_LTO3:
-	case drive_LTO4:
-		smp = find_pcode(0x1d, sm);
-		if (smp) {
-			smp_dp = smp->pcodePointer;
-			smp_dp[2] = 0x00;
-			smp_dp[4] = 0x01; /* Indicate label overwrite */
-		}
-		break;
-	}
-}
-
-static void set_worm_mode_pg(void)
-{
-	uint8_t *smp_dp;
-	struct mode *smp;
-
-	switch (lunit.drive_type) {
-	case drive_AIT4:
-		smp = find_pcode(0x31, sm);
-		if (smp) {
-			smp_dp = smp->pcodePointer;
-			smp_dp[4] = 0x40;
-		}
-		break;
-	case drive_3592_J1A:
-	case drive_3592_E05:
-	case drive_3592_E06:
-		smp = find_pcode(0x23, sm);
-		if (smp) {
-			smp_dp = smp->pcodePointer;
-			smp_dp[20] = 0x10;
-		}
-		break;
-	case drive_LTO3:
-	case drive_LTO4:
-	case drive_LTO5:
-		smp = find_pcode(0x1d, sm);
-		if (smp) {
-			smp_dp = smp->pcodePointer;
-			smp_dp[2] = 0x10;
-			smp_dp[4] = 0x01; /* Indicate label overwrite */
-		}
-		break;
-	}
 }
 
 static int density_to_int(char *s)
@@ -2699,13 +1587,13 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	uint64_t fg = 0;	/* TapeAlert flags */
 	struct media_details *m_details;
 
-	bytesWritten = 0;	/* Global - Bytes written this load */
-	bytesRead = 0;		/* Global - Bytes rearead this load */
+	lu_ssc.bytesWritten = 0;	/* Global - Bytes written this load */
+	lu_ssc.bytesRead = 0;		/* Global - Bytes rearead this load */
 
 	rc = load_tape(PCL, sam_stat);
 	if (rc) {
 		MHVTL_DBG(1, "Media load failed.. Unsupported format");
-		mediaSerialNo[0] = '\0';
+		lu_ssc.mediaSerialNo[0] = '\0';
 		if (rc == 2) {
 			/* TapeAlert - Unsupported format */
 			fg = 0x800;
@@ -2714,9 +1602,9 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		}
 		return rc;
 	}
-	tapeLoaded = TAPE_LOADED;
+	lu_ssc.tapeLoaded = TAPE_LOADED;
 
-	strncpy((char *)mediaSerialNo, (char *)mam.MediumSerialNumber,
+	strncpy((char *)lu_ssc.mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
 
 	MHVTL_DBG(1, "Media '%s' loaded with S/No. : %s",
@@ -2725,12 +1613,14 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	switch(mam.MediumType) {
 	case MEDIA_TYPE_DATA:
 		OK_to_write = 1;	/* Reset flag to OK. */
-		clear_worm_mode_pg();
+		if (lu_ssc.pm->clear_WORM)
+			lu_ssc.pm->clear_WORM();
 		mkSenseBuf(UNIT_ATTENTION, E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
 		OK_to_write = 0;
-		clear_worm_mode_pg();
+		if (lu_ssc.pm->clear_WORM)
+			lu_ssc.pm->clear_WORM();
 		fg |= 0x400;
 		MHVTL_DBG(1, "Cleaning media loaded");
 		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
@@ -2743,6 +1633,12 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		* - EOD
 		* We set this as writable media as the tape is blank.
 		*/
+		if (!lu_ssc.pm->set_WORM) { /* PM doesn't support WORM */
+			MHVTL_DBG(1, "load failed - WORM media,"
+					" but drive doesn't support WORM");
+			goto mismatchmedia;
+		}
+
 		if (c_pos->blk_type == B_EOD) {
 			OK_to_write = 1;
 		} else if (c_pos->blk_type != B_FILEMARK) {
@@ -2762,9 +1658,9 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			}
 			rewind_tape(sam_stat);
 		}
-		setWORM();
+		if (lu_ssc.pm->set_WORM)
+			lu_ssc.pm->set_WORM();
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
-		set_worm_mode_pg();
 		break;
 	}
 
@@ -2810,11 +1706,11 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		/* Allow media to be either RO or RW */
 		if (m_details->density_status & LOAD_RO) {
 			MHVTL_DBG(2, "Config file: mounting READ ONLY");
-			MediaWriteProtect = MEDIA_READONLY;
+			lu_ssc.MediaWriteProtect = MEDIA_READONLY;
 			OK_to_write = 0;
 		} else if (m_details->density_status & LOAD_RW) {
 			MHVTL_DBG(2, "Config file: mounting READ/WRITE");
-			MediaWriteProtect = MEDIA_WRITABLE;
+			lu_ssc.MediaWriteProtect = MEDIA_WRITABLE;
 			OK_to_write = 1;
 		} else if (m_details->density_status & LOAD_FAIL) {
 			MHVTL_DBG(2, "Config file: LOAD FAILED");
@@ -2850,7 +1746,7 @@ mismatchmedia:
 			PCL,
 			lookup_media_type(mam.MediaType),
 			drive_name(lunit.drive_type));
-	tapeLoaded = TAPE_UNLOADED;
+	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 	return TAPE_UNLOADED;
 }
 
@@ -2891,23 +1787,23 @@ static char * strip_PCL(char *p, int start)
 return p;
 }
 
-static void
-unloadTape(uint8_t *sam_stat)
+void unloadTape(uint8_t *sam_stat)
 {
-	switch (tapeLoaded) {
+	switch (lu_ssc.tapeLoaded) {
 	case TAPE_LOADED:
 		mam.record_dirty = 0;
 		/* Don't update load count on unload -done at load time */
 		updateMAM(sam_stat, 0);
 		unload_tape(sam_stat);
-		clearWORM();
+		if (lu_ssc.pm->clear_WORM)
+			lu_ssc.pm->clear_WORM();
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");
 		break;
 	}
 	OK_to_write = 0;
-	tapeLoaded = TAPE_UNLOADED;
+	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 }
 
 static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
@@ -2919,18 +1815,18 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 
 	/* Tape Load message from Library */
 	if (!strncmp(msg->text, "lload", 5)) {
-		if ( ! inLibrary) {
+		if (!lu_ssc.inLibrary) {
 			MHVTL_DBG(2, "lload & drive not in library");
 			return 0;
 		}
 
-		if (tapeLoaded != TAPE_UNLOADED) {
+		if (lu_ssc.tapeLoaded != TAPE_UNLOADED) {
 			MHVTL_DBG(2, "Tape already mounted");
 			send_msg("Load failed", msg->snd_id);
 		} else {
 			pcl = strip_PCL(msg->text, 6); /* 'lload ' => offset of 6 */
 			loadTape(pcl, sam_stat);
-			if (tapeLoaded == TAPE_LOADED)
+			if (lu_ssc.tapeLoaded == TAPE_LOADED)
 				sprintf(s, "Loaded OK: %s", pcl);
 			else
 				sprintf(s, "Load failed: %s", pcl);
@@ -2940,9 +1836,9 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 
 	/* Tape Load message from User space */
 	if (!strncmp(msg->text, "load", 4)) {
-		if (inLibrary)
+		if (lu_ssc.inLibrary)
 			MHVTL_DBG(2, "Warn: Tape assigned to library");
-		if (tapeLoaded == TAPE_LOADED) {
+		if (lu_ssc.tapeLoaded == TAPE_LOADED) {
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
 			pcl = strip_PCL(msg->text, 4);
@@ -2956,12 +1852,11 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	}
 
 	if (!strncmp(msg->text, "exit", 4)) {
-		MHVTL_DBG(1, "Notice to exit : %s", msg->text);
 		return 1;
 	}
 
 	if (!strncmp(msg->text, "Register", 8)) {
-		inLibrary = 1;
+		lu_ssc.inLibrary = 1;
 		MHVTL_DBG(1, "Notice from Library controller : %s", msg->text);
 	}
 
@@ -3009,11 +1904,27 @@ return 0;
  * - Set initial values of mode pages
  *
  * Return void  - Nothing
+
+ *** Minimum requirements is **
+ static struct mode sm[] = {
+	{0x01, 0x00, 0x00, NULL, }, * RW error recovery - SSC3-8.3.5 *
+	{0x02, 0x00, 0x00, NULL, }, * Disconnect Reconnect - SPC3 *
+	{0x0a, 0x00, 0x00, NULL, }, * Control Extension - SPC3 *
+	{0x0f, 0x00, 0x00, NULL, }, * Data Compression - SSC3-8.3.3
+	{0x10, 0x00, 0x00, NULL, }, * Device config - SSC3-8.3.3
+	{0x11, 0x00, 0x00, NULL, }, * Medium Partition - SSC3-8.3.4
+	{0x1a, 0x00, 0x00, NULL, }, * Power condition - SPC3
+	{0x1c, 0x00, 0x00, NULL, }, * Information Exception Ctrl SSC3-8.3.6
+	{0x1d, 0x00, 0x00, NULL, }, * Medium configuration - SSC3-8.3.7
+	{0x00, 0x00, 0x00, NULL, }, * NULL terminator
+	};
  */
 #define COMPRESSION_TYPE 0x10
-static void init_mode_pages(struct mode *m)
+void init_default_ssc_mode_pages(struct mode *m)
 {
 	struct mode *mp;
+
+	MHVTL_DBG(3, "*** Trace mode pages at %p ***", m);
 
 	/* RW Error Recovery: SSC-3 8.3.5 */
 	mp = alloc_mode_page(1, m, 12);
@@ -3057,12 +1968,12 @@ static void init_mode_pages(struct mode *m)
 		/* Enable EOD & Sync at early warning */
 		mp->pcodePointer[10] = 0x18;
 		/* Select Data Compression */
-		mp->pcodePointer[14] = configCompressionFactor;
+		mp->pcodePointer[14] = lu_ssc.configCompressionFactor;
 		/* WTRE (WORM handling) */
 		mp->pcodePointer[15] = 0x80;
 
 		/* Set pointer to 'Compression Algorithm' */
-		compressionFactor = &mp->pcodePointer[14];
+		lu_ssc.compressionFactor = &mp->pcodePointer[14];
 	}
 
 	/* Medium Partition: SSC-3 8.3.4 */
@@ -3092,14 +2003,6 @@ static void init_mode_pages(struct mode *m)
 	if (mp) {
 		/* Init rest of page data.. */
 	}
-
-	/* Vendor Unique (IBM Ultrium)
-	 * Page 151, table 118
-	 * Advise ENCRYPTION Capable device
-	 */
-	mp = alloc_mode_page(0x24, m, 6);
-	if (mp)
-		mp->pcodePointer[5] = ENCR_C;
 }
 
 /* Set VPD data with device serial number */
@@ -3176,12 +2079,13 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 static void config_lu(struct lu_phy_attr *lu)
 {
 	lu->drive_type = drive_UNKNOWN;
+	struct priv_lu_ssc *lu_priv = lu->lu_private;
 
 	/* Define lu->drive_type first */
 	if (!strncasecmp(lu->product_id, "ULT", 3)) {
 		char *dup_product_id;
 
-		capacity_unit = 1L << 20; /* Capacity units in MBytes */
+		lu_ssc.capacity_unit = 1L << 20; /* Capacity units in MBytes */
 
 		/* Ultrium drives */
 		dup_product_id = strchr(lu->product_id, '-');
@@ -3192,21 +2096,27 @@ static void config_lu(struct lu_phy_attr *lu)
 
 		if (!strncasecmp(dup_product_id, "-TD1", 4)) {
 			lu->drive_type = drive_LTO1;
+			init_ult3580_td1(lu);
 			MHVTL_DBG(1, "LTO 1 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD2", 4)) {
 			lu->drive_type = drive_LTO2;
+			init_ult3580_td2(lu);
 			MHVTL_DBG(1, "LTO 2 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD3", 4)) {
 			lu->drive_type = drive_LTO3;
+			init_ult3580_td3(lu);
 			MHVTL_DBG(1, "LTO 3 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD4", 4)) {
 			lu->drive_type = drive_LTO4;
+			init_ult3580_td4(lu);
 			MHVTL_DBG(1, "LTO 4 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD5", 4)) {
 			lu->drive_type = drive_LTO5;
+			init_ult3580_td5(lu);
 			MHVTL_DBG(1, "LTO 5 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD6", 4)) {
 			lu->drive_type = drive_LTO6;
+			init_ult3580_td5(lu);
 			MHVTL_DBG(1, "LTO 6 drive");
 		} else if (!strncasecmp(dup_product_id, "-SCSI", 5)) {
 			/* HP Ultrium 4-SCSI */
@@ -3231,70 +2141,52 @@ static void config_lu(struct lu_phy_attr *lu)
 			MHVTL_DBG(1, "Unknown Ultrium drive");
 		}
 	} else if (!strncasecmp(lu->product_id, "SDLT600", 7)) {
-		capacity_unit = 1L << 20; /* Capacity units in MBytes */
+		lu_ssc.capacity_unit = 1L << 20; /* Capacity units in MBytes */
 		lu->drive_type = drive_SDLT600;
 		MHVTL_DBG(1, "SDLT600 drive");
 	} else if (!strncasecmp(lu->product_id, "SDX-900", 7)) {
-		capacity_unit = 1L << 10; /* Capacity units in KBytes */
+		lu_ssc.capacity_unit = 1L << 10; /* Capacity units in KBytes */
 		lu->drive_type = drive_AIT4;
+		init_ait4_ssc(lu);
 		MHVTL_DBG(1, "AIT4 drive");
 	} else if (!strncasecmp(lu->product_id, "03592J1A", 8)) {
 		lu->drive_type = drive_3592_J1A;
+		init_3592_j1a(lu);
 		MHVTL_DBG(1, "3592_J1A drive");
 	} else if (!strncasecmp(lu->product_id, "03592E05", 8)) {
 		lu->drive_type = drive_3592_E05;
+		init_3592_E05(lu);
 		MHVTL_DBG(1, "3952 E05 drive");
 	} else if (!strncasecmp(lu->product_id, "03592E06", 8)) {
 		lu->drive_type = drive_3592_E06;
+		init_3592_E06(lu);
 		MHVTL_DBG(1, "3592 E06 drive");
 	} else if (!strncasecmp(lu->product_id, "T10000C", 7)) {
 		lu->drive_type = drive_10K_C;
+		init_t10k_ssc(lu);
 		MHVTL_DBG(1, "T10000-C drive");
 	} else if (!strncasecmp(lu->product_id, "T10000B", 7)) {
 		lu->drive_type = drive_10K_B;
+		init_t10k_ssc(lu);
 		MHVTL_DBG(1, "T10000-B drive");
 	} else if (!strncasecmp(lu->product_id, "T10000", 6)) {
 		lu->drive_type = drive_10K_A;
+		init_t10k_ssc(lu);
 		MHVTL_DBG(1, "T10000-A drive");
 	}
-}
 
-static void update_vpd_b0(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
-	uint8_t *worm;
-
-	worm = p;
-
-	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
-}
-
-static void update_vpd_b1(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb1)];
-
-	memcpy(vpd_pg->data, p, vpd_pg->sz);
-}
-
-static void update_vpd_b2(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
-
-	memcpy(vpd_pg->data, p, vpd_pg->sz);
-}
-
-static void update_vpd_c0(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
-
-	memcpy(&vpd_pg->data[20], p, strlen(p));
-}
-
-static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc1)];
-
-	memcpy(vpd_pg->data, p, vpd_pg->sz);
+	/* If a personality module init has been called,
+	   lu_priv->pm will be valid
+	 */
+	if (!lu_priv->pm)
+		init_default_ssc(lu);
+	if (lu_ssc.configCompressionFactor) {
+		if (lu_ssc.pm->set_compression)
+			lu_ssc.pm->set_compression(lu_ssc.configCompressionFactor);
+	} else {
+		if (lu_ssc.pm->clear_compression)
+			lu_ssc.pm->clear_compression();
+	}
 }
 
 int add_drive_media_list(struct list_head *supported_den_list,
@@ -3329,20 +2221,200 @@ int add_drive_media_list(struct list_head *supported_den_list,
 	return 0;
 }
 
-#define VPD_83_SZ 50
-#define VPD_B0_SZ 4
-#define VPD_B1_SZ SCSI_SN_LEN
-#define VPD_B2_SZ 8
-#define VPD_C0_SZ 0x28
+static struct device_type_template ssc_ops = {
+	.ops	= {
+		/* 0x00 -> 0x0f */
+		{ssc_tur,},
+		{ssc_rewind,},
+		{spc_illegal_op,},
+		{spc_request_sense,},
+		{ssc_format_media,},
+		{ssc_read_block_limits,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{ssc_read_6,},
+		{spc_illegal_op,},
+		{ssc_write_6,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_release,},
+
+		/* 0x10 -> 0x1f */
+		{ssc_write_filemarks,},
+		{ssc_space,},
+		{spc_inquiry,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_mode_select,},
+		{ssc_reserve,},
+		{ssc_release,},
+
+		{spc_illegal_op,},
+		{ssc_erase,},
+		{spc_mode_sense,},
+		{ssc_start_stop,},
+		{spc_recv_diagnostics,},
+		{spc_send_diagnostics,},
+		{ssc_allow_prevent_removal,},
+		{spc_illegal_op,},
+
+		/* 0x20 -> 0x2f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_seek_10,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		/* 0x30 -> 0x3ff */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_read_position,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_report_density,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		/* 0x40 -> 0x4f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_log_select,},
+		{resp_log_sense,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		/* 0x50 -> 0x5f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_mode_select,},
+		{ssc_reserve,},
+		{ssc_release,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_mode_sense,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_pr_in,},
+		{ssc_pr_out,},
+
+		[0x60 ... 0x7f] = {spc_illegal_op,},
+
+		/* 0x80 -> 0x8f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_allow_overwrite,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_read_attributes,},
+		{ssc_write_attributes,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		[0x90 ... 0x9f] = {spc_illegal_op,},
+
+		/* 0xa0 -> 0xaf */
+		{ssc_report_luns,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_a3_service_action,},
+		{ssc_a4_service_action,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_read_media_sn,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		/* 0xb0 -> 0xbf */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		[0xc0 ... 0xff] = {spc_illegal_op,},
+	}
+};
+
+/*
+ * Update ops[xx] with new/updated/custom function 'f'
+ */
+void register_ops(struct lu_phy_attr *lu, int op, void *f)
+{
+	lu->scsi_ops->ops[op].cmd_perform = f;
+}
 
 #define MALLOC_SZ 512
 static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
-	uint8_t worm = 1;	/* Supports WORM */
 	int pg;
-	uint8_t local_TapeAlert[8] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	char *config=MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
@@ -3358,6 +2430,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	INIT_LIST_HEAD(&lu->supported_mode_pg);
 
 	den_list = &lu->supported_den_list;
+	lu->scsi_ops = &ssc_ops;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -3420,24 +2493,13 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			}
 			if (sscanf(b, " Compression: factor %d enabled %d",
 							&i, &j)) {
-				configCompressionFactor = i;
-				if (j)
-					enable_compression();
-				else
-					disable_compression();
-				MHVTL_DBG(1, "%s compression : %d",
-					(j) ? "Enabling" : "Disabling", i);
+				lu_ssc.configCompressionFactor = i;
 			} else if (sscanf(b, " Compression: %d", &i)) {
 				if ((i > Z_NO_COMPRESSION)
-						&& (i <= Z_BEST_COMPRESSION)) {
-					configCompressionFactor = i;
-					enable_compression();
-					MHVTL_DBG(1, "Setting compression %d",
-								i);
-				} else {
-					disable_compression();
-					MHVTL_DBG(1, "No compression");
-				}
+						&& (i <= Z_BEST_COMPRESSION))
+					lu_ssc.configCompressionFactor = i;
+				else
+					lu_ssc.configCompressionFactor = 0;
 			}
 			i = sscanf(b,
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
@@ -3507,36 +2569,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	lu_vpd[pg]->vpd_update = update_vpd_83;
 	lu_vpd[pg]->vpd_update(lu, NULL);
 
-	/* Sequential Access device capabilities - Ref: 8.4.2 */
-	pg = 0xb0 & 0x7f;
-	lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
-	lu_vpd[pg]->vpd_update = update_vpd_b0;
-	lu_vpd[pg]->vpd_update(lu, &worm);
-
-	/* Manufacture-assigned serial number - Ref: 8.4.3 */
-	pg = 0xb1 & 0x7f;
-	lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
-	lu_vpd[pg]->vpd_update = update_vpd_b1;
-	lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
-
-	/* TapeAlert supported flags - Ref: 8.4.4 */
-	pg = 0xb2 & 0x7f;
-	lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
-	lu_vpd[pg]->vpd_update = update_vpd_b2;
-	lu_vpd[pg]->vpd_update(lu, &local_TapeAlert);
-
-	/* VPD page 0xC0 */
-	pg = 0xc0 & 0x7f;
-	lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
-	lu_vpd[pg]->vpd_update = update_vpd_c0;
-	lu_vpd[pg]->vpd_update(lu, "10-03-2008 19:38:00");
-
-	/* VPD page 0xC1 */
-	pg = 0xc1 & 0x7f;
-	lu_vpd[pg] = alloc_vpd(strlen("Security"));
-	lu_vpd[pg]->vpd_update = update_vpd_c1;
-	lu_vpd[pg]->vpd_update(lu, "Security");
-
 	return found;
 }
 
@@ -3556,7 +2588,7 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
 	memset(&dbuf, 0, sizeof(struct vtl_ds));
 	dbuf.serialNo = vtl_cmd->serialNo;
 	dbuf.data = buf;
-	dbuf.sam_stat = sam_status;
+	dbuf.sam_stat = lu_ssc.sam_status;
 	dbuf.sense_buf = &sense;
 
 	processCommand(cdev, cdb, &dbuf);
@@ -3565,26 +2597,34 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
 	completeSCSICommand(cdev, &dbuf);
 
 	/* dbuf.sam_stat was zeroed in completeSCSICommand */
-	sam_status = dbuf.sam_stat;
+	lu_ssc.sam_status = dbuf.sam_stat;
 }
 
-static void media_density_init(void)
+static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 {
-	Drive_Native_Write_Density[drive_undefined] = 0x00;
-	Drive_Native_Write_Density[drive_LTO1] = medium_density_code_lto1;
-	Drive_Native_Write_Density[drive_LTO2] = medium_density_code_lto2;
-	Drive_Native_Write_Density[drive_LTO3] = medium_density_code_lto3;
-	Drive_Native_Write_Density[drive_LTO4] = medium_density_code_lto4;
-	Drive_Native_Write_Density[drive_LTO5] = medium_density_code_lto5;
-	Drive_Native_Write_Density[drive_LTO6] = medium_density_code_lto6;
-	Drive_Native_Write_Density[drive_3592_J1A] = medium_density_code_j1a;
-	Drive_Native_Write_Density[drive_3592_E05] = medium_density_code_e05;
-	Drive_Native_Write_Density[drive_3592_E06] = medium_density_code_e06;
-	Drive_Native_Write_Density[drive_AIT4] = medium_density_code_ait4;
-	Drive_Native_Write_Density[drive_10K_A] = medium_density_code_10kA;
-	Drive_Native_Write_Density[drive_10K_B] = medium_density_code_10kB;
-	Drive_Native_Write_Density[drive_SDLT600] = medium_density_code_600;
-	Drive_Native_Write_Density[drive_UNKNOWN] = 0x40;
+	lu_priv->bufsize = 2 * 1024 * 1024;
+	lu_priv->tapeLoaded = TAPE_UNLOADED;
+	lu_priv->inLibrary = 0;
+	lu_priv->sam_status = SAM_STAT_GOOD;
+	lu_priv->MediaWriteProtect = MEDIA_WRITABLE;
+	lu_priv->capacity_unit = 1;
+	lu_priv->configCompressionFactor = Z_BEST_SPEED;
+	lu_priv->bytesRead = 0;
+	lu_priv->bytesWritten = 0;
+	lu_priv->c_pos = c_pos;
+	lu_priv->KEY_INSTANCE_COUNTER = 0;
+	lu_priv->DECRYPT_MODE = 0;
+	lu_priv->ENCRYPT_MODE = 0;
+	lu_priv->encr = &encryption;
+	lu_priv->OK_2_write = &OK_to_write;
+	lu_priv->mamp = &mam;
+	lu_priv->pm = NULL;
+}
+
+void personality_module_register(struct ssc_personality_template *pm)
+{
+	MHVTL_DBG(3, "*** Trace.. ***");
+	lu_ssc.pm = pm;
 }
 
 static void caught_signal(int signo)
@@ -3672,8 +2712,12 @@ int main(int argc, char *argv[])
 	/* Powered on / reset flag */
 	reset_device();
 
-	init_mode_pages(sm);
-	initTapeAlert(&TapeAlert);
+	/* Initialise lu_ssc 'global vars' used by this daemon */
+	init_lu_ssc(&lu_ssc);
+
+	lunit.lu_private = &lu_ssc;
+
+	/* Parse config file and build up each device */
 	if (!init_lu(&lunit, minor, &ctl)) {
 		printf("Can not find entry for '%d' in config file\n", minor);
 		exit(1);
@@ -3681,11 +2725,14 @@ int main(int argc, char *argv[])
 
 	MHVTL_DBG(1, "starting...");
 
-	/* Minor tweeks - setup WORM & SPIN/SPOUT customisations */
+	/*
+	 * Determine drive type
+	 * register personality module
+	 * Indirectly, mode page tables are initialised
+	 */
 	config_lu(&lunit);
 
-	/* Setup Media_Density */
-	media_density_init();
+	initTapeAlert(&TapeAlert);
 
 	if (chrdev_create(minor)) {
 		MHVTL_DBG(1, "Unable to create device node mhvtl%d", minor);
@@ -3734,8 +2781,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	MHVTL_DBG(1, "Size of buffer is %d", bufsize);
-	buf = (uint8_t *)malloc(bufsize);
+	MHVTL_DBG(1, "Size of buffer is %d", lu_ssc.bufsize);
+	buf = (uint8_t *)malloc(lu_ssc.bufsize);
 	if (NULL == buf) {
 		perror("Problems allocating memory");
 		exit(1);
@@ -3787,7 +2834,7 @@ int main(int argc, char *argv[])
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			if (processMessageQ(&r_entry.msg, &sam_status))
+			if (processMessageQ(&r_entry.msg, &lu_ssc.sam_status))
 				goto exit;
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
@@ -3855,3 +2902,4 @@ exit:
 	free(buf);
 	exit(0);
 }
+

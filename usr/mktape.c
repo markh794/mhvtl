@@ -59,7 +59,10 @@ void usage(char *progname) {
 	printf("                   SDLT4\n");
 	printf("                   T10KA\n");
 	printf("                   T10KB\n");
-	printf("                   T10KC\n\n");
+	printf("                   T10KC\n");
+	printf("                   J1A\n");
+	printf("                   E05\n");
+	printf("                   E06\n\n");
 }
 
 static unsigned int set_params(struct MAM *mamp, char *density)
@@ -254,6 +257,26 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "DDS4", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
 		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "J1A", 3))) {
+		mamp->MediumDensityCode = medium_density_code_j1a;
+		mamp->MediaType = Media_3592_JA;
+		memcpy(&mamp->media_info.description, "3592 J1A media", 14);
+		memcpy(&mamp->media_info.density_name, "3592J1A", 7);
+		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
+		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "E05", 3))) {
+		mamp->MediumDensityCode = medium_density_code_e05;
+		mamp->MediaType = Media_3592_JB;
+		memcpy(&mamp->media_info.description, "3592 E05 media", 14);
+		memcpy(&mamp->media_info.density_name, "3592E05", 7);
+		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
+		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "E06", 3))) {
+		mamp->MediumDensityCode = medium_density_code_e06;
+		mamp->MediaType = Media_3592_JX;
+		memcpy(&mamp->media_info.description, "3592 E06 media", 14);
+		memcpy(&mamp->media_info.density_name, "3592E06", 7);
+		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
 	} else
 		printf("'%s' is an invalid density\n", density);
 

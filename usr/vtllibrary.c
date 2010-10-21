@@ -129,7 +129,7 @@ static void usage(char *progname)
  * Temperature page & tape alert pages only...
  */
 #define TAPE_ALERT 0x2e
-int smc_log_sense(struct scsi_cmd *cmd)
+uint8_t smc_log_sense(struct scsi_cmd *cmd)
 {
 	uint8_t	*b = cmd->dbuf_p->data;
 	uint8_t	*cdb = cmd->scb;
@@ -322,20 +322,6 @@ __attribute__((constructor)) static void smc_init(void)
 	device_type_register(&lunit, &smc_template);
 }
 
-/* Remove newline from string and fill rest of 'len' with char 'c' */
-static void rmnl(char *s, unsigned char c, int len)
-{
-	int i;
-	int found = 0;
-
-	for (i = 0; i < len; i++) {
-		if (s[i] == '\n')
-			found = 1;
-		if (found)
-			s[i] = c;
-	}
-}
-
 /*
  *
  * Process the SCSI command
@@ -376,7 +362,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			return;
 	}
 
-	*sam_stat = cmd->lu->dev_type_template->ops[cdb[0]].cmd_perform(cmd);
+	*sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
 	return;
 }
 
@@ -517,7 +503,6 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 	return m;
 }
 
-#define MALLOC_SZ 512
 
 /* Return zero - failed, non-zero - success */
 static int load_map(struct q_msg *msg)
@@ -751,6 +736,23 @@ static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
 return NULL;
 }
 
+static struct s_info *lookup_slot(struct lu_phy_attr *lu, unsigned int slot)
+{
+	struct smc_priv *slot_layout;
+	struct list_head *slot_list_head;
+	struct s_info *s;
+
+	slot_layout = lu->lu_private;
+	slot_list_head = &slot_layout->slot_list;
+
+	list_for_each_entry(s, slot_list_head, siblings) {
+		if (s->slot_location == slot)
+			return s;
+	}
+
+return NULL;
+}
+
 struct s_info *add_new_slot(struct lu_phy_attr *lu)
 {
 	struct s_info *new;
@@ -765,7 +767,7 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 		MHVTL_DBG(1, "Could not allocate memory for new slot struct");
 		exit(-ENOMEM);
 	}
-	new->media = NULL;	/* No media assigned (yet) */
+	memset(new, 0, sizeof(struct s_info));
 
 	list_add_tail(&new->siblings, slot_list_head);
 	return new;
@@ -1085,40 +1087,6 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 	d[num + 4] &= 0x0f;
 	d[num + 4] |= 0x50;
 }
-
-static void update_vpd_b1(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb1)];
-
-	memcpy(vpd_pg->data, p, vpd_pg->sz);
-}
-
-static void update_vpd_b2(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
-
-	memcpy(vpd_pg->data, p, vpd_pg->sz);
-}
-
-static void update_vpd_c0(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
-
-	memcpy(&vpd_pg->data[20], p, strlen(p));
-}
-
-static void update_vpd_c1(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc1)];
-
-	memcpy(vpd_pg->data, p, vpd_pg->sz);
-}
-
-#define VPD_83_SZ 50
-#define VPD_B0_SZ 4
-#define VPD_B1_SZ SCSI_SN_LEN
-#define VPD_B2_SZ 8
-#define VPD_C0_SZ 0x28
 
 static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 {

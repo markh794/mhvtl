@@ -164,10 +164,11 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 		}
 	}
 
-	MHVTL_DBG(3, "Reading header %d at offset %ld, type: %s",
+	MHVTL_DBG(3, "Reading header %d at offset %ld, type: %s, size: %d",
 			raw_pos.hdr.blk_number,
 			(unsigned long)raw_pos.data_offset,
-			mhvtl_block_type_desc(raw_pos.hdr.blk_type));
+			mhvtl_block_type_desc(raw_pos.hdr.blk_type),
+			raw_pos.hdr.blk_size);
 	return 0;
 }
 

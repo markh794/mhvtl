@@ -41,6 +41,7 @@
 #include "scsi.h"
 #include "vtl_common.h"
 #include "vtllib.h"
+#include <zlib.h>
 
 #ifndef Solaris
 	int ioctl(int, int, void *);
@@ -143,54 +144,6 @@ void
 reset_device(void)
 {
 	reset = 1;
-}
-
-/*
- * Log Select
- *
- * Set the logs to a known state.
- *
- * Currently a no-op
- */
-static char LOG_SELECT_00[] = "Current threshold values";
-static char LOG_SELECT_01[] = "Current cumulative values";
-static char LOG_SELECT_10[] = "Default threshold values";
-static char LOG_SELECT_11[] = "Default cumulative values";
-
-void resp_log_select(uint8_t *cdb, uint8_t *sam_stat)
-{
-
-	char pcr = cdb[1] & 0x1;
-	uint16_t parmList;
-	char *parmString = "Undefined";
-
-	parmList = ntohs((uint16_t)cdb[7]); /* bytes 7 & 8 are parm list. */
-
-	MHVTL_DBG(1, "LOG SELECT %s",
-				(pcr) ? ": Parameter Code Reset **" : "**");
-
-	if (pcr) {	/* Check for Parameter code reset */
-		if (parmList) {	/* If non-zero, error */
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						sam_stat);
-			return;
-		}
-		switch ((cdb[2] & 0xc0) >> 5) {
-		case 0:
-			parmString = LOG_SELECT_00;
-			break;
-		case 1:
-			parmString = LOG_SELECT_01;
-			break;
-		case 2:
-			parmString = LOG_SELECT_10;
-			break;
-		case 3:
-			parmString = LOG_SELECT_11;
-			break;
-		}
-		MHVTL_DBG(1, "  %s", parmString);
-	}
 }
 
 #define READ_POSITION_LONG_LEN 32
@@ -339,9 +292,13 @@ struct mode * alloc_mode_page(uint8_t pcode, struct mode *m, int size)
 {
 	struct mode * mp;
 
+	MHVTL_DBG(3, "%p : Allocate mode page 0x%02x, size %d", m, pcode, size);
+
 	mp = find_pcode(pcode, m);	/* Find correct page */
 	if (mp) {
 		mp->pcodePointer = malloc(size);
+		MHVTL_DBG(3, "pcodePointer: %p for mode page 0x%02x",
+			mp->pcodePointer, pcode);
 		if (mp->pcodePointer) {	/* If ! null, set size of data */
 			memset(mp->pcodePointer, 0, size);
 			mp->pcodeSize = size;
@@ -349,130 +306,10 @@ struct mode * alloc_mode_page(uint8_t pcode, struct mode *m, int size)
 			mp->pcodePointer[1] = size
 					 - sizeof(mp->pcodePointer[0])
 					 - sizeof(mp->pcodePointer[1]);
+			return mp;
 		}
-		return mp;
 	}
 	return NULL;
-}
-
-
-/*
- * Build mode sense data into *buf
- * Return size of data.
- */
-int resp_mode_sense(uint8_t *cmd, uint8_t *buf, struct mode *m, uint8_t WriteProtect, uint8_t *sam_stat)
-{
-	int pcontrol, pcode, subpcode;
-	int media_type;
-	int alloc_len, msense_6;
-	int dev_spec, len = 0;
-	int offset = 0;
-	uint8_t *ap;
-	struct mode *smp;	/* Struct mode pointer... */
-	int a;
-
-#ifdef MHVTL_DEBUG
-	char *pcontrolString[] = {
-		"Current configuration",
-		"Every bit that can be modified",
-		"Power-on configuration",
-		"Power-on configuration"
-	};
-#endif
-
-	/* Disable Block Descriptors */
-	uint8_t blockDescriptorLen = (cmd[1] & 0x8) ? 0 : 8;
-
-	/*
-	 pcontrol => page control
-		00 -> 0: Report current vaules
-		01 -> 1: Report Changable Vaules
-		10 -> 2: Report default values
-		11 -> 3: Report saved values
-	*/
-	pcontrol = (cmd[2] & 0xc0) >> 6;
-	/* pcode -> Page Code */
-	pcode = cmd[2] & 0x3f;
-	subpcode = cmd[3];
-	msense_6 = (MODE_SENSE == cmd[0]);
-
-	alloc_len = msense_6 ? cmd[4] : ((cmd[7] << 8) | cmd[8]);
-	offset = msense_6 ? 4 : 8;
-
-	MHVTL_DBG(2, " Mode Sense %d byte version", (msense_6) ? 6 : 10);
-	MHVTL_DBG(2, " Page Control  : %s(0x%x)",
-				pcontrolString[pcontrol], pcontrol);
-	MHVTL_DBG(2, " Page Code     : 0x%x", pcode);
-	MHVTL_DBG(2, " Disable Block Descriptor => %s",
-				(blockDescriptorLen) ? "No" : "Yes");
-	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
-
-	if (0x3 == pcontrol) {  /* Saving values not supported */
-		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
-		return 0;
-	}
-
-	memset(buf, 0, alloc_len);	/* Set return data to null */
-	dev_spec = (WriteProtect ? 0x80 : 0x00) | 0x10;
-	media_type = 0x0;
-
-	offset += blockDescriptorLen;
-	ap = buf + offset;
-
-	if (0 != subpcode) { /* TODO: Control Extension page */
-		MHVTL_DBG(1, "Non-zero sub-page sense code not supported");
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		return 0;
-	}
-
-	MHVTL_DBG(3, "pcode: 0x%02x", pcode);
-
-	if (0x0 == pcode) {
-		len = 0;
-	} else if (0x3f == pcode) {	/* Return all pages */
-		for (a = 1; a < 0x3f; a++) { /* Walk thru all possibilities */
-			smp = find_pcode(a, m);
-			if (smp)
-				len += add_pcode(smp, (uint8_t *)ap + len);
-		}
-	} else {
-		smp = find_pcode(pcode, m);
-		if (smp)
-			len = add_pcode(smp, (uint8_t *)ap);
-	}
-	offset += len;
-
-	if (pcode != 0)	/* 0 = No page code requested */
-		if (0 == len) {	/* Page not found.. */
-		MHVTL_DBG(2, "Unknown mode page : %d", pcode);
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB,sam_stat);
-		return 0;
-		}
-
-	/* Fill in header.. */
-	if (msense_6) {
-		buf[0] = offset - 1;	/* size - sizeof(buf[0]) field */
-		buf[1] = media_type;
-		buf[2] = dev_spec;
-		buf[3] = blockDescriptorLen;
-		/* If the length > 0, copy Block Desc. */
-		if (blockDescriptorLen)
-			memcpy(&buf[4],blockDescriptorBlock,blockDescriptorLen);
-	} else {
-		put_unaligned_be16(offset - 2, &buf[0]);
-		buf[2] = media_type;
-		buf[3] = dev_spec;
-		put_unaligned_be16(blockDescriptorLen, &buf[6]);
-		/* If the length > 0, copy Block Desc. */
-		if (blockDescriptorLen)
-			memcpy(&buf[8],blockDescriptorBlock,blockDescriptorLen);
-	}
-
-	if (debug) {
-		printf("mode sense: Returning %d bytes\n", offset);
-		hex_dump(buf, offset);
-	}
-	return offset;
 }
 
 void initTapeAlert(struct TapeAlert_page *ta)
@@ -790,36 +627,6 @@ void log_opcode(char *opcode, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 }
 
-int resp_a3_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p)
-{
-	uint8_t sa = cdb[1];
-	switch (sa) {
-	case MANAGEMENT_PROTOCOL_IN:
-		log_opcode("MANAGEMENT PROTOCOL IN **", cdb, dbuf_p);
-		break;
-	case REPORT_ALIASES:
-		log_opcode("REPORT ALIASES **", cdb, dbuf_p);
-		break;
-	}
-	log_opcode("Unknown service action A3 **", cdb, dbuf_p);
-	return 0;
-}
-
-int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p)
-{
-	uint8_t sa = cdb[1];
-
-	switch (sa) {
-	case MANAGEMENT_PROTOCOL_OUT:
-		log_opcode("MANAGEMENT PROTOCOL OUT **", cdb, dbuf_p);
-		break;
-	case CHANGE_ALIASES:
-		log_opcode("CHANGE ALIASES **", cdb, dbuf_p);
-		break;
-	}
-	log_opcode("Unknown service action A4 **", cdb, dbuf_p);
-	return 0;
-}
 #if !defined(ROS2)
 int ProcessSendDiagnostic(uint8_t *cdb, unsigned int sz, struct vtl_ds *dbuf_p)
 {
@@ -857,12 +664,150 @@ void checkstrlen(char *s, int len)
 
 int device_type_register(struct lu_phy_attr *lu, struct device_type_template *t)
 {
-	lu->dev_type_template = t;
+	lu->scsi_ops = t;
 	return 0;
 }
 
-void resp_allow_prevent_removal(uint8_t *cdb, uint8_t *sam_stat)
+uint8_t set_compression(struct mode *sm, int lvl)
 {
-	MHVTL_DBG(1, "%s MEDIUM removal", (cdb[4]) ? "Allow" : "Prevent");
+	struct mode *m;
+	uint8_t *p;
+
+	MHVTL_DBG(3, "*** Trace ***");
+
+	/* Find pointer to Data Compression mode Page */
+	m = find_pcode(0x0f, sm);
+	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+			sm, m, m->pcodePointer);
+	if (m) {
+		p = m->pcodePointer;
+		p[2] |= 0x80;	/* Set data compression enable */
+	}
+	/* Find pointer to Device Configuration mode Page */
+	m = find_pcode(0x10, sm);
+	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+			sm, m, m->pcodePointer);
+	if (m) {
+		p = m->pcodePointer;
+		p[14] = lvl;
+	}
+	return SAM_STAT_GOOD;
+}
+
+uint8_t clear_compression(struct mode *sm)
+{
+	struct mode *m;
+	uint8_t *p;
+
+	MHVTL_DBG(3, "*** Trace ***");
+
+	/* Find pointer to Data Compression mode Page */
+	m = find_pcode(0x0f, sm);
+	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+			sm, m, m->pcodePointer);
+	if (m) {
+		p = m->pcodePointer;
+		p[2] &= 0x7f;	/* clear data compression enable */
+	}
+	/* Find pointer to Device Configuration mode Page */
+	m = find_pcode(0x10, sm);
+	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+			sm, m, m->pcodePointer);
+	if (m) {
+		p = m->pcodePointer;
+		p[14] = Z_NO_COMPRESSION;
+	}
+	return SAM_STAT_GOOD;
+}
+
+uint8_t clear_WORM(struct mode *sm)
+{
+	uint8_t *smp_dp;
+	struct mode *smp;
+
+	smp = find_pcode(0x1d, sm);
+	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+			sm, smp, smp->pcodePointer);
+	if (smp) {
+		smp_dp = smp->pcodePointer;
+		if (!smp_dp)
+			return SAM_STAT_GOOD;
+		smp_dp[2] = 0x0;
+	}
+
+	return SAM_STAT_GOOD;
+}
+
+uint8_t set_WORM(struct mode *sm)
+{
+	uint8_t *smp_dp;
+	struct mode *smp;
+
+	MHVTL_DBG(3, "*** Trace ***");
+
+	smp = find_pcode(0x1d, sm);
+	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+			sm, smp, smp->pcodePointer);
+	if (smp) {
+		smp_dp = smp->pcodePointer;
+		if (!smp_dp)
+			return SAM_STAT_GOOD;
+		smp_dp[2] = 0x10;
+		smp_dp[4] = 0x01; /* Indicate label overwrite */
+	}
+
+	return SAM_STAT_GOOD;
+}
+
+/* Remove newline from string and fill rest of 'len' with char 'c' */
+void rmnl(char *s, unsigned char c, int len)
+{
+	int i;
+	int found = 0;
+
+	for (i = 0; i < len; i++) {
+		if (s[i] == '\n')
+			found = 1;
+		if (found)
+			s[i] = c;
+	}
+}
+
+void update_vpd_b0(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
+	uint8_t *worm;
+
+	worm = p;
+
+	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
+}
+
+void update_vpd_b1(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb1)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+void update_vpd_b2(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+void update_vpd_c0(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
+
+	memcpy(&vpd_pg->data[20], p, strlen(p));
+}
+
+void update_vpd_c1(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc1)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 

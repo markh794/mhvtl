@@ -30,11 +30,6 @@
  *        from the server. I think this is called connectionless protocol.
  *        But this means a redesign of some c-sources.
  *
- * FIXME: Some commands are returning values, some don't, like "load/unload"
- *        of the tape commands. But each command should return values, at
- *	  least "OK".
- *
- *
  */
 
 #define _FILE_OFFSET_BITS 64
@@ -386,6 +381,10 @@ int main(int argc, char **argv)
 		}
 		if (!strcmp(argv[count], "-help")) {
 			usage(argv[0]);
+			exit(1);
+		}
+		if (!strcasecmp(argv[count], "-v")) {
+			printf("Version: %s\n", MHVTL_VERSION);
 			exit(1);
 		}
 	}

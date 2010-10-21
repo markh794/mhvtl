@@ -62,7 +62,7 @@ struct vpd *alloc_vpd(uint16_t sz)
 
 #define INQUIRY_LEN 512
 
-int spc_inquiry(struct scsi_cmd *cmd)
+uint8_t spc_inquiry(struct scsi_cmd *cmd)
 {
 	int len = 0;
 	struct vpd *vpd_pg;
@@ -199,7 +199,7 @@ static char *lookup_sa(uint8_t sa)
 #endif
 
 #define SPR_EXCLUSIVE_ACCESS 3
-int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
+uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	uint64_t RK;
 	uint64_t SARK;
@@ -212,6 +212,8 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		mkSenseBuf(ILLEGAL_REQUEST, E_PARAMETER_LIST_LENGTH_ERR, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
+
+	*sam_stat = SAM_STAT_GOOD;
 
 	SA = cdb[1] & 0x1f;
 	TYPE = cdb[2] & 0x0f;
@@ -322,21 +324,23 @@ int resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 	case 7: /* REGISTER AND MOVE */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 	MHVTL_DBG(2, "Reservation key now: 0x%.8x 0x%.8x\n",
 			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
 			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 /*
  * Process PERSITENT RESERVE IN scsi command
  */
-int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
+uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	uint16_t alloc_len;
 	uint16_t SA;
@@ -392,7 +396,7 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	return sam_status;
 }
 
-int spc_tur(struct scsi_cmd *cmd)
+uint8_t spc_tur(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "** %s (%ld) %s **", "Test Unit Ready : Returning => ",
 				(long)cmd->dbuf_p->serialNo,
@@ -404,14 +408,14 @@ int spc_tur(struct scsi_cmd *cmd)
 	return SAM_STAT_CHECK_CONDITION;
 }
 
-int spc_illegal_op(struct scsi_cmd *cmd)
+uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "Unsupported OP CODE");
 	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &cmd->dbuf_p->sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
 
-int spc_request_sense(struct scsi_cmd *cmd)
+uint8_t spc_request_sense(struct scsi_cmd *cmd)
 {
 	int sz;
 	uint8_t *sense_buf = cmd->dbuf_p->sense_buf;
@@ -451,7 +455,7 @@ static char LOG_SELECT_01[] = "Current cumulative values";
 static char LOG_SELECT_10[] = "Default threshold values";
 static char LOG_SELECT_11[] = "Default cumulative values";
 
-int spc_log_select(struct scsi_cmd *cmd)
+uint8_t spc_log_select(struct scsi_cmd *cmd)
 {
 	uint8_t *cdb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
@@ -493,7 +497,7 @@ int spc_log_select(struct scsi_cmd *cmd)
 /*
  * Process the MODE_SELECT command
  */
-int spc_mode_select(struct scsi_cmd *cmd)
+uint8_t spc_mode_select(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "MODE SELECT (%ld) **", (long)cmd->dbuf_p->serialNo);
 
@@ -505,7 +509,7 @@ int spc_mode_select(struct scsi_cmd *cmd)
  * Build mode sense data into *buf
  * Return SAM STATUS
  */
-int spc_mode_sense(struct scsi_cmd *cmd)
+uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 {
 	int pcontrol, pcode, subpcode;
 	int media_type;
@@ -631,25 +635,25 @@ int spc_mode_sense(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-int spc_release(struct scsi_cmd *cmd)
+uint8_t spc_release(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "RESERVE UNIT (%ld) **", (long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
 
-int spc_reserve(struct scsi_cmd *cmd)
+uint8_t spc_reserve(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "RESERVE UNIT (%ld) **", (long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
 
-int spc_send_diagnostics(struct scsi_cmd *cmd)
+uint8_t spc_send_diagnostics(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "SEND DIAGNOSTICS (%ld) **", (long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
 
-int spc_recv_diagnostics(struct scsi_cmd *cmd)
+uint8_t spc_recv_diagnostics(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
 						(long)cmd->dbuf_p->serialNo);

@@ -1,0 +1,15 @@
+Cleaning media woes..
+
+Fails to handle loading CLNxxxL1 into LTO4 drive correctly..
+
+Reported by Albert Pauw 2010-11-27
+  ================================
+Error writing to media of 0bytes capacity..
+
+I'm not 100% sure this is a real bug. The end-of-media is a Early warning which
+most software treats as end-of-media. The writes still complete successfully.
+Even tar handles this OK.
+
+Reported by Albert Pauw - Again 2010-12-07
+  ================================
+

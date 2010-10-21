@@ -152,6 +152,10 @@ extern int verbose;
 #define DATA_COMPRESSION 0x32
 
 #define MAX_INQ_ARR_SZ 64
+#define MALLOC_SZ 512
+
+#define TAPE_UNLOADED 0
+#define TAPE_LOADED 1
 
 /*
  * Medium Type Definations
@@ -173,6 +177,12 @@ extern int verbose;
 #define INSTATUS_NO_BARCODE 0x01
 
 #define	VOLTAG_LEN	36	/* size of voltag area in RES descriptor */
+
+#define VPD_83_SZ 50
+#define VPD_B0_SZ 4
+#define VPD_B1_SZ SCSI_SN_LEN
+#define VPD_B2_SZ 8
+#define VPD_C0_SZ 0x28
 
 struct log_pg_list {
 	struct list_head siblings;
@@ -546,12 +556,13 @@ enum Media_Type_list {
 struct scsi_cmd {
 	uint8_t *scb;	/* SCSI Command Block */
 	int scb_len;
+	int cdev;	/* filepointer to char dev */
 	struct vtl_ds *dbuf_p;
 	struct lu_phy_attr *lu;
 };
 
 struct device_type_operations {
-	int (*cmd_perform)(struct scsi_cmd *cmd);
+	uint8_t (*cmd_perform)(struct scsi_cmd *cmd);
 	int (*pre_cmd_perform)(struct scsi_cmd *cmd, void *p);
 	int (*post_cmd_perform)(struct scsi_cmd *cmd, void *p);
 };
@@ -578,16 +589,17 @@ struct lu_phy_attr {
 
 	struct list_head supported_log_pg;
 
-	struct device_type_template *dev_type_template;
+	struct device_type_template *scsi_ops;
 
 	/* FIXME: Convert to linked-list -> supported_mode_pg */
 	void *mode_pages;
 
-	int drive_native_write_density[drive_UNKNOWN + 1];
 	uint32_t bufsize;
 	uint8_t *naa;
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 	void *lu_private;	/* Private data struct per lu */
+
+	struct report_luns report_luns;
 };
 
 /* Drive Info */
@@ -625,7 +637,10 @@ struct s_info { /* Slot Info */
 	/* Additional Sense Code & Additional Sense Code Qualifier */
 	uint16_t asc_ascq;
 	uint8_t	status;	/* Used for MAP status. */
+	/* 1 Media Transport, 2 Storage, 3 MAP, 4 Data transfer */
 	uint8_t element_type;
+	uint8_t media_domain;	/* L700 */
+	uint8_t media_type;	/* L700 */
 };
 
 struct smc_priv {
@@ -649,7 +664,6 @@ extern uint8_t blockDescriptorBlock[8];
 int check_reset(uint8_t *);
 void reset_device(void);
 void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
-void resp_allow_prevent_removal(uint8_t *, uint8_t *);
 void resp_log_select(uint8_t *, uint8_t *);
 int resp_read_position_long(loff_t, uint8_t *, uint8_t *);
 int resp_read_position(loff_t, uint8_t *, uint8_t *);
@@ -673,8 +687,6 @@ char *readline(char *s, int len, FILE *f);
 void blank_fill(uint8_t *dest, char *src, int len);
 
 void log_opcode(char *opcode, uint8_t *SCpnt, struct vtl_ds *dbuf_p);
-int resp_a3_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
-int resp_a4_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);
 int ProcessSendDiagnostic(uint8_t *cdb, unsigned int sz, struct vtl_ds *dbuf_p);
 int ProcessReceiveDiagnostic(uint8_t *cdb, struct vtl_ds *dbuf_p);
 
@@ -693,4 +705,16 @@ extern int device_type_register(struct lu_phy_attr *lu,
 					struct device_type_template *t);
 int add_pcode(struct mode *m, uint8_t *p);
 
+uint8_t clear_WORM(struct mode *sm);
+uint8_t set_WORM(struct mode *sm);
+uint8_t clear_compression(struct mode *sm);
+uint8_t set_compression(struct mode *sm, int lvl);
+
+void rmnl(char *s, unsigned char c, int len);
+
+void update_vpd_b0(struct lu_phy_attr *lu, void *p);
+void update_vpd_b1(struct lu_phy_attr *lu, void *p);
+void update_vpd_b2(struct lu_phy_attr *lu, void *p);
+void update_vpd_c0(struct lu_phy_attr *lu, void *p);
+void update_vpd_c1(struct lu_phy_attr *lu, void *p);
 #endif /*  _VTLLIB_H_ */

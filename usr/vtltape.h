@@ -80,6 +80,8 @@ struct blk_header {
 /* Default tape size specified in Mbytes */
 #define DEFAULT_TAPE_SZ 8000
 
+#define medium_density_code_unknown	0x20
+
 #define medium_density_code_lto1	0x40
 #define medium_density_code_lto2	0x42
 #define medium_density_code_lto3	0x44
@@ -169,5 +171,47 @@ struct media_details {
 	unsigned int density;		/* Media Type */
 	unsigned int density_status;	/* RO, RW, invalid or fail mount */
 };
+
+struct priv_lu_ssc {
+/* Variables for simple, single initiator, SCSI Reservation system */
+	int I_am_SPC_2_Reserved;
+
+	int bufsize;
+	int tapeLoaded;
+	int inLibrary;
+	uint8_t sam_status;
+
+	/* True if virtual "write protect" switch is set */
+	uint8_t MediaWriteProtect;
+
+	/* Default value read from config file */
+	uint8_t configCompressionFactor;
+	uint8_t configCompressionEnabled;
+
+	loff_t capacity_unit;
+
+	/* Pointer into Device config mode page */
+	uint8_t *compressionFactor;
+
+	int *OK_2_write;
+	struct MAM *mamp;
+
+	uint64_t bytesRead;
+	uint64_t bytesWritten;
+
+	struct blk_header *c_pos;
+
+	uint32_t KEY_INSTANCE_COUNTER;
+	uint32_t DECRYPT_MODE;
+	uint32_t ENCRYPT_MODE;
+	struct encryption *encr;
+	struct encryption *cryptop;
+
+	unsigned char mediaSerialNo[34];
+
+	struct ssc_personality_template *pm;	/* Personality Module */
+};
+
+void personality_module_register(struct ssc_personality_template *pm);
 
 #endif /* _VTLTAPE_H_ */

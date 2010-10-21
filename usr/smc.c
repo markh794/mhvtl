@@ -43,7 +43,7 @@
 #include "smc.h"
 #include "q.h"
 
-int smc_allow_removal(struct scsi_cmd *cmd)
+uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "%s MEDIUM Removal (%ld) **",
 				(cmd->scb[4]) ? "Prevent" : "Allow",
@@ -51,7 +51,7 @@ int smc_allow_removal(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-int smc_initialize_element(struct scsi_cmd *cmd)
+uint8_t smc_initialize_element(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
@@ -65,7 +65,7 @@ int smc_initialize_element(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-int smc_initialize_element_range(struct scsi_cmd *cmd)
+uint8_t smc_initialize_element_range(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
@@ -476,10 +476,12 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 
 	if (voltag) {
 		/* Barcode with trailing space(s) */
-		if ((s->status & STATUS_Full) &&
-		    !(s->media->internal_status & INSTATUS_NO_BARCODE))
-			blank_fill(&p[j], s->media->barcode, VOLTAG_LEN);
-		else
+		if (s->status & STATUS_Full) {
+			if (!(s->media->internal_status & INSTATUS_NO_BARCODE))
+				blank_fill(&p[j], s->media->barcode, VOLTAG_LEN);
+			else
+				memset(&p[j], 0, VOLTAG_LEN);
+		} else
 			memset(&p[j], 0, VOLTAG_LEN);
 
 		j += VOLTAG_LEN;	/* Account for barcode */
@@ -804,7 +806,7 @@ return SAM_STAT_GOOD;
  *
  * Returns number of bytes to xfer back to host.
  */
-int smc_read_element_status(struct scsi_cmd *cmd)
+uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 {
 	struct smc_priv *smc_p = cmd->lu->lu_private;
 	uint8_t *cdb = cmd->scb;
@@ -1193,7 +1195,7 @@ return SAM_STAT_GOOD;
 }
 
 /* Move a piece of medium from one slot to another */
-int smc_move_medium(struct scsi_cmd *cmd)
+uint8_t smc_move_medium(struct scsi_cmd *cmd)
 {
 	uint8_t *cdb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
@@ -1270,7 +1272,7 @@ int smc_move_medium(struct scsi_cmd *cmd)
 return retval;
 }
 
-int smc_rezero(struct scsi_cmd *cmd)
+uint8_t smc_rezero(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "Rezero (%ld) **", (long)cmd->dbuf_p->serialNo);
 
@@ -1282,7 +1284,7 @@ int smc_rezero(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-int smc_start_stop(struct scsi_cmd *cmd)
+uint8_t smc_start_stop(struct scsi_cmd *cmd)
 {
 	if (cmd->scb[4] & 0x1) {
 		cmd->lu->online = 1;
