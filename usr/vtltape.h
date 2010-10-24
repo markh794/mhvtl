@@ -83,8 +83,11 @@ struct blk_header {
 #define medium_density_code_lto1	0x40
 #define medium_density_code_lto2	0x42
 #define medium_density_code_lto3	0x44
+#define medium_density_code_lto3_WORM	0x3C
 #define medium_density_code_lto4	0x46
-#define medium_density_code_lto5	0x48
+#define medium_density_code_lto4_WORM	0x4C
+#define medium_density_code_lto5	0x58
+#define medium_density_code_lto5_WORM	0x5C
 #define medium_density_code_lto6	0x4a
 #define medium_density_code_j1a		0x51
 #define medium_density_code_e05		0x52

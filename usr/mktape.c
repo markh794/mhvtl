@@ -79,36 +79,45 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(7398);
 	} else if (!(strncmp(density, "LTO3", 4))) {
-		mamp->MediumDensityCode = medium_density_code_lto3;
+		if (mamp->MediumType == MEDIA_TYPE_WORM)
+			mamp->MediumDensityCode = medium_density_code_lto3_WORM;
+		else
+			mamp->MediumDensityCode = medium_density_code_lto3;
 		mamp->MediaType = Media_LTO3;
 		mamp->MediumLength = htonl(704);	// 704 tracks
 		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mamp->media_info.description, "Ultrium 3/8T", 12);
+		memcpy(&mamp->media_info.description, "Ultrium 3/16T", 13);
 		memcpy(&mamp->media_info.density_name, "U-316 ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(9638);
 	} else if (!(strncmp(density, "LTO4", 4))) {
-		mamp->MediumDensityCode = medium_density_code_lto4;
+		if (mamp->MediumType == MEDIA_TYPE_WORM)
+			mamp->MediumDensityCode = medium_density_code_lto4_WORM;
+		else
+			mamp->MediumDensityCode = medium_density_code_lto4;
 		mamp->MediaType = Media_LTO4;
 		mamp->MediumLength = htonl(896);	// 896 tracks
 		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mamp->media_info.description, "Ultrium 4/8T", 12);
+		memcpy(&mamp->media_info.description, "Ultrium 4/16T", 13);
 		memcpy(&mamp->media_info.density_name, "U-416  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		mamp->media_info.bits_per_mm = htonl(12725);
 	} else if (!(strncmp(density, "LTO5", 4))) {
-		mamp->MediumDensityCode = medium_density_code_lto5;
+		if (mamp->MediumType == MEDIA_TYPE_WORM)
+			mamp->MediumDensityCode = medium_density_code_lto5_WORM;
+		else
+			mamp->MediumDensityCode = medium_density_code_lto5;
 		mamp->MediaType = Media_LTO5;
-		mamp->MediumLength = htonl(896);	// 896 tracks
+		mamp->MediumLength = htonl(1280);	/* 1280 tracks */
 		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
-		memcpy(&mamp->media_info.description, "Ultrium 5/8T", 12);
+		memcpy(&mamp->media_info.description, "Ultrium 5/16T", 13);
 		memcpy(&mamp->media_info.density_name, "U-516  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		mamp->media_info.bits_per_mm = htonl(12725);
-	} else if (!(strncmp(density, "LTO6", 4))) {
+		mamp->media_info.bits_per_mm = htonl(15142);
+	} else if (!(strncmp(density, "LTO6", 4))) { /* FIXME */
 		mamp->MediumDensityCode = medium_density_code_lto6;
 		mamp->MediaType = Media_LTO5;
-		mamp->MediumLength = htonl(896);	// 896 tracks
+		mamp->MediumLength = htonl(1280);	// 896 tracks
 		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
 		memcpy(&mamp->media_info.description, "Ultrium 6/8T", 12);
 		memcpy(&mamp->media_info.density_name, "U-616  ", 6);
