@@ -191,6 +191,8 @@ static int vtl_add_lu = 0;
 
 static int vtl_cmnd_count = 0;
 
+static atomic_t serial_number;
+
 struct vtl_lu_info {
 	struct list_head lu_sibling;
 	unsigned char sense_buff[SENSE_BUF_SIZE];	/* weak nexus */
@@ -593,6 +595,9 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 		printk("mhvtl: %s max luns exceeded\n", __func__);
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
+
+	atomic_inc(&serial_number);
+	/* atomic_read(&serial_number); */
 
 	lu = devInfoReg(SCpnt->device);
 	if (NULL == lu) {
