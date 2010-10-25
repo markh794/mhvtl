@@ -502,7 +502,7 @@ int spc_mode_select(struct scsi_cmd *cmd)
 
 /*
  * Build mode sense data into *buf
- * Return size of data.
+ * Return SAM STATUS
  */
 int spc_mode_sense(struct scsi_cmd *cmd)
 {
