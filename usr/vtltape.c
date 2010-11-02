@@ -993,7 +993,7 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
-static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
+static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 {
 	uint32_t disk_blk_size, blk_size;
 	uLongf uncompress_sz;
@@ -1003,7 +1003,7 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 	loff_t nread = 0;
 	uint32_t save_sense;
 
-	MHVTL_DBG(3, "Request to read: %d bytes", request_sz);
+	MHVTL_DBG(3, "Request to read: %d bytes, SILI: %d", request_sz, sili);
 
 	/* check for a zero length read
 	 * This is not an error, and shouldn't change the tape position */
@@ -1011,9 +1011,9 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 		return 0;
 	}
 
-	/* Handle the simple, non-data cases first. */
-
 	switch (c_pos->blk_type) {
+	case B_DATA:
+		break;
 	case B_FILEMARK:
 		MHVTL_DBG(1, "Expected to find DATA header, found: FILEMARK");
 		position_blocks_forw(1, sam_stat);
@@ -1030,8 +1030,6 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 		put_unaligned_be32(save_sense, &sense[3]);
 		return 0;
 		break;
-	case B_DATA:
-		break;
 	default:
 		MHVTL_DBG(1, "Unknown blk header at offset %u"
 				" - Abort read cmd", c_pos->blk_number);
@@ -1040,31 +1038,34 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 		break;
 	}
 
+	/* The tape block is compressed.  Save field values we will need after
+	   the read causes the tape block to advance.
+	*/
+	blk_size = c_pos->blk_size;
+	disk_blk_size = c_pos->disk_blk_size;
+
 	/* We have a data block to read.
 	   Only read upto size of allocated buffer by initiator
 	*/
-	tgtsize = min(request_sz, c_pos->blk_size);
+	tgtsize = min(request_sz, blk_size);
 
 	/* If the tape block is uncompressed, we can read the number of bytes
 	   we need directly into the scsi read buffer and we are done.
 	*/
 	if (!(c_pos->blk_flags & BLKHDR_FLG_COMPRESSED)) {
-		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize)
-		{
+		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize) {
 			MHVTL_DBG(1, "read failed, %s", strerror(errno));
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
 		if (tgtsize != request_sz)
 			mk_sense_short_block(request_sz, tgtsize, sam_stat);
+		else if (!sili) {
+			if (request_sz < blk_size)
+				mk_sense_short_block(request_sz, blk_size, sam_stat);
+		}
 		return tgtsize;
 	}
-
-	/* The tape block is compressed.  Save field values we will need after
-	   the read causes the tape block to advance.
-	*/
-	blk_size = c_pos->blk_size;
-	disk_blk_size = c_pos->disk_blk_size;
 
 	/* Malloc a buffer to hold the compressed data, and read the
 	   data into it.
@@ -1138,6 +1139,10 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 
 	if (rc != request_sz)
 		mk_sense_short_block(request_sz, rc, sam_stat);
+	else if (!sili) {
+		if (request_sz < blk_size)
+			mk_sense_short_block(request_sz, blk_size, sam_stat);
+	}
 
 	return rc;
 }
@@ -2041,7 +2046,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		for (k = 0; k < count; k++) {
 			if (!valid_encryption_blk(sam_stat))
 				break;
-			retval = readBlock(buf, sz, sam_stat);
+			retval = readBlock(buf, sz, cdb[1] & SILI, sam_stat);
 			buf += retval;
 			dbuf_p->sz += retval;
 		}
