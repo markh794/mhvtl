@@ -2215,7 +2215,9 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			(code) ? "filemark" : "block",
 			(1 == abs(icount)) ? "" : "s");
 
-		resp_space(icount, code, sam_stat);
+		if (icount != 0)
+			resp_space(icount, code, sam_stat);
+
 		break;
 
 	case START_STOP:	/* Load/Unload cmd */
