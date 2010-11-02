@@ -1013,7 +1013,8 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 
 	/* Handle the simple, non-data cases first. */
 
-	if (c_pos->blk_type == B_FILEMARK) {
+	switch (c_pos->blk_type) {
+	case B_FILEMARK:
 		MHVTL_DBG(1, "Expected to find DATA header, found: FILEMARK");
 		position_blocks_forw(1, sam_stat);
 		mk_sense_short_block(request_sz, 0, sam_stat);
@@ -1021,21 +1022,22 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(save_sense, &sense[3]);
 		return 0;
-	}
-
-	if (c_pos->blk_type == B_EOD) {
+		break;
+	case B_EOD:
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(save_sense, &sense[3]);
 		return 0;
-	}
-
-	if (c_pos->blk_type != B_DATA) {
+		break;
+	case B_DATA:
+		break;
+	default:
 		MHVTL_DBG(1, "Unknown blk header at offset %u"
 				" - Abort read cmd", c_pos->blk_number);
 		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 		return 0;
+		break;
 	}
 
 	/* We have a data block to read.  Check if the target read buffer is
