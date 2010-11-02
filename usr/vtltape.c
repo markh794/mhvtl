@@ -1040,16 +1040,14 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 		break;
 	}
 
-	/* We have a data block to read.  Check if the target read buffer is
-	   smaller than the actual (uncompressed) block.
+	/* We have a data block to read.
+	   Only read upto size of allocated buffer by initiator
 	*/
-
-	tgtsize = request_sz < c_pos->blk_size ?  request_sz : c_pos->blk_size;
+	tgtsize = min(request_sz, c_pos->blk_size);
 
 	/* If the tape block is uncompressed, we can read the number of bytes
 	   we need directly into the scsi read buffer and we are done.
 	*/
-
 	if (!(c_pos->blk_flags & BLKHDR_FLG_COMPRESSED)) {
 		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize)
 		{
@@ -1065,14 +1063,12 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 	/* The tape block is compressed.  Save field values we will need after
 	   the read causes the tape block to advance.
 	*/
-
 	blk_size = c_pos->blk_size;
 	disk_blk_size = c_pos->disk_blk_size;
 
 	/* Malloc a buffer to hold the compressed data, and read the
 	   data into it.
 	*/
-
 	cbuf = malloc(disk_blk_size);
 	if (!cbuf) {
 		MHVTL_DBG(1, "Out of memory");
@@ -1142,6 +1138,7 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, uint8_t *sam_stat)
 
 	if (rc != request_sz)
 		mk_sense_short_block(request_sz, rc, sam_stat);
+
 	return rc;
 }
 
