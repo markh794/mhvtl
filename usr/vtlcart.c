@@ -247,7 +247,8 @@ check_for_overwrite(uint8_t *sam_stat)
 	if (ftruncate(indxfile, blk_number * sizeof(raw_pos))) {
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 		MHVTL_DBG(1, "Index file ftruncate failure, pos: "
-			"%" PRId64 ": %s", blk_number * sizeof(raw_pos),
+			"%" PRId64 ": %s",
+			(uint64_t)blk_number * sizeof(raw_pos),
 			strerror(errno));
 		return -1;
 	}
@@ -1085,7 +1086,8 @@ write_filemarks(uint32_t count, uint8_t *sam_stat)
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 			MHVTL_DBG(1, "Index file write failure,"
 					" pos: %" PRId64 ": %s",
-				blk_number * sizeof(raw_pos), strerror(errno));
+				(uint64_t)blk_number * sizeof(raw_pos),
+				strerror(errno));
 			return -1;
 		}
 		add_filemark(blk_number);
@@ -1166,7 +1168,8 @@ write_tape_block(const uint8_t *buffer, uint32_t blk_size, uint32_t comp_size,
 	if (nwrite != sizeof(raw_pos)) {
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 		MHVTL_DBG(1, "Index file write failure, pos: %" PRId64 ": %s",
-			blk_number * sizeof(raw_pos), strerror(errno));
+			(uint64_t)blk_number * sizeof(raw_pos),
+			strerror(errno));
 		return -1;
 	}
 
