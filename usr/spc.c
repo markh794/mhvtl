@@ -433,6 +433,8 @@ int spc_request_sense(struct scsi_cmd *cmd)
 	assert(cmd->dbuf_p->data);
 	/* Clear out the request sense flag */
 	cmd->dbuf_p->sam_stat = 0;
+	/* set buf size */
+	cmd->dbuf_p->sz = sz;
 	memcpy(cmd->dbuf_p->data, sense_buf, cmd->dbuf_p->sz);
 	memset(sense_buf, 0, cmd->dbuf_p->sz);
 	return SAM_STAT_GOOD;
