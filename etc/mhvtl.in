@@ -339,7 +339,9 @@ case "$1" in
 		sleep 1
 	fi
 
-	if [ ! -z "`ps -ef|grep -v grep|egrep 'vtllibrary|vtltape'`" ]; then
+	# Should be proof against 'vi vtltape' match
+	if [ ! -z "`ps -eo cmd|awk '/vtllibrary|vtltape/ {print $1}'|egrep 'vtltape|vtllibrary'`" ];
+	then
 		echo "mhvtl already running..."
 		exit 1
 	fi
