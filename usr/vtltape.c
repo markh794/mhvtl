@@ -130,7 +130,7 @@ static loff_t capacity_unit = 1;
 static uint8_t *compressionFactor = NULL;
 
 /* Default value read from config file */
-static int configCompressionFactor = Z_BEST_SPEED;
+static uint8_t configCompressionFactor = Z_BEST_SPEED;
 
 static uint64_t bytesRead = 0;
 static uint64_t bytesWritten = 0;
