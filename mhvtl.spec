@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 11
-Source: mhvtl-2010-09-23.tgz
+Release: 12
+Source: mhvtl-2010-11-17.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -165,6 +165,25 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Wed Nov 17 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.12
+- Bug fixes:
+  - Silence 'which setuidgid' test
+  - Fix compile on 2.6.34 kernel
+  - ERASE only from BOT
+  - Test SPACE '0' blocks/filemarks before moving
+  - Fix REQUEST SENSE returned size
+  - Implement SILI bit test
+  - Check if ERASE WORM media is allowed
+  - Only support SPIN/SPOUT for LTO-4/5, T10K and 3592E05/6 drive types
+  - Fix REQUEST SENSE page length. Previously only returning 8 bytes.
+- Improvements
+  - Re-organised code in vtllibrary to use a big jump table
+  - Fix LTO5 media density reporting
+  - Match HP ULTRIUM 4-SCSI
+  - Ability to create DDS specific media
+    (still need to find correct density codes for DDS)
+
 * Thu Sep 23 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.11
 - Bug fix: Off-by-one if a re-position & then overwrite a filemark.
