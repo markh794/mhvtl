@@ -827,26 +827,38 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 					(dvcid == 0) ? "No" :  "Yes",
 					(voltag == 0) ? "No" :  "Yes");
 
+	/* This segfaulted somewhere between here and end of function
+	 * Now that I've added 'Debug' printf statements, it's not faulting
+	 * Leaving statements for now..
+	 * Strange thing was no core file generated from segfault ???
+	 */
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
+
 	/* Set alloc_len to smallest value */
 	if (alloc_len > cmd->lu->bufsize)
 		alloc_len = cmd->lu->bufsize;
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	/* Init buffer */
 	memset(buf, 0, alloc_len);
 
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		MHVTL_DBG(3, "cmd[11] : Illegal value");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	/* Find first matching slot number which matches the typeCode. */
 	start = find_first_matching_element(smc_p, req_start_elem, typeCode);
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	if (start == 0) {	/* Nothing found.. */
 		MHVTL_DBG(3, "Start element is still 0");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	/* Leave room for 'master' header which is filled in at the end... */
 	p = buf;
@@ -854,14 +866,17 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 	cur_count = 0;
 	ec = 0;
 
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	switch (typeCode) {
 	case MEDIUM_TRANSPORT:
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
 	case DATA_TRANSFER:
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		ec = fill_element_page(cmd, start, &cur_count, &cur_offset);
 		break;
 	case ANY:
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		/* Logic here depends on Storage slots being
 		 * higher (numerically) than MAP which is higher than
 		 * Picker, which is higher than the drive slot number..
@@ -874,6 +889,7 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 				break;
 			start = START_PICKER;
 		}
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		if (slot_type(smc_p, start) == MEDIUM_TRANSPORT) {
 			ec = fill_element_page(cmd, start,
 						&cur_count, &cur_offset);
@@ -881,6 +897,7 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 				break;
 			start = START_MAP;
 		}
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		if (slot_type(smc_p, start) == MAP_ELEMENT) {
 			ec = fill_element_page(cmd, start,
 						&cur_count, &cur_offset);
@@ -888,25 +905,31 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 				break;
 			start = START_STORAGE;
 		}
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		if (slot_type(smc_p, start) == STORAGE_ELEMENT) {
 			ec = fill_element_page(cmd, start,
 						&cur_count, &cur_offset);
 			if (ec)
 				break;
 		}
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		break;
 	default:	/* Illegal descriptor type. */
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	if (ec != 0) {
 		mkSenseBuf(ILLEGAL_REQUEST, ec, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	/* Now populate the 'main' header structure with byte count.. */
 	fill_element_status_data_hdr(&buf[0], start, cur_count, cur_offset - 8);
+	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
 
