@@ -429,7 +429,8 @@ int spc_request_sense(struct scsi_cmd *cmd)
 				(sense_buf[2] & SD_FILEMARK) ? "yes" : "no",
 				(sense_buf[2] & SD_EOM) ? "yes" : "no",
 				(sense_buf[2] & SD_ILI) ? "yes" : "no");
-	sz = (cdb[4] < sizeof(sense_buf)) ? cdb[4] : sizeof(sense_buf);
+
+	sz = cdb[4] < SENSE_BUF_SIZE ?  cdb[4] : SENSE_BUF_SIZE;
 	assert(cmd->dbuf_p->data);
 	/* Clear out the request sense flag */
 	cmd->dbuf_p->sam_stat = 0;
