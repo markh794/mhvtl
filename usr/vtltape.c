@@ -1630,50 +1630,80 @@ static void update_encrypt_mode(int encrypt_mode)
 /*
  * Retrieve Security Protocol Information
  */
-static int resp_spin(uint8_t *cdb, uint8_t *buf, uint8_t *sam_stat)
+static int resp_spin(struct scsi_cmd *cmd)
 {
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *cdb = cmd->scb;
 	uint16_t sps = get_unaligned_be16(&cdb[2]);
 	uint32_t alloc_len = get_unaligned_be32(&cdb[6]);
 	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
+
+	cmd->dbuf_p->sz = 0;
+	switch (cmd->lu->drive_type) {
+	case drive_LTO4:
+	case drive_LTO5:
+	case drive_3592_E05:
+	case drive_3592_E06:
+	case drive_10K_A:
+	case drive_10K_B:
+		break;
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	if (inc_512)
 		alloc_len = alloc_len * 512;
 
 	switch (cdb[1]) {
 	case SECURITY_PROTOCOL_INFORMATION:
-		return resp_spin_page_0(buf, sps, alloc_len, sam_stat);
+		cmd->dbuf_p->sz = resp_spin_page_0(buf, sps, alloc_len, sam_stat);
 		break;
-
 	case TAPE_DATA_ENCRYPTION:
-		return resp_spin_page_20(buf, sps, alloc_len, sam_stat);
+		cmd->dbuf_p->sz = resp_spin_page_20(buf, sps, alloc_len, sam_stat);
 		break;
+	default:
+		MHVTL_DBG(1, "Security protocol 0x%04x unknown", cdb[1]);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 	}
-
-	MHVTL_DBG(1, "Security protocol 0x%04x unknown", cdb[1]);
-
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-	return 0;
+	return SAM_STAT_GOOD;
 }
 
-static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
+static int resp_spout(struct scsi_cmd *cmd)
 {
-#ifdef MHVTL_DEBUG
-	uint16_t sps = get_unaligned_be16(&cdb[2]);
-	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
-#endif
-	uint8_t *sam_stat = &dbuf_p->sam_stat;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t	*buf = cmd->dbuf_p->data;
 	int count;
-	uint8_t	*buf = dbuf_p->data;
+#ifdef MHVTL_DEBUG
+	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
+	uint8_t inc_512 = (cmd->scb[4] & 0x80) ? 1 : 0;
+#endif
 
-	if (cdb[1] != TAPE_DATA_ENCRYPTION) {
-		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cdb[1]);
+	cmd->dbuf_p->sz = 0;
+	switch (cmd->lu->drive_type) {
+	case drive_LTO4:
+	case drive_LTO5:
+	case drive_3592_E05:
+	case drive_3592_E06:
+	case drive_10K_A:
+	case drive_10K_B:
+		break;
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	if (cmd->scb[1] != TAPE_DATA_ENCRYPTION) {
+		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cmd->scb[1]);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return 0;
 	}
 	MHVTL_DBG(2, "Tape Data Encryption, %s, "
 			" alloc len: 0x%02x, inc_512: %s",
 				lookup_sp_specific(sps),
-				dbuf_p->sz, (inc_512) ? "Set" : "Unset");
+				cmd->dbuf_p->sz, (inc_512) ? "Set" : "Unset");
 
 	/* check for a legal "set data encryption page" */
 	if ((buf[0] != 0x00) || (buf[1] != 0x10) ||
@@ -1698,7 +1728,7 @@ static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
 				ENCRYPT_MODE, DECRYPT_MODE,
 				UKAD_LENGTH, AKAD_LENGTH);
 
-	if (dbuf_p->sz > (19 + KEY_LENGTH + 4)) {
+	if (cmd->dbuf_p->sz > (19 + KEY_LENGTH + 4)) {
 		if (buf[20 + KEY_LENGTH] == 0x00) {
 			UKAD_LENGTH = get_unaligned_be16(&buf[22 + KEY_LENGTH]);
 			for (count = 0; count < UKAD_LENGTH; ++count) {
@@ -1731,6 +1761,7 @@ static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
 			count = TRUE;
 		break;
 	case drive_LTO4:
+	case drive_LTO5:
 		if ((UKAD_LENGTH > 32) || (AKAD_LENGTH > 12))
 			count = TRUE;
 		/* This drive will not accept a KAD if not encrypting */
@@ -1750,11 +1781,12 @@ static int resp_spout(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	        AKAD_LENGTH = 0;
 		KEY_LENGTH = 0;
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	update_encrypt_mode(ENCRYPT_MODE);
 
-	return 0;
+	return SAM_STAT_GOOD;
 }
 
 /*
@@ -2397,7 +2429,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case SECURITY_PROTOCOL_IN:
 		MHVTL_DBG(1, "Security Protocol In (%ld) **",
 						(long)dbuf_p->serialNo);
-		dbuf_p->sz = resp_spin(cdb, dbuf_p->data, sam_stat);
+		*sam_stat = resp_spin(cmd);
 		MHVTL_DBG(3, "Returning %d bytes", dbuf_p->sz);
 		if (debug)
 			hex_dump(dbuf_p->data, dbuf_p->sz);
@@ -2406,13 +2438,12 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case SECURITY_PROTOCOL_OUT:
 		MHVTL_DBG(1, "Security Protocol Out (%ld) **",
 						(long)dbuf_p->serialNo);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
 		dbuf_p->sz = get_unaligned_be32(&cdb[6]);
 		/* Check for '512 increment' bit & multiply sz by 512 if set */
 		dbuf_p->sz *= (cdb[4] & 0x80) ? 512 : 1;
 
 		nread = retrieve_CDB_data(cdev, dbuf_p);
-		dbuf_p->sz = resp_spout(cdb, dbuf_p);
+		*sam_stat = resp_spout(cmd);
 		MHVTL_DBG(3, "Returning %d bytes", dbuf_p->sz);
 		break;
 
