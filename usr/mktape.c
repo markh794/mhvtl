@@ -38,23 +38,27 @@ void usage(char *progname) {
 	printf("             'type' is data | clean | WORM\n");
 	printf("             'PCL' is Physical Cartridge Label (barcode)\n");
 	printf("             'density' is\n");
+	printf("                   AIT1\n");
+	printf("                   AIT2\n");
+	printf("                   AIT3\n");
+	printf("                   AIT4\n");
+	printf("                   DDS1\n");
+	printf("                   DDS2\n");
+	printf("                   DDS3\n");
+	printf("                   DDS4\n");
+	printf("                   DLT3\n");
+	printf("                   DLT4\n");
 	printf("                   LTO1\n");
 	printf("                   LTO2\n");
 	printf("                   LTO3\n");
 	printf("                   LTO4\n");
 	printf("                   LTO5\n");
-	printf("                   DLT3\n");
-	printf("                   DLT4\n");
 	printf("                   SDLT1\n");
 	printf("                   SDLT2\n");
 	printf("                   SDLT3\n");
 	printf("                   SDLT4\n");
 	printf("                   T10KA\n");
-	printf("                   T10KB\n");
-	printf("                   AIT1\n");
-	printf("                   AIT2\n");
-	printf("                   AIT3\n");
-	printf("                   AIT4\n\n");
+	printf("                   T10KB\n\n");
 }
 
 static unsigned int set_params(struct MAM *mamp, char *density)
@@ -125,7 +129,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		mamp->media_info.bits_per_mm = htonl(12725);
 	} else if (!(strncmp(density, "AIT1", 4))) {
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
-		mamp->MediumDensityCode = 0x30;
+		mamp->MediumDensityCode = medium_density_code_ait1;
 		mamp->MediaType = Media_AIT1;
 		mamp->MediumLength = htonl(384);	// 384 tracks
 		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
@@ -134,7 +138,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		mamp->media_info.bits_per_mm = htonl(0x11d7);
 	} else if (!(strncmp(density, "AIT2", 4))) {
-		mamp->MediumDensityCode = 0x31;
+		mamp->MediumDensityCode = medium_density_code_ait2;
 		mamp->MediaType = Media_AIT2;
 		mamp->MediumLength = htonl(384);	// 384 tracks
 		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
@@ -143,7 +147,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		mamp->media_info.bits_per_mm = htonl(0x17d6);
 	} else if (!(strncmp(density, "AIT3", 4))) {
-		mamp->MediumDensityCode = 0x32;
+		mamp->MediumDensityCode = medium_density_code_ait3;
 		mamp->MediaType = Media_AIT3;
 		mamp->MediumLength = htonl(384);	// 384 tracks
 		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
@@ -152,7 +156,7 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		mamp->media_info.bits_per_mm = htonl(0x17d6);
 	} else if (!(strncmp(density, "AIT4", 4))) {
-		mamp->MediumDensityCode = 0x33;
+		mamp->MediumDensityCode = medium_density_code_ait4;
 		mamp->MediaType = Media_AIT4;
 		mamp->MediumLength = htonl(384);	// 384 tracks
 		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
@@ -194,25 +198,53 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(190000);
 	} else if (!(strncmp(density, "SDLT4", 5))) {
-		mamp->MediumDensityCode = 0x4a;
+		mamp->MediumDensityCode = medium_density_code_600;
 		mamp->MediaType = Media_SDLT600;
 		memcpy(&mamp->media_info.description, "SDLT II media", 13);
 		memcpy(&mamp->media_info.density_name, "SDLT600", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(233000);
 	} else if (!(strncmp(density, "T10KA", 5))) {
-		mamp->MediumDensityCode = 0x4a;
+		mamp->MediumDensityCode = medium_density_code_10kA;
 		mamp->MediaType = Media_T10KA;
 		memcpy(&mamp->media_info.description, "STK T10KA media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000A", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		mamp->media_info.bits_per_mm = htonl(233000);
 	} else if (!(strncmp(density, "T10KB", 5))) {
-		mamp->MediumDensityCode = 0x4b;
+		mamp->MediumDensityCode = medium_density_code_10kB;
 		mamp->MediaType = Media_T10KB;
 		memcpy(&mamp->media_info.description, "STK T10Kb media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000B", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "DDS1", 4))) {
+		mamp->MediumDensityCode = medium_density_code_DDS1;
+		mamp->MediaType = Media_DDS1;
+		memcpy(&mamp->media_info.description, "4MM DDS-1 media", 15);
+		memcpy(&mamp->media_info.density_name, "DDS1", 4);
+		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
+		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "DDS2", 4))) {
+		mamp->MediumDensityCode = medium_density_code_DDS2;
+		mamp->MediaType = Media_DDS2;
+		memcpy(&mamp->media_info.description, "4MM DDS-2 media", 15);
+		memcpy(&mamp->media_info.density_name, "DDS2", 4);
+		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
+		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "DDS3", 4))) {
+		mamp->MediumDensityCode = medium_density_code_DDS3;
+		mamp->MediaType = Media_DDS3;
+		memcpy(&mamp->media_info.description, "4MM DDS-3 media", 15);
+		memcpy(&mamp->media_info.density_name, "DDS3", 4);
+		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
+		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "DDS4", 4))) {
+		mamp->MediumDensityCode = medium_density_code_DDS4;
+		mamp->MediaType = Media_DDS4;
+		memcpy(&mamp->media_info.description, "4MM DDS-4 media", 15);
+		memcpy(&mamp->media_info.density_name, "DDS4", 4);
+		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
 		mamp->media_info.bits_per_mm = htonl(233000);
 	} else
 		printf("'%s' is an invalid density\n", density);
