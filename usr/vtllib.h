@@ -445,6 +445,7 @@ enum drive_type_list {
 	drive_DDS2,
 	drive_DDS3,
 	drive_DDS4,
+	drive_DDS5,
 	drive_AIT1,
 	drive_AIT2,
 	drive_AIT3,
@@ -519,6 +520,16 @@ enum Media_Type_list {
 	Media_SDLT_S4,
 	Media_SDLT_S4_CLEAN,
 	Media_SDLT_S4W,
+	Media_DDS1,
+	Media_DDS1_CLEAN,
+	Media_DDS2,
+	Media_DDS2_CLEAN,
+	Media_DDS3,
+	Media_DDS3_CLEAN,
+	Media_DDS4,
+	Media_DDS4_CLEAN,
+	Media_DDS5,
+	Media_DDS5_CLEAN,
 	Media_UNKNOWN /* always last */
 };
 

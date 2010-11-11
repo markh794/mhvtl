@@ -382,10 +382,18 @@ static const char *lookup_density_name(int den)
 		{ medium_density_code_j1a, "J1A" },
 		{ medium_density_code_e05, "E05" },
 		{ medium_density_code_e06, "E06" },
+		{ medium_density_code_ait1, "AIT1" },
+		{ medium_density_code_ait2, "AIT2" },
+		{ medium_density_code_ait3, "AIT3" },
 		{ medium_density_code_ait4, "AIT4" },
 		{ medium_density_code_10kA, "T10000A" },
 		{ medium_density_code_10kB, "T10000B" },
 		{ medium_density_code_600, "SDLT600" },
+		{ medium_density_code_DDS1, "4MM DDS1" },
+		{ medium_density_code_DDS2, "4MM DDS2" },
+		{ medium_density_code_DDS3, "4MM DDS3" },
+		{ medium_density_code_DDS4, "4MM DDS4" },
+		{ medium_density_code_DDS5, "4MM DDS5" },
 	};
 
 	int i;
