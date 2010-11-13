@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 	int rc;
 
 	if (argc < 2) {
-		printf("Usage: dump_file -f <pcl>\n");
+		printf("Usage: %s -f <pcl>\n", argv[0]);
 		exit(1);
 	}
 
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (pcl == NULL) {
-		printf("Usage: dump_file -f <pcl>\n");
+		printf("Usage: %s -f <pcl>\n", argv[0]);
 		exit(1);
 	}
 
