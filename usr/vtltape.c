@@ -1959,7 +1959,6 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 
 	case INQUIRY:
-		MHVTL_DBG(1, "INQUIRY (%ld) **", (long)dbuf_p->serialNo);
 		*sam_stat = spc_inquiry(cmd);
 		break;
 
