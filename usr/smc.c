@@ -318,44 +318,37 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 {
 	int voltag;
 	int elem_len;
-	int total_elements, total_bytes;
 	int page_elements, page_bytes;
 
 	MHVTL_DBG(3, "Element Status Data");
 	MHVTL_DBG(3, "  First element reported       : %d",
 					get_unaligned_be16(&p[0]));
-	total_elements = get_unaligned_be16(&p[2]);
-	MHVTL_DBG(3, "  Number of elements available : %d", total_elements);
-	total_bytes = get_unaligned_be24(&p[5]);
-	MHVTL_DBG(3, "  Byte count of report         : %d", total_bytes);
+	MHVTL_DBG(3, "  Number of elements available : %d",
+					get_unaligned_be16(&p[2]));
+	MHVTL_DBG(3, "  Byte count of report         : %d",
+					get_unaligned_be24(&p[5]));
+
 	p += 8;
 
-	while (total_elements && total_bytes) {
-
-		MHVTL_DBG(3, "Element Status Page");
-		MHVTL_DBG(3, "  Element Type code            : %d", p[0]);
-		voltag = (p[1] & 0x80) ? 1 : 0;
-		MHVTL_DBG(3, "  Primary Vol Tag              : %s",
+	MHVTL_DBG(3, "Element Status Page");
+	MHVTL_DBG(3, "  Element Type code            : %d", p[0]);
+	voltag = (p[1] & 0x80) ? 1 : 0;
+	MHVTL_DBG(3, "  Primary Vol Tag              : %s",
 					voltag ? "Yes" : "No");
-		MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
+	MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
 					(p[1] & 0x40) ? "Yes" : "No");
-		elem_len = get_unaligned_be16(&p[2]);
-		MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
-		page_bytes = get_unaligned_be24(&p[5]);
-		MHVTL_DBG(3, "  Byte count of descriptor data: %d", page_bytes);
-		page_elements = page_bytes / elem_len;
-		p += 8;
+	elem_len = get_unaligned_be16(&p[2]);
+	MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
+	page_bytes = get_unaligned_be24(&p[5]);
+	MHVTL_DBG(3, "  Byte count of descriptor data: %d", page_bytes);
+	page_elements = page_bytes / elem_len;
+	p += 8;
 
-		MHVTL_DBG(3, "Element Descriptor(s) : Num of Elements %d",
-			page_elements);
+	MHVTL_DBG(3, "Element Descriptor(s) : Num of Elements %d",
+					page_elements);
 
-		dump_element_desc(p, voltag, page_elements, elem_len,
+	dump_element_desc(p, voltag, page_elements, elem_len,
 					smc_p->dvcid_serial_only);
-
-		total_elements -= page_elements;
-		total_bytes -= page_bytes;
-		p += page_bytes;
-	}
 
 	fflush(NULL);
 }
@@ -657,16 +650,41 @@ static int find_first_matching_element(struct smc_priv *smc_p,
 return 0;
 }
 
+/* Returns number of available elements left from starting number */
+static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
+					uint32_t start, uint32_t max)
+{
+	struct list_head *slot_head;
+	struct s_info *sp;
+	int counted = 0;
+
+	slot_head = &priv->slot_list;
+
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (!type) { /* Element type not defined */
+			if (sp->slot_location >= start)
+				if (counted < max)
+					counted++;
+		} else if (sp->element_type == type) {
+			if (sp->slot_location >= start)
+				if (counted < max)
+					counted++;
+		}
+	}
+
+	MHVTL_DBG(2, "Determing %d element%s of type %d starting at %d"
+			", returning %d",
+				max, max == 1 ? "" : "s",
+				type, start, counted);
+
+	return counted;
+}
+
 /*
  * Fill in Element status page header + each Element descriptor
  *
  * Returns zero on success, or error code if illegal request.
  */
-/*
-static uint32_t fill_element_page(uint8_t *p, int type, uint16_t start,
-		uint16_t max_count, uint32_t max_bytes, uint8_t voltag,
-		uint8_t dvcid, uint16_t *cur_count, uint32_t *cur_offset)
-*/
 static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 				uint16_t *cur_count, uint32_t *cur_offset)
 {
@@ -678,7 +696,6 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 	uint8_t *p = cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
 
-	uint8_t dvcid;
 	uint8_t	type = cdb[1] & 0x0f;
 	uint16_t max_count;
 	uint32_t max_bytes;
@@ -692,21 +709,18 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 	case MEDIUM_TRANSPORT:
 		min_addr = START_PICKER;
 		num_addr = smc_p->num_picker;
-		dvcid = 0;
 		MHVTL_DBG(3, "Element type: Medium Transport, min: %d num: %d",
 					min_addr, num_addr);
 		break;
 	case STORAGE_ELEMENT:
 		min_addr = START_STORAGE;
 		num_addr = smc_p->num_storage;
-		dvcid = 0;
 		MHVTL_DBG(3, "Element type: Storage Element, min: %d num: %d",
 					min_addr, num_addr);
 		break;
 	case MAP_ELEMENT:
 		min_addr = START_MAP;
 		num_addr = smc_p->num_map;
-		dvcid = 0;
 		MHVTL_DBG(3, "Element type: MAP Element, min: %d num: %d",
 					min_addr, num_addr);
 		break;
@@ -818,6 +832,8 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 	default:
 		MHVTL_DBG(3,
 			" Element type(%d) => Invalid type requested",typeCode);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 	MHVTL_DBG(3, "  Starting Element Address: %d", req_start_elem);
@@ -832,33 +848,26 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 	 * Leaving statements for now..
 	 * Strange thing was no core file generated from segfault ???
 	 */
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	/* Set alloc_len to smallest value */
-	if (alloc_len > cmd->lu->bufsize)
-		alloc_len = cmd->lu->bufsize;
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
+	alloc_len = min(alloc_len, cmd->lu->bufsize);
 
 	/* Init buffer */
 	memset(buf, 0, alloc_len);
 
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		MHVTL_DBG(3, "cmd[11] : Illegal value");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	/* Find first matching slot number which matches the typeCode. */
 	start = find_first_matching_element(smc_p, req_start_elem, typeCode);
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	if (start == 0) {	/* Nothing found.. */
 		MHVTL_DBG(3, "Start element is still 0");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	/* Leave room for 'master' header which is filled in at the end... */
 	p = buf;
@@ -866,17 +875,14 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 	cur_count = 0;
 	ec = 0;
 
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 	switch (typeCode) {
 	case MEDIUM_TRANSPORT:
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
 	case DATA_TRANSFER:
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		ec = fill_element_page(cmd, start, &cur_count, &cur_offset);
 		break;
 	case ANY:
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		/* Logic here depends on Storage slots being
 		 * higher (numerically) than MAP which is higher than
 		 * Picker, which is higher than the drive slot number..
@@ -889,7 +895,6 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 				break;
 			start = START_PICKER;
 		}
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		if (slot_type(smc_p, start) == MEDIUM_TRANSPORT) {
 			ec = fill_element_page(cmd, start,
 						&cur_count, &cur_offset);
@@ -897,7 +902,6 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 				break;
 			start = START_MAP;
 		}
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		if (slot_type(smc_p, start) == MAP_ELEMENT) {
 			ec = fill_element_page(cmd, start,
 						&cur_count, &cur_offset);
@@ -905,31 +909,28 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 				break;
 			start = START_STORAGE;
 		}
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		if (slot_type(smc_p, start) == STORAGE_ELEMENT) {
 			ec = fill_element_page(cmd, start,
 						&cur_count, &cur_offset);
 			if (ec)
 				break;
 		}
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		break;
 	default:	/* Illegal descriptor type. */
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
+
 	if (ec != 0) {
 		mkSenseBuf(ILLEGAL_REQUEST, ec, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
+	cur_count = num_available_elements(smc_p, typeCode, start, number);
+
 	/* Now populate the 'main' header structure with byte count.. */
 	fill_element_status_data_hdr(&buf[0], start, cur_count, cur_offset - 8);
-	MHVTL_DBG(3, " Debug: line %d", __LINE__);
 
 	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
 
