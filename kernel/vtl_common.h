@@ -4,7 +4,7 @@
 #ifndef VTL_COMMON_H
 #define VTL_COMMON_H
 
-#define SENSE_BUF_SIZE	38
+#define SENSE_BUF_SIZE	96
 /* Max cdb size */
 #define MAX_COMMAND_SIZE	16
 

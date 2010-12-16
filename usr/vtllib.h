@@ -117,10 +117,7 @@ extern int verbose;
 
 #define STATUS_QUEUE_CMD 0xfe
 
-#define SENSE_BUF_SIZE 38
-
 #define SCSI_SN_LEN 16
-
 
 /*
  * Process the LOG_SENSE page definations
