@@ -92,6 +92,9 @@ struct blk_header {
 #define medium_density_code_j1a		0x51
 #define medium_density_code_e05		0x52
 #define medium_density_code_e06		0x53
+#define medium_density_code_j1a_ENCR	0x71
+#define medium_density_code_e05_ENCR	0x72
+#define medium_density_code_e06_ENCR	0x73
 #define medium_density_code_ait1	0x30
 #define medium_density_code_ait2	0x31
 #define medium_density_code_ait3	0x32
@@ -100,12 +103,14 @@ struct blk_header {
 #define medium_density_code_10kB	0x4b
 #define medium_density_code_320		0x49
 #define medium_density_code_600		0x4a
-/* FIXME: Need to find correct density codes for DDS media */
-#define medium_density_code_DDS1	0x11
-#define medium_density_code_DDS2	0x12
-#define medium_density_code_DDS3	0x13
-#define medium_density_code_DDS4	0x14
-#define medium_density_code_DDS5	0x15
+
+#define medium_density_code_QIC		0x11
+
+#define medium_density_code_DDS1	0x13
+#define medium_density_code_DDS2	0x24
+#define medium_density_code_DDS3	0x25
+#define medium_density_code_DDS4	0x26
+#define medium_density_code_DDS5	0x47
 
 /* Sense Data format bits & pieces */
 /* Incorrect Length Indicator */
