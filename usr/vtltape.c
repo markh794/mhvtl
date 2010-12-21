@@ -2542,6 +2542,9 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	default:
 		MHVTL_DBG(1, "Unknown OP code (%ld) **",
 						(long)dbuf_p->serialNo);
+
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
+		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 
