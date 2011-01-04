@@ -765,6 +765,7 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	int retval = 0;
 	uint16_t *sp;
 	uint16_t alloc_len = dbuf_p->sz;
+	struct error_counter *_err_counter;
 
 	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x08,
 					0x00,
@@ -793,6 +794,9 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 				sizeof(pg_write_err_counter.pcode_head));
 		b = memcpy(b, &pg_write_err_counter,
 					sizeof(pg_write_err_counter));
+		_err_counter = (struct error_counter *)b;
+		/* FIXME: Need to byte-swap all other values too */
+		put_unaligned_be64(bytesWritten, &_err_counter->bytesProcessed);
 		retval += sizeof(pg_write_err_counter);
 		break;
 	case READ_ERROR_COUNTER:	/* Read error page */
@@ -802,6 +806,9 @@ static int resp_log_sense(uint8_t *cdb, struct vtl_ds *dbuf_p)
 				sizeof(pg_read_err_counter.pcode_head));
 		b = memcpy(b, &pg_read_err_counter,
 					sizeof(pg_read_err_counter));
+		_err_counter = (struct error_counter *)b;
+		/* FIXME: Need to byte-swap all other values too */
+		put_unaligned_be64(bytesRead, &_err_counter->bytesProcessed);
 		retval += sizeof(pg_read_err_counter);
 		break;
 	case SEQUENTIAL_ACCESS_DEVICE:
@@ -2092,7 +2099,6 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		if (retval > (sz * count))
 			retval = sz * count;
 		bytesRead += retval;
-		pg_read_err_counter.bytesProcessed = bytesRead;
 		break;
 
 	case READ_ATTRIBUTE:
@@ -2342,8 +2348,6 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 				retval = writeBlock(buf, sz, sam_stat);
 				bytesWritten += retval;
 				buf += retval;
-				pg_write_err_counter.bytesProcessed =
-							bytesWritten;
 			}
 		}
 		break;
