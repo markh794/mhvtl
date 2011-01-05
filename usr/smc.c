@@ -940,7 +940,7 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 	decode_element_status(smc_p, buf);
 
 	/* Return the smallest number */
-	cmd->dbuf_p->sz = cur_offset;
+	cmd->dbuf_p->sz = min(cur_offset, alloc_len);
 
 	return SAM_STAT_GOOD;
 }
