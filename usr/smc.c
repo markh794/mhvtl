@@ -451,7 +451,14 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 
 	/* bit 8 set if Source Storage Element is valid | s->occupied */
 	p[j] = (s->last_location > 0) ? 0x80 : 0;
-	/* 0 - empty, 1 - data, 2 cleaning tape */
+	/* Ref: smc3r12 - Table 28
+	 * 0 - empty,
+	 * 1 - data,
+	 * 2 cleaning tape,
+	 * 3 Cleaning,
+	 * 4 WORM,
+	 * 5 Microcode image medium
+	 */
 	p[j++] |= (s->cart_type & 0x0f);
 
 	/* Source Storage Element Address */
