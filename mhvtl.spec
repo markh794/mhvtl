@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 12
-Source: mhvtl-2010-11-17.tgz
+Release: 13beta1
+Source: mhvtl-2011-01-06.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -165,6 +165,15 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Thu Jan 06 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.13
+- Bug fixes:
+  - SMC read element status. Return correct length.
+  - SSC log page. Byte-swap Bytes Read/Written.
+  - vtltape: Return ILLEGAL REQUEST for unsupported OP codes.
+  - Density code updates.
+  - Increased sense buffer from 38 bytes to 96 bytes.
+
 * Wed Nov 17 2010 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.12
 - Bug fixes:
