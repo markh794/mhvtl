@@ -712,6 +712,9 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 
 	smc_p = cmd->lu->lu_private;
 
+	if (type == ANY)
+		type = slot_type(smc_p, start);
+
 	switch (type) {
 	case MEDIUM_TRANSPORT:
 		min_addr = START_PICKER;
@@ -808,6 +811,7 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
 	uint32_t alloc_len;
 	uint16_t start;	/* First valid slot location */
+	uint16_t start_any;	/* First valid slot location */
 	uint32_t cur_offset;
 	uint16_t cur_count;
 	uint32_t ec;
@@ -890,34 +894,37 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 		ec = fill_element_page(cmd, start, &cur_count, &cur_offset);
 		break;
 	case ANY:
+		/* Don't modify 'start' value as it is needed later */
+		start_any = start;
+
 		/* Logic here depends on Storage slots being
 		 * higher (numerically) than MAP which is higher than
 		 * Picker, which is higher than the drive slot number..
 		 * See DWR: near top of this file !!
 		 */
-		if (slot_type(smc_p, start) == DATA_TRANSFER) {
-			ec = fill_element_page(cmd, start,
+		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
+			ec = fill_element_page(cmd, start_any,
 						&cur_count, &cur_offset);
 			if (ec)
 				break;
-			start = START_PICKER;
+			start_any = START_PICKER;
 		}
-		if (slot_type(smc_p, start) == MEDIUM_TRANSPORT) {
-			ec = fill_element_page(cmd, start,
+		if (slot_type(smc_p, start_any) == MEDIUM_TRANSPORT) {
+			ec = fill_element_page(cmd, start_any,
 						&cur_count, &cur_offset);
 			if (ec)
 				break;
-			start = START_MAP;
+			start_any = START_MAP;
 		}
-		if (slot_type(smc_p, start) == MAP_ELEMENT) {
-			ec = fill_element_page(cmd, start,
+		if (slot_type(smc_p, start_any) == MAP_ELEMENT) {
+			ec = fill_element_page(cmd, start_any,
 						&cur_count, &cur_offset);
 			if (ec)
 				break;
-			start = START_STORAGE;
+			start_any = START_STORAGE;
 		}
-		if (slot_type(smc_p, start) == STORAGE_ELEMENT) {
-			ec = fill_element_page(cmd, start,
+		if (slot_type(smc_p, start_any) == STORAGE_ELEMENT) {
+			ec = fill_element_page(cmd, start_any,
 						&cur_count, &cur_offset);
 			if (ec)
 				break;
