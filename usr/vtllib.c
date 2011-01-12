@@ -770,7 +770,7 @@ char *readline(char *buf, int len, FILE *s)
 /* Copy bytes from 'src' to 'dest, blank-filling to length 'len'.  There will
  * not be a NULL byte at the end.
 */
-void blank_fill(uint8_t *dest, uint8_t *src, int len)
+void blank_fill(uint8_t *dest, char *src, int len)
 {
 	int i;
 

@@ -593,23 +593,32 @@ struct d_info {
 	struct s_info *slot;
 };
 
+struct m_info { /* Media Info */
+	struct list_head siblings;
+	uint32_t last_location;
+	char barcode[11];
+	uint8_t media_domain;
+	uint8_t media_type;
+	uint8_t cart_type;
+	uint8_t internal_status; /* internal states */
+};
+
 struct s_info { /* Slot Info */
 	struct list_head siblings;
 	uint32_t slot_location;
 	uint32_t last_location;
 	struct d_info *drive;
-	uint8_t cart_type; /* 0 = Unknown, 1 = Data medium, 2 = Cleaning */
-	uint8_t barcode[11];
+	struct m_info *media;
+	/* Additional Sense Code & Additional Sense Code Qualifier */
+	uint16_t asc_ascq;
 	uint8_t	status;	/* Used for MAP status. */
-	uint8_t	asc;	/* Additional Sense Code */
-	uint8_t	ascq;	/* Additional Sense Code Qualifier */
-	uint8_t internal_status; /* internal states */
 	uint8_t element_type;
 };
 
 struct smc_priv {
 	struct list_head drive_list;
 	struct list_head slot_list;
+	struct list_head media_list;
 	int num_drives;
 	int num_picker;
 	int num_map;
@@ -648,7 +657,7 @@ int chrdev_chown(uint8_t minor, uid_t uid, gid_t gid);
 int oom_adjust(void);
 
 char *readline(char *s, int len, FILE *f);
-void blank_fill(uint8_t *dest, uint8_t *src, int len);
+void blank_fill(uint8_t *dest, char *src, int len);
 
 void log_opcode(char *opcode, uint8_t *SCpnt, struct vtl_ds *dbuf_p);
 int resp_a3_service_action(uint8_t *cdb, struct vtl_ds *dbuf_p);

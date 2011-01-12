@@ -392,7 +392,7 @@ static void list_map(struct q_msg *msg)
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
-			strncat(c, (char *)sp->barcode, 10);
+			strncat(c, (char *)sp->media->barcode, 10);
 			MHVTL_DBG(2, "MAP slot %d full", sp->slot_location);
 		} else {
 			MHVTL_DBG(2, "MAP slot %d empty", sp->slot_location);
@@ -432,19 +432,19 @@ int already_in_slot(char *barcode)
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp)) {
-			if (!strncmp((char *)sp->barcode, barcode, len)) {
+			if (!strncmp((char *)sp->media->barcode, barcode, len)){
 				MHVTL_DBG(3, "Match: %s %s",
-					sp->barcode, barcode);
+					sp->media->barcode, barcode);
 				return 1;
 			} else
 				MHVTL_DBG(3, "No match: %s %s",
-					sp->barcode, barcode);
+					sp->media->barcode, barcode);
 		}
 	}
 	return 0;
 }
 
-static struct s_info *locate_empty_map(void)
+static struct s_info * locate_empty_map(void)
 {
 	struct s_info *sp = NULL;
 	struct list_head *slot_head = &smc_slots.slot_list;
@@ -457,6 +457,50 @@ static struct s_info *locate_empty_map(void)
 	return NULL;
 }
 
+static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
+{
+	struct smc_priv *slot_layout;
+	struct list_head *media_list_head;
+	struct m_info *m;
+
+	slot_layout = lu->lu_private;
+	media_list_head = &slot_layout->media_list;
+
+	list_for_each_entry(m, media_list_head, siblings) {
+		if (!strncmp(m->barcode, barcode, 10))
+			return m;
+	}
+
+	return NULL;
+}
+
+static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
+{
+	struct m_info *m;
+
+	if (lookup_barcode(lu, barcode)) {
+		MHVTL_DBG(1, "Duplicate barcode %s.. Exiting", barcode);
+		exit(1);
+	}
+
+	m = malloc(sizeof(struct m_info));
+	if (!m) {
+		MHVTL_DBG(1, "Out of memory allocating memory for barcode %s",
+			barcode);
+		exit(-ENOMEM);
+	}
+	memset(m, 0, sizeof(struct m_info));
+
+	snprintf((char *)m->barcode, 10, "%-10s", barcode);
+	m->barcode[10] = '\0';
+	m->cart_type = cart_type((char *)barcode);
+	if (!strncmp((char *)m->barcode, "NOBAR", 5))
+		m->internal_status = INSTATUS_NO_BARCODE;
+	else
+		m->internal_status = 0;
+
+	return m;
+}
 
 #define MALLOC_SZ 512
 
@@ -464,6 +508,7 @@ static struct s_info *locate_empty_map(void)
 static int load_map(struct q_msg *msg)
 {
 	struct s_info *sp = NULL;
+	struct m_info *mp = NULL;
 	char *barcode;
 	int i;
 	int str_len;
@@ -502,16 +547,21 @@ static int load_map(struct q_msg *msg)
 
 	sp = locate_empty_map();
 	if (sp) {
-		snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-		sp->barcode[10] = '\0';
+		mp = lookup_barcode(&lunit, barcode);
+		if (!mp)
+			mp = add_barcode(&lunit, barcode);
+
+		snprintf((char *)mp->barcode, 10, "%-10s", barcode);
+		mp->barcode[10] = '\0';
 		/* 1 = data, 2 = Clean */
-		sp->cart_type = cart_type(barcode);
+		mp->cart_type = cart_type(barcode);
 		sp->status = STATUS_InEnab | STATUS_ExEnab |
 					STATUS_Access | STATUS_ImpExp |
 					STATUS_Full;
 		/* Media placed by operator */
 		setImpExpStatus(sp, OPERATOR);
-		sp->internal_status = 0;
+		sp->media = mp;
+		sp->media->internal_status = 0;
 		send_msg("OK", msg->snd_id);
 		return 1;
 	}
@@ -700,6 +750,7 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 		MHVTL_DBG(1, "Could not allocate memory for new slot struct");
 		exit(-ENOMEM);
 	}
+	new->media = NULL;	/* No media assigned (yet) */
 
 	list_add_tail(&new->siblings, slot_list_head);
 	return new;
@@ -879,8 +930,6 @@ static void init_slot_info(struct lu_phy_attr *lu)
 		case 1:
 			dp->slot->slot_location = slt + START_DRIVE - 1;
 			dp->slot->status = STATUS_Access;
-			dp->slot->cart_type = 0;
-			dp->slot->internal_status = 0;
 			slot_layout->num_drives++;
 			break;
 		}
@@ -897,25 +946,14 @@ static void init_slot_info(struct lu_phy_attr *lu)
 			sp->slot_location = slt + START_MAP - 1;
 			sp->status = STATUS_InEnab | STATUS_ExEnab |
 					STATUS_Access | STATUS_ImpExp;
-			sp->cart_type = 0;
-			sp->internal_status = 0;
 			break;
 		case 2:
 			MHVTL_DBG(2, "Barcode %s in MAP %d", barcode, slt);
-			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-			sp->barcode[10] = '\0';
-			/* 1 = data, 2 = Clean */
-			sp->cart_type = cart_type(barcode);
+			sp->media = add_barcode(lu, barcode);
 			sp->status = STATUS_InEnab | STATUS_ExEnab |
 					STATUS_Access | STATUS_ImpExp |
 					STATUS_Full;
 			sp->slot_location = slt + START_MAP - 1;
-			/* look for special media that should be reported
-			   as not having a barcode */
-			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
-				sp->internal_status = INSTATUS_NO_BARCODE;
-			else
-				sp->internal_status = 0;
 			break;
 		}
 
@@ -929,24 +967,14 @@ static void init_slot_info(struct lu_phy_attr *lu)
 		switch (x) {
 		case 1:
 			sp->slot_location = slt + START_PICKER - 1;
-			sp->cart_type = 0;
 			sp->status = 0;
-			sp->internal_status = 0;
 			break;
 		case 2:
 			MHVTL_DBG(2, "Barcode %s in Picker %d", barcode, slt);
-			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-			sp->barcode[10] = '\0';
-			/* 1 = data, 2 = Clean */
-			sp->cart_type = cart_type(barcode);
+			sp->media = add_barcode(lu, barcode);
 			sp->slot_location = slt + START_PICKER - 1;
 			sp->status = STATUS_Full;
-			/* look for special media that should be reported
-			 * as not having a barcode */
-			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
-				sp->internal_status = INSTATUS_NO_BARCODE;
-			else
-				sp->internal_status = 0;
+			break;
 		}
 
 		x = sscanf(b, "Slot %d: %s", &slt, barcode);
@@ -960,24 +988,13 @@ static void init_slot_info(struct lu_phy_attr *lu)
 		case 1:
 			sp->slot_location = slt + START_STORAGE - 1;
 			sp->status = STATUS_Access;
-			sp->cart_type = 0x08;
-			sp->internal_status = 0;
 			break;
 		case 2:
 			MHVTL_DBG(2, "Barcode %s in slot %d", barcode, slt);
-			snprintf((char *)sp->barcode, 10, "%-10s", barcode);
-			sp->barcode[10] = '\0';
+			sp->media = add_barcode(lu, barcode);
 			sp->slot_location = slt + START_STORAGE - 1;
-			/* 1 = data, 2 = Clean */
-			sp->cart_type = cart_type(barcode);
 			/* Slot full */
 			sp->status = STATUS_Access | STATUS_Full;
-			/* look for special media that should be reported
-			 * as not having a barcode */
-			if (!strncmp((char *)sp->barcode, "NOBAR", 5))
-				sp->internal_status = INSTATUS_NO_BARCODE;
-			else
-				sp->internal_status = 0;
 			break;
 		}
 	}
@@ -1193,6 +1210,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	INIT_LIST_HEAD(&lu->supported_mode_pg);
 	INIT_LIST_HEAD(&smc_slots.slot_list);
 	INIT_LIST_HEAD(&smc_slots.drive_list);
+	INIT_LIST_HEAD(&smc_slots.media_list);
 
 	lu->mode_pages = &sm;
 

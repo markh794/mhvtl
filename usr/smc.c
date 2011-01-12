@@ -438,8 +438,8 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
  * 0x80/0x63 Drive operating with low module fan speed
  * 0x80/0x5f Drive being shutdown due to low module fan speed
  */
-	p[j++] = s->asc;  /* Additional Sense Code */
-	p[j++] = s->ascq; /* Additional Sense Code Qualifer */
+	p[j++] = (s->asc_ascq >> 8) | 0xff;  /* Additional Sense Code */
+	p[j++] = s->asc_ascq | 0xff; /* Additional Sense Code Qualifer */
 
 	j++;		/* Reserved */
 	if (type == DATA_TRANSFER) {
@@ -450,16 +450,23 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 	j++;		/* Reserved */
 
 	/* bit 8 set if Source Storage Element is valid | s->occupied */
-	p[j] = (s->last_location > 0) ? 0x80 : 0;
+	if (s->media)
+		p[j] = (s->media->last_location > 0) ? 0x80 : 0;
+	else
+		p[j] = 0;
+
 	/* Ref: smc3r12 - Table 28
 	 * 0 - empty,
 	 * 1 - data,
-	 * 2 cleaning tape,
-	 * 3 Cleaning,
-	 * 4 WORM,
-	 * 5 Microcode image medium
+	 * 2 - cleaning tape,
+	 * 3 - Cleaning,
+	 * 4 - WORM,
+	 * 5 - Microcode image medium
 	 */
-	p[j++] |= (s->cart_type & 0x0f);
+	if (s->media)
+		p[j] |= (s->media->cart_type & 0x0f);
+
+	j++;
 
 	/* Source Storage Element Address */
 	put_unaligned_be16(s->last_location, &p[j]);
@@ -470,8 +477,8 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 	if (voltag) {
 		/* Barcode with trailing space(s) */
 		if ((s->status & STATUS_Full) &&
-		    !(s->internal_status & INSTATUS_NO_BARCODE))
-			blank_fill(&p[j], s->barcode, VOLTAG_LEN);
+		    !(s->media->internal_status & INSTATUS_NO_BARCODE))
+			blank_fill(&p[j], s->media->barcode, VOLTAG_LEN);
 		else
 			memset(&p[j], 0, VOLTAG_LEN);
 
@@ -484,15 +491,15 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 		j++;		/* Reserved */
 		p[j++] = smc_p->dvcid_len;	/* Identifier Length */
 		if (smc_p->dvcid_serial_only) {
-			blank_fill(&p[j], (uint8_t *)d->inq_product_sno,
+			blank_fill(&p[j], d->inq_product_sno,
 							smc_p->dvcid_len);
 			j += smc_p->dvcid_len;
 		} else {
-			blank_fill(&p[j], (uint8_t *)d->inq_vendor_id, 8);
+			blank_fill(&p[j], d->inq_vendor_id, 8);
 			j += 8;
-			blank_fill(&p[j], (uint8_t *)d->inq_product_id, 16);
+			blank_fill(&p[j], d->inq_product_id, 16);
 			j += 16;
-			blank_fill(&p[j], (uint8_t *)d->inq_product_sno, 10);
+			blank_fill(&p[j], d->inq_product_sno, 10);
 			j += 10;
 		}
 	} else {
@@ -962,8 +969,10 @@ int smc_read_element_status(struct scsi_cmd *cmd)
 /* Expect a response from tape drive on load success/failure
  * Returns 0 on success
  * non-zero on load failure
+
+ * FIXME: I really need a timeout here..
  */
-static int check_tape_load(uint8_t *pcl)
+static int check_tape_load(char *pcl)
 {
 	int mlen, r_qid;
 	struct q_entry q;
@@ -988,15 +997,16 @@ static int check_tape_load(uint8_t *pcl)
 static void move_cart(struct s_info *src, struct s_info *dest)
 {
 
-	dest->cart_type = src->cart_type;
-	memcpy(dest->barcode, src->barcode, 10);
+	dest->media = src->media;
+
 	dest->last_location = src->slot_location;
+	dest->media->last_location = src->slot_location;
+
 	setSlotFull(dest);
 	if (is_map_slot(dest))
 		setImpExpStatus(dest, ROBOT_ARM); /* Placed by robot arm */
 
-	src->cart_type = 0;		/* Src slot no longer occupied */
-	memset(src->barcode, 0, 10);	/* Zero out barcode */
+	src->media = NULL;
 	src->last_location = 0;		/* Forget where the old media was */
 	setSlotEmpty(src);		/* Clear Full bit */
 }
@@ -1021,7 +1031,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	sprintf(cmd, "lload %s", src->barcode);
+	sprintf(cmd, "lload %s", src->media->barcode);
 	/* Remove traling spaces */
 	for (x = 6; x < 16; x++)
 		if (cmd[x] == ' ') {
@@ -1029,12 +1039,17 @@ static int move_slot2drive(struct smc_priv *smc_p,
 			break;
 		}
 
+	/* FIXME: About here would be a good spot to create any 'missing'
+	 *	  media. That way, the user would not have to pre-create
+	 *	  media.
+	 */
+
 	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %ld",
 					cmd, dest->drv_id);
 
 	send_msg(cmd, dest->drv_id);
 
-	if (check_tape_load(src->barcode)) {
+	if (check_tape_load(src->media->barcode)) {
 		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1161,7 +1176,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	/* Send 'unload' message to drive b4 the move.. */
 	send_msg("unload", src->drv_id);
 
-	sprintf(cmd, "lload %s", dest->slot->barcode);
+	sprintf(cmd, "lload %s", dest->slot->media->barcode);
 
 	/* Remove trailing spaces */
 	for (x = 6; x < 16; x++)
