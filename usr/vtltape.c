@@ -63,6 +63,7 @@
 #include <syslog.h>
 #include <inttypes.h>
 #include <pwd.h>
+#include <signal.h>
 #include "be_byteshift.h"
 #include "vtl_common.h"
 #include "scsi.h"
@@ -3578,6 +3579,13 @@ static void media_density_init(void)
 	Drive_Native_Write_Density[drive_UNKNOWN] = 0x40;
 }
 
+static void caught_signal(int signo)
+{
+	MHVTL_DBG(1, " %d", signo);
+	printf("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
+	MHVTL_DBG(1, "Please use 'vtlcmd <index> exit' to shutdown nicely\n");
+}
+
 int main(int argc, char *argv[])
 {
 	int cdev;
@@ -3585,6 +3593,7 @@ int main(int argc, char *argv[])
 	long pollInterval = 50000L;
 	uint8_t *buf;
 	pid_t child_cleanup, pid, sid;
+	struct sigaction new_action, old_action;
 
 	char *progname = argv[0];
 
@@ -3761,6 +3770,16 @@ int main(int argc, char *argv[])
 	}
 
 	oom_adjust();
+
+	new_action.sa_handler = caught_signal;
+	sigemptyset(&new_action.sa_mask);
+	sigaction(SIGALRM, &new_action, &old_action);
+	sigaction(SIGHUP, &new_action, &old_action);
+	sigaction(SIGINT, &new_action, &old_action);
+	sigaction(SIGPIPE, &new_action, &old_action);
+	sigaction(SIGTERM, &new_action, &old_action);
+	sigaction(SIGUSR1, &new_action, &old_action);
+	sigaction(SIGUSR2, &new_action, &old_action);
 
 	for (;;) {
 		/* Check for anything in the messages Q */

@@ -49,6 +49,7 @@
 #include <syslog.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <signal.h>
 #include <pwd.h>
 #include "vtl_common.h"
 #include "scsi.h"
@@ -1317,6 +1318,13 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
 	sam_status = dbuf.sam_stat;
 }
 
+static void caught_signal(int signo)
+{
+	MHVTL_DBG(1, " %d", signo);
+	printf("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
+	MHVTL_DBG(1, "Please use 'vtlcmd <index> exit' to shutdown nicely\n");
+}
+
 /*
  * main()
  *
@@ -1338,6 +1346,7 @@ int main(int argc, char *argv[])
 	char s[100];
 
 	pid_t pid, sid, child_cleanup;
+	struct sigaction new_action, old_action;
 
 	char *progname = argv[0];
 	char *name = "mhvtl";
@@ -1406,6 +1415,16 @@ int main(int argc, char *argv[])
 		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);
 		exit(1);
 	}
+
+	new_action.sa_handler = caught_signal;
+	sigemptyset(&new_action.sa_mask);
+	sigaction(SIGALRM, &new_action, &old_action);
+	sigaction(SIGHUP, &new_action, &old_action);
+	sigaction(SIGINT, &new_action, &old_action);
+	sigaction(SIGPIPE, &new_action, &old_action);
+	sigaction(SIGTERM, &new_action, &old_action);
+	sigaction(SIGUSR1, &new_action, &old_action);
+	sigaction(SIGUSR2, &new_action, &old_action);
 
 	child_cleanup = add_lu(my_id, &ctl);
 	if (!child_cleanup) {
