@@ -517,7 +517,7 @@ static int checkRestrictions(uint8_t *sam_stat)
 	switch (mam.MediumType) {
 	case MEDIA_TYPE_CLEAN:
 		mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED, sam_stat);
-		MHVTL_DBG(2, "Can not write - Cleaning cart");
+		MHVTL_DBG(1, "Can not write - Cleaning cart");
 		OK_to_write = 0;
 		break;
 	case MEDIA_TYPE_WORM:
@@ -727,7 +727,7 @@ static int resp_mode_select(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		} else {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							sam_stat);
-			MHVTL_DBG(1, "Warning can not "
+			MHVTL_LOG("Warning can not "
 				"handle long descriptor block (long_lba bit)");
 		}
 	}
@@ -982,7 +982,7 @@ static int resp_write_attribute(uint8_t *cdb, struct vtl_ds *dbuf_p, struct MAM 
 					(attribute_length == 1) &&
 						(buf[byte_index] == 0x80)) {
 					/* set media to worm */
-					MHVTL_DBG(1, "Converted media to WORM");
+					MHVTL_LOG("Converted media to WORM");
 					mamp->MediumType = MEDIA_TYPE_WORM;
 				} else {
 					memcpy(MAM_Attributes[indx].value,
@@ -1047,7 +1047,7 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 		return 0;
 		break;
 	default:
-		MHVTL_DBG(1, "Unknown blk header at offset %u"
+		MHVTL_LOG("Unknown blk header at offset %u"
 				" - Abort read cmd", c_pos->blk_number);
 		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 		return 0;
@@ -1070,7 +1070,7 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 	*/
 	if (!(c_pos->blk_flags & BLKHDR_FLG_COMPRESSED)) {
 		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize) {
-			MHVTL_DBG(1, "read failed, %s", strerror(errno));
+			MHVTL_LOG("read failed, %s", strerror(errno));
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
@@ -1088,14 +1088,14 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 	*/
 	cbuf = malloc(disk_blk_size);
 	if (!cbuf) {
-		MHVTL_DBG(1, "Out of memory");
+		MHVTL_LOG("Out of memory");
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
 	}
 
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
 	if (nread != disk_blk_size) {
-		MHVTL_DBG(1, "read failed, %s", strerror(errno));
+		MHVTL_LOG("read failed, %s", strerror(errno));
 		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 		free(cbuf);
 		return 0;
@@ -1110,7 +1110,7 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 
 	if (tgtsize < blk_size) {
 		if ((c2buf = malloc(blk_size)) == NULL) {
-			MHVTL_DBG(1, "Out of memory");
+			MHVTL_LOG("Out of memory");
 			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
@@ -1131,17 +1131,17 @@ static int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_s
 			tgtsize);
 		break;
 	case Z_MEM_ERROR:
-		MHVTL_DBG(1, "Not enough memory to decompress");
+		MHVTL_LOG("Not enough memory to decompress");
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_DATA_ERROR:
-		MHVTL_DBG(1, "Block corrupt or incomplete");
+		MHVTL_LOG("Block corrupt or incomplete");
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_BUF_ERROR:
-		MHVTL_DBG(1, "Not enough memory in destination buf");
+		MHVTL_LOG("Not enough memory in destination buf");
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
@@ -1241,7 +1241,7 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 		dest_len = compressBound(src_sz);
 		dest_buf = malloc(dest_len);
 		if (!dest_buf) {
-			MHVTL_DBG(1, "malloc(%d) failed", (int)dest_len);
+			MHVTL_LOG("malloc(%d) failed", (int)dest_len);
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 			return 0;
 		}
@@ -1252,15 +1252,15 @@ static int writeBlock(uint8_t *src_buf, uint32_t src_sz,  uint8_t *sam_stat)
 							sam_stat);
 			switch (z) {
 			case Z_MEM_ERROR:
-				MHVTL_DBG(1, "Not enough memory to compress "
+				MHVTL_LOG("Not enough memory to compress "
 						"data");
 				break;
 			case Z_BUF_ERROR:
-				MHVTL_DBG(1, "Not enough memory in destination "
+				MHVTL_LOG("Not enough memory in destination "
 						"buf to compress data");
 				break;
 			case Z_DATA_ERROR:
-				MHVTL_DBG(1, "Input data corrupt / incomplete");
+				MHVTL_LOG("Input data corrupt / incomplete");
 				break;
 			}
 		}
@@ -2074,7 +2074,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		}
 		if (tapeLoaded == TAPE_LOADED) {
 			if (mam.MediumType == MEDIA_TYPE_CLEAN) {
-				MHVTL_DBG(3, "Cleaning cart loaded");
+				MHVTL_DBG(1, "Cleaning media loaded");
 				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
 								sam_stat);
 				break;
@@ -2084,7 +2084,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		} else {
-			MHVTL_DBG(1, "Media format corrupt");
+			MHVTL_LOG("Media format corrupt");
 			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			break;
 		}
@@ -2106,11 +2106,11 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		MHVTL_DBG(1, "Read Attribute (%ld) **",
 						(long)dbuf_p->serialNo);
 		if (tapeLoaded == TAPE_UNLOADED) {
-			MHVTL_DBG(1, "Failed due to \"no media loaded\"");
+			MHVTL_LOG("Failed due to \"no media loaded\"");
 			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		} else if (tapeLoaded > TAPE_LOADED) {
-			MHVTL_DBG(1, "Failed due to \"media corrupt\"");
+			MHVTL_LOG("Failed due to \"media corrupt\"");
 			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			break;
 		}
@@ -2332,7 +2332,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 		/* FIXME: Should handle this instead of 'check & warn' */
 		if ((sz * count) > bufsize)
-			MHVTL_DBG(1,
+			MHVTL_LOG(
 			"Fatal: bufsize %d, requested write of %d bytes",
 							bufsize, sz);
 
@@ -2384,7 +2384,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 			if ((mam.MediumType == MEDIA_TYPE_WORM) &&
 						(c_pos->blk_number == 0)) {
 				/* Do nothing, but skip following break; */
-				MHVTL_DBG(1, "Erasing WORM media");
+				MHVTL_LOG("Erasing WORM media");
 			} else
 				break;
 		}
@@ -2727,7 +2727,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		OK_to_write = 0;
 		clear_worm_mode_pg();
 		fg |= 0x400;
-		MHVTL_DBG(1, "Cleaning cart loaded");
+		MHVTL_DBG(1, "Cleaning media loaded");
 		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	case MEDIA_TYPE_WORM:

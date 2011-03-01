@@ -146,7 +146,7 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 	loff_t nread;
 
 	if (blk_number > eod_blk_number) {
-		MHVTL_DBG(1, "Attempt to seek [%d] beyond EOD [%d]",
+		MHVTL_LOG("Attempt to seek [%d] beyond EOD [%d]",
 				blk_number, eod_blk_number);
 	} else if (blk_number == eod_blk_number) {
 		mkEODHeader(eod_blk_number, eod_data_offset);
@@ -154,11 +154,11 @@ read_header(uint32_t blk_number, uint8_t *sam_stat)
 		nread = pread(indxfile, &raw_pos, sizeof(raw_pos),
 			blk_number * sizeof(raw_pos));
 		if (nread < 0) {
-			MHVTL_DBG(1, "Medium format corrupt");
+			MHVTL_LOG("Medium format corrupt");
 			mkSenseBuf(MEDIUM_ERROR,E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return -1;
 		} else if (nread != sizeof(raw_pos)) {
-			MHVTL_DBG(1, "Failed to read next header");
+			MHVTL_LOG("Failed to read next header");
 			mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
 			return -1;
 		}
@@ -190,11 +190,11 @@ rewrite_meta_file(void)
 	io_size = sizeof(meta);
 	io_offset = sizeof(struct MAM);
 	if ((nwrite = pwrite(metafile, &meta, io_size, io_offset)) < 0) {
-		MHVTL_DBG(1, "Error writing meta_header to metafile: %s",
+		MHVTL_LOG("Error writing meta_header to metafile: %s",
 			strerror(errno));
 		return -1;
 	} else if (nwrite != io_size) {
-		MHVTL_DBG(1, "Error writing meta_header map to metafile");
+		MHVTL_LOG("Error writing meta_header map to metafile");
 		return -1;
 	}
 
@@ -204,11 +204,11 @@ rewrite_meta_file(void)
 	if (io_size == 0) {
 		/* do nothing */
 	} else if ((nwrite = pwrite(metafile, filemarks, io_size, io_offset)) < 0) {
-		MHVTL_DBG(1, "Error writing filemark map to metafile: %s",
+		MHVTL_LOG("Error writing filemark map to metafile: %s",
 			strerror(errno));
 		return -1;
 	} else if (nwrite != io_size) {
-		MHVTL_DBG(1, "Error writing filemark map to metafile");
+		MHVTL_LOG("Error writing filemark map to metafile");
 		return -1;
 	}
 
@@ -217,7 +217,7 @@ rewrite_meta_file(void)
 	*/
 
 	if (ftruncate(metafile, io_offset + io_size) < 0) {
-		MHVTL_DBG(1, "Error truncating metafile: %s", strerror(errno));
+		MHVTL_LOG("Error truncating metafile: %s", strerror(errno));
 		return -1;
 	}
 
@@ -246,7 +246,7 @@ check_for_overwrite(uint8_t *sam_stat)
 
 	if (ftruncate(indxfile, blk_number * sizeof(raw_pos))) {
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		MHVTL_DBG(1, "Index file ftruncate failure, pos: "
+		MHVTL_LOG("Index file ftruncate failure, pos: "
 			"%" PRId64 ": %s",
 			(uint64_t)blk_number * sizeof(raw_pos),
 			strerror(errno));
@@ -254,7 +254,7 @@ check_for_overwrite(uint8_t *sam_stat)
 	}
 	if (ftruncate(datafile, data_offset)) {
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		MHVTL_DBG(1, "Data file ftruncate failure, pos: "
+		MHVTL_LOG("Data file ftruncate failure, pos: "
 			"%" PRId64 ": %s", data_offset,
 			strerror(errno));
 		return -1;
@@ -293,7 +293,7 @@ check_filemarks_alloc(uint32_t count)
 
 		filemarks = realloc(filemarks, new_size * sizeof(*filemarks));
 		if (filemarks == NULL) {
-			MHVTL_DBG(1, "filemark map realloc failed, %s",
+			MHVTL_LOG("filemark map realloc failed, %s",
 				strerror(errno));
 			return -1;
 		}
@@ -464,7 +464,7 @@ position_blocks_forw(uint32_t count, uint8_t *sam_stat)
 		if (read_header(filemarks[i] + 1, sam_stat)) {
 			return -1;
 		}
-		MHVTL_DBG(2, "Filemark encountered: block %d", filemarks[i]);
+		MHVTL_DBG(1, "Filemark encountered: block %d", filemarks[i]);
 		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -475,7 +475,7 @@ position_blocks_forw(uint32_t count, uint8_t *sam_stat)
 		if (read_header(eod_blk_number, sam_stat)) {
 			return -1;
 		}
-		MHVTL_DBG(2, "EOD encountered");
+		MHVTL_DBG(1, "EOD encountered");
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -540,7 +540,7 @@ position_blocks_back(uint32_t count, uint8_t *sam_stat)
 		if (read_header(0, sam_stat))
 			return -1;
 
-		MHVTL_DBG(2, "BOM encountered");
+		MHVTL_DBG(1, "BOM encountered");
 		mkSenseBuf(NO_SENSE | SD_EOM, E_BOM, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -686,20 +686,20 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	if (mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP) < 0)
 	{
-		MHVTL_DBG(1, "Failed to create directory %s: %s", newMedia,
+		MHVTL_LOG("Failed to create directory %s: %s", newMedia,
 			strerror(errno));
 		return 2;
 	}
 
 	datafile = creat(newMedia_data, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (datafile == -1) {
-		MHVTL_DBG(1, "Failed to create file %s: %s", newMedia_data,
+		MHVTL_LOG("Failed to create file %s: %s", newMedia_data,
 			strerror(errno));
 		return 2;
 	}
 	indxfile = creat(newMedia_indx, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (indxfile == -1) {
-		MHVTL_DBG(1, "Failed to create file %s: %s", newMedia_indx,
+		MHVTL_LOG("Failed to create file %s: %s", newMedia_indx,
 			strerror(errno));
 		unlink(newMedia_data);
 		rc = 2;
@@ -707,7 +707,7 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	}
 	metafile = creat(newMedia_meta, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (metafile == -1) {
-		MHVTL_DBG(1, "Failed to create file %s: %s", newMedia_meta,
+		MHVTL_LOG("Failed to create file %s: %s", newMedia_meta,
 			strerror(errno));
 		unlink(newMedia_data);
 		unlink(newMedia_indx);
@@ -715,7 +715,7 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		goto cleanup;
 	}
 
-	syslog(LOG_DAEMON|LOG_INFO, "%s files created", newMedia);
+	MHVTL_LOG("%s files created", newMedia);
 
 	/* Write the meta file consisting of the MAM and the meta_header
 	   structure with the filemark count initialized to zero.
@@ -729,7 +729,7 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	if (write(metafile, &mam, sizeof(mam)) != sizeof(mam) ||
 	    write(metafile, &meta, sizeof(meta)) != sizeof(meta))
 	{
-		MHVTL_DBG(1, "Failed to initialize file %s: %s", newMedia_meta,
+		MHVTL_LOG("Failed to initialize file %s: %s", newMedia_meta,
 			strerror(errno));
 		unlink(newMedia_data);
 		unlink(newMedia_indx);
@@ -791,40 +791,40 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	sprintf(pcl_meta,"%s/meta", currentPCL);
 
 	if ((datafile = open(pcl_data, O_RDWR|O_LARGEFILE)) == -1) {
-		MHVTL_DBG(1, "open of pcl %s file %s failed, %s", pcl,
+		MHVTL_LOG("open of pcl %s file %s failed, %s", pcl,
 			pcl_data, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 	if ((indxfile = open(pcl_indx, O_RDWR|O_LARGEFILE)) == -1) {
-		MHVTL_DBG(1, "open of pcl %s file %s failed, %s", pcl,
+		MHVTL_LOG("open of pcl %s file %s failed, %s", pcl,
 			pcl_indx, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 	if ((metafile = open(pcl_meta, O_RDWR|O_LARGEFILE)) == -1) {
-		MHVTL_DBG(1, "open of pcl %s file %s failed, %s", pcl,
+		MHVTL_LOG("open of pcl %s file %s failed, %s", pcl,
 			pcl_meta, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 
 	if (fstat(datafile, &data_stat) < 0) {
-		MHVTL_DBG(1, "stat of pcl %s file %s failed: %s", pcl,
+		MHVTL_LOG("stat of pcl %s file %s failed: %s", pcl,
 			pcl_data, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 
 	if (fstat(indxfile, &indx_stat) < 0) {
-		MHVTL_DBG(1, "stat of pcl %s file %s failed: %s", pcl,
+		MHVTL_LOG("stat of pcl %s file %s failed: %s", pcl,
 			pcl_indx, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 
 	if (fstat(metafile, &meta_stat) < 0) {
-		MHVTL_DBG(1, "stat of pcl %s file %s failed: %s", pcl,
+		MHVTL_LOG("stat of pcl %s file %s failed: %s", pcl,
 			pcl_meta, strerror(errno));
 		rc = 3;
 		goto failed;
@@ -834,7 +834,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 
 	exp_size = sizeof(mam) + sizeof(meta);
 	if (meta_stat.st_size < exp_size) {
-		MHVTL_DBG(1, "pcl %s file %s is not the correct length, "
+		MHVTL_LOG("pcl %s file %s is not the correct length, "
 			"expected at least %" PRId64 ", actual %" PRId64,
 			pcl, pcl_meta, exp_size, meta_stat.st_size);
 		rc = 2;
@@ -844,19 +844,19 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	/* Read in the MAM and sanity-check it. */
 
 	if ((nread = read(metafile, &mam, sizeof(mam))) < 0) {
-		MHVTL_DBG(1, "Error reading pcl %s MAM from metafile: %s",
+		MHVTL_LOG("Error reading pcl %s MAM from metafile: %s",
 			pcl, strerror(errno));
 		rc = 2;
 		goto failed;
 	} else if (nread != sizeof(mam)) {
-		MHVTL_DBG(1, "Error reading pcl %s MAM from metafile: "
+		MHVTL_LOG("Error reading pcl %s MAM from metafile: "
 			"unexpected read length", pcl);
 		rc = 2;
 		goto failed;
 	}
 
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
-		MHVTL_DBG(1, "pcl %s MAM contains incorrect media format", pcl);
+		MHVTL_LOG("pcl %s MAM contains incorrect media format", pcl);
 		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
 		rc = 2;
 		goto failed;
@@ -865,12 +865,12 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	/* Read in the meta_header structure and sanity-check it. */
 
 	if ((nread = read(metafile, &meta, sizeof(meta))) < 0) {
-		MHVTL_DBG(1, "Error reading pcl %s meta_header from "
+		MHVTL_LOG("Error reading pcl %s meta_header from "
 			"metafile: %s", pcl, strerror(errno));
 		rc = 2;
 		goto failed;
 	} else if (nread != sizeof(meta)) {
-		MHVTL_DBG(1, "Error reading pcl %s meta header from "
+		MHVTL_LOG("Error reading pcl %s meta header from "
 			"metafile: unexpected read length", pcl);
 		rc = 2;
 		goto failed;
@@ -882,7 +882,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 		(meta.filemark_count * sizeof(*filemarks));
 
 	if (meta_stat.st_size != exp_size) {
-		MHVTL_DBG(1, "pcl %s file %s is not the correct length, "
+		MHVTL_LOG("pcl %s file %s is not the correct length, "
 			"expected %" PRId64 ", actual %" PRId64, pcl,
 			pcl_meta, exp_size, meta_stat.st_size);
 		rc = 2;
@@ -904,12 +904,12 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	if (io_size == 0) {
 		/* do nothing */
 	} else if ((nread = read(metafile, filemarks, io_size)) < 0) {
-		MHVTL_DBG(1, "Error reading pcl %s filemark map from "
+		MHVTL_LOG("Error reading pcl %s filemark map from "
 			"metafile: %s", pcl, strerror(errno));
 		rc = 2;
 		goto failed;
 	} else if (nread != io_size) {
-		MHVTL_DBG(1, "Error reading pcl %s filemark map from "
+		MHVTL_LOG("Error reading pcl %s filemark map from "
 			"metafile: unexpected read length", pcl);
 		rc = 2;
 		goto failed;
@@ -920,7 +920,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	*/
 
 	if ((indx_stat.st_size % sizeof(struct raw_header)) != 0) {
-		MHVTL_DBG(1, "pcl %s indx file has improper length, indicating "
+		MHVTL_LOG("pcl %s indx file has improper length, indicating "
 			"possible file corruption", pcl);
 		rc = 2;
 		goto failed;
@@ -934,7 +934,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	if (meta.filemark_count > 0 &&
 		filemarks[meta.filemark_count - 1] >= eod_blk_number)
 	{
-		MHVTL_DBG(1, "pcl %s indx file has improper length as compared "
+		MHVTL_LOG("pcl %s indx file has improper length as compared "
 			"to the meta file, indicating possible file corruption",
 			pcl);
 		rc = 2;
@@ -957,7 +957,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 	}
 
 	if (data_stat.st_size != eod_data_offset) {
-		MHVTL_DBG(1, "pcl %s file %s is not the correct length, "
+		MHVTL_LOG("pcl %s file %s is not the correct length, "
 			"expected %" PRId64 ", actual %" PRId64, pcl,
 			pcl_data, eod_data_offset, data_stat.st_size);
 		rc = 2;
@@ -1084,7 +1084,7 @@ write_filemarks(uint32_t count, uint8_t *sam_stat)
 			blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-			MHVTL_DBG(1, "Index file write failure,"
+			MHVTL_LOG("Index file write failure,"
 					" pos: %" PRId64 ": %s",
 				(uint64_t)blk_number * sizeof(raw_pos),
 				strerror(errno));
@@ -1167,7 +1167,7 @@ write_tape_block(const uint8_t *buffer, uint32_t blk_size, uint32_t comp_size,
 		blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		MHVTL_DBG(1, "Index file write failure, pos: %" PRId64 ": %s",
+		MHVTL_LOG("Index file write failure, pos: %" PRId64 ": %s",
 			(uint64_t)blk_number * sizeof(raw_pos),
 			strerror(errno));
 		return -1;
@@ -1176,7 +1176,7 @@ write_tape_block(const uint8_t *buffer, uint32_t blk_size, uint32_t comp_size,
 	nwrite = pwrite(datafile, buffer, disk_blk_size, data_offset);
 	if (nwrite != disk_blk_size) {
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		MHVTL_DBG(1, "Data file write failure, pos: %" PRId64 ": %s",
+		MHVTL_LOG("Data file write failure, pos: %" PRId64 ": %s",
 			data_offset, strerror(errno));
 		return -1;
 	}
@@ -1222,7 +1222,7 @@ read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 
 	if (raw_pos.hdr.blk_type == B_EOD) {
 		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
-		MHVTL_DBG(1, "End of data detected while reading");
+		MHVTL_LOG("End of data detected while reading");
 		return -1;
 	}
 
@@ -1232,14 +1232,14 @@ read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 
 	nread = pread(datafile, buf, iosize, raw_pos.data_offset);
 	if (nread != iosize) {
-		MHVTL_DBG(1, "Failed to read %d bytes", iosize);
+		MHVTL_LOG("Failed to read %d bytes", iosize);
 		return -1;
 	}
 
 	// Now position to the following block.
 
 	if (read_header(raw_pos.hdr.blk_number + 1, sam_stat)) {
-		MHVTL_DBG(1, "Failed to read block header %d",
+		MHVTL_LOG("Failed to read block header %d",
 				raw_pos.hdr.blk_number + 1);
 		return -1;
 	}

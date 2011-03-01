@@ -80,6 +80,15 @@ extern int verbose;
 		syslog(LOG_DAEMON|LOG_INFO, format, ## arg);	\
 }
 
+#define MHVTL_LOG(format, arg...) {			\
+	if (debug)						\
+		printf("%s: %s: " format "\n",			\
+			vtl_driver_name, __func__, ## arg); 	\
+	else							\
+		syslog(LOG_DAEMON|LOG_ERR, "%s: " format,	\
+			__func__, ## arg); 			\
+}
+
 #define MHVTL_DBG(lvl, format, arg...) {			\
 	if (debug)						\
 		printf("%s: %s: " format "\n",			\
