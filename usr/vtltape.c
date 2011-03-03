@@ -350,6 +350,7 @@ static const char *drive_name(int dt)
 		{ drive_AIT4, "AIT4" },
 		{ drive_10K_A, "T10000A" },
 		{ drive_10K_B, "T10000B" },
+		{ drive_10K_C, "T10000C" },
 		{ drive_DLT7K, "DLT7000" },
 		{ drive_DLT8K, "DLT8000" },
 		{ drive_SDLT, "SDLT1" },
@@ -389,6 +390,7 @@ static const char *lookup_density_name(int den)
 		{ medium_density_code_ait4, "AIT4" },
 		{ medium_density_code_10kA, "T10000A" },
 		{ medium_density_code_10kB, "T10000B" },
+		{ medium_density_code_10kC, "T10000C" },
 		{ medium_density_code_600, "SDLT600" },
 		{ medium_density_code_DDS1, "4MM DDS1" },
 		{ medium_density_code_DDS2, "4MM DDS2" },
@@ -450,7 +452,10 @@ static const char *lookup_media_type(int med)
 		{ Media_T10KAW, "T10000A WORM" },
 		{ Media_T10KB, "T10000B Data" },
 		{ Media_T10KB_CLEAN, "T10000B Cleaning" },
-		{ Media_T10KBW, "T10000A WORM" },
+		{ Media_T10KBW, "T10000B WORM" },
+		{ Media_T10KC, "T10000C Data" },
+		{ Media_T10KC_CLEAN, "T10000C Cleaning" },
+		{ Media_T10KCW, "T10000C WORM" },
 		{ Media_DLT2, "DLT2 Data" },
 		{ Media_DLT2_CLEAN, "DLT2 Cleaning" },
 		{ Media_DLT3, "DLT3 Data" },
@@ -3242,6 +3247,9 @@ static void config_lu(struct lu_phy_attr *lu)
 	} else if (!strncasecmp(lu->product_id, "03592E06", 8)) {
 		lu->drive_type = drive_3592_E06;
 		MHVTL_DBG(1, "3592 E06 drive");
+	} else if (!strncasecmp(lu->product_id, "T10000C", 7)) {
+		lu->drive_type = drive_10K_C;
+		MHVTL_DBG(1, "T10000-C drive");
 	} else if (!strncasecmp(lu->product_id, "T10000B", 7)) {
 		lu->drive_type = drive_10K_B;
 		MHVTL_DBG(1, "T10000-B drive");

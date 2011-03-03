@@ -101,6 +101,7 @@ struct blk_header {
 #define medium_density_code_ait4	0x33
 #define medium_density_code_10kA	0x4a
 #define medium_density_code_10kB	0x4b
+#define medium_density_code_10kC	0x4c
 #define medium_density_code_320		0x49
 #define medium_density_code_600		0x4a
 

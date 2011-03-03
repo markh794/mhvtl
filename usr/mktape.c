@@ -58,7 +58,8 @@ void usage(char *progname) {
 	printf("                   SDLT3\n");
 	printf("                   SDLT4\n");
 	printf("                   T10KA\n");
-	printf("                   T10KB\n\n");
+	printf("                   T10KB\n");
+	printf("                   T10KC\n\n");
 }
 
 static unsigned int set_params(struct MAM *mamp, char *density)
@@ -214,8 +215,15 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 	} else if (!(strncmp(density, "T10KB", 5))) {
 		mamp->MediumDensityCode = medium_density_code_10kB;
 		mamp->MediaType = Media_T10KB;
-		memcpy(&mamp->media_info.description, "STK T10Kb media", 15);
+		memcpy(&mamp->media_info.description, "STK T10KB media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000B", 7);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		mamp->media_info.bits_per_mm = htonl(233000);
+	} else if (!(strncmp(density, "T10KC", 5))) {
+		mamp->MediumDensityCode = medium_density_code_10kC;
+		mamp->MediaType = Media_T10KC;
+		memcpy(&mamp->media_info.description, "STK T10KC media", 15);
+		memcpy(&mamp->media_info.density_name, "T10000C", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		mamp->media_info.bits_per_mm = htonl(233000);
 	} else if (!(strncmp(density, "DDS1", 4))) {
