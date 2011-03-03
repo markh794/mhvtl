@@ -2965,7 +2965,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			verbose--;
 		else
 			verbose = 3;
-		syslog(LOG_DAEMON|LOG_NOTICE, "Verbose: %s at level %d",
+		MHVTL_LOG("Verbose: %s at level %d",
 				 verbose ? "enabled" : "disabled", verbose);
 	}
 
@@ -3353,7 +3353,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		syslog(LOG_DAEMON|LOG_ERR, "Can not open config file %s : %s",
+		MHVTL_LOG("Can not open config file %s : %s",
 						config, strerror(errno));
 		perror("Can not open config file");
 		exit(1);
@@ -3655,13 +3655,8 @@ int main(int argc, char *argv[])
 	minor = my_id;	/* Minor == Message Queue priority */
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	if (verbose) {
-		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s, verbose log: %d",
+	MHVTL_LOG("%s: version %s, verbose log: %d",
 					progname, MHVTL_VERSION, verbose);
-		printf("%s: version %s\n", progname, MHVTL_VERSION);
-	} else
-		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s",
-					progname, MHVTL_VERSION);
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
@@ -3718,15 +3713,14 @@ int main(int argc, char *argv[])
 	}
 
 	if (check_for_running_daemons(minor)) {
-		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
+		MHVTL_LOG("%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
 		exit(2);
 	}
 
 	MHVTL_DBG(2, "Running as %s, uid: %d", pw->pw_name, getuid());
 
 	if ((cdev = chrdev_open(name, minor)) == -1) {
-		syslog(LOG_DAEMON|LOG_ERR,
-				"Could not open /dev/%s%d: %s", name, minor,
+		MHVTL_LOG("Could not open /dev/%s%d: %s", name, minor,
 						strerror(errno));
 		fflush(NULL);
 		exit(1);
@@ -3789,8 +3783,7 @@ int main(int argc, char *argv[])
 				goto exit;
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
-				syslog(LOG_DAEMON|LOG_ERR,
-					"Can not open message queue: %s",
+				MHVTL_LOG("Can not open message queue: %s",
 							strerror(errno));
 			}
 		}
@@ -3817,8 +3810,7 @@ int main(int argc, char *argv[])
 			case VTL_QUEUE_CMD:	/* A cdb to process */
 				cmd = malloc(sizeof(struct vtl_header));
 				if (!cmd) {
-					syslog(LOG_DAEMON|LOG_ERR,
-						"Out of memory");
+					MHVTL_LOG("Out of memory");
 					pollInterval = 1000000;
 				} else {
 					memcpy(cmd, &vtl_cmd, sizeof(vtl_cmd));
@@ -3840,8 +3832,7 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				syslog(LOG_DAEMON|LOG_NOTICE,
-					"ioctl(0x%x) returned %d\n",
+				MHVTL_LOG("ioctl(0x%x) returned %d\n",
 						VTL_POLL_AND_GET_HEADER, ret);
 				sleep(1);
 				break;

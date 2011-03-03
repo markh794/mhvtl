@@ -350,9 +350,7 @@ int resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	memset(buf, 0, alloc_len);	// Clear memory
 
-	if (verbose)
-		syslog(LOG_DAEMON|LOG_INFO, "%s: service action: %d\n",
-			__func__, SA);
+	MHVTL_DBG(1, "service action: %d\n", SA);
 
 	sam_status = SAM_STAT_GOOD;
 	switch(SA) {

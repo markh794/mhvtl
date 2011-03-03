@@ -9,6 +9,17 @@
 #include <stdio.h>
 #include <syslog.h>
 #include "q.h"
+extern int debug;
+extern char *vtl_driver_name;
+
+#define MHVTL_LOG(format, arg...) {			\
+	if (debug)						\
+		printf("%s: %s: " format "\n",			\
+			vtl_driver_name, __func__, ## arg); 	\
+	else							\
+		syslog(LOG_DAEMON|LOG_ERR, "%s: " format,	\
+			__func__, ## arg); 			\
+}
 
 static void warn(char *s)
 {
@@ -40,7 +51,7 @@ int init_queue(void)
 			strcpy(s, "errno not valid");
 			break;
 		}
-		syslog(LOG_DAEMON|LOG_ERR, "msgget(%d) failed %s, %s",
+		MHVTL_LOG("msgget(%d) failed %s, %s",
 				QKEY, strerror(errno), s);
 	}
 
@@ -62,7 +73,7 @@ int send_msg(char *cmd, long rcv_id)
 	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_entry, msg.text);
 
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
-		syslog(LOG_DAEMON|LOG_ERR, "msgsnd failed: %s", strerror(errno));
+		MHVTL_LOG("msgsnd failed: %s", strerror(errno));
 		return -1;
 	}
 

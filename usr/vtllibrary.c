@@ -655,7 +655,7 @@ static int processMessageQ(struct q_msg *msg)
 			verbose--;
 		else
 			verbose = 3;
-		syslog(LOG_DAEMON|LOG_NOTICE, "Verbose: %s at level %d",
+		MHVTL_LOG("Verbose: %s at level %d",
 				 verbose ? "enabled" : "disabled", verbose);
 	}
 
@@ -1392,11 +1392,7 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	MHVTL_DBG(1, "%s: version %s", progname, MHVTL_VERSION);
-	if (verbose) {
-		printf("%s: version %s\n", progname, MHVTL_VERSION);
-		syslog(LOG_DAEMON|LOG_INFO, "verbose: %d\n", verbose);
-	}
+	MHVTL_LOG("%s: version %s", progname, MHVTL_VERSION);
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
@@ -1459,7 +1455,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (check_for_running_daemons(my_id)) {
-		syslog(LOG_DAEMON|LOG_INFO, "%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
+		MHVTL_LOG("%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
 		exit(2);
 	}
 
@@ -1472,10 +1468,7 @@ int main(int argc, char *argv[])
 
 	cdev = chrdev_open(name, my_id);
 	if (cdev == -1) {
-		syslog(LOG_DAEMON|LOG_ERR,
-				"Could not open /dev/%s%ld: %s",
-					name, my_id, strerror(errno));
-		printf("Could not open /dev/%s%ld: %s",
+		MHVTL_LOG("Could not open /dev/%s%ld: %s",
 					name, my_id, strerror(errno));
 		fflush(NULL);
 		exit(1);
@@ -1583,15 +1576,13 @@ int main(int argc, char *argv[])
 		} else if (mlen < 0) {
 			r_qid = init_queue();
 			if (r_qid == -1)
-				syslog(LOG_DAEMON|LOG_ERR,
-					"Can not open message queue: %s",
+				MHVTL_LOG("Can not open message queue: %s",
 					strerror(errno));
 		}
 
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
 		if (ret < 0) {
-			syslog(LOG_DAEMON|LOG_WARNING, "ret: %d : %s", ret,
-					strerror(errno));
+			MHVTL_LOG("ret: %d : %s", ret, strerror(errno));
 		} else {
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
@@ -1615,8 +1606,7 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				syslog(LOG_DAEMON|LOG_NOTICE,
-					"ioctl(0x%x) returned %d\n",
+				MHVTL_LOG("ioctl(0x%x) returned %d\n",
 						VTL_POLL_AND_GET_HEADER, ret);
 				sleep(1);
 				break;

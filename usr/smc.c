@@ -1212,15 +1212,16 @@ int smc_move_medium(struct scsi_cmd *cmd)
 	dest_type = slot_type(smc_p, dest_addr);
 
 	if (verbose) {
-		if (cdb[11] & 0xc0)
-			syslog(LOG_DAEMON|LOG_INFO, "%s",
+		if (cdb[11] & 0xc0) {
+			MHVTL_LOG("%s",
 				(cdb[11] & 0x80) ? "  Retract I/O port" :
 						   "  Extend I/O port");
-		else
-			syslog(LOG_DAEMON|LOG_INFO,
+		} else {
+			MHVTL_LOG(
 	 "Moving from slot %d to Slot %d using transport %d, Invert media: %s",
 					src_addr, dest_addr, transport_addr,
 					(cdb[10]) ? "yes" : "no");
+		}
 	}
 
 	if (cdb[10] != 0) {	/* Can not Invert media */
