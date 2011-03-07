@@ -160,8 +160,7 @@ int check_reset(uint8_t *sam_stat)
 return retval;
 }
 
-void
-reset_device(void)
+void reset_device(void)
 {
 	reset = 1;
 }

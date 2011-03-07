@@ -1199,6 +1199,78 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
 	sam_status = dbuf.sam_stat;
 }
 
+void rereadconfig(int sig)
+{
+	struct list_head *slot_head;
+	struct s_info *sp, *sn;	/* Slot */
+	struct d_info *dp, *dn;	/* Drive */
+	struct m_info *mp, *mn;	/* Media */
+	struct mode *modep, *moden;	/* Mode page info */
+	struct log_pg_list *logp, *logn;	/* Log page info */
+	struct vtl_ctl ctl;
+	int i;
+
+	MHVTL_DBG(1, "Caught signal (%d)", sig);
+
+	MHVTL_DBG(2, "Removing existing slots");
+	slot_head = &smc_slots.slot_list;
+	list_for_each_entry_safe(sp, sn, slot_head, siblings) {
+		MHVTL_DBG(2, "slot %d", sp->slot_location);
+		list_del(&sp->siblings);
+		free(sp);
+	}
+
+	MHVTL_DBG(2, "Removing existing drives");
+	i = 0;
+	slot_head = &smc_slots.drive_list;
+	list_for_each_entry_safe(dp, dn, slot_head, siblings) {
+		MHVTL_DBG(2, "Drive: %d", i++);
+		list_del(&dp->siblings);
+		free(dp);
+	}
+
+	MHVTL_DBG(2, "Removing existing media");
+	i = 0;
+	slot_head = &smc_slots.media_list;
+	list_for_each_entry_safe(mp, mn, slot_head, siblings) {
+		MHVTL_DBG(2, "Media: %s", mp->barcode);
+		list_del(&mp->siblings);
+		free(mp);
+	}
+
+	MHVTL_DBG(2, "Removing existing mode pages");
+	i = 0;
+	slot_head = &lunit.mode_pg;
+	list_for_each_entry_safe(modep, moden, slot_head, siblings) {
+		MHVTL_DBG(2, "Mode Page: 0x%02x", modep->pcode);
+		list_del(&modep->siblings);
+		free(modep);
+	}
+
+	MHVTL_DBG(2, "Removing existing log pages");
+	i = 0;
+	slot_head = &lunit.log_pg;
+	list_for_each_entry_safe(logp, logn, slot_head, siblings) {
+		MHVTL_DBG(2, "Log Page: 0x%02x", logp->log_page_num);
+		list_del(&logp->siblings);
+		free(logp);
+	}
+
+	smc_slots.num_drives = 0;
+	smc_slots.num_picker = 0;
+	smc_slots.num_map = 0;
+	smc_slots.num_storage = 0;
+
+	if (!init_lu(&lunit, my_id, &ctl)) {
+		printf("Can not find entry for '%ld' in config file\n", my_id);
+		exit(1);
+	}
+	init_slot_info(&lunit);
+	update_drive_details(&lunit);
+	init_smc_mode_pages(&lunit);
+	init_smc_log_pages(&lunit);
+}
+
 static void caught_signal(int signo)
 {
 	MHVTL_DBG(1, " %d", signo);
@@ -1297,12 +1369,14 @@ int main(int argc, char *argv[])
 	new_action.sa_flags = 0;
 	sigemptyset(&new_action.sa_mask);
 	sigaction(SIGALRM, &new_action, &old_action);
-	sigaction(SIGHUP, &new_action, &old_action);
 	sigaction(SIGINT, &new_action, &old_action);
 	sigaction(SIGPIPE, &new_action, &old_action);
 	sigaction(SIGTERM, &new_action, &old_action);
 	sigaction(SIGUSR1, &new_action, &old_action);
 	sigaction(SIGUSR2, &new_action, &old_action);
+
+	new_action.sa_handler = rereadconfig;
+	sigaction(SIGHUP, &new_action, &old_action);
 
 	child_cleanup = add_lu(my_id, &ctl);
 	if (!child_cleanup) {
