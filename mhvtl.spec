@@ -112,10 +112,6 @@ if [ ! -d /opt/vtl ]; then
 fi
 chown vtl:vtl /opt/vtl
 chmod 770 /opt/vtl
-chown root:vtl /usr/bin/vtltape
-chown root:vtl /usr/bin/vtllibrary
-chmod 4750 /usr/bin/vtltape
-chmod 4750 /usr/bin/vtllibrary
 
 %preun
 if [ -x /etc/init.d/mhvtl ]; then
@@ -144,8 +140,8 @@ fi
 %doc INSTALL README etc/library_contents.sample
 /etc/init.d/mhvtl
 %{_prefix}/bin/vtlcmd
-%{_prefix}/bin/vtltape
-%{_prefix}/bin/vtllibrary
+%attr(4750, root, vtl) %{_prefix}/bin/vtltape
+%attr(4750, root, vtl) %{_prefix}/bin/vtllibrary
 %{_prefix}/bin/mktape
 %{_prefix}/bin/tapeexerciser
 %{_prefix}/bin/build_library_config
