@@ -29,7 +29,7 @@
  *	Hacked to represent SCSI tape drives & Library.
  *
  *	Registered char driver to handle data to user space daemon.
- *	Idea is for user space daemons (vxtape & vxlibrary) to emulate
+ *	Idea is for user space daemons (vtltape & vtllibrary) to emulate
  *	and process the SCSI SSC/SMC device command set.
  *
  *	I've used it for testing NetBackup - but there is no reason any

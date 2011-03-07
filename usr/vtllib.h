@@ -1,5 +1,5 @@
 /*
- * The shared library libvxshared.so function defination
+ * The shared library libvtlscsi.so function defination
  *
  * $Id: vxshared.h,v 1.3.2.1 2006-08-06 07:58:44 markh Exp $
  *

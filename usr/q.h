@@ -1,5 +1,5 @@
 /*
- * q.h -- Message queue for vx_tape/vx_library
+ * q.h -- Message queue for vtltape/vtllibrary
  *
  * $Id: q.h,v 1.5.2.1 2006-08-06 07:58:44 markh Exp $
  *

@@ -1,5 +1,5 @@
 /*
- * Shared routines between vxtape & vxlibrary
+ * Shared routines between vtltape & vtllibrary
  *
  * Copyright (C) 2005 - 2009 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
