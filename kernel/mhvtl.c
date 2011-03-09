@@ -204,8 +204,6 @@ struct vtl_lu_info {
 	char reset;
 	char device_offline;
 
-	struct semaphore lock;
-
 	struct list_head cmd_list; /* list of outstanding cmds for this lu */
 	spinlock_t cmd_list_lock;
 };
@@ -1099,8 +1097,6 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 
 	/* List of queued SCSI op codes associated with this device */
 	INIT_LIST_HEAD(&lu->cmd_list);
-
-	init_MUTEX(&lu->lock);
 
 	if (vtl_dsense)
 		lu->sense_buff[0] = 0x72;
