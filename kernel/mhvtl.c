@@ -286,7 +286,7 @@ static void vtl_slave_destroy(struct scsi_device *);
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
 #endif
-static int vtl_queuecommand(struct scsi_cmnd *,
+static int vtl_queuecommand_lck(struct scsi_cmnd *,
 				   void (*done) (struct scsi_cmnd *));
 static int vtl_b_ioctl(struct scsi_device *, int, void __user *);
 static long vtl_c_ioctl(struct file *, unsigned int, unsigned long);
@@ -299,6 +299,10 @@ static const char * vtl_info(struct Scsi_Host *);
 static int vtl_open(struct inode *, struct file *);
 static int vtl_release(struct inode *, struct file *);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
+static DEF_SCSI_QCMD(vtl_queuecommand)
+#endif
+
 static struct device pseudo_primary;
 
 static struct scsi_host_template vtl_driver_template = {
@@ -308,7 +312,11 @@ static struct scsi_host_template vtl_driver_template = {
 	.slave_configure =	vtl_slave_configure,
 	.slave_destroy =	vtl_slave_destroy,
 	.ioctl =		vtl_b_ioctl,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
 	.queuecommand =		vtl_queuecommand,
+#else
+	.queuecommand =		vtl_queuecommand_lck,
+#endif
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 	.change_queue_depth =	vtl_change_queue_depth,
 #endif
@@ -563,7 +571,7 @@ static int q_cmd(struct scsi_cmnd *scp,
 /**********************************************************************
  *                Main interface from SCSI mid level
  **********************************************************************/
-static int vtl_queuecommand(struct scsi_cmnd *SCpnt, done_funct_t done)
+static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 {
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
 	int errsts = 0;
@@ -1696,7 +1704,11 @@ give_up:
 	return ret;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
+DEFINE_SEMAPHORE(tmp_mutex);
+#else
 DECLARE_MUTEX(tmp_mutex);
+#endif
 
 static int vtl_remove_lu(int minor, char __user *arg)
 {
