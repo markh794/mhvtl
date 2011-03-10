@@ -468,7 +468,10 @@ static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 	media_list_head = &slot_layout->media_list;
 
 	list_for_each_entry(m, media_list_head, siblings) {
-		if (!strncmp(m->barcode, barcode, 10))
+/*		MHVTL_DBG(3, "Looking for %s found %s, strncmp: %d",
+			barcode, m->barcode, strncmp(m->barcode, barcode, 10));
+*/
+		if (strncmp(m->barcode, barcode, 10) >= 10)
 			return m;
 	}
 
@@ -477,10 +480,12 @@ static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 
 static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 {
+	struct smc_priv *slot_layout;
+	struct list_head *media_list_head;
 	struct m_info *m;
 
 	if (lookup_barcode(lu, barcode)) {
-		MHVTL_DBG(1, "Duplicate barcode %s.. Exiting", barcode);
+		MHVTL_LOG("Duplicate barcode %s.. Exiting", barcode);
 		exit(1);
 	}
 
@@ -490,6 +495,10 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 			barcode);
 		exit(-ENOMEM);
 	}
+
+	slot_layout = lu->lu_private;
+	media_list_head = &slot_layout->media_list;
+
 	memset(m, 0, sizeof(struct m_info));
 
 	snprintf((char *)m->barcode, 10, "%-10s", barcode);
@@ -500,6 +509,7 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 	else
 		m->internal_status = 0;
 
+	list_add_tail(&m->siblings, media_list_head);
 	return m;
 }
 
