@@ -71,7 +71,7 @@ install:
 	$(MAKE) usr
 	$(MAKE) -C usr install $(PREFIX) $(DESTDIR)
 	$(MAKE) scripts
-	$(MAKE) -C scripts install
+	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
 	$(MAKE) etc
 	$(MAKE) -C etc install USR=$(USR)
 

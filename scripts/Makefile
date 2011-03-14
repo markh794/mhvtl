@@ -1,5 +1,6 @@
 
 RCFILE = update_device.conf
+PREFIX ?= /usr
 USR ?= vtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 
@@ -20,5 +21,5 @@ clean:
 
 .PHONY: install
 install:
-	install -m 700 $(RCFILE) $(DESTDIR)/usr/bin/
+	install -m 700 $(RCFILE) $(DESTDIR)$(PREFIX)/bin/
 
