@@ -67,7 +67,7 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 tapeexerciser:	tapeexerciser.c
 	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
 
-dump_messageQ:	dump_messageQ.o
+dump_messageQ:	libvtlscsi.so dump_messageQ.o
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.o -L. -lvtlscsi
 
 vtlcmd:	vtlcmd.o
