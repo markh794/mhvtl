@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 13
-Source: mhvtl-2011-01-11.tgz
+Release: 14
+Source: mhvtl-2011-03-17.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -161,6 +161,16 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Thu Mar 17 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.14
+- Bug fixes:
+  - kernel module build fixes for Linux kernel 2.6.37 and greater
+- Improvements
+  - Add STK T10000C media/drive support
+  - Always log 'fatal' errors
+  - Cleanup to mhvtl.spec
+  - Catch signals to prevent daemon terminating early.
+
 * Thu Jan 11 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.13
 - Bug fixes:
