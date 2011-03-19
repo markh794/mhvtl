@@ -107,12 +107,6 @@ if [ "X"$r == "X" ]; then
 	/sbin/chkconfig mhvtl on
 fi
 
-if [ ! -d /opt/vtl ]; then
-	mkdir /opt/vtl
-fi
-chown vtl:vtl /opt/vtl
-chmod 770 /opt/vtl
-
 %preun
 if [ -x /etc/init.d/mhvtl ]; then
  /etc/init.d/mhvtl shutdown
