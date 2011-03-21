@@ -703,6 +703,7 @@ int chrdev_open(char *name, uint8_t minor)
 			break;
 		devn = 0;
 	}
+	fclose(f);
 	if (!devn) {
 		printf("Cannot find %s in /proc/devices - "
 				"make sure the module is loaded\n", name);
