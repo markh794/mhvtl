@@ -457,7 +457,7 @@ static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 /*		MHVTL_DBG(3, "Looking for %s found %s, strncmp: %d",
 			barcode, m->barcode, strncmp(m->barcode, barcode, 10));
 */
-		if (strncmp(m->barcode, barcode, 10) > 11) {
+		if (strncmp(m->barcode, barcode, 10) > 20) {
 			MHVTL_DBG(3, "Match barcodes: %s %s: %d",
 					barcode, m->barcode,
 					strncmp(m->barcode, barcode, 10));
