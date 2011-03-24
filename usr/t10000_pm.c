@@ -231,6 +231,8 @@ static int encr_capabilities_t10k(struct scsi_cmd *cmd)
 	return 44;
 }
 
+static char *pm_name_t10k = "T10000";
+
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk_t10k,
 	.update_encryption_mode	= update_t10k_encryption_mode,
@@ -350,6 +352,7 @@ void init_t10k_ssc(struct lu_phy_attr *lu)
 {
 	MHVTL_DBG(3, "*** Trace ***");
 
+	ssc_pm.name = pm_name_t10k;
 	ssc_pm.drive_native_density = medium_density_code_10kA;
 	ssc_pm.media_capabilities = t10kA_media_handling;
 	personality_module_register(&ssc_pm);

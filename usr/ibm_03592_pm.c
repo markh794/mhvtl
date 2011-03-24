@@ -291,6 +291,10 @@ static void init_3592_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
 
+static char *pm_name_j1a = "03592J1A";
+static char *pm_name_e05 = "03592E05";
+static char *pm_name_e06 = "03592E06";
+
 static struct ssc_personality_template ssc_pm = {
 	.drive_native_density	= medium_density_code_e06,
 	.valid_encryption_blk	= valid_encryption_blk,
@@ -308,6 +312,7 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	init_3592_inquiry(lu);
+	ssc_pm.name = pm_name_j1a;
 	ssc_pm.media_capabilities = j1a_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_j1a;
 	personality_module_register(&ssc_pm);
@@ -319,6 +324,7 @@ void init_3592_E05(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	init_3592_inquiry(lu);
+	ssc_pm.name = pm_name_e05;
 	ssc_pm.media_capabilities = e05_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e05;
 	personality_module_register(&ssc_pm);
@@ -330,6 +336,7 @@ void init_3592_E06(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	init_3592_inquiry(lu);
+	ssc_pm.name = pm_name_e06;
 	ssc_pm.media_capabilities = e06_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e06;
 	personality_module_register(&ssc_pm);

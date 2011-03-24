@@ -2623,7 +2623,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 
 void personality_module_register(struct ssc_personality_template *pm)
 {
-	MHVTL_DBG(3, "*** Trace.. ***");
+	MHVTL_DBG(2, "%s", pm->name);
 	lu_ssc.pm = pm;
 }
 

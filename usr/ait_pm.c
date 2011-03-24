@@ -214,6 +214,12 @@ static void init_ait_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update = update_vpd_c1;
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
+
+static char *name_ait_1 = "AIT";
+static char *name_ait_2 = "AIT-2";
+static char *name_ait_3 = "AIT-3";
+static char *name_ait_4 = "AIT-4";
+
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk,
 	.update_encryption_mode	= update_ait_encryption_mode,
@@ -227,6 +233,7 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ait_inquiry(lu);
+	ssc_pm.name = name_ait_1;
 	ssc_pm.drive_native_density = medium_density_code_ait1;
 	ssc_pm.media_capabilities = ait1_media_handling;
 	personality_module_register(&ssc_pm);
@@ -239,6 +246,7 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ait_inquiry(lu);
+	ssc_pm.name = name_ait_2;
 	ssc_pm.drive_native_density = medium_density_code_ait2;
 	ssc_pm.media_capabilities = ait2_media_handling;
 	personality_module_register(&ssc_pm);
@@ -251,6 +259,7 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ait_inquiry(lu);
+	ssc_pm.name = name_ait_3;
 	ssc_pm.drive_native_density = medium_density_code_ait3;
 	ssc_pm.media_capabilities = ait3_media_handling;
 	personality_module_register(&ssc_pm);
@@ -263,6 +272,7 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ait_inquiry(lu);
+	ssc_pm.name = name_ait_4;
 	ssc_pm.drive_native_density = medium_density_code_ait4;
 	ssc_pm.media_capabilities = ait4_media_handling;
 	ssc_pm.clear_WORM	= clear_ait_WORM,

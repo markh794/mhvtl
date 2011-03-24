@@ -267,6 +267,12 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
 
+static char *pm_name_lto1 = "LTO-1";
+static char *pm_name_lto2 = "LTO-2";
+static char *pm_name_lto3 = "LTO-3";
+static char *pm_name_lto4 = "LTO-4";
+static char *pm_name_lto5 = "LTO-5";
+
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk, /* default in ssc.c */
 	.check_restrictions	= check_restrictions, /* default in ssc.c */
@@ -290,6 +296,7 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ult_inquiry(lu);
+	ssc_pm.name = pm_name_lto1;
 	ssc_pm.drive_native_density = medium_density_code_lto1;
 	ssc_pm.media_capabilities = ult1_media_handling;
 	personality_module_register(&ssc_pm);
@@ -303,6 +310,7 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ult_inquiry(lu);
+	ssc_pm.name = pm_name_lto2;
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult2_media_handling;
 	personality_module_register(&ssc_pm);
@@ -316,6 +324,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ult_inquiry(lu);
+	ssc_pm.name = pm_name_lto3;
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult3_media_handling;
 	ssc_pm.clear_WORM	= clear_ult_WORM;
@@ -331,6 +340,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ult_inquiry(lu);
+	ult4_ssc_pm.name = pm_name_lto4;
 	ult4_ssc_pm.drive_native_density = medium_density_code_lto4;
 	ult4_ssc_pm.media_capabilities = ult4_media_handling;
 	personality_module_register(&ult4_ssc_pm);
@@ -346,8 +356,9 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
 	init_ult_inquiry(lu);
-	ssc_pm.drive_native_density = medium_density_code_lto5;
-	ssc_pm.media_capabilities = ult5_media_handling;
+	ult4_ssc_pm.name = pm_name_lto5;
+	ult4_ssc_pm.drive_native_density = medium_density_code_lto5;
+	ult4_ssc_pm.media_capabilities = ult5_media_handling;
 	personality_module_register(&ult4_ssc_pm);
 	init_default_ssc_mode_pages(sm);
 	init_ult_encr_mode_pages(lu, sm);

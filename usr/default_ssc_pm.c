@@ -140,6 +140,8 @@ static void init_default_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
 
+static char *pm_name = "default emulation";
+
 static struct ssc_personality_template ssc_pm = {
 	.drive_native_density	= medium_density_code_unknown,
 	.media_capabilities	= default_media_handling,
@@ -157,6 +159,7 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	init_default_inquiry(lu);
+	ssc_pm.name = pm_name;
 	ssc_pm.drive_native_density = 0x40;
 	ssc_pm.media_capabilities = NULL;
 	personality_module_register(&ssc_pm);
