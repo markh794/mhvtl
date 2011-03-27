@@ -1936,7 +1936,7 @@ void init_default_ssc_mode_pages(struct mode *m)
 	mp = alloc_mode_page(2, m, 16);
 	if (mp) {
 		mp->pcodePointer[2] = 50; /* Buffer full ratio */
-		mp->pcodePointer[3] = 50; /* Buffer enpty ratio */
+		mp->pcodePointer[3] = 50; /* Buffer empty ratio */
 		mp->pcodePointer[10] = 4;
 	}
 
