@@ -160,7 +160,7 @@ void init_default_ssc(struct lu_phy_attr *lu)
 
 	init_default_inquiry(lu);
 	ssc_pm.name = pm_name;
-	ssc_pm.drive_native_density = 0x40;
+	ssc_pm.drive_native_density = medium_density_code_lto1;
 	ssc_pm.media_capabilities = NULL;
 	personality_module_register(&ssc_pm);
 	init_default_ssc_mode_pages(sm);
