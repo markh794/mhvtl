@@ -67,14 +67,14 @@ static struct mode sm[] = {
 static struct media_handling default_media_handling[] = {
 	};
 
-static uint8_t clear_deflt_comp(void)
+static uint8_t clear_default_comp(void)
 {
 	MHVTL_DBG(3, "*** Trace ***");
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression(sm);
 }
 
-static uint8_t set_deflt_comp(int lvl)
+static uint8_t set_default_comp(int lvl)
 {
 	MHVTL_DBG(3, "*** Trace ***");
 	/* default set_compression is in libvtlscsi */
@@ -88,14 +88,14 @@ static uint8_t update_default_encryption_mode(void *p, int value)
 	return SAM_STAT_GOOD;
 }
 
-static uint8_t set_deflt_WORM(void)
+static uint8_t set_default_WORM(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 	/* default set_compression is in libvtlscsi */
 	return set_WORM(sm);
 }
 
-static uint8_t clear_deflt_WORM(void)
+static uint8_t clear_default_WORM(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 	/* default set_compression is in libvtlscsi */
@@ -148,10 +148,10 @@ static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk,
 	.update_encryption_mode	= update_default_encryption_mode,
 	.check_restrictions	= check_restrictions,
-	.clear_compression	= clear_deflt_comp,
-	.set_compression	= set_deflt_comp,
-	.clear_WORM		= clear_deflt_WORM,
-	.set_WORM		= set_deflt_WORM,
+	.clear_compression	= clear_default_comp,
+	.set_compression	= set_default_comp,
+	.clear_WORM		= clear_default_WORM,
+	.set_WORM		= set_default_WORM,
 };
 
 void init_default_ssc(struct lu_phy_attr *lu)
