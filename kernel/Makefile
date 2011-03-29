@@ -62,4 +62,4 @@ install-bkup:
 	cp mhvtl.ko ~/mhvtl-`uname -r`_`uname -m`.ko
 
 tags:
-	etags *.c *.h
+	etags -R *

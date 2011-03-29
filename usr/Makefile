@@ -115,7 +115,7 @@ clean:
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
 
 tags:
-	etags *.c *.h ../kernel/*.h
+	etags -R * ../kernel/*.h
 
 distclean:
 	rm -f vtltape.o vtltape \
