@@ -693,10 +693,10 @@ static void init_mode_pages(struct mode *m)
 		mp->pcodePointer[6] = 0x0f;
 		mp->pcodePointer[7] = 0x0f;
 		/* [8-11] -> reserved */
-		mp->pcodePointer[12] = 0x0f;
-		mp->pcodePointer[13] = 0x0f;
-		mp->pcodePointer[14] = 0x0f;
-		mp->pcodePointer[15] = 0x0f;
+		mp->pcodePointer[12] = 0x00;
+		mp->pcodePointer[13] = 0x00;
+		mp->pcodePointer[14] = 0x00;
+		mp->pcodePointer[15] = 0x00;
 		/* [16-19] -> reserved */
 	}
 
