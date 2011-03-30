@@ -668,7 +668,7 @@ int device_type_register(struct lu_phy_attr *lu, struct device_type_template *t)
 	return 0;
 }
 
-uint8_t set_compression(struct mode *sm, int lvl)
+uint8_t set_compression_mode_pg(struct mode *sm, int lvl)
 {
 	struct mode *m;
 	uint8_t *p;
@@ -694,7 +694,7 @@ uint8_t set_compression(struct mode *sm, int lvl)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t clear_compression(struct mode *sm)
+uint8_t clear_compression_mode_pg(struct mode *sm)
 {
 	struct mode *m;
 	uint8_t *p;

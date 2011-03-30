@@ -707,8 +707,8 @@ int add_pcode(struct mode *m, uint8_t *p);
 
 uint8_t clear_WORM(struct mode *sm);
 uint8_t set_WORM(struct mode *sm);
-uint8_t clear_compression(struct mode *sm);
-uint8_t set_compression(struct mode *sm, int lvl);
+uint8_t clear_compression_mode_pg(struct mode *sm);
+uint8_t set_compression_mode_pg(struct mode *sm, int lvl);
 
 void rmnl(char *s, unsigned char c, int len);
 

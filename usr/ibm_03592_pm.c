@@ -182,14 +182,14 @@ static uint8_t clear_3592_comp(void)
 {
 	MHVTL_DBG(3, "*** Trace ***");
 	/* default clear_compression is in libvtlscsi */
-	return clear_compression(sm);
+	return clear_compression_mode_pg(sm);
 }
 
 static uint8_t set_3592_comp(int lvl)
 {
 	MHVTL_DBG(3, "*** Trace ***");
 	/* default set_compression is in libvtlscsi */
-	return set_compression(sm, lvl);
+	return set_compression_mode_pg(sm, lvl);
 }
 
 static uint8_t update_3592_encryption_mode(void *p, int value)
@@ -202,14 +202,12 @@ static uint8_t update_3592_encryption_mode(void *p, int value)
 static uint8_t set_3592_WORM(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
-	/* default set_compression is in libvtlscsi */
 	return set_WORM(sm);
 }
 
 static uint8_t clear_3592_WORM(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
-	/* default set_compression is in libvtlscsi */
 	return clear_WORM(sm);
 }
 

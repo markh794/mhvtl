@@ -144,27 +144,25 @@ static uint8_t clear_ult_compression(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 	/* default clear_compression is in libvtlscsi */
-	return clear_compression(sm);
+	return clear_compression_mode_pg(sm);
 }
 
 static uint8_t set_ult_compression(int lvl)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 	/* default set_compression is in libvtlscsi */
-	return set_compression(sm, lvl);
+	return set_compression_mode_pg(sm, lvl);
 }
 
 static uint8_t set_ult_WORM(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
-	/* default set_compression is in libvtlscsi */
 	return set_WORM(sm);
 }
 
 static uint8_t clear_ult_WORM(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
-	/* default set_compression is in libvtlscsi */
 	return clear_WORM(sm);
 }
 
