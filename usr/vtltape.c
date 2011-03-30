@@ -2175,11 +2175,12 @@ static void config_lu(struct lu_phy_attr *lu)
 		MHVTL_DBG(1, "T10000-A drive");
 	}
 
-	/* If a personality module init has been called,
-	   lu_priv->pm will be valid
+	/* Still no personality module ?
+		Better set the default one...
 	 */
 	if (!lu_priv->pm)
 		init_default_ssc(lu);
+
 	if (lu_ssc.configCompressionFactor) {
 		if (lu_ssc.pm->set_compression)
 			lu_ssc.pm->set_compression(lu_ssc.configCompressionFactor);
