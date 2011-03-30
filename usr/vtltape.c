@@ -2181,13 +2181,10 @@ static void config_lu(struct lu_phy_attr *lu)
 	if (!lu_priv->pm)
 		init_default_ssc(lu);
 
-	if (lu_ssc.configCompressionFactor) {
-		if (lu_ssc.pm->set_compression)
-			lu_ssc.pm->set_compression(lu_ssc.configCompressionFactor);
-	} else {
-		if (lu_ssc.pm->clear_compression)
-			lu_ssc.pm->clear_compression();
-	}
+	if (lu_ssc.configCompressionEnabled)
+		lu_ssc.pm->set_compression(lu_ssc.configCompressionFactor);
+	else
+		lu_ssc.pm->clear_compression();
 }
 
 int add_drive_media_list(struct list_head *supported_den_list,
@@ -2495,6 +2492,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			if (sscanf(b, " Compression: factor %d enabled %d",
 							&i, &j)) {
 				lu_ssc.configCompressionFactor = i;
+				lu_ssc.configCompressionEnabled = j;
 			} else if (sscanf(b, " Compression: %d", &i)) {
 				if ((i > Z_NO_COMPRESSION)
 						&& (i <= Z_BEST_COMPRESSION))
