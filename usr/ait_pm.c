@@ -156,14 +156,14 @@ static void init_ait4_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 		mp->pcodePointer[4] = 0x40;
 }
 
-static uint8_t clear_ait4_compression(void)
+static uint8_t clear_ait_compression(void)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression(sm);
 }
 
-static uint8_t set_ait4_compression(int lvl)
+static uint8_t set_ait_compression(int lvl)
 {
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 	/* default set_compression is in libvtlscsi */
@@ -224,8 +224,8 @@ static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk,
 	.update_encryption_mode	= update_ait_encryption_mode,
 	.check_restrictions	= check_restrictions,
-	.clear_compression	= clear_ait4_compression,
-	.set_compression	= set_ait4_compression,
+	.clear_compression	= clear_ait_compression,
+	.set_compression	= set_ait_compression,
 };
 
 void init_ait1_ssc(struct lu_phy_attr *lu)
