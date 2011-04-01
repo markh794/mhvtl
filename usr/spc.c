@@ -85,9 +85,9 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 
 		data[0] = lu->ptype;
 		data[1] = (lu->removable) ? 0x80 : 0;
-		data[2] = 5;	/* SPC-3 */
-		data[3] = 0x42;
-		data[7] = 0x02;
+		data[2] = 5;	/* ANSI-Approved Version -> SPC-3 */
+		data[3] = 0x02; /* Response Data Format (2) */
+		data[7] = 0x00;
 
 		memset(data + 8, 0x20, 28);
 		memcpy(data + 8,  &lu->vendor_id, VENDOR_ID_LEN);
