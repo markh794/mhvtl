@@ -2095,84 +2095,89 @@ static void config_lu(struct lu_phy_attr *lu)
 		MHVTL_DBG(2, "Ultrium drive: %s", dup_product_id);
 
 		if (!strncasecmp(dup_product_id, "-TD1", 4)) {
+			MHVTL_DBG(1, "LTO 1 drive");
 			lu->drive_type = drive_LTO1;
 			init_ult3580_td1(lu);
-			MHVTL_DBG(1, "LTO 1 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD2", 4)) {
+			MHVTL_DBG(1, "LTO 2 drive");
 			lu->drive_type = drive_LTO2;
 			init_ult3580_td2(lu);
-			MHVTL_DBG(1, "LTO 2 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD3", 4)) {
+			MHVTL_DBG(1, "LTO 3 drive");
 			lu->drive_type = drive_LTO3;
 			init_ult3580_td3(lu);
-			MHVTL_DBG(1, "LTO 3 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD4", 4)) {
+			MHVTL_DBG(1, "LTO 4 drive");
 			lu->drive_type = drive_LTO4;
 			init_ult3580_td4(lu);
-			MHVTL_DBG(1, "LTO 4 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD5", 4)) {
+			MHVTL_DBG(1, "LTO 5 drive");
 			lu->drive_type = drive_LTO5;
 			init_ult3580_td5(lu);
-			MHVTL_DBG(1, "LTO 5 drive");
 		} else if (!strncasecmp(dup_product_id, "-TD6", 4)) {
+			MHVTL_DBG(1, "LTO 6 drive");
 			lu->drive_type = drive_LTO6;
 			init_ult3580_td5(lu);
-			MHVTL_DBG(1, "LTO 6 drive");
 		} else if (!strncasecmp(dup_product_id, "-SCSI", 5)) {
 			/* HP Ultrium 4-SCSI */
 			dup_product_id--;
 			if (*dup_product_id == '1') {
-				lu->drive_type = drive_LTO1;
 				MHVTL_DBG(1, "HP LTO 1 drive");
+				lu->drive_type = drive_LTO1;
+				init_hp_ult_1(lu);
 			} else if (*dup_product_id == '2') {
-				lu->drive_type = drive_LTO2;
 				MHVTL_DBG(1, "HP LTO 2 drive");
+				lu->drive_type = drive_LTO2;
+				init_hp_ult_2(lu);
 			} else if (*dup_product_id == '3') {
-				lu->drive_type = drive_LTO3;
 				MHVTL_DBG(1, "HP LTO 3 drive");
+				lu->drive_type = drive_LTO3;
+				init_hp_ult_3(lu);
 			} else if (*dup_product_id == '4') {
-				lu->drive_type = drive_LTO4;
 				MHVTL_DBG(1, "HP LTO 4 drive");
+				lu->drive_type = drive_LTO4;
+				init_hp_ult_4(lu);
 			} else if (*dup_product_id == '5') {
-				lu->drive_type = drive_LTO5;
 				MHVTL_DBG(1, "HP LTO 5 drive");
+				lu->drive_type = drive_LTO5;
+				init_hp_ult_5(lu);
 			}
 		} else {
 			MHVTL_DBG(1, "Unknown Ultrium drive");
 		}
 	} else if (!strncasecmp(lu->product_id, "SDLT600", 7)) {
+		MHVTL_DBG(1, "SDLT600 drive");
 		lu_ssc.capacity_unit = 1L << 20; /* Capacity units in MBytes */
 		lu->drive_type = drive_SDLT600;
-		MHVTL_DBG(1, "SDLT600 drive");
 	} else if (!strncasecmp(lu->product_id, "SDX-900", 7)) {
+		MHVTL_DBG(1, "AIT4 drive");
 		lu_ssc.capacity_unit = 1L << 10; /* Capacity units in KBytes */
 		lu->drive_type = drive_AIT4;
 		init_ait4_ssc(lu);
-		MHVTL_DBG(1, "AIT4 drive");
 	} else if (!strncasecmp(lu->product_id, "03592J1A", 8)) {
+		MHVTL_DBG(1, "3592_J1A drive");
 		lu->drive_type = drive_3592_J1A;
 		init_3592_j1a(lu);
-		MHVTL_DBG(1, "3592_J1A drive");
 	} else if (!strncasecmp(lu->product_id, "03592E05", 8)) {
+		MHVTL_DBG(1, "3952 E05 drive");
 		lu->drive_type = drive_3592_E05;
 		init_3592_E05(lu);
-		MHVTL_DBG(1, "3952 E05 drive");
 	} else if (!strncasecmp(lu->product_id, "03592E06", 8)) {
+		MHVTL_DBG(1, "3592 E06 drive");
 		lu->drive_type = drive_3592_E06;
 		init_3592_E06(lu);
-		MHVTL_DBG(1, "3592 E06 drive");
 	} else if (!strncasecmp(lu->product_id, "T10000C", 7)) {
+		MHVTL_DBG(1, "T10000-C drive");
 		lu->drive_type = drive_10K_C;
 		init_t10k_ssc(lu);
-		MHVTL_DBG(1, "T10000-C drive");
 	} else if (!strncasecmp(lu->product_id, "T10000B", 7)) {
+		MHVTL_DBG(1, "T10000-B drive");
 		lu->drive_type = drive_10K_B;
 		init_t10k_ssc(lu);
-		MHVTL_DBG(1, "T10000-B drive");
 	} else if (!strncasecmp(lu->product_id, "T10000", 6)) {
+		MHVTL_DBG(1, "T10000-A drive");
 		lu->drive_type = drive_10K_A;
 		init_t10k_ssc(lu);
-		MHVTL_DBG(1, "T10000-A drive");
 	}
 
 	/* Still no personality module ?

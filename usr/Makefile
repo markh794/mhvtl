@@ -89,12 +89,14 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		libvtlscsi.so ssc.o default_ssc_pm.o \
 		ult3580_pm.o \
+		hp_ultrium_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o vtlcart.o ssc.o \
 		default_ssc_pm.o \
 		ult3580_pm.o \
+		hp_ultrium_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		-lz -L. -lvtlscsi
 
@@ -110,6 +112,7 @@ clean:
 		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
 		default_ssc_pm.o \
 		ult3580_pm.o \
+		hp_ultrium_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		dump_messageQ dump_tape make_vtl_media \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
@@ -129,6 +132,7 @@ distclean:
 	smc.o ssc.o \
 	default_ssc_pm.o \
 	ult3580_pm.o \
+	hp_ultrium_pm.o \
 	ait_pm.o t10000_pm.o ibm_03592_pm.o \
 	z.o z \
 	TAGS \
