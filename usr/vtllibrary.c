@@ -1395,6 +1395,7 @@ int main(int argc, char *argv[])
 	}
 
 	new_action.sa_handler = caught_signal;
+	new_action.sa_flags = 0;
 	sigemptyset(&new_action.sa_mask);
 	sigaction(SIGALRM, &new_action, &old_action);
 	sigaction(SIGHUP, &new_action, &old_action);
