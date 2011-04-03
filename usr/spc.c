@@ -637,7 +637,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 
 uint8_t spc_release(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "RESERVE UNIT (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "RELEASE UNIT (%ld) **", (long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
 
