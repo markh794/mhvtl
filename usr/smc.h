@@ -26,8 +26,8 @@
 #define START_STORAGE	0x0400
 
 uint8_t smc_allow_removal(struct scsi_cmd *cmd);
-uint8_t smc_initialize_element(struct scsi_cmd *cmd);
-uint8_t smc_initialize_element_range(struct scsi_cmd *cmd);
+uint8_t smc_initialize_element_status(struct scsi_cmd *cmd);
+uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd);
 uint8_t smc_move_medium(struct scsi_cmd *cmd);
 uint8_t smc_read_element_status(struct scsi_cmd *cmd);
 uint8_t smc_rezero(struct scsi_cmd *cmd);

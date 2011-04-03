@@ -182,7 +182,7 @@ struct device_type_template smc_template = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
-		{smc_initialize_element,},
+		{smc_initialize_element_status,},
 
 		{spc_illegal_op,},
 		{spc_illegal_op,},
@@ -302,7 +302,7 @@ struct device_type_template smc_template = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
-		{smc_initialize_element_range,},
+		{smc_initialize_element_status_with_range,},
 
 		{spc_illegal_op,},
 		{spc_illegal_op,},

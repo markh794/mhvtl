@@ -51,7 +51,7 @@ uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t smc_initialize_element(struct scsi_cmd *cmd)
+uint8_t smc_initialize_element_status(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
@@ -65,7 +65,7 @@ uint8_t smc_initialize_element(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t smc_initialize_element_range(struct scsi_cmd *cmd)
+uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
