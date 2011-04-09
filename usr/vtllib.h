@@ -575,7 +575,6 @@ struct device_type_template {
 struct lu_phy_attr {
 	char ptype;
 	char removable;
-	uint8_t drive_type;
 	char online;
 	char vendor_id[VENDOR_ID_LEN + 1];
 	char product_id[PRODUCT_ID_LEN + 1];

@@ -21,6 +21,7 @@ struct media_handling {
 struct ssc_personality_template {
 	char *name;
 	int drive_native_density;
+	int drive_type;
 	struct media_handling *media_capabilities;
 	uint8_t (*valid_encryption_blk)(struct scsi_cmd *cmd);
 	uint8_t (*valid_encryption_media)(struct scsi_cmd *cmd);

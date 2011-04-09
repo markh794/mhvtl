@@ -268,51 +268,6 @@ mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_vali
 	put_unaligned_be32(difference, &sense[3]);
 }
 
-static const char *drive_name(int dt)
-{
-	static const struct {
-		int drv_type;
-		char *desc;
-	} drive_type_list[] = {
-		{ drive_undefined, "Undefined" },
-		{ drive_LTO1, "LTO1" },
-		{ drive_LTO2, "LTO2" },
-		{ drive_LTO3, "LTO3" },
-		{ drive_LTO4, "LTO4" },
-		{ drive_LTO5, "LTO5" },
-		{ drive_LTO6, "LTO6" },
-		{ drive_3592_J1A, "3592 J1A" },
-		{ drive_3592_E05, "3592 E05" },
-		{ drive_3592_E06, "3592 E06" },
-		{ drive_DDS1, "DDS1" },
-		{ drive_DDS2, "DDS2" },
-		{ drive_DDS3, "DDS3" },
-		{ drive_DDS4, "DDS4" },
-		{ drive_AIT4, "AIT1" },
-		{ drive_AIT4, "AIT2" },
-		{ drive_AIT4, "AIT3" },
-		{ drive_AIT4, "AIT4" },
-		{ drive_10K_A, "T10000A" },
-		{ drive_10K_B, "T10000B" },
-		{ drive_10K_C, "T10000C" },
-		{ drive_DLT7K, "DLT7000" },
-		{ drive_DLT8K, "DLT8000" },
-		{ drive_SDLT, "SDLT1" },
-		{ drive_SDLT220, "SDLT220" },
-		{ drive_SDLT320, "SDLT320" },
-		{ drive_SDLT600, "SDLT600" },
-		{ drive_SDLT_S4, "SDLT-S4" },
-		{ drive_UNKNOWN, "UNKNOWN" }, /* Always last */
-	};
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(drive_type_list); i++)
-		if (drive_type_list[i].drv_type == dt)
-			return drive_type_list[i].desc;
-
-	return "(UNKNOWN drive)";
-}
-
 static const char *lookup_density_name(int den)
 {
 	static const struct {
@@ -1718,7 +1673,7 @@ mismatchmedia:
 	MHVTL_DBG(1, "Tape %s failed to load with type '%s' in drive type '%s'",
 			PCL,
 			lookup_media_type(mam.MediaType),
-			drive_name(lunit.drive_type));
+			lu_ssc.pm->name);
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 	return TAPE_UNLOADED;
 }
@@ -2051,10 +2006,8 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
  */
 static void config_lu(struct lu_phy_attr *lu)
 {
-	lu->drive_type = drive_UNKNOWN;
 	struct priv_lu_ssc *lu_priv = lu->lu_private;
 
-	/* Define lu->drive_type first */
 	if (!strncasecmp(lu->product_id, "ULT", 3)) {
 		char *dup_product_id;
 
@@ -2069,50 +2022,39 @@ static void config_lu(struct lu_phy_attr *lu)
 
 		if (!strncasecmp(dup_product_id, "-TD1", 4)) {
 			MHVTL_DBG(1, "LTO 1 drive");
-			lu->drive_type = drive_LTO1;
 			init_ult3580_td1(lu);
 		} else if (!strncasecmp(dup_product_id, "-TD2", 4)) {
 			MHVTL_DBG(1, "LTO 2 drive");
-			lu->drive_type = drive_LTO2;
 			init_ult3580_td2(lu);
 		} else if (!strncasecmp(dup_product_id, "-TD3", 4)) {
 			MHVTL_DBG(1, "LTO 3 drive");
-			lu->drive_type = drive_LTO3;
 			init_ult3580_td3(lu);
 		} else if (!strncasecmp(dup_product_id, "-TD4", 4)) {
 			MHVTL_DBG(1, "LTO 4 drive");
-			lu->drive_type = drive_LTO4;
 			init_ult3580_td4(lu);
 		} else if (!strncasecmp(dup_product_id, "-TD5", 4)) {
 			MHVTL_DBG(1, "LTO 5 drive");
-			lu->drive_type = drive_LTO5;
 			init_ult3580_td5(lu);
 		} else if (!strncasecmp(dup_product_id, "-TD6", 4)) {
 			MHVTL_DBG(1, "LTO 6 drive");
-			lu->drive_type = drive_LTO6;
 			init_ult3580_td5(lu);
 		} else if (!strncasecmp(dup_product_id, "-SCSI", 5)) {
 			/* HP Ultrium 4-SCSI */
 			dup_product_id--;
 			if (*dup_product_id == '1') {
 				MHVTL_DBG(1, "HP LTO 1 drive");
-				lu->drive_type = drive_LTO1;
 				init_hp_ult_1(lu);
 			} else if (*dup_product_id == '2') {
 				MHVTL_DBG(1, "HP LTO 2 drive");
-				lu->drive_type = drive_LTO2;
 				init_hp_ult_2(lu);
 			} else if (*dup_product_id == '3') {
 				MHVTL_DBG(1, "HP LTO 3 drive");
-				lu->drive_type = drive_LTO3;
 				init_hp_ult_3(lu);
 			} else if (*dup_product_id == '4') {
 				MHVTL_DBG(1, "HP LTO 4 drive");
-				lu->drive_type = drive_LTO4;
 				init_hp_ult_4(lu);
 			} else if (*dup_product_id == '5') {
 				MHVTL_DBG(1, "HP LTO 5 drive");
-				lu->drive_type = drive_LTO5;
 				init_hp_ult_5(lu);
 			}
 		} else {
@@ -2121,35 +2063,27 @@ static void config_lu(struct lu_phy_attr *lu)
 	} else if (!strncasecmp(lu->product_id, "SDLT600", 7)) {
 		MHVTL_DBG(1, "SDLT600 drive");
 		lu_ssc.capacity_unit = 1L << 20; /* Capacity units in MBytes */
-		lu->drive_type = drive_SDLT600;
 	} else if (!strncasecmp(lu->product_id, "SDX-900", 7)) {
 		MHVTL_DBG(1, "AIT4 drive");
 		lu_ssc.capacity_unit = 1L << 10; /* Capacity units in KBytes */
-		lu->drive_type = drive_AIT4;
 		init_ait4_ssc(lu);
 	} else if (!strncasecmp(lu->product_id, "03592J1A", 8)) {
 		MHVTL_DBG(1, "3592_J1A drive");
-		lu->drive_type = drive_3592_J1A;
 		init_3592_j1a(lu);
 	} else if (!strncasecmp(lu->product_id, "03592E05", 8)) {
 		MHVTL_DBG(1, "3952 E05 drive");
-		lu->drive_type = drive_3592_E05;
 		init_3592_E05(lu);
 	} else if (!strncasecmp(lu->product_id, "03592E06", 8)) {
 		MHVTL_DBG(1, "3592 E06 drive");
-		lu->drive_type = drive_3592_E06;
 		init_3592_E06(lu);
 	} else if (!strncasecmp(lu->product_id, "T10000C", 7)) {
 		MHVTL_DBG(1, "T10000-C drive");
-		lu->drive_type = drive_10K_C;
 		init_t10k_ssc(lu);
 	} else if (!strncasecmp(lu->product_id, "T10000B", 7)) {
 		MHVTL_DBG(1, "T10000-B drive");
-		lu->drive_type = drive_10K_B;
 		init_t10k_ssc(lu);
 	} else if (!strncasecmp(lu->product_id, "T10000", 6)) {
 		MHVTL_DBG(1, "T10000-A drive");
-		lu->drive_type = drive_10K_A;
 		init_t10k_ssc(lu);
 	}
 

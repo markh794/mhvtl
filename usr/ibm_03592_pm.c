@@ -122,7 +122,7 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 		 * an encryption key is in place. The drive doesn't
 		 * actually use the key, but sets the tape format
 		 */
-		if (lu->drive_type == drive_3592_E06) {
+		if (lu_priv->pm->drive_type == drive_3592_E06) {
 			if (lu_priv->ENCRYPT_MODE == 2) {
 				lu_priv->cryptop = NULL;
 				mam.Flags |= MAM_FLAGS_ENCRYPTION_FORMAT;
@@ -137,7 +137,7 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 		/* Extra check for 3592 to be sure the cartridge is
 		 * formatted for encryption
 		 */
-		if ((lu->drive_type == drive_3592_E06) &&
+		if ((lu_priv->pm->drive_type == drive_3592_E06) &&
 				lu_priv->ENCRYPT_MODE &&
 				!(mam.Flags & MAM_FLAGS_ENCRYPTION_FORMAT)) {
 			mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
@@ -149,7 +149,7 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		if (mam.MediumDensityCode != lu_priv->pm->drive_native_density) {
-			switch (lu->drive_type) {
+			switch (lu_priv->pm->drive_type) {
 			case drive_3592_E05:
 				if (mam.MediumDensityCode ==
 						medium_density_code_j1a)
@@ -323,6 +323,7 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_j1a;
+	ssc_pm.drive_type = drive_3592_J1A;
 	ssc_pm.media_capabilities = j1a_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_j1a;
 	personality_module_register(&ssc_pm);
@@ -335,6 +336,7 @@ void init_3592_E05(struct lu_phy_attr *lu)
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e05;
+	ssc_pm.drive_type = drive_3592_E05;
 	ssc_pm.media_capabilities = e05_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e05;
 	personality_module_register(&ssc_pm);
@@ -347,6 +349,7 @@ void init_3592_E06(struct lu_phy_attr *lu)
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e06;
+	ssc_pm.drive_type = drive_3592_E06;
 	ssc_pm.media_capabilities = e06_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e06;
 	personality_module_register(&ssc_pm);
