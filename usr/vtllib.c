@@ -627,20 +627,6 @@ void log_opcode(char *opcode, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 }
 
-#if !defined(ROS2)
-int ProcessSendDiagnostic(uint8_t *cdb, unsigned int sz, struct vtl_ds *dbuf_p)
-{
-	log_opcode("Send Diagnostics", cdb, dbuf_p);
-	return 0;
-}
-
-int ProcessReceiveDiagnostic(uint8_t *cdb, struct vtl_ds *dbuf_p)
-{
-	log_opcode("Receive Diagnostics", cdb, dbuf_p);
-	return 0;
-}
-#endif
-
 /*
  * Send a ping message to the queue & wait for a response...
  * If we get a response after 2 seconds, there must be another
