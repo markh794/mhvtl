@@ -289,6 +289,17 @@ static void init_3592_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
 
+static int e06_kad_validation(int encrypt_mode, int ukad, int akad)
+{
+	int count = FALSE;
+	if (ukad > 0 || akad > 12)
+		count = TRUE;
+	if (!encrypt_mode && (ukad || akad))
+		count = TRUE;
+
+	return count;
+}
+
 static char *pm_name_j1a = "03592J1A";
 static char *pm_name_e05 = "03592E05";
 static char *pm_name_e06 = "03592E06";
@@ -298,6 +309,7 @@ static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk,
 	.valid_encryption_media	= valid_encryption_media_E06,
 	.update_encryption_mode	= update_3592_encryption_mode,
+	.kad_validation		= e06_kad_validation,
 	.check_restrictions	= check_restrictions,
 	.clear_compression	= clear_3592_comp,
 	.set_compression	= set_3592_comp,

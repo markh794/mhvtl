@@ -138,6 +138,12 @@ static void init_default_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
 
+/* Dummy routine. Always return false */
+static int default_kad_validation(int mode, int ukad, int akad)
+{
+	return FALSE;
+}
+
 static char *pm_name = "default emulation";
 
 static struct ssc_personality_template ssc_pm = {
@@ -145,6 +151,7 @@ static struct ssc_personality_template ssc_pm = {
 	.media_capabilities	= default_media_handling,
 	.valid_encryption_blk	= valid_encryption_blk,
 	.update_encryption_mode	= update_default_encryption_mode,
+	.kad_validation		= default_kad_validation,
 	.check_restrictions	= check_restrictions,
 	.clear_compression	= clear_default_comp,
 	.set_compression	= set_default_comp,

@@ -265,6 +265,17 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
 
+static int hp_lto_kad_validation(int encrypt_mode, int ukad, int akad)
+{
+	int count = FALSE;
+	if (ukad > 32 || akad > 12)
+		count = TRUE;
+	if (!encrypt_mode && (ukad || akad))
+		count = TRUE;
+
+	return count;
+}
+
 static char *pm_name_lto1 = "HP LTO-1";
 static char *pm_name_lto2 = "HP LTO-2";
 static char *pm_name_lto3 = "HP LTO-3";
@@ -282,6 +293,7 @@ static struct ssc_personality_template ult4_ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk, /* default in ssc.c */
 	.update_encryption_mode	= update_ult_encryption_mode,
 	.encryption_capabilities = encr_capabilities_ult,
+	.kad_validation		= hp_lto_kad_validation,
 	.check_restrictions	= check_restrictions, /* default in ssc.c */
 	.clear_compression	= clear_ult_compression,
 	.set_compression	= set_ult_compression,

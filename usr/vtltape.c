@@ -1375,35 +1375,8 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 		}
 	}
 
-	count = FALSE;
-
-	switch (lunit.drive_type) {
-	case drive_10K_A:
-	case drive_10K_B:
-		if ((UKAD_LENGTH > 30) || (AKAD_LENGTH > 0))
-			count = TRUE;
-		/* This drive requires the KAD to decrypt */
-		if (UKAD_LENGTH == 0)
-			count = TRUE;
-		break;
-	case drive_3592_E06:
-		if ((UKAD_LENGTH > 0) || (AKAD_LENGTH > 12))
-			count = TRUE;
-		/* This drive will not accept a KAD if not encrypting */
-		if (!lu_ssc.ENCRYPT_MODE && (UKAD_LENGTH || AKAD_LENGTH))
-			count = TRUE;
-		break;
-	case drive_LTO4:
-	case drive_LTO5:
-		if ((UKAD_LENGTH > 32) || (AKAD_LENGTH > 12))
-			count = TRUE;
-		/* This drive will not accept a KAD if not encrypting */
-		if (!lu_ssc.ENCRYPT_MODE && (UKAD_LENGTH || AKAD_LENGTH))
-			count = TRUE;
-		break;
-	default:
-		break;
-	}
+	count = lu_priv->pm->kad_validation(lu_ssc.ENCRYPT_MODE,
+						UKAD_LENGTH, AKAD_LENGTH);
 
 	/* For some reason, this command needs to be failed */
 	if (count) {

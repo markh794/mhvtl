@@ -229,12 +229,21 @@ static int encr_capabilities_t10k(struct scsi_cmd *cmd)
 	return 44;
 }
 
+static int t10k_kad_validation(int encrypt_mode, int ukad, int akad)
+{
+	if (ukad > 30 || akad > 0)
+		return TRUE;
+	return FALSE;
+
+}
+
 static char *pm_name_t10k = "T10000";
 
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk_t10k,
 	.update_encryption_mode	= update_t10k_encryption_mode,
 	.encryption_capabilities = encr_capabilities_t10k,
+	.kad_validation		= t10k_kad_validation,
 	.check_restrictions	= check_restrictions,
 	.clear_compression	= clear_t10k_comp,
 	.set_compression	= set_t10k_comp,

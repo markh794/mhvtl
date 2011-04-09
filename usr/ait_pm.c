@@ -215,6 +215,12 @@ static void init_ait_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg]->vpd_update(lu, "Security");
 }
 
+/* Dummy routine. Always return false */
+static int ait_kad_validation(int mode, int ukad, int akad)
+{
+	return FALSE;
+}
+
 static char *name_ait_1 = "AIT";
 static char *name_ait_2 = "AIT-2";
 static char *name_ait_3 = "AIT-3";
@@ -223,6 +229,7 @@ static char *name_ait_4 = "AIT-4";
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk,
 	.update_encryption_mode	= update_ait_encryption_mode,
+	.kad_validation		= ait_kad_validation,
 	.check_restrictions	= check_restrictions,
 	.clear_compression	= clear_ait_compression,
 	.set_compression	= set_ait_compression,

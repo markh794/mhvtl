@@ -25,6 +25,7 @@ struct ssc_personality_template {
 	uint8_t (*valid_encryption_blk)(struct scsi_cmd *cmd);
 	uint8_t (*valid_encryption_media)(struct scsi_cmd *cmd);
 	int (*encryption_capabilities)(struct scsi_cmd *cmd);
+	int (*kad_validation)(int encrypt_mode, int akad, int ukad);
 	uint8_t (*update_encryption_mode)(void *p, int mode);
 	uint8_t (*check_restrictions)(struct scsi_cmd *cmd);
 	uint8_t (*clear_compression)(void);
