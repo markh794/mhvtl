@@ -71,6 +71,9 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd);
 uint8_t ssc_write_attributes(struct scsi_cmd *cmd);
 uint8_t ssc_write_filemarks(struct scsi_cmd *cmd);
 
+void init_ait1_ssc(struct lu_phy_attr *lu);
+void init_ait2_ssc(struct lu_phy_attr *lu);
+void init_ait3_ssc(struct lu_phy_attr *lu);
 void init_ait4_ssc(struct lu_phy_attr *lu);
 void init_default_ssc(struct lu_phy_attr *lu);
 void init_t10k_ssc(struct lu_phy_attr *lu);

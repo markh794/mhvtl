@@ -243,6 +243,37 @@ static struct TapeCapacity TapeCapacity = {
 	{ 0x00, 0x04, 0xc0, 0x04, }, 0x00, /* Alt. partition max cap */
 	};
 
+static struct tape_drives_table {
+	char *name;
+	void (*init)(struct lu_phy_attr *);
+} tape_drives[] = {
+	{ "ULT3580-TD1     ", init_ult3580_td1 },
+	{ "ULT3580-TD2     ", init_ult3580_td2 },
+	{ "ULT3580-TD3     ", init_ult3580_td3 },
+	{ "ULT3580-TD4     ", init_ult3580_td4 },
+	{ "ULT3580-TD5     ", init_ult3580_td5 },
+	{ "Ultrium 1-SCSI  ", init_hp_ult_1 },
+	{ "Ultrium 2-SCSI  ", init_hp_ult_2 },
+	{ "Ultrium 3-SCSI  ", init_hp_ult_3 },
+	{ "Ultrium 4-SCSI  ", init_hp_ult_4 },
+	{ "Ultrium 5-SCSI  ", init_hp_ult_5 },
+	{ "SDX-300C        ", init_ait1_ssc },
+	{ "SDX-500C        ", init_ait2_ssc },
+	{ "SDX-500V        ", init_ait2_ssc },
+	{ "SDX-700C        ", init_ait3_ssc },
+	{ "SDX-700V        ", init_ait3_ssc },
+	{ "SDX-900V        ", init_ait4_ssc },
+	{ "03592J1A        ", init_3592_j1a },
+	{ "03592E05        ", init_3592_E05 },
+	{ "03592E06        ", init_3592_E06 },
+	{ "T10000C         ", init_t10k_ssc },
+	{ "T10000B         ", init_t10k_ssc },
+	{ "T10000          ", init_t10k_ssc },
+	{ NULL, NULL},
+};
+
+static void (*drive_init)(struct lu_phy_attr *) = init_default_ssc;
+
 static void usage(char *progname) {
 	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
 	printf("       Where:\n");
@@ -2006,92 +2037,19 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
  */
 static void config_lu(struct lu_phy_attr *lu)
 {
-	struct priv_lu_ssc *lu_priv = lu->lu_private;
+	int i;
 
-	if (!strncasecmp(lu->product_id, "ULT", 3)) {
-		char *dup_product_id;
+	for (i = 0; tape_drives[i].name; i++) {
+		if (!strncmp(tape_drives[i].name, lu->product_id,
+				max(strlen(tape_drives[i].name),
+					strlen(lu->product_id)))) {
 
-		lu_ssc.capacity_unit = 1L << 20; /* Capacity units in MBytes */
-
-		/* Ultrium drives */
-		dup_product_id = strchr(lu->product_id, '-');
-		if (!dup_product_id)
-			return;
-
-		MHVTL_DBG(2, "Ultrium drive: %s", dup_product_id);
-
-		if (!strncasecmp(dup_product_id, "-TD1", 4)) {
-			MHVTL_DBG(1, "LTO 1 drive");
-			init_ult3580_td1(lu);
-		} else if (!strncasecmp(dup_product_id, "-TD2", 4)) {
-			MHVTL_DBG(1, "LTO 2 drive");
-			init_ult3580_td2(lu);
-		} else if (!strncasecmp(dup_product_id, "-TD3", 4)) {
-			MHVTL_DBG(1, "LTO 3 drive");
-			init_ult3580_td3(lu);
-		} else if (!strncasecmp(dup_product_id, "-TD4", 4)) {
-			MHVTL_DBG(1, "LTO 4 drive");
-			init_ult3580_td4(lu);
-		} else if (!strncasecmp(dup_product_id, "-TD5", 4)) {
-			MHVTL_DBG(1, "LTO 5 drive");
-			init_ult3580_td5(lu);
-		} else if (!strncasecmp(dup_product_id, "-TD6", 4)) {
-			MHVTL_DBG(1, "LTO 6 drive");
-			init_ult3580_td5(lu);
-		} else if (!strncasecmp(dup_product_id, "-SCSI", 5)) {
-			/* HP Ultrium 4-SCSI */
-			dup_product_id--;
-			if (*dup_product_id == '1') {
-				MHVTL_DBG(1, "HP LTO 1 drive");
-				init_hp_ult_1(lu);
-			} else if (*dup_product_id == '2') {
-				MHVTL_DBG(1, "HP LTO 2 drive");
-				init_hp_ult_2(lu);
-			} else if (*dup_product_id == '3') {
-				MHVTL_DBG(1, "HP LTO 3 drive");
-				init_hp_ult_3(lu);
-			} else if (*dup_product_id == '4') {
-				MHVTL_DBG(1, "HP LTO 4 drive");
-				init_hp_ult_4(lu);
-			} else if (*dup_product_id == '5') {
-				MHVTL_DBG(1, "HP LTO 5 drive");
-				init_hp_ult_5(lu);
-			}
-		} else {
-			MHVTL_DBG(1, "Unknown Ultrium drive");
+			drive_init = tape_drives[i].init;
+			break;
 		}
-	} else if (!strncasecmp(lu->product_id, "SDLT600", 7)) {
-		MHVTL_DBG(1, "SDLT600 drive");
-		lu_ssc.capacity_unit = 1L << 20; /* Capacity units in MBytes */
-	} else if (!strncasecmp(lu->product_id, "SDX-900", 7)) {
-		MHVTL_DBG(1, "AIT4 drive");
-		lu_ssc.capacity_unit = 1L << 10; /* Capacity units in KBytes */
-		init_ait4_ssc(lu);
-	} else if (!strncasecmp(lu->product_id, "03592J1A", 8)) {
-		MHVTL_DBG(1, "3592_J1A drive");
-		init_3592_j1a(lu);
-	} else if (!strncasecmp(lu->product_id, "03592E05", 8)) {
-		MHVTL_DBG(1, "3952 E05 drive");
-		init_3592_E05(lu);
-	} else if (!strncasecmp(lu->product_id, "03592E06", 8)) {
-		MHVTL_DBG(1, "3592 E06 drive");
-		init_3592_E06(lu);
-	} else if (!strncasecmp(lu->product_id, "T10000C", 7)) {
-		MHVTL_DBG(1, "T10000-C drive");
-		init_t10k_ssc(lu);
-	} else if (!strncasecmp(lu->product_id, "T10000B", 7)) {
-		MHVTL_DBG(1, "T10000-B drive");
-		init_t10k_ssc(lu);
-	} else if (!strncasecmp(lu->product_id, "T10000", 6)) {
-		MHVTL_DBG(1, "T10000-A drive");
-		init_t10k_ssc(lu);
 	}
 
-	/* Still no personality module ?
-		Better set the default one...
-	 */
-	if (!lu_priv->pm)
-		init_default_ssc(lu);
+	drive_init(lu);
 
 	if (lu_ssc.configCompressionEnabled)
 		lu_ssc.pm->set_compression(lu_ssc.configCompressionFactor);
