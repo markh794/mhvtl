@@ -368,5 +368,6 @@ void init_t10k_ssc(struct lu_phy_attr *lu)
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, t10k_inquiry);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_t10k_inquiry(lu);
 }

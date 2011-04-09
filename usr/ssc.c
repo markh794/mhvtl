@@ -397,18 +397,15 @@ uint8_t ssc_load_display(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "LOAD DISPLAY (%ld) - T10000 specific **",
 					(long)cmd->dbuf_p->serialNo);
 
-	if ((cmd->lu->drive_type == drive_10K_A) ||
-				(cmd->lu->drive_type == drive_10K_B)) {
+	cmd->dbuf_p->sz = cmd->scb[4];
+	nread = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+	d = cmd->dbuf_p->data;
+	memcpy(str1, &d[1], 8);
+	str1[8] = 0;
+	memcpy(str2, &d[9], 8);
+	str2[8] = 0;
 
-		cmd->dbuf_p->sz = cmd->scb[4];
-		nread = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
-		d = cmd->dbuf_p->data;
-		memcpy(str1, &d[1], 8);
-		str1[8] = 0;
-		memcpy(str2, &d[9], 8);
-		str2[8] = 0;
-
-		MHVTL_DBG(3, "Raw data: %02x  "
+	MHVTL_DBG(3, "Raw data: %02x  "
 			"%02x %02x %02x %02x %02x %02x %02x %02x  "
 			"%02x %02x %02x %02x %02x %02x %02x %02x",
 			d[0], d[1], d[2], d[3], d[4],
@@ -416,34 +413,34 @@ uint8_t ssc_load_display(struct scsi_cmd *cmd)
 			d[9], d[10], d[11], d[12],
 			d[13], d[14], d[15], d[16]);
 
-		switch (d[0] >> 5) { /* Bits 5, 6 & 7 are overlay */
-		case 0:
-			MHVTL_DBG(1, "Display \'%s\' until next"
+	switch (d[0] >> 5) { /* Bits 5, 6 & 7 are overlay */
+	case 0:
+		MHVTL_DBG(1, "Display \'%s\' until next"
 				" command that initiates tape motion",
 	/* Low/High bit */	(d[0] & 2) ? str2 : str1);
-			break;
-		case 1:
-			MHVTL_DBG(1, "Maintain \'%s\' until the"
+		break;
+	case 1:
+		MHVTL_DBG(1, "Maintain \'%s\' until the"
 				" cartridge is unloaded",
 	/* Low/High bit */	(d[0] & 2) ? str2 : str1);
-			break;
-		case 2:
-			MHVTL_DBG(1, "Maintain \'%s\' until the drive"
+		break;
+	case 2:
+		MHVTL_DBG(1, "Maintain \'%s\' until the drive"
 				" is next loaded", str1);
-			break;
-		case 3:
-			MHVTL_DBG(1, "Physically access tape drive with"
+		break;
+	case 3:
+		MHVTL_DBG(1, "Physically access tape drive with"
 				"out changing the msg");
-			break;
-		case 7:
-			MHVTL_DBG(1, "Display \'%s\' until the tape"
+		break;
+	case 7:
+		MHVTL_DBG(1, "Display \'%s\' until the tape"
 				" drive is unloaded then \'%s\'",
 					str1, str2);
-			break;
-		}
-		MHVTL_DBG(2, "Load display: msg1: %s msg2: %s",
-					str1, str2);
+		break;
 	}
+	MHVTL_DBG(2, "Load display: msg1: %s msg2: %s",
+					str1, str2);
+
 	cmd->dbuf_p->sz = 0;
 	return SAM_STAT_GOOD;
 }
