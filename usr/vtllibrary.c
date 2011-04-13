@@ -1541,12 +1541,12 @@ int main(int argc, char *argv[])
 		/* size of dvcid area in RES descriptor */
 		smc_slots.dvcid_len = 10;
 		/* dvcid area only contains a serial number */
-		smc_slots.dvcid_serial_only = 1;
+		smc_slots.dvcid_serial_only = TRUE;
 	} else {
 		/* size of dvcid area in RES descriptor */
 		smc_slots.dvcid_len = 34;
 		/* dvcid area contains vendor, product, serial */
-		smc_slots.dvcid_serial_only = 0;
+		smc_slots.dvcid_serial_only = FALSE;
 	}
 
 	for (;;) {
