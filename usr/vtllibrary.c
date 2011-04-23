@@ -379,7 +379,7 @@ static void list_map(struct q_msg *msg)
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
-			strncat(c, (char *)sp->media->barcode, 10);
+			strncat(c, (char *)sp->media->barcode, MAX_BARCODE_LEN);
 			MHVTL_DBG(2, "MAP slot %d full", sp->slot_location);
 		} else {
 			MHVTL_DBG(2, "MAP slot %d empty", sp->slot_location);
@@ -449,18 +449,16 @@ static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 	struct smc_priv *slot_layout;
 	struct list_head *media_list_head;
 	struct m_info *m;
+	int match;
 
 	slot_layout = lu->lu_private;
 	media_list_head = &slot_layout->media_list;
 
 	list_for_each_entry(m, media_list_head, siblings) {
-/*		MHVTL_DBG(3, "Looking for %s found %s, strncmp: %d",
-			barcode, m->barcode, strncmp(m->barcode, barcode, 10));
-*/
-		if (strncmp(m->barcode, barcode, 10) > 20) {
+		match = strncmp(m->barcode, barcode, MAX_BARCODE_LEN + 1);
+		if (!match) {
 			MHVTL_DBG(3, "Match barcodes: %s %s: %d",
-					barcode, m->barcode,
-					strncmp(m->barcode, barcode, 10));
+				barcode, m->barcode, match);
 			return m;
 		}
 	}
@@ -474,6 +472,11 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 	struct list_head *media_list_head;
 	struct m_info *m;
 
+	if (strlen(barcode) > MAX_BARCODE_LEN) {
+		MHVTL_LOG("Barcode \'%s\' exceeds max barcode lenght: %d",
+				barcode, MAX_BARCODE_LEN);
+		exit(1);
+	}
 	if (lookup_barcode(lu, barcode)) {
 		MHVTL_LOG("Duplicate barcode %s.. Exiting", barcode);
 		exit(1);
@@ -491,8 +494,9 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 
 	memset(m, 0, sizeof(struct m_info));
 
-	snprintf((char *)m->barcode, 10, "%-10s", barcode);
-	m->barcode[10] = '\0';
+	snprintf((char *)m->barcode, MAX_BARCODE_LEN + 1, LEFT_JUST_16_STR,
+					barcode);
+	m->barcode[MAX_BARCODE_LEN + 1] = '\0';
 	m->cart_type = cart_type((char *)barcode);
 	if (!strncmp((char *)m->barcode, "NOBAR", 5))
 		m->internal_status = INSTATUS_NO_BARCODE;
@@ -540,7 +544,7 @@ static int load_map(struct q_msg *msg)
 		return 0;
 	}
 
-	if (strlen(barcode) > 10) {
+	if (strlen(barcode) > MAX_BARCODE_LEN) {
 		send_msg("barcode length too long", msg->snd_id);
 		return 0;
 	}
@@ -551,8 +555,10 @@ static int load_map(struct q_msg *msg)
 		if (!mp)
 			mp = add_barcode(&lunit, barcode);
 
-		snprintf((char *)mp->barcode, 10, "%-10s", barcode);
-		mp->barcode[10] = '\0';
+		snprintf((char *)mp->barcode, MAX_BARCODE_LEN, LEFT_JUST_16_STR,
+						barcode);
+		mp->barcode[MAX_BARCODE_LEN + 1] = '\0';
+
 		/* 1 = data, 2 = Clean */
 		mp->cart_type = cart_type(barcode);
 		sp->status = STATUS_InEnab | STATUS_ExEnab |

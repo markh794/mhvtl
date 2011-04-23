@@ -354,19 +354,23 @@ int main(int argc, char *argv[])
 	}
 
 	if (pcl == NULL) {
+		printf("Please supply a barcode (-b barcode)\n\n");
 		usage(progname);
 		exit(1);
 	}
 	if (mediaCapacity == NULL) {
+		printf("Please supply media capacity (-s xx)\n\n");
 		usage(progname);
 		exit(1);
 	}
 	if (mediaType == NULL) {
+		printf("Please supply cart type (-t data|clean|WORM)\n\n");
 		usage(progname);
 		exit(1);
 	}
 
 	if (density == NULL) {
+		printf("Please supply media density (-d xx)\n\n");
 		usage(progname);
 		exit(1);
 	}
@@ -374,6 +378,12 @@ int main(int argc, char *argv[])
 	sscanf(mediaCapacity, "%" PRId64, &size);
 	if (size == 0)
 		size = 8000;
+
+	if (strlen(pcl) > MAX_BARCODE_LEN) {
+		printf("Max barcode length (%d) exceeded\n\n", MAX_BARCODE_LEN);
+		usage(progname);
+		exit(1);
+	}
 
 	/* Verify that the MHVTL home directory exists. */
 

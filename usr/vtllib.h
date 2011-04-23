@@ -128,6 +128,9 @@ extern int verbose;
 
 #define SCSI_SN_LEN 16
 
+#define MAX_BARCODE_LEN	16
+#define LEFT_JUST_16_STR "%-16s"
+
 /*
  * Process the LOG_SENSE page definations
  */
@@ -620,7 +623,7 @@ struct d_info {
 struct m_info { /* Media Info */
 	struct list_head siblings;
 	uint32_t last_location;
-	char barcode[11];
+	char barcode[MAX_BARCODE_LEN + 2];
 	uint8_t media_domain;
 	uint8_t media_type;
 	uint8_t cart_type;
