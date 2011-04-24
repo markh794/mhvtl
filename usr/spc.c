@@ -588,12 +588,12 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		len = 0;
 	} else if (0x3f == pcode) {	/* Return all pages */
 		for (a = 1; a < 0x3f; a++) { /* Walk thru all possibilities */
-			smp = find_pcode(a, m);
+			smp = find_pcode(m, a, 0);
 			if (smp)
 				len += add_pcode(smp, (uint8_t *)ap + len);
 		}
 	} else {
-		smp = find_pcode(pcode, m);
+		smp = find_pcode(m, pcode, 0);
 		if (smp)
 			len = add_pcode(smp, (uint8_t *)ap);
 	}

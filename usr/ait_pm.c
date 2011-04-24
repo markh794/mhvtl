@@ -110,7 +110,7 @@ static uint8_t clear_ait_WORM(void)
 
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
-	smp = find_pcode(0x31, sm);
+	smp = find_pcode(sm, 0x31, 0);
 	if (smp) {
 		smp_dp = smp->pcodePointer;
 		smp_dp[4] = 0x0;
@@ -126,7 +126,7 @@ static uint8_t set_ait_WORM(void)
 
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
-	smp = find_pcode(0x31, sm);
+	smp = find_pcode(sm, 0x31, 0);
 	if (smp) {
 		smp_dp = smp->pcodePointer;
 		smp_dp[4] = 0x40;
@@ -149,7 +149,7 @@ static void init_ait4_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
-	mp = alloc_mode_page(0x31, m, 8);
+	mp = alloc_mode_page(m, 0x31, 0, 8);
 	if (mp)
 		mp->pcodePointer[2] = 0xf0;
 		mp->pcodePointer[3] = 0x0a;

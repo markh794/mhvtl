@@ -1886,13 +1886,13 @@ void init_default_ssc_mode_pages(struct mode *m)
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", m);
 
 	/* RW Error Recovery: SSC-3 8.3.5 */
-	mp = alloc_mode_page(1, m, 12);
+	mp = alloc_mode_page(m, 1, 0, 12);
 	if (mp) {
 		/* Init rest of page data.. */
 	}
 
 	/* Disconnect-Reconnect: SPC-3 7.4.8 */
-	mp = alloc_mode_page(2, m, 16);
+	mp = alloc_mode_page(m, 2, 0, 16);
 	if (mp) {
 		mp->pcodePointer[2] = 50; /* Buffer full ratio */
 		mp->pcodePointer[3] = 50; /* Buffer empty ratio */
@@ -1900,13 +1900,13 @@ void init_default_ssc_mode_pages(struct mode *m)
 	}
 
 	/* Control: SPC-3 7.4.6 */
-	mp = alloc_mode_page(0x0a, m, 12);
+	mp = alloc_mode_page(m, 0x0a, 0, 12);
 	if (mp) {
 		/* Init rest of page data.. */
 	}
 
 	/* Data compression: SSC-3 8.3.2 */
-	mp = alloc_mode_page(0x0f, m, 16);
+	mp = alloc_mode_page(m, 0x0f, 0, 16);
 	if (mp) {
 		/* Init rest of page data.. */
 		mp->pcodePointer[2] = 0xc0; /* Set Data Compression Enable */
@@ -1918,7 +1918,7 @@ void init_default_ssc_mode_pages(struct mode *m)
 	}
 
 	/* Device Configuration: SSC-3 8.3.3 */
-	mp = alloc_mode_page(0x10, m, 16);
+	mp = alloc_mode_page(m, 0x10, 0, 16);
 	if (mp) {
 		/* Write delay time (100mSec intervals) */
 		mp->pcodePointer[7] = 0x64;
@@ -1936,7 +1936,7 @@ void init_default_ssc_mode_pages(struct mode *m)
 	}
 
 	/* Medium Partition: SSC-3 8.3.4 */
-	mp = alloc_mode_page(0x11, m, 16);
+	mp = alloc_mode_page(m, 0x11, 0, 16);
 	if (mp) {
 		/* Init rest of page data.. */
 	}
@@ -1945,20 +1945,20 @@ void init_default_ssc_mode_pages(struct mode *m)
 	/* Extended Device (Type Specific): SPC-3 - Not used here */
 
 	/* Power condition: SPC-3 7.4.12 */
-	mp = alloc_mode_page(0x1a, m, 12);
+	mp = alloc_mode_page(m, 0x1a, 0, 12);
 	if (mp) {
 		/* Init rest of page data.. */
 	}
 
 	/* Informational Exception Control: SPC-3 7.4.11 (TapeAlert) */
-	mp = alloc_mode_page(0x1c, m, 12);
+	mp = alloc_mode_page(m, 0x1c, 0, 12);
 	if (mp) {
 		mp->pcodePointer[2] = 0x08;
 		mp->pcodePointer[3] = 0x03;
 	}
 
 	/* Medium configuration: SSC-3 8.3.7 */
-	mp = alloc_mode_page(0x1d, m, 32);
+	mp = alloc_mode_page(m, 0x1d, 0, 32);
 	if (mp) {
 		/* Init rest of page data.. */
 	}

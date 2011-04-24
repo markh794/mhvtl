@@ -672,8 +672,8 @@ int resp_read_position(loff_t, uint8_t *, uint8_t *);
 int resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
 int resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
-struct mode *find_pcode(uint8_t, struct mode *);
-struct mode *alloc_mode_page(uint8_t, struct mode *, int);
+struct mode *find_pcode(struct mode *, uint8_t pcode, uint8_t subpcode);
+struct mode *alloc_mode_page(struct mode *, uint8_t page, uint8_t subpage, int);
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);
 
 void setTapeAlert(struct TapeAlert_page *, uint64_t);

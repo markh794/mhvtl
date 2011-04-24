@@ -113,7 +113,7 @@ static void init_ult_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 
 	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
 
-	mp = alloc_mode_page(0x24, m, 6);
+	mp = alloc_mode_page(m, 0x24, 0, 6);
 	MHVTL_DBG(3, "smp: %p", mp);
 }
 
@@ -135,7 +135,7 @@ static void init_ult_encr_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 	 * Page 151, table 118
 	 * Advise ENCRYPTION Capable device
 	 */
-	mp = alloc_mode_page(0x24, m, 6);
+	mp = alloc_mode_page(m, 0x24, 0, 6);
 	if (mp)
 		mp->pcodePointer[5] = ENCR_C;
 }
@@ -172,7 +172,7 @@ static uint8_t update_ult_encryption_mode(void *p, int value)
 
 	MHVTL_DBG(3, "*** Trace ***");
 
-	smp = find_pcode(0x24, sm);
+	smp = find_pcode(sm, 0x24, 0);
 	if (smp) {
 		if (value)
 			smp->pcodePointer[5] |= ENCR_E;

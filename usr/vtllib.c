@@ -247,23 +247,26 @@ int resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
  * Look thru NULL terminated array of struct mode[] for a match to pcode.
  * Return: struct mode * or NULL for no pcode
  */
-struct mode *find_pcode(uint8_t pcode, struct mode *m)
+struct mode *find_pcode(struct mode *m, uint8_t pcode, uint8_t subpcode)
 {
-	int a;
+	int i;
 
-	MHVTL_DBG(3, "Entered: pcode 0x%02x", pcode);
+	MHVTL_DBG(3, "Looking for: pcode 0x%02x, subpcode 0x%02x",
+					pcode, subpcode);
 
-	for (a = 0; a < 0x3f; a++, m++) { /* Possibility for 0x3f page codes */
-		if (m->pcode == 0x0)
-			break;	/* End of list */
-		if (m->pcode == pcode) {
-			MHVTL_DBG(2, "Looking for 0x%02x: found pcode 0x%02x",
-					pcode, m->pcode);
+	for (i = 0; i < 32; i++, m++) {
+		if (!m->pcode)
+			break;	/* End of array */
+
+		if ((m->pcode == pcode) && (m->subpcode == subpcode)) {
+			MHVTL_DBG(2, "Found mode pages 0x%02x/0x%02x",
+					m->pcode, m->subpcode);
 			return m;
 		}
 	}
 
-	MHVTL_DBG(3, "Page code 0x%02x not found", pcode);
+	MHVTL_DBG(3, "Page/subpage code 0x%02x/0x%02x not found",
+					pcode, subpcode);
 
 	return NULL;
 }
@@ -288,13 +291,14 @@ int add_pcode(struct mode *m, uint8_t *p)
  *
  * Return pointer to mode structure being init. or NULL if alloc failed
  */
-struct mode * alloc_mode_page(uint8_t pcode, struct mode *m, int size)
+struct mode *alloc_mode_page(struct mode *m,
+				uint8_t pcode, uint8_t subpcode, int size)
 {
 	struct mode * mp;
 
 	MHVTL_DBG(3, "%p : Allocate mode page 0x%02x, size %d", m, pcode, size);
 
-	mp = find_pcode(pcode, m);	/* Find correct page */
+	mp = find_pcode(m, pcode, subpcode);
 	if (mp) {
 		mp->pcodePointer = malloc(size);
 		MHVTL_DBG(3, "pcodePointer: %p for mode page 0x%02x",
@@ -662,16 +666,16 @@ uint8_t set_compression_mode_pg(struct mode *sm, int lvl)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
-	m = find_pcode(0x0f, sm);
-	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+	m = find_pcode(sm, 0x0f, 0);
+	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
 			sm, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
 		p[2] |= 0x80;	/* Set data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
-	m = find_pcode(0x10, sm);
-	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+	m = find_pcode(sm, 0x10, 0);
+	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
 			sm, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
@@ -688,16 +692,16 @@ uint8_t clear_compression_mode_pg(struct mode *sm)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
-	m = find_pcode(0x0f, sm);
-	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+	m = find_pcode(sm, 0x0f, 0);
+	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
 			sm, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
 		p[2] &= 0x7f;	/* clear data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
-	m = find_pcode(0x10, sm);
-	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
+	m = find_pcode(sm, 0x10, 0);
+	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
 			sm, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
@@ -709,13 +713,13 @@ uint8_t clear_compression_mode_pg(struct mode *sm)
 uint8_t clear_WORM(struct mode *sm)
 {
 	uint8_t *smp_dp;
-	struct mode *smp;
+	struct mode *m;
 
-	smp = find_pcode(0x1d, sm);
-	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
-			sm, smp, smp->pcodePointer);
-	if (smp) {
-		smp_dp = smp->pcodePointer;
+	m = find_pcode(sm, 0x1d, 0);
+	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
+			sm, m, m->pcodePointer);
+	if (m) {
+		smp_dp = m->pcodePointer;
 		if (!smp_dp)
 			return SAM_STAT_GOOD;
 		smp_dp[2] = 0x0;
@@ -727,15 +731,15 @@ uint8_t clear_WORM(struct mode *sm)
 uint8_t set_WORM(struct mode *sm)
 {
 	uint8_t *smp_dp;
-	struct mode *smp;
+	struct mode *m;
 
 	MHVTL_DBG(3, "*** Trace ***");
 
-	smp = find_pcode(0x1d, sm);
-	MHVTL_DBG(3, "sm: %p, smp: %p, smp->pcodePointer: %p",
-			sm, smp, smp->pcodePointer);
-	if (smp) {
-		smp_dp = smp->pcodePointer;
+	m = find_pcode(sm, 0x1d, 0);
+	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
+			sm, m, m->pcodePointer);
+	if (m) {
+		smp_dp = m->pcodePointer;
 		if (!smp_dp)
 			return SAM_STAT_GOOD;
 		smp_dp[2] = 0x10;

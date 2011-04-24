@@ -672,25 +672,25 @@ static void init_mode_pages(struct mode *m)
 	struct mode *mp;
 
 	/* Disconnect-Reconnect: SPC-3 7.4.8 */
-	mp = alloc_mode_page(2, m, 16);
+	mp = alloc_mode_page(m, 2, 0, 16);
 	if (mp) {
 		mp->pcodePointer[2] = 50;	/* Buffer full ratio */
 		mp->pcodePointer[3] = 50;	/* Buffer empty ratio */
 	}
 
 	/* Control: SPC-3 7.4.6 */
-	mp = alloc_mode_page(0x0a, m, 12);
+	mp = alloc_mode_page(m, 0x0a, 0, 12);
 
 	/* Power condition: SPC-3 7.4.12 */
-	mp = alloc_mode_page(0x1a, m, 12);
+	mp = alloc_mode_page(m, 0x1a, 0, 12);
 
 	/* Informational Exception Control: SPC-3 7.4.11 (TapeAlert) */
-	mp = alloc_mode_page(0x1c, m, 12);
+	mp = alloc_mode_page(m, 0x1c, 0, 12);
 	if (mp)
 		mp->pcodePointer[2] = 0x08;
 
 	/* Device Capabilities mode page: SMC-3 7.3.2 */
-	mp = alloc_mode_page(0x1f, m, 20);
+	mp = alloc_mode_page(m, 0x1f, 0, 20);
 	if (mp) {
 		mp->pcodePointer[2] = 0x0f;
 		mp->pcodePointer[3] = 0x07;
@@ -707,7 +707,7 @@ static void init_mode_pages(struct mode *m)
 	}
 
 	/* Element Address Assignment mode page: SMC-3 7.3.3 */
-	mp = alloc_mode_page(0x1d, m, 20);
+	mp = alloc_mode_page(m, 0x1d, 0, 20);
 	if (mp) {
 		uint8_t *p = mp->pcodePointer;
 
@@ -722,7 +722,7 @@ static void init_mode_pages(struct mode *m)
 	}
 
 	/* Transport Geometry Parameters mode page: SMC-3 7.3.4 */
-	mp = alloc_mode_page(0x1e, m, 4);
+	mp = alloc_mode_page(m, 0x1e, 0, 4);
 }
 
 static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
