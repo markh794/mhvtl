@@ -266,9 +266,9 @@ static struct tape_drives_table {
 	{ "03592J1A        ", init_3592_j1a },
 	{ "03592E05        ", init_3592_E05 },
 	{ "03592E06        ", init_3592_E06 },
-	{ "T10000C         ", init_t10k_ssc },
-	{ "T10000B         ", init_t10k_ssc },
-	{ "T10000          ", init_t10k_ssc },
+	{ "T10000C         ", init_t10kC_ssc },
+	{ "T10000B         ", init_t10kB_ssc },
+	{ "T10000          ", init_t10kA_ssc },
 	{ NULL, NULL},
 };
 

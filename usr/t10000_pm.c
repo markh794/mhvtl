@@ -78,9 +78,30 @@ static struct mode sm[] = {
 	};
 
 static struct media_handling t10kA_media_handling[] = {
-	{ "T10KA", "RW", medium_density_code_10kA, },
-	{ "T10KB", "RW", medium_density_code_10kB, },
-	{ "T10KC", "RW", medium_density_code_10kC, },
+	{ "T10KA", "RW", Media_T10KA, },
+	{ "T10KA Cleaning", "RO", Media_T10KA_CLEAN, },
+	{ "T10KB", "RW", Media_T10KB, },
+	{ "T10KB Cleaning", "RO", Media_T10KB_CLEAN, },
+	{ "T10KC", "RW", Media_T10KC, },
+	{ "T10KC Cleaning", "RO", Media_T10KC_CLEAN, },
+	};
+
+static struct media_handling t10kB_media_handling[] = {
+	{ "T10KA", "RW", Media_T10KA, },
+	{ "T10KA Cleaning", "RO", Media_T10KA_CLEAN, },
+	{ "T10KB", "RW", Media_T10KB, },
+	{ "T10KB Cleaning", "RO", Media_T10KB_CLEAN, },
+	{ "T10KC", "RW", Media_T10KC, },
+	{ "T10KC Cleaning", "RO", Media_T10KC_CLEAN, },
+	};
+
+static struct media_handling t10kC_media_handling[] = {
+	{ "T10KA", "RW", Media_T10KA, },
+	{ "T10KA Cleaning", "RO", Media_T10KA_CLEAN, },
+	{ "T10KB", "RW", Media_T10KB, },
+	{ "T10KB Cleaning", "RO", Media_T10KB_CLEAN, },
+	{ "T10KC", "RW", Media_T10KC, },
+	{ "T10KC Cleaning", "RO", Media_T10KC_CLEAN, },
 	};
 
 /*
@@ -237,7 +258,9 @@ static int t10k_kad_validation(int encrypt_mode, int ukad, int akad)
 
 }
 
-static char *pm_name_t10k = "T10000";
+static char *pm_name_t10kA = "T10000A";
+static char *pm_name_t10kB = "T10000B";
+static char *pm_name_t10kC = "T10000C";
 
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk_t10k,
@@ -355,13 +378,47 @@ sense:
 	return SAM_STAT_CHECK_CONDITION;
 }
 
-void init_t10k_ssc(struct lu_phy_attr *lu)
+void init_t10kA_ssc(struct lu_phy_attr *lu)
 {
 	MHVTL_DBG(3, "*** Trace ***");
 
-	ssc_pm.name = pm_name_t10k;
+	ssc_pm.name = pm_name_t10kA;
 	ssc_pm.drive_native_density = medium_density_code_10kA;
 	ssc_pm.media_capabilities = t10kA_media_handling;
+	personality_module_register(&ssc_pm);
+	init_default_ssc_mode_pages(sm);
+	lu->mode_pages = sm;
+	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
+	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	register_ops(lu, INQUIRY, t10k_inquiry);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	init_t10k_inquiry(lu);
+}
+
+void init_t10kB_ssc(struct lu_phy_attr *lu)
+{
+	MHVTL_DBG(3, "*** Trace ***");
+
+	ssc_pm.name = pm_name_t10kB;
+	ssc_pm.drive_native_density = medium_density_code_10kB;
+	ssc_pm.media_capabilities = t10kB_media_handling;
+	personality_module_register(&ssc_pm);
+	init_default_ssc_mode_pages(sm);
+	lu->mode_pages = sm;
+	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
+	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	register_ops(lu, INQUIRY, t10k_inquiry);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	init_t10k_inquiry(lu);
+}
+
+void init_t10kC_ssc(struct lu_phy_attr *lu)
+{
+	MHVTL_DBG(3, "*** Trace ***");
+
+	ssc_pm.name = pm_name_t10kC;
+	ssc_pm.drive_native_density = medium_density_code_10kC;
+	ssc_pm.media_capabilities = t10kC_media_handling;
 	personality_module_register(&ssc_pm);
 	init_default_ssc_mode_pages(sm);
 	lu->mode_pages = sm;

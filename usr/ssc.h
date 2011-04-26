@@ -13,7 +13,7 @@
 #define ENCR_SET_DATA_ENCRYPTION	0x10
 
 struct media_handling {
-	char media_type[8];
+	char media_type[16];
 	char op[8];
 	unsigned char density;
 };
@@ -76,7 +76,9 @@ void init_ait2_ssc(struct lu_phy_attr *lu);
 void init_ait3_ssc(struct lu_phy_attr *lu);
 void init_ait4_ssc(struct lu_phy_attr *lu);
 void init_default_ssc(struct lu_phy_attr *lu);
-void init_t10k_ssc(struct lu_phy_attr *lu);
+void init_t10kA_ssc(struct lu_phy_attr *lu);
+void init_t10kB_ssc(struct lu_phy_attr *lu);
+void init_t10kC_ssc(struct lu_phy_attr *lu);
 void init_ult3580_td1(struct lu_phy_attr *lu);
 void init_ult3580_td2(struct lu_phy_attr *lu);
 void init_ult3580_td3(struct lu_phy_attr *lu);
