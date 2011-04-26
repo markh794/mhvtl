@@ -136,7 +136,6 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 	struct vtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
 	struct lu_phy_attr *lu;
-	uint8_t *buf;
 	int count;
 	int sz;
 	int k;
@@ -180,7 +179,6 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 		for (k = 0; k < count; k++) {
 			retval = writeBlock(cmd, sz);
 			lu_ssc->bytesWritten += retval;
-			buf += retval;
 
 			/* If sam_stat != SAM_STAT_GOOD, return */
 			if (cmd->dbuf_p->sam_stat)
