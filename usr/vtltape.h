@@ -104,6 +104,14 @@ struct blk_header {
 #define medium_density_code_10kA	0x4a
 #define medium_density_code_10kB	0x4b
 #define medium_density_code_10kC	0x4c
+
+/* FIXME: Find density code for these media types */
+#define medium_density_code_dlt2	0x20
+#define medium_density_code_dlt3	0x20
+#define medium_density_code_dlt4	0x20
+#define medium_density_code_sdlt	0x20
+#define medium_density_code_220		0x20
+
 #define medium_density_code_320		0x49
 #define medium_density_code_600		0x4a
 
@@ -168,7 +176,7 @@ void print_metadata(void);
 
 struct media_details {
 	struct list_head siblings;
-	unsigned int density;		/* Media Type */
+	unsigned int media_type;	/* Media Type */
 	unsigned int density_status;	/* RO, RW, invalid or fail mount */
 };
 
