@@ -179,6 +179,7 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 		for (k = 0; k < count; k++) {
 			retval = writeBlock(cmd, sz);
 			lu_ssc->bytesWritten += retval;
+			dbuf_p->data += retval;
 
 			/* If sam_stat != SAM_STAT_GOOD, return */
 			if (cmd->dbuf_p->sam_stat)
