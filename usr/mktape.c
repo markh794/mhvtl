@@ -188,14 +188,14 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(133000);
 	} else if (!(strncmp(density, "SDLT2", 5))) {
-		mamp->MediumDensityCode = 0x48;
+		mamp->MediumDensityCode = medium_density_code_220;
 		mamp->MediaType = Media_SDLT220;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT220", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		mamp->media_info.bits_per_mm = htonl(133000);
 	} else if (!(strncmp(density, "SDLT3", 5))) {
-		mamp->MediumDensityCode = 0x49;
+		mamp->MediumDensityCode = medium_density_code_320;
 		mamp->MediaType = Media_SDLT320;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT320", 7);
