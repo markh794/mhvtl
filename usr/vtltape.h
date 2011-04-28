@@ -110,8 +110,8 @@ struct blk_header {
 #define medium_density_code_dlt3	0x20
 #define medium_density_code_dlt4	0x20
 #define medium_density_code_sdlt	0x20
-#define medium_density_code_220		0x20
 
+#define medium_density_code_220		0x48
 #define medium_density_code_320		0x49
 #define medium_density_code_600		0x4a
 
