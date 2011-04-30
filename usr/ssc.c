@@ -76,15 +76,15 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 		count = get_unaligned_be24(&cdb[2]);
 		sz = get_unaligned_be24(&blockDescriptorBlock[5]);
 		MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
-			"READ_6 \"Fixed block read\" "
-			" - Read %d blocks of %d size", count, sz);
+			"READ_6 (%ld) : \"Fixed block read\" "
+			" %d blocks of %d size",
+					(long)dbuf_p->serialNo, count, sz);
 	} else { /* else - Variable block read */
 		sz = get_unaligned_be24(&cdb[2]);
 		count = 1;
 		MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
 				"READ_6 (%ld) : %d bytes **",
-					(long)dbuf_p->serialNo,
-					sz);
+					(long)dbuf_p->serialNo, sz);
 	}
 
 	/* If both FIXED & SILI bits set, invalid combo.. */
