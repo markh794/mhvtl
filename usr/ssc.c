@@ -65,12 +65,14 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	int sz;
 	int k;
 	int retval = 0;
+	int fixed;
 
 	lu = cmd->lu;
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
 
-	if (cdb[1] & FIXED) { /* If - Fixed block read */
+	fixed = cdb[1] & FIXED;	/* Fixed block read ? */
+	if (fixed) {
 		count = get_unaligned_be24(&cdb[2]);
 		sz = get_unaligned_be24(&blockDescriptorBlock[5]);
 		MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
@@ -120,6 +122,17 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 		if (!lu_ssc->pm->valid_encryption_blk(cmd))
 			return SAM_STAT_CHECK_CONDITION;
 		retval = readBlock(buf, sz, cdb[1] & SILI, sam_stat);
+		if (!retval && fixed) {
+			/* Fixed block read hack:
+			 * Overwrite INFORMATION field with:
+			 * The INFORMATION field shall be set to the requested
+			 * transfer length minus the actual number of logical
+			 * blocks read (not including the incorrect-length
+			 * logical block).
+			 */
+			put_unaligned_be32(count - k, &sense[3]);
+			break;
+		}
 		buf += retval;
 		dbuf_p->sz += retval;
 	}
