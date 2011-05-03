@@ -358,6 +358,10 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 		*sam_stat = SAM_STAT_GOOD;
 		break;
 	default:
+		if (cmd->lu->online == 0) {
+			mkSenseBuf(NOT_READY, E_OFFLINE, sam_stat);
+			return;
+		}
 		if (check_reset(sam_stat))
 			return;
 	}
