@@ -2136,7 +2136,7 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
-		{ssc_report_density,},
+		{ssc_report_density_support,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},

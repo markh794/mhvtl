@@ -864,9 +864,9 @@ uint8_t ssc_release(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t ssc_report_density(struct scsi_cmd *cmd)
+uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "Report Density (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "Report Density Support (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
 	cmd->dbuf_p->sz = resp_report_density((cmd->scb[1] & 0x01), cmd->dbuf_p);
