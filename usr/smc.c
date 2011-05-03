@@ -1283,18 +1283,3 @@ uint8_t smc_rezero(struct scsi_cmd *cmd)
 	sleep(1);
 	return SAM_STAT_GOOD;
 }
-
-uint8_t smc_start_stop(struct scsi_cmd *cmd)
-{
-	if (cmd->scb[4] & 0x1) {
-		cmd->lu->online = 1;
-		MHVTL_DBG(1, "Library now online (%ld) **",
-				(long)cmd->dbuf_p->serialNo);
-	} else {
-		cmd->lu->online = 0;
-		MHVTL_DBG(1, "Library now offline (%ld) **",
-				(long)cmd->dbuf_p->serialNo);
-	}
-	return SAM_STAT_GOOD;
-}
-

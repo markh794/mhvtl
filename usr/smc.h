@@ -31,7 +31,6 @@ uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd);
 uint8_t smc_move_medium(struct scsi_cmd *cmd);
 uint8_t smc_read_element_status(struct scsi_cmd *cmd);
 uint8_t smc_rezero(struct scsi_cmd *cmd);
-uint8_t smc_start_stop(struct scsi_cmd *cmd);
 
 int slotOccupied(struct s_info *s);
 void setImpExpStatus(struct s_info *s, int flg);
