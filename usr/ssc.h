@@ -65,7 +65,7 @@ uint8_t ssc_seek_10(struct scsi_cmd *cmd);
 uint8_t ssc_space(struct scsi_cmd *cmd);
 uint8_t ssc_spin(struct scsi_cmd *cmd);
 uint8_t ssc_spout(struct scsi_cmd *cmd);
-uint8_t ssc_start_stop(struct scsi_cmd *cmd);
+uint8_t ssc_load_unload(struct scsi_cmd *cmd);
 uint8_t ssc_tur(struct scsi_cmd *cmd);
 uint8_t ssc_write_6(struct scsi_cmd *cmd);
 uint8_t ssc_write_attributes(struct scsi_cmd *cmd);

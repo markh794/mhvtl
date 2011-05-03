@@ -973,7 +973,7 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t ssc_start_stop(struct scsi_cmd *cmd)
+uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;

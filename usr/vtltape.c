@@ -2087,7 +2087,7 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{ssc_erase,},
 		{spc_mode_sense,},
-		{ssc_start_stop,},
+		{ssc_load_unload,},
 		{spc_recv_diagnostics,},
 		{spc_send_diagnostics,},
 		{ssc_allow_prevent_removal,},
