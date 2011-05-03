@@ -313,6 +313,7 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 	init_default_ssc_mode_pages(sm);
 	init_ult_mode_pages(lu, sm);
 	lu->mode_pages = sm;
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 }
 
 void init_hp_ult_2(struct lu_phy_attr *lu)
@@ -327,6 +328,7 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 	init_default_ssc_mode_pages(sm);
 	init_ult_mode_pages(lu, sm);
 	lu->mode_pages = sm;
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 }
 
 void init_hp_ult_3(struct lu_phy_attr *lu)
@@ -343,6 +345,7 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 	init_default_ssc_mode_pages(sm);
 	init_ult_mode_pages(lu, sm);
 	lu->mode_pages = sm;
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 }
 
 void init_hp_ult_4(struct lu_phy_attr *lu)
@@ -357,6 +360,7 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	init_default_ssc_mode_pages(sm);
 	init_ult_encr_mode_pages(lu, sm);
 	lu->mode_pages = sm;
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 }
@@ -373,6 +377,7 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	init_default_ssc_mode_pages(sm);
 	init_ult_encr_mode_pages(lu, sm);
 	lu->mode_pages = sm;
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 }

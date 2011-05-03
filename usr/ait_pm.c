@@ -288,6 +288,7 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	init_default_ssc_mode_pages(sm);	/* init default mode pages */
 	init_ait4_mode_pages(lu, sm);	/* init AIT uniq mode pages */
 	lu->mode_pages = sm;
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 10; /* Capacity units in KBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 }
