@@ -456,8 +456,8 @@ int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 	buf[7] = 0;
 
 	/* Assigning Oranization (8 chars long) */
-	if (lu_ssc.tapeLoaded == TAPE_LOADED) {
-		max_cap = ntohll(mam.max_capacity);
+	if (media == 1) {
+		max_cap = ntohll(mam.max_capacity) / (1L << 20); /* Capacity in MBytes */
 
 		/* Bits per mm (only 24bits in len MS Byte should be 0). */
 		put_unaligned_be32(mam.media_info.bits_per_mm, &buf[8]);

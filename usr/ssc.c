@@ -866,10 +866,23 @@ uint8_t ssc_release(struct scsi_cmd *cmd)
 
 uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 {
+	struct priv_lu_ssc *lu_priv;
+	uint8_t *sam_stat;
+	uint8_t media;
+
+	lu_priv = cmd->lu->lu_private;
+	sam_stat = &cmd->dbuf_p->sam_stat;
+
 	MHVTL_DBG(1, "Report Density Support (%ld) **", (long)cmd->dbuf_p->serialNo);
+	media = cmd->scb[1] & 0x01;
+
+	if (media == 1 && lu_priv->tapeLoaded != TAPE_LOADED) {
+		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
-	cmd->dbuf_p->sz = resp_report_density((cmd->scb[1] & 0x01), cmd->dbuf_p);
+	cmd->dbuf_p->sz = resp_report_density(media, cmd->dbuf_p);
 	return SAM_STAT_GOOD;
 }
 
