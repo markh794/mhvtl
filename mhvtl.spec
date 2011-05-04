@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 14
-Source: mhvtl-2011-03-17.tgz
+Release: 15
+Source: mhvtl-2011-05-04.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -155,6 +155,17 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Wed May 04 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.15
+- Improvements
+  - Implemented 'Personality Module' for each drive type
+    (many cleanups due to 'PM' change fallout thanks to Sebastian)
+  - Increase max barcode length to 16 chars
+- Bug fixes
+  - Inquiry no longer incorrectly reports support for TrmIOP and CmdQue
+  - Fixed block read/writes corruption if 'multiple blocks' specified
+  - Fix Device Capabilities mode page - Don't advertise EXCHANGE MEDIUM support
+
 * Thu Mar 17 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.14
 - Bug fixes:
