@@ -440,6 +440,7 @@ uint8_t spc_request_sense(struct scsi_cmd *cmd)
 	cmd->dbuf_p->sz = sz;
 	memcpy(cmd->dbuf_p->data, sense_buf, cmd->dbuf_p->sz);
 	memset(sense_buf, 0, cmd->dbuf_p->sz);
+	sense_buf[0] = SD_CURRENT_INFORMATION_FIXED;
 	return SAM_STAT_GOOD;
 }
 

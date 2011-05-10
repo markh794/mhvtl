@@ -123,13 +123,6 @@ struct blk_header {
 #define medium_density_code_DDS4	0x26
 #define medium_density_code_DDS5	0x47
 
-/* Sense Data format bits & pieces */
-/* Incorrect Length Indicator */
-#define SD_VALID 0x80
-#define SD_FILEMARK 0x80
-#define SD_EOM 0x40
-#define SD_ILI 0x20
-
 /* The remainder of this file defines the interface between the tape drive
    software and the implementation of a tape cartridge as one or more disk
    files.

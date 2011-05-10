@@ -119,7 +119,25 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 
 	*sam_stat = SAM_STAT_CHECK_CONDITION;
 
-	sense[0] = 0xf0;        /* Valid, current error */
+	sense[0] = SD_CURRENT_INFORMATION_FIXED;
+	/* SPC4 (Revision 30) Ch: 4.5.1 states:
+	 * The RESPONSE CODE field show be set to 70h in all unit attention
+	 * condition sense data in which:
+	 * - The ADDITIONAL SENSE CODE field is set to 29h
+	 * - The ADDITIONAL SENSE CODE is set to MODE PARAMETERS CHANGED
+	 */
+	switch (sense_d) {
+	case UNIT_ATTENTION:
+		if ((sense_q >> 8) == 0x29)
+			break;
+		if (sense_q == E_MODE_PARAMETERS_CHANGED)
+			break;
+		/* Fall thru to default handling */
+	default:
+		sense[0] |= SD_VALID;
+		break;
+	}
+
 	sense[2] = sense_d;
 	sense[7] = SENSE_BUF_SIZE - 8;
 	put_unaligned_be16(sense_q, &sense[12]);

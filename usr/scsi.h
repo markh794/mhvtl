@@ -199,6 +199,7 @@
 #define E_MODE_PARAMETERS_CHANGED	0x2a01
 #define E_MICROCODE_DOWNLOADED		0x3f01
 #define E_FAILURE_PREDICTION_FALSE	0x5dff
+#define E_MODE_PARAMETERS_CHANGED	0x2a01
 #define E_INQUIRY_DATA_HAS_CHANGED	0x3f03
 
 /* Data Protect */
@@ -215,6 +216,7 @@
 
 /* Sense Data format bits & pieces */
 /* Incorrect Length Indicator */
+#define SD_CURRENT_INFORMATION_FIXED 0x70
 #define SD_VALID	0x80
 #define SD_FILEMARK	0x80
 #define SD_EOM		0x40
