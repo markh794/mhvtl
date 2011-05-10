@@ -69,34 +69,34 @@ static struct media_handling default_media_handling[] = {
 
 static uint8_t clear_default_comp(void)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression_mode_pg(sm);
 }
 
 static uint8_t set_default_comp(int lvl)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 	/* default set_compression is in libvtlscsi */
 	return set_compression_mode_pg(sm, lvl);
 }
 
 static uint8_t update_default_encryption_mode(void *p, int value)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	return SAM_STAT_GOOD;
 }
 
 static uint8_t set_default_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return set_WORM(sm);
 }
 
 static uint8_t clear_default_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return clear_WORM(sm);
 }
 
@@ -161,7 +161,7 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_default_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	init_default_inquiry(lu);
 	ssc_pm.name = pm_name;

@@ -287,7 +287,7 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd)
 	lu_priv = lu->lu_private;
 	encr = lu_priv->encr;
 
-	MHVTL_DBG(1, "*** Trace ***");
+	MHVTL_DBG(1, "+++ Trace +++");
 
 	/* decryption logic */
 	correct_key = TRUE;
@@ -324,7 +324,7 @@ uint8_t valid_encryption_media(struct scsi_cmd *cmd)
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;
 
-	MHVTL_DBG(1, "*** Trace ***");
+	MHVTL_DBG(1, "+++ Trace +++");
 
 	lu = cmd->lu;
 	lu_priv = lu->lu_private;

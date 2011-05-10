@@ -72,7 +72,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 	uint8_t *cdb = cmd->scb;
 	struct lu_phy_attr *lu = cmd->lu;
 
-	MHVTL_DBG(1, "INQUIRY *** (%ld)", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "INQUIRY ** (%ld)", (long)cmd->dbuf_p->serialNo);
 
 	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2]))
 		goto sense;
@@ -538,7 +538,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	/* Disable Block Descriptors */
 	uint8_t blockDescriptorLen = (scb[1] & 0x8) ? 0 : 8;
 
-	MHVTL_DBG(1, "MODE SENSE (%ld) ***", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "MODE SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	/*
 	 pcontrol => page control

@@ -110,7 +110,7 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;
 
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	lu = cmd->lu;
 	lu_priv = lu->lu_private;
@@ -180,34 +180,34 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 
 static uint8_t clear_3592_comp(void)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression_mode_pg(sm);
 }
 
 static uint8_t set_3592_comp(int lvl)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 	/* default set_compression is in libvtlscsi */
 	return set_compression_mode_pg(sm, lvl);
 }
 
 static uint8_t update_3592_encryption_mode(void *p, int value)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	return SAM_STAT_GOOD;
 }
 
 static uint8_t set_3592_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return set_WORM(sm);
 }
 
 static uint8_t clear_3592_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return clear_WORM(sm);
 }
 
@@ -319,7 +319,7 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_3592_j1a(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_j1a;
@@ -332,7 +332,7 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 
 void init_3592_E05(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e05;
@@ -345,7 +345,7 @@ void init_3592_E05(struct lu_phy_attr *lu)
 
 void init_3592_E06(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e06;

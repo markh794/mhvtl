@@ -122,7 +122,7 @@ uint8_t valid_encryption_blk_t10k(struct scsi_cmd *cmd)
 	struct encryption *encr;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	lu_priv = lu->lu_private;
 	encr = lu_priv->encr;
@@ -177,34 +177,34 @@ uint8_t valid_encryption_blk_t10k(struct scsi_cmd *cmd)
 
 static uint8_t clear_t10k_comp(void)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression_mode_pg(sm);
 }
 
 static uint8_t set_t10k_comp(int lvl)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 	/* default set_compression is in libvtlscsi */
 	return set_compression_mode_pg(sm, lvl);
 }
 
 static uint8_t update_t10k_encryption_mode(void *p, int value)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	return SAM_STAT_GOOD;
 }
 
 static uint8_t set_t10k_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return set_WORM(sm);
 }
 
 static uint8_t clear_t10k_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return clear_WORM(sm);
 }
 
@@ -213,7 +213,7 @@ static int encr_capabilities_t10k(struct scsi_cmd *cmd)
 	uint8_t *buf = cmd->dbuf_p->data;
 	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
 
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	put_unaligned_be16(ENCR_CAPABILITIES, &buf[0]);
 	put_unaligned_be16(40, &buf[2]); /* List length */
@@ -297,7 +297,7 @@ uint8_t t10k_inquiry(struct scsi_cmd *cmd)
 	uint8_t *cdb = cmd->scb;
 	struct lu_phy_attr *lu = cmd->lu;
 
-	MHVTL_DBG(1, "INQUIRY *** (%ld)", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "INQUIRY ** (%ld)", (long)cmd->dbuf_p->serialNo);
 
 	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2]))
 		goto sense;
@@ -380,7 +380,7 @@ sense:
 
 void init_t10kA_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	ssc_pm.name = pm_name_t10kA;
 	ssc_pm.drive_native_density = medium_density_code_10kA;
@@ -397,7 +397,7 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 
 void init_t10kB_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	ssc_pm.name = pm_name_t10kB;
 	ssc_pm.drive_native_density = medium_density_code_10kB;
@@ -414,7 +414,7 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 
 void init_t10kC_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	ssc_pm.name = pm_name_t10kC;
 	ssc_pm.drive_native_density = medium_density_code_10kC;

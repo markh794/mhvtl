@@ -2607,7 +2607,8 @@ int main(int argc, char *argv[])
 
 	MHVTL_DBG(2, "Running as %s, uid: %d", pw->pw_name, getuid());
 
-	if ((cdev = chrdev_open(name, minor)) == -1) {
+	cdev = chrdev_open(name, minor);
+	if (cdev == -1) {
 		MHVTL_LOG("Could not open /dev/%s%d: %s", name, minor,
 						strerror(errno));
 		fflush(NULL);

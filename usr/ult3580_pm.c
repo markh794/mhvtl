@@ -111,7 +111,7 @@ static void init_ult_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 {
 	struct mode *mp;
 
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	mp = alloc_mode_page(m, 0x24, 0, 6);
 	MHVTL_DBG(3, "smp: %p", mp);
@@ -129,7 +129,7 @@ static void init_ult_encr_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 {
 	struct mode *mp;
 
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	/* Vendor Unique (IBM Ultrium)
 	 * Page 151, table 118
@@ -142,27 +142,27 @@ static void init_ult_encr_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 
 static uint8_t clear_ult_compression(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression_mode_pg(sm);
 }
 
 static uint8_t set_ult_compression(int lvl)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	/* default set_compression is in libvtlscsi */
 	return set_compression_mode_pg(sm, lvl);
 }
 
 static uint8_t set_ult_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return set_WORM(sm);
 }
 
 static uint8_t clear_ult_WORM(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	return clear_WORM(sm);
 }
 
@@ -170,7 +170,7 @@ static uint8_t update_ult_encryption_mode(void *p, int value)
 {
 	struct mode *smp;
 
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	smp = find_pcode(sm, 0x24, 0);
 	if (smp) {
@@ -303,7 +303,7 @@ static struct ssc_personality_template ult4_ssc_pm = {
 
 void init_ult3580_td1(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto1;
@@ -318,7 +318,7 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 
 void init_ult3580_td2(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto2;
@@ -333,7 +333,7 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 
 void init_ult3580_td3(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto3;
@@ -350,7 +350,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 
 void init_ult3580_td4(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ult_inquiry(lu);
 	ult4_ssc_pm.name = pm_name_lto4;
@@ -367,7 +367,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 
 void init_ult3580_td5(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ult_inquiry(lu);
 	ult4_ssc_pm.name = pm_name_lto5;

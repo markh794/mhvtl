@@ -108,7 +108,7 @@ static uint8_t clear_ait_WORM(void)
 	uint8_t *smp_dp;
 	struct mode *smp;
 
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	smp = find_pcode(sm, 0x31, 0);
 	if (smp) {
@@ -124,7 +124,7 @@ static uint8_t set_ait_WORM(void)
 	uint8_t *smp_dp;
 	struct mode *smp;
 
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	smp = find_pcode(sm, 0x31, 0);
 	if (smp) {
@@ -147,7 +147,7 @@ static void init_ait4_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 {
 	struct mode *mp;
 
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	mp = alloc_mode_page(m, 0x31, 0, 8);
 	if (mp)
@@ -158,21 +158,21 @@ static void init_ait4_mode_pages(struct lu_phy_attr *lu, struct mode *m)
 
 static uint8_t clear_ait_compression(void)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression_mode_pg(sm);
 }
 
 static uint8_t set_ait_compression(int lvl)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 	/* default set_compression is in libvtlscsi */
 	return set_compression_mode_pg(sm, lvl);
 }
 
 static uint8_t update_ait_encryption_mode(void *p, int value)
 {
-	MHVTL_DBG(3, "*** Trace ***");
+	MHVTL_DBG(3, "+++ Trace +++");
 
 	return SAM_STAT_GOOD;
 }
@@ -237,7 +237,7 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_ait1_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_1;
@@ -250,7 +250,7 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 
 void init_ait2_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_2;
@@ -263,7 +263,7 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 
 void init_ait3_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_3;
@@ -276,7 +276,7 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 
 void init_ait4_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_4;
