@@ -1425,19 +1425,14 @@ static void updateMAM(uint8_t *sam_stat, int loadCount)
  *	cdev     -> Char dev file handle,
  *	cdb      -> SCSI Command buffer pointer,
  *	dbuf     -> struct vtl_ds *
- *
- *	Return	 -> vtl_ds->sz contains number of bytes to return.
  */
 static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	static uint8_t last_cmd;
 	static int last_count;
-	struct priv_lu_ssc *lu_priv;
 	struct scsi_cmd _cmd;
 	struct scsi_cmd *cmd;
 	cmd = &_cmd;
-	lu_priv = &lu_ssc;
 
 	cmd->scb = cdb;
 	cmd->scb_len = 16;	/* fixme */
@@ -1466,14 +1461,14 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case REQUEST_SENSE:
 	case MODE_SELECT:
 	case INQUIRY:
-		*sam_stat = SAM_STAT_GOOD;
+		dbuf_p->sam_stat = SAM_STAT_GOOD;
 		break;
 	default:
-		if (check_reset(sam_stat))
+		if (check_reset(&dbuf_p->sam_stat))
 			return;
 	}
 
-	*sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
+	dbuf_p->sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
 
 	last_cmd = cdb[0];
 	return;

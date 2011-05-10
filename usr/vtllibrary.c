@@ -336,7 +336,6 @@ __attribute__((constructor)) static void smc_init(void)
  */
 static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	uint8_t *sam_stat;
 	struct scsi_cmd _cmd;
 	struct scsi_cmd *cmd;
 	cmd = &_cmd;
@@ -346,8 +345,6 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	cmd->dbuf_p = dbuf_p;
 	cmd->lu = &lunit;
 
-	sam_stat = &dbuf_p->sam_stat;
-
 	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 
 	switch (cdb[0]) {
@@ -355,18 +352,18 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	case REQUEST_SENSE:
 	case MODE_SELECT:
 	case INQUIRY:
-		*sam_stat = SAM_STAT_GOOD;
+		dbuf_p->sam_stat = SAM_STAT_GOOD;
 		break;
 	default:
 		if (cmd->lu->online == 0) {
-			mkSenseBuf(NOT_READY, E_OFFLINE, sam_stat);
+			mkSenseBuf(NOT_READY, E_OFFLINE, &dbuf_p->sam_stat);
 			return;
 		}
-		if (check_reset(sam_stat))
+		if (check_reset(&dbuf_p->sam_stat))
 			return;
 	}
 
-	*sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
+	dbuf_p->sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
 	return;
 }
 
