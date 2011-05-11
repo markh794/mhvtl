@@ -980,7 +980,7 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 			(code) ? "filemark" : "block",
 			(1 == abs(icount)) ? "" : "s");
 
-	if (icount != 0)
+	if (icount != 0 || code == 3)
 		resp_space(icount, code, sam_stat);
 
 	return SAM_STAT_GOOD;
