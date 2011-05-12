@@ -952,13 +952,11 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 
 uint8_t ssc_space(struct scsi_cmd *cmd)
 {
-	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
 	int count;
 	int icount;
 	int code;
 
-	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
 	count = get_unaligned_be24(&cmd->scb[2]);
@@ -973,12 +971,36 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 	else
 		icount = (int32_t)count;
 
-	MHVTL_DBG(1, "SPACE (%ld) ** %s %d %s%s",
+	switch (code) {
+	case 0:	/* Logical blocks - supported */
+		MHVTL_DBG(1, "SPACE (%ld) ** %s %d block%s",
 			(long)cmd->dbuf_p->serialNo,
 			(icount >= 0) ? "forward" : "back",
 			abs(icount),
-			(code) ? "filemark" : "block",
 			(1 == abs(icount)) ? "" : "s");
+		break;
+	case 1:	/* Filemarks - supported */
+		MHVTL_DBG(1, "SPACE (%ld) ** %s %d filemark%s",
+			(long)cmd->dbuf_p->serialNo,
+			(icount >= 0) ? "forward" : "back",
+			abs(icount),
+			(1 == abs(icount)) ? "" : "s");
+		break;
+	case 3:	/* End of Data - supported */
+		MHVTL_DBG(1, "SPACE (%ld) ** %s ",
+			(long)cmd->dbuf_p->serialNo,
+			"to End-of-data");
+		break;
+	case 2:	/* Sequential filemarks currently not supported */
+	default: /* obsolete / reserved values */
+		MHVTL_DBG(1, "SPACE (%ld) ** - Unsupported option %d",
+			(long)cmd->dbuf_p->serialNo,
+			code);
+
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+		break;
+	}
 
 	if (icount != 0 || code == 3)
 		resp_space(icount, code, sam_stat);
