@@ -1283,3 +1283,45 @@ uint8_t smc_rezero(struct scsi_cmd *cmd)
 	sleep(1);
 	return SAM_STAT_GOOD;
 }
+
+uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
+{
+	uint8_t *cdb = cmd->scb;
+	struct smc_priv *smc_p = cmd->lu->lu_private;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	int addr;
+	int action_code;
+
+	MHVTL_DBG(1, "OPEN/CLOSE IMPORT/EXPORT ELEMENT (%ld) **",
+					(long)cmd->dbuf_p->serialNo);
+
+	addr = get_unaligned_be16(&cdb[2]);
+	action_code = cdb[4] & 0x1f;
+	MHVTL_DBG(2, "addr: %d action_code: %d", addr, action_code);
+
+	if (slot_type(smc_p, addr) != MAP_ELEMENT) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_ELEMENT_ADDR, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	switch (action_code) {
+	case 0: /* open */
+		if (smc_p->cap_closed == CAP_CLOSED) {
+			MHVTL_DBG(2, "opening CAP");
+			smc_p->cap_closed = CAP_OPEN;
+		}
+		break;
+	case 1: /* close */
+		if (smc_p->cap_closed == CAP_OPEN) {
+			MHVTL_DBG(2, "closing CAP");
+			smc_p->cap_closed = CAP_CLOSED;
+		}
+		break;
+	default:
+		MHVTL_DBG(1, "unknown action code: %d", action_code);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+		break;
+	}
+
+	return SAM_STAT_GOOD;
+}

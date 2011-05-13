@@ -206,7 +206,7 @@ struct device_type_template smc_template = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_mode_sense,},
-		{spc_illegal_op,},
+		{smc_open_close_import_export_element,},
 		{spc_recv_diagnostics,},
 		{spc_send_diagnostics,},
 		{smc_allow_removal,},
