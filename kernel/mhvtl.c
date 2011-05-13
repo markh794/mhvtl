@@ -53,7 +53,6 @@
 #include <linux/genhd.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
@@ -69,6 +68,10 @@
 
 #ifndef LINUX_VERSION_CODE
 #include <linux/version.h>
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
+#include <linux/smp_lock.h>
 #endif
 
 #ifndef _SCSI_H
@@ -223,7 +226,11 @@ struct vtl_hba_info {
 	container_of(d, struct vtl_hba_info, dev)
 
 static LIST_HEAD(vtl_hba_list);	/* dll of adapters */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+static spinlock_t vtl_hba_list_lock = __SPIN_LOCK_UNLOCKED(vtl_hba_list_lock);
+#else
 static spinlock_t vtl_hba_list_lock = SPIN_LOCK_UNLOCKED;
+#endif
 
 typedef void (* done_funct_t) (struct scsi_cmnd *);
 
@@ -1106,7 +1113,11 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 	lu->vtl_hba = vtl_hba;
 	lu->reset = 0;
 	lu->device_offline = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+	lu->cmd_list_lock = __SPIN_LOCK_UNLOCKED(lu.cmd_list_lock);
+#else
 	lu->cmd_list_lock = SPIN_LOCK_UNLOCKED;
+#endif
 
 	/* List of queued SCSI op codes associated with this device */
 	INIT_LIST_HEAD(&lu->cmd_list);
@@ -1757,14 +1768,26 @@ give_up:
 	return ret;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+DEFINE_MUTEX(ioctl_mutex);
+#endif
+
 static long vtl_c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	long ret;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+	mutex_lock(&ioctl_mutex);
+#else
 	lock_kernel();
+#endif
 	ret = vtl_c_ioctl_bkl(inode, file, cmd, arg);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+	mutex_unlock(&ioctl_mutex);
+#else
 	unlock_kernel();
+#endif
 
 	return ret;
 }
