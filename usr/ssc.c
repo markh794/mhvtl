@@ -1060,12 +1060,15 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd)
 						(long)cmd->dbuf_p->serialNo);
 	if (!lu_priv->pm->check_restrictions(cmd)) {
 		/* If restrictions & WORM media at block 0.. OK
-		 * Otherwise break out of case.
+		 * Otherwise return CHECK_CONDITION.
+		 *	check_restrictions()
+		 *	was nice enough to set correct sense status for us.
 		 */
 		if ((mam.MediumType == MEDIA_TYPE_WORM) &&
 					(c_pos->blk_number == 0)) {
 			MHVTL_DBG(1, "Erasing WORM media");
-		}
+		} else
+			return SAM_STAT_CHECK_CONDITION;
 	}
 
 	write_filemarks(count, sam_stat);
