@@ -668,26 +668,40 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
+	char str[64];
 
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
+	*sam_stat = SAM_STAT_GOOD;
 
-	MHVTL_DBG(2, "Test Unit Ready (%ld) : %s",
-			(long)cmd->dbuf_p->serialNo,
-			(lu_priv->tapeLoaded == TAPE_UNLOADED) ? "No" : "Yes");
+	sprintf(str, "Test Unit Ready (%ld) ** : ",
+				(long)cmd->dbuf_p->serialNo);
+
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_UNLOADED:
+		strcat(str, "No, No tape loaded");
 		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
+		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
+		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
+			strcat(str, "No, Cleaning cart loaded");
+			mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
+								sam_stat);
+			*sam_stat = SAM_STAT_CHECK_CONDITION;
+		} else
+			strcat(str, "Yes");
 		break;
 	default:
+		strcat(str, "No, Media format corrupt");
 		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
+		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
-	return SAM_STAT_GOOD;
+
+	MHVTL_DBG(1, "%s", str);
+
+	return *sam_stat;
 }
 
 uint8_t ssc_rewind(struct scsi_cmd *cmd)
