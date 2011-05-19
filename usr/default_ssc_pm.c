@@ -190,6 +190,12 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
+static uint8_t default_media_load(int load)
+{
+	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
+	return 0;
+}
+
 static uint8_t default_cleaning(void *ssc_priv)
 {
 	struct priv_lu_ssc *ssc;
@@ -219,6 +225,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_compression	= set_default_comp,
 	.clear_WORM		= clear_default_WORM,
 	.set_WORM		= set_default_WORM,
+	.media_load		= default_media_load,
 	.cleaning_media		= default_cleaning,
 };
 

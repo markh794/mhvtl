@@ -283,6 +283,26 @@ static uint8_t ait_cleaning(void *ssc_priv)
 	return 0;
 }
 
+/* load set to 1 for load, 0 for unload */
+static uint8_t ait_media_load(int load)
+{
+	uint8_t *smp_dp;
+	struct mode *smp;
+
+	MHVTL_DBG(3, "+++ Trace +++");
+
+	smp = find_pcode(sm, 0x31, 0);
+	if (smp) {
+		smp_dp = smp->pcodePointer;
+		if (load)
+			smp_dp[3] = 0x0a;	/* SPAN -> Set to 0Ah on load */
+		else
+			smp_dp[3] = 0x0;	/* SPAN -> Set to 0 on unload */
+	}
+
+	return 0;
+}
+
 static char *name_ait_1 = "AIT";
 static char *name_ait_2 = "AIT-2";
 static char *name_ait_3 = "AIT-3";
@@ -295,6 +315,7 @@ static struct ssc_personality_template ssc_pm = {
 	.check_restrictions	= check_restrictions,
 	.clear_compression	= clear_ait_compression,
 	.set_compression	= set_ait_compression,
+	.media_load		= ait_media_load,
 	.cleaning_media		= ait_cleaning,
 };
 

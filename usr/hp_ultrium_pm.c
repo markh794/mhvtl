@@ -322,6 +322,12 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
+static uint8_t hp_media_load(int load)
+{
+	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
+	return 0;
+}
+
 static uint8_t hp_cleaning(void *ssc_priv)
 {
 	struct priv_lu_ssc *ssc;
@@ -362,6 +368,7 @@ static struct ssc_personality_template ult4_ssc_pm = {
 	.set_compression	= set_ult_compression,
 	.clear_WORM		= clear_ult_WORM,
 	.set_WORM		= set_ult_WORM,
+	.media_load		= hp_media_load,
 	.cleaning_media		= hp_cleaning,
 };
 

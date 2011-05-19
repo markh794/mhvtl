@@ -1521,6 +1521,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		return rc;
 	}
 	lu_ssc.tapeLoaded = TAPE_LOADED;
+	lu_ssc.pm->media_load(TAPE_LOADED);
 
 	strncpy((char *)lu_ssc.mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
@@ -1667,6 +1668,7 @@ mismatchmedia:
 			lookup_media_type(mam.MediaType),
 			lu_ssc.pm->name);
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
+	lu_ssc.pm->media_load(TAPE_UNLOADED);
 	return TAPE_UNLOADED;
 }
 
@@ -1719,6 +1721,7 @@ void unloadTape(uint8_t *sam_stat)
 			lu_ssc.pm->clear_WORM();
 		if (lu_ssc.cleaning_media_state)
 			lu_ssc.cleaning_media_state = NULL;
+		lu_ssc.pm->media_load(TAPE_UNLOADED);
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");

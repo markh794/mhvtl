@@ -305,6 +305,12 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
+static uint8_t t10k_media_load(int load)
+{
+	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
+	return 0;
+}
+
 static uint8_t t10k_cleaning(void *ssc_priv)
 {
 	struct priv_lu_ssc *ssc;
@@ -335,6 +341,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_compression	= set_t10k_comp,
 	.clear_WORM		= clear_t10k_WORM,
 	.set_WORM		= set_t10k_WORM,
+	.media_load		= t10k_media_load,
 	.cleaning_media		= t10k_cleaning,
 };
 

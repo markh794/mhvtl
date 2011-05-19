@@ -51,6 +51,9 @@ struct ssc_personality_template {
 
 	/* Cleaning media mount calls into here */
 	uint8_t (*cleaning_media)(void *priv);
+
+	/* Called on load/unload - where var load = 0 on unload, 1 on load */
+	uint8_t (*media_load)(int load);
 };
 
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat);

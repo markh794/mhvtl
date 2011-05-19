@@ -346,6 +346,12 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
+static uint8_t ibm_media_load(int load)
+{
+	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
+	return 0;
+}
+
 static uint8_t ibm_cleaning(void *ssc_priv)
 {
 	struct priv_lu_ssc *ssc;
@@ -377,6 +383,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_compression	= set_3592_comp,
 	.clear_WORM		= clear_3592_WORM,
 	.set_WORM		= set_3592_WORM,
+	.media_load		= ibm_media_load,
 	.cleaning_media		= ibm_cleaning,
 };
 
