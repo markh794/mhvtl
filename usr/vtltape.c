@@ -1318,7 +1318,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 	if (cmd->scb[1] != TAPE_DATA_ENCRYPTION) {
 		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cmd->scb[1]);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return 0;
+		return SAM_STAT_CHECK_CONDITION;
 	}
 	MHVTL_DBG(2, "Tape Data Encryption, %s, "
 			" alloc len: 0x%02x, inc_512: %s",
@@ -1330,7 +1330,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 	    (buf[2] != 0x00) || (buf[3] < 16) ||
 	    (buf[8] != 0x01) || (buf[9] != 0x00)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return 0;
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	lu_ssc.KEY_INSTANCE_COUNTER++;
