@@ -300,6 +300,68 @@ static int e06_kad_validation(int encrypt_mode, int ukad, int akad)
 	return count;
 }
 
+/* Some comments before I forget how this is supose to work..
+ - cleaning_media_state is either
+   0 - Not mounted
+   1 - Cleaning media mounted -> return Cleaning cartridge installed
+   2 - Cleaning media mounted -> return Cause not reportable
+   3 - Cleaning media mounted -> return Initializing command required
+
+ On cleaning media mount, ibm_cleaning() is called which:
+   Sets a pointer from priv_lu_ssc -> cleaning_media_state.
+   Sets cleaning_media_state to 1.
+   Sets a 30 second timer to call inc_cleaning_state()
+
+ inc_cleaning_state()
+   Increments cleaning_media_state.
+   If cleaning media_state == 2, set another timer for 90 seconds to again
+   call inc_cleaning_state.
+
+ If the application issues a TUR, ssc_tur() will return one of the
+ above status codes depending on the current value of cleaning_media_state.
+
+ When the cleaning media is unmounted, the pointer in priv_lu_ssc to this
+ var will be re-set to NULL so the ssc_tur() will return defautl value.
+
+ */
+static volatile sig_atomic_t cleaning_media_state;
+
+static void inc_cleaning_state(int sig);
+
+static void set_cleaning_timer(int t)
+{
+	MHVTL_DBG(3, "+++ Trace +++ Setting alarm for %d", t);
+	signal(SIGALRM, inc_cleaning_state);
+	alarm(t);
+}
+
+static void inc_cleaning_state(int sig)
+{
+	MHVTL_DBG(3, "+++ Trace +++");
+	signal(sig, inc_cleaning_state);
+
+	cleaning_media_state++;
+
+	if (cleaning_media_state == CLEAN_MOUNT_STAGE2)
+		set_cleaning_timer(90);
+}
+
+static uint8_t ibm_cleaning(void *ssc_priv)
+{
+	struct priv_lu_ssc *ssc;
+
+	MHVTL_DBG(3, "+++ Trace +++");
+
+	ssc = ssc_priv;
+
+	ssc->cleaning_media_state = &cleaning_media_state;
+	cleaning_media_state = CLEAN_MOUNT_STAGE1;
+
+	set_cleaning_timer(30);
+
+	return 0;
+}
+
 static char *pm_name_j1a = "03592J1A";
 static char *pm_name_e05 = "03592E05";
 static char *pm_name_e06 = "03592E06";
@@ -315,6 +377,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_compression	= set_3592_comp,
 	.clear_WORM		= clear_3592_WORM,
 	.set_WORM		= set_3592_WORM,
+	.cleaning_media		= ibm_cleaning,
 };
 
 void init_3592_j1a(struct lu_phy_attr *lu)

@@ -685,9 +685,35 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 		break;
 	case TAPE_LOADED:
 		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
+			int state;
+
 			strcat(str, "No, Cleaning cart loaded");
-			mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
+
+			if (lu_priv->cleaning_media_state)
+				state = *lu_priv->cleaning_media_state;
+			else
+				state = 0;
+
+			switch (state) {
+			case CLEAN_MOUNT_STAGE1:
+				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
 								sam_stat);
+				break;
+			case CLEAN_MOUNT_STAGE2:
+				mkSenseBuf(NOT_READY, E_CAUSE_NOT_REPORTABLE,
+								sam_stat);
+				break;
+			case CLEAN_MOUNT_STAGE3:
+				mkSenseBuf(NOT_READY, E_INITIALIZING_REQUIRED,
+								sam_stat);
+				break;
+			default:
+				MHVTL_LOG("Unknown cleaning media mount state");
+				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
+								sam_stat);
+				break;
+			}
+
 			*sam_stat = SAM_STAT_CHECK_CONDITION;
 		} else
 			strcat(str, "Yes");

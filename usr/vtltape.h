@@ -25,6 +25,7 @@
 #define _VTLTAPE_H_
 
 #include "vtllib.h"
+#include <signal.h>
 
 /* Block type definitations */
 #define B_DATA		11
@@ -166,6 +167,11 @@ void print_metadata(void);
 #define	LOAD_WORM		8
 #define	LOAD_ENCRYPT		0x10
 #define	LOAD_FAIL		0x20
+#define LOAD_CLEANING		0x40
+
+#define CLEAN_MOUNT_STAGE1	1
+#define CLEAN_MOUNT_STAGE2	2
+#define CLEAN_MOUNT_STAGE3	3
 
 struct media_details {
 	struct list_head siblings;
@@ -209,6 +215,15 @@ struct priv_lu_ssc {
 	struct encryption *cryptop;
 
 	unsigned char mediaSerialNo[34];
+
+	/* cleaning_media_state -  Only used for cleaning media status..
+		Using signal / alarm which will increment this value thru:
+			0/NULL (unmonted)
+			1 (mounted) -> sense: "Cleaning cartridge installed"
+			2 (mounted) -> sense: "Logical unit not ready"
+			3 (mounted) -> sense: "Cause not reportable"
+	 */
+	volatile sig_atomic_t *cleaning_media_state;
 
 	struct ssc_personality_template *pm;	/* Personality Module */
 };

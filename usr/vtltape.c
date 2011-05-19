@@ -1539,6 +1539,8 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		OK_to_write = 0;
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM();
+		if (lu_ssc.pm->cleaning_media)
+			lu_ssc.pm->cleaning_media(&lu_ssc);
 		fg |= 0x400;
 		MHVTL_DBG(1, "Cleaning media loaded");
 		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
@@ -1715,6 +1717,8 @@ void unloadTape(uint8_t *sam_stat)
 		unload_tape(sam_stat);
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM();
+		if (lu_ssc.cleaning_media_state)
+			lu_ssc.cleaning_media_state = NULL;
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");

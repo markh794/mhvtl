@@ -35,6 +35,7 @@ struct ssc_personality_template {
 	uint8_t (*set_WORM)(void);
 	uint8_t (*mode_sense)(struct scsi_cmd *cmd);
 	uint8_t (*mode_select)(struct scsi_cmd *cmd);
+	uint8_t (*cleaning_media)(void *priv);
 };
 
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat);

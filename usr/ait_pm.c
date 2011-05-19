@@ -221,6 +221,68 @@ static int ait_kad_validation(int mode, int ukad, int akad)
 	return FALSE;
 }
 
+/* Some comments before I forget how this is supose to work..
+ - cleaning_media_state is either
+   0 - Not mounted
+   1 - Cleaning media mounted -> return Cleaning cartridge installed
+   2 - Cleaning media mounted -> return Cause not reportable
+   3 - Cleaning media mounted -> return Initializing command required
+
+ On cleaning media mount, ait_cleaning() is called which:
+   Sets a pointer from priv_lu_ssc -> cleaning_media_state.
+   Sets cleaning_media_state to 1.
+   Sets a 30 second timer to call inc_cleaning_state()
+
+ inc_cleaning_state()
+   Increments cleaning_media_state.
+   If cleaning media_state == 2, set another timer for 90 seconds to again
+   call inc_cleaning_state.
+
+ If the application issues a TUR, ssc_tur() will return one of the
+ above status codes depending on the current value of cleaning_media_state.
+
+ When the cleaning media is unmounted, the pointer in priv_lu_ssc to this
+ var will be re-set to NULL so the ssc_tur() will return defautl value.
+
+ */
+static volatile sig_atomic_t cleaning_media_state;
+
+static void inc_cleaning_state(int sig);
+
+static void set_cleaning_timer(int t)
+{
+	MHVTL_DBG(3, "+++ Trace +++ Setting alarm for %d", t);
+	signal(SIGALRM, inc_cleaning_state);
+	alarm(t);
+}
+
+static void inc_cleaning_state(int sig)
+{
+	MHVTL_DBG(3, "+++ Trace +++");
+	signal(sig, inc_cleaning_state);
+
+	cleaning_media_state++;
+
+	if (cleaning_media_state == CLEAN_MOUNT_STAGE2)
+		set_cleaning_timer(90);
+}
+
+static uint8_t ait_cleaning(void *ssc_priv)
+{
+	struct priv_lu_ssc *ssc;
+
+	MHVTL_DBG(3, "+++ Trace +++");
+
+	ssc = ssc_priv;
+
+	ssc->cleaning_media_state = &cleaning_media_state;
+	cleaning_media_state = CLEAN_MOUNT_STAGE1;
+
+	set_cleaning_timer(30);
+
+	return 0;
+}
+
 static char *name_ait_1 = "AIT";
 static char *name_ait_2 = "AIT-2";
 static char *name_ait_3 = "AIT-3";
@@ -233,6 +295,7 @@ static struct ssc_personality_template ssc_pm = {
 	.check_restrictions	= check_restrictions,
 	.clear_compression	= clear_ait_compression,
 	.set_compression	= set_ait_compression,
+	.cleaning_media		= ait_cleaning,
 };
 
 void init_ait1_ssc(struct lu_phy_attr *lu)
