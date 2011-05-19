@@ -23,18 +23,33 @@ struct ssc_personality_template {
 	int drive_native_density;
 	int drive_type;
 	struct media_handling *media_capabilities;
+
+	/* Read check if this block contains valid encryption keys */
 	uint8_t (*valid_encryption_blk)(struct scsi_cmd *cmd);
+
+	/* Write check if the media supports encryption */
 	uint8_t (*valid_encryption_media)(struct scsi_cmd *cmd);
+
+	/* SPIN page 20 -> Encryption Capabilities */
 	int (*encryption_capabilities)(struct scsi_cmd *cmd);
+
+	/* SPOUT -> Validation KAD info is correct */
 	int (*kad_validation)(int encrypt_mode, int akad, int ukad);
+
+	/* Update mode page for encryption capabilities */
 	uint8_t (*update_encryption_mode)(void *p, int mode);
+
+
+	/* Media access, check if any write restrictions */
 	uint8_t (*check_restrictions)(struct scsi_cmd *cmd);
+	/* enable/disable compression */
 	uint8_t (*clear_compression)(void);
 	uint8_t (*set_compression)(int level);
+	/* enable/disable WORM */
 	uint8_t (*clear_WORM)(void);
 	uint8_t (*set_WORM)(void);
-	uint8_t (*mode_sense)(struct scsi_cmd *cmd);
-	uint8_t (*mode_select)(struct scsi_cmd *cmd);
+
+	/* Cleaning media mount calls into here */
 	uint8_t (*cleaning_media)(void *priv);
 };
 
