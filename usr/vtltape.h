@@ -25,7 +25,6 @@
 #define _VTLTAPE_H_
 
 #include "vtllib.h"
-#include <signal.h>
 
 /* Block type definitations */
 #define B_DATA		11
@@ -159,75 +158,5 @@ uint64_t current_tape_offset(void);
 void print_raw_header(void);
 void print_filemark_count(void);
 void print_metadata(void);
-
-/* Load capabilities - density_status bits */
-#define	LOAD_INVALID		1
-#define	LOAD_RW			2
-#define	LOAD_RO			4
-#define	LOAD_WORM		8
-#define	LOAD_ENCRYPT		0x10
-#define	LOAD_FAIL		0x20
-#define LOAD_CLEANING		0x40
-
-#define CLEAN_MOUNT_STAGE1	1
-#define CLEAN_MOUNT_STAGE2	2
-#define CLEAN_MOUNT_STAGE3	3
-
-struct media_details {
-	struct list_head siblings;
-	unsigned int media_type;	/* Media Type */
-	unsigned int density_status;	/* RO, RW, invalid or fail mount */
-};
-
-struct priv_lu_ssc {
-/* Variables for simple, single initiator, SCSI Reservation system */
-	int I_am_SPC_2_Reserved;
-
-	int bufsize;
-	int tapeLoaded;
-	int inLibrary;
-	uint8_t sam_status;
-
-	/* True if virtual "write protect" switch is set */
-	uint8_t MediaWriteProtect;
-
-	/* Default value read from config file */
-	uint8_t configCompressionFactor;
-	uint8_t configCompressionEnabled;
-
-	loff_t capacity_unit;
-
-	/* Pointer into Device config mode page */
-	uint8_t *compressionFactor;
-
-	int *OK_2_write;
-	struct MAM *mamp;
-
-	uint64_t bytesRead;
-	uint64_t bytesWritten;
-
-	struct blk_header *c_pos;
-
-	uint32_t KEY_INSTANCE_COUNTER;
-	uint32_t DECRYPT_MODE;
-	uint32_t ENCRYPT_MODE;
-	struct encryption *encr;
-	struct encryption *cryptop;
-
-	unsigned char mediaSerialNo[34];
-
-	/* cleaning_media_state -  Only used for cleaning media status..
-		Using signal / alarm which will increment this value thru:
-			0/NULL (unmonted)
-			1 (mounted) -> sense: "Cleaning cartridge installed"
-			2 (mounted) -> sense: "Logical unit not ready"
-			3 (mounted) -> sense: "Cause not reportable"
-	 */
-	volatile sig_atomic_t *cleaning_media_state;
-
-	struct ssc_personality_template *pm;	/* Personality Module */
-};
-
-void personality_module_register(struct ssc_personality_template *pm);
 
 #endif /* _VTLTAPE_H_ */
