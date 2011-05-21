@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 0.18
-Release: 15
-Source: mhvtl-2011-05-04.tgz
+Release: 16
+Source: mhvtl-2011-05-22.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -155,6 +155,20 @@ fi
 %doc %{_prefix}/share/man/man5/device.conf.5.gz
 
 %changelog
+* Sun May 22 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 0.18.16
+- Improvements
+  - Cleaning media behaves more like real (IBM LTO4) drive.
+  - Implement OPEN/CLOSE IMPORT/EXPORT element OP code (Thanks Sebastian)
+  - Kernel module support for 2.6.39 (Thanks Sebastian)
+- Bug fixes
+  - SPACE op code - Space to end-of-data fixed (Thanks Sebastian)
+    This fixes an issue trigged using Oracle Backup
+  - REQUEST SENSE - Return correct data.
+  - SPOUT - Return check_condition on some error paths
+  - Cleaning Media - Return 'not ready' instead of 'good' when loaded
+  - Don't write FILEMARKS to WORM or Cleaning media
+
 * Wed May 04 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.15
 - Improvements
