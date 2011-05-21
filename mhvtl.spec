@@ -163,7 +163,7 @@ fi
   - Kernel module support for 2.6.39 (Thanks Sebastian)
 - Bug fixes
   - SPACE op code - Space to end-of-data fixed (Thanks Sebastian)
-    This fixes an issue trigged using Oracle Backup
+    This fixes an issue triggered using Oracle Backup
   - REQUEST SENSE - Return correct data.
   - SPOUT - Return check_condition on some error paths
   - Cleaning Media - Return 'not ready' instead of 'good' when loaded
