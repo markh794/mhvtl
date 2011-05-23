@@ -999,6 +999,8 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
+	*sam_stat = SAM_STAT_GOOD;
+
 	count = get_unaligned_be24(&cmd->scb[2]);
 	code = cmd->scb[1] & 0x07;
 
@@ -1045,7 +1047,7 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 	if (icount != 0 || code == 3)
 		resp_space(icount, code, sam_stat);
 
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 uint8_t ssc_load_unload(struct scsi_cmd *cmd)
