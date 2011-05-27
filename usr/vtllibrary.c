@@ -1157,7 +1157,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				/* sscanf does not NULL terminate */
 				i = strlen(b) - 25; /* len of ' Product identification: ' */
 				s[i] = '\0';
-				sprintf(lu->product_id, "%-16s", s);
+				snprintf(lu->product_id, PRODUCT_ID_LEN + 1, "%-16s", s);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
