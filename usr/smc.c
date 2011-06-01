@@ -1032,6 +1032,14 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_DEST_FULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
+	if (src->element_type == MAP_ELEMENT) {
+		if (!map_access_ok(smc_p, src)) {
+			MHVTL_DBG(2, "SOURCE MAP port not accessable");
+			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
+						sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
+	}
 
 	sprintf(cmd, "lload %s", src->media->barcode);
 	/* Remove traling spaces */
