@@ -1035,8 +1035,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	if (src->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, src)) {
 			MHVTL_DBG(2, "SOURCE MAP port not accessable");
-			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
-						sam_stat);
+			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1094,8 +1093,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	if (src->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, src)) {
 			MHVTL_DBG(2, "SOURCE MAP port not accessable");
-			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
-						sam_stat);
+			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1103,8 +1101,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	if (dest->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, dest)) {
 			MHVTL_DBG(2, "DESTINATION MAP port not accessable");
-			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
-						sam_stat);
+			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1145,9 +1142,8 @@ static int move_drive2slot(struct smc_priv *smc_p,
 
 	if (dest->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, dest)) {
-			mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_REMOVAL_PREVENTED,
-						sam_stat);
-				return SAM_STAT_CHECK_CONDITION;
+			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
 
