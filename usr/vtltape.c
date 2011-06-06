@@ -1653,9 +1653,6 @@ loadOK:
 			lookup_density_name(mam.MediumDensityCode),
 			mam.MediumDensityCode);
 
-	setSeqAccessDevice(&seqAccessDevice, fg);
-	setTapeAlert(&TapeAlert, fg);
-
 	return TAPE_LOADED;	/* Return successful load */
 
 mismatchmedia:
