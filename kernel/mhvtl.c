@@ -293,7 +293,12 @@ static int vtl_slave_alloc(struct scsi_device *);
 static int vtl_slave_configure(struct scsi_device *);
 static void vtl_slave_destroy(struct scsi_device *);
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
+				  int reason);
+#else
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
+#endif
 #endif
 static int vtl_queuecommand_lck(struct scsi_cmnd *,
 				   void (*done) (struct scsi_cmnd *));
@@ -686,7 +691,12 @@ static inline int scsi_get_tag_type(struct scsi_device *sdev)
  * Disabling for kernel 2.6.9 (RedHat AS 4)
  */
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
+				  int reason)
+#else
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth)
+#endif
 {
 	printk("mhvtl %s(%d)\n", __func__, qdepth);
 
