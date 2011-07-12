@@ -64,14 +64,14 @@ install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
 install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
 %endif
 
-install -m 644 man/build_library_config.1 $RPM_BUILD_ROOT/usr/share/man/man1/build_library_config.1
-install -m 644 man/mktape.1 $RPM_BUILD_ROOT/usr/share/man/man1/mktape.1
-install -m 644 man/mhvtl.1 $RPM_BUILD_ROOT/usr/share/man/man1/mhvtl.1
-install -m 644 man/vtlcmd.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtlcmd.1
-install -m 644 man/vtllibrary.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtllibrary.1
-install -m 644 man/vtltape.1 $RPM_BUILD_ROOT/usr/share/man/man1/vtltape.1
-install -m 644 man/library_contents.5 $RPM_BUILD_ROOT/usr/share/man/man5/library_contents.5
-install -m 644 man/device.conf.5 $RPM_BUILD_ROOT/usr/share/man/man5/device.conf.5
+install -m 644 man/build_library_config.1 $RPM_BUILD_ROOT%{_mandir}/man1/build_library_config.1
+install -m 644 man/mktape.1 $RPM_BUILD_ROOT%{_mandir}/man1/mktape.1
+install -m 644 man/mhvtl.1 $RPM_BUILD_ROOT%{_mandir}/man1/mhvtl.1
+install -m 644 man/vtlcmd.1 $RPM_BUILD_ROOT%{_mandir}/man1/vtlcmd.1
+install -m 644 man/vtllibrary.1 $RPM_BUILD_ROOT%{_mandir}/man1/vtllibrary.1
+install -m 644 man/vtltape.1 $RPM_BUILD_ROOT%{_mandir}/man1/vtltape.1
+install -m 644 man/library_contents.5 $RPM_BUILD_ROOT%{_mandir}/man5/library_contents.5
+install -m 644 man/device.conf.5 $RPM_BUILD_ROOT%{_mandir}/man5/device.conf.5
 
 %pre
 if ! getent group vtl > /dev/null 2>&1; then
@@ -133,26 +133,20 @@ fi
 %defattr(-,vtl,vtl)
 %doc INSTALL README etc/library_contents.sample
 /etc/init.d/mhvtl
-%{_prefix}/bin/vtlcmd
-%attr(4750, root, vtl) %{_prefix}/bin/vtltape
-%attr(4750, root, vtl) %{_prefix}/bin/vtllibrary
-%{_prefix}/bin/mktape
-%{_prefix}/bin/tapeexerciser
-%{_prefix}/bin/build_library_config
-%{_prefix}/bin/make_vtl_media
+%{_bindir}/vtlcmd
+%attr(4750, root, vtl) %{_bindir}/vtltape
+%attr(4750, root, vtl) %{_bindir}/vtllibrary
+%{_bindir}/mktape
+%{_bindir}/tapeexerciser
+%{_bindir}/build_library_config
+%{_bindir}/make_vtl_media
 %ifarch x86_64 amd64 ppc64
 %{_prefix}/lib64/libvtlscsi.so
 %else
 %{_prefix}/lib/libvtlscsi.so
 %endif
-%doc %{_prefix}/share/man/man1/build_library_config.1.gz
-%doc %{_prefix}/share/man/man1/mktape.1.gz
-%doc %{_prefix}/share/man/man1/vtlcmd.1.gz
-%doc %{_prefix}/share/man/man1/mhvtl.1.gz
-%doc %{_prefix}/share/man/man1/vtllibrary.1.gz
-%doc %{_prefix}/share/man/man1/vtltape.1.gz
-%doc %{_prefix}/share/man/man5/library_contents.5.gz
-%doc %{_prefix}/share/man/man5/device.conf.5.gz
+%doc %{_mandir}/man1/*
+%doc %{_mandir}/man5/*
 
 %changelog
 * Sat Jun 25 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
