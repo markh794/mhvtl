@@ -192,7 +192,7 @@ add_ibm_ultrium_4_drive 34 0 12 0 "XYZZY_B4" 30 4
 fi
 
 # Give up is device.conf is at wrong version..
-V=`grep VERSION: $DEVICE_CONF|awk '{print $2}'`
+V=`awk '/VERSION:/ {print $2}' $DEVICE_CONF`
 if [ $V -lt 4 ]; then
 	echo " $DEVICE_CONF is not correct version"
 	exit 1;

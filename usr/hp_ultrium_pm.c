@@ -355,6 +355,7 @@ static struct ssc_personality_template ssc_pm = {
 	.check_restrictions	= check_restrictions, /* default in ssc.c */
 	.clear_compression	= clear_ult_compression,
 	.set_compression	= set_ult_compression,
+	.media_load		= hp_media_load,
 	.cleaning_media		= hp_cleaning,
 };
 
