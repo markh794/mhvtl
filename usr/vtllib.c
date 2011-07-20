@@ -121,7 +121,7 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 
 	sense[0] = SD_CURRENT_INFORMATION_FIXED;
 	/* SPC4 (Revision 30) Ch: 4.5.1 states:
-	 * The RESPONSE CODE field show be set to 70h in all unit attention
+	 * The RESPONSE CODE field shall be set to 70h in all unit attention
 	 * condition sense data in which:
 	 * - The ADDITIONAL SENSE CODE field is set to 29h
 	 * - The ADDITIONAL SENSE CODE is set to MODE PARAMETERS CHANGED
