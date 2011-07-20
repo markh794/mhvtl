@@ -54,6 +54,7 @@ install -m 750 -s usr/vtltape $RPM_BUILD_ROOT/usr/bin/vtltape
 install -m 750 -s usr/vtllibrary $RPM_BUILD_ROOT/usr/bin/vtllibrary
 install -m 750 usr/vtlcmd $RPM_BUILD_ROOT/usr/bin/vtlcmd
 install -m 750 usr/mktape $RPM_BUILD_ROOT/usr/bin/mktape
+install -m 750 usr/dump_tape $RPM_BUILD_ROOT/usr/bin/dump_tape
 install -m 700 usr/build_library_config $RPM_BUILD_ROOT/usr/bin/build_library_config
 install -m 700 usr/make_vtl_media $RPM_BUILD_ROOT/usr/bin/make_vtl_media
 install -m 700 usr/tapeexerciser $RPM_BUILD_ROOT/usr/bin/tapeexerciser
@@ -137,6 +138,7 @@ fi
 %attr(4750, root, vtl) %{_bindir}/vtltape
 %attr(4750, root, vtl) %{_bindir}/vtllibrary
 %{_bindir}/mktape
+%{_bindir}/dump_tape
 %{_bindir}/tapeexerciser
 %{_bindir}/build_library_config
 %{_bindir}/make_vtl_media
