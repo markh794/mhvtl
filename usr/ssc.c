@@ -1061,6 +1061,12 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 
 	load = cmd->scb[4] & 0x01;
 
+	if (cmd->scb[4] & 0x04) { /* EOT bit */
+		MHVTL_LOG("EOT bit set on load. Not supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
 	MHVTL_DBG(1, "%s tape (%ld) **", (load) ? "Loading" : "Unloading",
 						(long)cmd->dbuf_p->serialNo);
 
