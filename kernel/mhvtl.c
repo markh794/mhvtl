@@ -1741,6 +1741,7 @@ static int vtl_remove_lu(int minor, char __user *arg)
 	struct vtl_ctl ctl;
 	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu, *n;
+  struct scsi_device *baksdev;
 	int ret = -ENODEV;
 
 	down(&tmp_mutex);
@@ -1766,8 +1767,9 @@ static int vtl_remove_lu(int minor, char __user *arg)
 			MHVTL_DBG(2, "line %d found matching lu\n", __LINE__);
 			list_del(&lu->lu_sibling);
 			devp[minor] = NULL;
+      baksdev = lu->sdev;
 			scsi_remove_device(lu->sdev);
-			scsi_device_put(lu->sdev);
+			scsi_device_put(baksdev);
 		}
 	}
 
