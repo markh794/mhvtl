@@ -133,8 +133,6 @@ static const char vtl_driver_name[] = "mhvtl";
 
 /* bit mask values for vtl_opts */
 #define VTL_OPT_NOISE   3
-#define VTL_OPT_TIMEOUT   4
-#define VTL_OPT_RECOVERED_ERR   8
 /* When "every_nth" > 0 then modulo "every_nth" commands:
  *   - a no response is simulated if VTL_OPT_TIMEOUT is set
  *   - a RECOVERED_ERROR is simulated on successful read and write
@@ -567,7 +565,6 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
 	int errsts = 0;
 	struct vtl_lu_info *lu = NULL;
-	int inj_recovered = 0;
 
 	if (done == NULL)
 		return 0;	/* assume mid level reprocessing command */
@@ -599,10 +596,6 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 		vtl_cmnd_count = 0;
 		if (vtl_every_nth < -1)
 			vtl_every_nth = -1;
-		if (VTL_OPT_TIMEOUT & vtl_opts)
-			return 0; /* ignore command causing timeout */
-		else if (VTL_OPT_RECOVERED_ERR & vtl_opts)
-			inj_recovered = 1; /* to reads and writes below */
 	}
 
 	switch (*cmd) {
