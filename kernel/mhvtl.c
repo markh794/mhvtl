@@ -190,7 +190,6 @@ static int vtl_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int vtl_opts = DEF_OPTS;
 static int vtl_scsi_level = DEF_SCSI_LEVEL;
 static int vtl_dsense = DEF_D_SENSE;
-static int vtl_add_lu = 0;
 
 static int vtl_cmnd_count = 0;
 
@@ -1159,7 +1158,6 @@ module_param_named(max_luns, vtl_max_luns, int, 0);
 module_param_named(num_tgts, vtl_num_tgts, int, 0);
 module_param_named(opts, vtl_opts, int, 0); /* perm=0644 */
 module_param_named(scsi_level, vtl_scsi_level, int, 0);
-module_param_named(add_lu, vtl_add_lu, int, 0);
 
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert + Mark Harvey");
 MODULE_DESCRIPTION("SCSI vtl adapter driver");
@@ -1172,8 +1170,6 @@ MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
 MODULE_PARM_DESC(num_tgts, "number of SCSI targets per host to simulate");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
 MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=5[SPC-3])");
-MODULE_PARM_DESC(add_lu, "Initiate adding logical unit defined by: "
-			"minor, channel, target, lun");
 
 
 static char vtl_parm_info[256];
