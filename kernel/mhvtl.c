@@ -127,7 +127,6 @@ static const char vtl_driver_name[] = "mhvtl";
 #define DEF_DELAY   1
 #define DEF_NUM_PARTS   0
 #define DEF_OPTS   1		/* Default to verbose logging */
-#define DEF_D_SENSE   0
 #define DEF_RETRY_REQUEUE 4	/* How many times to re-try a cmd requeue */
 
 /* bit mask values for vtl_opts */
@@ -171,7 +170,6 @@ static int vtl_add_host = DEF_NUM_HOST;
 static int vtl_max_luns = DEF_MAX_LUNS;
 static int vtl_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int vtl_opts = DEF_OPTS;
-static int vtl_dsense = DEF_D_SENSE;
 
 static int vtl_cmnd_count = 0;
 
@@ -850,18 +848,11 @@ static void mk_sense_buffer(struct vtl_lu_info *lu, int key,
 
 	sbuff = lu->sense_buff;
 	memset(sbuff, 0, SENSE_BUF_SIZE);
-	if (vtl_dsense) {
-		sbuff[0] = 0x72;  /* descriptor, current */
-		sbuff[1] = key;
-		sbuff[2] = asc;
-		sbuff[3] = asq;
-	} else {
-		sbuff[0] = 0x70;  /* fixed, current */
-		sbuff[2] = key;
-		sbuff[7] = 0xa;	  /* implies 18 byte sense buffer */
-		sbuff[12] = asc;
-		sbuff[13] = asq;
-	}
+	sbuff[0] = 0x70;  /* fixed, current */
+	sbuff[2] = key;
+	sbuff[7] = 0xa;	  /* implies 18 byte sense buffer */
+	sbuff[12] = asc;
+	sbuff[13] = asq;
 	MHVTL_DBG(1, " [sense_key,asc,ascq]: "
 		      "[0x%x,0x%x,0x%x]\n", key, asc, asq);
 }
@@ -1042,12 +1033,8 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 	/* List of queued SCSI op codes associated with this device */
 	INIT_LIST_HEAD(&lu->cmd_list);
 
-	if (vtl_dsense)
-		lu->sense_buff[0] = 0x72;
-	else {
-		lu->sense_buff[0] = 0x70;
-		lu->sense_buff[7] = 0xa;
-	}
+	lu->sense_buff[0] = 0x70;
+	lu->sense_buff[7] = 0xa;
 	devp[minor] = lu;
 	MHVTL_DBG(1, "Added lu: %p to devp[%d]\n", lu, minor);
 
@@ -1063,7 +1050,6 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
  * of sysfs parameters (which module_param doesn't yet support).
  * Sysfs parameters defined explicitly below.
  */
-module_param_named(dsense, vtl_dsense, int, 0);
 module_param_named(max_luns, vtl_max_luns, int, 0);
 module_param_named(num_tgts, vtl_num_tgts, int, 0);
 module_param_named(opts, vtl_opts, int, 0); /* perm=0644 */
@@ -1073,7 +1059,6 @@ MODULE_DESCRIPTION("SCSI vtl adapter driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MHVTL_VERSION);
 
-MODULE_PARM_DESC(dsense, "use descriptor sense format(def: fixed)");
 MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
 MODULE_PARM_DESC(num_tgts, "number of SCSI targets per host to simulate");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
@@ -1122,23 +1107,6 @@ static ssize_t vtl_major_show(struct device_driver *ddp, char *buf)
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_major);
 }
 DRIVER_ATTR(major, S_IRUGO, vtl_major_show, NULL);
-
-static ssize_t vtl_dsense_show(struct device_driver *ddp, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_dsense);
-}
-static ssize_t vtl_dsense_store(struct device_driver *ddp,
-				  const char *buf, size_t count)
-{
-	int n;
-
-	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
-		vtl_dsense = n;
-		return count;
-	}
-	return -EINVAL;
-}
-DRIVER_ATTR(dsense, S_IRUGO|S_IWUSR, vtl_dsense_show, vtl_dsense_store);
 
 static ssize_t vtl_num_tgts_show(struct device_driver *ddp, char *buf)
 {
