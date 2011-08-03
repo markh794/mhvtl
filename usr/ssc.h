@@ -14,6 +14,9 @@
 
 #define ENCR_SET_DATA_ENCRYPTION	0x10
 
+#define EARLY_WARNING_SZ		1024 * 1024 * 2	/* 2M EW size */
+#define PROG_EARLY_WARNING_SZ		1024 * 1024 * 3	/* 3M Prog EW size */
+
 struct media_handling {
 	char media_type[16];
 	char op[8];
@@ -95,6 +98,8 @@ struct priv_lu_ssc {
 	uint8_t configCompressionEnabled;
 
 	loff_t capacity_unit;
+	loff_t early_warning_sz;
+	loff_t prog_early_warning_sz;
 
 	/* Pointer into Device config mode page */
 	uint8_t *compressionFactor;
@@ -102,6 +107,7 @@ struct priv_lu_ssc {
 	int *OK_2_write;
 	struct MAM *mamp;
 
+	uint64_t max_capacity; /* save MAM.max_capacity here for quick access */
 	uint64_t bytesRead;
 	uint64_t bytesWritten;
 

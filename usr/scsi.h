@@ -56,14 +56,15 @@
  * SENSE keys
  */
 #define NO_SENSE		0x00
-#define	RECOVERED_ERROR		0x01
+#define RECOVERED_ERROR		0x01
 #define NOT_READY		0x02
 #define MEDIUM_ERROR		0x03
-#define	HARDWARE_ERROR		0x04
+#define HARDWARE_ERROR		0x04
 #define ILLEGAL_REQUEST		0x05
 #define UNIT_ATTENTION		0x06
 #define DATA_PROTECT		0x07
-#define	BLANK_CHECK		0x08
+#define BLANK_CHECK		0x08
+#define VOLUME_OVERFLOW		0x0d
 
 /*
  * OP Codes
@@ -137,6 +138,7 @@
 #define E_EOM				0x0002
 #define E_BOM				0x0004
 #define E_END_OF_DATA			0x0005
+#define E_PROGRAMMABLE_EARLY_WARNING	0x0006
 #define E_OP_IN_PROGRESS		0x0016
 #define E_DRIVE_REQUIRES_CLEANING	0x8282
 

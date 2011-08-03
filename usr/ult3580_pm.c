@@ -100,7 +100,7 @@ static uint8_t set_ult_compression(struct list_head *m, int lvl)
 
 static uint8_t set_ult_WORM(struct list_head *lst)
 {
-	uint8_t *smp_dp;
+	uint8_t *mp;
 	struct mode *m;
 
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
@@ -113,11 +113,11 @@ static uint8_t set_ult_WORM(struct list_head *lst)
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			lst, m, m->pcodePointer);
 	if (m) {
-		smp_dp = m->pcodePointer;
-		if (!smp_dp)
+		mp = m->pcodePointer;
+		if (!mp)
 			return SAM_STAT_GOOD;
 
-		smp_dp[4] = 0x01; /* WORM Behavior */
+		mp[4] = 0x01; /* WORM Behavior */
 	}
 
 	return SAM_STAT_GOOD;
@@ -131,16 +131,16 @@ static uint8_t clear_ult_WORM(struct list_head *m)
 
 static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int value)
 {
-	struct mode *smp;
+	struct mode *mp;
 
 	MHVTL_DBG(3, "+++ Trace +++");
 
-	smp = lookup_pcode(m, MODE_VENDOR_SPECIFIC_24H, 0);
-	if (smp) {
+	mp = lookup_pcode(m, MODE_VENDOR_SPECIFIC_24H, 0);
+	if (mp) {
 		if (value)
-			smp->pcodePointer[5] |= ENCR_E;
+			mp->pcodePointer[5] |= ENCR_E;
 		else
-			smp->pcodePointer[5] &= ~ENCR_E;
+			mp->pcodePointer[5] &= ~ENCR_E;
 	}
 	return SAM_STAT_GOOD;
 }
@@ -321,6 +321,29 @@ static void init_ult_mode_pages(struct lu_phy_attr *lu)
 	add_mode_medium_configuration(lu);
 }
 
+static uint8_t update_prog_early_warning(struct lu_phy_attr *lu)
+{
+	uint8_t *mp;
+	struct mode *m;
+	struct list_head *mode_pg;
+	struct priv_lu_ssc *lu_priv;
+
+	mode_pg = &lu->mode_pg;
+	lu_priv = lu->lu_private;
+
+	m = lookup_pcode(mode_pg, MODE_DEVICE_CONFIGURATION, 1);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			mode_pg, m, m->pcodePointer);
+	if (m) {
+		mp = m->pcodePointer;
+		if (!mp)
+			return SAM_STAT_GOOD;
+
+		put_unaligned_be16(lu_priv->prog_early_warning_sz, &mp[6]);
+	}
+	return SAM_STAT_GOOD;
+}
+
 static char *pm_name_lto1 = "LTO-1";
 static char *pm_name_lto2 = "LTO-2";
 static char *pm_name_lto3 = "LTO-3";
@@ -487,6 +510,9 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	init_ult_mode_pages(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
 	add_mode_encryption_mode_attribute(lu);
+
+	/* Supports non-zero programable early warning */
+	update_prog_early_warning(lu);
 
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);

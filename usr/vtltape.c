@@ -696,8 +696,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *src_buf = cmd->dbuf_p->data;
 	struct priv_lu_ssc *lu_priv;
-	uint64_t max_capacity;
-	uint64_t curr_offset;
+	uint64_t current_position;
 	int rc;
 	int z;
 
@@ -757,16 +756,24 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (rc < 0)
 		return 0;
 
-	curr_offset = current_tape_offset();
-	max_capacity = get_unaligned_be64(&mam.max_capacity);
+	current_position = current_tape_offset();
 
-	if (curr_offset >= max_capacity) {
-		mam.remaining_capacity = 0L;
-		MHVTL_DBG(2, "End of Medium - Setting EOM flag");
-		mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
-	} else {
-		put_unaligned_be64(max_capacity - curr_offset,
+	if (current_position <= lu_priv->prog_early_warning_sz) {
+		put_unaligned_be64(lu_priv->max_capacity - current_position,
 						&mam.remaining_capacity);
+	} else if (current_position >= lu_priv->max_capacity) {
+		mam.remaining_capacity = 0L;
+		MHVTL_LOG("End of Medium - VOLUME_OVERFLOW/EOM");
+		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
+	} else if (current_position >= lu_priv->early_warning_sz) {
+		mam.remaining_capacity = 0L;
+		MHVTL_DBG(1, "End of Medium (early write) - Setting EOM flag");
+		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
+	} else if (current_position >= lu_priv->prog_early_warning_sz) {
+		mam.remaining_capacity = 0L;
+		MHVTL_LOG("End of Medium - Programmable Early Warning");
+		mkSenseBuf(NO_SENSE | SD_EOM,
+					E_PROGRAMMABLE_EARLY_WARNING, sam_stat);
 	}
 
 	return src_len;
@@ -1314,6 +1321,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		OK_to_write = 1;	/* Reset flag to OK. */
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
+		lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
 		mkSenseBuf(UNIT_ATTENTION, E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
@@ -1372,8 +1380,17 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		MHVTL_DBG(1, "Previous unload was not clean");
 	}
 
-	MHVTL_DBG(1, "Tape capacity: %" PRId64,
-			get_unaligned_be64(&mam.max_capacity));
+	lu_ssc.early_warning_sz = get_unaligned_be64(&mam.max_capacity) -
+					EARLY_WARNING_SZ;
+
+	lu_ssc.prog_early_warning_sz = get_unaligned_be64(&mam.max_capacity) -
+					PROG_EARLY_WARNING_SZ;
+
+	MHVTL_DBG(1, "Tape capacity: %" PRId64 ", + Early Warning %" PRId64
+			", + Prog Early Warning %" PRId64,
+			get_unaligned_be64(&mam.max_capacity),
+			lu_ssc.early_warning_sz,
+			lu_ssc.prog_early_warning_sz);
 
 	mam.record_dirty = 1;
 	/* Increment load count */
