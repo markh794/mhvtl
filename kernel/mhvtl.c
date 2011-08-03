@@ -606,12 +606,6 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 	}
 
 	switch (*cmd) {
-	case REQUEST_SENSE:	/* mandatory, ignore unit attention */
-		/* User space REQUEST SENSE */
-		errsts = q_cmd(SCpnt, done, lu);
-		if (!errsts)
-			return 0;
-		break;
 	case REPORT_LUNS:	/* mandatory, ignore unit attention */
 		errsts = resp_report_luns(SCpnt, lu);
 		break;
