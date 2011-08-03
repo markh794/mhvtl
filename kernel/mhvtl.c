@@ -99,9 +99,6 @@ struct scatterlist;
 /* version of scsi_debug I started from
  #define VTL_VERSION "1.75"
 */
-/* SCSI command definations not covered in default scsi.h */
-#define WRITE_ATTRIBUTE 0x8d
-#define SECURITY_PROTOCOL_OUT 0xb5
 #ifndef MHVTL_VERSION
 #define MHVTL_VERSION "0.18.11"
 #endif
@@ -124,10 +121,7 @@ static const char vtl_driver_name[] = "mhvtl";
 #define DEF_NUM_HOST   1
 #define DEF_NUM_TGTS   0
 #define DEF_MAX_LUNS   32
-#define DEF_DELAY   1
-#define DEF_NUM_PARTS   0
 #define DEF_OPTS   1		/* Default to verbose logging */
-#define DEF_RETRY_REQUEUE 4	/* How many times to re-try a cmd requeue */
 
 /* bit mask values for vtl_opts */
 #define VTL_OPT_NOISE   3
