@@ -204,7 +204,6 @@ struct vtl_lu_info {
 	struct scsi_device *sdev;
 
 	char reset;
-	char device_offline;
 
 	struct list_head cmd_list; /* list of outstanding cmds for this lu */
 	spinlock_t cmd_list_lock;
@@ -534,15 +533,6 @@ static int q_cmd(struct scsi_cmnd *scp,
 	struct vtl_header *vheadp;
 	struct vtl_queued_cmd *sqcp;
 
-	/* No user space daemon talking to us */
-	if (lu->device_offline) {
-		printk("%s device <%d %d %d> Offline: No user-space daemons"
-			" registered\n", __func__,
-			lu->channel, lu->target, lu->lun);
-		return resp_becomming_ready(lu);
-	}
-
-
 	sqcp = kmalloc(sizeof(*sqcp), GFP_ATOMIC);
 	if (!sqcp) {
 		printk(KERN_WARNING "mhvtl: %s kmalloc failed\n", __func__);
@@ -627,15 +617,10 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 
 	switch (*cmd) {
 	case REQUEST_SENSE:	/* mandatory, ignore unit attention */
-		if (lu->device_offline) {
-			/* internal REQUEST SENSE routine */
-			errsts = resp_requests(SCpnt, lu);
-		} else {
-			/* User space REQUEST SENSE */
-			errsts = q_cmd(SCpnt, done, lu);
-			if (!errsts)
-				return 0;
-		}
+		/* User space REQUEST SENSE */
+		errsts = q_cmd(SCpnt, done, lu);
+		if (!errsts)
+			return 0;
 		break;
 	case REPORT_LUNS:	/* mandatory, ignore unit attention */
 		errsts = resp_report_luns(SCpnt, lu);
@@ -861,12 +846,11 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 	}
 
 	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
-		if ((!lu->device_offline) &&
-				(lu->channel == sdp->channel) &&
-				(lu->target == sdp->id) &&
-				(lu->lun == sdp->lun)) {
-			MHVTL_DBG(3, "line %d found matching lu\n", __LINE__);
-			return 0;
+		if((lu->channel == sdp->channel) &&
+			(lu->target == sdp->id) &&
+			(lu->lun == sdp->lun)) {
+				MHVTL_DBG(3, "line %d found matching lu\n", __LINE__);
+				return 0;
 		}
 	}
 	return -1;
@@ -897,7 +881,6 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 	if (lu) {
 		MHVTL_DBG(2, "Removing lu structure, minor %d\n", lu->minor);
 		/* make this slot avaliable for re-use */
-		lu->device_offline = 1;
 		devp[lu->minor] = NULL;
 		kfree(sdp->hostdata);
 		sdp->hostdata = NULL;
@@ -919,11 +902,10 @@ static struct vtl_lu_info *devInfoReg(struct scsi_device *sdp)
 	}
 
 	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
-		if ((!lu->device_offline) &&
-				(lu->channel == sdp->channel) &&
-				(lu->target == sdp->id) &&
-				(lu->lun == sdp->lun))
-			return lu;
+		if ((lu->channel == sdp->channel) &&
+			(lu->target == sdp->id) &&
+			(lu->lun == sdp->lun))
+				return lu;
 	}
 
 	return NULL;
@@ -1119,7 +1101,6 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
 	lu->lun = ctl->lun;
 	lu->vtl_hba = vtl_hba;
 	lu->reset = 0;
-	lu->device_offline = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 	lu->cmd_list_lock = __SPIN_LOCK_UNLOCKED(lu.cmd_list_lock);
 #else
