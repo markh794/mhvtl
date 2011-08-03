@@ -125,7 +125,6 @@ static const char vtl_driver_name[] = "mhvtl";
 #define DEF_NUM_TGTS   0
 #define DEF_MAX_LUNS   32
 #define DEF_DELAY   1
-#define DEF_EVERY_NTH   0
 #define DEF_NUM_PARTS   0
 #define DEF_OPTS   1		/* Default to verbose logging */
 #define DEF_D_SENSE   0
@@ -133,18 +132,6 @@ static const char vtl_driver_name[] = "mhvtl";
 
 /* bit mask values for vtl_opts */
 #define VTL_OPT_NOISE   3
-/* When "every_nth" > 0 then modulo "every_nth" commands:
- *   - a no response is simulated if VTL_OPT_TIMEOUT is set
- *   - a RECOVERED_ERROR is simulated on successful read and write
- *     commands if VTL_OPT_RECOVERED_ERR is set.
- *
- * When "every_nth" < 0 then after "- every_nth" commands:
- *   - a no response is simulated if VTL_OPT_TIMEOUT is set
- *   - a RECOVERED_ERROR is simulated on successful read and write
- *     commands if VTL_OPT_RECOVERED_ERR is set.
- * This will continue until some other action occurs (e.g. the user
- * writing a new value (other than -1 or 1) to every_nth via sysfs).
- */
 
 #ifndef MHVTL_DEBUG
 
@@ -181,7 +168,6 @@ static int vtl_major = 0;
 #define VTL_MAX_CMD_LEN 16
 
 static int vtl_add_host = DEF_NUM_HOST;
-static int vtl_every_nth = DEF_EVERY_NTH;
 static int vtl_max_luns = DEF_MAX_LUNS;
 static int vtl_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int vtl_opts = DEF_OPTS;
@@ -589,13 +575,6 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 	if (NULL == lu) {
 		printk("mhvtl: %s could not find lu\n", __func__);
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
-	}
-
-	if ((vtl_every_nth != 0) &&
-			(++vtl_cmnd_count >= abs(vtl_every_nth))) {
-		vtl_cmnd_count = 0;
-		if (vtl_every_nth < -1)
-			vtl_every_nth = -1;
 	}
 
 	switch (*cmd) {
@@ -1085,7 +1064,6 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
  * Sysfs parameters defined explicitly below.
  */
 module_param_named(dsense, vtl_dsense, int, 0);
-module_param_named(every_nth, vtl_every_nth, int, 0);
 module_param_named(max_luns, vtl_max_luns, int, 0);
 module_param_named(num_tgts, vtl_num_tgts, int, 0);
 module_param_named(opts, vtl_opts, int, 0); /* perm=0644 */
@@ -1096,7 +1074,6 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(MHVTL_VERSION);
 
 MODULE_PARM_DESC(dsense, "use descriptor sense format(def: fixed)");
-MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
 MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
 MODULE_PARM_DESC(num_tgts, "number of SCSI targets per host to simulate");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
@@ -1181,26 +1158,6 @@ static ssize_t vtl_num_tgts_store(struct device_driver *ddp,
 }
 DRIVER_ATTR(num_tgts, S_IRUGO|S_IWUSR, vtl_num_tgts_show, vtl_num_tgts_store);
 
-
-static ssize_t vtl_every_nth_show(struct device_driver *ddp, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_every_nth);
-}
-static ssize_t vtl_every_nth_store(struct device_driver *ddp,
-				      const char *buf, size_t count)
-{
-	int nth;
-
-	if ((count > 0) && (1 == sscanf(buf, "%d", &nth))) {
-		vtl_every_nth = nth;
-		vtl_cmnd_count = 0;
-		return count;
-	}
-	return -EINVAL;
-}
-DRIVER_ATTR(every_nth, S_IRUGO|S_IWUSR, vtl_every_nth_show,
-	    vtl_every_nth_store);
-
 static ssize_t vtl_max_luns_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_max_luns);
@@ -1249,7 +1206,6 @@ static int do_create_driverfs_files(void)
 {
 	int	ret;
 	ret = driver_create_file(&vtl_driverfs_driver, &driver_attr_add_lu);
-	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_every_nth);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_opts);
@@ -1263,7 +1219,6 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_opts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_max_luns);
-	driver_remove_file(&vtl_driverfs_driver, &driver_attr_every_nth);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_lu);
 }
 
