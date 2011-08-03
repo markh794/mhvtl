@@ -268,7 +268,6 @@ static const int check_condition_result =
 		(DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
 
 /* function declarations */
-static int resp_requests(struct scsi_cmnd *SCpnt, struct vtl_lu_info *lu);
 static int resp_report_luns(struct scsi_cmnd *SCpnt, struct vtl_lu_info *lu);
 static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 				int arr_len);
@@ -424,15 +423,6 @@ static int schedule_resp(struct scsi_cmnd *SCpnt,
 	if (done)
 		done(SCpnt);
 	return 0;
-}
-
-/*
- * The SCSI error code when the user space daemon is not connected.
- */
-static int resp_becomming_ready(struct vtl_lu_info *lu)
-{
-	mk_sense_buffer(lu, NOT_READY, NOT_SELF_CONFIGURED, NO_ADDED_SENSE);
-	return check_condition_result;
 }
 
 /**********************************************************************
@@ -717,30 +707,6 @@ static int vtl_b_ioctl(struct scsi_device *sdp, int cmd, void __user *arg)
 	MHVTL_DBG(3, "ioctl: cmd=0x%x\n", cmd);
 
 	return -ENOTTY;
-}
-
-static int resp_requests(struct scsi_cmnd *scp, struct vtl_lu_info *lu)
-{
-	unsigned char *sbuff;
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
-	unsigned char arr[SENSE_BUF_SIZE];
-	int len = 18;
-
-	memset(arr, 0, SENSE_BUF_SIZE);
-	if (lu->reset == 1)
-		mk_sense_buffer(lu, 0, NO_ADDED_SENSE, 0);
-	sbuff = lu->sense_buff;
-	if ((cmd[1] & 1) && (!vtl_dsense)) {
-		/* DESC bit set and sense_buff in fixed format */
-		arr[0] = 0x72;
-		arr[1] = sbuff[2];     /* sense key */
-		arr[2] = sbuff[12];    /* asc */
-		arr[3] = sbuff[13];    /* ascq */
-		len = 8;
-	} else
-		memcpy(arr, sbuff, SENSE_BUF_SIZE);
-	mk_sense_buffer(lu, 0, NO_ADDED_SENSE, 0);
-	return fill_from_dev_buffer(scp, arr, len);
 }
 
 #define MHVTL_RLUN_ARR_SZ 128
