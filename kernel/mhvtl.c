@@ -128,7 +128,6 @@ static const char vtl_driver_name[] = "mhvtl";
 #define DEF_EVERY_NTH   0
 #define DEF_NUM_PARTS   0
 #define DEF_OPTS   1		/* Default to verbose logging */
-#define DEF_SCSI_LEVEL   5	/* INQUIRY, byte2 [5->SPC-3] */
 #define DEF_D_SENSE   0
 #define DEF_RETRY_REQUEUE 4	/* How many times to re-try a cmd requeue */
 
@@ -188,7 +187,6 @@ static int vtl_every_nth = DEF_EVERY_NTH;
 static int vtl_max_luns = DEF_MAX_LUNS;
 static int vtl_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int vtl_opts = DEF_OPTS;
-static int vtl_scsi_level = DEF_SCSI_LEVEL;
 static int vtl_dsense = DEF_D_SENSE;
 
 static int vtl_cmnd_count = 0;
@@ -1157,7 +1155,6 @@ module_param_named(every_nth, vtl_every_nth, int, 0);
 module_param_named(max_luns, vtl_max_luns, int, 0);
 module_param_named(num_tgts, vtl_num_tgts, int, 0);
 module_param_named(opts, vtl_opts, int, 0); /* perm=0644 */
-module_param_named(scsi_level, vtl_scsi_level, int, 0);
 
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert + Mark Harvey");
 MODULE_DESCRIPTION("SCSI vtl adapter driver");
@@ -1169,7 +1166,6 @@ MODULE_PARM_DESC(every_nth, "timeout every nth command(def=100)");
 MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
 MODULE_PARM_DESC(num_tgts, "number of SCSI targets per host to simulate");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
-MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=5[SPC-3])");
 
 
 static char vtl_parm_info[256];
@@ -1289,12 +1285,6 @@ static ssize_t vtl_max_luns_store(struct device_driver *ddp,
 }
 DRIVER_ATTR(max_luns, S_IRUGO|S_IWUSR, vtl_max_luns_show, vtl_max_luns_store);
 
-static ssize_t vtl_scsi_level_show(struct device_driver *ddp, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_scsi_level);
-}
-DRIVER_ATTR(scsi_level, S_IRUGO, vtl_scsi_level_show, NULL);
-
 static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
@@ -1330,13 +1320,11 @@ static int do_create_driverfs_files(void)
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_opts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_major);
-	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_scsi_level);
 	return ret;
 }
 
 static void do_remove_driverfs_files(void)
 {
-	driver_remove_file(&vtl_driverfs_driver, &driver_attr_scsi_level);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_major);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_opts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
