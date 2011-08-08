@@ -464,7 +464,7 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 	uint16_t parmList;
 	char *parmString = "Undefined";
 
-	parmList = ntohs((uint16_t)cdb[7]); /* bytes 7 & 8 are parm list. */
+	parmList = get_unaligned_be16(&cdb[7]); /* bytes 7 & 8 are parm list. */
 
 	MHVTL_DBG(1, "LOG SELECT (%ld) %s",
 				(long)cmd->dbuf_p->serialNo,

@@ -1125,8 +1125,9 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd)
 
 	write_filemarks(count, sam_stat);
 	if (count) {
-		if (current_tape_offset() >= ntohll(mam.max_capacity)) {
-			mam.remaining_capacity = htonll(0);
+		if (current_tape_offset() >=
+				get_unaligned_be64(&mam.max_capacity)) {
+			mam.remaining_capacity = 0L;
 			MHVTL_DBG(2, "Setting EOM flag");
 			mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE,
 					sam_stat);

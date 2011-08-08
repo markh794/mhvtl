@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <inttypes.h>
+#include "be_byteshift.h"
 #include "scsi.h"
 #include "list.h"
 #include "vtl_common.h"
@@ -52,7 +53,8 @@ static void print_mam_info(void)
 	printf("Media density code: 0x%02x\n", mam.MediumDensityCode);
 	printf("Media type code   : 0x%02x\n", mam.MediaType);
 	printf("Media description : %s\n", mam.media_info.description);
-	printf("Tape Capacity     : %" PRId64 "\n", ntohll(mam.max_capacity));
+	printf("Tape Capacity     : %" PRId64 "\n",
+					get_unaligned_be64(&mam.max_capacity));
 }
 
 int main(int argc, char *argv[])

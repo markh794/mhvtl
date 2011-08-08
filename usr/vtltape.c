@@ -457,7 +457,8 @@ int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 
 	/* Assigning Oranization (8 chars long) */
 	if (media == 1) {
-		max_cap = ntohll(mam.max_capacity) / (1L << 20); /* Capacity in MBytes */
+		/* Capacity in MBytes */
+		max_cap = get_unaligned_be64(&mam.max_capacity) / (1L << 20);
 
 		/* Bits per mm (only 24bits in len MS Byte should be 0). */
 		put_unaligned_be32(mam.media_info.bits_per_mm, &buf[8]);
@@ -983,13 +984,13 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (rc < 0)
 		return 0;
 
-	if (current_tape_offset() >= ntohll(mam.max_capacity)) {
+	if (current_tape_offset() >= get_unaligned_be64(&mam.max_capacity)) {
 		mam.remaining_capacity = htonll(0);
 		MHVTL_DBG(2, "End of Medium - Setting EOM flag");
 		mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	} else {
-		uint64_t max_capacity = ntohll(mam.max_capacity);
-		mam.remaining_capacity = htonll(max_capacity -
+		uint64_t max_capacity = get_unaligned_be64(&mam.max_capacity);
+		mam.remaining_capacity = get_unaligned_be64(&max_capacity -
 			current_tape_offset());
 	}
 
@@ -1596,7 +1597,8 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		MHVTL_DBG(1, "Previous unload was not clean");
 	}
 
-	MHVTL_DBG(1, "Tape capacity: %" PRId64, ntohll(mam.max_capacity));
+	MHVTL_DBG(1, "Tape capacity: %" PRId64,
+			get_unaligned_be64(&mam.max_capacity));
 
 	mam.record_dirty = 1;
 	/* Increment load count */
