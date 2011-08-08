@@ -416,7 +416,7 @@ case "$1" in
 	sleep 1
 
 	rmmod mhvtl
-	Q_EXISTS=`ipcs -q|grep 4d61726b|awk '{print $2}'`
+	Q_EXISTS=`ipcs -q | awk '/4d61726b/ {print $2}'`
 	if [ "X$Q_EXISTS" != "X" ]; then
 		ipcrm -q $Q_EXISTS
 	fi

@@ -15,8 +15,8 @@
 # @ at the beginning of the first line tell make not to echo the commands as it run it.
 #
 
-VER = $(shell grep Version ../mhvtl.spec|awk '{print $$2}')
-REL = $(shell grep Release ../mhvtl.spec|awk '{print $$2}')
+VER = $(shell awk '/Version/ {print $$2}' ../mhvtl.spec)
+REL = $(shell awk '/Release/ {print $$2}' ../mhvtl.spec)
 
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
