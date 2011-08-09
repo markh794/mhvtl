@@ -46,7 +46,7 @@
 #include "q.h"
 
 /*
- * Mode Pages defined for IBM Ultrium-TD4
+ * Mode Pages defined for HP Ultrium
  */
 static struct mode sm[] = {
 /*	Page,  subpage, len, 'pointer to data struct' */
@@ -359,20 +359,6 @@ static struct ssc_personality_template ssc_pm = {
 	.cleaning_media		= hp_cleaning,
 };
 
-static struct ssc_personality_template ult4_ssc_pm = {
-	.valid_encryption_blk	= valid_encryption_blk, /* default in ssc.c */
-	.update_encryption_mode	= update_ult_encryption_mode,
-	.encryption_capabilities = encr_capabilities_ult,
-	.kad_validation		= hp_lto_kad_validation,
-	.check_restrictions	= check_restrictions, /* default in ssc.c */
-	.clear_compression	= clear_ult_compression,
-	.set_compression	= set_ult_compression,
-	.clear_WORM		= clear_ult_WORM,
-	.set_WORM		= set_ult_WORM,
-	.media_load		= hp_media_load,
-	.cleaning_media		= hp_cleaning,
-};
-
 void init_hp_ult_1(struct lu_phy_attr *lu)
 {
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
@@ -411,8 +397,8 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_lto3;
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult3_media_handling;
-	ssc_pm.clear_WORM	= clear_ult_WORM;
-	ssc_pm.set_WORM		= set_ult_WORM;
+	ssc_pm.clear_WORM = clear_ult_WORM;
+	ssc_pm.set_WORM = set_ult_WORM;
 	personality_module_register(&ssc_pm);
 	init_default_ssc_mode_pages(sm);
 	init_ult_mode_pages(lu, sm);
@@ -425,10 +411,16 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ult_inquiry(lu);
-	ult4_ssc_pm.name = pm_name_lto4;
-	ult4_ssc_pm.drive_native_density = medium_density_code_lto4;
-	ult4_ssc_pm.media_capabilities = ult4_media_handling;
-	personality_module_register(&ult4_ssc_pm);
+	ssc_pm.name = pm_name_lto4;
+	ssc_pm.drive_native_density = medium_density_code_lto4;
+	ssc_pm.media_capabilities = ult4_media_handling;
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
+	ssc_pm.encryption_capabilities = encr_capabilities_ult,
+	ssc_pm.kad_validation = hp_lto_kad_validation,
+	ssc_pm.clear_WORM = clear_ult_WORM,
+	ssc_pm.set_WORM = set_ult_WORM,
+	ssc_pm.media_load = hp_media_load,
+	personality_module_register(&ssc_pm);
 	init_default_ssc_mode_pages(sm);
 	init_ult_encr_mode_pages(lu, sm);
 	lu->mode_pages = sm;
@@ -442,10 +434,16 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
 
 	init_ult_inquiry(lu);
-	ult4_ssc_pm.name = pm_name_lto5;
-	ult4_ssc_pm.drive_native_density = medium_density_code_lto5;
-	ult4_ssc_pm.media_capabilities = ult5_media_handling;
-	personality_module_register(&ult4_ssc_pm);
+	ssc_pm.name = pm_name_lto5;
+	ssc_pm.drive_native_density = medium_density_code_lto5;
+	ssc_pm.media_capabilities = ult5_media_handling;
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
+	ssc_pm.encryption_capabilities = encr_capabilities_ult,
+	ssc_pm.kad_validation = hp_lto_kad_validation,
+	ssc_pm.clear_WORM = clear_ult_WORM,
+	ssc_pm.set_WORM = set_ult_WORM,
+	ssc_pm.media_load = hp_media_load,
+	personality_module_register(&ssc_pm);
 	init_default_ssc_mode_pages(sm);
 	init_ult_encr_mode_pages(lu, sm);
 	lu->mode_pages = sm;
