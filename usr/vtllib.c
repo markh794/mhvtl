@@ -642,6 +642,28 @@ void blank_fill(uint8_t *dest, char *src, int len)
 	}
 }
 
+/* MHVTL_VERSION looks like : 0.18.xx
+ * Convert into a string after converting the 18.xx into "18xx"
+ *
+ * NOTE: Caller has to free string after use.
+ */
+char *get_version(void)
+{
+	char b[64];
+	int x, y;
+	char *c;
+
+	c = malloc(32);	/* Way more than enough for a 4 byte string */
+	if (!c)
+		return NULL;
+
+	sprintf(b, "%s", MHVTL_VERSION);
+	sscanf(b, "0.%d.%d", &x, &y);
+	sprintf(c, "%02d%02d", x, y);
+
+	return c;
+}
+
 void log_opcode(char *opcode, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	MHVTL_DBG(1, "*** Unsupported op code: %s ***", opcode);

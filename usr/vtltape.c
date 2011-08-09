@@ -2293,8 +2293,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			MHVTL_DBG(2, "Looking for %d, Found drive %d",
 							minor, indx);
 			if (indx == minor) {
+				char *v;
+
 				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
+
+				/* Default rev with mhvtl release info */
+				v = get_version();
+				sprintf(lu->product_rev, "%-4s", v);
+				free(v);
 			}
 		}
 		if (indx == minor) {

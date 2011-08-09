@@ -56,7 +56,6 @@ printf "Library: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
 		$ID $CH $TARGET $LUN >> $DEVICE_CONF
 echo " Vendor identification: $5" >> $DEVICE_CONF
 echo " Product identification: $6" >> $DEVICE_CONF
-echo " Product revision level: $7" >> $DEVICE_CONF
 echo " Unit serial number: $8" >> $DEVICE_CONF
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
 		$ID $CH $TARGET $LUN >> $DEVICE_CONF
@@ -87,7 +86,6 @@ printf " Library ID: %02d Slot: %02d\n" \
 		$LIB $SLOT >> $DEVICE_CONF
 echo " Vendor identification: $VENDORID" >> $DEVICE_CONF
 echo " Product identification: $PRODUCTID" >> $DEVICE_CONF
-echo " Product revision level: $PRODUCTREV" >> $DEVICE_CONF
 echo " Unit serial number: $UNITSERNO" >> $DEVICE_CONF
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
 		$LIB $CH $TARGET $LUN >> $DEVICE_CONF

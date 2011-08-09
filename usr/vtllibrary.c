@@ -1113,7 +1113,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		MHVTL_DBG(1, "Can not open config file %s : %s", config,
+		MHVTL_LOG("Can not open config file %s : %s", config,
 					strerror(errno));
 		perror("Can not open config file");
 		exit(1);
@@ -1129,6 +1129,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		exit(1);
 	}
 
+
 	/* While read in a line */
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
@@ -1141,8 +1142,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			MHVTL_DBG(2, "Found Library %d, looking for %d",
 							indx, minor);
 			if (indx == minor) {
+				char *v;
+
 				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
+
+				/* Default rev with mhvtl release info */
+				v = get_version();
+				sprintf(lu->product_rev, "%-4s", v);
+				free(v);
 			}
 		}
 		if (indx == minor) {

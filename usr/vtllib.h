@@ -711,6 +711,7 @@ uint8_t clear_compression_mode_pg(struct mode *sm);
 uint8_t set_compression_mode_pg(struct mode *sm, int lvl);
 
 void rmnl(char *s, unsigned char c, int len);
+char *get_version(void);
 
 void update_vpd_b0(struct lu_phy_attr *lu, void *p);
 void update_vpd_b1(struct lu_phy_attr *lu, void *p);

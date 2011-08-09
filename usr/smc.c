@@ -863,12 +863,6 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 					(dvcid == 0) ? "No" :  "Yes",
 					(voltag == 0) ? "No" :  "Yes");
 
-	/* This segfaulted somewhere between here and end of function
-	 * Now that I've added 'Debug' printf statements, it's not faulting
-	 * Leaving statements for now..
-	 * Strange thing was no core file generated from segfault ???
-	 */
-
 	/* Set alloc_len to smallest value */
 	alloc_len = min(alloc_len, cmd->lu->bufsize);
 
