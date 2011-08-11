@@ -1457,7 +1457,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	/* Limited subset of commands don't need to check for power-on reset */
 	switch (cdb[0]) {
-	case REPORT_LUN:
+	case REPORT_LUNS:
 	case REQUEST_SENSE:
 	case MODE_SELECT:
 	case INQUIRY:

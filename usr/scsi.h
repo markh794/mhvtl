@@ -106,7 +106,7 @@
 #define	RELEASE			0x17
 #define	RELEASE_10		0x57
 #define REPORT_DENSITY		0x44
-#define REPORT_LUN		0xa0
+#define	REPORT_LUNS		0xa0
 #define	REQUEST_SENSE		0x03
 #define	RESERVE			0x16
 #define	RESERVE_10		0x56

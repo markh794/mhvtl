@@ -348,7 +348,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
 
 	switch (cdb[0]) {
-	case REPORT_LUN:
+	case REPORT_LUNS:
 	case REQUEST_SENSE:
 	case MODE_SELECT:
 	case INQUIRY:
