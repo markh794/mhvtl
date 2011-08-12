@@ -25,6 +25,7 @@ struct ssc_personality_template {
 	int drive_native_density;
 	int drive_type;
 	struct media_handling *media_capabilities;
+	struct lu_phy_attr *lu;
 
 	/* Read check if this block contains valid encryption keys */
 	uint8_t (*valid_encryption_blk)(struct scsi_cmd *cmd);
@@ -39,23 +40,23 @@ struct ssc_personality_template {
 	int (*kad_validation)(int encrypt_mode, int akad, int ukad);
 
 	/* Update mode page for encryption capabilities */
-	uint8_t (*update_encryption_mode)(void *p, int mode);
+	uint8_t (*update_encryption_mode)(struct list_head *m, void *p, int mode);
 
 
 	/* Media access, check if any write restrictions */
 	uint8_t (*check_restrictions)(struct scsi_cmd *cmd);
 	/* enable/disable compression */
-	uint8_t (*clear_compression)(void);
-	uint8_t (*set_compression)(int level);
+	uint8_t (*clear_compression)(struct list_head *l);
+	uint8_t (*set_compression)(struct list_head *l, int level);
 	/* enable/disable WORM */
-	uint8_t (*clear_WORM)(void);
-	uint8_t (*set_WORM)(void);
+	uint8_t (*clear_WORM)(struct list_head *l);
+	uint8_t (*set_WORM)(struct list_head *l);
 
 	/* Cleaning media mount calls into here */
 	uint8_t (*cleaning_media)(void *priv);
 
 	/* Called on load/unload - where var load = 0 on unload, 1 on load */
-	uint8_t (*media_load)(int load);
+	uint8_t (*media_load)(struct lu_phy_attr *lu, int load);
 };
 
 /* Load capabilities - density_status bits */
@@ -188,7 +189,7 @@ void register_ops(struct lu_phy_attr *lu, int op, void *f);
 
 uint8_t valid_encryption_blk(struct scsi_cmd *cmd);
 uint8_t check_restrictions(struct scsi_cmd *cmd);
-void init_default_ssc_mode_pages(struct mode *m);
+void init_default_ssc_mode_pages(struct list_head *l);
 uint8_t resp_spin(struct scsi_cmd *cmd);
 uint8_t resp_spout(struct scsi_cmd *cmd);
 int resp_write_attribute(struct scsi_cmd *cmd);

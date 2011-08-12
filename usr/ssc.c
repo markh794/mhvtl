@@ -541,12 +541,16 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *buf = cmd->dbuf_p->data;
+	struct lu_phy_attr *lu = cmd->lu;
 	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
+	struct ssc_personality_template *pm;
 	int block_descriptor_sz;
 	uint8_t *bdb = NULL;
 	int pgoff;
 	int long_lba = 0;
 	int count;
+
+	pm = lu_priv->pm;
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
@@ -605,21 +609,21 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		switch (buf[pgoff + 0]) {
 		case 0x0f:
 			if (buf[pgoff + 2] & 0x80) { /* DCE bit set */
-				if (lu_priv->pm->set_compression)
-					lu_priv->pm->set_compression(lu_priv->configCompressionFactor);
+				if (pm->set_compression)
+					pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
 			} else {
-				if (lu_priv->pm->clear_compression)
-					lu_priv->pm->clear_compression();
+				if (pm->clear_compression)
+					pm->clear_compression(&lu->mode_pg);
 			}
 			break;
 
 		case 0x10:
 			if (buf[pgoff + 14]) { /* Select Data Compression Alg */
-				if (lu_priv->pm->set_compression)
-					lu_priv->pm->set_compression(lu_priv->configCompressionFactor);
+				if (pm->set_compression)
+					pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
 			} else {
-				if (lu_priv->pm->clear_compression)
-					lu_priv->pm->clear_compression();
+				if (pm->clear_compression)
+					pm->clear_compression(&lu->mode_pg);
 			}
 			break;
 

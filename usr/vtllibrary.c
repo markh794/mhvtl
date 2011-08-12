@@ -58,6 +58,7 @@
 #include "vtllib.h"
 #include "spc.h"
 #include "smc.h"
+#include "mode.h"
 #include "be_byteshift.h"
 
 char vtl_driver_name[] = "vtllibrary";
@@ -92,23 +93,6 @@ struct Temperature_page Temperature_pg = {
 	};
 
 struct TapeAlert_page TapeAlert;
-
-/*
- * Mode Pages defined for SMC-3 devices..
- */
-
-static struct mode sm[] = {
-/*	Page,  subpage, len, 'pointer to data struct' */
-	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
-	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
-	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
-	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SPC3-8.3.6 */
-	{0x1d, 0x00, 0x00, NULL, }, /* Element Addr Assignment - SMC3-7.3.3 */
-	{0x1e, 0x00, 0x00, NULL, }, /* Transport Geometry - SMC3-7.3.4 */
-	{0x1f, 0x00, 0x00, NULL, }, /* Device Capabilities - SMC3-7.3.2 */
-	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
-	};
-
 
 static void usage(char *progname)
 {
@@ -668,64 +652,6 @@ static int processMessageQ(struct q_msg *msg)
 return 0;
 }
 
-static void init_mode_pages(struct mode *m)
-{
-	struct mode *mp;
-
-	/* Disconnect-Reconnect: SPC-3 7.4.8 */
-	mp = alloc_mode_page(m, 2, 0, 16);
-	if (mp) {
-		mp->pcodePointer[2] = 50;	/* Buffer full ratio */
-		mp->pcodePointer[3] = 50;	/* Buffer empty ratio */
-	}
-
-	/* Control: SPC-3 7.4.6 */
-	mp = alloc_mode_page(m, 0x0a, 0, 12);
-
-	/* Power condition: SPC-3 7.4.12 */
-	mp = alloc_mode_page(m, 0x1a, 0, 12);
-
-	/* Informational Exception Control: SPC-3 7.4.11 (TapeAlert) */
-	mp = alloc_mode_page(m, 0x1c, 0, 12);
-	if (mp)
-		mp->pcodePointer[2] = 0x08;
-
-	/* Device Capabilities mode page: SMC-3 7.3.2 */
-	mp = alloc_mode_page(m, 0x1f, 0, 20);
-	if (mp) {
-		mp->pcodePointer[2] = 0x0f;
-		mp->pcodePointer[3] = 0x07;
-		mp->pcodePointer[4] = 0x0f;
-		mp->pcodePointer[5] = 0x0f;
-		mp->pcodePointer[6] = 0x0f;
-		mp->pcodePointer[7] = 0x0f;
-		/* [8-11] -> reserved */
-		mp->pcodePointer[12] = 0x00;
-		mp->pcodePointer[13] = 0x00;
-		mp->pcodePointer[14] = 0x00;
-		mp->pcodePointer[15] = 0x00;
-		/* [16-19] -> reserved */
-	}
-
-	/* Element Address Assignment mode page: SMC-3 7.3.3 */
-	mp = alloc_mode_page(m, 0x1d, 0, 20);
-	if (mp) {
-		uint8_t *p = mp->pcodePointer;
-
-		put_unaligned_be16(START_PICKER, &p[2]); /* First transport. */
-		put_unaligned_be16(smc_slots.num_picker, &p[4]);
-		put_unaligned_be16(START_STORAGE, &p[6]); /* First storage */
-		put_unaligned_be16(smc_slots.num_storage, &p[8]);
-		put_unaligned_be16(START_MAP, &p[10]); /* First i/e address */
-		put_unaligned_be16(smc_slots.num_map, &p[12]);
-		put_unaligned_be16(START_DRIVE, &p[14]); /* First Drives */
-		put_unaligned_be16(smc_slots.num_drives, &p[16]);
-	}
-
-	/* Transport Geometry Parameters mode page: SMC-3 7.3.4 */
-	mp = alloc_mode_page(m, 0x1e, 0, 4);
-}
-
 static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
 {
 	struct smc_priv *slot_layout;
@@ -778,6 +704,15 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 
 	list_add_tail(&new->siblings, slot_list_head);
 	return new;
+}
+
+static void init_smc_mode_pages(struct lu_phy_attr *lu)
+{
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_element_address_assignment(lu);
 }
 
 /* Open device config file and update device information
@@ -1202,14 +1137,12 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	free(b);
 	free(s);
 
-	INIT_LIST_HEAD(&lu->supported_den_list);
-	INIT_LIST_HEAD(&lu->supported_log_pg);
-	INIT_LIST_HEAD(&lu->supported_mode_pg);
+	INIT_LIST_HEAD(&lu->den_list);
+	INIT_LIST_HEAD(&lu->log_pg);
+	INIT_LIST_HEAD(&lu->mode_pg);
 	INIT_LIST_HEAD(&smc_slots.slot_list);
 	INIT_LIST_HEAD(&smc_slots.drive_list);
 	INIT_LIST_HEAD(&smc_slots.media_list);
-
-	lu->mode_pages = &sm;
 
 	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
 	lu->removable = 1;	/* Supports removable media */
@@ -1400,7 +1333,7 @@ int main(int argc, char *argv[])
 	}
 	init_slot_info(&lunit);
 	update_drive_details(&lunit);
-	init_mode_pages(sm);
+	init_smc_mode_pages(&lunit);
 	initTapeAlert(&TapeAlert);
 
 	if (chrdev_create(my_id)) {

@@ -261,79 +261,6 @@ int resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
 	return size;
 }
 
-/*
- * Look thru NULL terminated array of struct mode[] for a match to pcode.
- * Return: struct mode * or NULL for no pcode
- */
-struct mode *find_pcode(struct mode *m, uint8_t pcode, uint8_t subpcode)
-{
-	int i;
-
-	MHVTL_DBG(3, "Looking for: pcode 0x%02x, subpcode 0x%02x",
-					pcode, subpcode);
-
-	for (i = 0; i < 32; i++, m++) {
-		if (!m->pcode)
-			break;	/* End of array */
-
-		if ((m->pcode == pcode) && (m->subpcode == subpcode)) {
-			MHVTL_DBG(2, "Found mode pages 0x%02x/0x%02x",
-					m->pcode, m->subpcode);
-			return m;
-		}
-	}
-
-	MHVTL_DBG(3, "Page/subpage code 0x%02x/0x%02x not found",
-					pcode, subpcode);
-
-	return NULL;
-}
-
-/*
- * Add data for pcode to buffer pointed to by p
- * Return: Number of chars moved.
- */
-int add_pcode(struct mode *m, uint8_t *p)
-{
-	memcpy(p, m->pcodePointer, m->pcodeSize);
-	return m->pcodeSize;
-}
-
-/*
- * Used by mode sense/mode select struct.
- *
- * Allocate 'size' bytes & init to 0
- * set first 2 bytes:
- *  byte[0] = pcode
- *  byte[1] = size - sizeof(byte[0]
- *
- * Return pointer to mode structure being init. or NULL if alloc failed
- */
-struct mode *alloc_mode_page(struct mode *m,
-				uint8_t pcode, uint8_t subpcode, int size)
-{
-	struct mode * mp;
-
-	MHVTL_DBG(3, "%p : Allocate mode page 0x%02x, size %d", m, pcode, size);
-
-	mp = find_pcode(m, pcode, subpcode);
-	if (mp) {
-		mp->pcodePointer = malloc(size);
-		MHVTL_DBG(3, "pcodePointer: %p for mode page 0x%02x",
-			mp->pcodePointer, pcode);
-		if (mp->pcodePointer) {	/* If ! null, set size of data */
-			memset(mp->pcodePointer, 0, size);
-			mp->pcodeSize = size;
-			mp->pcodePointer[0] = pcode;
-			mp->pcodePointer[1] = size
-					 - sizeof(mp->pcodePointer[0])
-					 - sizeof(mp->pcodePointer[1]);
-			return mp;
-		}
-	}
-	return NULL;
-}
-
 void initTapeAlert(struct TapeAlert_page *ta)
 {
 	int a;
@@ -698,7 +625,7 @@ int device_type_register(struct lu_phy_attr *lu, struct device_type_template *t)
 	return 0;
 }
 
-uint8_t set_compression_mode_pg(struct mode *sm, int lvl)
+uint8_t set_compression_mode_pg(struct list_head *l, int lvl)
 {
 	struct mode *m;
 	uint8_t *p;
@@ -706,17 +633,17 @@ uint8_t set_compression_mode_pg(struct mode *sm, int lvl)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
-	m = find_pcode(sm, 0x0f, 0);
-	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
-			sm, m, m->pcodePointer);
+	m = lookup_pcode(l, 0x0f, 0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			l, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
 		p[2] |= 0x80;	/* Set data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
-	m = find_pcode(sm, 0x10, 0);
-	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
-			sm, m, m->pcodePointer);
+	m = lookup_pcode(l, 0x10, 0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			l, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
 		p[14] = lvl;
@@ -724,7 +651,7 @@ uint8_t set_compression_mode_pg(struct mode *sm, int lvl)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t clear_compression_mode_pg(struct mode *sm)
+uint8_t clear_compression_mode_pg(struct list_head *l)
 {
 	struct mode *m;
 	uint8_t *p;
@@ -732,17 +659,17 @@ uint8_t clear_compression_mode_pg(struct mode *sm)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
-	m = find_pcode(sm, 0x0f, 0);
-	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
-			sm, m, m->pcodePointer);
+	m = lookup_pcode(l, 0x0f, 0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			l, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
 		p[2] &= 0x7f;	/* clear data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
-	m = find_pcode(sm, 0x10, 0);
-	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
-			sm, m, m->pcodePointer);
+	m = lookup_pcode(l, 0x10, 0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			l, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
 		p[14] = Z_NO_COMPRESSION;
@@ -750,14 +677,14 @@ uint8_t clear_compression_mode_pg(struct mode *sm)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t clear_WORM(struct mode *sm)
+uint8_t clear_WORM(struct list_head *l)
 {
 	uint8_t *smp_dp;
 	struct mode *m;
 
-	m = find_pcode(sm, 0x1d, 0);
-	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
-			sm, m, m->pcodePointer);
+	m = lookup_pcode(l, 0x1d, 0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			l, m, m->pcodePointer);
 	if (m) {
 		smp_dp = m->pcodePointer;
 		if (!smp_dp)
@@ -768,16 +695,16 @@ uint8_t clear_WORM(struct mode *sm)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t set_WORM(struct mode *sm)
+uint8_t set_WORM(struct list_head *l)
 {
 	uint8_t *smp_dp;
 	struct mode *m;
 
 	MHVTL_DBG(3, "*** Trace ***");
 
-	m = find_pcode(sm, 0x1d, 0);
-	MHVTL_DBG(3, "sm: %p, m: %p, m->pcodePointer: %p",
-			sm, m, m->pcodePointer);
+	m = lookup_pcode(l, 0x1d, 0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			l, m, m->pcodePointer);
 	if (m) {
 		smp_dp = m->pcodePointer;
 		if (!smp_dp)

@@ -193,12 +193,6 @@ struct log_pg_list {
 	void *p;
 };
 
-struct mode_pg_list {
-	struct list_head siblings;
-	int mode_pg_num;
-	void *p;
-};
-
 // Log Page header
 struct	log_pg_header {
 	uint8_t pcode;
@@ -356,7 +350,7 @@ struct	seqAccessDevice {
 	struct pc_header h_load_cycle;
 	uint32_t load_cycle;
 
-	struct pc_header h_clean;	// Header of clean
+	struct pc_header h_clean;	/* Header of clean */
 	uint32_t clean_cycle;
 
 	};
@@ -369,10 +363,11 @@ struct report_luns {
 	};
 
 struct mode {
-	uint8_t pcode;		// Page code
-	uint8_t subpcode;	// Sub page code
-	int32_t pcodeSize;	// Size of page code data.
-	uint8_t *pcodePointer;	// Pointer to page code - NULL end of array..
+	struct list_head siblings;
+	uint8_t pcode;		/* Page code */
+	uint8_t subpcode;	/* Sub page code */
+	int32_t pcodeSize;	/* Size of page code data. */
+	uint8_t *pcodePointer;	/* Pointer to page code data */
 	};
 
 /* v2 of the tape media
@@ -585,16 +580,13 @@ struct lu_phy_attr {
 	char lu_serial_no[SCSI_SN_LEN];
 	uint16_t version_desc[3];
 
-	struct list_head supported_den_list;
+	struct list_head den_list;
 
-	struct list_head supported_mode_pg;
+	struct list_head mode_pg;
 
-	struct list_head supported_log_pg;
+	struct list_head log_pg;
 
 	struct device_type_template *scsi_ops;
-
-	/* FIXME: Convert to linked-list -> supported_mode_pg */
-	void *mode_pages;
 
 	uint32_t bufsize;
 	uint8_t *naa;
@@ -672,8 +664,7 @@ int resp_read_position(loff_t, uint8_t *, uint8_t *);
 int resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
 int resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
-struct mode *find_pcode(struct mode *, uint8_t pcode, uint8_t subpcode);
-struct mode *alloc_mode_page(struct mode *, uint8_t page, uint8_t subpage, int);
+struct mode *lookup_pcode(struct list_head *l, uint8_t pcode, uint8_t subpcode);
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);
 
 void setTapeAlert(struct TapeAlert_page *, uint64_t);
@@ -703,12 +694,11 @@ void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);
 void checkstrlen(char *s, int len);
 extern int device_type_register(struct lu_phy_attr *lu,
 					struct device_type_template *t);
-int add_pcode(struct mode *m, uint8_t *p);
 
-uint8_t clear_WORM(struct mode *sm);
-uint8_t set_WORM(struct mode *sm);
-uint8_t clear_compression_mode_pg(struct mode *sm);
-uint8_t set_compression_mode_pg(struct mode *sm, int lvl);
+uint8_t clear_WORM(struct list_head *l);
+uint8_t set_WORM(struct list_head *l);
+uint8_t clear_compression_mode_pg(struct list_head *l);
+uint8_t set_compression_mode_pg(struct list_head *l, int lvl);
 
 void rmnl(char *s, unsigned char c, int len);
 char *get_version(void);

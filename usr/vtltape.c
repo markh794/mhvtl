@@ -64,10 +64,10 @@
 #include <inttypes.h>
 #include <pwd.h>
 #include <signal.h>
+#include "list.h"
 #include "be_byteshift.h"
 #include "vtl_common.h"
 #include "scsi.h"
-#include "list.h"
 #include "q.h"
 #include "vtllib.h"
 #include "vtltape.h"
@@ -1306,6 +1306,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t	*buf = cmd->dbuf_p->data;
+	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;
 	int count;
 #ifdef MHVTL_DEBUG
@@ -1313,6 +1314,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 	uint8_t inc_512 = (cmd->scb[4] & 0x80) ? 1 : 0;
 #endif
 
+	lu = cmd->lu;
 	lu_priv = cmd->lu->lu_private;
 
 	if (cmd->scb[1] != TAPE_DATA_ENCRYPTION) {
@@ -1378,7 +1380,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 	}
 
 	if (!lu_priv->pm->update_encryption_mode)
-		lu_priv->pm->update_encryption_mode(NULL, lu_ssc.ENCRYPT_MODE);
+		lu_priv->pm->update_encryption_mode(&lu->mode_pg, NULL, lu_ssc.ENCRYPT_MODE);
 
 	return SAM_STAT_GOOD;
 }
@@ -1504,6 +1506,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	int rc;
 	uint64_t fg = 0;	/* TapeAlert flags */
 	struct media_details *m_details;
+	struct lu_phy_attr *lu;
 
 	lu_ssc.bytesWritten = 0;	/* Global - Bytes written this load */
 	lu_ssc.bytesRead = 0;		/* Global - Bytes rearead this load */
@@ -1520,8 +1523,9 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		}
 		return rc;
 	}
+	lu = lu_ssc.pm->lu;
 	lu_ssc.tapeLoaded = TAPE_LOADED;
-	lu_ssc.pm->media_load(TAPE_LOADED);
+	lu_ssc.pm->media_load(lu, TAPE_LOADED);
 
 	strncpy((char *)lu_ssc.mediaSerialNo, (char *)mam.MediumSerialNumber,
 				sizeof(mam.MediumSerialNumber) - 1);
@@ -1533,13 +1537,13 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	case MEDIA_TYPE_DATA:
 		OK_to_write = 1;	/* Reset flag to OK. */
 		if (lu_ssc.pm->clear_WORM)
-			lu_ssc.pm->clear_WORM();
+			lu_ssc.pm->clear_WORM(&lu->mode_pg);
 		mkSenseBuf(UNIT_ATTENTION, E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
 		OK_to_write = 0;
 		if (lu_ssc.pm->clear_WORM)
-			lu_ssc.pm->clear_WORM();
+			lu_ssc.pm->clear_WORM(&lu->mode_pg);
 		if (lu_ssc.pm->cleaning_media)
 			lu_ssc.pm->cleaning_media(&lu_ssc);
 		fg |= 0x400;
@@ -1580,7 +1584,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			rewind_tape(sam_stat);
 		}
 		if (lu_ssc.pm->set_WORM)
-			lu_ssc.pm->set_WORM();
+			lu_ssc.pm->set_WORM(&lu->mode_pg);
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
 		break;
 	}
@@ -1599,12 +1603,12 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	updateMAM(sam_stat, 1);
 
 	/* If no media list defined, than allow all media mounts */
-	if (list_empty(&lunit.supported_den_list)) {
+	if (list_empty(&lunit.den_list)) {
 		MHVTL_DBG(2, "Supported media list is empty, loading media");
 		goto loadOK;
 	}
 
-	m_details = media_type_lookup(&lunit.supported_den_list, mam.MediaType);
+	m_details = media_type_lookup(&lunit.den_list, mam.MediaType);
 	if (!m_details)	/* Media not defined.. Reject */
 		goto mismatchmedia;
 
@@ -1665,7 +1669,7 @@ mismatchmedia:
 			lookup_media_type(mam.MediaType),
 			lu_ssc.pm->name);
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
-	lu_ssc.pm->media_load(TAPE_UNLOADED);
+	lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 	return TAPE_UNLOADED;
 }
 
@@ -1676,7 +1680,7 @@ static void dump_linked_list(void)
 
 	MHVTL_DBG(3, "Dumping media type support");
 
-	mdl = &lunit.supported_den_list;
+	mdl = &lunit.den_list;
 
 	list_for_each_entry(m_detail, mdl, siblings) {
 		MHVTL_DBG(3, "Media type: 0x%02x, status: 0x%02x",
@@ -1708,6 +1712,8 @@ return p;
 
 void unloadTape(uint8_t *sam_stat)
 {
+	struct lu_phy_attr *lu = lu_ssc.pm->lu;
+
 	switch (lu_ssc.tapeLoaded) {
 	case TAPE_LOADED:
 		mam.record_dirty = 0;
@@ -1715,10 +1721,10 @@ void unloadTape(uint8_t *sam_stat)
 		updateMAM(sam_stat, 0);
 		unload_tape(sam_stat);
 		if (lu_ssc.pm->clear_WORM)
-			lu_ssc.pm->clear_WORM();
+			lu_ssc.pm->clear_WORM(&lu->mode_pg);
 		if (lu_ssc.cleaning_media_state)
 			lu_ssc.cleaning_media_state = NULL;
-		lu_ssc.pm->media_load(TAPE_UNLOADED);
+		lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");
@@ -1819,114 +1825,6 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 return 0;
 }
 
-/*
- * Initialise structure data for mode pages.
- * - Allocate memory for each mode page & init to 0
- * - Set up size of mode page
- * - Set initial values of mode pages
- *
- * Return void  - Nothing
-
- *** Minimum requirements is **
- static struct mode sm[] = {
-	{0x01, 0x00, 0x00, NULL, }, * RW error recovery - SSC3-8.3.5 *
-	{0x02, 0x00, 0x00, NULL, }, * Disconnect Reconnect - SPC3 *
-	{0x0a, 0x00, 0x00, NULL, }, * Control Extension - SPC3 *
-	{0x0f, 0x00, 0x00, NULL, }, * Data Compression - SSC3-8.3.3
-	{0x10, 0x00, 0x00, NULL, }, * Device config - SSC3-8.3.3
-	{0x11, 0x00, 0x00, NULL, }, * Medium Partition - SSC3-8.3.4
-	{0x1a, 0x00, 0x00, NULL, }, * Power condition - SPC3
-	{0x1c, 0x00, 0x00, NULL, }, * Information Exception Ctrl SSC3-8.3.6
-	{0x1d, 0x00, 0x00, NULL, }, * Medium configuration - SSC3-8.3.7
-	{0x00, 0x00, 0x00, NULL, }, * NULL terminator
-	};
- */
-#define COMPRESSION_TYPE 0x10
-void init_default_ssc_mode_pages(struct mode *m)
-{
-	struct mode *mp;
-
-	MHVTL_DBG(3, "*** Trace mode pages at %p ***", m);
-
-	/* RW Error Recovery: SSC-3 8.3.5 */
-	mp = alloc_mode_page(m, 1, 0, 12);
-	if (mp) {
-		/* Init rest of page data.. */
-	}
-
-	/* Disconnect-Reconnect: SPC-3 7.4.8 */
-	mp = alloc_mode_page(m, 2, 0, 16);
-	if (mp) {
-		mp->pcodePointer[2] = 50; /* Buffer full ratio */
-		mp->pcodePointer[3] = 50; /* Buffer empty ratio */
-		mp->pcodePointer[10] = 4;
-	}
-
-	/* Control: SPC-3 7.4.6 */
-	mp = alloc_mode_page(m, 0x0a, 0, 12);
-	if (mp) {
-		/* Init rest of page data.. */
-	}
-
-	/* Data compression: SSC-3 8.3.2 */
-	mp = alloc_mode_page(m, 0x0f, 0, 16);
-	if (mp) {
-		/* Init rest of page data.. */
-		mp->pcodePointer[2] = 0xc0; /* Set Data Compression Enable */
-		mp->pcodePointer[3] = 0x80; /* Set Data Decompression Enable */
-		/* Compression Algorithm */
-		put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[4]);
-		/* Decompression Algorithm */
-		put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[8]);
-	}
-
-	/* Device Configuration: SSC-3 8.3.3 */
-	mp = alloc_mode_page(m, 0x10, 0, 16);
-	if (mp) {
-		/* Write delay time (100mSec intervals) */
-		mp->pcodePointer[7] = 0x64;
-		/* Block Identifiers Supported */
-		mp->pcodePointer[8] = 0x40;
-		/* Enable EOD & Sync at early warning */
-		mp->pcodePointer[10] = 0x18;
-		/* Select Data Compression */
-		mp->pcodePointer[14] = lu_ssc.configCompressionFactor;
-		/* WTRE (WORM handling) */
-		mp->pcodePointer[15] = 0x80;
-
-		/* Set pointer to 'Compression Algorithm' */
-		lu_ssc.compressionFactor = &mp->pcodePointer[14];
-	}
-
-	/* Medium Partition: SSC-3 8.3.4 */
-	mp = alloc_mode_page(m, 0x11, 0, 16);
-	if (mp) {
-		/* Init rest of page data.. */
-	}
-
-	/* Extended: SPC-3 - Not used here. */
-	/* Extended Device (Type Specific): SPC-3 - Not used here */
-
-	/* Power condition: SPC-3 7.4.12 */
-	mp = alloc_mode_page(m, 0x1a, 0, 12);
-	if (mp) {
-		/* Init rest of page data.. */
-	}
-
-	/* Informational Exception Control: SPC-3 7.4.11 (TapeAlert) */
-	mp = alloc_mode_page(m, 0x1c, 0, 12);
-	if (mp) {
-		mp->pcodePointer[2] = 0x08;
-		mp->pcodePointer[3] = 0x03;
-	}
-
-	/* Medium configuration: SSC-3 8.3.7 */
-	mp = alloc_mode_page(m, 0x1d, 0, 32);
-	if (mp) {
-		/* Init rest of page data.. */
-	}
-}
-
 /* Set VPD data with device serial number */
 static void update_vpd_80(struct lu_phy_attr *lu, void *p)
 {
@@ -2015,12 +1913,12 @@ static void config_lu(struct lu_phy_attr *lu)
 	drive_init(lu);
 
 	if (lu_ssc.configCompressionEnabled)
-		lu_ssc.pm->set_compression(lu_ssc.configCompressionFactor);
+		lu_ssc.pm->set_compression(&lu->mode_pg, lu_ssc.configCompressionFactor);
 	else
-		lu_ssc.pm->clear_compression();
+		lu_ssc.pm->clear_compression(&lu->mode_pg);
 }
 
-int add_drive_media_list(struct list_head *supported_den_list,
+int add_drive_media_list(struct list_head *den_list,
 					int status, char *s)
 {
 	struct media_details *m_detail;
@@ -2028,7 +1926,7 @@ int add_drive_media_list(struct list_head *supported_den_list,
 
 	MHVTL_DBG(2, "Adding %s, status: 0x%02x", s, status);
 	media_type = lookup_media_int(s);
-	m_detail = media_type_lookup(supported_den_list, media_type);
+	m_detail = media_type_lookup(den_list, media_type);
 
 	if (!m_detail) {
 		MHVTL_DBG(2, "Adding new entry for %s", s);
@@ -2040,7 +1938,7 @@ int add_drive_media_list(struct list_head *supported_den_list,
 		}
 		m_detail->media_type = media_type;
 		m_detail->density_status = status;
-		list_add_tail(&m_detail->siblings, supported_den_list);
+		list_add_tail(&m_detail->siblings, den_list);
 	} else {
 		MHVTL_DBG(2, "Existing status for %s, status: 0x%02x",
 					s, m_detail->density_status);
@@ -2256,11 +2154,11 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	int found = 0;
 	struct list_head *den_list;
 
-	INIT_LIST_HEAD(&lu->supported_den_list);
-	INIT_LIST_HEAD(&lu->supported_log_pg);
-	INIT_LIST_HEAD(&lu->supported_mode_pg);
+	INIT_LIST_HEAD(&lu->den_list);
+	INIT_LIST_HEAD(&lu->log_pg);
+	INIT_LIST_HEAD(&lu->mode_pg);
 
-	den_list = &lu->supported_den_list;
+	den_list = &lu->den_list;
 	lu->scsi_ops = &ssc_ops;
 
 	conf = fopen(config , "r");

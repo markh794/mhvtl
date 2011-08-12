@@ -44,39 +44,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "q.h"
-
-/*
- * Mode Pages defined for 'default'
-
- *** Minimum default requirements is **
- static struct mode sm[] = {
-	{0x01, 0x00, 0x00, NULL, }, * RW error recovery - SSC3-8.3.5 *
-	{0x02, 0x00, 0x00, NULL, }, * Disconnect Reconnect - SPC3 *
-	{0x0a, 0x00, 0x00, NULL, }, * Control Extension - SPC3 *
-	{0x0f, 0x00, 0x00, NULL, }, * Data Compression - SSC3-8.3.3
-	{0x10, 0x00, 0x00, NULL, }, * Device config - SSC3-8.3.3
-	{0x11, 0x00, 0x00, NULL, }, * Medium Partition - SSC3-8.3.4
-	{0x1a, 0x00, 0x00, NULL, }, * Power condition - SPC3
-	{0x1c, 0x00, 0x00, NULL, }, * Information Exception Ctrl SSC3-8.3.6
-	{0x1d, 0x00, 0x00, NULL, }, * Medium configuration - SSC3-8.3.7
-	{0x00, 0x00, 0x00, NULL, }, * NULL terminator
-	};
- */
-
-static struct mode sm[] = {
-/*	Page,  subpage, len, 'pointer to data struct' */
-	{0x01, 0x00, 0x00, NULL, }, /* RW error recovery - SSC3-8.3.5 */
-	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
-	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
-	{0x0f, 0x00, 0x00, NULL, }, /* Data Compression - SSC3-8.3.3 */
-	{0x10, 0x00, 0x00, NULL, }, /* Device config - SSC3-8.3.3 */
-	{0x11, 0x00, 0x00, NULL, }, /* Medium Partition - SSC3-8.3.4 */
-	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
-	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SSC3-8.3.6 */
-	{0x1d, 0x00, 0x00, NULL, }, /* Medium configuration - SSC3-8.3.7 */
-	{0x31, 0x00, 0x00, NULL, }, /* AIT Device Configuration */
-	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
-	};
+#include "mode.h"
 
 static struct media_handling ait1_media_handling[] = {
 	{ "ait1", "RW", medium_density_code_ait1, },
@@ -103,14 +71,14 @@ static struct media_handling ait4_media_handling[] = {
 	{ "ait4", "ENCR", medium_density_code_ait4, },
 	};
 
-static uint8_t clear_ait_WORM(void)
+static uint8_t clear_ait_WORM(struct list_head *l)
 {
 	uint8_t *smp_dp;
 	struct mode *smp;
 
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
 
-	smp = find_pcode(sm, 0x31, 0);
+	smp = lookup_pcode(l, MODE_AIT_DEVICE_CONFIGURATION, 0);
 	if (smp) {
 		smp_dp = smp->pcodePointer;
 		smp_dp[4] = 0x0;
@@ -119,14 +87,14 @@ static uint8_t clear_ait_WORM(void)
 	return SAM_STAT_GOOD;
 }
 
-static uint8_t set_ait_WORM(void)
+static uint8_t set_ait_WORM(struct list_head *l)
 {
 	uint8_t *smp_dp;
 	struct mode *smp;
 
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
 
-	smp = find_pcode(sm, 0x31, 0);
+	smp = lookup_pcode(l, 0x31, 0);
 	if (smp) {
 		smp_dp = smp->pcodePointer;
 		smp_dp[4] = 0x40;
@@ -135,42 +103,21 @@ static uint8_t set_ait_WORM(void)
 	return SAM_STAT_GOOD;
 }
 
-/*
- * Initialise structure data for mode pages.
- * - Allocate memory for each mode page & init to 0
- * - Set up size of mode page
- * - Set initial values of mode pages
- *
- * Return void  - Nothing
- */
-static void init_ait4_mode_pages(struct lu_phy_attr *lu, struct mode *m)
+static uint8_t clear_ait_compression(struct list_head *l)
 {
-	struct mode *mp;
-
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-
-	mp = alloc_mode_page(m, 0x31, 0, 8);
-	if (mp)
-		mp->pcodePointer[2] = 0xf0;
-		mp->pcodePointer[3] = 0x0a;
-		mp->pcodePointer[4] = 0x40;
-}
-
-static uint8_t clear_ait_compression(void)
-{
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
 	/* default clear_compression is in libvtlscsi */
-	return clear_compression_mode_pg(sm);
+	return clear_compression_mode_pg(l);
 }
 
-static uint8_t set_ait_compression(int lvl)
+static uint8_t set_ait_compression(struct list_head *l, int lvl)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
 	/* default set_compression is in libvtlscsi */
-	return set_compression_mode_pg(sm, lvl);
+	return set_compression_mode_pg(l, lvl);
 }
 
-static uint8_t update_ait_encryption_mode(void *p, int value)
+static uint8_t update_ait_encryption_mode(struct list_head *m, void *p, int value)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 
@@ -283,15 +230,29 @@ static uint8_t ait_cleaning(void *ssc_priv)
 	return 0;
 }
 
+static void init_ait_mode_pages(struct lu_phy_attr *lu)
+{
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_ait_device_configuration(lu);
+}
+
 /* load set to 1 for load, 0 for unload */
-static uint8_t ait_media_load(int load)
+static uint8_t ait_media_load(struct lu_phy_attr *lu, int load)
 {
 	uint8_t *smp_dp;
 	struct mode *smp;
 
 	MHVTL_DBG(3, "+++ Trace +++");
 
-	smp = find_pcode(sm, 0x31, 0);
+	smp = lookup_pcode(&lu->mode_pg, 0x31, 0);
 	if (smp) {
 		smp_dp = smp->pcodePointer;
 		if (load)
@@ -321,57 +282,56 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_ait1_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
-	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_1;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_ait_inquiry(lu);
+	init_ait_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait1;
 	ssc_pm.media_capabilities = ait1_media_handling;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);	/* init default mode pages */
-	lu->mode_pages = sm;
 }
 
 void init_ait2_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
-	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_2;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_ait_inquiry(lu);
+	init_ait_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait2;
 	ssc_pm.media_capabilities = ait2_media_handling;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);	/* init default mode pages */
-	lu->mode_pages = sm;
 }
 
 void init_ait3_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
-	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_3;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_ait_inquiry(lu);
+	init_ait_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait3;
 	ssc_pm.media_capabilities = ait3_media_handling;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);	/* init default mode pages */
-	lu->mode_pages = sm;
 }
 
 void init_ait4_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
-	init_ait_inquiry(lu);
 	ssc_pm.name = name_ait_4;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_ait_inquiry(lu);
+	init_ait_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait4;
 	ssc_pm.media_capabilities = ait4_media_handling;
-	ssc_pm.clear_WORM	= clear_ait_WORM,
-	ssc_pm.set_WORM		= set_ait_WORM,
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);	/* init default mode pages */
-	init_ait4_mode_pages(lu, sm);	/* init AIT uniq mode pages */
-	lu->mode_pages = sm;
+	ssc_pm.clear_WORM = clear_ait_WORM,
+	ssc_pm.set_WORM	= set_ait_WORM,
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 10; /* Capacity units in KBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);

@@ -44,60 +44,42 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "q.h"
-
-/*
- * Mode Pages defined for 'default'
-
- *** Minimum default requirements is **
- */
-static struct mode sm[] = {
-/*	Page,  subpage, len, 'pointer to data struct' */
-	{0x01, 0x00, 0x00, NULL, }, /* RW error recovery - SSC3-8.3.5 */
-	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
-	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
-	{0x0f, 0x00, 0x00, NULL, }, /* Data Compression - SSC3-8.3.3 */
-	{0x10, 0x00, 0x00, NULL, }, /* Device config - SSC3-8.3.3 */
-	{0x11, 0x00, 0x00, NULL, }, /* Medium Partition - SSC3-8.3.4 */
-	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
-	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SSC3-8.3.6 */
-	{0x1d, 0x00, 0x00, NULL, }, /* Medium configuration - SSC3-8.3.7 */
-	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
-	};
+#include "mode.h"
 
 static struct media_handling default_media_handling[] = {
 	};
 
-static uint8_t clear_default_comp(void)
+static uint8_t clear_default_comp(struct list_head *l)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 	/* default clear_compression is in libvtlscsi */
-	return clear_compression_mode_pg(sm);
+	return clear_compression_mode_pg(l);
 }
 
-static uint8_t set_default_comp(int lvl)
+static uint8_t set_default_comp(struct list_head *l, int lvl)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 	/* default set_compression is in libvtlscsi */
-	return set_compression_mode_pg(sm, lvl);
+	return set_compression_mode_pg(l, lvl);
 }
 
-static uint8_t update_default_encryption_mode(void *p, int value)
+static uint8_t update_default_encryption_mode(struct list_head *m, void *p, int value)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 
 	return SAM_STAT_GOOD;
 }
 
-static uint8_t set_default_WORM(void)
+static uint8_t set_default_WORM(struct list_head *l)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-	return set_WORM(sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
+	return set_WORM(l);
 }
 
-static uint8_t clear_default_WORM(void)
+static uint8_t clear_default_WORM(struct list_head *l)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-	return clear_WORM(sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
+	return clear_WORM(l);
 }
 
 static void init_default_inquiry(struct lu_phy_attr *lu)
@@ -190,7 +172,7 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
-static uint8_t default_media_load(int load)
+static uint8_t default_media_load(struct lu_phy_attr *lu, int load)
 {
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
 	return 0;
@@ -210,6 +192,19 @@ static uint8_t default_cleaning(void *ssc_priv)
 	set_cleaning_timer(30);
 
 	return 0;
+}
+
+static void init_default_mode_pages(struct lu_phy_attr *lu)
+{
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
 }
 
 static char *pm_name = "default emulation";
@@ -235,10 +230,10 @@ void init_default_ssc(struct lu_phy_attr *lu)
 
 	init_default_inquiry(lu);
 	ssc_pm.name = pm_name;
+	ssc_pm.lu = lu;
 	ssc_pm.drive_native_density = medium_density_code_lto1;
 	ssc_pm.media_capabilities = NULL;
 	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
-	lu->mode_pages = sm;
+	init_default_mode_pages(lu);
 }
 

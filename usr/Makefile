@@ -55,13 +55,14 @@ all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary make_vtl_media tapeexerciser
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
-		ssc.c be_byteshift.h \
+		mode.c ssc.c be_byteshift.h \
 		../kernel/vtl_common.h
+	$(CC) $(CFLAGS) -c -fpic mode.c
 	$(CC) $(CFLAGS) -c -fpic vtllib.c
 	$(CC) $(CFLAGS) -c -fpic spc.c
 	$(CC) $(CFLAGS) -c -fpic smc.c
 	$(CC) $(CFLAGS) -c -fpic q.c
-	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o
+	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o mode.o
 
 tapeexerciser:	tapeexerciser.c
 	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
@@ -113,6 +114,7 @@ clean:
 		default_ssc_pm.o \
 		ult3580_pm.o \
 		hp_ultrium_pm.o \
+		mode.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		dump_messageQ dump_tape make_vtl_media \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
@@ -135,6 +137,7 @@ distclean:
 	hp_ultrium_pm.o \
 	ait_pm.o t10000_pm.o ibm_03592_pm.o \
 	z.o z \
+	mode.o \
 	TAGS \
 	make_vtl_media \
 	make_vtl_media.1 \

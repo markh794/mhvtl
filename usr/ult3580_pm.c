@@ -44,24 +44,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "q.h"
-
-/*
- * Mode Pages defined for IBM Ultrium-TD4
- */
-static struct mode sm[] = {
-/*	Page,  subpage, len, 'pointer to data struct' */
-	{0x01, 0x00, 0x00, NULL, }, /* RW error recovery - SSC3-8.3.5 */
-	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
-	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
-	{0x0f, 0x00, 0x00, NULL, }, /* Data Compression - SSC3-8.3.3 */
-	{0x10, 0x00, 0x00, NULL, }, /* Device config - SSC3-8.3.3 */
-	{0x11, 0x00, 0x00, NULL, }, /* Medium Partition - SSC3-8.3.4 */
-	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
-	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SSC3-8.3.6 */
-	{0x1d, 0x00, 0x00, NULL, }, /* Medium configuration - SSC3-8.3.7 */
-	{0x24, 0x00, 0x00, NULL, }, /* Vendor Specific (IBM Ultrium) */
-	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
-	};
+#include "mode.h"
 
 static struct media_handling ult1_media_handling[] = {
 	{ "LTO-1", "RW", medium_density_code_lto1, },
@@ -99,80 +82,40 @@ static struct media_handling ult5_media_handling[] = {
 	{ "LTO-5", "WORM", medium_density_code_lto5_WORM, },
 	};
 
-/*
- * Initialise structure data for mode pages.
- * - Allocate memory for each mode page & init to 0
- * - Set up size of mode page
- * - Set initial values of mode pages
- *
- * Return void  - Nothing
- */
-static void init_ult_mode_pages(struct lu_phy_attr *lu, struct mode *m)
+
+static uint8_t clear_ult_compression(struct list_head *m)
 {
-	struct mode *mp;
-
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-
-	mp = alloc_mode_page(m, 0x24, 0, 6);
-	MHVTL_DBG(3, "smp: %p", mp);
-}
-
-/*
- * Initialise structure data for mode pages.
- * - Allocate memory for each mode page & init to 0
- * - Set up size of mode page
- * - Set initial values of mode pages
- *
- * Return void  - Nothing
- */
-static void init_ult_encr_mode_pages(struct lu_phy_attr *lu, struct mode *m)
-{
-	struct mode *mp;
-
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-
-	/* Vendor Unique (IBM Ultrium)
-	 * Page 151, table 118
-	 * Advise ENCRYPTION Capable device
-	 */
-	mp = alloc_mode_page(m, 0x24, 0, 6);
-	if (mp)
-		mp->pcodePointer[5] = ENCR_C;
-}
-
-static uint8_t clear_ult_compression(void)
-{
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
 	/* default clear_compression is in libvtlscsi */
-	return clear_compression_mode_pg(sm);
+	return clear_compression_mode_pg(m);
 }
 
-static uint8_t set_ult_compression(int lvl)
+static uint8_t set_ult_compression(struct list_head *m, int lvl)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
 	/* default set_compression is in libvtlscsi */
-	return set_compression_mode_pg(sm, lvl);
+	return set_compression_mode_pg(m, lvl);
 }
 
-static uint8_t set_ult_WORM(void)
+static uint8_t set_ult_WORM(struct list_head *m)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-	return set_WORM(sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
+	return set_WORM(m);
 }
 
-static uint8_t clear_ult_WORM(void)
+static uint8_t clear_ult_WORM(struct list_head *m)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-	return clear_WORM(sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
+	return clear_WORM(m);
 }
 
-static uint8_t update_ult_encryption_mode(void *p, int value)
+static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int value)
 {
 	struct mode *smp;
 
 	MHVTL_DBG(3, "+++ Trace +++");
 
-	smp = find_pcode(sm, 0x24, 0);
+	smp = lookup_pcode(m, 0x24, 0);
 	if (smp) {
 		if (value)
 			smp->pcodePointer[5] |= ENCR_E;
@@ -322,7 +265,7 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
-static uint8_t ult_media_load(int load)
+static uint8_t ult_media_load(struct lu_phy_attr *lu, int load)
 {
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
 	return 0;
@@ -344,6 +287,19 @@ static uint8_t ult_cleaning(void *ssc_priv)
 	return 0;
 }
 
+static void init_ult_mode_pages(struct lu_phy_attr *lu)
+{
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+}
+
 static char *pm_name_lto1 = "LTO-1";
 static char *pm_name_lto2 = "LTO-2";
 static char *pm_name_lto3 = "LTO-3";
@@ -361,57 +317,60 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_ult3580_td1(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto1;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_ult_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto1;
 	ssc_pm.media_capabilities = ult1_media_handling;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
-	init_ult_mode_pages(lu, sm);
-	lu->mode_pages = sm;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 }
 
 void init_ult3580_td2(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto2;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_ult_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult2_media_handling;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
-	init_ult_mode_pages(lu, sm);
-	lu->mode_pages = sm;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 }
 
 void init_ult3580_td3(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto3;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_ult_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult3_media_handling;
 	ssc_pm.clear_WORM = clear_ult_WORM;
 	ssc_pm.set_WORM = set_ult_WORM;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
-	init_ult_mode_pages(lu, sm);
-	lu->mode_pages = sm;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 }
 
 void init_ult3580_td4(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto4;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+
+	init_ult_mode_pages(lu);
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-4 */
+
 	ssc_pm.drive_native_density = medium_density_code_lto4;
 	ssc_pm.media_capabilities = ult4_media_handling;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
@@ -419,10 +378,6 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
-	init_ult_encr_mode_pages(lu, sm);
-	lu->mode_pages = sm;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
@@ -430,10 +385,16 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 
 void init_ult3580_td5(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto5;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+
+	init_ult_mode_pages(lu);
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+
 	ssc_pm.drive_native_density = medium_density_code_lto5;
 	ssc_pm.media_capabilities = ult5_media_handling;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
@@ -441,10 +402,6 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
-	init_ult_encr_mode_pages(lu, sm);
-	lu->mode_pages = sm;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);

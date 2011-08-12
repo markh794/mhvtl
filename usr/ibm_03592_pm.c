@@ -44,38 +44,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "q.h"
-
-/*
- * Mode Pages defined for 'default'
-
- *** Minimum default requirements is **
- static struct mode sm[] = {
-	{0x01, 0x00, 0x00, NULL, }, * RW error recovery - SSC3-8.3.5 *
-	{0x02, 0x00, 0x00, NULL, }, * Disconnect Reconnect - SPC3 *
-	{0x0a, 0x00, 0x00, NULL, }, * Control Extension - SPC3 *
-	{0x0f, 0x00, 0x00, NULL, }, * Data Compression - SSC3-8.3.3
-	{0x10, 0x00, 0x00, NULL, }, * Device config - SSC3-8.3.3
-	{0x11, 0x00, 0x00, NULL, }, * Medium Partition - SSC3-8.3.4
-	{0x1a, 0x00, 0x00, NULL, }, * Power condition - SPC3
-	{0x1c, 0x00, 0x00, NULL, }, * Information Exception Ctrl SSC3-8.3.6
-	{0x1d, 0x00, 0x00, NULL, }, * Medium configuration - SSC3-8.3.7
-	{0x00, 0x00, 0x00, NULL, }, * NULL terminator
-	};
- */
-
-static struct mode sm[] = {
-/*	Page,  subpage, len, 'pointer to data struct' */
-	{0x01, 0x00, 0x00, NULL, }, /* RW error recovery - SSC3-8.3.5 */
-	{0x02, 0x00, 0x00, NULL, }, /* Disconnect Reconnect - SPC3 */
-	{0x0a, 0x00, 0x00, NULL, }, /* Control Extension - SPC3 */
-	{0x0f, 0x00, 0x00, NULL, }, /* Data Compression - SSC3-8.3.3 */
-	{0x10, 0x00, 0x00, NULL, }, /* Device config - SSC3-8.3.3 */
-	{0x11, 0x00, 0x00, NULL, }, /* Medium Partition - SSC3-8.3.4 */
-	{0x1a, 0x00, 0x00, NULL, }, /* Power condition - SPC3 */
-	{0x1c, 0x00, 0x00, NULL, }, /* Information Exception Ctrl SSC3-8.3.6 */
-	{0x1d, 0x00, 0x00, NULL, }, /* Medium configuration - SSC3-8.3.7 */
-	{0x00, 0x00, 0x00, NULL, }, /* NULL terminator */
-	};
+#include "mode.h"
 
 static struct media_handling j1a_media_handling[] = {
 	{ "j1a", "RW", medium_density_code_j1a, },
@@ -178,37 +147,37 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-static uint8_t clear_3592_comp(void)
+static uint8_t clear_3592_comp(struct list_head *m)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 	/* default clear_compression is in libvtlscsi */
-	return clear_compression_mode_pg(sm);
+	return clear_compression_mode_pg(m);
 }
 
-static uint8_t set_3592_comp(int lvl)
+static uint8_t set_3592_comp(struct list_head *m, int lvl)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 	/* default set_compression is in libvtlscsi */
-	return set_compression_mode_pg(sm, lvl);
+	return set_compression_mode_pg(m, lvl);
 }
 
-static uint8_t update_3592_encryption_mode(void *p, int value)
+static uint8_t update_3592_encryption_mode(struct list_head *m, void *p, int value)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 
 	return SAM_STAT_GOOD;
 }
 
-static uint8_t set_3592_WORM(void)
+static uint8_t set_3592_WORM(struct list_head *m)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-	return set_WORM(sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
+	return set_WORM(m);
 }
 
-static uint8_t clear_3592_WORM(void)
+static uint8_t clear_3592_WORM(struct list_head *m)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", sm);
-	return clear_WORM(sm);
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
+	return clear_WORM(m);
 }
 
 static int encr_capabilities_3592(struct scsi_cmd *cmd)
@@ -346,7 +315,7 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
-static uint8_t ibm_media_load(int load)
+static uint8_t ibm_media_load(struct lu_phy_attr *lu, int load)
 {
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
 	return 0;
@@ -366,6 +335,19 @@ static uint8_t ibm_cleaning(void *ssc_priv)
 	set_cleaning_timer(30);
 
 	return 0;
+}
+
+static void init_03592_mode_pages(struct lu_phy_attr *lu)
+{
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
 }
 
 static char *pm_name_j1a = "03592J1A";
@@ -389,42 +371,44 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_3592_j1a(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace +++");
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_j1a;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_03592_mode_pages(lu);
 	ssc_pm.drive_type = drive_3592_J1A;
 	ssc_pm.media_capabilities = j1a_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_j1a;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
 }
 
 void init_3592_E05(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace +++");
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e05;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_03592_mode_pages(lu);
 	ssc_pm.drive_type = drive_3592_E05;
 	ssc_pm.media_capabilities = e05_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e05;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
 }
 
 void init_3592_E06(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace +++");
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
 	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e06;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+	init_03592_mode_pages(lu);
 	ssc_pm.drive_type = drive_3592_E06;
 	ssc_pm.media_capabilities = e06_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e06;
-	personality_module_register(&ssc_pm);
-	init_default_ssc_mode_pages(sm);
-	lu->mode_pages = sm;
 	ssc_pm.encryption_capabilities = encr_capabilities_3592;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);

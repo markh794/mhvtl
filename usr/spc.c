@@ -507,6 +507,16 @@ uint8_t spc_mode_select(struct scsi_cmd *cmd)
 }
 
 /*
+ * Add data for pcode to buffer pointed to by p
+ * Return: Number of chars moved.
+ */
+static int add_pcode(struct mode *m, uint8_t *p)
+{
+	memcpy(p, m->pcodePointer, m->pcodeSize);
+	return m->pcodeSize;
+}
+
+/*
  * Build mode sense data into *buf
  * Return SAM STATUS
  */
@@ -525,7 +535,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	uint8_t *buf = cmd->dbuf_p->data;
 	uint8_t *scb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	struct mode *m = cmd->lu->mode_pages;
+	struct list_head *m = &cmd->lu->mode_pg;
 
 #ifdef MHVTL_DEBUG
 	char *pcontrolString[] = {
@@ -583,18 +593,18 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	MHVTL_DBG(3, "pcode: 0x%02x", pcode);
+	MHVTL_DBG(3, "pcode: 0x%02x, subpcode: 0x%02x", pcode, subpcode);
 
 	if (0x0 == pcode) {
 		len = 0;
 	} else if (0x3f == pcode) {	/* Return all pages */
 		for (a = 1; a < 0x3f; a++) { /* Walk thru all possibilities */
-			smp = find_pcode(m, a, 0);
+			smp = lookup_pcode(m, a, 0);
 			if (smp)
 				len += add_pcode(smp, (uint8_t *)ap + len);
 		}
 	} else {
-		smp = find_pcode(m, pcode, 0);
+		smp = lookup_pcode(m, pcode, 0);
 		if (smp)
 			len = add_pcode(smp, (uint8_t *)ap);
 	}
