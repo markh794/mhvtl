@@ -97,10 +97,29 @@ static uint8_t set_ult_compression(struct list_head *m, int lvl)
 	return set_compression_mode_pg(m, lvl);
 }
 
-static uint8_t set_ult_WORM(struct list_head *m)
+static uint8_t set_ult_WORM(struct list_head *lst)
 {
+	uint8_t *smp_dp;
+	struct mode *m;
+
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
-	return set_WORM(m);
+
+	set_WORM(lst);	/* Default WORM setup */
+
+	/* Now for the Ultrium unique stuff */
+
+	m = lookup_pcode(lst, MODE_BEHAVIOR_CONFIGURATION, 0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			lst, m, m->pcodePointer);
+	if (m) {
+		smp_dp = m->pcodePointer;
+		if (!smp_dp)
+			return SAM_STAT_GOOD;
+
+		smp_dp[4] = 0x01; /* WORM Behavior */
+	}
+
+	return SAM_STAT_GOOD;
 }
 
 static uint8_t clear_ult_WORM(struct list_head *m)
@@ -115,7 +134,7 @@ static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int valu
 
 	MHVTL_DBG(3, "+++ Trace +++");
 
-	smp = lookup_pcode(m, 0x24, 0);
+	smp = lookup_pcode(m, MODE_VENDOR_SPECIFIC_24H, 0);
 	if (smp) {
 		if (value)
 			smp->pcodePointer[5] |= ENCR_E;
@@ -323,10 +342,20 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_lto1;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_ult_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto1;
 	ssc_pm.media_capabilities = ult1_media_handling;
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* IBM Ultrium SCSI Reference (5edition - Oct 2001)
+	 * lists these mode pages
+	 */
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_information_exception(lu);
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 }
 
 void init_ult3580_td2(struct lu_phy_attr *lu)
@@ -337,10 +366,22 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_lto2;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_ult_mode_pages(lu);
+
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult2_media_handling;
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Based on 9th edition of IBM SCSI Reference */
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_behavior_configuration(lu);
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 }
 
 void init_ult3580_td3(struct lu_phy_attr *lu)
@@ -351,12 +392,23 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_lto3;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_ult_mode_pages(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult3_media_handling;
 	ssc_pm.clear_WORM = clear_ult_WORM;
 	ssc_pm.set_WORM = set_ult_WORM;
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Based on 9th edition of IBM SCSI Reference */
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_behavior_configuration(lu);
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 }
 
 void init_ult3580_td4(struct lu_phy_attr *lu)

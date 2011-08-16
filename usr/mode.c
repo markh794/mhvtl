@@ -350,6 +350,8 @@ int add_mode_medium_configuration(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	mp->pcodePointer[4] = 0x01;	/* WORM mode label restrictions */
+	mp->pcodePointer[5] = 0x01;	/* WORM mode filemark restrictions */
 	return 0;
 }
 
@@ -519,3 +521,32 @@ int add_mode_device_capabilities(struct lu_phy_attr *lu)
 	return 0;
 }
 
+/*
+ * Behavior Configuration Mode Page
+ * IBM Ultrium SCSI Reference - 9th Edition
+ */
+int add_mode_behavior_configuration(struct lu_phy_attr *lu)
+{
+	struct list_head *mode_pg;
+	struct mode *mp;
+	uint8_t pcode;
+	uint8_t size;
+
+	mode_pg = &lu->mode_pg;
+	pcode = MODE_BEHAVIOR_CONFIGURATION;
+	size = 10;
+
+	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	if (!mp)
+		return -ENOMEM;
+
+	mp->pcodePointer[0] = pcode;
+	mp->pcodePointer[1] = size
+				 - sizeof(mp->pcodePointer[0])
+				 - sizeof(mp->pcodePointer[1]);
+
+	mp->pcodePointer[3] = 0; /* Clean Behavior */
+	mp->pcodePointer[4] = 0; /* WORM Behavior */
+
+	return 0;
+}

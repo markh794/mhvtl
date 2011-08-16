@@ -702,7 +702,7 @@ uint8_t set_WORM(struct list_head *l)
 
 	MHVTL_DBG(3, "*** Trace ***");
 
-	m = lookup_pcode(l, 0x1d, 0);
+	m = lookup_pcode(l, MODE_MEDIUM_CONFIGURATION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			l, m, m->pcodePointer);
 	if (m) {
