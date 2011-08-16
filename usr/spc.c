@@ -529,7 +529,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	int offset = 0;
 	uint8_t *ap;
 	struct mode *smp;	/* Struct mode pointer... */
-	int a;
+	int i, j;
 	int WriteProtect = 0;
 
 	uint8_t *buf = cmd->dbuf_p->data;
@@ -587,32 +587,55 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	offset += blockDescriptorLen;
 	ap = buf + offset;
 
-	if (0 != subpcode) { /* TODO: Control Extension page */
-		MHVTL_DBG(1, "Non-zero sub-page sense code not supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
 	MHVTL_DBG(3, "pcode: 0x%02x, subpcode: 0x%02x", pcode, subpcode);
 
-	if (0x0 == pcode) {
+	switch (pcode) {
+	case 0:
 		len = 0;
-	} else if (0x3f == pcode) {	/* Return all pages */
-		for (a = 1; a < 0x3f; a++) { /* Walk thru all possibilities */
-			smp = lookup_pcode(m, a, 0);
-			if (smp)
-				len += add_pcode(smp, (uint8_t *)ap + len);
+		break;
+	case 0x3f:
+		/* Walk thru all possibilities */
+		if (subpcode == 0) {
+			for (i = 1; i < 0x3f; i++) {
+				smp = lookup_pcode(m, i, subpcode);
+				if (smp)
+					len += add_pcode(smp,
+							(uint8_t *)ap + len);
+			}
+		} else { /* 0x01 - 0xfe are reserved. Should only be 0xff */
+			for (i = 1; i < 0x3f; i++) {
+				for (j = 0; j < 0xff; j++) {
+					smp = lookup_pcode(m, i, j);
+					if (smp)
+						len += add_pcode(smp,
+							(uint8_t *)ap + len);
+				}
+			}
 		}
-	} else {
-		smp = lookup_pcode(m, pcode, 0);
-		if (smp)
-			len = add_pcode(smp, (uint8_t *)ap);
+		break;
+	default:
+		if (subpcode == 0xff) { /* All sub-pcodes for this pcode */
+			for (i = 0; i < 0xff; i++) {
+				smp = lookup_pcode(m, pcode, i);
+				if (smp)
+					len += add_pcode(smp,
+							(uint8_t *)ap + len);
+			}
+		} else {
+			smp = lookup_pcode(m, pcode, subpcode);
+			if (smp)
+				len = add_pcode(smp, (uint8_t *)ap);
+		}
+		break;
 	}
+
+
 	offset += len;
 
 	if (pcode != 0)	/* 0 = No page code requested */
 		if (0 == len) {	/* Page not found.. */
-		MHVTL_DBG(2, "Unknown mode page : %d", pcode);
+		MHVTL_DBG(2, "Unknown mode page: 0x%02x sub-page code: 0x%02x",
+							pcode, subpcode);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		}
