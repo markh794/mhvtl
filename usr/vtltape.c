@@ -73,6 +73,7 @@
 #include "vtltape.h"
 #include "spc.h"
 #include "ssc.h"
+#include "log.h"
 
 char vtl_driver_name[] = "vtltape";
 
@@ -156,92 +157,6 @@ struct MAM_Attributes_table {
 	{0x808, 160, 0, 2, &mam.MediaPool },
 	{0xbff, 0, 1, 0, NULL }
 };
-
-/* Log pages */
-static struct	Temperature_page Temperature_pg = {
-	{ TEMPERATURE_PAGE, 0x00, 0x06, },
-	{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	/* Temperature */
-	};
-
-static struct error_counter pg_write_err_counter = {
-	{ WRITE_ERROR_COUNTER, 0x00, 0x00, },
-	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, /* Errors corrected with/o delay */
-	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, /* Errors corrected with delay */
-	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, /* Total rewrites */
-	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, /* Total errors corrected */
-	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, /* total times correct algorithm */
-	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, /* Total bytes processed */
-	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, /* Total uncorrected errors */
-	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, /* Write errors since last read */
-	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, /* Total raw write error flags */
-	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, /* Total dropout error count */
-	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, /* Total servo tracking */
-	};
-static struct error_counter pg_read_err_counter = {
-	{ READ_ERROR_COUNTER, 0x00, 0x00, },
-	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, /* Errors corrected with/o delay */
-	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, /* Errors corrected with delay */
-	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, /* Total rewrites/rereads */
-	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, /* Total errors corrected */
-	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, /* total times correct algorithm */
-	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, /* Total bytes processed */
-	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, /* Total uncorrected errors */
-	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, /* r/w errors since last read */
-	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, /* Total raw write error flags */
-	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, /* Total dropout error count */
-	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, /* Total servo tracking */
-	};
-
-static struct seqAccessDevice seqAccessDevice = {
-	{ SEQUENTIAL_ACCESS_DEVICE, 0x00, 0x54, },
-	{ 0x00, 0x00, 0x40, 0x08, }, 0x00, /* Write data b4 compression */
-	{ 0x00, 0x01, 0x40, 0x08, }, 0x00, /* Write data after compression */
-	{ 0x00, 0x02, 0x40, 0x08, }, 0x00, /* Read data b4 compression */
-	{ 0x00, 0x03, 0x40, 0x08, }, 0x00, /* Read data after compression */
-	{ 0x01, 0x00, 0x40, 0x08, }, 0x00, /* Cleaning required (TapeAlert) */
-	{ 0x80, 0x00, 0x40, 0x04, }, 0x00, /* MBytes processed since clean */
-	{ 0x80, 0x01, 0x40, 0x04, }, 0x00, /* Lifetime load cycle */
-	{ 0x80, 0x02, 0x40, 0x04, }, 0x00, /* Lifetime cleaning cycles */
-	};
-
-static struct TapeAlert_page TapeAlert;
-
-static struct DataCompression DataCompression = {
-	{ DATA_COMPRESSION, 0x00, 0x54, },
-	{ 0x00, 0x00, 0x40, 0x02, }, 0x00, /* Read Compression Ratio */
-	{ 0x00, 0x00, 0x40, 0x02, }, 0x00, /* Write Compression Ratio */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes transferred to server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes transferred to server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes read from tape */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes read from tape */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes transferred from server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes transferred from server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes written to tape */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes written to tape */
-	};
-
-static struct TapeUsage TapeUsage = {
-	{ TAPE_USAGE, 0x00, 0x54, },
-	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00, /* Thread count */
-	{ 0x00, 0x02, 0xc0, 0x08, }, 0x00, /* Total data sets written */
-	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00, /* Total write retries */
-	{ 0x00, 0x04, 0xc0, 0x02, }, 0x00, /* Total Unrecovered write error */
-	{ 0x00, 0x05, 0xc0, 0x02, }, 0x00, /* Total Suspended writes */
-	{ 0x00, 0x06, 0xc0, 0x02, }, 0x00, /* Total Fatal suspended writes */
-	{ 0x00, 0x07, 0xc0, 0x08, }, 0x00, /* Total data sets read */
-	{ 0x00, 0x08, 0xc0, 0x04, }, 0x00, /* Total read retries */
-	{ 0x00, 0x09, 0xc0, 0x02, }, 0x00, /* Total unrecovered read errors */
-	{ 0x00, 0x0a, 0xc0, 0x02, }, 0x00, /* Total suspended reads */
-	{ 0x00, 0x0b, 0xc0, 0x02, }, 0x00, /* Total Fatal suspended reads */
-	};
-
-static struct TapeCapacity TapeCapacity = {
-	{ TAPE_CAPACITY, 0x00, 0x54, },
-	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00, /* main partition remaining cap */
-	{ 0x00, 0x02, 0xc0, 0x04, }, 0x00, /* Alt. partition remaining cap */
-	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00, /* main partition max cap */
-	{ 0x00, 0x04, 0xc0, 0x04, }, 0x00, /* Alt. partition max cap */
-	};
 
 static struct tape_drives_table {
 	char *name;
@@ -418,16 +333,6 @@ static const char *lookup_media_type(int med)
 /***********************************************************************/
 
 /*
- * Set TapeAlert status in seqAccessDevice
- */
-static void
-setSeqAccessDevice(struct seqAccessDevice * seqAccessDevicep, uint64_t flg)
-{
-
-	seqAccessDevicep->TapeAlert = htonll(flg);
-}
-
-/*
  * Report density of media loaded.
 
 FIXME:
@@ -489,140 +394,6 @@ int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
 	}
 
 return REPORT_DENSITY_LEN;
-}
-
-/* FIXME: Needs to be converted to / moved into ssc.c
- * log_pages need to be converted to a LIST first..
- */
-static uint8_t resp_log_sense(struct scsi_cmd *cmd)
-{
-	uint8_t	*b = cmd->dbuf_p->data;
-	uint8_t *cdb = cmd->scb;
-	int retval = 0;
-	uint16_t *sp;
-	uint16_t alloc_len;
-	struct error_counter *_err_counter;
-
-	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x08,
-					0x00,
-					WRITE_ERROR_COUNTER,
-					READ_ERROR_COUNTER,
-					SEQUENTIAL_ACCESS_DEVICE,
-					TEMPERATURE_PAGE,
-					TAPE_ALERT,
-					TAPE_USAGE,
-					TAPE_CAPACITY,
-					DATA_COMPRESSION,
-					};
-
-	MHVTL_DBG(1, "LOG SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
-	alloc_len = cmd->dbuf_p->sz = get_unaligned_be16(&cdb[7]);
-
-	switch (cdb[2] & 0x3f) {
-	case 0:	/* Send supported pages */
-		MHVTL_DBG(1, "LOG SENSE: Sending supported pages");
-		sp = (uint16_t *)&supported_pages[2];
-		*sp = htons(sizeof(supported_pages) - 4);
-		b = memcpy(b, supported_pages, sizeof(supported_pages));
-		retval = sizeof(supported_pages);
-		break;
-	case WRITE_ERROR_COUNTER:	/* Write error page */
-		MHVTL_DBG(1, "LOG SENSE: Write error page");
-		pg_write_err_counter.pcode_head.len =
-				htons((sizeof(pg_write_err_counter)) -
-				sizeof(pg_write_err_counter.pcode_head));
-		b = memcpy(b, &pg_write_err_counter,
-					sizeof(pg_write_err_counter));
-		_err_counter = (struct error_counter *)b;
-		put_unaligned_be64(lu_ssc.bytesWritten,
-					&_err_counter->bytesProcessed);
-		retval += sizeof(pg_write_err_counter);
-		break;
-	case READ_ERROR_COUNTER:	/* Read error page */
-		MHVTL_DBG(1, "LOG SENSE: Read error page");
-		pg_read_err_counter.pcode_head.len =
-				htons((sizeof(pg_read_err_counter)) -
-				sizeof(pg_read_err_counter.pcode_head));
-		b = memcpy(b, &pg_read_err_counter,
-					sizeof(pg_read_err_counter));
-		_err_counter = (struct error_counter *)b;
-		put_unaligned_be64(lu_ssc.bytesRead,
-					&_err_counter->bytesProcessed);
-		retval += sizeof(pg_read_err_counter);
-		break;
-	case SEQUENTIAL_ACCESS_DEVICE:
-		MHVTL_DBG(1, "LOG SENSE: Sequential Access Device Log page");
-		seqAccessDevice.pcode_head.len = htons(sizeof(seqAccessDevice) -
-					sizeof(seqAccessDevice.pcode_head));
-		b = memcpy(b, &seqAccessDevice, sizeof(seqAccessDevice));
-		retval += sizeof(seqAccessDevice);
-		break;
-	case TEMPERATURE_PAGE:	/* Temperature page */
-		MHVTL_DBG(1, "LOG SENSE: Temperature page");
-		Temperature_pg.pcode_head.len = htons(sizeof(Temperature_pg) -
-					sizeof(Temperature_pg.pcode_head));
-		Temperature_pg.temperature = htons(35);
-		b = memcpy(b, &Temperature_pg, sizeof(Temperature_pg));
-		retval += sizeof(Temperature_pg);
-		break;
-	case TAPE_ALERT:	/* TapeAlert page */
-		MHVTL_DBG(1, "LOG SENSE: TapeAlert page");
-		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,
-				get_unaligned_be64(&seqAccessDevice.TapeAlert));
-
-		TapeAlert.pcode_head.len = htons(sizeof(TapeAlert) -
-					sizeof(TapeAlert.pcode_head));
-		b = memcpy(b, &TapeAlert, sizeof(TapeAlert));
-		retval += sizeof(TapeAlert);
-		/* Clear flags after value read. */
-		if (alloc_len > 4) {
-			setTapeAlert(&TapeAlert, 0);
-			setSeqAccessDevice(&seqAccessDevice, 0);
-		} else
-			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
-				" Not clearing TapeAlert flags.");
-		break;
-	case TAPE_USAGE:	/* Tape Usage Log */
-		MHVTL_DBG(1, "LOG SENSE: Tape Usage page");
-		TapeUsage.pcode_head.len = htons(sizeof(TapeUsage) -
-					sizeof(TapeUsage.pcode_head));
-		b = memcpy(b, &TapeUsage, sizeof(TapeUsage));
-		retval += sizeof(TapeUsage);
-		break;
-	case TAPE_CAPACITY:	/* Tape Capacity page */
-		MHVTL_DBG(1, "LOG SENSE: Tape Capacity page");
-		TapeCapacity.pcode_head.len = htons(sizeof(TapeCapacity) -
-					sizeof(TapeCapacity.pcode_head));
-		if (lu_ssc.tapeLoaded == TAPE_LOADED) {
-			uint64_t cap;
-
-			cap = htonll(mam.remaining_capacity) /
-					lu_ssc.capacity_unit;
-			TapeCapacity.value01 = htonl(cap);
-
-			cap = htonll(mam.max_capacity) / lu_ssc.capacity_unit;
-			TapeCapacity.value03 = htonl(cap);
-		} else {
-			TapeCapacity.value01 = 0;
-			TapeCapacity.value03 = 0;
-		}
-		b = memcpy(b, &TapeCapacity, sizeof(TapeCapacity));
-		retval += sizeof(TapeCapacity);
-		break;
-	case DATA_COMPRESSION:	/* Data Compression page */
-		MHVTL_DBG(1, "LOG SENSE: Data Compression page");
-		DataCompression.pcode_head.len = htons(sizeof(DataCompression) -
-					sizeof(DataCompression.pcode_head));
-		b = memcpy(b, &DataCompression, sizeof(DataCompression));
-		retval += sizeof(DataCompression);
-		break;
-	default:
-		MHVTL_DBG(1, "LOG SENSE: Unknown code: 0x%x", cdb[2] & 0x3f);
-		retval = 2;
-		break;
-	}
-	cmd->dbuf_p->sz = retval;
-	return SAM_STAT_GOOD;
 }
 
 /*
@@ -1515,6 +1286,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	lu_ssc.bytesWritten = 0;	/* Global - Bytes written this load */
 	lu_ssc.bytesRead = 0;		/* Global - Bytes rearead this load */
+	lu = lu_ssc.pm->lu;
 
 	rc = load_tape(PCL, sam_stat);
 	if (rc) {
@@ -1523,12 +1295,11 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		if (rc == 2) {
 			/* TapeAlert - Unsupported format */
 			fg = 0x800;
-			setSeqAccessDevice(&seqAccessDevice, fg);
-			setTapeAlert(&TapeAlert, fg);
+			update_TapeAlert(lu, fg);
 		}
 		return rc;
 	}
-	lu = lu_ssc.pm->lu;
+
 	lu_ssc.tapeLoaded = TAPE_LOADED;
 	lu_ssc.pm->media_load(lu, TAPE_LOADED);
 
@@ -1652,8 +1423,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 loadOK:
 	/* Update TapeAlert flags */
-	setSeqAccessDevice(&seqAccessDevice, fg);
-	setTapeAlert(&TapeAlert, fg);
+	update_TapeAlert(lu, fg);
 
 	MHVTL_DBG(1, "Media is %s",
 				(OK_to_write) ? "writable" : "not writable");
@@ -1668,8 +1438,7 @@ loadOK:
 mismatchmedia:
 	unload_tape(sam_stat);
 	fg |= 0x800;	/* Unsupported format */
-	setSeqAccessDevice(&seqAccessDevice, fg);
-	setTapeAlert(&TapeAlert, fg);
+	update_TapeAlert(lu, fg);
 	MHVTL_DBG(1, "Tape %s failed to load with type '%s' in drive type '%s'",
 			PCL,
 			lookup_media_type(mam.MediaType),
@@ -1744,6 +1513,9 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 {
 	char * pcl;
 	char s[128];
+	struct lu_phy_attr *lu;
+
+	lu = lu_ssc.pm->lu;
 
 	MHVTL_DBG(1, "Q snd_id %ld msg : %s", msg->snd_id, msg->text);
 
@@ -1806,8 +1578,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
-		setTapeAlert(&TapeAlert, flg);
-		setSeqAccessDevice(&seqAccessDevice, flg);
+		update_TapeAlert(lu, flg);
 	}
 
 	if (!strncmp(msg->text, "debug", 5)) {
@@ -2049,7 +1820,7 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_log_select,},
-		{resp_log_sense,},
+		{ssc_log_sense,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 
@@ -2474,8 +2245,6 @@ int main(int argc, char *argv[])
 	 * Indirectly, mode page tables are initialised
 	 */
 	config_lu(&lunit);
-
-	initTapeAlert(&TapeAlert);
 
 	if (chrdev_create(minor)) {
 		MHVTL_DBG(1, "Unable to create device node mhvtl%d", minor);

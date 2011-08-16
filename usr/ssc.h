@@ -139,6 +139,7 @@ uint8_t ssc_allow_prevent_removal(struct scsi_cmd *cmd);
 uint8_t ssc_erase(struct scsi_cmd *cmd);
 uint8_t ssc_format_media(struct scsi_cmd *cmd);
 uint8_t ssc_load_display(struct scsi_cmd *cmd);
+uint8_t ssc_log_sense(struct scsi_cmd *cmd);
 uint8_t ssc_mode_select(struct scsi_cmd *cmd);
 uint8_t ssc_pr_in(struct scsi_cmd *cmd);
 uint8_t ssc_pr_out(struct scsi_cmd *cmd);

@@ -60,6 +60,7 @@
 #include "smc.h"
 #include "mode.h"
 #include "be_byteshift.h"
+#include "log.h"
 
 char vtl_driver_name[] = "vtllibrary";
 long my_id = 0;
@@ -86,14 +87,6 @@ struct lu_phy_attr lunit;
 
 static struct smc_priv smc_slots;
 
-/* Log pages */
-struct Temperature_page Temperature_pg = {
-	{ TEMPERATURE_PAGE, 0x00, 0x06, },
-	{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	/* Temperature */
-	};
-
-struct TapeAlert_page TapeAlert;
-
 static void usage(char *progname)
 {
 	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
@@ -106,55 +99,6 @@ static void usage(char *progname)
 #ifndef Solaris
  int ioctl(int, int, void *);
 #endif
-
-/*
- * Process the LOG_SENSE command
- *
- * Temperature page & tape alert pages only...
- */
-#define TAPE_ALERT 0x2e
-uint8_t smc_log_sense(struct scsi_cmd *cmd)
-{
-	uint8_t	*b = cmd->dbuf_p->data;
-	uint8_t	*cdb = cmd->scb;
-	int retval = 0;
-
-	uint8_t supported_pages[] = {	0x00, 0x00, 0x00, 0x04,
-					0x00,
-					TEMPERATURE_PAGE,
-					TAPE_ALERT
-					};
-
-	switch (cdb[2] & 0x3f) {
-	case 0:	/* Send supported pages */
-		MHVTL_DBG(2, "%s", "Sending supported pages");
-		put_unaligned_be16(sizeof(supported_pages) - 4,
-					&supported_pages[2]);
-		b = memcpy(b, supported_pages, sizeof(supported_pages));
-		retval = sizeof(supported_pages);
-		break;
-	case TEMPERATURE_PAGE:	/* Temperature page */
-		MHVTL_DBG(2, "LOG SENSE: Temperature page");
-		put_unaligned_be16(sizeof(Temperature_pg) - sizeof(Temperature_pg.pcode_head), &Temperature_pg.pcode_head.len);
-		put_unaligned_be16(35, &Temperature_pg.temperature);
-		b = memcpy(b, &Temperature_pg, sizeof(Temperature_pg));
-		retval += sizeof(Temperature_pg);
-		break;
-	case TAPE_ALERT:	/* TapeAlert page */
-		MHVTL_DBG(2, "LOG SENSE: TapeAlert page");
-		put_unaligned_be16(sizeof(TapeAlert) - sizeof(TapeAlert.pcode_head), &TapeAlert.pcode_head.len);
-		b = memcpy(b, &TapeAlert, sizeof(TapeAlert));
-		retval += sizeof(TapeAlert);
-		setTapeAlert(&TapeAlert, 0); /* Clear flags after value read. */
-		break;
-	default:
-		MHVTL_DBG(1, "Unknown log sense code: 0x%x", cdb[2] & 0x3f);
-		retval = 2;
-		break;
-	}
-	cmd->dbuf_p->sz = retval;
-	return SAM_STAT_GOOD;
-}
 
 struct device_type_template smc_template = {
 	.ops	= {
@@ -638,7 +582,7 @@ static int processMessageQ(struct q_msg *msg)
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
-		setTapeAlert(&TapeAlert, flg);
+		update_TapeAlert(&lunit, flg);
 	}
 	if (!strncmp(msg->text, "verbose", 7)) {
 		if (verbose)
@@ -704,6 +648,12 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 
 	list_add_tail(&new->siblings, slot_list_head);
 	return new;
+}
+
+static void init_smc_log_pages(struct lu_phy_attr *lu)
+{
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
 }
 
 static void init_smc_mode_pages(struct lu_phy_attr *lu)
@@ -1336,7 +1286,7 @@ int main(int argc, char *argv[])
 	init_slot_info(&lunit);
 	update_drive_details(&lunit);
 	init_smc_mode_pages(&lunit);
-	initTapeAlert(&TapeAlert);
+	init_smc_log_pages(&lunit);
 
 	if (chrdev_create(my_id)) {
 		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);

@@ -45,6 +45,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "mode.h"
+#include "log.h"
 
 static struct media_handling ait1_media_handling[] = {
 	{ "ait1", "RW", medium_density_code_ait1, },
@@ -289,6 +290,14 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	personality_module_register(&ssc_pm);
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait1;
 	ssc_pm.media_capabilities = ait1_media_handling;
 }
@@ -302,6 +311,14 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	personality_module_register(&ssc_pm);
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait2;
 	ssc_pm.media_capabilities = ait2_media_handling;
 }
@@ -315,6 +332,14 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 	personality_module_register(&ssc_pm);
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait3;
 	ssc_pm.media_capabilities = ait3_media_handling;
 }
@@ -328,6 +353,14 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	personality_module_register(&ssc_pm);
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_ait4;
 	ssc_pm.media_capabilities = ait4_media_handling;
 	ssc_pm.clear_WORM = clear_ait_WORM,

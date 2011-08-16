@@ -45,6 +45,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "mode.h"
+#include "log.h"
 
 static struct media_handling ult1_media_handling[] = {
 	{ "LTO-1", "RW", medium_density_code_lto1, },
@@ -354,6 +355,15 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 	add_mode_device_configuration(lu);
 	add_mode_information_exception(lu);
 
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 }
@@ -379,6 +389,15 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
 	add_mode_behavior_configuration(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
@@ -407,6 +426,15 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	add_mode_medium_configuration(lu);
 	add_mode_behavior_configuration(lu);
 
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 }
@@ -422,6 +450,15 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 
 	init_ult_mode_pages(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-4 */
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 
 	ssc_pm.drive_native_density = medium_density_code_lto4;
 	ssc_pm.media_capabilities = ult4_media_handling;
@@ -446,6 +483,15 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 
 	init_ult_mode_pages(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 
 	ssc_pm.drive_native_density = medium_density_code_lto5;
 	ssc_pm.media_capabilities = ult5_media_handling;

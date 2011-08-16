@@ -45,6 +45,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "mode.h"
+#include "log.h"
 
 static struct media_handling j1a_media_handling[] = {
 	{ "j1a", "RW", medium_density_code_j1a, },
@@ -378,6 +379,14 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_03592_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_type = drive_3592_J1A;
 	ssc_pm.media_capabilities = j1a_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_j1a;
@@ -392,6 +401,14 @@ void init_3592_E05(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_03592_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_type = drive_3592_E05;
 	ssc_pm.media_capabilities = e05_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e05;
@@ -406,6 +423,14 @@ void init_3592_E06(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_03592_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_type = drive_3592_E06;
 	ssc_pm.media_capabilities = e06_media_handling;
 	ssc_pm.drive_native_density = medium_density_code_e06;

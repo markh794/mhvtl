@@ -28,6 +28,7 @@
 uint8_t smc_allow_removal(struct scsi_cmd *cmd);
 uint8_t smc_initialize_element_status(struct scsi_cmd *cmd);
 uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd);
+uint8_t smc_log_sense(struct scsi_cmd *cmd);
 uint8_t smc_move_medium(struct scsi_cmd *cmd);
 uint8_t smc_read_element_status(struct scsi_cmd *cmd);
 uint8_t smc_rezero(struct scsi_cmd *cmd);

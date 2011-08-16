@@ -45,6 +45,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "mode.h"
+#include "log.h"
 
 static struct media_handling default_media_handling[] = {
 	};
@@ -235,5 +236,14 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	ssc_pm.media_capabilities = NULL;
 	personality_module_register(&ssc_pm);
 	init_default_mode_pages(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 }
 

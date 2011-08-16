@@ -42,6 +42,7 @@
 #include "vtllib.h"
 #include "smc.h"
 #include "q.h"
+#include "log.h"
 
 uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 {
@@ -1323,3 +1324,86 @@ uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
 
 	return SAM_STAT_GOOD;
 }
+
+uint8_t smc_log_sense(struct scsi_cmd *cmd)
+{
+	struct lu_phy_attr *lu;
+	uint8_t	*b = cmd->dbuf_p->data;
+	uint8_t *cdb = cmd->scb;
+	uint8_t *sam_stat;
+	int retval;
+	int i;
+	uint16_t alloc_len;
+	struct list_head *l_head;
+	struct log_pg_list *l;
+
+	MHVTL_DBG(1, "LOG SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
+
+	alloc_len = get_unaligned_be16(&cdb[7]);
+	cmd->dbuf_p->sz = alloc_len;
+
+	lu = cmd->lu;
+	sam_stat = &cmd->dbuf_p->sam_stat;
+	l_head = &lu->log_pg;
+	retval = 0;
+
+	switch (cdb[2] & 0x3f) {
+	case 0:	/* Send supported pages */
+		MHVTL_DBG(1, "LOG SENSE: Sending supported pages");
+		memset(b, 0, 4);	/* Clear first few (4) bytes */
+		i = 4;
+		b[i++] = 0;	/* b[0] is log page '0' (this one) */
+		list_for_each_entry(l, l_head, siblings) {
+			MHVTL_DBG(3, "found page 0x%02x", l->log_page_num);
+			b[i] = l->log_page_num;
+			i++;
+		}
+		put_unaligned_be16(i - 4, &b[2]);
+		retval = i;
+		break;
+	case TEMPERATURE_PAGE:	/* Temperature page */
+		MHVTL_DBG(1, "LOG SENSE: Temperature page");
+		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE);
+		if (!l)
+			goto log_page_not_found;
+
+		b = memcpy(b, l->p, l->size);
+		retval = l->size;
+		break;
+	case TAPE_ALERT:	/* TapeAlert page */
+		MHVTL_DBG(1, "LOG SENSE: TapeAlert page");
+/*		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,
+				get_unaligned_be64(&seqAccessDevice.TapeAlert));
+*/
+
+		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
+		if (!l)
+			goto log_page_not_found;
+
+		MHVTL_LOG("pointer %p, size: %d", l->p, l->size);
+
+		b = memcpy(b, l->p, l->size);
+		retval = l->size;
+
+		/* Clear flags after value read. */
+		if (alloc_len > 4)
+			update_TapeAlert(lu, 0);
+		else
+			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
+				" Not clearing TapeAlert flags.");
+		break;
+	default:
+		MHVTL_DBG(1, "LOG SENSE: Unknown code: 0x%x", cdb[2] & 0x3f);
+		goto log_page_not_found;
+		break;
+	}
+	cmd->dbuf_p->sz = retval;
+
+	return SAM_STAT_GOOD;
+
+log_page_not_found:
+	cmd->dbuf_p->sz = 0;
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
+}
+

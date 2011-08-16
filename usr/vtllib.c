@@ -42,6 +42,7 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 #include <zlib.h>
+#include "log.h"
 
 #ifndef Solaris
 	int ioctl(int, int, void *);
@@ -259,22 +260,6 @@ int resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
 	MHVTL_DBG(1, "Read media S/No not implemented yet!");
 
 	return size;
-}
-
-void initTapeAlert(struct TapeAlert_page *ta)
-{
-	int a;
-
-	ta->pcode_head.pcode = TAPE_ALERT;
-	ta->pcode_head.res = 0;
-	ta->pcode_head.len = 100;
-	for (a = 0; a < 64; a++) {
-		ta->TapeAlert[a].flag.head0 = 0;
-		ta->TapeAlert[a].flag.head1 = a + 1;
-		ta->TapeAlert[a].flag.flags = 0xc0;
-		ta->TapeAlert[a].flag.len = 1;
-		ta->TapeAlert[a].value = 0;
-	}
 }
 
 void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)

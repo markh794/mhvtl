@@ -46,6 +46,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "mode.h"
+#include "log.h"
 
 static struct media_handling t10kA_media_handling[] = {
 	{ "T10KA", "RW", Media_T10KA, },
@@ -439,6 +440,14 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_t10k_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_10kA;
 	ssc_pm.media_capabilities = t10kA_media_handling;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
@@ -456,12 +465,24 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_t10k_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
 	ssc_pm.drive_native_density = medium_density_code_10kB;
 	ssc_pm.media_capabilities = t10kB_media_handling;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, t10k_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+
+	register_ops(lu, LOG_SENSE, ssc_log_sense);
+
 	init_t10k_inquiry(lu);
 }
 
@@ -473,6 +494,14 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_t10k_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_10kC;
 	ssc_pm.media_capabilities = t10kC_media_handling;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);

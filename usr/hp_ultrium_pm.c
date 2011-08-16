@@ -45,6 +45,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "mode.h"
+#include "log.h"
 
 static struct media_handling ult1_media_handling[] = {
 	{ "LTO-1", "RW", medium_density_code_lto1, },
@@ -323,6 +324,14 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_hp_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto1;
 	ssc_pm.media_capabilities = ult1_media_handling;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
@@ -337,6 +346,14 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_hp_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult2_media_handling;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
@@ -351,6 +368,14 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_hp_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto2;
 	ssc_pm.media_capabilities = ult3_media_handling;
 	ssc_pm.clear_WORM = clear_ult_WORM;
@@ -367,6 +392,14 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_hp_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto4;
 	ssc_pm.media_capabilities = ult4_media_handling;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
@@ -388,6 +421,14 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 	init_hp_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
 	ssc_pm.drive_native_density = medium_density_code_lto5;
 	ssc_pm.media_capabilities = ult5_media_handling;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
