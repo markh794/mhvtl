@@ -713,6 +713,8 @@ static void init_smc_mode_pages(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_element_address_assignment(lu);
+	add_mode_transport_geometry(lu);
+	add_mode_device_capabilities(lu);
 }
 
 /* Open device config file and update device information
