@@ -55,7 +55,7 @@ all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
 	vtllibrary make_vtl_media tapeexerciser
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
-		mode.c log.c ssc.c be_byteshift.h \
+		mode.c log.c be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic log.c
 	$(CC) $(CFLAGS) -c -fpic mode.c
