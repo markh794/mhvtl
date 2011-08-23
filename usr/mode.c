@@ -392,6 +392,37 @@ int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
 	return 0;
 }
 
+int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu)
+{
+	struct list_head *mode_pg;
+	struct mode *mp;
+	uint8_t pcode;
+	uint8_t subpcode;
+	uint8_t size;
+
+	mode_pg = &lu->mode_pg;
+	pcode = MODE_ENCRYPTION_MODE;
+	subpcode = 0x20;
+	size = 9;
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
+	if (!mp)
+		return -ENOMEM;
+
+	mp->pcodePointer[0] = pcode;
+	mp->pcodePointer[1] = size
+				 - sizeof(mp->pcodePointer[0])
+				 - sizeof(mp->pcodePointer[1]);
+
+	/* Application Managed Encryption */
+	mp->pcodePointer[5] = 0x03;	/* Encryption Solution Method */
+	mp->pcodePointer[6] = 0x01;	/* Key Path */
+	mp->pcodePointer[7] = 0x01;	/* Default Encruption State */
+	mp->pcodePointer[8] = 0x00;	/* Desnity Reporting */
+
+	return 0;
+}
+
 int add_mode_ait_device_configuration(struct lu_phy_attr *lu)
 {
 	struct list_head *mode_pg;
