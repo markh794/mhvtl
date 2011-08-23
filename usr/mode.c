@@ -259,6 +259,38 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	return 0;
 }
 
+int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
+{
+	struct list_head *mode_pg;
+	struct mode *mp;
+	struct priv_lu_ssc *ssc;
+	uint8_t pcode;
+	uint8_t subpcode;
+	uint8_t size;
+
+	ssc = lu->lu_private;
+	mode_pg = &lu->mode_pg;
+	pcode = MODE_DEVICE_CONFIGURATION;
+	subpcode = 0x01;
+	size = 32;
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
+	if (!mp)
+		return -ENOMEM;
+
+	mp->pcodePointer[0] = pcode;
+	mp->pcodePointer[1] = size
+				 - sizeof(mp->pcodePointer[0])
+				 - sizeof(mp->pcodePointer[1]);
+
+	mp->pcodePointer[5] = 0x02;	/* Short erase mode  - write EOD */
+
+	/* default size of early warning */
+	put_unaligned_be16(0, &mp->pcodePointer[6]);
+
+	return 0;
+}
+
 int add_mode_medium_partition(struct lu_phy_attr *lu)
 {
 	struct list_head *mode_pg;

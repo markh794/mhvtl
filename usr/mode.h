@@ -27,6 +27,7 @@ int add_mode_disconnect_reconnect(struct lu_phy_attr *lu);
 int add_mode_control_extension(struct lu_phy_attr *lu);
 int add_mode_data_compression(struct lu_phy_attr *lu);
 int add_mode_device_configuration(struct lu_phy_attr *lu);
+int add_mode_device_configuration_extention(struct lu_phy_attr *lu);
 int add_mode_medium_partition(struct lu_phy_attr *lu);
 int add_mode_power_condition(struct lu_phy_attr *lu);
 int add_mode_information_exception(struct lu_phy_attr *lu);
