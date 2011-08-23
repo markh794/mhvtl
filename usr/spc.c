@@ -580,6 +580,11 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
+	if (pcode == 0x3f && (subpcode != 0x0 && subpcode != 0xff)) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
 	memset(buf, 0, alloc_len);	/* Set return data to null */
 	dev_spec = (WriteProtect ? 0x80 : 0x00) | 0x10;
 	media_type = 0x0;
