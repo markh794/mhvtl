@@ -250,8 +250,15 @@ static uint8_t ait_media_load(struct lu_phy_attr *lu, int load)
 {
 	uint8_t *smp_dp;
 	struct mode *smp;
+	struct priv_lu_ssc *lu_ssc;
 
 	MHVTL_DBG(3, "+++ Trace +++");
+
+	lu_ssc = lu->lu_private;
+
+	/* No support for programable early warning - set to early warning */
+	if (load)
+		lu_ssc->prog_early_warning_sz = lu_ssc->early_warning_sz;
 
 	smp = lookup_pcode(&lu->mode_pg, MODE_AIT_DEVICE_CONFIGURATION, 0);
 	if (smp) {
