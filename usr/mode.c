@@ -291,7 +291,7 @@ int add_mode_power_condition(struct lu_phy_attr *lu)
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_POWER_CONDITION;
-	size = 12;
+	size = 0x26;
 
 	mp = alloc_mode_page(mode_pg, pcode, 0, size);
 	if (!mp)
