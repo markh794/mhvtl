@@ -92,6 +92,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		libvtlscsi.so ssc.o default_ssc_pm.o \
 		ult3580_pm.o \
 		hp_ultrium_pm.o \
+		stk9x40_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		be_byteshift.h \
 		../kernel/vtl_common.h
@@ -99,6 +100,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		default_ssc_pm.o \
 		ult3580_pm.o \
 		hp_ultrium_pm.o \
+		stk9x40_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		-lz -L. -lvtlscsi
 
@@ -117,6 +119,7 @@ clean:
 		hp_ultrium_pm.o \
 		mode.o \
 		log.o \
+		stk9x40_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		dump_messageQ dump_tape make_vtl_media \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
@@ -137,6 +140,7 @@ distclean:
 	default_ssc_pm.o \
 	ult3580_pm.o \
 	hp_ultrium_pm.o \
+	stk9x40_pm.o \
 	ait_pm.o t10000_pm.o ibm_03592_pm.o \
 	z.o z \
 	mode.o \

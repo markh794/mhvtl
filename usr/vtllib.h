@@ -274,6 +274,12 @@ enum drive_type_list {
 	drive_SDLT320,
 	drive_SDLT600,
 	drive_SDLT_S4,
+	drive_9840_A,
+	drive_9840_B,
+	drive_9840_C,
+	drive_9840_D,
+	drive_9940_A,
+	drive_9940_B,
 	drive_UNKNOWN /* Always last */
 };
 
@@ -348,6 +354,18 @@ enum Media_Type_list {
 	Media_DDS4_CLEAN,
 	Media_DDS5,
 	Media_DDS5_CLEAN,
+	Media_9840A,
+	Media_9840A_CLEAN,
+	Media_9840B,
+	Media_9840B_CLEAN,
+	Media_9840C,
+	Media_9840C_CLEAN,
+	Media_9840D,
+	Media_9840D_CLEAN,
+	Media_9940A,
+	Media_9940A_CLEAN,
+	Media_9940B,
+	Media_9940B_CLEAN,
 	Media_UNKNOWN /* always last */
 };
 

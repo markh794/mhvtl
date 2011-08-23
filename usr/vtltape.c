@@ -184,6 +184,12 @@ static struct tape_drives_table {
 	{ "T10000C         ", init_t10kC_ssc },
 	{ "T10000B         ", init_t10kB_ssc },
 	{ "T10000          ", init_t10kA_ssc },
+	{ "T9840D          ", init_9840D_ssc },
+	{ "T9840C          ", init_9840C_ssc },
+	{ "T9840B          ", init_9840B_ssc },
+	{ "T9840A          ", init_9840A_ssc },
+	{ "T9940B          ", init_9940B_ssc },
+	{ "T9940A          ", init_9940A_ssc },
 	{ NULL, NULL},
 };
 
@@ -232,6 +238,21 @@ static struct media_name_index_table {
 	{"AIT4", 	Media_AIT4,		medium_density_code_ait4},
 	{"AIT4 Clean", Media_AIT4_CLEAN,	medium_density_code_ait4},
 	{"AIT4 WORM", 	Media_AIT4_WORM,	medium_density_code_ait4},
+
+	/* STK 9x40 media */
+	{"9840A", 	Media_9840A,		medium_density_code_9840A},
+	{"9840A Clean", Media_9840A_CLEAN,	medium_density_code_9840A},
+	{"9840B", 	Media_9840B,		medium_density_code_9840B},
+	{"9840B Clean", Media_9840B_CLEAN,	medium_density_code_9840B},
+	{"9840C", 	Media_9840C,		medium_density_code_9840C},
+	{"9840C Clean", Media_9840C_CLEAN,	medium_density_code_9840C},
+	{"9840D", 	Media_9840D,		medium_density_code_9840D},
+	{"9840D Clean", Media_9840D_CLEAN,	medium_density_code_9840D},
+
+	{"9940A", 	Media_9940A,		medium_density_code_9940A},
+	{"9940A Clean", Media_9940A_CLEAN,	medium_density_code_9940A},
+	{"9940B", 	Media_9940B,		medium_density_code_9940B},
+	{"9940B Clean", Media_9940B_CLEAN,	medium_density_code_9940B},
 
 	/* STK T10000 media */
 	{"T10KA", 	Media_T10KA,		medium_density_code_10kA},

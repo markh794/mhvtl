@@ -105,6 +105,14 @@ struct blk_header {
 #define medium_density_code_10kB	0x4b
 #define medium_density_code_10kC	0x4c
 
+#define medium_density_code_9840A	0x42
+#define medium_density_code_9840B	0x42
+#define medium_density_code_9840C	0x45
+#define medium_density_code_9840D	0x46
+
+#define medium_density_code_9940A	0x43
+#define medium_density_code_9940B	0x44
+
 /* FIXME: Find density code for these media types */
 #define medium_density_code_dlt2	0x20
 #define medium_density_code_dlt3	0x20
