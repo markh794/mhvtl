@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <inttypes.h>
+#include "be_byteshift.h"
 #include "list.h"
 #include "vtl_common.h"
 #include "vtltape.h"
@@ -60,6 +61,12 @@ void usage(char *progname) {
 	printf("                   T10KA\n");
 	printf("                   T10KB\n");
 	printf("                   T10KC\n");
+	printf("                   9840A\n");
+	printf("                   9840B\n");
+	printf("                   9840C\n");
+	printf("                   9840D\n");
+	printf("                   9940B\n");
+	printf("                   9940A\n");
 	printf("                   J1A\n");
 	printf("                   E05\n");
 	printf("                   E06\n\n");
@@ -67,107 +74,114 @@ void usage(char *progname) {
 
 static unsigned int set_params(struct MAM *mamp, char *density)
 {
+	/* Invent some defaults */
 	mamp->MediaType = Media_undefined;
+	put_unaligned_be32(2048, &mamp->media_info.bits_per_mm);
+	put_unaligned_be16(1, &mamp->media_info.tracks);
+	put_unaligned_be32(127, &mamp->MediumWidth);
+	put_unaligned_be32(1024, &mamp->MediumLength);
+	memcpy(&mamp->media_info.description, "mhvtl", 5);
+
 	if (!(strncmp(density, "LTO1", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto1;
 		mamp->MediaType = Media_LTO1;
-		mamp->MediumLength = htonl(384);	// 384 tracks
-		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(384, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 1/8T", 12);
 		memcpy(&mamp->media_info.density_name, "U-18  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		mamp->media_info.bits_per_mm = htonl(4880);
+		put_unaligned_be32(4880, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO2", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto2;
 		mamp->MediaType = Media_LTO2;
-		mamp->MediumLength = htonl(512);	// 512 tracks
-		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(512, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 2/8T", 12);
 		memcpy(&mamp->media_info.density_name, "U-28  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		mamp->media_info.bits_per_mm = htonl(7398);
+		put_unaligned_be32(7398, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO3", 4))) {
 		if (mamp->MediumType == MEDIA_TYPE_WORM)
 			mamp->MediumDensityCode = medium_density_code_lto3_WORM;
 		else
 			mamp->MediumDensityCode = medium_density_code_lto3;
 		mamp->MediaType = Media_LTO3;
-		mamp->MediumLength = htonl(704);	// 704 tracks
-		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(704, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 3/16T", 13);
 		memcpy(&mamp->media_info.density_name, "U-316 ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		mamp->media_info.bits_per_mm = htonl(9638);
+		put_unaligned_be32(9638, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO4", 4))) {
 		if (mamp->MediumType == MEDIA_TYPE_WORM)
 			mamp->MediumDensityCode = medium_density_code_lto4_WORM;
 		else
 			mamp->MediumDensityCode = medium_density_code_lto4;
 		mamp->MediaType = Media_LTO4;
-		mamp->MediumLength = htonl(896);	// 896 tracks
-		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(896, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 4/16T", 13);
 		memcpy(&mamp->media_info.density_name, "U-416  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		mamp->media_info.bits_per_mm = htonl(12725);
+		put_unaligned_be32(12725, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO5", 4))) {
 		if (mamp->MediumType == MEDIA_TYPE_WORM)
 			mamp->MediumDensityCode = medium_density_code_lto5_WORM;
 		else
 			mamp->MediumDensityCode = medium_density_code_lto5;
 		mamp->MediaType = Media_LTO5;
-		mamp->MediumLength = htonl(1280);	/* 1280 tracks */
-		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(1280, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 5/16T", 13);
 		memcpy(&mamp->media_info.density_name, "U-516  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		mamp->media_info.bits_per_mm = htonl(15142);
+		put_unaligned_be32(15142, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO6", 4))) { /* FIXME */
 		mamp->MediumDensityCode = medium_density_code_lto6;
 		mamp->MediaType = Media_LTO5;
-		mamp->MediumLength = htonl(1280);	// 896 tracks
-		mamp->MediumWidth = htonl(127);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(1280, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 6/8T", 12);
 		memcpy(&mamp->media_info.density_name, "U-616  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		mamp->media_info.bits_per_mm = htonl(12725);
+		put_unaligned_be32(12725, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT1", 4))) {
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
 		mamp->MediumDensityCode = medium_density_code_ait1;
 		mamp->MediaType = Media_AIT1;
-		mamp->MediumLength = htonl(384);	// 384 tracks
-		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(384, &mamp->MediumLength);
+		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape1", 20);
 		memcpy(&mamp->media_info.density_name, "AIT-1 ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
-		mamp->media_info.bits_per_mm = htonl(0x11d7);
+		put_unaligned_be32(0x11d7, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT2", 4))) {
 		mamp->MediumDensityCode = medium_density_code_ait2;
 		mamp->MediaType = Media_AIT2;
-		mamp->MediumLength = htonl(384);	// 384 tracks
-		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(384, &mamp->MediumLength);
+		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape2", 20);
 		memcpy(&mamp->media_info.density_name, "AIT-2  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
-		mamp->media_info.bits_per_mm = htonl(0x17d6);
+		put_unaligned_be32(0x17d6, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT3", 4))) {
 		mamp->MediumDensityCode = medium_density_code_ait3;
 		mamp->MediaType = Media_AIT3;
-		mamp->MediumLength = htonl(384);	// 384 tracks
-		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(384, &mamp->MediumLength);
+		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape3", 20);
 		memcpy(&mamp->media_info.density_name, "AIT-3  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
-		mamp->media_info.bits_per_mm = htonl(0x17d6);
+		put_unaligned_be32(0x17d6, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT4", 4))) {
 		mamp->MediumDensityCode = medium_density_code_ait4;
 		mamp->MediaType = Media_AIT4;
-		mamp->MediumLength = htonl(384);	// 384 tracks
-		mamp->MediumWidth = htonl(0x50);	// 127 x tenths of mm (12.7 mm)
+		put_unaligned_be32(384, &mamp->MediumLength);
+		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape4", 20);
 		memcpy(&mamp->media_info.density_name, "AIT-4  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
-		mamp->media_info.bits_per_mm = htonl(0x17d6);
+		put_unaligned_be32(0x17d6, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DLT3", 4))) {
 		mamp->MediumDensityCode = 0x0;
 		mamp->MediaType = Media_DLT3;
@@ -186,91 +200,152 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT-1", 6);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
-		mamp->media_info.bits_per_mm = htonl(133000);
+		put_unaligned_be32(133000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "SDLT2", 5))) {
 		mamp->MediumDensityCode = medium_density_code_220;
 		mamp->MediaType = Media_SDLT220;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT220", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
-		mamp->media_info.bits_per_mm = htonl(133000);
+		put_unaligned_be32(133000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "SDLT3", 5))) {
 		mamp->MediumDensityCode = medium_density_code_320;
 		mamp->MediaType = Media_SDLT320;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT320", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
-		mamp->media_info.bits_per_mm = htonl(190000);
+		put_unaligned_be32(190000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "SDLT4", 5))) {
 		mamp->MediumDensityCode = medium_density_code_600;
 		mamp->MediaType = Media_SDLT600;
 		memcpy(&mamp->media_info.description, "SDLT II media", 13);
 		memcpy(&mamp->media_info.density_name, "SDLT600", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
+	} else if (!(strncmp(density, "9840A", 5))) {
+		mamp->MediumDensityCode = medium_density_code_9840A;
+		mamp->MediaType = Media_9840A;
+		memcpy(&mamp->media_info.description, "Raven 20 GB", 11);
+		memcpy(&mamp->media_info.density_name, "R-20", 4);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		put_unaligned_be32(0, &mamp->media_info.bits_per_mm);
+		put_unaligned_be16(288, &mamp->media_info.tracks);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		put_unaligned_be32(1024, &mamp->MediumLength);
+	} else if (!(strncmp(density, "9840B", 5))) {
+		mamp->MediumDensityCode = medium_density_code_9840B;
+		mamp->MediaType = Media_9840B;
+		memcpy(&mamp->media_info.description, "Raven 20 GB", 11);
+		memcpy(&mamp->media_info.density_name, "R-20", 4);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		put_unaligned_be32(0, &mamp->media_info.bits_per_mm);
+		put_unaligned_be16(288, &mamp->media_info.tracks);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		put_unaligned_be32(1024, &mamp->MediumLength);
+	} else if (!(strncmp(density, "9840C", 5))) {
+		mamp->MediumDensityCode = medium_density_code_9840C;
+		mamp->MediaType = Media_9840C;
+		memcpy(&mamp->media_info.description, "Raven 40 GB", 11);
+		memcpy(&mamp->media_info.density_name, "R-40", 4);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		put_unaligned_be32(0, &mamp->media_info.bits_per_mm);
+		put_unaligned_be16(288, &mamp->media_info.tracks);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		put_unaligned_be32(1024, &mamp->MediumLength);
+	} else if (!(strncmp(density, "9840D", 5))) {
+		mamp->MediumDensityCode = medium_density_code_9840D;
+		mamp->MediaType = Media_9840D;
+		memcpy(&mamp->media_info.description, "Raven 75 GB", 11);
+		memcpy(&mamp->media_info.density_name, "R-75", 4);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		put_unaligned_be32(0, &mamp->media_info.bits_per_mm);
+		put_unaligned_be16(576, &mamp->media_info.tracks);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		put_unaligned_be32(1024, &mamp->MediumLength);
+	} else if (!(strncmp(density, "9940A", 5))) {
+		mamp->MediumDensityCode = medium_density_code_9940A;
+		mamp->MediaType = Media_9940A;
+		memcpy(&mamp->media_info.description, "PeakCapacity 60 GB", 18);
+		memcpy(&mamp->media_info.density_name, "P-60", 4);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		put_unaligned_be32(0, &mamp->media_info.bits_per_mm);
+		put_unaligned_be16(288, &mamp->media_info.tracks);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		put_unaligned_be32(1024, &mamp->MediumLength);
+	} else if (!(strncmp(density, "9940B", 5))) {
+		mamp->MediumDensityCode = medium_density_code_9940B;
+		mamp->MediaType = Media_9940B;
+		memcpy(&mamp->media_info.description,
+						"PeakCapacity 200 GB", 19);
+		memcpy(&mamp->media_info.density_name, "P-200", 5);
+		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
+		put_unaligned_be32(0, &mamp->media_info.bits_per_mm);
+		put_unaligned_be16(576, &mamp->media_info.tracks);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		put_unaligned_be32(1024, &mamp->MediumLength);
 	} else if (!(strncmp(density, "T10KA", 5))) {
 		mamp->MediumDensityCode = medium_density_code_10kA;
 		mamp->MediaType = Media_T10KA;
 		memcpy(&mamp->media_info.description, "STK T10KA media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000A", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "T10KB", 5))) {
 		mamp->MediumDensityCode = medium_density_code_10kB;
 		mamp->MediaType = Media_T10KB;
 		memcpy(&mamp->media_info.description, "STK T10KB media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000B", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "T10KC", 5))) {
 		mamp->MediumDensityCode = medium_density_code_10kC;
 		mamp->MediaType = Media_T10KC;
 		memcpy(&mamp->media_info.description, "STK T10KC media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000C", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS1", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS1;
 		mamp->MediaType = Media_DDS1;
 		memcpy(&mamp->media_info.description, "4MM DDS-1 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS1", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS2", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS2;
 		mamp->MediaType = Media_DDS2;
 		memcpy(&mamp->media_info.description, "4MM DDS-2 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS2", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS3", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS3;
 		mamp->MediaType = Media_DDS3;
 		memcpy(&mamp->media_info.description, "4MM DDS-3 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS3", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS4", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS4;
 		mamp->MediaType = Media_DDS4;
 		memcpy(&mamp->media_info.description, "4MM DDS-4 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS4", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "J1A", 3))) {
 		mamp->MediumDensityCode = medium_density_code_j1a;
 		mamp->MediaType = Media_3592_JA;
 		memcpy(&mamp->media_info.description, "3592 J1A media", 14);
 		memcpy(&mamp->media_info.density_name, "3592J1A", 7);
 		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "E05", 3))) {
 		mamp->MediumDensityCode = medium_density_code_e05;
 		mamp->MediaType = Media_3592_JB;
 		memcpy(&mamp->media_info.description, "3592 E05 media", 14);
 		memcpy(&mamp->media_info.density_name, "3592E05", 7);
 		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
-		mamp->media_info.bits_per_mm = htonl(233000);
+		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "E06", 3))) {
 		mamp->MediumDensityCode = medium_density_code_e06;
 		mamp->MediaType = Media_3592_JX;
@@ -401,20 +476,21 @@ int main(int argc, char *argv[])
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
 	mam.mam_fmt_version = MAM_VERSION;
-	mam.max_capacity = htonll(size * 1048576);
+	put_unaligned_be64(size * 1048576, &mam.max_capacity);
+	put_unaligned_be64(size * 1048576, &mam.remaining_capacity);
+	put_unaligned_be64(sizeof(mam.pad), &mam.MAMSpaceRemaining);
 
-	mam.MAMSpaceRemaining = htonll(sizeof(mam.pad));
-	memcpy(&mam.MediumManufacturer, "VERITAS ", 8);
+	memcpy(&mam.MediumManufacturer, "linuxVTL", 8);
 	memcpy(&mam.ApplicationVendor, "vtl-0.18", 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (! strncmp("clean", mediaType, 5)) {
-		mam.MediumType = MEDIA_TYPE_CLEAN; // Cleaning cart
-		mam.MediumTypeInformation = 20;	// Max cleaning loads
+		mam.MediumType = MEDIA_TYPE_CLEAN;	/* Cleaning cart */
+		mam.MediumTypeInformation = 20;		/* Max cleaning loads */
 	} else if (! strncmp("WORM", mediaType, 4)) {
-		mam.MediumType = MEDIA_TYPE_WORM; // WORM cart
+		mam.MediumType = MEDIA_TYPE_WORM;	/* WORM cart */
 	} else {
-		mam.MediumType = MEDIA_TYPE_DATA; // Normal data cart
+		mam.MediumType = MEDIA_TYPE_DATA;	/* Normal data cart */
 	}
 	set_params(&mam, density);
 

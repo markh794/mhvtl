@@ -47,41 +47,21 @@
 #include "mode.h"
 #include "log.h"
 
-static struct media_handling ult1_media_handling[] = {
-	{ "LTO-1", "RW", medium_density_code_lto1, },
-	};
-
-static struct media_handling ult2_media_handling[] = {
-	{ "LTO-1", "RW", medium_density_code_lto1, },
-	{ "LTO-2", "RW", medium_density_code_lto2, },
-	};
-
-static struct media_handling ult3_media_handling[] = {
-	{ "LTO-1", "RO", medium_density_code_lto1, },
-	{ "LTO-2", "RW", medium_density_code_lto2, },
-	{ "LTO-3", "RW", medium_density_code_lto3, },
-	{ "LTO-3", "WORM", medium_density_code_lto3_WORM, },
-	};
-
-static struct media_handling ult4_media_handling[] = {
-	{ "LTO-2", "RO", medium_density_code_lto2, },
-	{ "LTO-3", "RW", medium_density_code_lto3, },
-	{ "LTO-3", "WORM", medium_density_code_lto3_WORM, },
-	{ "LTO-4", "RW", medium_density_code_lto4, },
-	{ "LTO-4", "ENCR", medium_density_code_lto4, },
-	{ "LTO-4", "WORM", medium_density_code_lto4_WORM, },
-	};
-
-static struct media_handling ult5_media_handling[] = {
-	{ "LTO-3", "RO", medium_density_code_lto3, },
-	{ "LTO-3", "WORM", medium_density_code_lto3_WORM, },
-	{ "LTO-4", "RW", medium_density_code_lto4, },
-	{ "LTO-4", "ENCR", medium_density_code_lto4, },
-	{ "LTO-4", "WORM", medium_density_code_lto4_WORM, },
-	{ "LTO-5", "RW", medium_density_code_lto5, },
-	{ "LTO-5", "ENCR", medium_density_code_lto5, },
-	{ "LTO-5", "WORM", medium_density_code_lto5_WORM, },
-	};
+static struct density_info density_lto1 = {
+	4880, 127, 384, 80000, medium_density_code_lto1,
+			"LTO-CVE", "U-18", "Ultrium 1/8T" };
+static struct density_info density_lto2 = {
+	4880, 127, 512, 80000, medium_density_code_lto2,
+			"LTO-CVE", "U-28", "Ultrium 2/8T" };
+static struct density_info density_lto3 = {
+	9638, 127, 704, 80000, medium_density_code_lto3,
+			"LTO-CVE", "U-316", "Ultrium 3/16T" };
+static struct density_info density_lto4 = {
+	12725, 127, 896, 80000, medium_density_code_lto4,
+			"LTO-CVE", "U-416", "Ultrium 4/16T" };
+static struct density_info density_lto5 = {
+	15142, 127, 1280, 80000, medium_density_code_lto5,
+			"LTO-CVE", "U-516", "Ultrium 5/16T" };
 
 static uint8_t clear_ult_compression(struct list_head *m)
 {
@@ -341,9 +321,11 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_lto1;
-	ssc_pm.media_capabilities = ult1_media_handling;
+	ssc_pm.native_drive_density = &density_lto1;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+	add_density_support(&lu->den_list, &density_lto1, 1);
+	add_drive_media_list(lu, LOAD_RW, "LTO1");
+	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 }
 
 void init_hp_ult_2(struct lu_phy_attr *lu)
@@ -363,9 +345,14 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_lto2;
-	ssc_pm.media_capabilities = ult2_media_handling;
+	ssc_pm.native_drive_density = &density_lto2;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+	add_density_support(&lu->den_list, &density_lto1, 1);
+	add_density_support(&lu->den_list, &density_lto2, 1);
+	add_drive_media_list(lu, LOAD_RW, "LTO1");
+	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO2");
+	add_drive_media_list(lu, LOAD_RO, "LTO2 Clean");
 }
 
 void init_hp_ult_3(struct lu_phy_attr *lu)
@@ -385,11 +372,20 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_lto2;
-	ssc_pm.media_capabilities = ult3_media_handling;
+	ssc_pm.native_drive_density = &density_lto3;
 	ssc_pm.clear_WORM = clear_ult_WORM;
 	ssc_pm.set_WORM = set_ult_WORM;
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+	add_density_support(&lu->den_list, &density_lto1, 0);
+	add_density_support(&lu->den_list, &density_lto2, 1);
+	add_density_support(&lu->den_list, &density_lto3, 1);
+	add_drive_media_list(lu, LOAD_RO, "LTO1");
+	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO2");
+	add_drive_media_list(lu, LOAD_RO, "LTO2 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO3");
+	add_drive_media_list(lu, LOAD_RO, "LTO3 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO3 WORM");
 }
 
 void init_hp_ult_4(struct lu_phy_attr *lu)
@@ -409,8 +405,7 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_lto4;
-	ssc_pm.media_capabilities = ult4_media_handling;
+	ssc_pm.native_drive_density = &density_lto4;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
 	ssc_pm.encryption_capabilities = encr_capabilities_ult,
 	ssc_pm.kad_validation = hp_lto_kad_validation,
@@ -419,6 +414,17 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	add_density_support(&lu->den_list, &density_lto2, 0);
+	add_density_support(&lu->den_list, &density_lto3, 1);
+	add_density_support(&lu->den_list, &density_lto4, 1);
+	add_drive_media_list(lu, LOAD_RO, "LTO2");
+	add_drive_media_list(lu, LOAD_RO, "LTO2 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO3");
+	add_drive_media_list(lu, LOAD_RO, "LTO3 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO3 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO4");
+	add_drive_media_list(lu, LOAD_RO, "LTO4 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO4 WORM");
 }
 
 void init_hp_ult_5(struct lu_phy_attr *lu)
@@ -438,8 +444,7 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_lto5;
-	ssc_pm.media_capabilities = ult5_media_handling;
+	ssc_pm.native_drive_density = &density_lto5;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
 	ssc_pm.encryption_capabilities = encr_capabilities_ult,
 	ssc_pm.kad_validation = hp_lto_kad_validation,
@@ -448,5 +453,18 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	add_density_support(&lu->den_list, &density_lto3, 0);
+	add_density_support(&lu->den_list, &density_lto4, 1);
+	add_density_support(&lu->den_list, &density_lto5, 1);
+	add_drive_media_list(lu, LOAD_RO, "LTO3");
+	add_drive_media_list(lu, LOAD_RO, "LTO3 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO4");
+	add_drive_media_list(lu, LOAD_RO, "LTO4 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO4 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO4 ENCR");
+	add_drive_media_list(lu, LOAD_RW, "LTO5");
+	add_drive_media_list(lu, LOAD_RO, "LTO5 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO5 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO5 ENCR");
 }
 

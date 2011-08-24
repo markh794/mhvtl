@@ -327,13 +327,13 @@ uint8_t valid_encryption_media(struct scsi_cmd *cmd)
 	lu_priv = lu->lu_private;
 
 	if (c_pos->blk_number == 0) {
-		blockDescriptorBlock[0] = lu_priv->pm->drive_native_density;
+		blockDescriptorBlock[0] = lu_priv->pm->native_drive_density->density;
 		mam.MediumDensityCode = blockDescriptorBlock[0];
 		mam.FormattedDensityCode = blockDescriptorBlock[0];
 		rewriteMAM(sam_stat);
 	} else {
-		if ((!lu_priv->pm->drive_native_density) &&
-			(mam.MediumDensityCode != lu_priv->pm->drive_native_density)) {
+		if (mam.MediumDensityCode !=
+				lu_priv->pm->native_drive_density->density) {
 			mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
@@ -914,16 +914,27 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Report Density Support (%ld) **", (long)cmd->dbuf_p->serialNo);
 	media = cmd->scb[1] & 0x01;
+	cmd->dbuf_p->sz = 0;
+
+	MHVTL_DBG(1, "Report %s Density Support (%ld) **",
+					(media) ? "mounted Media" : "Drive",
+					(long)cmd->dbuf_p->serialNo);
+
+	if (cmd->scb[1] & 0x02) { /* Don't support Medium Type (yet) */
+		MHVTL_DBG(1, "Medium Type - not currently supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	if (media == 1 && lu_priv->tapeLoaded != TAPE_LOADED) {
+		MHVTL_DBG(1, "Media has to be mounted to return media density");
 		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
-	cmd->dbuf_p->sz = resp_report_density(media, cmd->dbuf_p);
+	cmd->dbuf_p->sz = resp_report_density(lu_priv, media, cmd->dbuf_p);
 	return SAM_STAT_GOOD;
 }
 

@@ -468,6 +468,23 @@ struct smc_priv {
 	char cap_closed;
 };
 
+struct density_info {
+	uint32_t bits_per_mm;
+	uint16_t media_width;
+	uint16_t tracks;
+	uint32_t capacity;
+	uint16_t density;
+	char assigning_org[9];
+	char density_name[9];
+	char description[20];
+};
+
+struct supported_density_list {
+	struct list_head siblings;
+	struct density_info *density_info;
+	int rw;
+};
+
 extern uint8_t sense[SENSE_BUF_SIZE];
 
 /* Used by Mode Sense - if set, return block descriptor */
@@ -523,4 +540,8 @@ void update_vpd_b1(struct lu_phy_attr *lu, void *p);
 void update_vpd_b2(struct lu_phy_attr *lu, void *p);
 void update_vpd_c0(struct lu_phy_attr *lu, void *p);
 void update_vpd_c1(struct lu_phy_attr *lu, void *p);
+
+int add_density_support(struct list_head *l, struct density_info *di, int rw);
+int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);
+
 #endif /*  _VTLLIB_H_ */

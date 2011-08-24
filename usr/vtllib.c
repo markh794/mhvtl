@@ -41,6 +41,7 @@
 #include "scsi.h"
 #include "vtl_common.h"
 #include "vtllib.h"
+#include "ssc.h"
 #include <zlib.h>
 #include "log.h"
 
@@ -554,7 +555,8 @@ void blank_fill(uint8_t *dest, char *src, int len)
 	}
 }
 
-/* MHVTL_VERSION looks like : 0.18.xx
+/* MHVTL_VERSION looks like : 0.18.xx or 1.xx.xx
+ *
  * Convert into a string after converting the 18.xx into "18xx"
  *
  * NOTE: Caller has to free string after use.
@@ -562,7 +564,7 @@ void blank_fill(uint8_t *dest, char *src, int len)
 char *get_version(void)
 {
 	char b[64];
-	int x, y;
+	int x, y, z;
 	char *c;
 
 	c = malloc(32);	/* Way more than enough for a 4 byte string */
@@ -570,8 +572,12 @@ char *get_version(void)
 		return NULL;
 
 	sprintf(b, "%s", MHVTL_VERSION);
-	sscanf(b, "0.%d.%d", &x, &y);
-	sprintf(c, "%02d%02d", x, y);
+
+	sscanf(b, "%d.%d.%d", &x, &y, &z);
+	if (x)
+		sprintf(c, "%02d%02d", x, y);
+	else
+		sprintf(c, "%02d%02d", y, z);
 
 	return c;
 }
@@ -751,5 +757,19 @@ void update_vpd_c1(struct lu_phy_attr *lu, void *p)
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc1)];
 
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
+int add_density_support(struct list_head *l, struct density_info *di, int rw)
+{
+	struct supported_density_list *supported;
+
+	supported = malloc(sizeof(struct supported_density_list));
+	if (!supported)
+		return -ENOMEM;
+
+	supported->density_info = di;
+	supported->rw = rw;
+	list_add_tail(&supported->siblings, l);
+	return 0;
 }
 

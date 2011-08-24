@@ -48,32 +48,17 @@
 #include "mode.h"
 #include "log.h"
 
-static struct media_handling t10kA_media_handling[] = {
-	{ "T10KA", "RW", Media_T10KA, },
-	{ "T10KA Cleaning", "RO", Media_T10KA_CLEAN, },
-	{ "T10KB", "RW", Media_T10KB, },
-	{ "T10KB Cleaning", "RO", Media_T10KB_CLEAN, },
-	{ "T10KC", "RW", Media_T10KC, },
-	{ "T10KC Cleaning", "RO", Media_T10KC_CLEAN, },
-	};
+static struct density_info density_t10kA = {
+	0, 127, 0x300, 0x7a120, medium_density_code_10kA,
+			"STK", "T1 - 500", "T1 - 500 GB" };
 
-static struct media_handling t10kB_media_handling[] = {
-	{ "T10KA", "RW", Media_T10KA, },
-	{ "T10KA Cleaning", "RO", Media_T10KA_CLEAN, },
-	{ "T10KB", "RW", Media_T10KB, },
-	{ "T10KB Cleaning", "RO", Media_T10KB_CLEAN, },
-	{ "T10KC", "RW", Media_T10KC, },
-	{ "T10KC Cleaning", "RO", Media_T10KC_CLEAN, },
-	};
+static struct density_info density_t10kB = {
+	0, 127, 0x480, 0x1d4c0, medium_density_code_10kB,
+			"STK", "T1 - 1000", "T1 - 1000 GB" };
 
-static struct media_handling t10kC_media_handling[] = {
-	{ "T10KA", "RW", Media_T10KA, },
-	{ "T10KA Cleaning", "RO", Media_T10KA_CLEAN, },
-	{ "T10KB", "RW", Media_T10KB, },
-	{ "T10KB Cleaning", "RO", Media_T10KB_CLEAN, },
-	{ "T10KC", "RW", Media_T10KC, },
-	{ "T10KC Cleaning", "RO", Media_T10KC_CLEAN, },
-	};
+static struct density_info density_t10kC = {
+	0, 127, 0x600, 0x30000, medium_density_code_10kC,
+			"STK", "T2 - 5000", "T1 - 5000 GB" };
 
 /*
  * Returns true if blk header has correct encryption key data
@@ -456,13 +441,15 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_10kA;
-	ssc_pm.media_capabilities = t10kA_media_handling;
+	ssc_pm.native_drive_density = &density_t10kA;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, t10k_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_t10k_inquiry(lu);
+	add_density_support(&lu->den_list, &density_t10kA, 1);
+	add_drive_media_list(lu, LOAD_RW, "T10KA");
+	add_drive_media_list(lu, LOAD_RO, "T10KA Clean");
 }
 
 void init_t10kB_ssc(struct lu_phy_attr *lu)
@@ -482,8 +469,7 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	ssc_pm.drive_native_density = medium_density_code_10kB;
-	ssc_pm.media_capabilities = t10kB_media_handling;
+	ssc_pm.native_drive_density = &density_t10kB;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, t10k_inquiry);
@@ -492,6 +478,12 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	register_ops(lu, LOG_SENSE, ssc_log_sense);
 
 	init_t10k_inquiry(lu);
+	add_density_support(&lu->den_list, &density_t10kA, 1);
+	add_density_support(&lu->den_list, &density_t10kB, 1);
+	add_drive_media_list(lu, LOAD_RW, "T10KA");
+	add_drive_media_list(lu, LOAD_RO, "T10KA Clean");
+	add_drive_media_list(lu, LOAD_RW, "T10KB");
+	add_drive_media_list(lu, LOAD_RO, "T10KB Clean");
 }
 
 void init_t10kC_ssc(struct lu_phy_attr *lu)
@@ -510,11 +502,19 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_10kC;
-	ssc_pm.media_capabilities = t10kC_media_handling;
+	ssc_pm.native_drive_density = &density_t10kC;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, t10k_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_t10k_inquiry(lu);
+	add_density_support(&lu->den_list, &density_t10kA, 0);
+	add_density_support(&lu->den_list, &density_t10kB, 1);
+	add_density_support(&lu->den_list, &density_t10kC, 1);
+	add_drive_media_list(lu, LOAD_RW, "T10KA");
+	add_drive_media_list(lu, LOAD_RO, "T10KA Clean");
+	add_drive_media_list(lu, LOAD_RW, "T10KB");
+	add_drive_media_list(lu, LOAD_RO, "T10KB Clean");
+	add_drive_media_list(lu, LOAD_RW, "T10KC");
+	add_drive_media_list(lu, LOAD_RO, "T10KC Clean");
 }

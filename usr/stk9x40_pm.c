@@ -48,53 +48,29 @@
 #include "mode.h"
 #include "log.h"
 
-static struct media_handling T9840A_media_handling[] = {
-	{ "9840A", "RW", Media_9840A, },
-	{ "9840A Cleaning", "RO", Media_9840A_CLEAN, },
-	{ "9840B", "RW", Media_9840B, },
-	{ "9840B Cleaning", "RO", Media_9840B_CLEAN, },
-	};
+static struct density_info density_9840A = {
+	0, 127, 288, 0x4e20, medium_density_code_9840A,
+			"STK", "R-20", "Raven 20 GB" };
 
-static struct media_handling T9840B_media_handling[] = {
-	{ "9840A", "RW", Media_9840A, },
-	{ "9840A Cleaning", "RO", Media_9840A_CLEAN, },
-	{ "9840B", "RW", Media_9840B, },
-	{ "9840B Cleaning", "RO", Media_9840B_CLEAN, },
-	{ "9840C", "RW", Media_9840C, },
-	{ "9840C Cleaning", "RO", Media_9840C_CLEAN, },
-	};
+static struct density_info density_9840B = {
+	0, 127, 288, 0x4e20, medium_density_code_9840B,
+			"STK", "R-20", "Raven 20 GB" };
 
-static struct media_handling T9840C_media_handling[] = {
-	{ "9840A", "RW", Media_9840A, },
-	{ "9840A Cleaning", "RO", Media_9840A_CLEAN, },
-	{ "9840B", "RW", Media_9840B, },
-	{ "9840B Cleaning", "RO", Media_9840B_CLEAN, },
-	{ "9840C", "RW", Media_9840C, },
-	{ "9840C Cleaning", "RO", Media_9840C_CLEAN, },
-	};
+static struct density_info density_9840C = {
+	0, 127, 288, 0x9c40, medium_density_code_9840C,
+			"STK", "R-40", "Raven 40 GB" };
 
-static struct media_handling T9840D_media_handling[] = {
-	{ "9840A", "RW", Media_9840D, },
-	{ "9840A Cleaning", "RO", Media_9840D_CLEAN, },
-	{ "9840B", "RW", Media_9840C, },
-	{ "9840B Cleaning", "RO", Media_9840C_CLEAN, },
-	{ "9840C", "RW", Media_9840B, },
-	{ "9840C Cleaning", "RO", Media_9840B_CLEAN, },
-	};
+static struct density_info density_9840D = {
+	0, 127, 576, 0x124f8, medium_density_code_9840D,
+			"STK", "R-75", "Raven 75 GB" };
 
-static struct media_handling T9940A_media_handling[] = {
-	{ "9840A", "RW", Media_9940A, },
-	{ "9840A Cleaning", "RO", Media_9940A_CLEAN, },
-	{ "9840B", "RW", Media_9940B, },
-	{ "9840B Cleaning", "RO", Media_9940B_CLEAN, },
-	};
+static struct density_info density_9940A = {
+	0, 127, 288, 0xea60, medium_density_code_9940A,
+			"STK", "P-60", "PeakCapacity 60 GB" };
 
-static struct media_handling T9940B_media_handling[] = {
-	{ "9840A", "RW", Media_9940B, },
-	{ "9840A Cleaning", "RO", Media_9940B_CLEAN, },
-	{ "9840B", "RW", Media_9940B, },
-	{ "9840B Cleaning", "RO", Media_9940B_CLEAN, },
-	};
+static struct density_info density_9940B = {
+	0, 127, 576, 0x30d40, medium_density_code_9940B,
+			"STK", "P-200", "PeakCapacity 200 GB" };
 
 /*
  * Returns true if blk header has correct encryption key data
@@ -468,13 +444,15 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_9840A;
-	ssc_pm.media_capabilities = T9840A_media_handling;
+	ssc_pm.native_drive_density = &density_9840A;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
+	add_density_support(&lu->den_list, &density_9840A, 1);
+	add_drive_media_list(lu, LOAD_RW, "9840A");
+	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
 }
 
 void init_9840B_ssc(struct lu_phy_attr *lu)
@@ -494,8 +472,7 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	ssc_pm.drive_native_density = medium_density_code_9840B;
-	ssc_pm.media_capabilities = T9840B_media_handling;
+	ssc_pm.native_drive_density = &density_9840B;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, T9840_inquiry);
@@ -504,6 +481,12 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	register_ops(lu, LOG_SENSE, ssc_log_sense);
 
 	init_9840_inquiry(lu);
+	add_density_support(&lu->den_list, &density_9840A, 1);
+	add_density_support(&lu->den_list, &density_9840B, 1);
+	add_drive_media_list(lu, LOAD_RW, "9840A");
+	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
+	add_drive_media_list(lu, LOAD_RW, "9840B");
+	add_drive_media_list(lu, LOAD_RO, "9840B Clean");
 }
 
 void init_9840C_ssc(struct lu_phy_attr *lu)
@@ -522,13 +505,21 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_9840C;
-	ssc_pm.media_capabilities = T9840C_media_handling;
+	ssc_pm.native_drive_density = &density_9840C;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
+	add_density_support(&lu->den_list, &density_9840A, 0);
+	add_density_support(&lu->den_list, &density_9840B, 1);
+	add_density_support(&lu->den_list, &density_9840C, 1);
+	add_drive_media_list(lu, LOAD_RO, "9840A");
+	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
+	add_drive_media_list(lu, LOAD_RW, "9840B");
+	add_drive_media_list(lu, LOAD_RO, "9840B Clean");
+	add_drive_media_list(lu, LOAD_RW, "9840C");
+	add_drive_media_list(lu, LOAD_RO, "9840C Clean");
 }
 
 void init_9840D_ssc(struct lu_phy_attr *lu)
@@ -547,13 +538,22 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_9840D;
-	ssc_pm.media_capabilities = T9840D_media_handling;
+	ssc_pm.native_drive_density = &density_9840D;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
+	add_density_support(&lu->den_list, &density_9840A, 0);
+	add_density_support(&lu->den_list, &density_9840B, 0);
+	add_density_support(&lu->den_list, &density_9840C, 1);
+	add_density_support(&lu->den_list, &density_9840D, 1);
+	add_drive_media_list(lu, LOAD_RO, "9840B");
+	add_drive_media_list(lu, LOAD_RO, "9840B Clean");
+	add_drive_media_list(lu, LOAD_RW, "9840C");
+	add_drive_media_list(lu, LOAD_RO, "9840C Clean");
+	add_drive_media_list(lu, LOAD_RW, "9840D");
+	add_drive_media_list(lu, LOAD_RO, "9840D Clean");
 }
 
 void init_9940A_ssc(struct lu_phy_attr *lu)
@@ -572,13 +572,19 @@ void init_9940A_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_9940A;
-	ssc_pm.media_capabilities = T9940A_media_handling;
+	ssc_pm.native_drive_density = &density_9940A;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
+	add_density_support(&lu->den_list, &density_9940A, 1);
+	add_drive_media_list(lu, LOAD_RW, "9840A");
+	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
+	add_drive_media_list(lu, LOAD_RW, "9840A");
+	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
+	add_drive_media_list(lu, LOAD_RW, "9840A");
+	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
 }
 
 void init_9940B_ssc(struct lu_phy_attr *lu)
@@ -597,11 +603,16 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_9940B;
-	ssc_pm.media_capabilities = T9940B_media_handling;
+	ssc_pm.native_drive_density = &density_9940B;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
+	add_density_support(&lu->den_list, &density_9940A, 1);
+	add_density_support(&lu->den_list, &density_9940B, 1);
+	add_drive_media_list(lu, LOAD_RW, "9940A");
+	add_drive_media_list(lu, LOAD_RO, "9940A Clean");
+	add_drive_media_list(lu, LOAD_RW, "9940B");
+	add_drive_media_list(lu, LOAD_RO, "9940B Clean");
 }

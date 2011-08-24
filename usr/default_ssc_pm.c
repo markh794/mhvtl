@@ -47,8 +47,9 @@
 #include "mode.h"
 #include "log.h"
 
-static struct media_handling default_media_handling[] = {
-	};
+static struct density_info density_default = {
+	1024, 127, 1, 500, medium_density_code_unknown,
+			"mhVTL", "DEFAULT", "linuxVTL" };
 
 static uint8_t clear_default_comp(struct list_head *l)
 {
@@ -220,8 +221,6 @@ static void init_default_mode_pages(struct lu_phy_attr *lu)
 static char *pm_name = "default emulation";
 
 static struct ssc_personality_template ssc_pm = {
-	.drive_native_density	= medium_density_code_unknown,
-	.media_capabilities	= default_media_handling,
 	.valid_encryption_blk	= valid_encryption_blk,
 	.update_encryption_mode	= update_default_encryption_mode,
 	.kad_validation		= default_kad_validation,
@@ -241,7 +240,7 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	init_default_inquiry(lu);
 	ssc_pm.name = pm_name;
 	ssc_pm.lu = lu;
-	ssc_pm.drive_native_density = medium_density_code_lto1;
+	ssc_pm.native_drive_density = &density_default;
 	ssc_pm.media_capabilities = NULL;
 	personality_module_register(&ssc_pm);
 	init_default_mode_pages(lu);
@@ -254,5 +253,6 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_density_support(&lu->den_list, &density_default, 1);
 }
 

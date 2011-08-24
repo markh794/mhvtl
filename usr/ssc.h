@@ -17,17 +17,12 @@
 #define EARLY_WARNING_SZ		1024 * 1024 * 2	/* 2M EW size */
 #define PROG_EARLY_WARNING_SZ		1024 * 1024 * 3	/* 3M Prog EW size */
 
-struct media_handling {
-	char media_type[16];
-	char op[8];
-	unsigned char density;
-};
-
 struct ssc_personality_template {
 	char *name;
-	int drive_native_density;
 	int drive_type;
+	struct density_info *native_drive_density;
 	struct media_handling *media_capabilities;
+
 	struct lu_phy_attr *lu;
 
 	/* Read check if this block contains valid encryption keys */
@@ -78,7 +73,7 @@ struct ssc_personality_template {
 struct media_details {
 	struct list_head siblings;
 	unsigned int media_type;	/* Media Type */
-	unsigned int density_status;	/* RO, RW, invalid or fail mount */
+	unsigned int load_capability;	/* RO, RW, invalid or fail mount */
 };
 
 struct priv_lu_ssc {
@@ -118,6 +113,8 @@ struct priv_lu_ssc {
 	uint32_t ENCRYPT_MODE;
 	struct encryption *encr;
 	struct encryption *cryptop;
+
+	struct list_head supported_media_list;
 
 	unsigned char mediaSerialNo[34];
 
@@ -207,6 +204,7 @@ uint8_t resp_spin(struct scsi_cmd *cmd);
 uint8_t resp_spout(struct scsi_cmd *cmd);
 int resp_write_attribute(struct scsi_cmd *cmd);
 int resp_read_attribute(struct scsi_cmd *cmd);
-int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p);
+int resp_report_density(struct priv_lu_ssc *lu_ssc, uint8_t media,
+						struct vtl_ds *dbuf_p);
 void resp_space(int32_t count, int code, uint8_t *sam_stat);
 void unloadTape(uint8_t *sam_stat);

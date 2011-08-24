@@ -47,30 +47,21 @@
 #include "mode.h"
 #include "log.h"
 
-static struct media_handling ait1_media_handling[] = {
-	{ "ait1", "RW", medium_density_code_ait1, },
-	};
+static struct density_info density_ait1 = {
+	0x17d6, 0x50, 1, 100, medium_density_code_ait1,
+		"SONY", "AIT-1", "Adv Intellgent Tape" };
 
-static struct media_handling ait2_media_handling[] = {
-	{ "ait1", "RW", medium_density_code_ait1, },
-	{ "ait2", "RW", medium_density_code_ait2, },
-	};
+static struct density_info density_ait2 = {
+	0x17d6, 0x50, 1, 200, medium_density_code_ait2,
+		"SONY", "AIT-2", "Adv Intellgent Tape" };
 
-/* FIXME: Need to check AIT-3 SPECs to see if they handle WORM & Encryption */
-static struct media_handling ait3_media_handling[] = {
-	{ "ait1", "RO", medium_density_code_ait1, },
-	{ "ait2", "RW", medium_density_code_ait2, },
-	{ "ait3", "RW", medium_density_code_ait3, },
-	};
+static struct density_info density_ait3 = {
+	0x17d6, 0x50, 1, 300, medium_density_code_ait3,
+		"SONY", "AIT-3", "Adv Intellgent Tape" };
 
-/* FIXME: Need to check AIT-4 SPECs to see if they handle WORM & Encryption */
-static struct media_handling ait4_media_handling[] = {
-	{ "ait2", "RO", medium_density_code_ait2, },
-	{ "ait3", "RW", medium_density_code_ait3, },
-	{ "ait4", "RW", medium_density_code_ait4, },
-	{ "ait4", "WORM", medium_density_code_ait4, },
-	{ "ait4", "ENCR", medium_density_code_ait4, },
-	};
+static struct density_info density_ait4 = {
+	0x17d6, 0x50, 1, 400, medium_density_code_ait4,
+		"SONY", "AIT-4", "Adv Intellgent Tape" };
 
 static uint8_t clear_ait_WORM(struct list_head *l)
 {
@@ -231,17 +222,17 @@ static uint8_t ait_cleaning(void *ssc_priv)
 	return 0;
 }
 
+/* Table 6-29 Supported Mode pages
+ * Sony SDX-900V v2.1 SCSI Reference Guide
+ */
 static void init_ait_mode_pages(struct lu_phy_attr *lu)
 {
-	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_medium_partition(lu);
-	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
-	add_mode_medium_configuration(lu);
 	add_mode_ait_device_configuration(lu);
 }
 
@@ -305,8 +296,12 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_ait1;
-	ssc_pm.media_capabilities = ait1_media_handling;
+
+	add_density_support(&lu->den_list, &density_ait1, 1);
+	add_drive_media_list(lu, LOAD_RW, "AIT1");
+	add_drive_media_list(lu, LOAD_RO, "AIT1 Clean");
+
+	ssc_pm.native_drive_density = &density_ait1;
 }
 
 void init_ait2_ssc(struct lu_phy_attr *lu)
@@ -326,8 +321,13 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_ait2;
-	ssc_pm.media_capabilities = ait2_media_handling;
+	ssc_pm.native_drive_density = &density_ait2;
+	add_density_support(&lu->den_list, &density_ait1, 1);
+	add_density_support(&lu->den_list, &density_ait2, 1);
+	add_drive_media_list(lu, LOAD_RW, "AIT1");
+	add_drive_media_list(lu, LOAD_RO, "AIT1 Clean");
+	add_drive_media_list(lu, LOAD_RW, "AIT2");
+	add_drive_media_list(lu, LOAD_RO, "AIT2 Clean");
 }
 
 void init_ait3_ssc(struct lu_phy_attr *lu)
@@ -347,8 +347,16 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_ait3;
-	ssc_pm.media_capabilities = ait3_media_handling;
+	ssc_pm.native_drive_density = &density_ait3;
+	add_density_support(&lu->den_list, &density_ait1, 0);
+	add_density_support(&lu->den_list, &density_ait2, 1);
+	add_density_support(&lu->den_list, &density_ait3, 1);
+	add_drive_media_list(lu, LOAD_RO, "AIT1");
+	add_drive_media_list(lu, LOAD_RO, "AIT1 Clean");
+	add_drive_media_list(lu, LOAD_RW, "AIT2");
+	add_drive_media_list(lu, LOAD_RO, "AIT2 Clean");
+	add_drive_media_list(lu, LOAD_RW, "AIT3");
+	add_drive_media_list(lu, LOAD_RO, "AIT3 Clean");
 }
 
 void init_ait4_ssc(struct lu_phy_attr *lu)
@@ -368,12 +376,21 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_native_density = medium_density_code_ait4;
-	ssc_pm.media_capabilities = ait4_media_handling;
+	ssc_pm.native_drive_density = &density_ait4;
 	ssc_pm.clear_WORM = clear_ait_WORM,
 	ssc_pm.set_WORM	= set_ait_WORM,
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 10; /* Capacity units in KBytes */
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	add_density_support(&lu->den_list, &density_ait2, 0);
+	add_density_support(&lu->den_list, &density_ait3, 1);
+	add_density_support(&lu->den_list, &density_ait4, 1);
+	add_drive_media_list(lu, LOAD_RO, "AIT2");
+	add_drive_media_list(lu, LOAD_RO, "AIT2 Clean");
+	add_drive_media_list(lu, LOAD_RW, "AIT3");
+	add_drive_media_list(lu, LOAD_RO, "AIT3 Clean");
+	add_drive_media_list(lu, LOAD_RW, "AIT4");
+	add_drive_media_list(lu, LOAD_RO, "AIT4 Clean");
+	add_drive_media_list(lu, LOAD_RW, "AIT4 WORM");
 }
 

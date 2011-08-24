@@ -356,67 +356,84 @@ static const char *lookup_media_type(int med)
 /***********************************************************************/
 
 /*
- * Report density of media loaded.
-
-FIXME:
- -  Need to return full list of media support.
-    e.g. AIT-4 should return AIT1, AIT2 AIT3 & AIT4 data.
+ * Report supported densities
  */
 
-#define REPORT_DENSITY_LEN 56
-int resp_report_density(uint8_t media, struct vtl_ds *dbuf_p)
+#define REPORT_DENSITY_LEN 52
+int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
+						struct vtl_ds *dbuf_p)
 {
 	uint8_t *buf = dbuf_p->data;
+	struct list_head *l_head;
+	struct density_info *di;
+	struct supported_density_list *den;
 	int len = dbuf_p->sz;
-	uint64_t max_cap;
+	int count;
+	uint32_t a;
+	uint8_t *ds;	/* Density Support Data Block Descriptor */
+
+	l_head = &lu_priv->pm->lu->den_list;
 
 	/* Zero out buf */
 	memset(buf, 0, len);
-
-	put_unaligned_be16(REPORT_DENSITY_LEN - 4, &buf[0]);
+	ds = &buf[4];
+	count = 0;
 
 	buf[2] = 0;	/* Reserved */
 	buf[3] = 0;	/* Reserved */
 
-	buf[4] = 0x40;	/* Primary Density Code */
-	buf[5] = 0x40;	/* Secondary Density Code */
-	buf[6] = 0xa0;	/* WRTOK = 1, DUP = 0, DEFLT = 1: 1010 0000b */
-	buf[7] = 0;
-
 	/* Assigning Oranization (8 chars long) */
-	if (media == 1) {
-		/* Capacity in MBytes */
-		max_cap = get_unaligned_be64(&mam.max_capacity) / (1L << 20);
+	if (media) { /* Report supported density by this media */
+		count = 1;
 
-		/* Bits per mm (only 24bits in len MS Byte should be 0). */
-		put_unaligned_be32(mam.media_info.bits_per_mm, &buf[8]);
+		ds[0] = mam.MediumDensityCode;
+		ds[1] = mam.MediumDensityCode;
+		ds[2] = (OK_to_write) ? 0xa0 : 0x20; /* Set write OK flg */
+		put_unaligned_be16(REPORT_DENSITY_LEN, &ds[3]);
+		memcpy(&ds[5], &mam.media_info.bits_per_mm, 3);
+		memcpy(&ds[8], &mam.MediumWidth, 2);
+		memcpy(&ds[10], &mam.MediumLength, 2);
+		memcpy(&ds[12], &mam.max_capacity, 4);
 
-		/* Media Width (tenths of mm) */
-		put_unaligned_be32(mam.MediumWidth, &buf[12]);
-
-		/* Tracks */
-		put_unaligned_be16(mam.MediumLength, &buf[14]);
-
-		/* Capacity */
-		put_unaligned_be32(max_cap, &buf[16]);
-
-		snprintf((char *)&buf[20], 8, "%-8s",
+		snprintf((char *)&ds[16], 9, "%-8s",
 					mam.AssigningOrganization_1);
-		/* Density Name (8 chars long) */
-		snprintf((char *)&buf[28], 8, "%-8s",
+		snprintf((char *)&ds[24], 9, "%-8s",
 					mam.media_info.density_name);
-		/* Description (18 chars long) */
-		snprintf((char *)&buf[36], 18, "%-18s",
+		snprintf((char *)&ds[32], 20, "%-20s",
 					mam.media_info.description);
-	} else {
-		snprintf((char *)&buf[20], 8, "%-8s", "unknown");
-		/* Density Name (8 chars long) */
-		snprintf((char *)&buf[28], 8, "%-8s", "mhvtl");
-		/* Description (18 chars long) */
-		snprintf((char *)&buf[36], 18, "%-18s", "Virtual Media");
-	}
+		/* Fudge.. Now 'fix' up the spaces. */
+		for (a = 16; a < REPORT_DENSITY_LEN; a++)
+			if (!ds[a])
+				ds[a] = 0x20; /* replace 0 with ' ' */
+	} else { /* Report supported density by this drive */
+		list_for_each_entry(den, l_head, siblings) {
+			di = den->density_info;
+			count++;
 
-return REPORT_DENSITY_LEN;
+			MHVTL_LOG("%s -> %s", di->description,
+					(den->rw) ? "RW" : "RO");
+
+			ds[0] = di->density;
+			ds[1] = di->density;
+			ds[2] = (den->rw) ? 0xa0 : 0x20; /* Set write OK flg */
+			put_unaligned_be16(REPORT_DENSITY_LEN, &ds[3]);
+			put_unaligned_be24(di->bits_per_mm, &ds[5]);
+			put_unaligned_be16(di->media_width, &ds[8]);
+			put_unaligned_be16(di->tracks, &ds[10]);
+			put_unaligned_be32(di->capacity, &ds[12]);
+			snprintf((char *)&ds[16], 9, "%-8s", di->assigning_org);
+			snprintf((char *)&ds[24], 9, "%-8s", di->density_name);
+			snprintf((char *)&ds[32], 20, "%-20s",
+					di->description);
+			/* Fudge.. Now 'fix' up the spaces. */
+			for (a = 16; a < REPORT_DENSITY_LEN; a++)
+				if (!ds[a])
+					ds[a] = 0x20; /* replace 0 with ' ' */
+			ds += REPORT_DENSITY_LEN;
+		}
+	}
+	put_unaligned_be16(REPORT_DENSITY_LEN * count, &buf[0]);
+	return REPORT_DENSITY_LEN * count + 4;
 }
 
 /*
@@ -1310,7 +1327,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 {
 	int rc;
 	uint64_t fg = 0;	/* TapeAlert flags */
-	struct media_details *m_details;
+	struct media_details *m_detail;
 	struct lu_phy_attr *lu;
 
 	lu_ssc.bytesWritten = 0;	/* Global - Bytes written this load */
@@ -1337,6 +1354,10 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	MHVTL_DBG(1, "Media type '%s' loaded with S/No. : %s",
 		lookup_media_type(mam.MediaType), mam.MediumSerialNumber);
+
+	lu_ssc.max_capacity = 0L;
+	lu_ssc.early_warning_sz = 0L;
+	lu_ssc.prog_early_warning_sz = 0L;
 
 	switch(mam.MediumType) {
 	case MEDIA_TYPE_DATA:
@@ -1402,15 +1423,19 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		MHVTL_DBG(1, "Previous unload was not clean");
 	}
 
-	lu_ssc.early_warning_sz = get_unaligned_be64(&mam.max_capacity) -
-					EARLY_WARNING_SZ;
+	if (lu_ssc.max_capacity) {
+		lu_ssc.early_warning_sz =
+				get_unaligned_be64(&mam.max_capacity) -
+				EARLY_WARNING_SZ;
 
-	lu_ssc.prog_early_warning_sz = get_unaligned_be64(&mam.max_capacity) -
-					PROG_EARLY_WARNING_SZ;
+		lu_ssc.prog_early_warning_sz =
+				get_unaligned_be64(&mam.max_capacity) -
+				PROG_EARLY_WARNING_SZ;
+	}
 
-	MHVTL_DBG(1, "Tape capacity: %" PRId64 ", + Early Warning %" PRId64
+	MHVTL_DBG(2, "Tape capacity: %" PRId64 ", + Early Warning %" PRId64
 			", + Prog Early Warning %" PRId64,
-			get_unaligned_be64(&mam.max_capacity),
+			lu_ssc.max_capacity,
 			lu_ssc.early_warning_sz,
 			lu_ssc.prog_early_warning_sz);
 
@@ -1418,49 +1443,45 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	/* Increment load count */
 	updateMAM(sam_stat, 1);
 
-	/* If no media list defined, than allow all media mounts */
-	if (list_empty(&lunit.den_list)) {
-		MHVTL_DBG(2, "Supported media list is empty, loading media");
-		goto loadOK;
-	}
+	m_detail = media_type_lookup(&lu_ssc.supported_media_list,
+						mam.MediaType);
 
-	m_details = media_type_lookup(&lunit.den_list, mam.MediaType);
-	if (!m_details)	/* Media not defined.. Reject */
+	if (!m_detail)	/* Media not defined.. Reject */
 		goto mismatchmedia;
 
-	MHVTL_DBG(2, "Density Status: 0x%x", m_details->density_status);
+	MHVTL_DBG(2, "Density Status: 0x%x", m_detail->load_capability);
 
 	/* Now check for WORM support */
 	if (mam.MediumType == MEDIA_TYPE_WORM) {
 		/* If media is WORM, check drive will allow mount */
-		if (m_details->density_status & (LOAD_WORM | LOAD_RW)) {
+		if (m_detail->load_capability & (LOAD_WORM | LOAD_RW)) {
 			/* Prev check will correctly set OK_to_write flag */
-			MHVTL_DBG(2, "Config file: Allow LOAD as R/W WORM");
-		} else if (m_details->density_status & (LOAD_WORM | LOAD_RO)) {
-			MHVTL_DBG(2, "Config file: Allow LOAD as R/O WORM");
+			MHVTL_DBG(2, "Allow LOAD as R/W WORM");
+		} else if (m_detail->load_capability & (LOAD_WORM | LOAD_RO)) {
+			MHVTL_DBG(2, "Allow LOAD as R/O WORM");
 			OK_to_write = 0;
 		} else {
-			MHVTL_DBG(2, "Config file: Fail LOAD as WORM");
+			MHVTL_LOG("Load failed: Unable to load as WORM");
 			goto mismatchmedia;
 		}
 	} else if (mam.MediumType == MEDIA_TYPE_DATA) {
 		/* Allow media to be either RO or RW */
-		if (m_details->density_status & LOAD_RO) {
-			MHVTL_DBG(2, "Config file: mounting READ ONLY");
+		if (m_detail->load_capability & LOAD_RO) {
+			MHVTL_DBG(2, "Mounting READ ONLY");
 			lu_ssc.MediaWriteProtect = MEDIA_READONLY;
 			OK_to_write = 0;
-		} else if (m_details->density_status & LOAD_RW) {
-			MHVTL_DBG(2, "Config file: mounting READ/WRITE");
+		} else if (m_detail->load_capability & LOAD_RW) {
+			MHVTL_DBG(2, "Mounting READ/WRITE");
 			lu_ssc.MediaWriteProtect = MEDIA_WRITABLE;
 			OK_to_write = 1;
-		} else if (m_details->density_status & LOAD_FAIL) {
-			MHVTL_DBG(2, "Config file: LOAD FAILED");
+		} else if (m_detail->load_capability & LOAD_FAIL) {
+			MHVTL_LOG("Load failed: Data format not suitable for "
+					"read/write or read-only");
 			goto mismatchmedia;
 		}
 	} else	/* Can't write to cleaning media */
 		OK_to_write = 0;
 
-loadOK:
 	/* Update TapeAlert flags */
 	update_TapeAlert(lu, fg);
 
@@ -1478,7 +1499,7 @@ mismatchmedia:
 	unload_tape(sam_stat);
 	fg |= 0x800;	/* Unsupported format */
 	update_TapeAlert(lu, fg);
-	MHVTL_DBG(1, "Tape %s failed to load with type '%s' in drive type '%s'",
+	MHVTL_LOG("Tape %s failed to load with type '%s' in drive type '%s'",
 			PCL,
 			lookup_media_type(mam.MediaType),
 			lu_ssc.pm->name);
@@ -1494,11 +1515,12 @@ static void dump_linked_list(void)
 
 	MHVTL_DBG(3, "Dumping media type support");
 
-	mdl = &lunit.den_list;
+	mdl = &lu_ssc.supported_media_list;;
 
 	list_for_each_entry(m_detail, mdl, siblings) {
 		MHVTL_DBG(3, "Media type: 0x%02x, status: 0x%02x",
-				m_detail->media_type, m_detail->density_status);
+				m_detail->media_type,
+				m_detail->load_capability);
 	}
 }
 
@@ -1734,11 +1756,15 @@ static void config_lu(struct lu_phy_attr *lu)
 		lu_ssc.pm->clear_compression(&lu->mode_pg);
 }
 
-int add_drive_media_list(struct list_head *den_list,
-					int status, char *s)
+int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 {
+	struct priv_lu_ssc *lu_tape;
 	struct media_details *m_detail;
+	struct list_head *den_list;
 	int media_type;
+
+	lu_tape = lu->lu_private;
+	den_list = &lu_tape->supported_media_list;
 
 	MHVTL_DBG(2, "Adding %s, status: 0x%02x", s, status);
 	media_type = lookup_media_int(s);
@@ -1753,14 +1779,14 @@ int add_drive_media_list(struct list_head *den_list,
 			return -ENOMEM;
 		}
 		m_detail->media_type = media_type;
-		m_detail->density_status = status;
+		m_detail->load_capability = status;
 		list_add_tail(&m_detail->siblings, den_list);
 	} else {
 		MHVTL_DBG(2, "Existing status for %s, status: 0x%02x",
-					s, m_detail->density_status);
-		m_detail->density_status |= status;
+					s, m_detail->load_capability);
+		m_detail->load_capability |= status;
 		MHVTL_DBG(2, "Already have an entry for %s, new status: 0x%02x",
-					s, m_detail->density_status);
+					s, m_detail->load_capability);
 	}
 
 	return 0;
@@ -2077,26 +2103,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				MHVTL_DBG(1, "NAA: Incorrect params %s"
 						" : using defaults", b);
 			}
-			if (sscanf(b, " FAIL: %s", s)) {
-				MHVTL_DBG(1, "Fail loading: %s", s);
-				add_drive_media_list(den_list, LOAD_FAIL, s);
-			}
-			if (sscanf(b, " READ_ONLY: %s", s)) {
-				MHVTL_DBG(1, "Read Only: %s", s);
-				add_drive_media_list(den_list, LOAD_RO, s);
-			}
-			if (sscanf(b, " READ_WRITE: %s", s)) {
-				MHVTL_DBG(1, "Read Write: %s", s);
-				add_drive_media_list(den_list, LOAD_RW, s);
-			}
-			if (sscanf(b, " WORM: %s", s)) {
-				MHVTL_DBG(1, "WORM: %s", s);
-				add_drive_media_list(den_list, LOAD_WORM, s);
-			}
-			if (sscanf(b, " ENCRYPTION: %s", s)) {
-				MHVTL_DBG(1, "Encryption %s", s);
-				add_drive_media_list(den_list, LOAD_ENCRYPT, s);
-			}
 		}
 	}
 	fclose(conf);
@@ -2171,6 +2177,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	lu_priv->encr = &encryption;
 	lu_priv->OK_2_write = &OK_to_write;
 	lu_priv->mamp = &mam;
+	INIT_LIST_HEAD(&lu_priv->supported_media_list);
 	lu_priv->pm = NULL;
 }
 
