@@ -788,7 +788,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
 	} else if (current_position >= lu_priv->early_warning_sz) {
 		mam.remaining_capacity = 0L;
-		MHVTL_DBG(1, "End of Medium (early write) - Setting EOM flag");
+		MHVTL_DBG(1, "End of Medium (early warning) - Setting EOM flag");
 		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	} else if (current_position >= lu_priv->prog_early_warning_sz) {
 		mam.remaining_capacity = 0L;
