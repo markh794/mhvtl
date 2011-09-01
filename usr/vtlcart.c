@@ -190,27 +190,33 @@ rewrite_meta_file(void)
 
 	io_size = sizeof(meta);
 	io_offset = sizeof(struct MAM);
-	if ((nwrite = pwrite(metafile, &meta, io_size, io_offset)) < 0) {
+	nwrite = pwrite(metafile, &meta, io_size, io_offset);
+	if (nwrite < 0) {
 		MHVTL_LOG("Error writing meta_header to metafile: %s",
-			strerror(errno));
+					strerror(errno));
 		return -1;
-	} else if (nwrite != io_size) {
-		MHVTL_LOG("Error writing meta_header map to metafile");
+	}
+	if (nwrite != io_size) {
+		MHVTL_LOG("Error writing meta_header map to metafile."
+				" Expected to write %d bytes", (int)io_size);
 		return -1;
 	}
 
 	io_size = meta.filemark_count * sizeof(*filemarks);
 	io_offset = sizeof(struct MAM) + sizeof(meta);
 
-	if (io_size == 0) {
-		/* do nothing */
-	} else if ((nwrite = pwrite(metafile, filemarks, io_size, io_offset)) < 0) {
-		MHVTL_LOG("Error writing filemark map to metafile: %s",
-			strerror(errno));
-		return -1;
-	} else if (nwrite != io_size) {
-		MHVTL_LOG("Error writing filemark map to metafile");
-		return -1;
+	if (io_size) {
+		nwrite = pwrite(metafile, filemarks, io_size, io_offset);
+		if (nwrite < 0) {
+			MHVTL_LOG("Error writing filemark map to metafile: %s",
+					strerror(errno));
+			return -1;
+		}
+		if (nwrite != io_size) {
+			MHVTL_LOG("Error writing filemark map to metafile."
+				" Expected to write %d bytes", (int)io_size);
+			return -1;
+		}
 	}
 
 	/* If filemarks were overwritten, the meta file may need to be shorter
