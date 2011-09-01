@@ -6,8 +6,7 @@ EAPI="2"
 
 inherit linux-mod eutils
 
-#MY_P="${PN}-2010-07-09"
-MY_P="${PN}-2011-06-25"
+MY_P="${PN}-2011-09-04"
 DESCRIPTION="mhvtl module provides Virtual (SCSI) Tape Library"
 HOMEPAGE="http://sites.google.com/site/linuxvtl2"
 SRC_URI="http://sites.google.com/site/linuxvtl2/${MY_P}.tgz"

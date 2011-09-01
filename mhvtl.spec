@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
-Version: 0.18
-Release: 17
-Source: mhvtl-2011-06-25.tgz
+Version: 1.0
+Release: 0
+Source: mhvtl-2011-09-04.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -18,7 +18,7 @@ VTL consists of a pseudo HBA kernel driver and user-space daemons which
 function as the SCSI target.
 
 Communication between the kernel module and the daemons is achieved
-via /dev/vtl? device nodes.
+via /dev/mhvtl? device nodes.
 
 The kernel module is based on the scsi_debug driver.
 The SSC/SMC target daemons have been written from scratch.
@@ -107,6 +107,9 @@ if [ "X"$r == "X" ]; then
 	/sbin/chkconfig --add mhvtl
 	/sbin/chkconfig mhvtl on
 fi
+if [ -d /opt/mhvtl ]; then
+	chown -R vtl:vtl /opt/mhvtl
+fi
 
 %preun
 if [ -x /etc/init.d/mhvtl ]; then
@@ -151,6 +154,20 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Sun Sep 04 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.00.00
+- Re-worked MODE SENSE/SELECT data structures into a linked list.
+- Re-worked LOG SENSE/SELECT data structures into a linked list.
+- Added support for sub-page MODE information.
+- Added STK 9x40 drive emulations.
+- Removed dead code from kernel driver.
+- Add working REPORT DENSITY support to the SSC.
+  This change required the personality modules to define the list of supported
+  densities. The media density is defined at 'mktape' time.
+  Hence, the optional 'media load' rules in device.conf are now redundent
+  and not used.
+  BUT: The option to load any media into any drive is also gone.
+
 * Sat Jun 25 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 0.18.17
 - Improvements
