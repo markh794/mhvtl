@@ -46,7 +46,7 @@
 #include "q.h"
 #include "log.h"
 
-static int last_cmd;
+uint8_t last_cmd;
 
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 {
@@ -288,8 +288,6 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd)
 	lu_priv = lu->lu_private;
 	encr = lu_priv->encr;
 
-	MHVTL_DBG(1, "+++ Trace +++");
-
 	/* decryption logic */
 	correct_key = TRUE;
 	if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
@@ -324,8 +322,6 @@ uint8_t valid_encryption_media(struct scsi_cmd *cmd)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;
-
-	MHVTL_DBG(1, "+++ Trace +++");
 
 	lu = cmd->lu;
 	lu_priv = lu->lu_private;

@@ -90,6 +90,8 @@ static struct encryption encryption;
 
 #include <zlib.h>
 
+extern uint8_t last_cmd;
+
 /* Suppress Incorrect Length Indicator */
 #define SILI  0x2
 /* Fixed block format */
@@ -1234,7 +1236,6 @@ static void updateMAM(uint8_t *sam_stat, int loadCount)
  */
 static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
-	static uint8_t last_cmd;
 	static int last_count;
 	struct scsi_cmd _cmd;
 	struct scsi_cmd *cmd;
