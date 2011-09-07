@@ -1044,7 +1044,6 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
  * of sysfs parameters (which module_param doesn't yet support).
  * Sysfs parameters defined explicitly below.
  */
-module_param_named(max_luns, vtl_max_luns, int, 0);
 module_param_named(num_tgts, vtl_num_tgts, int, 0);
 module_param_named(opts, vtl_opts, int, 0); /* perm=0644 */
 
@@ -1053,7 +1052,6 @@ MODULE_DESCRIPTION("SCSI vtl adapter driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MHVTL_VERSION);
 
-MODULE_PARM_DESC(max_luns, "number of SCSI LUNs per target to simulate");
 MODULE_PARM_DESC(num_tgts, "number of SCSI targets per host to simulate");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
 
@@ -1120,24 +1118,6 @@ static ssize_t vtl_num_tgts_store(struct device_driver *ddp,
 }
 DRIVER_ATTR(num_tgts, S_IRUGO|S_IWUSR, vtl_num_tgts_show, vtl_num_tgts_store);
 
-static ssize_t vtl_max_luns_show(struct device_driver *ddp, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_max_luns);
-}
-static ssize_t vtl_max_luns_store(struct device_driver *ddp,
-				     const char *buf, size_t count)
-{
-	int n;
-
-	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
-		vtl_max_luns = n;
-		vtl_max_tgts_luns();
-		return count;
-	}
-	return -EINVAL;
-}
-DRIVER_ATTR(max_luns, S_IRUGO|S_IWUSR, vtl_max_luns_show, vtl_max_luns_store);
-
 static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
@@ -1168,7 +1148,6 @@ static int do_create_driverfs_files(void)
 {
 	int	ret;
 	ret = driver_create_file(&vtl_driverfs_driver, &driver_attr_add_lu);
-	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_opts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_major);
@@ -1180,7 +1159,6 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_major);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_opts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
-	driver_remove_file(&vtl_driverfs_driver, &driver_attr_max_luns);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_lu);
 }
 
