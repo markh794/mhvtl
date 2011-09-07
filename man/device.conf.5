@@ -39,57 +39,6 @@ field is used by some backup software (e.g. Legato) as means to uniquely identif
 .B Unit serial number
 as the unique identifier.
 
-.PP
-.B Drive:
-entries can optionally contain identifiers
-.B READ_ONLY:
-.B READ_WRITE:
-.B WORM:
-and
-.B ENCRYPTION:
-
-If none of the above identifiers are specified for a tape device, than there is
-.I NO
-restrictions on the types of media mounted into this drive.
-
-If
-.I ANY
-of the above identifiers are defined for the drive, only media types defined
-can be mounted with the defined restriction(s)
-
-.IP e.g.
-Drive: 34 CHANNEL: 00 TARGET: 12 LUN: 00
- Library ID: 30 Slot: 04
- Vendor identification: IBM
- Product identification: ULT3580-TD4
- Product revision level: 550V
- Unit serial number: XYZZY_B4
- NAA: 30:22:33:44:ab:00:12:00
- Compression: factor 1 enabled 1
- READ_ONLY: LTO_2
- READ_ONLY: LTO_3
- READ_WRITE: LTO_4
- WORM: LTO_3
- WORM: LTO_4
- ENCRYPTION: LTO_4
-.PP
-
-In the above example, LTO2 and LTO3 media will be mounted READ-ONLY, LTO4 media
-will be mounted READ-WRITE. The device will support LTO3 & LTO4 WORM media.
-Encrption is only allowed using LTO4 media.
-
-.IP
-Note: LTO3 WORM media will be READ-ONLY as WORM or'ed with READ_ONLY
-.PP
-.IP
-Note 2: There is nothing stopping the user from defining nonsense settings like
-
-.IP
- READ_WRITE: LTO_4
- READ_WRITE: SDLT600
-.PP
-for the same drive.
-
 .B Compression:
 factor
 .B X
