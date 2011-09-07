@@ -1,4 +1,4 @@
-.TH vtltape "1" "October 2009" "mhvtl 0.16" "User Commands"
+.TH vtltape "1" "September 2011" "mhvtl 1.0" "User Commands"
 .SH NAME
 vtltape \- user space daemon to handle SCSI SSC commands for Virtual Tape Library.
 .SH SYNOPSIS
@@ -8,11 +8,7 @@ vtltape \- user space daemon to handle SCSI SSC commands for Virtual Tape Librar
 .\" Add any additional description here
 .PP
 Where '<number> is the message Q number used for this daemon.
-The first daemon started would normally use queue no. 1,
-2nd daemon started would use message Q no. 2 etc.
-A message Q number is equivelent to the drive slot number within the virtual
-robot. Media files are located in the /opt/vtl directory. The media
-files need to exist and be in correct format before attempting to mount.
+This number is derived from the device.conf and is unique within the device.conf
 Media files can be created using
 .BR mktape(1)
 .TP
@@ -37,6 +33,7 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"
 .BR library_contents(5),
+.BR make_vtl_media(1),
 .BR mktape(1),
 .BR mhvtl(1),
 .BR vtlcmd(1),

@@ -1,11 +1,11 @@
-.TH vtlcmd "1" "July 2009" "mhvtl 0.16" "User Commands"
+.TH vtlcmd "1" "July 2011" "mhvtl 1.0" "User Commands"
 .SH NAME
 vtlcmd \- user space utility to send commands to
 .BR vtltape(1),
 .BR vtllibrary(1),
 daemons.
 .SH SYNOPSIS
-.B vtlcmd 'Q number | library'
+.B vtlcmd 'Q number'
 .B [ \-h ]
 .B [ \fIcommand \fR]
 .B ...
@@ -15,7 +15,6 @@ daemons.
 Where 'Q number' is the message queue number for the drive (see
 .BR vtltape(1)
 )
-or 'library' to send commands to the tape library daemon.
 
 .TP
 \fB\-h\fR

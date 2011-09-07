@@ -1,4 +1,4 @@
-.TH mhvtl "1" "July 2009" "mhvtl 0.16" "User Commands"
+.TH mhvtl "1" "July 2011" "mhvtl 1.0" "User Commands"
 .SH NAME
 mhvtl \- Virtual Tape Library
 
@@ -22,12 +22,11 @@ Utility commands
 .PP
 And startup scripts /etc/init.d/mhvtl, 
 .BR build_library_config(1),
-.BR make_vtl_devices(1)
+.BR make_vtl_media(1)
 .PP
 The LLD kernel module is based on the scsi_debug kernel module
 .BR (http://www.torque.net/sg/sdebug26.html).
-mhvtl is a pseudo HBA (LLD) reporting 1 x SMC target (StorageTek L700) and
-8 x SSC targets (2 x Sony SDX-900V, 3 x IBM Ultrium-TD3 and 3 x Quantum SuperDLT600) attached.
+mhvtl is a pseudo HBA (LLD)
 .PP
 A char device back-end has been added to the mhvtl LLD driver.
 This allows data and SCSI commands to be passed from the LLD driver to
@@ -94,7 +93,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"
 .BR build_library_config(1),
 .BR library_contents(5),
-.BR make_vtl_devices(1),
+.BR make_vtl_media(1),
 .BR mktape(1),
 .BR vtlcmd(1),
 .BR vtllibrary(1),

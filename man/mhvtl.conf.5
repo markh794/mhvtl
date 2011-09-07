@@ -1,4 +1,4 @@
-.TH mhvtl.conf "5" "October 2009" "mhvtl 0.16" "User Commands"
+.TH mhvtl.conf "5" "September 2011" "mhvtl 1.0" "User Commands"
 .SH NAME
 mhvtl.conf \- Configuration file for
 .BR vtllibrary(1)
@@ -13,6 +13,8 @@ Configuration file to define startup behaviour of the vtl.
 CAPACITY = XXX
 
 Defines default capacity any new media will be created (in Megabytes).
+
+make_vtl_media(1) uses this value and passes to 'mktape'
 
 .IP
 VERBOSE = [0|1|2|3] Define daemon logging level at startup.
