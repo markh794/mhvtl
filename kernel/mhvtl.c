@@ -258,7 +258,6 @@ static void do_remove_driverfs_files(void);
 
 static int vtl_add_adapter(void);
 static void vtl_remove_adapter(void);
-static void vtl_max_tgts_luns(void);
 
 static int vtl_slave_alloc(struct scsi_device *);
 static int vtl_slave_configure(struct scsi_device *);
@@ -1044,7 +1043,6 @@ static int vtl_add_device(int minor, struct vtl_ctl *ctl)
  * of sysfs parameters (which module_param doesn't yet support).
  * Sysfs parameters defined explicitly below.
  */
-module_param_named(num_tgts, vtl_num_tgts, int, 0);
 module_param_named(opts, vtl_opts, int, 0); /* perm=0644 */
 
 MODULE_AUTHOR("Eric Youngdale + Douglas Gilbert + Mark Harvey");
@@ -1052,7 +1050,6 @@ MODULE_DESCRIPTION("SCSI vtl adapter driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MHVTL_VERSION);
 
-MODULE_PARM_DESC(num_tgts, "number of SCSI targets per host to simulate");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_error, 4->...");
 
 
@@ -1100,24 +1097,6 @@ static ssize_t vtl_major_show(struct device_driver *ddp, char *buf)
 }
 DRIVER_ATTR(major, S_IRUGO, vtl_major_show, NULL);
 
-static ssize_t vtl_num_tgts_show(struct device_driver *ddp, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_num_tgts);
-}
-static ssize_t vtl_num_tgts_store(struct device_driver *ddp,
-				     const char *buf, size_t count)
-{
-	int n;
-
-	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
-		vtl_num_tgts = n;
-		vtl_max_tgts_luns();
-		return count;
-	}
-	return -EINVAL;
-}
-DRIVER_ATTR(num_tgts, S_IRUGO|S_IWUSR, vtl_num_tgts_show, vtl_num_tgts_store);
-
 static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
@@ -1148,7 +1127,6 @@ static int do_create_driverfs_files(void)
 {
 	int	ret;
 	ret = driver_create_file(&vtl_driverfs_driver, &driver_attr_add_lu);
-	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_opts);
 	ret |= driver_create_file(&vtl_driverfs_driver, &driver_attr_major);
 	return ret;
@@ -1158,7 +1136,6 @@ static void do_remove_driverfs_files(void)
 {
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_major);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_opts);
-	driver_remove_file(&vtl_driverfs_driver, &driver_attr_num_tgts);
 	driver_remove_file(&vtl_driverfs_driver, &driver_attr_add_lu);
 }
 
@@ -1411,24 +1388,6 @@ static int vtl_driver_remove(struct device *dev)
 	scsi_host_put(vtl_hba->shost);
 	vtl_hba->shost = NULL;
 	return 0;
-}
-
-static void vtl_max_tgts_luns(void)
-{
-	struct vtl_hba_info *vtl_hba;
-	struct Scsi_Host *hpnt;
-
-	spin_lock(&vtl_hba_list_lock);
-	list_for_each_entry(vtl_hba, &vtl_hba_list, hba_sibling) {
-		hpnt = vtl_hba->shost;
-		if ((hpnt->this_id >= 0) &&
-		    (vtl_num_tgts > hpnt->this_id))
-			hpnt->max_id = vtl_num_tgts + 1;
-		else
-			hpnt->max_id = vtl_num_tgts;
-		hpnt->max_lun = vtl_max_luns;
-	}
-	spin_unlock(&vtl_hba_list_lock);
 }
 
 /*
