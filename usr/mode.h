@@ -34,6 +34,7 @@ int add_mode_information_exception(struct lu_phy_attr *lu);
 int add_mode_medium_configuration(struct lu_phy_attr *lu);
 int add_mode_ait_device_configuration(struct lu_phy_attr *lu);
 int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu);
+int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu);
 int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu);
 int add_mode_behavior_configuration(struct lu_phy_attr *lu);
 

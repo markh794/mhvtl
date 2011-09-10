@@ -424,6 +424,45 @@ int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
 	return 0;
 }
 
+/*
+ * Initialise structure data for mode pages.
+ * - Allocate memory for each mode page & init to 0
+ * - Set up size of mode page
+ * - Set initial values of mode pages
+ *
+ * Return void  - Nothing
+ */
+int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu)
+{
+	struct list_head *mode_pg;	/* Mode Page list */
+	struct mode *mp;
+	uint8_t pcode;
+	uint8_t size;
+
+	mode_pg = &lu->mode_pg;
+	pcode = MODE_VENDOR_SPECIFIC_25H;
+	size = 32;
+
+	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", mode_pg);
+
+	/* Vendor Unique (IBM Ultrium)
+	 * Page 151, table 118
+	 * Advise ENCRYPTION Capable device
+	 */
+	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	if (!mp)
+		return -ENOMEM;
+
+	mp->pcodePointer[0] = pcode;
+	mp->pcodePointer[1] = size
+				 - sizeof(mp->pcodePointer[0])
+				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[5] = 1;	/* LEOP to maximize medium capacity */
+	mp->pcodePointer[6] = 1;	/* Early Warning */
+
+	return 0;
+}
+
 int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu)
 {
 	struct list_head *mode_pg;

@@ -437,6 +437,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
 	add_mode_behavior_configuration(lu);
+	add_mode_vendor_25h_mode_pages(lu);
 
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
@@ -472,6 +473,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 
 	init_ult_mode_pages(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-4 */
+	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_encryption_mode_attribute(lu);
 
 	add_log_write_err_counter(lu);
@@ -516,6 +518,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 
 	init_ult_mode_pages(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_encryption_mode_attribute(lu);
 
 	/* Supports non-zero programable early warning */
