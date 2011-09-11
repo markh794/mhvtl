@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 1.0
-Release: 0
-Source: mhvtl-2011-09-04.tgz
+Release: 1
+Source: mhvtl-2011-09-11.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -111,7 +111,7 @@ if [ -d /opt/mhvtl ]; then
 	chown -R vtl:vtl /opt/mhvtl
 fi
 # Set the 'GID' bit on the directory so all child files get same group ID
-if [ ! -g /opt/mhvtl]; then
+if [ ! -g /opt/mhvtl ]; then
 	chmod 2770 /opt/mhvtl
 fi
 
@@ -158,6 +158,16 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Sun Sep 11 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.0.1
+- Added mode page 25h (vendor specific) for IBM LTO3/4/5
+  This allows the Windows IBM Tape Driver to load correctly (connected via
+  iSCSI)
+- Attempt to correct file permission/ownership when media is created manually
+- A HUP signal to the vtllibrary daemon will cause it to re-read its config
+  from the /etc/mhvtl/library_contents.XX file. (So you can change the slot
+  config without having to re-start the daemon).
+
 * Sun Sep 04 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.00.00
 - Re-worked MODE SENSE/SELECT data structures into a linked list.
