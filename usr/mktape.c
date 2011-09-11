@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 #include <inttypes.h>
+#include <pwd.h>
 #include "be_byteshift.h"
 #include "list.h"
 #include "vtl_common.h"
@@ -372,6 +373,7 @@ int main(int argc, char *argv[])
 	char *density = NULL;
 	uint64_t size;
 	struct stat statb;
+	struct passwd *pw;
 
 	if (sizeof(struct MAM) != 1024) {
 		printf("Structure of MAM incorrect size: %d\n",
@@ -463,11 +465,17 @@ int main(int argc, char *argv[])
 	/* Verify that the MHVTL home directory exists. */
 
 	if (stat(MHVTL_HOME_PATH, &statb) < 0 && errno == ENOENT) {
-		if (mkdir(MHVTL_HOME_PATH, 0770) < 0) {
+		umask(0007);
+		if (mkdir(MHVTL_HOME_PATH, 02770) < 0) {
 			printf("Cannot create PCL %s, directory " MHVTL_HOME_PATH
 				" does not exist and cannot be created\n", pcl);
 			exit(1);
 		}
+		pw = getpwnam(USR);	/* Find UID for user 'vtl' */
+		/* Don't really care if this fails or not..
+		 * But lets try anyway
+		 */
+		if (chown(MHVTL_HOME_PATH, pw->pw_uid, pw->pw_gid));
 	}
 
 	/* Initialize the contents of the MAM to be used for the new PCL. */

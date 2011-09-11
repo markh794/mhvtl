@@ -41,6 +41,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <zlib.h>
+#include <pwd.h>
 
 #include "scsi.h"
 #include "list.h"
@@ -679,6 +680,7 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	char newMedia_data[1024];
 	char newMedia_indx[1024];
 	char newMedia_meta[1024];
+	struct passwd *pw;
 	int rc = 0;
 
 	/* Attempt to create the new PCL.  This will fail if the PCL's directory
@@ -686,17 +688,25 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	   files as they were.
 	*/
 
+	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
+
 	sprintf(newMedia, "%s/%s", MHVTL_HOME_PATH, pcl);
 	sprintf(newMedia_data, "%s/data", newMedia);
 	sprintf(newMedia_indx, "%s/indx", newMedia);
 	sprintf(newMedia_meta, "%s/meta", newMedia);
 
-	if (mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP) < 0)
+	umask(0007);
+	if (mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_ISGID) < 0)
 	{
 		MHVTL_LOG("Failed to create directory %s: %s", newMedia,
 			strerror(errno));
 		return 2;
 	}
+
+	/* Don't really care if chown() fails or not..
+	 * But lets try anyway
+	 */
+	if (chown(newMedia, pw->pw_uid, pw->pw_gid));
 
 	datafile = creat(newMedia_data, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (datafile == -1) {
@@ -721,6 +731,9 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		rc = 2;
 		goto cleanup;
 	}
+	if (chown(newMedia_data, pw->pw_uid, pw->pw_gid));
+	if (chown(newMedia_indx, pw->pw_uid, pw->pw_gid));
+	if (chown(newMedia_meta, pw->pw_uid, pw->pw_gid));
 
 	MHVTL_LOG("%s files created", newMedia);
 

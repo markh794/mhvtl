@@ -110,6 +110,10 @@ fi
 if [ -d /opt/mhvtl ]; then
 	chown -R vtl:vtl /opt/mhvtl
 fi
+# Set the 'GID' bit on the directory so all child files get same group ID
+if [ ! -g /opt/mhvtl]; then
+	chmod 2770 /opt/mhvtl
+fi
 
 %preun
 if [ -x /etc/init.d/mhvtl ]; then
