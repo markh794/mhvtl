@@ -289,6 +289,7 @@ enum drive_type_list {
 	drive_UNKNOWN /* Always last */
 };
 
+/* Uniquely define each media type known */
 enum Media_Type_list {
 	Media_undefined,
 	Media_LTO1,
@@ -397,6 +398,7 @@ struct device_type_template {
 struct lu_phy_attr {
 	char ptype;
 	char removable;
+	char mode_media_type;
 	char online;
 	char vendor_id[VENDOR_ID_LEN + 1];
 	char product_id[PRODUCT_ID_LEN + 1];

@@ -132,6 +132,17 @@ struct blk_header {
 #define medium_density_code_DDS4	0x26
 #define medium_density_code_DDS5	0x47
 
+/* Used by MODE SENSE 'media type' field */
+#define media_type_unknown	0x00
+#define media_type_lto1_data	0x18
+#define media_type_lto2_data	0x28
+#define media_type_lto3_data	0x38
+#define media_type_lto3_worm	0x3C
+#define media_type_lto4_data	0x48
+#define media_type_lto4_worm	0x4C
+#define media_type_lto5_data	0x58
+#define media_type_lto5_worm	0x5c
+
 /* The remainder of this file defines the interface between the tape drive
    software and the implementation of a tape cartridge as one or more disk
    files.

@@ -523,7 +523,6 @@ static int add_pcode(struct mode *m, uint8_t *p)
 uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 {
 	int pcontrol, pcode, subpcode;
-	int media_type;
 	int alloc_len, msense_6;
 	int dev_spec, len = 0;
 	int offset = 0;
@@ -587,7 +586,6 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 
 	memset(buf, 0, alloc_len);	/* Set return data to null */
 	dev_spec = (WriteProtect ? 0x80 : 0x00) | 0x10;
-	media_type = 0x0;
 
 	offset += blockDescriptorLen;
 	ap = buf + offset;
@@ -634,7 +632,6 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		break;
 	}
 
-
 	offset += len;
 
 	if (pcode != 0)	/* 0 = No page code requested */
@@ -648,7 +645,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	/* Fill in header.. */
 	if (msense_6) {
 		buf[0] = offset - 1;	/* size - sizeof(buf[0]) field */
-		buf[1] = media_type;
+		buf[1] = cmd->lu->mode_media_type;
 		buf[2] = dev_spec;
 		buf[3] = blockDescriptorLen;
 		/* If the length > 0, copy Block Desc. */
@@ -656,7 +653,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 			memcpy(&buf[4],blockDescriptorBlock,blockDescriptorLen);
 	} else {
 		put_unaligned_be16(offset - 2, &buf[0]);
-		buf[2] = media_type;
+		buf[2] = cmd->lu->mode_media_type;
 		buf[3] = dev_spec;
 		put_unaligned_be16(blockDescriptorLen, &buf[6]);
 		/* If the length > 0, copy Block Desc. */

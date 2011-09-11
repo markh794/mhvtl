@@ -203,93 +203,162 @@ static struct tape_drives_table {
 static struct media_name_index_table {
 	char *name;
 	int media_type;
+	int mode_media_type;
 	int media_density;
 } media_info[] = {
-	{"Undefined",	Media_undefined,	medium_density_code_unknown},
+	{"Undefined", Media_undefined,
+			media_type_unknown, medium_density_code_unknown},
 
 	/* Ultrium media */
-	{"LTO1",	Media_LTO1,		medium_density_code_lto1},
-	{"LTO1 Clean", Media_LTO1_CLEAN,	medium_density_code_lto1},
-	{"LTO2",	Media_LTO2,		medium_density_code_lto2},
-	{"LTO2 Clean", Media_LTO2_CLEAN,	medium_density_code_lto2},
-	{"LTO3",	Media_LTO3,		medium_density_code_lto3},
-	{"LTO3 Clean", Media_LTO3_CLEAN,	medium_density_code_lto3},
-	{"LTO3 WORM",	Media_LTO3_WORM,	medium_density_code_lto3_WORM},
-	{"LTO4",	Media_LTO4,		medium_density_code_lto4},
-	{"LTO4 Clean", Media_LTO4_CLEAN,	medium_density_code_lto4},
-	{"LTO4 WORM",	Media_LTO4_WORM,	medium_density_code_lto4_WORM},
-	{"LTO5",	Media_LTO5,		medium_density_code_lto5},
-	{"LTO5 Clean", Media_LTO5_CLEAN,	medium_density_code_lto5},
-	{"LTO5 WORM",	Media_LTO5_WORM,	medium_density_code_lto5_WORM},
+	{"LTO1", Media_LTO1,
+			media_type_lto1_data, medium_density_code_lto1},
+	{"LTO1 Clean", Media_LTO1_CLEAN,
+			media_type_lto1_data, medium_density_code_lto1},
+	{"LTO2", Media_LTO2,
+			media_type_lto2_data, medium_density_code_lto2},
+	{"LTO2 Clean", Media_LTO2_CLEAN,
+			media_type_lto2_data, medium_density_code_lto2},
+	{"LTO3", Media_LTO3,
+			media_type_lto3_data, medium_density_code_lto3},
+	{"LTO3 Clean", Media_LTO3_CLEAN,
+			media_type_lto3_data, medium_density_code_lto3},
+	{"LTO3 WORM", Media_LTO3_WORM,
+			media_type_lto3_worm, medium_density_code_lto3_WORM},
+	{"LTO4", Media_LTO4,
+			media_type_lto4_data, medium_density_code_lto4},
+	{"LTO4 Clean", Media_LTO4_CLEAN,
+			media_type_lto4_data, medium_density_code_lto4},
+	{"LTO4 WORM", Media_LTO4_WORM,
+			media_type_lto4_worm, medium_density_code_lto4_WORM},
+	{"LTO5", Media_LTO5,
+			media_type_lto5_data, medium_density_code_lto5},
+	{"LTO5 Clean", Media_LTO5_CLEAN,
+			media_type_lto5_data, medium_density_code_lto5},
+	{"LTO5 WORM", Media_LTO5_WORM,
+			media_type_lto5_worm, medium_density_code_lto5_WORM},
 
 	/* IBM 03592 media */
-	{"03592 JA",	Media_3592_JA,		medium_density_code_j1a},
-	{"03592 JA Clean", Media_3592_JA_CLEAN, medium_density_code_j1a},
-	{"03592 JA WORM", Media_3592_JW,	medium_density_code_j1a},
+	{"03592 JA", Media_3592_JA,
+			media_type_unknown, medium_density_code_j1a},
+	{"03592 JA Clean", Media_3592_JA_CLEAN,
+			media_type_unknown, medium_density_code_j1a},
+	{"03592 JA WORM", Media_3592_JW,
+			media_type_unknown, medium_density_code_j1a},
 
-	{"03592 JB",	Media_3592_JB,		medium_density_code_e05},
-	{"03592 JB Clean", Media_3592_JB_CLEAN, medium_density_code_e05},
-	{"03592 JB ENCR", Media_3592_JB,	medium_density_code_e05_ENCR},
+	{"03592 JB", Media_3592_JB,
+			media_type_unknown, medium_density_code_e05},
+	{"03592 JB Clean", Media_3592_JB_CLEAN,
+			media_type_unknown, medium_density_code_e05},
+	{"03592 JB ENCR", Media_3592_JB,
+			media_type_unknown, medium_density_code_e05_ENCR},
 
-	{"03592 JC",	Media_3592_JX,		medium_density_code_e06},
-	{"03592 JC Clean", Media_3592_JX_CLEAN, medium_density_code_e06},
-	{"03592 JC ENCR", Media_3592_JX,	medium_density_code_e06_ENCR},
+	{"03592 JC", Media_3592_JX,
+			media_type_unknown, medium_density_code_e06},
+	{"03592 JC Clean", Media_3592_JX_CLEAN,
+			media_type_unknown, medium_density_code_e06},
+	{"03592 JC ENCR", Media_3592_JX,
+			media_type_unknown, medium_density_code_e06_ENCR},
 
 	/* AIT media */
-	{"AIT1", 	Media_AIT1,		medium_density_code_ait1},
-	{"AIT1 Clean", Media_AIT1_CLEAN,	medium_density_code_ait1},
-	{"AIT2", 	Media_AIT2,		medium_density_code_ait2},
-	{"AIT2 Clean", Media_AIT2_CLEAN,	medium_density_code_ait2},
-	{"AIT3", 	Media_AIT3,		medium_density_code_ait3},
-	{"AIT3 Clean", Media_AIT3_CLEAN,	medium_density_code_ait3},
-	{"AIT4", 	Media_AIT4,		medium_density_code_ait4},
-	{"AIT4 Clean", Media_AIT4_CLEAN,	medium_density_code_ait4},
-	{"AIT4 WORM", 	Media_AIT4_WORM,	medium_density_code_ait4},
+	{"AIT1", Media_AIT1,
+			media_type_unknown, medium_density_code_ait1},
+	{"AIT1 Clean", Media_AIT1_CLEAN,
+			media_type_unknown, medium_density_code_ait1},
+	{"AIT2", Media_AIT2,
+			media_type_unknown, medium_density_code_ait2},
+	{"AIT2 Clean", Media_AIT2_CLEAN,
+			media_type_unknown, medium_density_code_ait2},
+	{"AIT3", Media_AIT3,
+			media_type_unknown, medium_density_code_ait3},
+	{"AIT3 Clean", Media_AIT3_CLEAN,
+			media_type_unknown, medium_density_code_ait3},
+	{"AIT4",  Media_AIT4,
+			media_type_unknown, medium_density_code_ait4},
+	{"AIT4 Clean", Media_AIT4_CLEAN,
+			media_type_unknown, medium_density_code_ait4},
+	{"AIT4 WORM", Media_AIT4_WORM,
+			media_type_unknown, medium_density_code_ait4},
 
 	/* STK 9x40 media */
-	{"9840A", 	Media_9840A,		medium_density_code_9840A},
-	{"9840A Clean", Media_9840A_CLEAN,	medium_density_code_9840A},
-	{"9840B", 	Media_9840B,		medium_density_code_9840B},
-	{"9840B Clean", Media_9840B_CLEAN,	medium_density_code_9840B},
-	{"9840C", 	Media_9840C,		medium_density_code_9840C},
-	{"9840C Clean", Media_9840C_CLEAN,	medium_density_code_9840C},
-	{"9840D", 	Media_9840D,		medium_density_code_9840D},
-	{"9840D Clean", Media_9840D_CLEAN,	medium_density_code_9840D},
+	{"9840A", Media_9840A,
+			media_type_unknown, medium_density_code_9840A},
+	{"9840A Clean", Media_9840A_CLEAN,
+			media_type_unknown, medium_density_code_9840A},
+	{"9840B", Media_9840B,
+			media_type_unknown, medium_density_code_9840B},
+	{"9840B Clean", Media_9840B_CLEAN,
+			media_type_unknown, medium_density_code_9840B},
+	{"9840C", Media_9840C,
+			media_type_unknown, medium_density_code_9840C},
+	{"9840C Clean", Media_9840C_CLEAN,
+			media_type_unknown, medium_density_code_9840C},
+	{"9840D", Media_9840D,
+			media_type_unknown, medium_density_code_9840D},
+	{"9840D Clean", Media_9840D_CLEAN,
+			media_type_unknown, medium_density_code_9840D},
 
-	{"9940A", 	Media_9940A,		medium_density_code_9940A},
-	{"9940A Clean", Media_9940A_CLEAN,	medium_density_code_9940A},
-	{"9940B", 	Media_9940B,		medium_density_code_9940B},
-	{"9940B Clean", Media_9940B_CLEAN,	medium_density_code_9940B},
+	{"9940A", Media_9940A,
+			media_type_unknown, medium_density_code_9940A},
+	{"9940A Clean", Media_9940A_CLEAN,
+			media_type_unknown, medium_density_code_9940A},
+	{"9940B", Media_9940B,
+			media_type_unknown, medium_density_code_9940B},
+	{"9940B Clean", Media_9940B_CLEAN,
+			media_type_unknown, medium_density_code_9940B},
 
 	/* STK T10000 media */
-	{"T10KA", 	Media_T10KA,		medium_density_code_10kA},
-	{"T10KA WORM", 	Media_T10KA_WORM,	medium_density_code_10kA},
-	{"T10KA Clean", Media_T10KA_CLEAN,	medium_density_code_10kA},
-	{"T10KB", 	Media_T10KB,		medium_density_code_10kB},
-	{"T10KB WORM", 	Media_T10KB_WORM,	medium_density_code_10kB},
-	{"T10KB Clean", Media_T10KB_CLEAN,	medium_density_code_10kB},
-	{"T10KC", 	Media_T10KC,		medium_density_code_10kC},
-	{"T10KC WORM", 	Media_T10KC_WORM,	medium_density_code_10kC},
-	{"T10KC Clean", Media_T10KC_CLEAN,	medium_density_code_10kC},
+	{"T10KA", Media_T10KA,
+			media_type_unknown, medium_density_code_10kA},
+	{"T10KA WORM", Media_T10KA_WORM,
+			media_type_unknown, medium_density_code_10kA},
+	{"T10KA Clean", Media_T10KA_CLEAN,
+			media_type_unknown, medium_density_code_10kA},
+	{"T10KB", Media_T10KB,
+			media_type_unknown, medium_density_code_10kB},
+	{"T10KB WORM", Media_T10KB_WORM,
+			media_type_unknown, medium_density_code_10kB},
+	{"T10KB Clean", Media_T10KB_CLEAN,
+			media_type_unknown, medium_density_code_10kB},
+	{"T10KC", Media_T10KC,
+			media_type_unknown, medium_density_code_10kC},
+	{"T10KC WORM", Media_T10KC_WORM,
+			media_type_unknown, medium_density_code_10kC},
+	{"T10KC Clean", Media_T10KC_CLEAN,
+			media_type_unknown, medium_density_code_10kC},
 
 	/* Quantum DLT / SDLT media */
-	{"DLT2", 	Media_DLT2,		medium_density_code_dlt2},
-	{"DLT3", 	Media_DLT3,		medium_density_code_dlt3},
-	{"DLT4", 	Media_DLT4,		medium_density_code_dlt4},
-	{"SDLT", 	Media_SDLT,		medium_density_code_sdlt},
-	{"SDLT 220", 	Media_SDLT220,		medium_density_code_220},
-	{"SDLT 320", 	Media_SDLT320,		medium_density_code_320},
-	{"SDLT 320 Clean", Media_SDLT320_CLEAN,	medium_density_code_320},
-	{"SDLT 600", 	Media_SDLT600,		medium_density_code_600},
-	{"SDLT 600 Clean", Media_SDLT600_CLEAN,	medium_density_code_600},
-	{"SDLT 600 WORM", Media_SDLT600_WORM,	medium_density_code_600},
+	{"DLT2", Media_DLT2,
+			media_type_unknown, medium_density_code_dlt2},
+	{"DLT3", Media_DLT3,
+			media_type_unknown, medium_density_code_dlt3},
+	{"DLT4", Media_DLT4,
+			media_type_unknown, medium_density_code_dlt4},
+	{"SDLT", Media_SDLT,
+			media_type_unknown, medium_density_code_sdlt},
+	{"SDLT 220", Media_SDLT220,
+			media_type_unknown, medium_density_code_220},
+	{"SDLT 320", Media_SDLT320,
+			media_type_unknown, medium_density_code_320},
+	{"SDLT 320 Clean", Media_SDLT320_CLEAN,
+			media_type_unknown, medium_density_code_320},
+	{"SDLT 600", Media_SDLT600,
+			media_type_unknown, medium_density_code_600},
+	{"SDLT 600 Clean", Media_SDLT600_CLEAN,
+			media_type_unknown, medium_density_code_600},
+	{"SDLT 600 WORM", Media_SDLT600_WORM,
+			media_type_unknown, medium_density_code_600},
 
 	/* 4MM DAT media */
-	{"DDS1", 	Media_DDS1,		medium_density_code_DDS1},
-	{"DDS2", 	Media_DDS2,		medium_density_code_DDS2},
-	{"DDS3", 	Media_DDS3,		medium_density_code_DDS3},
-	{"DDS4", 	Media_DDS4,		medium_density_code_DDS4},
-	{"DDS5", 	Media_DDS5,		medium_density_code_DDS5},
+	{"DDS1", Media_DDS1,
+			media_type_unknown, medium_density_code_DDS1},
+	{"DDS2", Media_DDS2,
+			media_type_unknown, medium_density_code_DDS2},
+	{"DDS3", Media_DDS3,
+			media_type_unknown, medium_density_code_DDS3},
+	{"DDS4", Media_DDS4,
+			media_type_unknown, medium_density_code_DDS4},
+	{"DDS5", Media_DDS5,
+			media_type_unknown, medium_density_code_DDS5},
 };
 
 static void (*drive_init)(struct lu_phy_attr *) = init_default_ssc;
@@ -356,6 +425,24 @@ static const char *lookup_media_type(int med)
 			return media_info[i].name;
 
 	return "(UNKNOWN media type)";
+}
+
+int lookup_mode_media_type(int med)
+{
+	int i;
+
+	MHVTL_DBG(2, "looking for mode media type for 0x%02x", med);
+
+	for (i = 0; i < ARRAY_SIZE(media_info); i++) {
+		MHVTL_DBG(3, "%s : 0x%02x mode media type 0x%02x",
+			media_info[i].name,
+			media_info[i].media_type,
+			media_info[i].mode_media_type);
+		if (media_info[i].media_type == med)
+			return media_info[i].mode_media_type;
+	}
+
+	return media_type_unknown;
 }
 
 /***********************************************************************/
@@ -1492,9 +1579,13 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 				(OK_to_write) ? "writable" : "not writable");
 
 	blockDescriptorBlock[0] = mam.MediumDensityCode;
-	MHVTL_DBG(1, "Setting MediumDensityCode to %s (0x%02x)",
+	lu->mode_media_type = lookup_mode_media_type(mam.MediaType);
+
+	MHVTL_DBG(1, "Setting MediumDensityCode to %s (0x%02x)"
+			" Media type: 0x%02x",
 			lookup_density_name(mam.MediumDensityCode),
-			mam.MediumDensityCode);
+			mam.MediumDensityCode,
+			lu->mode_media_type);
 
 	return TAPE_LOADED;	/* Return successful load */
 

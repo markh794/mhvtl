@@ -65,6 +65,7 @@ struct ssc_personality_template {
 #define	LOAD_ENCRYPT		0x10
 #define	LOAD_FAIL		0x20
 #define LOAD_CLEANING		0x40
+#define LOAD_NOACCESS		0x80	/* Loads but can not read/write */
 
 #define CLEAN_MOUNT_STAGE1	1
 #define CLEAN_MOUNT_STAGE2	2
