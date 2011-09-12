@@ -247,16 +247,7 @@ static void inc_cleaning_state(int sig)
 
 static uint8_t hp_media_load(struct lu_phy_attr *lu, int load)
 {
-	struct priv_lu_ssc *lu_ssc;
-
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
-
-	lu_ssc = lu->lu_private;
-
-	/* No support for programable early warning - set to early warning */
-	if (load)
-		lu_ssc->prog_early_warning_sz = lu_ssc->early_warning_sz;
-
 	return 0;
 }
 
