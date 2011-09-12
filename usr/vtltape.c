@@ -798,18 +798,18 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	current_position = current_tape_offset();
 
-	if (current_position <= lu_priv->prog_early_warning_sz) {
+	if (current_position <= lu_priv->prog_early_warning_position) {
 		put_unaligned_be64(lu_priv->max_capacity - current_position,
 						&mam.remaining_capacity);
 	} else if (current_position >= lu_priv->max_capacity) {
 		mam.remaining_capacity = 0L;
 		MHVTL_LOG("End of Medium - VOLUME_OVERFLOW/EOM");
 		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
-	} else if (current_position >= lu_priv->early_warning_sz) {
+	} else if (current_position >= lu_priv->early_warning_position) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium (early warning) - Setting EOM flag");
 		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
-	} else if (current_position >= lu_priv->prog_early_warning_sz) {
+	} else if (current_position >= lu_priv->prog_early_warning_position) {
 		mam.remaining_capacity = 0L;
 		MHVTL_LOG("End of Medium - Programmable Early Warning");
 		mkSenseBuf(NO_SENSE | SD_EOM,
@@ -1424,13 +1424,13 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	}
 
 	if (lu_ssc.max_capacity) {
-		lu_ssc.early_warning_sz =
+		lu_ssc.early_warning_position =
 				get_unaligned_be64(&mam.max_capacity) -
-				EARLY_WARNING_SZ;
+				lu_ssc.early_warning_sz;
 
-		lu_ssc.prog_early_warning_sz =
-				get_unaligned_be64(&mam.max_capacity) -
-				PROG_EARLY_WARNING_SZ;
+		lu_ssc.prog_early_warning_position =
+				lu_ssc.early_warning_position -
+				lu_ssc.prog_early_warning_sz;
 	}
 
 	MHVTL_DBG(2, "Tape capacity: %" PRId64 ", + Early Warning %" PRId64
@@ -1749,6 +1749,9 @@ static void config_lu(struct lu_phy_attr *lu)
 	}
 
 	drive_init(lu);
+
+	lu_ssc.early_warning_sz = EARLY_WARNING_SZ;
+	lu_ssc.prog_early_warning_sz = 0;
 
 	if (lu_ssc.configCompressionEnabled)
 		lu_ssc.pm->set_compression(&lu->mode_pg, lu_ssc.configCompressionFactor);

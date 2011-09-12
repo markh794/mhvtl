@@ -96,6 +96,9 @@ struct priv_lu_ssc {
 	loff_t early_warning_sz;
 	loff_t prog_early_warning_sz;
 
+	loff_t early_warning_position;
+	loff_t prog_early_warning_position;
+
 	/* Pointer into Device config mode page */
 	uint8_t *compressionFactor;
 
