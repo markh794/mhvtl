@@ -415,7 +415,7 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 			di = den->density_info;
 			count++;
 
-			MHVTL_LOG("%s -> %s", di->description,
+			MHVTL_DBG(2, "%s -> %s", di->description,
 					(den->rw) ? "RW" : "RO");
 
 			ds[0] = di->density;
@@ -652,7 +652,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	*/
 	cbuf = malloc(disk_blk_size);
 	if (!cbuf) {
-		MHVTL_LOG("Out of memory");
+		MHVTL_LOG("Out of memory: %d", __LINE__);
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
 	}
@@ -674,7 +674,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 
 	if (tgtsize < blk_size) {
 		if ((c2buf = malloc(blk_size)) == NULL) {
-			MHVTL_LOG("Out of memory");
+			MHVTL_LOG("Out of memory: %d", __LINE__);
 			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
@@ -808,7 +808,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 						&mam.remaining_capacity);
 	} else if (current_position >= lu_priv->max_capacity) {
 		mam.remaining_capacity = 0L;
-		MHVTL_LOG("End of Medium - VOLUME_OVERFLOW/EOM");
+		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
 		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
 	} else if (current_position >= lu_priv->early_warning_position) {
 		mam.remaining_capacity = 0L;
@@ -816,7 +816,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	} else if (current_position >= lu_priv->prog_early_warning_position) {
 		mam.remaining_capacity = 0L;
-		MHVTL_LOG("End of Medium - Programmable Early Warning");
+		MHVTL_DBG(1, "End of Medium - Programmable Early Warning");
 		mkSenseBuf(NO_SENSE | SD_EOM,
 					E_PROGRAMMABLE_EARLY_WARNING, sam_stat);
 	}
