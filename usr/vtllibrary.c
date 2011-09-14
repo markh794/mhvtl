@@ -83,6 +83,8 @@ int verbose = 0;
 int debug = 0;
 static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
 
+extern int current_state;	/* scope, Global -> Last status sent to fifo */
+
 struct lu_phy_attr lunit;
 
 static struct smc_priv smc_slots;
@@ -504,6 +506,8 @@ static void open_map(struct q_msg *msg)
 {
 	MHVTL_DBG(1, "Called");
 
+	current_state = MHVTL_STATE_OPENING_MAP;
+
 	smc_slots.cap_closed = CAP_OPEN;
 	send_msg("OK", msg->snd_id);
 }
@@ -511,6 +515,8 @@ static void open_map(struct q_msg *msg)
 static void close_map(struct q_msg *msg)
 {
 	MHVTL_DBG(1, "Called");
+
+	current_state = MHVTL_STATE_CLOSING_MAP;
 
 	smc_slots.cap_closed = CAP_CLOSED;
 	send_msg("OK", msg->snd_id);
@@ -571,10 +577,14 @@ static int processMessageQ(struct q_msg *msg)
 		list_map(msg);
 	if (!strncmp(msg->text, "load map ", 9))
 		load_map(msg);
-	if (!strncmp(msg->text, "offline", 7))
+	if (!strncmp(msg->text, "offline", 7)) {
+		current_state = MHVTL_STATE_OFFLINE;
 		lunit.online = 0;
-	if (!strncmp(msg->text, "online", 6))
+	}
+	if (!strncmp(msg->text, "online", 6)) {
+		current_state = MHVTL_STATE_ONLINE;
 		lunit.online = 1;
+	}
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = 0L;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
@@ -1086,11 +1096,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	INIT_LIST_HEAD(&smc_slots.drive_list);
 	INIT_LIST_HEAD(&smc_slots.media_list);
 
+	if (smc_slots.state_msg)
+		free(smc_slots.state_msg);
+
 	smc_slots.num_drives = 0;
 	smc_slots.num_picker = 0;
 	smc_slots.num_map = 0;
 	smc_slots.num_storage = 0;
 	smc_slots.bufsize = SMC_BUF_SIZE;
+	smc_slots.state_msg = NULL;
 
 	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
 	lu->removable = 1;	/* Supports removable media */
@@ -1280,6 +1294,8 @@ int main(int argc, char *argv[])
 	long pollInterval = 0L;
 	uint8_t *buf;
 
+	int last_state = MHVTL_STATE_UNKNOWN;
+
 	struct list_head *slot_head = &smc_slots.slot_list;
 	struct s_info *sp;
 	struct d_info *dp;
@@ -1291,9 +1307,14 @@ int main(int argc, char *argv[])
 	pid_t pid, sid, child_cleanup;
 	struct sigaction new_action, old_action;
 
+	FILE *fifo_fd = NULL;
+
 	char *progname = argv[0];
 	char *name = "mhvtl";
+	char *fifoname = NULL;
 	struct passwd *pw;
+
+	int use_fifo = 0;
 
 	/* Message Q */
 	int mlen, r_qid;
@@ -1312,6 +1333,12 @@ int main(int argc, char *argv[])
 			case 'q':
 				if (argc > 1)
 					my_id = atoi(argv[1]);
+				break;
+			case 'f':
+				if (argc > 1) {
+					use_fifo = 1;
+					fifoname = argv[1];
+				}
 				break;
 			default:
 				usage(progname);
@@ -1513,6 +1540,9 @@ int main(int argc, char *argv[])
 		smc_slots.dvcid_serial_only = FALSE;
 	}
 
+	if (use_fifo)
+		open_fifo(&fifo_fd, fifoname);
+
 	for (;;) {
 		/* Check for any messages */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
@@ -1548,6 +1578,7 @@ int main(int argc, char *argv[])
 			case VTL_IDLE:
 				if (pollInterval < 1000000)
 					pollInterval += 4000;
+
 				usleep(pollInterval);
 				break;
 
@@ -1557,9 +1588,20 @@ int main(int argc, char *argv[])
 				sleep(1);
 				break;
 			}
+			if (current_state != last_state) {
+				status_change(fifo_fd, current_state, my_id,
+							&smc_slots.state_msg);
+				last_state = current_state;
+			}
+			if (pollInterval > 0x18000)
+				if (current_state != MHVTL_STATE_OFFLINE)
+					current_state = MHVTL_STATE_IDLE;
 		}
 	}
 exit:
+	fclose(fifo_fd);
+	if (fifoname)
+		unlink(fifoname);
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	free(buf);

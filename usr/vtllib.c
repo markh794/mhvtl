@@ -51,6 +51,44 @@
 
 static int reset = 0;
 
+static struct state_description {
+	char *state_desc;
+} state_desc[] = {
+	{ "Initialising v1", },
+	{ "Idle", },
+	{ "Unloading", },
+	{ "Loading", },
+	{ "Loading Cleaning Tape", },
+	{ "Loading WORM media", },
+	{ "Loaded", },
+	{ "Loaded - Idle", },
+	{ "Load failed", },
+	{ "Rewinding", },
+	{ "Positioning", },
+	{ "Locate", },
+	{ "Reading", },
+	{ "Writing", },
+	{ "Unloading", },
+	{ "Erasing", },
+
+	{ "Moving media from drive to slot", },
+	{ "Moving media from slot to drive", },
+	{ "Moving media from drive to MAP", },
+	{ "Moving media from MAP to drive", },
+	{ "Moving media from slot to MAP", },
+	{ "Moving media from MAP to slot", },
+	{ "Moving media from drive to drive", },
+	{ "Moving media from slot to slot", },
+	{ "Opening MAP", },
+	{ "Closing MAP", },
+	{ "Robot Inventory", },
+	{ "Initialise Elements", },
+	{ "Online", },
+	{ "Offline", },
+	{ "System Uninitialised", },
+};
+
+
 uint8_t sense[SENSE_BUF_SIZE];
 uint8_t blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -491,6 +529,52 @@ int chrdev_open(char *name, uint8_t minor)
 	return ctlfd;
 }
 
+/* Create the fifo and open it for writing (appending)
+ * Return 0 on success,
+ * Return errno on failure
+ */
+int open_fifo(FILE **fifo_fd, char *fifoname)
+{
+	int ret;
+
+	umask(0);
+	ret = 0;
+
+	ret = mknod(fifoname, S_IFIFO|0644, 0);
+	if ((ret < 0) && (errno != EEXIST)) {
+		MHVTL_LOG("Sorry, cant create %s: %s, Disabling fifo feature",
+				fifoname, strerror(errno));
+		ret = errno;
+	} else {
+		*fifo_fd = fopen(fifoname, "w+");
+		if (! *fifo_fd) {
+			MHVTL_LOG("Sorry, cant open %s: %s, "
+					"Disabling fifo feature",
+						fifoname, strerror(errno));
+			ret = errno;
+		}
+	}
+	return ret;
+}
+
+void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg)
+{
+	if (! fifo_fd)
+		return;
+
+	if (*msg) {
+		fprintf(fifo_fd, "%d: %s\n", my_id, *msg);
+		free(*msg);
+		*msg = NULL;
+	} else
+		fprintf(fifo_fd, "%d: %s\n", my_id,
+				state_desc[current_status].state_desc);
+
+	fflush(fifo_fd);
+
+	return;
+}
+
 /*
  * Pinched straight from SCSI tgt code
  * Thanks guys..
@@ -552,6 +636,17 @@ void blank_fill(uint8_t *dest, char *src, int len)
 		else
 			*dest++ = ' ';
 	}
+}
+
+void truncate_spaces(char *s, int maxlen)
+{
+	int x;
+
+	for (x = 0; x < maxlen; x++)
+		if ((s[x] == ' ') || (s[x] == '\0')) {
+			s[x] = '\0';
+			return;
+		}
 }
 
 /* MHVTL_VERSION looks like : 0.18.xx or 1.xx.xx

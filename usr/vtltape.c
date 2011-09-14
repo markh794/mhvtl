@@ -92,6 +92,8 @@ static struct encryption encryption;
 
 extern uint8_t last_cmd;
 
+extern int current_state;	/* scope, Global -> Last status sent to fifo */
+
 /* Suppress Incorrect Length Indicator */
 #define SILI  0x2
 /* Fixed block format */
@@ -1387,6 +1389,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	dbuf_p->sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
 
 	last_cmd = cdb[0];
+
 	return;
 }
 
@@ -1451,6 +1454,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	switch(mam.MediumType) {
 	case MEDIA_TYPE_DATA:
+		current_state = MHVTL_STATE_LOADING;
 		OK_to_write = 1;	/* Reset flag to OK. */
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
@@ -1458,6 +1462,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		mkSenseBuf(UNIT_ATTENTION, E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
+		current_state = MHVTL_STATE_LOADING_CLEAN;
 		OK_to_write = 0;
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
@@ -1468,6 +1473,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	case MEDIA_TYPE_WORM:
+		current_state = MHVTL_STATE_LOADING_WORM;
 		/* Special condition...
 		* If we
 		* - rewind,
@@ -1587,6 +1593,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			mam.MediumDensityCode,
 			lu->mode_media_type);
 
+	current_state = MHVTL_STATE_LOADED;
 	return TAPE_LOADED;	/* Return successful load */
 
 mismatchmedia:
@@ -1599,6 +1606,7 @@ mismatchmedia:
 			lu_ssc.pm->name);
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 	lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
+	current_state = MHVTL_STATE_LOAD_FAILED;
 	return TAPE_UNLOADED;
 }
 
@@ -2276,6 +2284,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	lu_priv->mamp = &mam;
 	INIT_LIST_HEAD(&lu_priv->supported_media_list);
 	lu_priv->pm = NULL;
+	lu_priv->state_msg = NULL;
 }
 
 void personality_module_register(struct ssc_personality_template *pm)
@@ -2295,15 +2304,19 @@ int main(int argc, char *argv[])
 {
 	int cdev;
 	int ret;
+	int last_state = MHVTL_STATE_UNKNOWN;
 	long pollInterval = 50000L;
 	uint8_t *buf;
 	pid_t child_cleanup, pid, sid;
 	struct sigaction new_action, old_action;
 
-	char *progname = argv[0];
+	FILE *fifo_fd = NULL;
 
+	char *progname = argv[0];
+	char *fifoname = NULL;
 	char *name = "mhvtl";
 	int minor = 0;
+	int use_fifo = 0;
 	struct passwd *pw;
 
 	struct vtl_header vtl_cmd;
@@ -2316,6 +2329,8 @@ int main(int argc, char *argv[])
 	/* Message Q */
 	int	mlen, r_qid;
 	struct q_entry r_entry;
+
+	current_state = MHVTL_STATE_INIT;
 
 	if (argc < 2) {
 		usage(argv[0]);
@@ -2336,6 +2351,12 @@ int main(int argc, char *argv[])
 			case 'q':
 				if (argc > 1)
 					my_id = atoi(argv[1]);
+				break;
+			case 'f':
+				if (argc > 1) {
+					use_fifo = 1;
+					fifoname = argv[1];
+				}
 				break;
 			default:
 				usage(progname);
@@ -2487,6 +2508,9 @@ int main(int argc, char *argv[])
 	sigaction(SIGUSR1, &new_action, &old_action);
 	sigaction(SIGUSR2, &new_action, &old_action);
 
+	if (use_fifo)
+		open_fifo(&fifo_fd, fifoname);
+
 	for (;;) {
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
@@ -2541,6 +2565,7 @@ int main(int argc, char *argv[])
 					pollInterval += 1000;
 
 				usleep(pollInterval);
+
 				break;
 
 			default:
@@ -2549,6 +2574,18 @@ int main(int argc, char *argv[])
 				sleep(1);
 				break;
 			}
+			if (current_state != last_state) {
+				status_change(fifo_fd, current_state, my_id,
+							&lu_ssc.state_msg);
+				last_state = current_state;
+			}
+			if (pollInterval > 0xf000) {
+				if (lu_ssc.tapeLoaded == TAPE_LOADED)
+					current_state = MHVTL_STATE_LOADED_IDLE;
+				else
+					current_state = MHVTL_STATE_IDLE;
+			}
+
 		}
 	}
 
@@ -2556,6 +2593,9 @@ exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	close(ofp);
+	fclose(fifo_fd);
+	if (fifoname)
+		unlink(fifoname);
 	free(buf);
 	exit(0);
 }

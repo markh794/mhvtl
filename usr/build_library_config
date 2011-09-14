@@ -50,6 +50,8 @@ else
 	OPTIONS=""
 fi
 
+FIFO="-f /tmp/mhvtl"
+
 if [ ! -f $DEVICE_CONF ]; then
 	echo "Sorry, Can't continue - no $DEVICE_CONF"
 	exit 1
@@ -66,14 +68,14 @@ fi
 
 for a in $(awk '$1 == "Drive:" {print $2}' $DEVICE_CONF)
 do
-	vtltape -q $a $OPTIONS
+	vtltape -q $a $OPTIONS $FIFO${a}
 done
 
 # Now we need to setup & configure libraries.
 
 for a in $(awk '$1 == "Library:" {print $2}' $DEVICE_CONF)
 do
-	vtllibrary -q $a $OPTIONS
+	vtllibrary -q $a $OPTIONS $FIFO${a}
 done
 
 rm -f $TMP

@@ -47,6 +47,7 @@
 #include "log.h"
 
 uint8_t last_cmd;
+int current_state;
 
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 {
@@ -71,6 +72,8 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	lu = cmd->lu;
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
+
+	current_state = MHVTL_STATE_READING;
 
 	fixed = cdb[1] & FIXED;	/* Fixed block read ? */
 	if (fixed) {
@@ -158,6 +161,8 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 	lu = cmd->lu;
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
+
+	current_state = MHVTL_STATE_WRITING;
 
 	if (cdb[1] & FIXED) {	/* If Fixed block writes */
 		count = get_unaligned_be24(&cdb[2]);
@@ -381,6 +386,8 @@ uint8_t ssc_seek_10(struct scsi_cmd *cmd)
 	uint32_t blk_no;
 
 	lu = cmd->lu;
+
+	current_state = MHVTL_STATE_LOCATE;
 
 	MHVTL_DBG(1, "Fast Block Locate (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
@@ -744,6 +751,8 @@ uint8_t ssc_rewind(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(1, "Rewinding (%ld) **", (long)cmd->dbuf_p->serialNo);
 
+	current_state = MHVTL_STATE_REWIND;
+
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_UNLOADED:
 		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
@@ -985,6 +994,8 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(1, "Erasing (%ld) **", (long)cmd->dbuf_p->serialNo);
 
+	current_state = MHVTL_STATE_ERASE;
+
 	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
 
@@ -1014,6 +1025,8 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
 	*sam_stat = SAM_STAT_GOOD;
+
+	current_state = MHVTL_STATE_POSITIONING;
 
 	count = get_unaligned_be24(&cmd->scb[2]);
 	code = cmd->scb[1] & 0x07;
@@ -1074,6 +1087,8 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
 	load = cmd->scb[4] & 0x01;
+
+	current_state = (load) ? MHVTL_STATE_LOADING : MHVTL_STATE_UNLOADING;
 
 	if (cmd->scb[4] & 0x04) { /* EOT bit */
 		MHVTL_LOG("EOT bit set on load. Not supported");

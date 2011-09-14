@@ -131,6 +131,8 @@ struct priv_lu_ssc {
 	 */
 	volatile sig_atomic_t *cleaning_media_state;
 
+	char *state_msg;	/* Custom State message */
+
 	struct ssc_personality_template *pm;	/* Personality Module */
 };
 

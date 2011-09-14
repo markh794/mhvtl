@@ -44,6 +44,8 @@
 #include "q.h"
 #include "log.h"
 
+int current_state;
+
 uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "%s MEDIUM Removal (%ld) **",
@@ -55,6 +57,8 @@ uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 uint8_t smc_initialize_element_status(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+
+	current_state = MHVTL_STATE_INITIALISE_ELEMENTS;
 
 	MHVTL_DBG(1, "%s (%ld) **", "INITIALIZE ELEMENT",
 				(long)cmd->dbuf_p->serialNo);
@@ -69,6 +73,8 @@ uint8_t smc_initialize_element_status(struct scsi_cmd *cmd)
 uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+
+	current_state = MHVTL_STATE_INITIALISE_ELEMENTS;
 
 	MHVTL_DBG(1, "%s (%ld) **", "INITIALIZE ELEMENT RANGE",
 				(long)cmd->dbuf_p->serialNo);
@@ -96,6 +102,25 @@ static int slot_type(struct smc_priv *smc_p, int addr)
 	if ((addr >= START_STORAGE) &&
 			(addr < START_STORAGE + smc_p->num_storage))
 		return STORAGE_ELEMENT;
+	return 0;
+}
+
+/*
+ * Returns a 'human frendly' slot number
+ * i.e. One with the internal offset removed (start counting at 1).
+ */
+static int slot_number(struct s_info *sp)
+{
+	switch(sp->element_type) {
+	case MEDIUM_TRANSPORT:
+		return sp->slot_location - START_PICKER + 1;
+	case STORAGE_ELEMENT:
+		return sp->slot_location - START_STORAGE + 1;
+	case MAP_ELEMENT:
+		return sp->slot_location - START_MAP + 1;
+	case DATA_TRANSFER:
+		return sp->slot_location - START_DRIVE + 1;
+	}
 	return 0;
 }
 
@@ -873,7 +898,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	memset(buf, 0, alloc_len);
 
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
-		MHVTL_DBG(3, "cmd[11] : Illegal value");
+		MHVTL_DBG(3, "cdb[11] : Illegal value");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -992,6 +1017,14 @@ static int check_tape_load(char *pcl)
 	return strncmp("Loaded OK", q.msg.text, 9);
 }
 
+static char *slot_type_str[] = {
+	" ",
+	"Picker",
+	"Storage",
+	"MAP",
+	"Drive",
+};
+
 /*
  * Logically move information from 'src' address to 'dest' address
  */
@@ -1017,8 +1050,9 @@ static int move_slot2drive(struct smc_priv *smc_p,
 {
 	struct s_info *src;
 	struct d_info *dest;
-	char cmd[128];
-	int x;
+	char cmd[MAX_BARCODE_LEN + 12];
+
+	current_state = MHVTL_STATE_MOVING_SLOT_2_DRIVE;
 
 	src  = slot2struct(smc_p, src_addr);
 	dest = drive2struct(smc_p, dest_addr);
@@ -1041,11 +1075,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 
 	sprintf(cmd, "lload %s", src->media->barcode);
 	/* Remove traling spaces */
-	for (x = 6; x < 16; x++)
-		if (cmd[x] == ' ') {
-			cmd[x] = '\0';
-			break;
-		}
+	truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 
 	/* FIXME: About here would be a good spot to create any 'missing'
 	 *	  media. That way, the user would not have to pre-create
@@ -1056,6 +1086,21 @@ static int move_slot2drive(struct smc_priv *smc_p,
 					cmd, dest->drv_id);
 
 	send_msg(cmd, dest->drv_id);
+
+	if (! smc_p->state_msg)
+		smc_p->state_msg = malloc(64);
+	if (smc_p->state_msg) {
+		/* Re-use 'cmd[]' var */
+		sprintf(cmd, "%s", src->media->barcode);
+		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
+
+		sprintf(smc_p->state_msg,
+			"Moving %s from %s slot %d to drive %d",
+					cmd,
+					slot_type_str[src->element_type],
+					slot_number(src),
+					slot_number(dest->slot));
+	}
 
 	if (check_tape_load(src->media->barcode)) {
 		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
@@ -1073,6 +1118,9 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 {
 	struct s_info *src;
 	struct s_info *dest;
+	char cmd[MAX_BARCODE_LEN + 1];
+
+	current_state = MHVTL_STATE_MOVING_SLOT_2_SLOT;
 
 	src  = slot2struct(smc_p, src_addr);
 	dest = slot2struct(smc_p, dest_addr);
@@ -1105,6 +1153,20 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 		}
 	}
 
+	if (! smc_p->state_msg)
+		smc_p->state_msg = malloc(64);
+	if (smc_p->state_msg) {
+		sprintf(cmd, "%s", src->media->barcode);
+		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
+		sprintf(smc_p->state_msg,
+			"Moving %s from %s slot %d to %s slot %d",
+					cmd,
+					slot_type_str[src->element_type],
+					slot_number(src),
+					slot_type_str[dest->element_type],
+					slot_number(dest));
+	}
+
 	move_cart(src, dest);
 	return 0;
 }
@@ -1124,8 +1186,11 @@ static int valid_slot(struct smc_priv *smc_p, int addr)
 static int move_drive2slot(struct smc_priv *smc_p,
 			int src_addr, int dest_addr, uint8_t *sam_stat)
 {
+	char cmd[MAX_BARCODE_LEN + 1];
 	struct d_info *src;
 	struct s_info *dest;
+
+	current_state = MHVTL_STATE_MOVING_DRIVE_2_SLOT;
 
 	src  = drive2struct(smc_p, src_addr);
 	dest = slot2struct(smc_p, dest_addr);
@@ -1149,6 +1214,19 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	/* Send 'unload' message to drive b4 the move.. */
 	send_msg("unload", src->drv_id);
 
+	if (! smc_p->state_msg)
+		smc_p->state_msg = malloc(64);
+	if (smc_p->state_msg) {
+		sprintf(cmd, "%s", src->slot->media->barcode);
+		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
+		sprintf(smc_p->state_msg,
+			"Moving %s from drive %d to %s slot %d",
+					cmd,
+					slot_number(src->slot),
+					slot_type_str[dest->element_type],
+					slot_number(dest));
+	}
+
 	move_cart(src->slot, dest);
 	setDriveEmpty(src);
 
@@ -1161,8 +1239,9 @@ static int move_drive2drive(struct smc_priv *smc_p,
 {
 	struct d_info *src;
 	struct d_info *dest;
-	char cmd[128];
-	int x;
+	char cmd[MAX_BARCODE_LEN + 12];
+
+	current_state = MHVTL_STATE_MOVING_DRIVE_2_DRIVE;
 
 	src  = drive2struct(smc_p, src_addr);
 	dest = drive2struct(smc_p, dest_addr);
@@ -1183,16 +1262,25 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	sprintf(cmd, "lload %s", dest->slot->media->barcode);
 
-	/* Remove trailing spaces */
-	for (x = 6; x < 16; x++)
-		if (cmd[x] == ' ') {
-			cmd[x] = '\0';
-			break;
-		}
+	truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %ld",
 					cmd, dest->drv_id);
 
 	send_msg(cmd, dest->drv_id);
+
+	if (! smc_p->state_msg)
+		smc_p->state_msg = malloc(64);
+	if (smc_p->state_msg) {
+		/* Re-use 'cmd[]' var */
+		sprintf(cmd, "%s", src->slot->media->barcode);
+		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
+		sprintf(smc_p->state_msg,
+			"Moving %s from drive %d to drive %d",
+					cmd,
+					slot_number(src->slot),
+					slot_number(dest->slot));
+	}
+
 
 return SAM_STAT_GOOD;
 }

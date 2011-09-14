@@ -475,6 +475,7 @@ struct smc_priv {
 	int dvcid_len;
 	char dvcid_serial_only;
 	char cap_closed;
+	char *state_msg;	/* Custom State message */
 };
 
 struct density_info {
@@ -499,6 +500,43 @@ extern uint8_t sense[SENSE_BUF_SIZE];
 /* Used by Mode Sense - if set, return block descriptor */
 extern uint8_t blockDescriptorBlock[8];
 
+enum MHVTL_STATE {
+	MHVTL_STATE_INIT,
+	MHVTL_STATE_IDLE,
+/* Drive operation states */
+	MHVTL_STATE_UNLOADED,
+	MHVTL_STATE_LOADING,
+	MHVTL_STATE_LOADING_CLEAN,
+	MHVTL_STATE_LOADING_WORM,
+	MHVTL_STATE_LOADED,
+	MHVTL_STATE_LOADED_IDLE,
+	MHVTL_STATE_LOAD_FAILED,
+	MHVTL_STATE_REWIND,
+	MHVTL_STATE_POSITIONING,
+	MHVTL_STATE_LOCATE,
+	MHVTL_STATE_READING,
+	MHVTL_STATE_WRITING,
+	MHVTL_STATE_UNLOADING,
+	MHVTL_STATE_ERASE,
+
+/* Library operation states */
+	MHVTL_STATE_MOVING_DRIVE_2_SLOT,
+	MHVTL_STATE_MOVING_SLOT_2_DRIVE,
+	MHVTL_STATE_MOVING_DRIVE_2_MAP,
+	MHVTL_STATE_MOVING_MAP_2_DRIVE,
+	MHVTL_STATE_MOVING_SLOT_2_MAP,
+	MHVTL_STATE_MOVING_MAP_2_SLOT,
+	MHVTL_STATE_MOVING_DRIVE_2_DRIVE,
+	MHVTL_STATE_MOVING_SLOT_2_SLOT,
+	MHVTL_STATE_OPENING_MAP,
+	MHVTL_STATE_CLOSING_MAP,
+	MHVTL_STATE_INVENTORY,
+	MHVTL_STATE_INITIALISE_ELEMENTS,
+	MHVTL_STATE_ONLINE,
+	MHVTL_STATE_OFFLINE,
+	MHVTL_STATE_UNKNOWN,
+};
+
 int check_reset(uint8_t *);
 void reset_device(void);
 void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
@@ -516,6 +554,8 @@ int chrdev_open(char *name, uint8_t);
 int chrdev_create(uint8_t minor);
 int chrdev_chown(uint8_t minor, uid_t uid, gid_t gid);
 int oom_adjust(void);
+int open_fifo(FILE **fifo_fd, char *fifoname);
+void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);
 
 char *readline(char *s, int len, FILE *f);
 void blank_fill(uint8_t *dest, char *src, int len);
@@ -542,6 +582,7 @@ uint8_t clear_compression_mode_pg(struct list_head *l);
 uint8_t set_compression_mode_pg(struct list_head *l, int lvl);
 
 void rmnl(char *s, unsigned char c, int len);
+void truncate_spaces(char *s, int maxlen);
 char *get_version(void);
 
 void update_vpd_86(struct lu_phy_attr *lu, void *p);
