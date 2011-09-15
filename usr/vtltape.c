@@ -1303,7 +1303,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	return;
 }
 
-static struct media_details *media_type_lookup(struct list_head *mdl, int mt)
+static struct media_details *check_media_can_load(struct list_head *mdl, int mt)
 {
 	struct media_details *m_detail;
 
@@ -1446,7 +1446,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	/* Increment load count */
 	updateMAM(sam_stat, 1);
 
-	m_detail = media_type_lookup(&lu_ssc.supported_media_list,
+	m_detail = check_media_can_load(&lu_ssc.supported_media_list,
 						mam.MediaType);
 
 	if (!m_detail)	/* Media not defined.. Reject */
@@ -1774,9 +1774,15 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 
 	MHVTL_DBG(2, "Adding %s, status: 0x%02x", s, status);
 	media_type = lookup_media_int(s);
-	m_detail = media_type_lookup(den_list, media_type);
+	m_detail = check_media_can_load(den_list, media_type);
 
-	if (!m_detail) {
+	if (m_detail) {
+		MHVTL_DBG(2, "Existing status for %s, status: 0x%02x",
+					s, m_detail->load_capability);
+		m_detail->load_capability |= status;
+		MHVTL_DBG(2, "Already have an entry for %s, new status: 0x%02x",
+					s, m_detail->load_capability);
+	} else {
 		MHVTL_DBG(2, "Adding new entry for %s", s);
 		m_detail = malloc(sizeof(struct media_details));
 		if (!m_detail) {
@@ -1787,12 +1793,6 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 		m_detail->media_type = media_type;
 		m_detail->load_capability = status;
 		list_add_tail(&m_detail->siblings, den_list);
-	} else {
-		MHVTL_DBG(2, "Existing status for %s, status: 0x%02x",
-					s, m_detail->load_capability);
-		m_detail->load_capability |= status;
-		MHVTL_DBG(2, "Already have an entry for %s, new status: 0x%02x",
-					s, m_detail->load_capability);
 	}
 
 	return 0;
