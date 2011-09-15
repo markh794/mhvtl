@@ -1361,8 +1361,6 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		lookup_media_type(mam.MediaType), mam.MediumSerialNumber);
 
 	lu_ssc.max_capacity = 0L;
-	lu_ssc.early_warning_sz = 0L;
-	lu_ssc.prog_early_warning_sz = 0L;
 
 	switch(mam.MediumType) {
 	case MEDIA_TYPE_DATA:
