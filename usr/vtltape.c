@@ -1428,7 +1428,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	if (lu_ssc.max_capacity) {
 		lu_ssc.early_warning_position =
-				get_unaligned_be64(&mam.max_capacity) -
+				lu_ssc.max_capacity -
 				lu_ssc.early_warning_sz;
 
 		lu_ssc.prog_early_warning_position =
@@ -1751,10 +1751,10 @@ static void config_lu(struct lu_phy_attr *lu)
 		}
 	}
 
-	drive_init(lu);
-
 	lu_ssc.early_warning_sz = EARLY_WARNING_SZ;
 	lu_ssc.prog_early_warning_sz = 0;
+
+	drive_init(lu);
 
 	if (lu_ssc.configCompressionEnabled)
 		lu_ssc.pm->set_compression(&lu->mode_pg, lu_ssc.configCompressionFactor);
