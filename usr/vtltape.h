@@ -122,6 +122,7 @@ struct blk_header {
 #define medium_density_code_220		0x48
 #define medium_density_code_320		0x49
 #define medium_density_code_600		0x4a
+#define medium_density_code_s4		0x4b
 
 #define medium_density_code_QIC		0x11
 
