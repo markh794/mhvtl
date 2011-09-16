@@ -599,8 +599,10 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		}
 	}
 
+#ifdef MHVTL_DEBUG
 	if (debug)
 		hex_dump(buf, cmd->dbuf_p->sz);
+#endif
 
 	while (pgoff < cmd->dbuf_p->sz) {
 		switch (buf[pgoff + 0]) {

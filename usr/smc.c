@@ -815,16 +815,18 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t	*p;
 	uint8_t	typeCode = cdb[1] & 0x0f;
-	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
 	uint16_t req_start_elem;
 	uint16_t number;
-	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
 	uint32_t alloc_len;
 	uint16_t start;	/* First valid slot location */
 	uint16_t start_any;	/* First valid slot location */
 	uint32_t cur_offset;
 	uint16_t cur_count;
 	uint32_t ec;
+#ifdef MHVTL_DEBUG
+	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
+	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
+#endif
 
 	MHVTL_DBG(1, "READ ELEMENT STATUS (%ld) **",
 				(long)cmd->dbuf_p->serialNo);
@@ -952,8 +954,10 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
 
+#ifdef MHVTL_DEBUG
 	if (debug)
 		hex_dump(buf, cur_offset);
+#endif
 
 	decode_element_status(smc_p, buf);
 
@@ -1212,17 +1216,15 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 	src_type = slot_type(smc_p, src_addr);
 	dest_type = slot_type(smc_p, dest_addr);
 
-	if (verbose) {
-		if (cdb[11] & 0xc0) {
-			MHVTL_LOG("%s",
-				(cdb[11] & 0x80) ? "  Retract I/O port" :
-						   "  Extend I/O port");
-		} else {
-			MHVTL_LOG(
+	if (cdb[11] & 0xc0) {
+		MHVTL_DBG(1, "%s",
+			(cdb[11] & 0x80) ? "  Retract I/O port" :
+					   "  Extend I/O port");
+	} else {
+		MHVTL_DBG(1,
 	 "Moving from slot %d to Slot %d using transport %d, Invert media: %s",
-					src_addr, dest_addr, transport_addr,
-					(cdb[10]) ? "yes" : "no");
-		}
+				src_addr, dest_addr, transport_addr,
+				(cdb[10]) ? "yes" : "no");
 	}
 
 	if (cdb[10] != 0) {	/* Can not Invert media */

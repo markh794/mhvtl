@@ -54,12 +54,7 @@
 
 #define MHVTL_OPT_NOISE 3
 
-#ifndef MHVTL_DEBUG
-
-#define MHVTL_DBG(lvl, s...)
-#define MHVTL_DBG_PRT_CDB(lvl, sn, cdb)
-
-#else
+#ifdef MHVTL_DEBUG
 extern char vtl_driver_name[];
 extern int debug;
 extern int verbose;
@@ -96,6 +91,17 @@ extern int verbose;
 	} else if ((verbose & MHVTL_OPT_NOISE) >= (lvl)) {	\
 		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
 	}							\
+}
+
+#else
+
+#define MHVTL_DBG(lvl, s...)
+#define MHVTL_DBG_NO_FUNC(lvl, s...)
+#define MHVTL_DBG_PRT_CDB(lvl, sn, cdb)
+
+#define MHVTL_LOG(format, arg...) {			\
+	syslog(LOG_DAEMON|LOG_ERR, "%s: " format,	\
+		__func__, ## arg); 			\
 }
 
 #endif	/* MHVTL_DEBUG */

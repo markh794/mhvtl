@@ -664,10 +664,12 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 			memcpy(&buf[8],blockDescriptorBlock,blockDescriptorLen);
 	}
 
+#ifdef MHVTL_DEBUG
 	if (debug) {
 		printf("mode sense: Returning %d bytes\n", offset);
 		hex_dump(buf, offset);
 	}
+#endif
 
 	cmd->dbuf_p->sz = offset;
 
