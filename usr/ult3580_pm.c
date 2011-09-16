@@ -50,19 +50,15 @@
 static struct density_info density_lto1 = {
 	4880, 127, 384, 80000, medium_density_code_lto1,
 			"LTO-CVE", "U-18", "Ultrium 1/8T" };
-
 static struct density_info density_lto2 = {
 	4880, 127, 512, 80000, medium_density_code_lto2,
 			"LTO-CVE", "U-28", "Ultrium 2/8T" };
-
 static struct density_info density_lto3 = {
 	9638, 127, 704, 80000, medium_density_code_lto3,
 			"LTO-CVE", "U-316", "Ultrium 3/16T" };
-
 static struct density_info density_lto4 = {
 	12725, 127, 896, 80000, medium_density_code_lto4,
 			"LTO-CVE", "U-416", "Ultrium 4/16T" };
-
 static struct density_info density_lto5 = {
 	15142, 127, 1280, 80000, medium_density_code_lto5,
 			"LTO-CVE", "U-516", "Ultrium 5/16T" };
