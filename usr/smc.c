@@ -1380,8 +1380,6 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd)
 		if (!l)
 			goto log_page_not_found;
 
-		MHVTL_LOG("pointer %p, size: %d", l->p, l->size);
-
 		b = memcpy(b, l->p, l->size);
 		retval = l->size;
 
