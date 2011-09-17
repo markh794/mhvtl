@@ -284,43 +284,6 @@ static uint8_t ult_cleaning(void *ssc_priv)
 	return 0;
 }
 
-static void init_ult_mode_pages(struct lu_phy_attr *lu)
-{
-	add_mode_page_rw_err_recovery(lu);
-	add_mode_disconnect_reconnect(lu);
-	add_mode_control_extension(lu);
-	add_mode_data_compression(lu);
-	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
-	add_mode_medium_partition(lu);
-	add_mode_power_condition(lu);
-	add_mode_information_exception(lu);
-	add_mode_medium_configuration(lu);
-}
-
-static uint8_t update_prog_early_warning(struct lu_phy_attr *lu)
-{
-	uint8_t *mp;
-	struct mode *m;
-	struct list_head *mode_pg;
-	struct priv_lu_ssc *lu_priv;
-
-	mode_pg = &lu->mode_pg;
-	lu_priv = lu->lu_private;
-
-	m = lookup_pcode(mode_pg, MODE_DEVICE_CONFIGURATION, 1);
-	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			mode_pg, m, m->pcodePointer);
-	if (m) {
-		mp = m->pcodePointer;
-		if (!mp)
-			return SAM_STAT_GOOD;
-
-		put_unaligned_be16(lu_priv->prog_early_warning_sz, &mp[6]);
-	}
-	return SAM_STAT_GOOD;
-}
-
 static char *pm_name_lto1 = "LTO-1";
 static char *pm_name_lto2 = "LTO-2";
 static char *pm_name_lto3 = "LTO-3";
@@ -338,8 +301,6 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_ult3580_td1(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto1;
 	ssc_pm.lu = lu;
@@ -373,8 +334,6 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 
 void init_ult3580_td2(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto2;
 	ssc_pm.lu = lu;
@@ -385,7 +344,7 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	/* Based on 9th edition of IBM SCSI Reference */
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
-	add_mode_control_extension(lu);
+	add_mode_control(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_information_exception(lu);
@@ -413,8 +372,6 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 
 void init_ult3580_td3(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto3;
 	ssc_pm.lu = lu;
@@ -426,7 +383,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	/* Based on 9th edition of IBM SCSI Reference */
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
-	add_mode_control_extension(lu);
+	add_mode_control(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_device_configuration_extention(lu);
@@ -460,14 +417,22 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 
 void init_ult3580_td4(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto4;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 
-	init_ult_mode_pages(lu);
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-4 */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -487,7 +452,10 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_lto2, 0);
@@ -505,14 +473,22 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 
 void init_ult3580_td5(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto5;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 
-	init_ult_mode_pages(lu);
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -535,7 +511,10 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_lto3, 0);

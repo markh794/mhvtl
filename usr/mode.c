@@ -160,6 +160,33 @@ int add_mode_disconnect_reconnect(struct lu_phy_attr *lu)
 }
 
 /*
+ * Control
+ * SPC3
+ */
+int add_mode_control(struct lu_phy_attr *lu)
+{
+	struct list_head *mode_pg;
+	struct mode *mp;
+	uint8_t pcode;
+	uint8_t size;
+
+	mode_pg = &lu->mode_pg;
+	pcode = MODE_CONTROL;
+	size = 12;
+
+	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	if (!mp)
+		return -ENOMEM;
+
+	mp->pcodePointer[0] = pcode;
+	mp->pcodePointer[1] = size
+				 - sizeof(mp->pcodePointer[0])
+				 - sizeof(mp->pcodePointer[1]);
+
+	return 0;
+}
+
+/*
  * Control Extension
  * SPC3
  */
@@ -171,10 +198,10 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
-	pcode = MODE_CONTROL_EXTENSION;
-	size = 12;
+	pcode = MODE_CONTROL;
+	size = 0x1c;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	mp = alloc_mode_page(mode_pg, pcode, 1, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -651,4 +678,27 @@ int add_mode_behavior_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[4] = 0; /* WORM Behavior */
 
 	return 0;
+}
+
+int update_prog_early_warning(struct lu_phy_attr *lu)
+{
+	uint8_t *mp;
+	struct mode *m;
+	struct list_head *mode_pg;
+	struct priv_lu_ssc *lu_priv;
+
+	mode_pg = &lu->mode_pg;
+	lu_priv = lu->lu_private;
+
+	m = lookup_pcode(mode_pg, MODE_DEVICE_CONFIGURATION, 1);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			mode_pg, m, m->pcodePointer);
+	if (m) {
+		mp = m->pcodePointer;
+		if (!mp)
+			return SAM_STAT_GOOD;
+
+		put_unaligned_be16(lu_priv->prog_early_warning_sz, &mp[6]);
+	}
+	return SAM_STAT_GOOD;
 }

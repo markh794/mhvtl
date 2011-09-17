@@ -157,6 +157,7 @@ extern int verbose;
 #define	VOLTAG_LEN	36	/* size of voltag area in RES descriptor */
 
 #define VPD_83_SZ 50
+#define VPD_86_SZ 0x3c
 #define VPD_B0_SZ 4
 #define VPD_B1_SZ SCSI_SN_LEN
 #define VPD_B2_SZ 8
@@ -543,6 +544,7 @@ uint8_t set_compression_mode_pg(struct list_head *l, int lvl);
 void rmnl(char *s, unsigned char c, int len);
 char *get_version(void);
 
+void update_vpd_86(struct lu_phy_attr *lu, void *p);
 void update_vpd_b0(struct lu_phy_attr *lu, void *p);
 void update_vpd_b1(struct lu_phy_attr *lu, void *p);
 void update_vpd_b2(struct lu_phy_attr *lu, void *p);

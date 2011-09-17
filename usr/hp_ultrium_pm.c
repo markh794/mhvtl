@@ -174,6 +174,10 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
+	pg = 0x86 & 0x7f;
+	lu->lu_vpd[pg] = alloc_vpd(VPD_86_SZ);
+	lu->lu_vpd[pg]->vpd_update = update_vpd_86;
+
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = 0xb0 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
@@ -284,19 +288,6 @@ static uint8_t hp_cleaning(void *ssc_priv)
 	return 0;
 }
 
-static void init_hp_mode_pages(struct lu_phy_attr *lu)
-{
-	add_mode_page_rw_err_recovery(lu);
-	add_mode_disconnect_reconnect(lu);
-	add_mode_control_extension(lu);
-	add_mode_data_compression(lu);
-	add_mode_device_configuration(lu);
-	add_mode_medium_partition(lu);
-	add_mode_power_condition(lu);
-	add_mode_information_exception(lu);
-	add_mode_medium_configuration(lu);
-}
-
 static char *pm_name_lto1 = "HP LTO-1";
 static char *pm_name_lto2 = "HP LTO-2";
 static char *pm_name_lto3 = "HP LTO-3";
@@ -314,13 +305,21 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_hp_ult_1(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto1;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_hp_mode_pages(lu);
+	ssc_pm.native_drive_density = &density_lto1;
+
+	/* IBM Ultrium SCSI Reference (5edition - Oct 2001)
+	 * lists these mode pages
+	 */
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_information_exception(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -329,8 +328,9 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_lto1;
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 	add_density_support(&lu->den_list, &density_lto1, 1);
 	add_drive_media_list(lu, LOAD_RW, "LTO1");
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
@@ -338,13 +338,23 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 
 void init_hp_ult_2(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto2;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_hp_mode_pages(lu);
+
+	ssc_pm.native_drive_density = &density_lto2;
+
+	/* Based on 9th edition of IBM SCSI Reference */
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_behavior_configuration(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -353,8 +363,9 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_lto2;
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 	add_density_support(&lu->den_list, &density_lto1, 1);
 	add_density_support(&lu->den_list, &density_lto2, 1);
 	add_drive_media_list(lu, LOAD_RW, "LTO1");
@@ -365,13 +376,26 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 
 void init_hp_ult_3(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto3;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_hp_mode_pages(lu);
+	ssc_pm.native_drive_density = &density_lto3;
+	ssc_pm.clear_WORM = clear_ult_WORM;
+	ssc_pm.set_WORM = set_ult_WORM;
+
+	/* Based on 9th edition of IBM SCSI Reference */
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_behavior_configuration(lu);
+	add_mode_vendor_25h_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -380,10 +404,9 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_lto3;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 	add_density_support(&lu->den_list, &density_lto1, 0);
 	add_density_support(&lu->den_list, &density_lto2, 1);
 	add_density_support(&lu->den_list, &density_lto3, 1);
@@ -398,13 +421,26 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 
 void init_hp_ult_4(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto4;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_hp_mode_pages(lu);
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-4 */
+	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_encryption_mode_attribute(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -413,13 +449,17 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+
 	ssc_pm.native_drive_density = &density_lto4;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
 	ssc_pm.encryption_capabilities = encr_capabilities_ult,
 	ssc_pm.kad_validation = hp_lto_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_lto2, 0);
@@ -437,13 +477,29 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 
 void init_hp_ult_5(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	init_ult_inquiry(lu);
 	ssc_pm.name = pm_name_lto5;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
-	init_hp_mode_pages(lu);
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_encryption_mode_attribute(lu);
+
+	/* Supports non-zero programable early warning */
+	update_prog_early_warning(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -452,13 +508,17 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+
 	ssc_pm.native_drive_density = &density_lto5;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
 	ssc_pm.encryption_capabilities = encr_capabilities_ult,
 	ssc_pm.kad_validation = hp_lto_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20; /* Capacity units in MBytes */
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_lto3, 0);
@@ -475,4 +535,3 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO5 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO5 ENCR");
 }
-

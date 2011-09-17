@@ -720,6 +720,16 @@ void rmnl(char *s, unsigned char c, int len)
 	}
 }
 
+void update_vpd_86(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
+	uint8_t *worm;
+
+	worm = p;
+
+	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
+}
+
 void update_vpd_b0(struct lu_phy_attr *lu, void *p)
 {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];

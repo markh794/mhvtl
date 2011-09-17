@@ -228,7 +228,7 @@ static uint8_t ait_cleaning(void *ssc_priv)
 static void init_ait_mode_pages(struct lu_phy_attr *lu)
 {
 	add_mode_disconnect_reconnect(lu);
-	add_mode_control_extension(lu);
+	add_mode_control(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_medium_partition(lu);

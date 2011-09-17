@@ -200,7 +200,7 @@ static void init_default_mode_pages(struct lu_phy_attr *lu)
 {
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
-	add_mode_control_extension(lu);
+	add_mode_control(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_medium_partition(lu);
