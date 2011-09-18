@@ -1177,8 +1177,9 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 	struct list_head *l_head;
 	struct log_pg_list *l;
 	struct error_counter *_err_counter;
+	char msg[64];
 
-	MHVTL_DBG(1, "LOG SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
+	sprintf(msg, "LOG SENSE (%ld) ** : ", (long)cmd->dbuf_p->serialNo);
 
 	alloc_len = get_unaligned_be16(&cdb[7]);
 	cmd->dbuf_p->sz = alloc_len;
@@ -1191,7 +1192,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 
 	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
-		MHVTL_DBG(1, "LOG SENSE: Sending supported pages");
+		MHVTL_DBG(1, "%s %s", msg, "Sending supported pages");
 		memset(b, 0, 4);	/* Clear first few (4) bytes */
 		i = 4;
 		b[i++] = 0;	/* b[0] is log page '0' (this one) */
@@ -1204,7 +1205,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		retval = i;
 		break;
 	case WRITE_ERROR_COUNTER:	/* Write error page */
-		MHVTL_DBG(1, "LOG SENSE: Write error page");
+		MHVTL_DBG(1, "%s %s", msg, "Write error page");
 		l = lookup_log_pg(l_head, WRITE_ERROR_COUNTER);
 		if (!l)
 			goto log_page_not_found;
@@ -1216,7 +1217,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		retval = l->size;
 		break;
 	case READ_ERROR_COUNTER:	/* Read error page */
-		MHVTL_DBG(1, "LOG SENSE: Read error page");
+		MHVTL_DBG(1, "%s %s", msg, "Read error page");
 		l = lookup_log_pg(&lu->log_pg, READ_ERROR_COUNTER);
 		if (!l)
 			goto log_page_not_found;
@@ -1228,7 +1229,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		retval = l->size;
 		break;
 	case SEQUENTIAL_ACCESS_DEVICE:
-		MHVTL_DBG(1, "LOG SENSE: Sequential Access Device Log page");
+		MHVTL_DBG(1, "%s %s", msg, "Sequential Access Device Log page");
 		l = lookup_log_pg(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE);
 		if (!l)
 			goto log_page_not_found;
@@ -1237,7 +1238,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		retval = l->size;
 		break;
 	case TEMPERATURE_PAGE:	/* Temperature page */
-		MHVTL_DBG(1, "LOG SENSE: Temperature page");
+		MHVTL_DBG(1, "%s %s", msg, "Temperature page");
 		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE);
 		if (!l)
 			goto log_page_not_found;
@@ -1246,7 +1247,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		retval = l->size;
 		break;
 	case TAPE_ALERT:	/* TapeAlert page */
-		MHVTL_DBG(1, "LOG SENSE: TapeAlert page");
+		MHVTL_DBG(1, "%s %s", msg, "TapeAlert page");
 /*		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,
 				get_unaligned_be64(&seqAccessDevice.TapeAlert));
 */
@@ -1266,7 +1267,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 				" Not clearing TapeAlert flags.");
 		break;
 	case TAPE_USAGE:	/* Tape Usage Log */
-		MHVTL_DBG(1, "LOG SENSE: Tape Usage page");
+		MHVTL_DBG(1, "%s %s", msg, "Tape Usage page");
 		l = lookup_log_pg(&lu->log_pg, TAPE_USAGE);
 		if (!l)
 			goto log_page_not_found;
@@ -1275,7 +1276,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		retval = l->size;
 		break;
 	case TAPE_CAPACITY: {	/* Tape Capacity page */
-		MHVTL_DBG(1, "LOG SENSE: Tape Capacity page");
+		MHVTL_DBG(1, "%s %s", msg, "Tape Capacity page");
 		struct TapeCapacity *tp;
 
 		l = lookup_log_pg(&lu->log_pg, TAPE_USAGE);
@@ -1303,7 +1304,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		}
 		break;
 	case DATA_COMPRESSION:	/* Data Compression page */
-		MHVTL_DBG(1, "LOG SENSE: Data Compression page");
+		MHVTL_DBG(1, "%s %s", msg, "Data Compression page");
 		l = lookup_log_pg(&lu->log_pg, DATA_COMPRESSION);
 		if (!l)
 			goto log_page_not_found;
@@ -1312,7 +1313,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		retval = l->size;
 		break;
 	default:
-		MHVTL_DBG(1, "LOG SENSE: Unknown code: 0x%x", cdb[2] & 0x3f);
+		MHVTL_DBG(1, "%s Unknown code: 0x%x", msg, cdb[2] & 0x3f);
 		goto log_page_not_found;
 		break;
 	}
