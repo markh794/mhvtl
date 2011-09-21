@@ -570,6 +570,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	MHVTL_DBG(2, " Page Control  : %s(0x%x)",
 				pcontrolString[pcontrol], pcontrol);
 	MHVTL_DBG(2, " Page Code     : 0x%x", pcode);
+	MHVTL_DBG(2, " Subpage Code  : 0x%x", subpcode);
 	MHVTL_DBG(2, " Disable Block Descriptor => %s",
 				(blockDescriptorLen) ? "No" : "Yes");
 	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
