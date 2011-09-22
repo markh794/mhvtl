@@ -752,6 +752,9 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 		return 0;
 	}
 
+	rc = tgtsize;
+	uncompress_sz = blk_size;
+
 	/* If the scsi read buffer is at least as big as the size of
 	   the uncompressed data then we can uncompress directly into
 	   the read buffer.  If not, then we need an extra buffer to
@@ -759,20 +762,22 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	   read buffer.
 	*/
 
-	if (tgtsize < blk_size) {
-		if ((c2buf = malloc(blk_size)) == NULL) {
+	if (tgtsize == blk_size) {
+		/* block sizes match, uncompress directly into buf */
+		z = uncompress(buf, &uncompress_sz, cbuf, disk_blk_size);
+	} else {
+		/* Initiator hasn't requested same size as data block */
+		if ((c2buf = malloc(uncompress_sz)) == NULL) {
 			MHVTL_LOG("Out of memory: %d", __LINE__);
 			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
 		}
-	} else {
-		c2buf = buf;
+		z = uncompress(c2buf, &uncompress_sz, cbuf, disk_blk_size);
+		/* Now copy 'requested size' of data into buffer */
+		memcpy(buf, c2buf, tgtsize);
+		free(c2buf);
 	}
-
-	rc = tgtsize;
-	uncompress_sz = blk_size;
-	z = uncompress(c2buf, &uncompress_sz, cbuf, disk_blk_size);
 
 	switch (z) {
 	case Z_OK:
@@ -798,11 +803,6 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 		break;
 	}
 	free(cbuf);
-
-	if (c2buf != buf) {
-		memcpy(buf, c2buf, rc);
-		free(c2buf);
-	}
 
 	if (rc != request_sz)
 		mk_sense_short_block(request_sz, rc, sam_stat);
