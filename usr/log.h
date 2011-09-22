@@ -199,14 +199,30 @@ struct	seqAccessDevice {
 	struct log_pg_header	pcode_head;
 
 	struct pc_header h_writeDataB4;
-	uint64_t writeDataB4Compression;
+	uint64_t writeDataB4Compression; /* Write. Bytes from initiator */
 	struct pc_header h_writeData_Af;
-	uint64_t writeDataAfCompression;
+	uint64_t writeDataAfCompression; /* Write. Bytes written to media */
 
 	struct pc_header h_readData_b4;
-	uint64_t readDataB4Compression;
+	uint64_t readDataB4Compression; /* Read. Bytes read from media */
 	struct pc_header h_readData_Af;
-	uint64_t readDataAfCompression;
+	uint64_t readDataAfCompression; /* Read. Bytes to initiator */
+
+	struct pc_header h_bop_eod;
+	uint32_t capacity_bop_eod; /* Native capacity BOT to EOD */
+
+	struct pc_header h_bop_ew;
+	uint32_t capacity_bop_ew; /* Native capacity BOP to EW */
+
+	struct pc_header h_ew_leop;
+	uint32_t capacity_ew_leop; /* Native capacity EW and
+				    * Logical End Of Partition */
+
+	struct pc_header h_bop_curr;
+	uint32_t capacity_bop_curr; /* Native capacity BOP to curr pos */
+
+	struct pc_header h_buffer;
+	uint32_t capacity_buffer; /* Native capacity in buffer */
 
 	struct pc_header h_cleaning;
 	uint64_t TapeAlert;
@@ -220,7 +236,7 @@ struct	seqAccessDevice {
 	struct pc_header h_clean;	/* Header of clean */
 	uint32_t clean_cycle;
 
-	};
+	} __attribute__((packed));
 
 void setTapeAlert(struct TapeAlert_page *, uint64_t);
 void initTapeAlert(struct TapeAlert_page *);

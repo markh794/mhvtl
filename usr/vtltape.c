@@ -733,6 +733,8 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 			if (request_sz < blk_size)
 				mk_sense_short_block(request_sz, blk_size, sam_stat);
 		}
+		lu_ssc.bytesRead_I += tgtsize;
+		lu_ssc.bytesRead_M += tgtsize;
 		return tgtsize;
 	}
 
@@ -780,6 +782,9 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 		memcpy(buf, c2buf, tgtsize);
 		free(c2buf);
 	}
+
+	lu_ssc.bytesRead_I += blk_size;
+	lu_ssc.bytesRead_M += disk_blk_size;
 
 	switch (z) {
 	case Z_OK:
@@ -884,8 +889,14 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop, sam_stat);
 
-	if (*lu_priv->compressionFactor != Z_NO_COMPRESSION)
+	if (*lu_priv->compressionFactor != Z_NO_COMPRESSION) {
 		free(dest_buf);
+		lu_priv->bytesWritten_I += src_len;
+		lu_priv->bytesWritten_M += dest_len;
+	} else {
+		lu_priv->bytesWritten_I += src_len;
+		lu_priv->bytesWritten_M += dest_len;
+	}
 
 	if (rc < 0)
 		return 0;
@@ -1314,16 +1325,16 @@ static void updateMAM(uint8_t *sam_stat, int loadCount)
 	MHVTL_DBG(2, "updateMAM(%d)", loadCount);
 
 	/* Update bytes written this load. */
-	put_unaligned_be64(lu_ssc.bytesWritten, &mam.WrittenInLastLoad);
-	put_unaligned_be64(lu_ssc.bytesRead, &mam.ReadInLastLoad);
+	put_unaligned_be64(lu_ssc.bytesWritten_I, &mam.WrittenInLastLoad);
+	put_unaligned_be64(lu_ssc.bytesRead_I, &mam.ReadInLastLoad);
 
 	/* Update total bytes read/written */
 	bw = get_unaligned_be64(&mam.WrittenInMediumLife);
-	bw += lu_ssc.bytesWritten;
+	bw += lu_ssc.bytesWritten_I;
 	put_unaligned_be64(bw, &mam.WrittenInMediumLife);
 
 	br = get_unaligned_be64(&mam.ReadInMediumLife);
-	br += lu_ssc.bytesRead;
+	br += lu_ssc.bytesRead_I;
 	put_unaligned_be64(br, &mam.ReadInMediumLife);
 
 	/* Update load count */
@@ -1425,8 +1436,10 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	struct media_details *m_detail;
 	struct lu_phy_attr *lu;
 
-	lu_ssc.bytesWritten = 0;	/* Global - Bytes written this load */
-	lu_ssc.bytesRead = 0;		/* Global - Bytes rearead this load */
+	lu_ssc.bytesWritten_I = 0;	/* Global - Bytes written this load */
+	lu_ssc.bytesWritten_M = 0;	/* Global - Bytes written this load */
+	lu_ssc.bytesRead_I = 0;		/* Global - Bytes read this load */
+	lu_ssc.bytesRead_M = 0;		/* Global - Bytes read this load */
 	lu = lu_ssc.pm->lu;
 
 	rc = load_tape(PCL, sam_stat);
@@ -2273,8 +2286,10 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	lu_priv->MediaWriteProtect = MEDIA_WRITABLE;
 	lu_priv->capacity_unit = 1;
 	lu_priv->configCompressionFactor = Z_BEST_SPEED;
-	lu_priv->bytesRead = 0;
-	lu_priv->bytesWritten = 0;
+	lu_priv->bytesRead_I = 0;
+	lu_priv->bytesRead_M = 0;
+	lu_priv->bytesWritten_I = 0;
+	lu_priv->bytesWritten_M = 0;
 	lu_priv->c_pos = c_pos;
 	lu_priv->KEY_INSTANCE_COUNTER = 0;
 	lu_priv->DECRYPT_MODE = 0;

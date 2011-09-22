@@ -142,7 +142,6 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	}
 	if (retval > (sz * count))
 		retval = sz * count;
-	lu_ssc->bytesRead += retval;
 
 	return *sam_stat;
 }
@@ -197,7 +196,6 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 	if (OK_to_write) {
 		for (k = 0; k < count; k++) {
 			retval = writeBlock(cmd, sz);
-			lu_ssc->bytesWritten += retval;
 			dbuf_p->data += retval;
 
 			/* If sam_stat != SAM_STAT_GOOD, return */
@@ -1179,11 +1177,42 @@ uint8_t ssc_pr_in(struct scsi_cmd *cmd)
 		return resp_spc_pri(cmd->scb, cmd->dbuf_p);
 }
 
+static void update_seq_access_counters(struct seqAccessDevice *sa,
+				struct priv_lu_ssc *lu_ssc)
+{
+	put_unaligned_be64(lu_ssc->bytesWritten_I,
+				&sa->writeDataB4Compression);
+	put_unaligned_be64(lu_ssc->bytesWritten_M,
+				&sa->writeDataAfCompression);
+	put_unaligned_be64(lu_ssc->bytesRead_M,
+				&sa->readDataB4Compression);
+	put_unaligned_be64(lu_ssc->bytesRead_I,
+				&sa->readDataAfCompression);
+
+	/* Values in MBytes */
+	if (lu_ssc->tapeLoaded == TAPE_LOADED) {
+		put_unaligned_be32(lu_ssc->max_capacity >> 20,
+					&sa->capacity_bop_eod);
+		put_unaligned_be32(lu_ssc->early_warning_position >> 20,
+					&sa->capacity_bop_ew);
+		put_unaligned_be32(lu_ssc->early_warning_sz >> 20,
+					&sa->capacity_ew_leop);
+		put_unaligned_be32(current_tape_offset() >> 20,
+					&sa->capacity_bop_curr);
+	} else {
+		put_unaligned_be32(0xffffffff, &sa->capacity_bop_eod);
+		put_unaligned_be32(0xffffffff, &sa->capacity_bop_ew);
+		put_unaligned_be32(0xffffffff, &sa->capacity_ew_leop);
+		put_unaligned_be32(0xffffffff, &sa->capacity_bop_curr);
+	}
+
+}
+
 uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 {
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_ssc;
-	uint8_t	*b = cmd->dbuf_p->data;
+	uint8_t *b = cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
 	uint8_t *sam_stat;
 	int retval;
@@ -1191,7 +1220,6 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 	uint16_t alloc_len;
 	struct list_head *l_head;
 	struct log_pg_list *l;
-	struct error_counter *_err_counter;
 	char msg[64];
 
 	sprintf(msg, "LOG SENSE (%ld) ** : ", (long)cmd->dbuf_p->serialNo);
@@ -1226,9 +1254,6 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 			goto log_page_not_found;
 
 		b = memcpy(b, l->p, l->size);
-		_err_counter = (struct error_counter *)b;
-		put_unaligned_be64(lu_ssc->bytesWritten,
-					&_err_counter->bytesProcessed);
 		retval = l->size;
 		break;
 	case READ_ERROR_COUNTER:	/* Read error page */
@@ -1238,9 +1263,6 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 			goto log_page_not_found;
 
 		b = memcpy(b, l->p, l->size);
-		_err_counter = (struct error_counter *)b;
-		put_unaligned_be64(lu_ssc->bytesRead,
-					&_err_counter->bytesProcessed);
 		retval = l->size;
 		break;
 	case SEQUENTIAL_ACCESS_DEVICE:
@@ -1250,6 +1272,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 			goto log_page_not_found;
 
 		b = memcpy(b, l->p, l->size);
+		update_seq_access_counters((struct seqAccessDevice *)b, lu_ssc);
 		retval = l->size;
 		break;
 	case TEMPERATURE_PAGE:	/* Temperature page */
@@ -1263,9 +1286,6 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		break;
 	case TAPE_ALERT:	/* TapeAlert page */
 		MHVTL_DBG(1, "%s %s", msg, "TapeAlert page");
-/*		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,
-				get_unaligned_be64(&seqAccessDevice.TapeAlert));
-*/
 
 		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
 		if (!l)

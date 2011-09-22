@@ -107,8 +107,10 @@ struct priv_lu_ssc {
 	struct MAM *mamp;
 
 	uint64_t max_capacity; /* save MAM.max_capacity here for quick access */
-	uint64_t bytesRead;
-	uint64_t bytesWritten;
+	uint64_t bytesRead_M;	/* Bytes read from media */
+	uint64_t bytesRead_I;	/* Bytes read and sent to initiator */
+	uint64_t bytesWritten_M; /* Bytes written to media (compressed) */
+	uint64_t bytesWritten_I; /* Bytes recevied from initiator */
 
 	struct blk_header *c_pos;
 
