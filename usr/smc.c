@@ -867,7 +867,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 					(voltag == 0) ? "No" :  "Yes");
 
 	/* Set alloc_len to smallest value */
-	alloc_len = min(alloc_len, cmd->lu->bufsize);
+	alloc_len = min(alloc_len, smc_p->bufsize);
 
 	/* Init buffer */
 	memset(buf, 0, alloc_len);

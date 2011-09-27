@@ -1096,12 +1096,17 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	INIT_LIST_HEAD(&smc_slots.drive_list);
 	INIT_LIST_HEAD(&smc_slots.media_list);
 
+	smc_slots.num_drives = 0;
+	smc_slots.num_picker = 0;
+	smc_slots.num_map = 0;
+	smc_slots.num_storage = 0;
+	smc_slots.bufsize = SMC_BUF_SIZE;
+
 	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
 	lu->removable = 1;	/* Supports removable media */
 	lu->version_desc[0] = 0x0300;	/* SPC-3 No version claimed */
 	lu->version_desc[1] = 0x0960;	/* iSCSI */
 	lu->version_desc[2] = 0x0200;	/* SSC */
-	lu->bufsize = SMC_BUF_SIZE;
 
 	/* Unit Serial Number */
 	pg = 0x80 & 0x7f;
@@ -1255,11 +1260,6 @@ void rereadconfig(int sig)
 		list_del(&logp->siblings);
 		free(logp);
 	}
-
-	smc_slots.num_drives = 0;
-	smc_slots.num_picker = 0;
-	smc_slots.num_map = 0;
-	smc_slots.num_storage = 0;
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
 		printf("Can not find entry for '%ld' in config file\n", my_id);

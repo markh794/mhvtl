@@ -415,7 +415,6 @@ struct lu_phy_attr {
 
 	struct device_type_template *scsi_ops;
 
-	uint32_t bufsize;
 	uint8_t *naa;
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 	void *lu_private;	/* Private data struct per lu */
@@ -465,6 +464,7 @@ struct s_info { /* Slot Info */
 };
 
 struct smc_priv {
+	uint32_t bufsize;
 	struct list_head drive_list;
 	struct list_head slot_list;
 	struct list_head media_list;
