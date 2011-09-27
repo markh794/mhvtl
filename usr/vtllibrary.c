@@ -375,13 +375,13 @@ static struct s_info * locate_empty_map(void)
 
 static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 {
-	struct smc_priv *slot_layout;
+	struct smc_priv *smc_p;
 	struct list_head *media_list_head;
 	struct m_info *m;
 	int match;
 
-	slot_layout = lu->lu_private;
-	media_list_head = &slot_layout->media_list;
+	smc_p = lu->lu_private;
+	media_list_head = &smc_p->media_list;
 
 	list_for_each_entry(m, media_list_head, siblings) {
 		match = strncmp(m->barcode, barcode, MAX_BARCODE_LEN + 1);
@@ -397,7 +397,7 @@ static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 
 static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 {
-	struct smc_priv *slot_layout;
+	struct smc_priv *smc_p;
 	struct list_head *media_list_head;
 	struct m_info *m;
 
@@ -418,8 +418,8 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 		exit(-ENOMEM);
 	}
 
-	slot_layout = lu->lu_private;
-	media_list_head = &slot_layout->media_list;
+	smc_p = lu->lu_private;
+	media_list_head = &smc_p->media_list;
 
 	memset(m, 0, sizeof(struct m_info));
 
@@ -598,12 +598,12 @@ return 0;
 
 static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
 {
-	struct smc_priv *slot_layout;
+	struct smc_priv *smc_p;
 	struct list_head *drive_list_head;
 	struct d_info *d;
 
-	slot_layout = lu->lu_private;
-	drive_list_head = &slot_layout->drive_list;
+	smc_p = lu->lu_private;
+	drive_list_head = &smc_p->drive_list;
 
 	list_for_each_entry(d, drive_list_head, siblings) {
 		if (d->slot->slot_location == drive_no)
@@ -615,12 +615,12 @@ return NULL;
 
 static struct s_info *lookup_slot(struct lu_phy_attr *lu, unsigned int slot)
 {
-	struct smc_priv *slot_layout;
+	struct smc_priv *smc_p;
 	struct list_head *slot_list_head;
 	struct s_info *s;
 
-	slot_layout = lu->lu_private;
-	slot_list_head = &slot_layout->slot_list;
+	smc_p = lu->lu_private;
+	slot_list_head = &smc_p->slot_list;
 
 	list_for_each_entry(s, slot_list_head, siblings) {
 		if (s->slot_location == slot)
@@ -633,11 +633,11 @@ return NULL;
 struct s_info *add_new_slot(struct lu_phy_attr *lu)
 {
 	struct s_info *new;
-	struct smc_priv *slot_layout;
+	struct smc_priv *smc_p;
 	struct list_head *slot_list_head;
 
-	slot_layout = lu->lu_private;
-	slot_list_head = &slot_layout->slot_list;
+	smc_p = lu->lu_private;
+	slot_list_head = &smc_p->slot_list;
 
 	new = malloc(sizeof(struct s_info));
 	if (!new) {
@@ -679,7 +679,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	long drv_id, lib_id;
 	struct d_info *dp;
 	struct s_info *sp;
-	struct smc_priv *slot_layout = lu->lu_private;
+	struct smc_priv *smc_p = lu->lu_private;
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -728,7 +728,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 				dp->slot = sp;
 				sp->drive = dp;
 				list_add_tail(&dp->siblings,
-						&slot_layout->drive_list);
+						&smc_p->drive_list);
 			}
 			dp->drv_id = drv_id;
 			continue;
@@ -783,7 +783,7 @@ static void init_slot_info(struct lu_phy_attr *lu)
 	char *barcode;
 	int slt;
 	int x;
-	struct smc_priv *slot_layout = lu->lu_private;
+	struct smc_priv *smc_p = lu->lu_private;
 
 	sprintf(conf, MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
 	ctrl = fopen(conf , "r");
@@ -829,7 +829,7 @@ static void init_slot_info(struct lu_phy_attr *lu)
 				dp->slot = sp;
 				sp->drive = dp;
 				list_add_tail(&dp->siblings,
-						&slot_layout->drive_list);
+						&smc_p->drive_list);
 			}
 		}
 
@@ -841,7 +841,7 @@ static void init_slot_info(struct lu_phy_attr *lu)
 		case 1:
 			dp->slot->slot_location = slt + START_DRIVE - 1;
 			dp->slot->status = STATUS_Access;
-			slot_layout->num_drives++;
+			smc_p->num_drives++;
 			break;
 		}
 
@@ -849,7 +849,7 @@ static void init_slot_info(struct lu_phy_attr *lu)
 		if (x) {
 			sp = add_new_slot(lu);
 			sp->element_type = MAP_ELEMENT;
-			slot_layout->num_map++;
+			smc_p->num_map++;
 		}
 
 		switch (x) {
@@ -872,7 +872,7 @@ static void init_slot_info(struct lu_phy_attr *lu)
 		if (x) {
 			sp = add_new_slot(lu);
 			sp->element_type = MEDIUM_TRANSPORT;
-			slot_layout->num_picker++;
+			smc_p->num_picker++;
 		}
 
 		switch (x) {
@@ -892,7 +892,7 @@ static void init_slot_info(struct lu_phy_attr *lu)
 		if (x) {
 			sp = add_new_slot(lu);
 			sp->element_type = STORAGE_ELEMENT;
-			slot_layout->num_storage++;
+			smc_p->num_storage++;
 		}
 
 		switch (x) {
