@@ -375,13 +375,11 @@ static struct s_info * locate_empty_map(void)
 
 static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 {
-	struct smc_priv *smc_p;
 	struct list_head *media_list_head;
 	struct m_info *m;
 	int match;
 
-	smc_p = lu->lu_private;
-	media_list_head = &smc_p->media_list;
+	media_list_head = &((struct smc_priv *)lu->lu_private)->media_list;
 
 	list_for_each_entry(m, media_list_head, siblings) {
 		match = strncmp(m->barcode, barcode, MAX_BARCODE_LEN + 1);
@@ -397,7 +395,6 @@ static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 
 static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 {
-	struct smc_priv *smc_p;
 	struct list_head *media_list_head;
 	struct m_info *m;
 
@@ -418,8 +415,7 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 		exit(-ENOMEM);
 	}
 
-	smc_p = lu->lu_private;
-	media_list_head = &smc_p->media_list;
+	media_list_head = &((struct smc_priv *)lu->lu_private)->media_list;
 
 	memset(m, 0, sizeof(struct m_info));
 
@@ -598,12 +594,10 @@ return 0;
 
 static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
 {
-	struct smc_priv *smc_p;
 	struct list_head *drive_list_head;
 	struct d_info *d;
 
-	smc_p = lu->lu_private;
-	drive_list_head = &smc_p->drive_list;
+	drive_list_head = &((struct smc_priv *)lu->lu_private)->drive_list;
 
 	list_for_each_entry(d, drive_list_head, siblings) {
 		if (d->slot->slot_location == drive_no)
@@ -615,12 +609,10 @@ return NULL;
 
 static struct s_info *lookup_slot(struct lu_phy_attr *lu, unsigned int slot)
 {
-	struct smc_priv *smc_p;
 	struct list_head *slot_list_head;
 	struct s_info *s;
 
-	smc_p = lu->lu_private;
-	slot_list_head = &smc_p->slot_list;
+	slot_list_head = &((struct smc_priv *)lu->lu_private)->slot_list;
 
 	list_for_each_entry(s, slot_list_head, siblings) {
 		if (s->slot_location == slot)
@@ -633,11 +625,9 @@ return NULL;
 struct s_info *add_new_slot(struct lu_phy_attr *lu)
 {
 	struct s_info *new;
-	struct smc_priv *smc_p;
 	struct list_head *slot_list_head;
 
-	smc_p = lu->lu_private;
-	slot_list_head = &smc_p->slot_list;
+	slot_list_head = &((struct smc_priv *)lu->lu_private)->slot_list;
 
 	new = malloc(sizeof(struct s_info));
 	if (!new) {
