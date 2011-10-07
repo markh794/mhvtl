@@ -68,14 +68,14 @@ fi
 
 for a in $(awk '$1 == "Drive:" {print $2}' $DEVICE_CONF)
 do
-	vtltape -q $a $OPTIONS $FIFO${a}
+	vtltape -q $a $OPTIONS $FIFO
 done
 
 # Now we need to setup & configure libraries.
 
 for a in $(awk '$1 == "Library:" {print $2}' $DEVICE_CONF)
 do
-	vtllibrary -q $a $OPTIONS $FIFO${a}
+	vtllibrary -q $a $OPTIONS $FIFO
 done
 
 rm -f $TMP
