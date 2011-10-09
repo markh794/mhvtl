@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
-Version: 1.0
-Release: 2
-Source: mhvtl-2011-09-16.tgz
+Version: 1.1
+Release: 0
+Source: mhvtl-2011-10-09.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -158,6 +158,15 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Sun Oct 09 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.1
+- Added real time state notification.
+  '-f <fifo name>' (Set in build_library_config)
+  Defaults to all daemons using the same 'named pipe'
+  Each entry is prefixed with '<index>:' and text to the change of state.
+- MODE SENSE for LTO devices update the 'media type' field.
+- LOG SENSE page 0x0c (Sequential Access Device Page) updates with valid data
+
 * Sun Sep 11 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.0.1
 - Added mode page 25h (vendor specific) for IBM LTO3/4/5
