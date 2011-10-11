@@ -1599,12 +1599,13 @@ int main(int argc, char *argv[])
 		}
 	}
 exit:
-	fclose(fifo_fd);
-	if (fifoname)
-		unlink(fifoname);
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	free(buf);
+	if (fifoname) {
+		fclose(fifo_fd);
+		unlink(fifoname);
+	}
 
 	exit(0);
 }

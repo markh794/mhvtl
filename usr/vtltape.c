@@ -2608,10 +2608,11 @@ exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	close(ofp);
-	fclose(fifo_fd);
-	if (fifoname)
-		unlink(fifoname);
 	free(buf);
+	if (fifoname) {
+		fclose(fifo_fd);
+		unlink(fifoname);
+	}
 	exit(0);
 }
 
