@@ -420,6 +420,9 @@ struct lu_phy_attr {
 	void *lu_private;	/* Private data struct per lu */
 
 	struct report_luns report_luns;
+	FILE *fifo_fd;
+	char *fifoname;
+	int fifo_flag;
 };
 
 /* Drive Info */
@@ -575,6 +578,8 @@ void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);
 void checkstrlen(char *s, int len);
 extern int device_type_register(struct lu_phy_attr *lu,
 					struct device_type_template *t);
+
+void process_fifoname(struct lu_phy_attr *lu, char *s, int flag);
 
 uint8_t clear_WORM(struct list_head *l);
 uint8_t set_WORM(struct list_head *l);

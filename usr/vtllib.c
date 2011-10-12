@@ -547,7 +547,10 @@ int open_fifo(FILE **fifo_fd, char *fifoname)
 		ret = errno;
 	} else {
 		*fifo_fd = fopen(fifoname, "w+");
-		if (! *fifo_fd) {
+		if (*fifo_fd) {
+			MHVTL_DBG(2, "Successfully opened named pipe: %s",
+						fifoname);
+		} else {
 			MHVTL_LOG("Sorry, cant open %s: %s, "
 					"Disabling fifo feature",
 						fifoname, strerror(errno));
@@ -877,3 +880,21 @@ int add_density_support(struct list_head *l, struct density_info *di, int rw)
 	return 0;
 }
 
+void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
+{
+	MHVTL_DBG(3, "entry: %s, flag: %d, existing name: %s",
+				s, flag, lu->fifoname);
+	if (lu->fifo_flag)	/* fifo set via '-f <fifo>' switch */
+		return;
+	checkstrlen(s, MALLOC_SZ - 1);
+	if (lu->fifoname)
+		free(lu->fifoname);
+	lu->fifoname = malloc(strlen(s) + 2);
+	if (!lu->fifoname) {
+		printf("Unable to malloc fifo buffer");
+		exit(-ENOMEM);
+	}
+	lu->fifo_flag = flag;
+	/* Already checked for sane length */
+	strcpy(lu->fifoname, s);
+}

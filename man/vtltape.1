@@ -1,9 +1,9 @@
-.TH vtltape "1" "September 2011" "mhvtl 1.0" "User Commands"
+.TH vtltape "1" "September 2011" "mhvtl 1.1" "User Commands"
 .SH NAME
 vtltape \- user space daemon to handle SCSI SSC commands for Virtual Tape Library.
 .SH SYNOPSIS
 .B vtltape \fI-q <number>\fR
-[\fI-v|-d\fR]...
+[\fI-v|-d|-f fifo\fR]...
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
@@ -20,6 +20,12 @@ Enable debug logging (to stdout). Do not backgound the process.
 .TP
 \fB\-v\fR
 Enable verbose logging (to syslog)
+.TP
+\fB\-f fifo\fR
+Near real time device state information will be available for external utilities by reading from this fifo. This switch has a higher precedence than the 'fifo:' entry in
+.B
+device.conf
+
 .SH AUTHOR
 Written by Mark Harvey
 .SH BUGS

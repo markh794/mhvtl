@@ -1,4 +1,4 @@
-.TH device.conf "5" "September 2011" "mhvtl 1.0" "User Commands"
+.TH device.conf "5" "September 2011" "mhvtl 1.1" "User Commands"
 .SH NAME
 device.conf \- Configuration file for
 .BR vtllibrary(1)
@@ -17,6 +17,7 @@ Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
  Product revision level: 550V
  Unit serial number: XYZZY_A
  NAA: 10:22:33:44:ab:00:00:00
+ fifo: /var/tmp/mhvtl
 .PP
 Where descriptor
 .B Library:
@@ -55,6 +56,15 @@ is 1 through 9.
 .B Y
 .IP
 1: compression is enabled, 0: compression is disabled.
+
+.PP
+.B fifo:
+/some/where/for/named/pipe
+.PP
+If fifo: is defined, (near) real time state information will be available
+for external applications by reading from this named pipe.
+.PP
+Note: the '-f fifo' switch on daemon startup has higher precedence
 
 .SH AUTHOR
 Written by Mark Harvey

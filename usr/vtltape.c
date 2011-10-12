@@ -2121,6 +2121,10 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	den_list = &lu->den_list;
 	lu->scsi_ops = &ssc_ops;
 
+	lu->fifoname = NULL;
+	lu->fifo_fd = NULL;
+	lu->fifo_flag = 0;
+
 	conf = fopen(config , "r");
 	if (!conf) {
 		MHVTL_LOG("Can not open config file %s : %s",
@@ -2198,6 +2202,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				else
 					lu_ssc.configCompressionFactor = 0;
 			}
+			if (sscanf(b, " fifo: %s", s))
+				process_fifoname(lu, s, 0);
 			i = sscanf(b,
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
@@ -2325,13 +2331,10 @@ int main(int argc, char *argv[])
 	pid_t child_cleanup, pid, sid;
 	struct sigaction new_action, old_action;
 
-	FILE *fifo_fd = NULL;
-
 	char *progname = argv[0];
 	char *fifoname = NULL;
 	char *name = "mhvtl";
 	int minor = 0;
-	int use_fifo = 0;
 	struct passwd *pw;
 
 	struct vtl_header vtl_cmd;
@@ -2368,10 +2371,8 @@ int main(int argc, char *argv[])
 					my_id = atoi(argv[1]);
 				break;
 			case 'f':
-				if (argc > 1) {
-					use_fifo = 1;
+				if (argc > 1)
 					fifoname = argv[1];
-				}
 				break;
 			default:
 				usage(progname);
@@ -2523,8 +2524,12 @@ int main(int argc, char *argv[])
 	sigaction(SIGUSR1, &new_action, &old_action);
 	sigaction(SIGUSR2, &new_action, &old_action);
 
-	if (use_fifo)
-		open_fifo(&fifo_fd, fifoname);
+	/* If fifoname passed as switch */
+	if (fifoname)
+		process_fifoname(&lunit, fifoname, 1);
+	/* fifoname can be defined in device.conf */
+	if (lunit.fifoname)
+		open_fifo(&lunit.fifo_fd, lunit.fifoname);
 
 	for (;;) {
 		/* Check for anything in the messages Q */
@@ -2590,7 +2595,9 @@ int main(int argc, char *argv[])
 				break;
 			}
 			if (current_state != last_state) {
-				status_change(fifo_fd, current_state, my_id,
+				status_change(lunit.fifo_fd,
+							current_state,
+							my_id,
 							&lu_ssc.state_msg);
 				last_state = current_state;
 			}
@@ -2609,9 +2616,10 @@ exit:
 	close(cdev);
 	close(ofp);
 	free(buf);
-	if (fifoname) {
-		fclose(fifo_fd);
-		unlink(fifoname);
+	if (lunit.fifo_fd) {
+		fclose(lunit.fifo_fd);
+		unlink(lunit.fifoname);
+		free(lunit.fifoname);
 	}
 	exit(0);
 }

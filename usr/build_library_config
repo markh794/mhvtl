@@ -50,7 +50,7 @@ else
 	OPTIONS=""
 fi
 
-FIFO="-f /tmp/mhvtl"
+# FIFO="-f /tmp/mhvtl"
 
 if [ ! -f $DEVICE_CONF ]; then
 	echo "Sorry, Can't continue - no $DEVICE_CONF"

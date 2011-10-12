@@ -1016,6 +1016,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		exit(1);
 	}
 
+	lu->fifoname = NULL;
+	lu->fifo_fd = NULL;
+	lu->fifo_flag = 0;
 
 	/* While read in a line */
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
@@ -1062,6 +1065,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
 			}
+			if (sscanf(b, " fifo: %s", s))
+				process_fifoname(lu, s, 0);
+
 			i = sscanf(b,
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
@@ -1265,10 +1271,20 @@ void rereadconfig(int sig)
 		free(logp);
 	}
 
+	if (lunit.fifo_fd) {
+		fclose(lunit.fifo_fd);
+		free(lunit.fifoname);
+		lunit.fifo_fd = NULL;
+	}
+
 	if (!init_lu(&lunit, my_id, &ctl)) {
 		printf("Can not find entry for '%ld' in config file\n", my_id);
 		exit(1);
 	}
+
+	if (lunit.fifoname)
+		open_fifo(&lunit.fifo_fd, lunit.fifoname);
+
 	init_slot_info(&lunit);
 	update_drive_details(&lunit);
 	init_smc_mode_pages(&lunit);
@@ -1307,14 +1323,10 @@ int main(int argc, char *argv[])
 	pid_t pid, sid, child_cleanup;
 	struct sigaction new_action, old_action;
 
-	FILE *fifo_fd = NULL;
-
 	char *progname = argv[0];
 	char *name = "mhvtl";
 	char *fifoname = NULL;
 	struct passwd *pw;
-
-	int use_fifo = 0;
 
 	/* Message Q */
 	int mlen, r_qid;
@@ -1335,10 +1347,8 @@ int main(int argc, char *argv[])
 					my_id = atoi(argv[1]);
 				break;
 			case 'f':
-				if (argc > 1) {
-					use_fifo = 1;
+				if (argc > 1)
 					fifoname = argv[1];
-				}
 				break;
 			default:
 				usage(progname);
@@ -1540,8 +1550,12 @@ int main(int argc, char *argv[])
 		smc_slots.dvcid_serial_only = FALSE;
 	}
 
-	if (use_fifo)
-		open_fifo(&fifo_fd, fifoname);
+	/* If fifoname passed as switch */
+	if (fifoname)
+		process_fifoname(&lunit, fifoname, 1);
+	/* fifoname can be defined in device.conf */
+	if (lunit.fifoname)
+		open_fifo(&lunit.fifo_fd, lunit.fifoname);
 
 	for (;;) {
 		/* Check for any messages */
@@ -1589,7 +1603,9 @@ int main(int argc, char *argv[])
 				break;
 			}
 			if (current_state != last_state) {
-				status_change(fifo_fd, current_state, my_id,
+				status_change(lunit.fifo_fd,
+							current_state,
+							my_id,
 							&smc_slots.state_msg);
 				last_state = current_state;
 			}
@@ -1602,9 +1618,10 @@ exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	free(buf);
-	if (fifoname) {
-		fclose(fifo_fd);
-		unlink(fifoname);
+	if (lunit.fifo_fd) {
+		fclose(lunit.fifo_fd);
+		unlink(lunit.fifoname);
+		free(lunit.fifoname);
 	}
 
 	exit(0);
