@@ -59,6 +59,7 @@ echo " Product identification: $6" >> $DEVICE_CONF
 echo " Unit serial number: $8" >> $DEVICE_CONF
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
 		$ID $CH $TARGET $LUN >> $DEVICE_CONF
+echo " fifo: /var/tmp/mhvtl" >> $DEVICE_CONF
 echo "" >> $DEVICE_CONF
 }
 
