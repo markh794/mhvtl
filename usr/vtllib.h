@@ -67,13 +67,15 @@ extern int verbose;
 		syslog(LOG_DAEMON|LOG_INFO, format, ## arg);	\
 }
 
-#define MHVTL_LOG(format, arg...) {			\
-	if (debug)						\
+#define MHVTL_LOG(format, arg...) {				\
+	if (debug) {						\
 		printf("%s: %s: " format "\n",			\
 			vtl_driver_name, __func__, ## arg); 	\
-	else							\
+		fflush(NULL);					\
+	} else {						\
 		syslog(LOG_DAEMON|LOG_ERR, "%s: " format,	\
 			__func__, ## arg); 			\
+	}							\
 }
 
 #define MHVTL_DBG(lvl, format, arg...) {			\
@@ -596,6 +598,11 @@ void update_vpd_b1(struct lu_phy_attr *lu, void *p);
 void update_vpd_b2(struct lu_phy_attr *lu, void *p);
 void update_vpd_c0(struct lu_phy_attr *lu, void *p);
 void update_vpd_c1(struct lu_phy_attr *lu, void *p);
+
+int get_fifo_count(char *path);
+int dec_fifo_count(char *path);
+int inc_fifo_count(char *path);
+void cleanup_msg(void);
 
 int add_density_support(struct list_head *l, struct density_info *di, int rw);
 int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);

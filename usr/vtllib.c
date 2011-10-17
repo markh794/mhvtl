@@ -36,6 +36,10 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <sys/ipc.h>
+#include <semaphore.h>
+#include <sys/shm.h>
+#include <sys/msg.h>
 #include "be_byteshift.h"
 #include "list.h"
 #include "scsi.h"
@@ -44,6 +48,7 @@
 #include "ssc.h"
 #include <zlib.h>
 #include "log.h"
+#include "q.h"
 
 #ifndef Solaris
 	int ioctl(int, int, void *);
@@ -560,17 +565,17 @@ int open_fifo(FILE **fifo_fd, char *fifoname)
 	return ret;
 }
 
-void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg)
+void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg)
 {
-	if (! fifo_fd)
+	if (!fifo_fd)
 		return;
 
 	if (*msg) {
-		fprintf(fifo_fd, "%d: %s\n", my_id, *msg);
+		fprintf(fifo_fd, "%d: %s\n", m_id, *msg);
 		free(*msg);
 		*msg = NULL;
 	} else
-		fprintf(fifo_fd, "%d: %s\n", my_id,
+		fprintf(fifo_fd, "%d: %s\n", m_id,
 				state_desc[current_status].state_desc);
 
 	fflush(fifo_fd);
@@ -897,4 +902,215 @@ void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
 	lu->fifo_flag = flag;
 	/* Already checked for sane length */
 	strcpy(lu->fifoname, s);
+}
+
+/* Remove message queue */
+void cleanup_msg(void)
+{
+	int msqid;
+	int retval;
+	struct msqid_ds ds;
+
+	msqid = init_queue();
+	if (msqid < 0) {
+		MHVTL_LOG("Failed to open msg queue: %s", strerror(errno));
+		return;
+	}
+	retval = msgctl(msqid, IPC_RMID, &ds);
+	if (retval < 0) {
+		MHVTL_LOG("Failed to remove msg queue: %s", strerror(errno));
+	} else {
+		MHVTL_DBG(2, "Removed ipc resources");
+	}
+}
+
+#define QUERYSHM 0
+#define INCSHM	1
+#define DECSHM	2
+
+/* max number of unique 'fifo path names */
+#define MAX_SLOTS 128
+/* Assume enough space for each 'fifo path name' to be 120 chars or less */
+#define SHM_SIZE MAX_SLOTS * 128
+
+static int mhvtl_shared_mem(char *path, int flag)
+{
+	struct fifo_count {
+		int consumers;
+		int path_offset;
+	};
+
+	int mhvtl_shm;
+	int retval = -1;
+	int i;
+	int base_offset;
+	key_t key;
+	struct fifo_count *base;
+	struct shmid_ds buf;
+	char *fifo_path;
+	char *n_path;
+	char magic_string[] = "mhVTL";
+
+	/* Default to hard coded value */
+	if (path == NULL)
+		n_path = &magic_string[0];
+	else
+		n_path = path;
+
+	key = 0x4d61726b;
+	i = 0;
+
+	mhvtl_shm = shmget(key, SHM_SIZE, IPC_CREAT|0666);
+	if (mhvtl_shm < 0) {
+		printf("Attempt to get Shared memory failed\n");
+		MHVTL_LOG("Attempt to get shared memory failed");
+		return -ENOMEM;
+	}
+
+	base = shmat(mhvtl_shm, NULL, 0);
+	if (base == (void *) -1) {
+		MHVTL_LOG("Failed to attach to shm: %s", strerror(errno));
+		return -1;
+	}
+
+	base_offset = sizeof(struct fifo_count) * MAX_SLOTS;
+	fifo_path = (void *)base + base_offset;
+	i = 0;
+
+	if (!base[i].path_offset) {	/* index '0' special global counter */
+		base[i].path_offset = base_offset;
+		strcpy(fifo_path, magic_string);
+	}
+
+	/* Walk array looking for a string match or an empty slot */
+	for (i = 0; i < MAX_SLOTS; i++) {
+		if (base[i].path_offset) {
+			fifo_path = (void *)base + base[i].path_offset;
+			MHVTL_DBG(3, "Index %d in use, offset: %d, "
+					"path: %p (%s), count: %d",
+					i, base_offset, fifo_path, fifo_path,
+					base[i].consumers);
+			base_offset += strlen(fifo_path) + 1;
+		} else { /* Empty 'slot' */
+			base[i].path_offset = base_offset;
+			fifo_path = (void *)base + base_offset;
+			strcpy(fifo_path, n_path);
+
+			MHVTL_DBG(3, "Index %d unused, offset %d, "
+					"Addr %p, Added path: %s",
+					i, base_offset, fifo_path, n_path);
+
+			base_offset += strlen(n_path) + 1;
+
+			break;
+		}
+
+		MHVTL_DBG(3, "index : %d comparing %s with (fifo path) : %s",
+							i, n_path, fifo_path);
+		if (!strcmp(n_path, fifo_path))
+			break;
+	}
+
+	if (i >= MAX_SLOTS)
+		return retval;
+
+	if (base_offset > SHM_SIZE) {
+		MHVTL_LOG("Shared memory not large enough."
+			" Please report this bug !");
+		return retval;
+	}
+
+	switch (flag) {
+	case QUERYSHM:
+		break;
+	case INCSHM:
+		base[i].consumers++;
+		base[0].consumers++;
+		break;
+	case DECSHM:
+		/* Only dec total consumers IF dec of valid consumer */
+		if (base[i].consumers > 0) {
+			base[i].consumers--;
+
+			if (base[0].consumers > 0)
+				base[0].consumers--;
+		}
+
+		/* No more consumers - mark as remove */
+		if (base[0].consumers == 0) {
+			shmctl(mhvtl_shm, IPC_STAT, &buf);
+			shmctl(mhvtl_shm, IPC_RMID, &buf);
+			MHVTL_DBG(3, "pid of creator: %d,"
+					" pid of last shmat(): %d, "
+					" Number of current attach: %d",
+					buf.shm_cpid,
+					buf.shm_lpid,
+					(int)buf.shm_nattch);
+			/* Should be no more users of the message Q either */
+			cleanup_msg();
+		}
+		break;
+	}
+	MHVTL_DBG(3, "shm pointer: %s: count %d",
+				(char *)base + base[i].path_offset,
+				base[i].consumers);
+	MHVTL_DBG(2, "shm pointer: %s: count %d",
+				(char *)base + base[0].path_offset,
+				base[0].consumers);
+
+	retval = base[i].consumers;
+
+	shmdt(base);
+
+	return retval;
+}
+
+static int mhvtl_fifo_count(char *path, int direction)
+{
+	sem_t *mhvtl_sem;
+	int sval;
+	int i;
+	char errmsg[] = "mhvtl_sem";
+	int retval = -1;
+
+	mhvtl_sem = sem_open("/mhVTL", O_CREAT, 0664, 1);
+	if (SEM_FAILED == mhvtl_sem) {
+		MHVTL_LOG("%s : %s", errmsg, strerror(errno));
+		return retval;
+	}
+
+	sem_getvalue(mhvtl_sem, &sval);
+	for (i = 0; i < 10; i++) {
+		if (sem_trywait(mhvtl_sem)) {
+			MHVTL_LOG("Waiting for semaphore: %p", mhvtl_sem);
+			sleep(1);
+			if (i > 8)
+				/* Give up.. Clear the semaphore & do it */
+				MHVTL_LOG("waiting for semaphore: %p",
+								mhvtl_sem);
+				sem_post(mhvtl_sem);
+		} else {
+			retval = mhvtl_shared_mem(path, direction);
+			sem_post(mhvtl_sem);
+			break;
+		}
+	}
+
+	sem_close(mhvtl_sem);
+	return retval;
+}
+
+int dec_fifo_count(char *path)
+{
+	return mhvtl_fifo_count(path, DECSHM);
+}
+
+int inc_fifo_count(char *path)
+{
+	return mhvtl_fifo_count(path, INCSHM);
+}
+
+int get_fifo_count(char *path)
+{
+	return mhvtl_fifo_count(path, QUERYSHM);
 }

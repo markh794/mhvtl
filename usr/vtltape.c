@@ -1733,9 +1733,8 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		MHVTL_DBG(1, "Library requested tape unload");
 	}
 
-	if (!strncmp(msg->text, "exit", 4)) {
+	if (!strncmp(msg->text, "exit", 4))
 		return 1;
-	}
 
 	if (!strncmp(msg->text, "Register", 8)) {
 		lu_ssc.inLibrary = 1;
@@ -2330,6 +2329,7 @@ int main(int argc, char *argv[])
 	uint8_t *buf;
 	pid_t child_cleanup, pid, sid;
 	struct sigaction new_action, old_action;
+	int fifo_retval;
 
 	char *progname = argv[0];
 	char *fifoname = NULL;
@@ -2533,6 +2533,14 @@ int main(int argc, char *argv[])
 	if (lunit.fifoname)
 		open_fifo(&lunit.fifo_fd, lunit.fifoname);
 
+	fifo_retval = inc_fifo_count(lunit.fifoname);
+	if (fifo_retval == -ENOMEM) {
+		MHVTL_LOG("shared memory setup failed - exiting...");
+		goto exit;
+	} else if (fifo_retval < 0) {
+		MHVTL_LOG("Failed to set fifo count()...");
+	}
+
 	for (;;) {
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
@@ -2620,7 +2628,8 @@ exit:
 	free(buf);
 	if (lunit.fifo_fd) {
 		fclose(lunit.fifo_fd);
-		unlink(lunit.fifoname);
+		if (!dec_fifo_count(lunit.fifoname))
+			unlink(lunit.fifoname);
 		free(lunit.fifoname);
 	}
 	exit(0);
