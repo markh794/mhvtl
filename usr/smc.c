@@ -728,7 +728,7 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
  * Returns zero on success, or error code if illegal request.
  */
 static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
-				uint16_t *cur_count, uint32_t *cur_offset)
+				uint16_t *cur_count, uint32_t *cur_offset, uint32_t *need_bytes)
 {
 	struct smc_priv *smc_p;
 	uint16_t begin;
@@ -741,6 +741,7 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 	uint8_t	type = cdb[1] & 0x0f;
 	uint16_t max_count;
 	uint32_t max_bytes;
+	uint32_t element_sz;
 
 	max_count = get_unaligned_be16(&cdb[4]);
 	max_bytes = 0xffffff & get_unaligned_be32(&cdb[6]);
@@ -798,11 +799,16 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 
 	avail = min_addr + num_addr - begin;
 	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
-	space = (max_bytes - *cur_offset - 8) /
-				determine_element_sz(cmd, type);
+	element_sz = determine_element_sz(cmd, type);
+	space = (max_bytes - *cur_offset - 8) / element_sz;
+
 	count = space < count ? space : count;
+
+	*need_bytes = avail * element_sz + 8;
+
 	MHVTL_DBG(2, "avail: %d, count: %d, space: %d *cur_count: %d",
 			avail, count, space, *cur_count);
+	MHVTL_DBG(2, "*need_bytes: %d", *need_bytes);
 
 	if (count == 0) {
 		if (*cur_count == 0)
@@ -847,6 +853,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	uint16_t start_any;	/* First valid slot location */
 	uint32_t cur_offset;
 	uint16_t cur_count;
+	uint32_t need_bytes;
+	uint32_t all_bytes;
 	uint32_t ec;
 #ifdef MHVTL_DEBUG
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
@@ -915,6 +923,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	p = buf;
 	cur_offset = 8;
 	cur_count = 0;
+	need_bytes = 0;
+	all_bytes = 0;
 	ec = 0;
 
 	switch (typeCode) {
@@ -922,7 +932,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
 	case DATA_TRANSFER:
-		ec = fill_element_page(cmd, start, &cur_count, &cur_offset);
+		ec = fill_element_page(cmd, start, &cur_count, &cur_offset, &need_bytes);
+		all_bytes += need_bytes;
 		break;
 	case ANY:
 		/* Don't modify 'start' value as it is needed later */
@@ -935,28 +946,32 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		 */
 		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset);
+						&cur_count, &cur_offset, &need_bytes);
+			all_bytes += need_bytes;
 			if (ec)
 				break;
 			start_any = START_PICKER;
 		}
 		if (slot_type(smc_p, start_any) == MEDIUM_TRANSPORT) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset);
+						&cur_count, &cur_offset, &need_bytes);
+			all_bytes += need_bytes;
 			if (ec)
 				break;
 			start_any = START_MAP;
 		}
 		if (slot_type(smc_p, start_any) == MAP_ELEMENT) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset);
+						&cur_count, &cur_offset, &need_bytes);
+			all_bytes += need_bytes;
 			if (ec)
 				break;
 			start_any = START_STORAGE;
 		}
 		if (slot_type(smc_p, start_any) == STORAGE_ELEMENT) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset);
+						&cur_count, &cur_offset, &need_bytes);
+			all_bytes += need_bytes;
 			if (ec)
 				break;
 		}
@@ -973,9 +988,11 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	}
 
 	cur_count = num_available_elements(smc_p, typeCode, start, number);
+	MHVTL_DBG(2, "cur_count: %d", cur_count);
+	MHVTL_DBG(2, "all_bytes: %d", all_bytes);
 
 	/* Now populate the 'main' header structure with byte count.. */
-	fill_element_status_data_hdr(&buf[0], start, cur_count, cur_offset - 8);
+	fill_element_status_data_hdr(&buf[0], start, cur_count, all_bytes);
 
 	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
 
