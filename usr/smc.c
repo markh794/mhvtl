@@ -46,6 +46,14 @@
 
 int current_state;
 
+static char *slot_type_str[] = {
+	"ANY",
+	"Picker",
+	"Storage",
+	"MAP",
+	"Drive",
+};
+
 uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "%s MEDIUM Removal (%ld) **",
@@ -437,8 +445,6 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 		return 0;
 	}
 
-	MHVTL_DBG(2, "Slot location: %d", s->slot_location);
-
 	put_unaligned_be16(s->slot_location, &p[j]);
 	j += 2;
 
@@ -468,11 +474,11 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 	p[j++] = s->asc_ascq | 0xff; /* Additional Sense Code Qualifer */
 
 	j++;		/* Reserved */
-	if (type == DATA_TRANSFER) {
+	if (type == DATA_TRANSFER)
 		p[j++] = d->SCSI_ID;
-	} else {
+	else
 		j++;	/* Reserved */
-	}
+
 	j++;		/* Reserved */
 
 	/* bit 8 set if Source Storage Element is valid | s->occupied */
@@ -498,7 +504,8 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 	put_unaligned_be16(s->last_location, &p[j]);
 	j += 2;
 
-	MHVTL_DBG(2, "DVCID: %d, VOLTAG: %d, Index: %d", dvcid, voltag, j);
+	MHVTL_DBG(2, "Slot location: %d, DVCID: %d, VOLTAG: %d",
+			s->slot_location, dvcid, voltag);
 
 	if (voltag) {
 		/* Barcode with trailing space(s) */
@@ -541,7 +548,7 @@ return j;
 /*
  * Fill in element status page Header (8 bytes)
  */
-static int fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
+static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 					uint16_t element_count,
 					uint8_t typeCode)
 {
@@ -574,9 +581,6 @@ static int fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 	MHVTL_DBG(2, "Element Status Page Header: "
 			"%02x %02x %02x %02x %02x %02x %02x %02x",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
-
-
-return 8;	/* Always 8 bytes in header */
 }
 
 /*
@@ -608,7 +612,8 @@ static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
 					get_unaligned_be16(&p[0]));
 	MHVTL_DBG(3, "  Number elements reported : %d",
 					get_unaligned_be16(&p[2]));
-	MHVTL_DBG(3, "  Total byte count         : %d",
+	MHVTL_DBG(3, "  Total byte count         : %d (0x%04x)",
+					get_unaligned_be32(&p[4]),
 					get_unaligned_be32(&p[4]));
 
 return 8;	/* Header is 8 bytes in size.. */
@@ -714,10 +719,11 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
 		}
 	}
 
-	MHVTL_DBG(2, "Determing %d element%s of type %d starting at %d"
+	MHVTL_DBG(2, "Determing %d element%s of type %s starting at %d"
 			", returning %d",
 				max, max == 1 ? "" : "s",
-				type, start, counted);
+				slot_type_str[type],
+				start, counted);
 
 	return counted;
 }
@@ -728,7 +734,8 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
  * Returns zero on success, or error code if illegal request.
  */
 static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
-				uint16_t *cur_count, uint32_t *cur_offset, uint32_t *need_bytes)
+				uint16_t *cur_count, uint32_t *cur_offset,
+				uint32_t *need_bytes)
 {
 	struct smc_priv *smc_p;
 	uint16_t begin;
@@ -755,25 +762,25 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 	case MEDIUM_TRANSPORT:
 		min_addr = START_PICKER;
 		num_addr = smc_p->num_picker;
-		MHVTL_DBG(3, "Element type: Medium Transport, min: %d num: %d",
+		MHVTL_DBG(2, "Element type: Medium Transport, min: %d num: %d",
 					min_addr, num_addr);
 		break;
 	case STORAGE_ELEMENT:
 		min_addr = START_STORAGE;
 		num_addr = smc_p->num_storage;
-		MHVTL_DBG(3, "Element type: Storage Element, min: %d num: %d",
+		MHVTL_DBG(2, "Element type: Storage Element, min: %d num: %d",
 					min_addr, num_addr);
 		break;
 	case MAP_ELEMENT:
 		min_addr = START_MAP;
 		num_addr = smc_p->num_map;
-		MHVTL_DBG(3, "Element type: MAP Element, min: %d num: %d",
+		MHVTL_DBG(2, "Element type: MAP Element, min: %d num: %d",
 					min_addr, num_addr);
 		break;
 	case DATA_TRANSFER:
 		min_addr = START_DRIVE;
 		num_addr = smc_p->num_drives;
-		MHVTL_DBG(3, "Element type: Data Transfer (drive) Element, "
+		MHVTL_DBG(2, "Element type: Data Transfer (drive) Element, "
 				"min: %d num: %d",
 					min_addr, num_addr);
 		break;
@@ -806,9 +813,10 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 
 	*need_bytes = avail * element_sz + 8;
 
-	MHVTL_DBG(2, "avail: %d, count: %d, space: %d *cur_count: %d",
-			avail, count, space, *cur_count);
-	MHVTL_DBG(2, "*need_bytes: %d", *need_bytes);
+	MHVTL_DBG(3, "avail: %d, count: %d, space: %d cur_count: %d"
+			" need_bytes: %d (0x%04x)",
+				avail, count, space, *cur_count,
+				*need_bytes, *need_bytes);
 
 	if (count == 0) {
 		if (*cur_count == 0)
@@ -818,11 +826,12 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 	}
 
 	/* Create Element Status Page Header. */
-	*cur_offset += fill_element_status_page_hdr(cmd, &p[*cur_offset],
-						count, type);
+	fill_element_status_page_hdr(cmd, &p[*cur_offset], count, type);
+
+	/* Account for the 8 bytes in element status page header */
+	*cur_offset += 8;
 
 	/* Now loop over each slot and fill in details. */
-
 	for (j = 0; j < count; j++, begin++) {
 		MHVTL_DBG(2, "Slot: %d", begin);
 		*cur_offset += fill_element_descriptor(cmd, &p[*cur_offset],
@@ -923,7 +932,6 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	p = buf;
 	cur_offset = 8;
 	cur_count = 0;
-	need_bytes = 0;
 	all_bytes = 0;
 	ec = 0;
 
@@ -932,7 +940,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
 	case DATA_TRANSFER:
-		ec = fill_element_page(cmd, start, &cur_count, &cur_offset, &need_bytes);
+		ec = fill_element_page(cmd, start, &cur_count,
+						&cur_offset, &need_bytes);
 		all_bytes += need_bytes;
 		break;
 	case ANY:
@@ -946,7 +955,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		 */
 		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset, &need_bytes);
+					&cur_count, &cur_offset, &need_bytes);
 			all_bytes += need_bytes;
 			if (ec)
 				break;
@@ -954,7 +963,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		}
 		if (slot_type(smc_p, start_any) == MEDIUM_TRANSPORT) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset, &need_bytes);
+					&cur_count, &cur_offset, &need_bytes);
 			all_bytes += need_bytes;
 			if (ec)
 				break;
@@ -962,7 +971,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		}
 		if (slot_type(smc_p, start_any) == MAP_ELEMENT) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset, &need_bytes);
+					&cur_count, &cur_offset, &need_bytes);
 			all_bytes += need_bytes;
 			if (ec)
 				break;
@@ -970,7 +979,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		}
 		if (slot_type(smc_p, start_any) == STORAGE_ELEMENT) {
 			ec = fill_element_page(cmd, start_any,
-						&cur_count, &cur_offset, &need_bytes);
+					&cur_count, &cur_offset, &need_bytes);
 			all_bytes += need_bytes;
 			if (ec)
 				break;
@@ -988,8 +997,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	}
 
 	cur_count = num_available_elements(smc_p, typeCode, start, number);
-	MHVTL_DBG(2, "cur_count: %d", cur_count);
-	MHVTL_DBG(2, "all_bytes: %d", all_bytes);
+	MHVTL_DBG(2, "cur_count: %d, all_bytes: 0x%04x", cur_count, all_bytes);
 
 	/* Now populate the 'main' header structure with byte count.. */
 	fill_element_status_data_hdr(&buf[0], start, cur_count, all_bytes);
@@ -1033,14 +1041,6 @@ static int check_tape_load(char *pcl)
 
 	return strncmp("Loaded OK", q.msg.text, 9);
 }
-
-static char *slot_type_str[] = {
-	" ",
-	"Picker",
-	"Storage",
-	"MAP",
-	"Drive",
-};
 
 /*
  * Logically move information from 'src' address to 'dest' address
