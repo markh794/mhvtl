@@ -1392,6 +1392,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	/* Check for correct user-account before creating lu */
+	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
+	if (!pw) {
+		printf("Unable to find user: %s\n", USR);
+		exit(1);
+	}
+
 	new_action.sa_handler = caught_signal;
 	new_action.sa_flags = 0;
 	sigemptyset(&new_action.sa_mask);
@@ -1408,12 +1415,6 @@ int main(int argc, char *argv[])
 	child_cleanup = add_lu(my_id, &ctl);
 	if (!child_cleanup) {
 		printf("Could not create logical unit\n");
-		exit(1);
-	}
-
-	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
-	if (!pw) {
-		printf("Unable to find user: %s\n", USR);
 		exit(1);
 	}
 
