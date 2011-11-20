@@ -328,14 +328,6 @@ int OpenExistingQueue(key_t key)
 	return queue_id;
 }
 
-int KillPrivateQueue(long queue_id)
-{
-	long rc;
-	rc = msgctl(queue_id, IPC_RMID, NULL);
-
-	return rc;
-}
-
 /* Send command to queue */
 int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf)
 {
