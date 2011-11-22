@@ -12,12 +12,12 @@
 extern int debug;
 extern char *vtl_driver_name;
 
-#define MHVTL_LOG(format, arg...) {			\
+#define MHVTL_ERR(format, arg...) {				\
 	if (debug)						\
-		printf("%s: %s: " format "\n",			\
+		printf("%s: ERROR %s: " format "\n",		\
 			vtl_driver_name, __func__, ## arg); 	\
 	else							\
-		syslog(LOG_DAEMON|LOG_ERR, "%s: " format,	\
+		syslog(LOG_DAEMON|LOG_ERR, "ERROR %s: " format,	\
 			__func__, ## arg); 			\
 }
 
@@ -51,7 +51,7 @@ int init_queue(void)
 			strcpy(s, "errno not valid");
 			break;
 		}
-		MHVTL_LOG("msgget(%d) failed %s, %s",
+		MHVTL_ERR("msgget(%d) failed %s, %s",
 				QKEY, strerror(errno), s);
 	}
 
@@ -73,7 +73,7 @@ int send_msg(char *cmd, long rcv_id)
 	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_entry, msg.text);
 
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
-		MHVTL_LOG("msgsnd failed: %s", strerror(errno));
+		MHVTL_ERR("msgsnd failed: %s", strerror(errno));
 		return -1;
 	}
 

@@ -85,7 +85,7 @@ struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size)
 			list_add_tail(&log_page->siblings, l);
 			return log_page;
 		} else {
-			MHVTL_LOG("Unable to malloc(%d)", size);
+			MHVTL_ERR("Unable to malloc(%d)", size);
 			free(log_page);
 		}
 	}

@@ -94,7 +94,7 @@ struct mode *alloc_mode_page(struct list_head *m,
 			list_add_tail(&mp->siblings, m);
 			return mp;
 		} else {
-			MHVTL_LOG("Unable to malloc(%d)", size);
+			MHVTL_ERR("Unable to malloc(%d)", size);
 			free(mp);
 		}
 	}

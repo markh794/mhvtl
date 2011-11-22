@@ -913,12 +913,12 @@ void cleanup_msg(void)
 
 	msqid = init_queue();
 	if (msqid < 0) {
-		MHVTL_LOG("Failed to open msg queue: %s", strerror(errno));
+		MHVTL_ERR("Failed to open msg queue: %s", strerror(errno));
 		return;
 	}
 	retval = msgctl(msqid, IPC_RMID, &ds);
 	if (retval < 0) {
-		MHVTL_LOG("Failed to remove msg queue: %s", strerror(errno));
+		MHVTL_ERR("Failed to remove msg queue: %s", strerror(errno));
 	} else {
 		MHVTL_DBG(2, "Removed ipc resources");
 	}
@@ -963,13 +963,13 @@ static int mhvtl_shared_mem(char *path, int flag)
 	mhvtl_shm = shmget(key, SHM_SIZE, IPC_CREAT|0666);
 	if (mhvtl_shm < 0) {
 		printf("Attempt to get Shared memory failed\n");
-		MHVTL_LOG("Attempt to get shared memory failed");
+		MHVTL_ERR("Attempt to get shared memory failed");
 		return -ENOMEM;
 	}
 
 	base = shmat(mhvtl_shm, NULL, 0);
 	if (base == (void *) -1) {
-		MHVTL_LOG("Failed to attach to shm: %s", strerror(errno));
+		MHVTL_ERR("Failed to attach to shm: %s", strerror(errno));
 		return -1;
 	}
 
@@ -1015,7 +1015,7 @@ static int mhvtl_shared_mem(char *path, int flag)
 		return retval;
 
 	if (base_offset > SHM_SIZE) {
-		MHVTL_LOG("Shared memory not large enough."
+		MHVTL_ERR("Shared memory not large enough."
 			" Please report this bug !");
 		return retval;
 	}
@@ -1075,7 +1075,7 @@ static int mhvtl_fifo_count(char *path, int direction)
 
 	mhvtl_sem = sem_open("/mhVTL", O_CREAT, 0664, 1);
 	if (SEM_FAILED == mhvtl_sem) {
-		MHVTL_LOG("%s : %s", errmsg, strerror(errno));
+		MHVTL_ERR("%s : %s", errmsg, strerror(errno));
 		return retval;
 	}
 
@@ -1086,7 +1086,7 @@ static int mhvtl_fifo_count(char *path, int direction)
 			sleep(1);
 			if (i > 8)
 				/* Give up.. Clear the semaphore & do it */
-				MHVTL_LOG("waiting for semaphore: %p",
+				MHVTL_ERR("waiting for semaphore: %p",
 								mhvtl_sem);
 				sem_post(mhvtl_sem);
 		} else {

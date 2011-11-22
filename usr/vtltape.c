@@ -700,7 +700,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 		return 0;
 		break;
 	default:
-		MHVTL_LOG("Unknown blk header at offset %u"
+		MHVTL_ERR("Unknown blk header at offset %u"
 				" - Abort read cmd", c_pos->blk_number);
 		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 		return 0;
@@ -723,7 +723,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	*/
 	if (!(c_pos->blk_flags & BLKHDR_FLG_COMPRESSED)) {
 		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize) {
-			MHVTL_LOG("read failed, %s", strerror(errno));
+			MHVTL_ERR("read failed, %s", strerror(errno));
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
@@ -743,14 +743,14 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	*/
 	cbuf = malloc(disk_blk_size);
 	if (!cbuf) {
-		MHVTL_LOG("Out of memory: %d", __LINE__);
+		MHVTL_ERR("Out of memory: %d", __LINE__);
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
 	}
 
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
 	if (nread != disk_blk_size) {
-		MHVTL_LOG("read failed, %s", strerror(errno));
+		MHVTL_ERR("read failed, %s", strerror(errno));
 		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 		free(cbuf);
 		return 0;
@@ -772,7 +772,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	} else {
 		/* Initiator hasn't requested same size as data block */
 		if ((c2buf = malloc(uncompress_sz)) == NULL) {
-			MHVTL_LOG("Out of memory: %d", __LINE__);
+			MHVTL_ERR("Out of memory: %d", __LINE__);
 			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
@@ -794,17 +794,17 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 			tgtsize);
 		break;
 	case Z_MEM_ERROR:
-		MHVTL_LOG("Not enough memory to decompress");
+		MHVTL_ERR("Not enough memory to decompress");
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_DATA_ERROR:
-		MHVTL_LOG("Block corrupt or incomplete");
+		MHVTL_ERR("Block corrupt or incomplete");
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_BUF_ERROR:
-		MHVTL_LOG("Not enough memory in destination buf");
+		MHVTL_ERR("Not enough memory in destination buf");
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
@@ -854,7 +854,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		dest_len = compressBound(src_sz);
 		dest_buf = malloc(dest_len);
 		if (!dest_buf) {
-			MHVTL_LOG("malloc(%d) failed", (int)dest_len);
+			MHVTL_ERR("malloc(%d) failed", (int)dest_len);
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 			return 0;
 		}
@@ -863,15 +863,15 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		if (z != Z_OK) {
 			switch (z) {
 			case Z_MEM_ERROR:
-				MHVTL_LOG("Not enough memory to compress "
+				MHVTL_ERR("Not enough memory to compress "
 						"data");
 				break;
 			case Z_BUF_ERROR:
-				MHVTL_LOG("Not enough memory in destination "
+				MHVTL_ERR("Not enough memory in destination "
 						"buf to compress data");
 				break;
 			case Z_DATA_ERROR:
-				MHVTL_LOG("Input data corrupt / incomplete");
+				MHVTL_ERR("Input data corrupt / incomplete");
 				break;
 			}
 			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
@@ -1570,7 +1570,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			MHVTL_DBG(2, "Allow LOAD as R/O WORM");
 			OK_to_write = 0;
 		} else {
-			MHVTL_LOG("Load failed: Unable to load as WORM");
+			MHVTL_ERR("Load failed: Unable to load as WORM");
 			goto mismatchmedia;
 		}
 	} else if (mam.MediumType == MEDIA_TYPE_DATA) {
@@ -1584,7 +1584,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			lu_ssc.MediaWriteProtect = MEDIA_WRITABLE;
 			OK_to_write = 1;
 		} else if (m_detail->load_capability & LOAD_FAIL) {
-			MHVTL_LOG("Load failed: Data format not suitable for "
+			MHVTL_ERR("Load failed: Data format not suitable for "
 					"read/write or read-only");
 			goto mismatchmedia;
 		}
@@ -1613,7 +1613,7 @@ mismatchmedia:
 	unload_tape(sam_stat);
 	fg |= 0x800;	/* Unsupported format */
 	update_TapeAlert(lu, fg);
-	MHVTL_LOG("Tape %s failed to load with type '%s' in drive type '%s'",
+	MHVTL_ERR("Tape %s failed to load with type '%s' in drive type '%s'",
 			PCL,
 			lookup_media_type(mam.MediaType),
 			lu_ssc.pm->name);
@@ -2126,7 +2126,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		MHVTL_LOG("Can not open config file %s : %s",
+		MHVTL_ERR("Can not open config file %s : %s",
 						config, strerror(errno));
 		perror("Can not open config file");
 		exit(1);
@@ -2317,7 +2317,8 @@ static void caught_signal(int signo)
 {
 	MHVTL_DBG(1, "(%d)", signo);
 	printf("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
-	MHVTL_LOG("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
+	MHVTL_LOG("Please use 'vtlcmd <index> exit' to shutdown nicely,"
+			" Received signal: %d", signo);
 }
 
 int main(int argc, char *argv[])
@@ -2470,7 +2471,7 @@ int main(int argc, char *argv[])
 
 	cdev = chrdev_open(name, minor);
 	if (cdev == -1) {
-		MHVTL_LOG("Could not open /dev/%s%d: %s", name, minor,
+		MHVTL_ERR("Could not open /dev/%s%d: %s", name, minor,
 						strerror(errno));
 		fflush(NULL);
 		exit(1);
@@ -2535,10 +2536,10 @@ int main(int argc, char *argv[])
 
 	fifo_retval = inc_fifo_count(lunit.fifoname);
 	if (fifo_retval == -ENOMEM) {
-		MHVTL_LOG("shared memory setup failed - exiting...");
+		MHVTL_ERR("shared memory setup failed - exiting...");
 		goto exit;
 	} else if (fifo_retval < 0) {
-		MHVTL_LOG("Failed to set fifo count()...");
+		MHVTL_ERR("Failed to set fifo count()...");
 	}
 
 	for (;;) {
@@ -2549,7 +2550,7 @@ int main(int argc, char *argv[])
 				goto exit;
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
-				MHVTL_LOG("Can not open message queue: %s",
+				MHVTL_ERR("Can not open message queue: %s",
 							strerror(errno));
 			}
 		}
@@ -2576,7 +2577,7 @@ int main(int argc, char *argv[])
 			case VTL_QUEUE_CMD:	/* A cdb to process */
 				cmd = malloc(sizeof(struct vtl_header));
 				if (!cmd) {
-					MHVTL_LOG("Out of memory");
+					MHVTL_ERR("Out of memory");
 					pollInterval = 1000000;
 				} else {
 					memcpy(cmd, &vtl_cmd, sizeof(vtl_cmd));

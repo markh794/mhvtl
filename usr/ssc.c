@@ -716,7 +716,7 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 								sam_stat);
 				break;
 			default:
-				MHVTL_LOG("Unknown cleaning media mount state");
+				MHVTL_ERR("Unknown cleaning media mount state");
 				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
 								sam_stat);
 				break;
@@ -1089,7 +1089,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 	current_state = (load) ? MHVTL_STATE_LOADING : MHVTL_STATE_UNLOADING;
 
 	if (cmd->scb[4] & 0x04) { /* EOT bit */
-		MHVTL_LOG("EOT bit set on load. Not supported");
+		MHVTL_ERR("EOT bit set on load. Not supported");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}

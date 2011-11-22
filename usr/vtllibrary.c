@@ -401,12 +401,12 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 	struct m_info *m;
 
 	if (strlen(barcode) > MAX_BARCODE_LEN) {
-		MHVTL_LOG("Barcode \'%s\' exceeds max barcode lenght: %d",
+		MHVTL_ERR("Barcode \'%s\' exceeds max barcode lenght: %d",
 				barcode, MAX_BARCODE_LEN);
 		exit(1);
 	}
 	if (lookup_barcode(lu, barcode)) {
-		MHVTL_LOG("Duplicate barcode %s.. Exiting", barcode);
+		MHVTL_ERR("Duplicate barcode %s.. Exiting", barcode);
 		exit(1);
 	}
 
@@ -1000,7 +1000,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		MHVTL_LOG("Can not open config file %s : %s", config,
+		MHVTL_ERR("Can not open config file %s : %s", config,
 					strerror(errno));
 		perror("Can not open config file");
 		exit(1);
@@ -1295,7 +1295,8 @@ static void caught_signal(int signo)
 {
 	MHVTL_DBG(1, " %d", signo);
 	printf("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
-	MHVTL_LOG("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
+	MHVTL_LOG("Please use 'vtlcmd <index> exit' to shutdown nicely,"
+			" Received signal: %d", signo);
 }
 
 /*
@@ -1453,7 +1454,7 @@ int main(int argc, char *argv[])
 
 	cdev = chrdev_open(name, my_id);
 	if (cdev == -1) {
-		MHVTL_LOG("Could not open /dev/%s%ld: %s",
+		MHVTL_ERR("Could not open /dev/%s%ld: %s",
 					name, my_id, strerror(errno));
 		fflush(NULL);
 		exit(1);
@@ -1561,10 +1562,10 @@ int main(int argc, char *argv[])
 
 	fifo_retval = inc_fifo_count(lunit.fifoname);
 	if (fifo_retval == -ENOMEM) {
-		MHVTL_LOG("shared memory setup failed - exiting...");
+		MHVTL_ERR("shared memory setup failed - exiting...");
 		goto exit;
 	} else if (fifo_retval < 0) {
-		MHVTL_LOG("Failed to set fifo count()...");
+		MHVTL_ERR("Failed to set fifo count()...");
 	}
 
 	for (;;) {
@@ -1576,7 +1577,7 @@ int main(int argc, char *argv[])
 		} else if (mlen < 0) {
 			r_qid = init_queue();
 			if (r_qid == -1)
-				MHVTL_LOG("Can not open message queue: %s",
+				MHVTL_ERR("Can not open message queue: %s",
 					strerror(errno));
 		}
 
