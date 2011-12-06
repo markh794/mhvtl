@@ -290,12 +290,10 @@ int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
 {
 	struct list_head *mode_pg;
 	struct mode *mp;
-	struct priv_lu_ssc *ssc;
 	uint8_t pcode;
 	uint8_t subpcode;
 	uint8_t size;
 
-	ssc = lu->lu_private;
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DEVICE_CONFIGURATION;
 	subpcode = 0x01;

@@ -2111,13 +2111,11 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	int indx;
 	struct vtl_ctl tmpctl;
 	int found = 0;
-	struct list_head *den_list;
 
 	INIT_LIST_HEAD(&lu->den_list);
 	INIT_LIST_HEAD(&lu->log_pg);
 	INIT_LIST_HEAD(&lu->mode_pg);
 
-	den_list = &lu->den_list;
 	lu->scsi_ops = &ssc_ops;
 
 	lu->fifoname = NULL;

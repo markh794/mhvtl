@@ -61,7 +61,6 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	struct vtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
-	struct lu_phy_attr *lu;
 	uint8_t *buf;
 	int count;
 	int sz;
@@ -69,7 +68,6 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	int retval = 0;
 	int fixed;
 
-	lu = cmd->lu;
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
 
@@ -151,13 +149,11 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 	uint8_t *cdb = cmd->scb;
 	struct vtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
-	struct lu_phy_attr *lu;
 	int count;
 	int sz;
 	int k;
 	int retval = 0;
 
-	lu = cmd->lu;
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
 
@@ -380,10 +376,7 @@ uint8_t ssc_format_media(struct scsi_cmd *cmd)
 
 uint8_t ssc_seek_10(struct scsi_cmd *cmd)
 {
-	struct lu_phy_attr *lu;
 	uint32_t blk_no;
-
-	lu = cmd->lu;
 
 	current_state = MHVTL_STATE_LOCATE;
 
@@ -489,10 +482,6 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd)
 
 uint8_t ssc_spout(struct scsi_cmd *cmd)
 {
-	struct priv_lu_ssc *lu_priv;
-
-	lu_priv = cmd->lu->lu_private;
-
 	MHVTL_DBG(1, "Security Protocol Out (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 
@@ -507,10 +496,6 @@ uint8_t ssc_spout(struct scsi_cmd *cmd)
 
 uint8_t ssc_spin(struct scsi_cmd *cmd)
 {
-	struct priv_lu_ssc *lu_priv;
-
-	lu_priv = cmd->lu->lu_private;
-
 	MHVTL_DBG(1, "Security Protocol In (%ld) **",
 					(long)cmd->dbuf_p->serialNo);
 
@@ -901,10 +886,8 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 uint8_t ssc_release(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
-	uint8_t *sam_stat;
 
 	lu_priv = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
 
 	MHVTL_DBG(1, "Release (%ld) **", (long)cmd->dbuf_p->serialNo);
 	if (!SPR_Reservation_Type && SPR_Reservation_Key)
@@ -949,10 +932,8 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 
 uint8_t ssc_report_luns(struct scsi_cmd *cmd)
 {
-	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
 
-	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
 	MHVTL_DBG(1, "Report LUNs (%ld) **", (long)cmd->dbuf_p->serialNo);
@@ -1164,10 +1145,8 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd)
 uint8_t ssc_pr_in(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
-	uint8_t *sam_stat;
 
 	lu_priv = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
 
 	MHVTL_DBG(1, "PERSISTENT RESERVE IN (%ld) **",
 						(long)cmd->dbuf_p->serialNo);

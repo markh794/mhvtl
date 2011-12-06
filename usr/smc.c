@@ -555,10 +555,8 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 	int element_sz;
 	uint32_t element_len;
 	uint8_t voltag;
-	uint8_t dvcid;
 
 	voltag = (cmd->scb[1] & 0x10) >> 4;
-	dvcid = cmd->scb[6] & 0x01;	/* Device ID */
 
 	element_sz = determine_element_sz(cmd, typeCode);
 
@@ -853,7 +851,6 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	uint8_t *cdb = cmd->scb;
 	uint8_t *buf = cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t	*p;
 	uint8_t	typeCode = cdb[1] & 0x0f;
 	uint16_t req_start_elem;
 	uint16_t number;
@@ -929,7 +926,6 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	}
 
 	/* Leave room for 'master' header which is filled in at the end... */
-	p = buf;
 	cur_offset = 8;
 	cur_count = 0;
 	all_bytes = 0;
