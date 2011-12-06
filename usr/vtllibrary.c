@@ -1629,10 +1629,10 @@ exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	free(buf);
+	if (!dec_fifo_count(lunit.fifoname))
+		unlink(lunit.fifoname);
 	if (lunit.fifo_fd) {
 		fclose(lunit.fifo_fd);
-		if (!dec_fifo_count(lunit.fifoname))
-			unlink(lunit.fifoname);
 		free(lunit.fifoname);
 	}
 
