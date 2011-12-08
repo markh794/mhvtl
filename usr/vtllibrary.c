@@ -558,7 +558,7 @@ static int empty_map(struct q_msg *msg)
 static int processMessageQ(struct q_msg *msg)
 {
 
-	MHVTL_DBG(3, "Q snd_id %ld msg : %s", msg->snd_id, msg->text);
+	MHVTL_DBG(1, "Sender id: %ld, msg : %s", msg->snd_id, msg->text);
 
 	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug) {

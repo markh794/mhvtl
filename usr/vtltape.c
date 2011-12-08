@@ -1696,7 +1696,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 
 	lu = lu_ssc.pm->lu;
 
-	MHVTL_DBG(1, "Q snd_id %ld msg : %s", msg->snd_id, msg->text);
+	MHVTL_DBG(1, "Sender id: %ld, msg : %s", msg->snd_id, msg->text);
 
 	/* Tape Load message from Library */
 	if (!strncmp(msg->text, "lload", 5)) {
