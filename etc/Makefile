@@ -2,10 +2,16 @@
 RCFILE = mhvtl
 USR ?= vtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
+SYSLOG  = $(shell test ! -x /usr/bin/dpkg || dpkg --get-selections | grep syslog | cut -f 1)
+ifeq ($(strip $(SYSLOG)),)
+        SYSLOG = syslog
+endif
+
 
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
 $(RCFILE): $(RCFILE).in
 	sed -e s'/@USR@/$(USR)/' $< > $@.1
+	sed -i s'/syslog/$(SYSLOG)/' $@.1
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' $@.1 > $@
 	rm -f $@.1
 
