@@ -77,8 +77,6 @@ install:
 
 tar:
 	$(MAKE) distclean
-	$(MAKE) etc
-	$(MAKE) scripts
 	test -d ../$(PARENTDIR) || ln -s mhvtl ../$(PARENTDIR)
 	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`-$(VERSION)$(EXTRAVERSION).tgz  --exclude=.git \
 		 $(PARENTDIR)/man \
