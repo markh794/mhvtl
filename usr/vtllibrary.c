@@ -598,7 +598,7 @@ static int processMessageQ(struct q_msg *msg)
 			verbose--;
 		else
 			verbose = 3;
-		MHVTL_LOG("Verbose: %s at level %d",
+		MHVTL_LOG("verbose: %s at level %d",
 				 verbose ? "enabled" : "disabled", verbose);
 	}
 
@@ -1377,7 +1377,8 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	MHVTL_LOG("%s: version %s", progname, MHVTL_VERSION);
+	MHVTL_LOG("%s: version %s, verbose log: %d",
+					progname, MHVTL_VERSION, verbose);
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));

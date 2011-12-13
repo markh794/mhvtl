@@ -1095,8 +1095,8 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	 *	  media.
 	 */
 
-	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %ld",
-					cmd, dest->drv_id);
+	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %d",
+					cmd, slot_number(dest->slot));
 
 	send_msg(cmd, dest->drv_id);
 
@@ -1138,8 +1138,11 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	src  = slot2struct(smc_p, src_addr);
 	dest = slot2struct(smc_p, dest_addr);
 
-	MHVTL_DBG(1, "Moving from slot %d to slot %d",
-				src->slot_location, dest->slot_location);
+	MHVTL_DBG(1, "Moving from %s slot %d to %s slot %d",
+				slot_type_str[src->element_type],
+				src->slot_location,
+				slot_type_str[dest->element_type],
+				dest->slot_location);
 
 	if (!slotOccupied(src)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_SRC_EMPTY, sam_stat);
@@ -1276,8 +1279,8 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	sprintf(cmd, "lload %s", dest->slot->media->barcode);
 
 	truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
-	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %ld",
-					cmd, dest->drv_id);
+	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %d",
+					cmd, slot_number(dest->slot));
 
 	send_msg(cmd, dest->drv_id);
 
@@ -1293,7 +1296,6 @@ static int move_drive2drive(struct smc_priv *smc_p,
 					slot_number(src->slot),
 					slot_number(dest->slot));
 	}
-
 
 return SAM_STAT_GOOD;
 }
@@ -1323,7 +1325,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 					   "  Extend I/O port");
 	} else {
 		MHVTL_DBG(1,
-	 "Moving from slot %d to Slot %d using transport %d, Invert media: %s",
+	 "Moving from slot %d to slot %d using transport %d, Invert media: %s",
 				src_addr, dest_addr, transport_addr,
 				(cdb[10]) ? "yes" : "no");
 	}
