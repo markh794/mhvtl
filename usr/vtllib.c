@@ -187,7 +187,6 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 	sense[7] = SENSE_BUF_SIZE - 8;
 	put_unaligned_be16(sense_q, &sense[12]);
 
-	MHVTL_DBG(3, "Sense buf: %p", &sense);
 	MHVTL_DBG(1, "SENSE [Key/ASC/ASCQ] [%02x %02x %02x]",
 				sense[2], sense[12], sense[13]);
 }
