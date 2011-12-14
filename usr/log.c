@@ -44,8 +44,6 @@ struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page)
 	MHVTL_DBG(3, "Looking for: log page 0x%02x", page);
 
 	list_for_each_entry(log_pg, l, siblings) {
-		MHVTL_DBG(3, "Walking list: This entry -> log page 0x%02x",
-					log_pg->log_page_num);
 		if (log_pg->log_page_num == page) {
 			MHVTL_DBG(3, "Matched list entry -> page 0x%02x", page);
 			return log_pg;

@@ -44,9 +44,6 @@ struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
 					pcode, subpcode);
 
 	list_for_each_entry(mp, m, siblings) {
-		MHVTL_DBG(3, "Walking list: This entry -> "
-				"pcode 0x%02x, subpcode 0x%02x",
-					mp->pcode, mp->subpcode);
 		if (mp->pcode == pcode && mp->subpcode == subpcode) {
 			MHVTL_DBG(3, "Matched list entry -> "
 				"pcode 0x%02x, subpcode 0x%02x",
