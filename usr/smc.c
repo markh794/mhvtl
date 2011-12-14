@@ -1019,7 +1019,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
  * FIXME: I really need a timeout here..
  */
-static int check_tape_load(char *pcl)
+static int check_tape_load()
 {
 	int mlen, r_qid;
 	struct q_entry q;
@@ -1115,7 +1115,9 @@ static int move_slot2drive(struct smc_priv *smc_p,
 					slot_number(dest->slot));
 	}
 
-	if (check_tape_load(src->media->barcode)) {
+	if (check_tape_load()) {
+		MHVTL_ERR("Load of %s into drive %d failed",
+					cmd, slot_number(dest->slot));
 		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1271,24 +1273,43 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	move_cart(src->slot, dest->slot);
-
 	/* Send 'unload' message to drive b4 the move.. */
+	MHVTL_DBG(2, "Unloading %s from drive %d",
+				src->slot->media->barcode,
+				slot_number(src->slot));
+
 	send_msg("unload", src->drv_id);
+
+	move_cart(src->slot, dest->slot);
 
 	sprintf(cmd, "lload %s", dest->slot->media->barcode);
 
 	truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %d",
-					cmd, slot_number(dest->slot));
+				cmd, slot_number(dest->slot));
 
 	send_msg(cmd, dest->drv_id);
+
+	if (check_tape_load()) {
+		/* Failed, so put the tape back where it came from */
+		MHVTL_ERR("Failed to move to drive %d, "
+				"placing back into drive %d",
+				slot_number(dest->slot),
+				slot_number(src->slot));
+		move_cart(dest->slot, src->slot);
+		sprintf(cmd, "lload %s", src->slot->media->barcode);
+		truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
+		send_msg(cmd, src->drv_id);
+		check_tape_load();
+		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	if (! smc_p->state_msg)
 		smc_p->state_msg = malloc(64);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */
-		sprintf(cmd, "%s", src->slot->media->barcode);
+		sprintf(cmd, "%s", dest->slot->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
 		sprintf(smc_p->state_msg,
 			"Moving %s from drive %d to drive %d",
