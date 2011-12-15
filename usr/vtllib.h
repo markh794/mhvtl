@@ -160,6 +160,8 @@ extern int verbose;
 #define MEDIA_TYPE_WORM 1
 #define MEDIA_TYPE_CLEAN 6
 
+#define MHVTL_NO_COMPRESSION 0
+
 /* status definitions (byte[2] in the element descriptor) */
 #define STATUS_Full      0x01
 #define STATUS_ImpExp    0x02

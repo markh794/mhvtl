@@ -46,7 +46,6 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 #include "ssc.h"
-#include <zlib.h>
 #include "log.h"
 #include "q.h"
 
@@ -764,7 +763,7 @@ uint8_t clear_compression_mode_pg(struct list_head *l)
 			l, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
-		p[14] = Z_NO_COMPRESSION;
+		p[14] = MHVTL_NO_COMPRESSION;
 	}
 	return SAM_STAT_GOOD;
 }
