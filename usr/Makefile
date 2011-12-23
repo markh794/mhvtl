@@ -103,7 +103,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		hp_ultrium_pm.o \
 		stk9x40_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		-lz -L. -lvtlscsi
+		-lz -llzo2 -L. -lvtlscsi
 
 make_vtl_media:	make_vtl_media.in
 	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1

@@ -89,6 +89,8 @@ static struct encryption encryption;
 #define	KEY		encryption.key
 
 #include <zlib.h>
+#include <lzo/lzoconf.h>
+#include <lzo/lzo1x.h>
 
 extern uint8_t last_cmd;
 
@@ -657,19 +659,174 @@ int resp_write_attribute(struct scsi_cmd *cmd)
 	return found_attribute;
 }
 
+static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat)
+{
+	uint8_t *cbuf, *c2buf;
+	uint32_t disk_blk_size, blk_size;
+	int rc, z;
+	loff_t nread = 0;
+	lzo_uint uncompress_sz;
+
+	/* The tape block is compressed.
+	   Save field values we will need after the read which
+	   causes the tape block to advance.
+	*/
+	blk_size = c_pos->blk_size;
+	disk_blk_size = c_pos->disk_blk_size;
+
+	/* Malloc a buffer to hold the compressed data, and read the
+	   data into it.
+	*/
+	cbuf = malloc(disk_blk_size);
+	if (!cbuf) {
+		MHVTL_ERR("Out of memory: %d", __LINE__);
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		return 0;
+	}
+
+	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
+	if (nread != disk_blk_size) {
+		MHVTL_ERR("read failed, %s", strerror(errno));
+		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+		free(cbuf);
+		return 0;
+	}
+
+	rc = tgtsize;
+	uncompress_sz = blk_size;
+
+	/* If the scsi read buffer is at least as big as the size of
+	   the uncompressed data then we can uncompress directly into
+	   the read buffer.  If not, then we need an extra buffer to
+	   uncompress into, then memcpy the subrange we need to the
+	   read buffer.
+	*/
+
+	if (tgtsize >= blk_size) {
+		/* block sizes match, uncompress directly into buf */
+		z = lzo1x_decompress(cbuf, disk_blk_size, buf, &uncompress_sz, NULL);
+	} else {
+		/* Initiator hasn't requested same size as data block */
+		c2buf = malloc(uncompress_sz);
+		if (c2buf == NULL) {
+			MHVTL_ERR("Out of memory: %d", __LINE__);
+			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+			free(cbuf);
+			return 0;
+		}
+		z = lzo1x_decompress(cbuf, disk_blk_size, c2buf, &uncompress_sz, NULL);
+		/* Now copy 'requested size' of data into buffer */
+		memcpy(buf, c2buf, tgtsize);
+		free(c2buf);
+	}
+
+	if (z == LZO_E_OK) {
+		MHVTL_DBG(2, "Read %u bytes of lzo compressed"
+				" data, have %u bytes for result",
+				(uint32_t)nread, blk_size);
+	} else {
+		MHVTL_ERR("Decompression error");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+	}
+	return rc;
+}
+
+static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat)
+{
+	uint8_t	*cbuf, *c2buf;
+	loff_t nread = 0;
+	uLongf uncompress_sz;
+	uint32_t disk_blk_size, blk_size;
+	int rc, z;
+
+	/* The tape block is compressed.
+	   Save field values we will need after the read which
+	   causes the tape block to advance.
+	*/
+	blk_size = c_pos->blk_size;
+	disk_blk_size = c_pos->disk_blk_size;
+
+	/* Malloc a buffer to hold the compressed data, and read the
+	   data into it.
+	*/
+	cbuf = malloc(disk_blk_size);
+	if (!cbuf) {
+		MHVTL_ERR("Out of memory: %d", __LINE__);
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		return 0;
+	}
+
+	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
+	if (nread != disk_blk_size) {
+		MHVTL_ERR("read failed, %s", strerror(errno));
+		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+		free(cbuf);
+		return 0;
+	}
+
+	rc = tgtsize;
+	uncompress_sz = blk_size;
+
+	/* If the scsi read buffer is at least as big as the size of
+	   the uncompressed data then we can uncompress directly into
+	   the read buffer.  If not, then we need an extra buffer to
+	   uncompress into, then memcpy the subrange we need to the
+	   read buffer.
+	*/
+
+	if (tgtsize >= blk_size) {
+		/* block sizes match, uncompress directly into buf */
+		z = uncompress(buf, &uncompress_sz, cbuf, disk_blk_size);
+	} else {
+		/* Initiator hasn't requested same size as data block */
+		c2buf = malloc(uncompress_sz);
+		if (c2buf == NULL) {
+			MHVTL_ERR("Out of memory: %d", __LINE__);
+			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+			free(cbuf);
+			return 0;
+		}
+		z = uncompress(c2buf, &uncompress_sz, cbuf, disk_blk_size);
+		/* Now copy 'requested size' of data into buffer */
+		memcpy(buf, c2buf, tgtsize);
+		free(c2buf);
+	}
+
+	switch (z) {
+	case Z_OK:
+		MHVTL_DBG(2, "Read %u bytes of zlib compressed"
+			" data, have %u bytes for result",
+			(uint32_t)nread, blk_size);
+		break;
+	case Z_MEM_ERROR:
+		MHVTL_ERR("Not enough memory to decompress");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+		break;
+	case Z_DATA_ERROR:
+		MHVTL_ERR("Block corrupt or incomplete");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+		break;
+	case Z_BUF_ERROR:
+		MHVTL_ERR("Not enough memory in destination buf");
+		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+		break;
+	}
+	free(cbuf);
+	return rc;
+}
+
 /*
- *
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 {
 	uint32_t disk_blk_size, blk_size;
-	uLongf uncompress_sz;
-	uint8_t	*cbuf, *c2buf;
-	int z;
 	uint32_t tgtsize, rc;
-	loff_t nread = 0;
 	uint32_t save_sense;
 
 	MHVTL_DBG(3, "Request to read: %d bytes, SILI: %d", request_sz, sili);
@@ -718,98 +875,24 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	*/
 	tgtsize = min(request_sz, blk_size);
 
+	if (c_pos->blk_flags & BLKHDR_FLG_LZO_COMPRESSED)
+		rc = uncompress_lzo_block(buf, tgtsize, sam_stat);
+	else if (c_pos->blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED)
+		rc = uncompress_zlib_block(buf, tgtsize, sam_stat);
+	else {
 	/* If the tape block is uncompressed, we can read the number of bytes
 	   we need directly into the scsi read buffer and we are done.
 	*/
-	if (!(c_pos->blk_flags & BLKHDR_FLG_COMPRESSED)) {
 		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize) {
 			MHVTL_ERR("read failed, %s", strerror(errno));
 			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
-		if (tgtsize != request_sz)
-			mk_sense_short_block(request_sz, tgtsize, sam_stat);
-		else if (!sili) {
-			if (request_sz < blk_size)
-				mk_sense_short_block(request_sz, blk_size, sam_stat);
-		}
-		lu_ssc.bytesRead_I += tgtsize;
-		lu_ssc.bytesRead_M += tgtsize;
-		return tgtsize;
-	}
-
-	/* Malloc a buffer to hold the compressed data, and read the
-	   data into it.
-	*/
-	cbuf = malloc(disk_blk_size);
-	if (!cbuf) {
-		MHVTL_ERR("Out of memory: %d", __LINE__);
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
-		return 0;
-	}
-
-	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
-	if (nread != disk_blk_size) {
-		MHVTL_ERR("read failed, %s", strerror(errno));
-		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
-		free(cbuf);
-		return 0;
-	}
-
-	rc = tgtsize;
-	uncompress_sz = blk_size;
-
-	/* If the scsi read buffer is at least as big as the size of
-	   the uncompressed data then we can uncompress directly into
-	   the read buffer.  If not, then we need an extra buffer to
-	   uncompress into, then memcpy the subrange we need to the
-	   read buffer.
-	*/
-
-	if (tgtsize == blk_size) {
-		/* block sizes match, uncompress directly into buf */
-		z = uncompress(buf, &uncompress_sz, cbuf, disk_blk_size);
-	} else {
-		/* Initiator hasn't requested same size as data block */
-		if ((c2buf = malloc(uncompress_sz)) == NULL) {
-			MHVTL_ERR("Out of memory: %d", __LINE__);
-			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
-			free(cbuf);
-			return 0;
-		}
-		z = uncompress(c2buf, &uncompress_sz, cbuf, disk_blk_size);
-		/* Now copy 'requested size' of data into buffer */
-		memcpy(buf, c2buf, tgtsize);
-		free(c2buf);
+		rc = tgtsize;
 	}
 
 	lu_ssc.bytesRead_I += blk_size;
 	lu_ssc.bytesRead_M += disk_blk_size;
-
-	switch (z) {
-	case Z_OK:
-		MHVTL_DBG(2, "Read %u (%u) bytes of compressed"
-			" data, have %u bytes for result",
-			(uint32_t)nread, disk_blk_size,
-			tgtsize);
-		break;
-	case Z_MEM_ERROR:
-		MHVTL_ERR("Not enough memory to decompress");
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
-		rc = 0;
-		break;
-	case Z_DATA_ERROR:
-		MHVTL_ERR("Block corrupt or incomplete");
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
-		rc = 0;
-		break;
-	case Z_BUF_ERROR:
-		MHVTL_ERR("Not enough memory in destination buf");
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
-		rc = 0;
-		break;
-	}
-	free(cbuf);
 
 	if (rc != request_sz)
 		mk_sense_short_block(request_sz, rc, sam_stat);
@@ -821,6 +904,10 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	return rc;
 }
 
+static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
+{
+	return src_sz + src_sz / 16 + 67;
+}
 
 /*
  * Return number of bytes written to 'file'
@@ -829,11 +916,15 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
  */
 int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 {
-	Bytef *dest_buf;
-	uLong dest_len;
-	uLong src_len = src_sz;
+	lzo_uint dest_len;
+	lzo_uint src_len = src_sz;
+	lzo_bytep dest_buf;
+	lzo_bytep wrkmem = NULL;
+
+	lzo_bytep src_buf = (lzo_bytep)cmd->dbuf_p->data;
+
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t *src_buf = cmd->dbuf_p->data;
+
 	struct priv_lu_ssc *lu_priv;
 	uint64_t current_position;
 	int rc;
@@ -851,29 +942,19 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		lu_priv->pm->valid_encryption_media(cmd);
 
 	if (*lu_priv->compressionFactor) {
-		dest_len = compressBound(src_sz);
+		dest_len = mhvtl_compressBound(src_sz);
 		dest_buf = malloc(dest_len);
+		wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
+
 		if (!dest_buf) {
 			MHVTL_ERR("malloc(%d) failed", (int)dest_len);
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 			return 0;
 		}
-		z = compress2(dest_buf, &dest_len, src_buf, src_sz,
-						*lu_priv->compressionFactor);
-		if (z != Z_OK) {
-			switch (z) {
-			case Z_MEM_ERROR:
-				MHVTL_ERR("Not enough memory to compress "
-						"data");
-				break;
-			case Z_BUF_ERROR:
-				MHVTL_ERR("Not enough memory in destination "
-						"buf to compress data");
-				break;
-			case Z_DATA_ERROR:
-				MHVTL_ERR("Input data corrupt / incomplete");
-				break;
-			}
+		z = lzo1x_1_compress(src_buf, src_sz, dest_buf, &dest_len,
+						wrkmem);
+		if (z != LZO_E_OK) {
+			MHVTL_ERR("LZO compression error");
 			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
 							sam_stat);
 			return 0;
@@ -889,12 +970,13 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop, sam_stat);
 
-	if (*lu_priv->compressionFactor != Z_NO_COMPRESSION) {
-		free(dest_buf);
-		lu_priv->bytesWritten_I += src_len;
-		lu_priv->bytesWritten_M += dest_len;
+	lu_priv->bytesWritten_I += src_len;
+
+	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION) {
+		lu_priv->bytesWritten_M += src_len;
 	} else {
-		lu_priv->bytesWritten_I += src_len;
+		free(dest_buf);
+		free(wrkmem);
 		lu_priv->bytesWritten_M += dest_len;
 	}
 
@@ -2401,6 +2483,11 @@ int main(int argc, char *argv[])
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 	MHVTL_LOG("%s: version %s, verbose log: %d",
 					progname, MHVTL_VERSION, verbose);
+
+	if (lzo_init() != LZO_E_OK) {
+		MHVTL_ERR("Could not initialize LZO... Exiting");
+		exit(1);
+	}
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));

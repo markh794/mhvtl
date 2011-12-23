@@ -1156,7 +1156,7 @@ write_tape_block(const uint8_t *buffer, uint32_t blk_size, uint32_t comp_size,
 	raw_pos.hdr.blk_size = blk_size; /* Size of uncompressed data */
 
 	if (comp_size) {
-		raw_pos.hdr.blk_flags |= BLKHDR_FLG_COMPRESSED;
+		raw_pos.hdr.blk_flags |= BLKHDR_FLG_LZO_COMPRESSED;
 		raw_pos.hdr.disk_blk_size = disk_blk_size = comp_size;
 	} else {
 		raw_pos.hdr.disk_blk_size = disk_blk_size = blk_size;
@@ -1234,7 +1234,8 @@ read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 	if (!tape_loaded(sam_stat))
 		return -1;
 
-	MHVTL_DBG(3, "Reading blk %ld", (unsigned long)raw_pos.hdr.blk_number);
+	MHVTL_DBG(3, "Reading blk %ld, size: %d",
+			(unsigned long)raw_pos.hdr.blk_number, buf_size);
 
 	/* The caller should have already verified that this is a
 	   B_DATA block before issuing this read, so we shouldn't have to
@@ -1284,15 +1285,21 @@ print_raw_header(void)
 	switch(raw_pos.hdr.blk_type) {
 	case B_DATA:
 		if ((raw_pos.hdr.blk_flags &&
-			(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
-				(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
-			printf(" Encrypt/Comp data");
+			(BLKHDR_FLG_LZO_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
+			(BLKHDR_FLG_LZO_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
+			printf("  Encrypt/Comp data");
+		else if ((raw_pos.hdr.blk_flags &&
+			(BLKHDR_FLG_ZLIB_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
+			(BLKHDR_FLG_ZLIB_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
+			printf("  Encrypt/Comp data");
 		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)
-			printf("    Encrypted data");
-		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_COMPRESSED)
-			printf("   Compressed data");
+			printf("     Encrypted data");
+		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED)
+			printf("zlibCompressed data");
+		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_LZO_COMPRESSED)
+			printf(" lzoCompressed data");
 			else
-		printf("             data");
+		printf("              data");
 
 		printf("(%02x), sz %6d/%-6d, Blk No.: %u, data %" PRId64 "\n",
 			raw_pos.hdr.blk_type,
