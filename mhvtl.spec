@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 1.1
-Release: 0
-Source: mhvtl-2011-10-09.tgz
+Release: 1
+Source: mhvtl-2011-12-24.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -161,6 +161,14 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Sat Dec 24 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.1-1
+- Clean up IPC resources when finished with them
+- Simplify fifo reference counting
+- Start including Scientific Linux patches (Still need to include kmod RPM)
+- Fix 'make install' on Ubuntu
+- Various log message cleanups
+
 * Sun Oct 09 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.1
 - Added real time state notification.
