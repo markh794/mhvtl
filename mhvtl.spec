@@ -93,6 +93,9 @@ if ! getent passwd vtl > /dev/null 2>&1; then
    useradd -g vtl -c "VTL daemon" -d /opt/mhvtl -s /bin/bash vtl
  fi
 fi
+
+mkdir -p /opt/mhvtl > /dev/null
+
 if [ -x /etc/init.d/vtl ]; then
  /etc/init.d/vtl shutdown
 fi
