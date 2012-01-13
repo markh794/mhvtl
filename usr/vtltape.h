@@ -144,6 +144,9 @@ struct blk_header {
 #define media_type_lto5_data	0x58
 #define media_type_lto5_worm	0x5c
 
+#define LZO	1	/* Using lzo compression libraries */
+#define ZLIB	2	/* Using zlib compression libraries */
+
 /* The remainder of this file defines the interface between the tape drive
    software and the implementation of a tape cartridge as one or more disk
    files.
@@ -170,7 +173,8 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t size, uint8_t *sam_stat);
 
 int write_filemarks(uint32_t count, uint8_t *sam_stat);
 int write_tape_block(const uint8_t *buf, uint32_t uncomp_size,
-	uint32_t comp_size, const struct encryption *cp, uint8_t *sam_stat);
+	uint32_t comp_size, const struct encryption *cp,
+	uint8_t comp_type, uint8_t *sam_stat);
 int format_tape(uint8_t *sam_stat);
 
 int rewriteMAM(uint8_t *sam_stat);

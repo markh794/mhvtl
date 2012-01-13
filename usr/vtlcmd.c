@@ -71,6 +71,8 @@ void usage(char *prog)
 	fprintf(stderr, "\nTape specific commands:\n");
 	fprintf(stderr, "   load ID     -> To 'load' media ID\n");
 	fprintf(stderr, "   unload ID   -> To 'unload' media ID\n");
+	fprintf(stderr, "   compression [zlib|lzo] -> Use zlib or lzo "
+						"compression\n");
 	fprintf(stderr, "\nLibrary specific commands:\n");
 	fprintf(stderr, "   online      -> To enable library\n");
 	fprintf(stderr, "   offline     -> To take library offline\n");
@@ -178,6 +180,17 @@ void Check_Unload(int argc, char **argv)
 	PrintErrorExit(argv[0], "unload");
 }
 
+void Check_Compression(int argc, char **argv)
+{
+	if (argc > 3) {
+		if (argc == 4)
+			return;
+
+		PrintErrorExit(argv[0], "compression");
+	}
+	PrintErrorExit(argv[0], "compression : missing lzo or zlib");
+}
+
 void Check_List(int argc, char **argv)
 {
 	if (argc != 4)
@@ -264,6 +277,10 @@ void Check_Params(int argc, char **argv)
 			}
 			if (!strcmp(argv[2], "unload")) {
 				Check_Unload(argc, argv);
+				return;
+			}
+			if (!strcmp(argv[2], "compression")) {
+				Check_Compression(argc, argv);
 				return;
 			}
 
@@ -458,6 +475,7 @@ int main(int argc, char **argv)
 		} else if (!strncmp(buf, "debug", 5)) {
 		} else if (!strncmp(buf, "dump", 4)) {
 		} else if (!strncmp(buf, "exit", 4)) {
+		} else if (!strncmp(buf, "compression", 11)) {
 		} else if (!strncmp(buf, "TapeAlert", 9)) {
 		} else {
 			fprintf(stderr, "Command for tape not allowed\n");

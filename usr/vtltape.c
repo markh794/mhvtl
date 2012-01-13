@@ -914,7 +914,7 @@ static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
  *
  * Zero on error with sense buffer already filled in
  */
-int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
+int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 {
 	lzo_uint dest_len;
 	lzo_uint src_len = src_sz;
@@ -926,7 +926,6 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	struct priv_lu_ssc *lu_priv;
-	uint64_t current_position;
 	int rc;
 	int z;
 
@@ -968,9 +967,8 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		dest_len = 0;	/* no compression */
 	}
 
-	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop, sam_stat);
-
-	lu_priv->bytesWritten_I += src_len;
+	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
+						LZO, sam_stat);
 
 	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION) {
 		lu_priv->bytesWritten_M += src_len;
@@ -979,8 +977,110 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		free(wrkmem);
 		lu_priv->bytesWritten_M += dest_len;
 	}
+	lu_priv->bytesWritten_I += src_len;
 
 	if (rc < 0)
+		return 0;
+
+	return src_len;
+}
+
+/*
+ * Return number of bytes written to 'file'
+ *
+ * Zero on error with sense buffer already filled in
+ */
+int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
+{
+	Bytef *dest_buf;
+	uLong dest_len;
+	uLong src_len = src_sz;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t *src_buf = cmd->dbuf_p->data;
+	struct priv_lu_ssc *lu_priv;
+	int rc;
+	int z;
+
+	lu_priv = cmd->lu->lu_private;
+
+	/* Determine whether or not to store the crypto info in the tape
+	 * blk_header.
+	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
+	 */
+	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
+
+	if (lu_priv->pm->valid_encryption_media)
+		lu_priv->pm->valid_encryption_media(cmd);
+
+	if (*lu_priv->compressionFactor) {
+		dest_len = compressBound(src_sz);
+		dest_buf = malloc(dest_len);
+		if (!dest_buf) {
+			MHVTL_ERR("malloc(%d) failed", (int)dest_len);
+			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+			return 0;
+		}
+		z = compress2(dest_buf, &dest_len, src_buf, src_sz,
+						*lu_priv->compressionFactor);
+		if (z != Z_OK) {
+			switch (z) {
+			case Z_MEM_ERROR:
+				MHVTL_ERR("Not enough memory to compress "
+						"data");
+				break;
+			case Z_BUF_ERROR:
+				MHVTL_ERR("Not enough memory in destination "
+						"buf to compress data");
+				break;
+			case Z_DATA_ERROR:
+				MHVTL_ERR("Input data corrupt / incomplete");
+				break;
+			}
+			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
+							sam_stat);
+			return 0;
+		}
+		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"
+				", Compression factor: %d",
+					src_sz, (unsigned long)dest_len,
+					*lu_priv->compressionFactor);
+	} else {
+		dest_buf = src_buf;
+		dest_len = 0;	/* no compression */
+	}
+
+	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
+							ZLIB, sam_stat);
+
+	if (*lu_priv->compressionFactor != Z_NO_COMPRESSION) {
+		free(dest_buf);
+		lu_priv->bytesWritten_M += dest_len;
+	} else {
+		lu_priv->bytesWritten_M += src_len;
+	}
+	lu_priv->bytesWritten_I += src_len;
+
+	if (rc < 0)
+		return 0;
+
+	return src_len;
+}
+
+int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
+{
+	struct priv_lu_ssc *lu_priv;
+	int src_len;
+	uint64_t current_position;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+
+	lu_priv = cmd->lu->lu_private;
+
+	if (lu_priv->compressionType == LZO)
+		src_len = writeBlock_lzo(cmd, src_sz);
+	else
+		src_len = writeBlock_zlib(cmd, src_sz);
+
+	if (!src_len)
 		return 0;
 
 	current_position = current_tape_offset();
@@ -1772,7 +1872,7 @@ void unloadTape(uint8_t *sam_stat)
 
 static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 {
-	char * pcl;
+	char *pcl;
 	char s[128];
 	struct lu_phy_attr *lu;
 
@@ -1839,6 +1939,17 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		uint64_t flg = 0L;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
 		update_TapeAlert(lu, flg);
+	}
+
+	if (!strncmp(msg->text, "compression", 11)) {
+		sscanf(msg->text, "compression %s", &s[0]);
+		if (!strncasecmp(s, "lzo", 3))
+			lu_ssc.compressionType = LZO;
+		if (!strncasecmp(s, "zlib", 4))
+			lu_ssc.compressionType = ZLIB;
+		MHVTL_DBG(1, "Compression set to %s",
+				(lu_ssc.compressionType == LZO) ?
+						"LZO" : "ZLIB");
 	}
 
 	if (!strncmp(msg->text, "debug", 5)) {
@@ -2272,6 +2383,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			if (sscanf(b, " Vendor identification: %s", s)) {
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
+			}
+			if (sscanf(b, " Compression type: %s", s)) {
+				if (!strncasecmp(s, "lzo", 3))
+					lu_ssc.compressionType = LZO;
+				if (!strncasecmp(s, "zlib", 4))
+					lu_ssc.compressionType = ZLIB;
+				MHVTL_DBG(2, "Compression set to %s",
+					(lu_ssc.compressionType == LZO) ?
+						"LZO" : "ZLIB");
 			}
 			if (sscanf(b, " Compression: factor %d enabled %d",
 							&i, &j)) {

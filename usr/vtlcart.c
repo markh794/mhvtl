@@ -1125,7 +1125,7 @@ write_filemarks(uint32_t count, uint8_t *sam_stat)
 
 int
 write_tape_block(const uint8_t *buffer, uint32_t blk_size, uint32_t comp_size,
-	const struct encryption *encryptp, uint8_t *sam_stat)
+	const struct encryption *encryptp, uint8_t comp_type, uint8_t *sam_stat)
 {
 	uint32_t blk_number, disk_blk_size;
 	uint64_t data_offset;
@@ -1156,7 +1156,10 @@ write_tape_block(const uint8_t *buffer, uint32_t blk_size, uint32_t comp_size,
 	raw_pos.hdr.blk_size = blk_size; /* Size of uncompressed data */
 
 	if (comp_size) {
-		raw_pos.hdr.blk_flags |= BLKHDR_FLG_LZO_COMPRESSED;
+		if (comp_type == LZO)
+			raw_pos.hdr.blk_flags |= BLKHDR_FLG_LZO_COMPRESSED;
+		else
+			raw_pos.hdr.blk_flags |= BLKHDR_FLG_ZLIB_COMPRESSED;
 		raw_pos.hdr.disk_blk_size = disk_blk_size = comp_size;
 	} else {
 		raw_pos.hdr.disk_blk_size = disk_blk_size = blk_size;

@@ -93,6 +93,8 @@ struct priv_lu_ssc {
 	uint8_t configCompressionFactor;
 	uint8_t configCompressionEnabled;
 
+	uint8_t compressionType; /* lzo or zlib compression */
+
 	loff_t capacity_unit;
 	loff_t early_warning_sz;
 	loff_t prog_early_warning_sz;

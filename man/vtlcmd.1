@@ -26,6 +26,8 @@ Toggle verbose flag. This will cycle verbose flag thru verbose settings 3 2 1 of
 Load media ID (barcode) - Used for stand-alone tape drive daemon.
 .IP "unload <ID>"
 Unload media ID (barcode)
+.IP "compression <ZLIB|LZO>"
+Changes compression libraries used to compress each block of data
 .IP "TapeAlert <alert flag>"
 Send a 64bit hex number, each bit corresponds to one TapeAlert flag as defined by t10.org. Where bit 0 is TapeAlert flag 1, and bit 63 is TapeAlert flag 64.
 .IP exit
