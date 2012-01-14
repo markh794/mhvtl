@@ -40,6 +40,7 @@
 #include <semaphore.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
+#include <time.h>
 #include "be_byteshift.h"
 #include "list.h"
 #include "scsi.h"
@@ -567,15 +568,27 @@ int open_fifo(FILE **fifo_fd, char *fifoname)
 
 void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg)
 {
+	time_t t;
+	char *timestamp;
+	int i;
+
 	if (!fifo_fd)
 		return;
 
+	t = time(NULL);
+	timestamp = ctime(&t);
+
+	for (i = 14; i < strlen(timestamp); i++)
+		if (timestamp[i] == '\n')
+			timestamp[i] = '\0';
+
 	if (*msg) {
-		fprintf(fifo_fd, "%d: %s\n", m_id, *msg);
+		fprintf(fifo_fd, "%s - %d: - %s\n",
+				timestamp, m_id, *msg);
 		free(*msg);
 		*msg = NULL;
 	} else
-		fprintf(fifo_fd, "%d: %s\n", m_id,
+		fprintf(fifo_fd, "%s - %d: - %s\n", timestamp, m_id,
 				state_desc[current_status].state_desc);
 
 	fflush(fifo_fd);
