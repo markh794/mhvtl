@@ -1377,8 +1377,6 @@ int main(int argc, char *argv[])
 	}
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	MHVTL_LOG("%s: version %s, verbose log: %d",
-					progname, MHVTL_VERSION, verbose);
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
@@ -1540,6 +1538,10 @@ int main(int argc, char *argv[])
 		close(STDERR_FILENO);
 	}
 
+	MHVTL_LOG("Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
+					progname, MHVTL_VERSION, verbose,
+					ctl.channel, ctl.id, ctl.lun);
+
 	oom_adjust();
 
 	/* Tweak as necessary to properly mimic the specified library type. */
@@ -1592,7 +1594,8 @@ int main(int argc, char *argv[])
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
 					MHVTL_DBG(2,
-						"Cleaning up after child %d",
+						"Cleaning up after add_lu "
+						"child pid: %d",
 							child_cleanup);
 					child_cleanup = 0;
 				}

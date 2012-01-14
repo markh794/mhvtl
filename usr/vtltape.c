@@ -2601,8 +2601,6 @@ int main(int argc, char *argv[])
 	minor = my_id;	/* Minor == Message Queue priority */
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
-	MHVTL_LOG("%s: version %s, verbose log: %d",
-					progname, MHVTL_VERSION, verbose);
 
 	if (lzo_init() != LZO_E_OK) {
 		MHVTL_ERR("Could not initialize LZO... Exiting");
@@ -2625,8 +2623,6 @@ int main(int argc, char *argv[])
 		printf("Can not find entry for '%d' in config file\n", minor);
 		exit(1);
 	}
-
-	MHVTL_DBG(1, "starting...");
 
 	/*
 	 * Determine drive type
@@ -2685,7 +2681,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	MHVTL_DBG(1, "Size of buffer is %d", lu_ssc.bufsize);
 	buf = (uint8_t *)malloc(lu_ssc.bufsize);
 	if (NULL == buf) {
 		perror("Problems allocating memory");
@@ -2702,7 +2697,8 @@ int main(int argc, char *argv[])
 			exit(-1);
 			break;
 		default:
-			MHVTL_DBG(1, "vtltape process PID is %d", (int)pid);
+			MHVTL_DBG(1, "Successfully started daemon: PID %d",
+						(int)pid);
 			exit(0);
 			break;
 		}
@@ -2721,6 +2717,11 @@ int main(int argc, char *argv[])
 		close(STDIN_FILENO);
 		close(STDERR_FILENO);
 	}
+
+	MHVTL_LOG("Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
+					progname, MHVTL_VERSION, verbose,
+					ctl.channel, ctl.id, ctl.lun);
+	MHVTL_DBG(1, "Size of buffer is %d", lu_ssc.bufsize);
 
 	oom_adjust();
 
@@ -2775,7 +2776,8 @@ int main(int argc, char *argv[])
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
 					MHVTL_DBG(1,
-						"Cleaning up after child %d",
+						"Cleaning up after add_lu "
+						"child pid: %d",
 							child_cleanup);
 					child_cleanup = 0;
 				}

@@ -389,13 +389,14 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 		if (pseudo < 0) {
 			sprintf(errmsg, "Could not open %s", pseudo_filename);
 			MHVTL_DBG(1, "%s : %s", errmsg, strerror(errno));
-			perror("Cound not open 'add_lu'");
+			perror("Could not open 'add_lu'");
 			exit(-1);
 		}
 		retval = write(pseudo, str, strlen(str));
 		MHVTL_DBG(2, "Wrote %s (%d bytes)", str, (int)retval);
 		close(pseudo);
-		MHVTL_DBG(1, "Child anounces 'lu created'.");
+		MHVTL_DBG(1, "Child anounces 'lu [%d:%d:%d] created'.",
+					ctl->channel, ctl->id, ctl->lun);
 		exit(0);
 		break;
 	case -1:
@@ -404,8 +405,9 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 		return 0;
 		break;
 	default:
-		MHVTL_DBG(1, "From a proud parent - birth of PID %ld",
-					(long)pid);
+		MHVTL_DBG(1, "Child PID %ld starting logical unit [%d:%d:%d]",
+					(long)pid, ctl->channel,
+					ctl->id, ctl->lun);
 		return pid;
 		break;
 	}
