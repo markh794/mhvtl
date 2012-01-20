@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
-Version: 1.1
-Release: 1
-Source: mhvtl-2011-12-24.tgz
+Version: 1.2
+Release: 0
+Source: mhvtl-2012-01-20.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -161,6 +161,16 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Fri Jan 20 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.2-0
+- Ability to specify zlib or lzo compression.
+  via 'vtlcmd' at runtime.
+      'vtlcmd <> compression lzo'
+      'vtlcmd <> compression zlib'
+  /etc/mhvtl/device.conf entry
+      ' Compression type: lzo'
+      ' Compression type: zlib'
+
 * Sat Dec 24 2011 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.1-1
 - Clean up IPC resources when finished with them
