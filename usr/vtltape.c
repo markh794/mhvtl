@@ -729,6 +729,9 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 	}
+
+	free(cbuf);
+
 	return rc;
 }
 
@@ -815,7 +818,9 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 		rc = 0;
 		break;
 	}
+
 	free(cbuf);
+
 	return rc;
 }
 
