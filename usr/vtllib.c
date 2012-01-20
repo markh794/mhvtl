@@ -59,7 +59,7 @@ static int reset = 0;
 static struct state_description {
 	char *state_desc;
 } state_desc[] = {
-	{ "Initialising v1", },
+	{ "Initialising v2", },
 	{ "Idle", },
 	{ "Unloading", },
 	{ "Loading", },
