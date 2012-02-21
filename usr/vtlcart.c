@@ -690,6 +690,12 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	*/
 
 	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
+	if (!pw)
+	{
+		MHVTL_ERR("Failed to get UID for user '%s': %s", USR,
+			strerror(errno));
+		return 1;
+	}
 
 	sprintf(newMedia, "%s/%s", MHVTL_HOME_PATH, pcl);
 	sprintf(newMedia_data, "%s/data", newMedia);
