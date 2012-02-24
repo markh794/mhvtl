@@ -620,21 +620,6 @@ static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
 return NULL;
 }
 
-static struct s_info *lookup_slot(struct lu_phy_attr *lu, unsigned int slot)
-{
-	struct list_head *slot_list_head;
-	struct s_info *s;
-
-	slot_list_head = &((struct smc_priv *)lu->lu_private)->slot_list;
-
-	list_for_each_entry(s, slot_list_head, siblings) {
-		if (s->slot_location == slot)
-			return s;
-	}
-
-return NULL;
-}
-
 struct s_info *add_new_slot(struct lu_phy_attr *lu)
 {
 	struct s_info *new;
