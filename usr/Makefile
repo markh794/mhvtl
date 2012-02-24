@@ -64,7 +64,7 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 	$(CC) $(CFLAGS) -c -fpic smc.c
 	$(CC) $(CFLAGS) -c -fpic q.c
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o \
-		mode.o log.o -lrt
+		mode.o log.o -lpthread
 
 tapeexerciser:	tapeexerciser.c
 	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
