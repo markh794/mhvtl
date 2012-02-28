@@ -1745,8 +1745,10 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	m_detail = check_media_can_load(&lu_ssc.supported_media_list,
 						mam.MediaType);
 
-	if (!m_detail)	/* Media not defined.. Reject */
+	if (!m_detail) { /* Media not defined.. Reject */
+		MHVTL_DBG(3, "Undefined Media rejected");
 		goto mismatchmedia;
+	}
 
 	MHVTL_DBG(2, "Density Status: 0x%x", m_detail->load_capability);
 
