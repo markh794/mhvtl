@@ -664,7 +664,7 @@ rewriteMAM(uint8_t *sam_stat)
 		return -1;
 	}
 
-	return 0;
+	return nwrite;
 }
 
 /*
