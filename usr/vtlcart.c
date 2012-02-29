@@ -1287,6 +1287,14 @@ current_tape_offset(void)
 	return 0;
 }
 
+uint64_t
+current_tape_block(void)
+{
+	if (datafile != -1)
+		return (uint64_t)c_pos->blk_number;
+	return 0;
+}
+
 void
 print_raw_header(void)
 {

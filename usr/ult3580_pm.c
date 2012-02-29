@@ -452,6 +452,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
+	ssc_pm.drive_supports_early_warning = TRUE;
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
@@ -511,6 +512,9 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
+	ssc_pm.drive_supports_append_only_mode = TRUE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = TRUE;
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;

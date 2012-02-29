@@ -20,6 +20,11 @@
 struct ssc_personality_template {
 	char *name;
 	int drive_type;
+
+	uint8_t drive_supports_append_only_mode;
+	uint8_t drive_supports_early_warning;
+	uint8_t drive_supports_prog_early_warning;
+
 	struct density_info *native_drive_density;
 
 	struct lu_phy_attr *lu;
@@ -88,6 +93,10 @@ struct priv_lu_ssc {
 	/* True if virtual "write protect" switch is set */
 	uint8_t MediaWriteProtect;
 
+	/* Append only mode */
+	uint8_t append_only_mode;
+	uint8_t allow_overwrite;
+
 	/* Default value read from config file */
 	uint8_t configCompressionFactor;
 	uint8_t configCompressionEnabled;
@@ -107,6 +116,7 @@ struct priv_lu_ssc {
 	int *OK_2_write;
 	struct MAM *mamp;
 
+	uint64_t allow_overwrite_block;	/* Used by 'allow overwrite' op code */
 	uint64_t max_capacity; /* save MAM.max_capacity here for quick access */
 	uint64_t bytesRead_M;	/* Bytes read from media */
 	uint64_t bytesRead_I;	/* Bytes read and sent to initiator */

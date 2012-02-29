@@ -64,7 +64,7 @@ struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
  * Allocate 'size' bytes & init to 0
  * set first 2 bytes:
  *  byte[0] = pcode
- *  byte[1] = size - sizeof(byte[0]
+ *  byte[1] = size - sizeof(byte[0])
  *
  * Return pointer to mode structure being init. or NULL if alloc failed
  */

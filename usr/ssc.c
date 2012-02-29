@@ -49,10 +49,64 @@
 uint8_t last_cmd;
 int current_state;
 
+static struct allow_overwrite_state {
+	char *desc;
+} allow_overwrite_desc[] = {
+	{ "Disabled", },
+	{ "Current Position", },
+	{ "Format", },
+	{ "Opps, Invalid field in CDB", },
+};
+
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "ALLOW OVERWRITE (%ld) **", (long)cmd->dbuf_p->serialNo);
-	return SAM_STAT_GOOD;
+	uint8_t *cdb = cmd->scb;
+	uint8_t allow_overwrite = cdb[2] & 0x0f;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t ret_stat = SAM_STAT_GOOD;
+	uint64_t allow_overwrite_block;
+	struct priv_lu_ssc *lu_ssc;
+
+	lu_ssc = cmd->lu->lu_private;
+
+	if (allow_overwrite > 2) {
+		allow_overwrite = 3;	/* Truncate bad values 3 to 15 -> '3' */
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		ret_stat = SAM_STAT_CHECK_CONDITION;
+	}
+
+	MHVTL_DBG(1, "ALLOW OVERWRITE (%ld) : %s **",
+			(long)cmd->dbuf_p->serialNo,
+			allow_overwrite_desc[allow_overwrite].desc);
+
+	lu_ssc->allow_overwrite = FALSE;
+
+	switch (allow_overwrite) {
+	case 0:
+		break;
+	case 1:  /* current position */
+		allow_overwrite_block = get_unaligned_be64(&cdb[4]);
+		MHVTL_DBG(1, "Allow overwrite block: %ld",
+					allow_overwrite_block);
+		if (allow_overwrite_block == current_tape_block()) {
+			lu_ssc->allow_overwrite_block = allow_overwrite_block;
+			lu_ssc->allow_overwrite = TRUE;
+		} else {
+			/* unsigned 64 bit value. Setting to all 'f's */
+			lu_ssc->allow_overwrite_block = 0;
+			lu_ssc->allow_overwrite_block--;
+			mkSenseBuf(ILLEGAL_REQUEST,
+					E_SEQUENTIAL_POSITIONING_ERROR,
+					sam_stat);
+			ret_stat = SAM_STAT_CHECK_CONDITION;
+		}
+		break;
+	case 2:
+		lu_ssc->allow_overwrite = 2;
+		break;
+	}
+
+	return ret_stat;
 }
 
 uint8_t ssc_read_6(struct scsi_cmd *cmd)
@@ -93,8 +147,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
 		MHVTL_DBG(1, "Suppress ILI and Fixed block "
 					"read not allowed by SSC3");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sam_stat);
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -261,6 +314,27 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 		mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
 	}
 
+	/* over-ride the above IF running in append_only mode and this write
+	 * isn't authorized.
+	 * Some writes would be OK, like the first write to an empty tape or
+	 * WORM media overwriting a filemark that is next to EOD
+	 */
+	if (lu_ssc->OK_2_write && lu_ssc->append_only_mode) {
+		if ((c_pos->blk_number != lu_ssc->allow_overwrite_block) &&
+				(c_pos->blk_type != B_EOD)) {
+
+			uint64_t TAflag;
+
+			lu_ssc->OK_2_write = 0;
+			lu_ssc->allow_overwrite = FALSE;
+			mkSenseBuf(DATA_PROTECT, E_MEDIUM_OVERWRITE_ATTEMPTED,
+						sam_stat);
+			/* And set TapeAlert flg 09 -> WRITE PROTECT */
+			TAflag = 0x100;
+			update_TapeAlert(cmd->lu, TAflag);
+		}
+	}
+
 	MHVTL_DBG(2, "returning %s",
 			(*lu_ssc->OK_2_write) ? "Writable" : "Non-writable");
 	return *lu_ssc->OK_2_write;
@@ -397,7 +471,6 @@ uint8_t ssc_seek_10(struct scsi_cmd *cmd)
 uint8_t ssc_load_display(struct scsi_cmd *cmd)
 {
 	unsigned char *d;
-	int nread;
 	char str1[9];
 	char str2[9];
 
@@ -405,7 +478,7 @@ uint8_t ssc_load_display(struct scsi_cmd *cmd)
 					(long)cmd->dbuf_p->serialNo);
 
 	cmd->dbuf_p->sz = cmd->scb[4];
-	nread = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+	retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
 	d = cmd->dbuf_p->data;
 	memcpy(str1, &d[1], 8);
 	str1[8] = 0;
@@ -521,6 +594,111 @@ uint8_t ssc_pr_out(struct scsi_cmd *cmd)
 	return resp_spc_pro(cmd->scb, cmd->dbuf_p);
 }
 
+static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t *p)
+{
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	struct lu_phy_attr *lu = cmd->lu;
+	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
+	struct ssc_personality_template *pm;
+	struct mode *mp;
+	int page_code_len;
+	int write_mode;
+	int pews;	/* Programable Early Warning Size */
+
+	pm = lu_priv->pm;
+
+	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CONFIGURATION, 1);
+
+	/* Code error
+	 * Any device supporting this should have this mode page defined */
+	if (!mp) {
+		mkSenseBuf(HARDWARE_ERROR, E_INTERNAL_TARGET_FAILURE, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	page_code_len = get_unaligned_be16(&p[2]);
+
+	if (page_code_len != 0x1c) {
+		MHVTL_LOG("Unexpected page code length.. Unexpected results");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	write_mode = (p[5] & 0xf0) >> 4;
+	if (write_mode > 1) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	MHVTL_DBG(2, "%s mode", write_mode ? "Append-only" : "Write-anywhere");
+
+	pews = get_unaligned_be16(&p[6]);
+	if (pm->drive_supports_prog_early_warning) {
+		MHVTL_DBG(2, "Set Programable Early Warning Size: %d", pews);
+		lu_priv->prog_early_warning_sz = pews;
+		update_prog_early_warning(lu);
+	} else {
+		MHVTL_DBG(2, "Programable Early Warning Size not supported"
+				" by this device");
+	}
+
+	MHVTL_DBG(2, "Volume containing encrypted logical blocks "
+			"requires encryption: %d",
+			p[8] & 0x01);
+
+	if (pm->drive_supports_append_only_mode) {
+		/* Can't reset append-only mode via mode page ssc4 8.3.8 */
+		if (lu_priv->append_only_mode && write_mode == 0) {
+			MHVTL_LOG("Can't reset append only mode via mode page");
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+							sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
+		if (write_mode) {
+			lu_priv->append_only_mode = write_mode;
+			lu_priv->allow_overwrite = FALSE;
+		}
+	}
+
+	/* Now update our copy of this mode page */
+	mp->pcodePointer[5] &= 0x0f;
+	mp->pcodePointer[5] |= write_mode << 4;
+
+	return SAM_STAT_GOOD;
+}
+
+static void set_device_configuration(struct scsi_cmd *cmd, uint8_t *p)
+{
+	struct lu_phy_attr *lu = cmd->lu;
+	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
+	struct ssc_personality_template *pm;
+
+	pm = lu_priv->pm;
+
+	if (p[14]) { /* Select Data Compression Alg */
+		if (pm->set_compression)
+			pm->set_compression(&lu->mode_pg,
+					lu_priv->configCompressionFactor);
+	} else {
+		if (pm->clear_compression)
+				pm->clear_compression(&lu->mode_pg);
+	}
+}
+
+static void set_mode_compression(struct lu_phy_attr *lu, int dce)
+{
+	struct priv_lu_ssc *lu_priv = lu->lu_private;
+	struct ssc_personality_template *pm;
+	pm = lu_priv->pm;
+
+	if (dce) { /* Data Compression Enable bit set */
+		if (pm->set_compression)
+			pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
+	} else {
+		if (pm->clear_compression)
+			pm->clear_compression(&lu->mode_pg);
+	}
+}
+
 /*
  * Process the MODE_SELECT command
  */
@@ -529,15 +707,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *buf = cmd->dbuf_p->data;
 	struct lu_phy_attr *lu = cmd->lu;
-	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
-	struct ssc_personality_template *pm;
 	int block_descriptor_sz;
 	uint8_t *bdb = NULL;
-	int pgoff;
+	int i;
 	int long_lba = 0;
 	int count;
-
-	pm = lu_priv->pm;
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
@@ -563,14 +737,14 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		block_descriptor_sz = buf[3];
 		if (block_descriptor_sz)
 			bdb = &buf[4];
-		pgoff = 4 + block_descriptor_sz;
+		i = 4 + block_descriptor_sz;
 		break;
 	case MODE_SELECT_10:
 		block_descriptor_sz = get_unaligned_be16(&buf[6]);
 		long_lba = buf[4] & 1;
 		if (block_descriptor_sz)
 			bdb = &buf[8];
-		pgoff = 8 + block_descriptor_sz;
+		i = 8 + block_descriptor_sz;
 		break;
 	default:
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
@@ -578,15 +752,14 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	}
 
 	if (bdb) {
-		if (!long_lba) {
-			memcpy(blockDescriptorBlock, bdb, block_descriptor_sz);
-		} else {
+		if (long_lba) {
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							sam_stat);
 			MHVTL_DBG(1, "Warning can not "
 				"handle long descriptor block (long_lba bit)");
 			return SAM_STAT_CHECK_CONDITION;
 		}
+		memcpy(blockDescriptorBlock, bdb, block_descriptor_sz);
 	}
 
 #ifdef MHVTL_DEBUG
@@ -594,32 +767,32 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		hex_dump(buf, cmd->dbuf_p->sz);
 #endif
 
-	while (pgoff < cmd->dbuf_p->sz) {
-		switch (buf[pgoff + 0]) {
+	while (i < cmd->dbuf_p->sz) {
+		switch (buf[i + 0]) {
 		case MODE_DATA_COMPRESSION:
-			if (buf[pgoff + 2] & 0x80) { /* DCE bit set */
-				if (pm->set_compression)
-					pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
-			} else {
-				if (pm->clear_compression)
-					pm->clear_compression(&lu->mode_pg);
-			}
+			set_mode_compression(lu, buf[i + 2] & 0x80);
 			break;
 
 		case MODE_DEVICE_CONFIGURATION:
-			if (buf[pgoff + 14]) { /* Select Data Compression Alg */
-				if (pm->set_compression)
-					pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
-			} else {
-				if (pm->clear_compression)
-					pm->clear_compression(&lu->mode_pg);
-			}
+			/* If this is '01' it's a subpage value
+			 *     i.e. DEVICE CONFIGURATION EXTENSION
+			 * If it's 0x0e, it indicates a page length
+			 * for MODE DEVICE CONFIGURATION
+			 */
+			if (buf[i + 1] == 0x01) {
+				if (set_device_configuration_extension(cmd,
+								&buf[i]))
+					return SAM_STAT_CHECK_CONDITION;
+			} else
+				set_device_configuration(cmd, &buf[i]);
 			break;
 
 		default:
+			MHVTL_DBG(1, "mode page 0x%02x not handled",
+						buf[i]);
 			break;
 		}
-		pgoff += buf[pgoff + 1] + 1;
+		i += buf[i + 1] + 1;	/* Next mode page */
 	}
 
 	return SAM_STAT_GOOD;
