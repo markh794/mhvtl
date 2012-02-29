@@ -596,7 +596,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 	while (pgoff < cmd->dbuf_p->sz) {
 		switch (buf[pgoff + 0]) {
-		case 0x0f:
+		case MODE_DATA_COMPRESSION:
 			if (buf[pgoff + 2] & 0x80) { /* DCE bit set */
 				if (pm->set_compression)
 					pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
@@ -606,7 +606,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			}
 			break;
 
-		case 0x10:
+		case MODE_DEVICE_CONFIGURATION:
 			if (buf[pgoff + 14]) { /* Select Data Compression Alg */
 				if (pm->set_compression)
 					pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
