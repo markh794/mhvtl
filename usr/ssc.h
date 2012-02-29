@@ -21,7 +21,6 @@ struct ssc_personality_template {
 	char *name;
 	int drive_type;
 	struct density_info *native_drive_density;
-	struct media_handling *media_capabilities;
 
 	struct lu_phy_attr *lu;
 

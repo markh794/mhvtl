@@ -232,7 +232,6 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name;
 	ssc_pm.lu = lu;
 	ssc_pm.native_drive_density = &density_default;
-	ssc_pm.media_capabilities = NULL;
 	personality_module_register(&ssc_pm);
 	init_default_mode_pages(lu);
 
