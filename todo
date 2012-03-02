@@ -1,8 +1,6 @@
  - Add ability to set media as 'write protected'
  - Review return values from functions and make consistent.
    Some functions return SAM_STAT_XXX, some return *sam_status
- - REPORT DENSITY is broken. Needs to return ALL supported
-   media densities, not just one. T9x40 manual has nice writeup.
 
  - Major -> Add personality modules to library
   ================================
