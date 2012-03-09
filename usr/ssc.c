@@ -676,10 +676,12 @@ static void set_device_configuration(struct scsi_cmd *cmd, uint8_t *p)
 	pm = lu_priv->pm;
 
 	if (p[14]) { /* Select Data Compression Alg */
+		MHVTL_DBG(2, "Mode Select->Setting compression");
 		if (pm->set_compression)
 			pm->set_compression(&lu->mode_pg,
 					lu_priv->configCompressionFactor);
 	} else {
+		MHVTL_DBG(2, "Mode Select->Clearing compression");
 		if (pm->clear_compression)
 				pm->clear_compression(&lu->mode_pg);
 	}

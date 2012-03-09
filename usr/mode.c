@@ -312,6 +312,8 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[14] = ssc->configCompressionFactor;
 	mp->pcodePointer[15] = 0x80;	/* WTRE (WORM handling) */
 
+	mp->pcodePointerBitMap[14] = 0xff;	/* Compression is changable */
+
 	/* Set pointer for compressionFactor to correct location in
 	 * mode page struct
 	 */
