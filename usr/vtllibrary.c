@@ -1412,11 +1412,11 @@ int main(int argc, char *argv[])
 	/* Now that we have created the lu, drop root uid/gid */
 	if (setgid(pw->pw_gid)) {
 		perror("Unable to change gid");
-		exit (1);
+		exit(1);
 	}
 	if (setuid(pw->pw_uid)) {
 		perror("Unable to change uid");
-		exit (1);
+		exit(1);
 	}
 
 	MHVTL_DBG(2, "Running as %s, uid: %d", pw->pw_name, getuid());

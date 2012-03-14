@@ -40,6 +40,7 @@
 #include "list.h"
 #include "vtl_common.h"
 #include "vtllib.h"
+#include "ssc.h"
 
 extern unsigned char sense[];
 
@@ -527,10 +528,11 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 {
 	int pc, pcode, subpcode;
 	int alloc_len, msense_6;
-	int dev_spec, len = 0;
+	int len = 0;
 	int offset = 0;
 	uint8_t *ap;
 	struct mode *smp;	/* Struct mode pointer... */
+	struct priv_lu_ssc *ssc;
 	int i, j;
 	int WriteProtect = 0;
 
@@ -538,6 +540,11 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	uint8_t *scb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	struct list_head *m = &cmd->lu->mode_pg;
+
+	if (cmd->lu->ptype == TYPE_TAPE) {
+		ssc = cmd->lu->lu_private;
+		WriteProtect = ssc->MediaWriteProtect;
+	}
 
 #ifdef MHVTL_DEBUG
 	char *pcString[] = {
@@ -589,7 +596,6 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	}
 
 	memset(buf, 0, alloc_len);	/* Set return data to null */
-	dev_spec = (WriteProtect ? 0x80 : 0x00) | 0x10;
 
 	offset += blockDescriptorLen;
 	ap = buf + offset;
@@ -650,7 +656,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	if (msense_6) {
 		buf[0] = offset - 1;	/* size - sizeof(buf[0]) field */
 		buf[1] = cmd->lu->mode_media_type;
-		buf[2] = dev_spec;
+		buf[2] = (WriteProtect ? 0x80 : 0x00) | 0x10;
 		buf[3] = blockDescriptorLen;
 		/* If the length > 0, copy Block Desc. */
 		if (blockDescriptorLen) {
@@ -670,7 +676,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	} else {
 		put_unaligned_be16(offset - 2, &buf[0]);
 		buf[2] = cmd->lu->mode_media_type;
-		buf[3] = dev_spec;
+		buf[3] = (WriteProtect ? 0x80 : 0x00) | 0x10;
 		put_unaligned_be16(blockDescriptorLen, &buf[6]);
 		/* If the length > 0, copy Block Desc. */
 		if (blockDescriptorLen) {
