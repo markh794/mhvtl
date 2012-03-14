@@ -194,6 +194,7 @@ struct mode {
 	uint8_t pcode;		/* Page code */
 	uint8_t subpcode;	/* Sub page code */
 	int32_t pcodeSize;	/* Size of page code data. */
+	uint8_t *pcodePointerBitMap;	/* bitmap for changable data */
 	uint8_t *pcodePointer;	/* Pointer to page code data */
 	};
 

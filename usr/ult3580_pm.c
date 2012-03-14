@@ -307,6 +307,11 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 	personality_module_register(&ssc_pm);
 	ssc_pm.native_drive_density = &density_lto1;
 
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	/* IBM Ultrium SCSI Reference (5edition - Oct 2001)
 	 * lists these mode pages
 	 */
@@ -338,6 +343,11 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_lto2;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
 
 	ssc_pm.native_drive_density = &density_lto2;
 
@@ -379,6 +389,11 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_lto3;
 	ssc_pm.clear_WORM = clear_ult_WORM;
 	ssc_pm.set_WORM = set_ult_WORM;
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
 
 	/* Based on 9th edition of IBM SCSI Reference */
 	add_mode_page_rw_err_recovery(lu);
@@ -422,6 +437,11 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
 
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control(lu);
@@ -452,7 +472,6 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	ssc_pm.drive_supports_early_warning = TRUE;
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
@@ -478,6 +497,11 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_lto5;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = TRUE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = TRUE;
 
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
@@ -512,9 +536,6 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.kad_validation = td4_kad_validation,
 	ssc_pm.clear_WORM = clear_ult_WORM,
 	ssc_pm.set_WORM = set_ult_WORM,
-	ssc_pm.drive_supports_append_only_mode = TRUE;
-	ssc_pm.drive_supports_early_warning = TRUE;
-	ssc_pm.drive_supports_prog_early_warning = TRUE;
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;

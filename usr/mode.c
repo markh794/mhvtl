@@ -88,6 +88,16 @@ struct mode *alloc_mode_page(struct list_head *m,
 			mp->pcode = pcode;
 			mp->subpcode = subpcode;
 			mp->pcodeSize = size;
+
+			/* Allocate a 'changable bitmap' mode page info */
+			mp->pcodePointerBitMap = malloc(size);
+			if (!mp->pcodePointerBitMap) {
+				free(mp);
+				MHVTL_ERR("Unable to malloc(%d)", size);
+				return NULL;
+			}
+			memset(mp->pcodePointerBitMap, 0, size);
+
 			list_add_tail(&mp->siblings, m);
 			return mp;
 		} else {
@@ -123,6 +133,10 @@ int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	return 0;
 }
 
@@ -149,6 +163,11 @@ int add_mode_disconnect_reconnect(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[2] = 50;	/* Buffer full ratio */
 	mp->pcodePointer[3] = 50;	/* Buffer empty ratio */
 	mp->pcodePointer[10] = 4;
@@ -180,6 +199,10 @@ int add_mode_control(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	return 0;
 }
 
@@ -206,6 +229,10 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	return 0;
 }
@@ -235,6 +262,11 @@ int add_mode_data_compression(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[2] = 0xc0;	/* Set data compression enable */
 	mp->pcodePointer[3] = 0x80;	/* Set data decompression enable */
 	put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[4]);
@@ -269,6 +301,11 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[7] = 0x64;	/* Write delay (100mS intervals) */
 	mp->pcodePointer[8] = 0x40;	/* Block Identifiers supported */
 	mp->pcodePointer[10] = 0x18;	/* Enable EOD & Sync at early warning */
@@ -286,10 +323,19 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
 {
 	struct list_head *mode_pg;
+	struct priv_lu_ssc *ssc;
+	struct ssc_personality_template *pm;
 	struct mode *mp;
 	uint8_t pcode;
 	uint8_t subpcode;
 	uint8_t size;
+
+	/* Only for TAPE (SSC) devices */
+	if (lu->ptype != TYPE_TAPE)
+		return -ENOTTY;
+
+	ssc = lu->lu_private;
+	pm = ssc->pm;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DEVICE_CONFIGURATION;
@@ -305,10 +351,22 @@ int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[5] = 0x02;	/* Short erase mode  - write EOD */
 
 	/* default size of early warning */
 	put_unaligned_be16(0, &mp->pcodePointer[6]);
+
+	/* Update mode page bitmap to reflect changable fields */
+	if (pm->drive_supports_append_only_mode)
+		mp->pcodePointerBitMap[5] |= 0xf0;
+	if (pm->drive_supports_prog_early_warning) {
+		mp->pcodePointerBitMap[6] |= 0xff;
+		mp->pcodePointerBitMap[7] |= 0xff;
+	}
 
 	return 0;
 }
@@ -333,6 +391,10 @@ int add_mode_medium_partition(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	return 0;
 }
 
@@ -356,6 +418,10 @@ int add_mode_power_condition(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	return 0;
 }
 
@@ -378,6 +444,11 @@ int add_mode_information_exception(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[2] = 0x08;
 	mp->pcodePointer[3] = 0x03;
 
@@ -403,6 +474,10 @@ int add_mode_medium_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	mp->pcodePointer[4] = 0x01;	/* WORM mode label restrictions */
 	mp->pcodePointer[5] = 0x01;	/* WORM mode filemark restrictions */
@@ -442,6 +517,11 @@ int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[7] = ENCR_C;
 	return 0;
 }
@@ -479,6 +559,11 @@ int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[5] = 1;	/* LEOP to maximize medium capacity */
 	mp->pcodePointer[6] = 1;	/* Early Warning */
 
@@ -506,6 +591,10 @@ int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	/* Application Managed Encryption */
 	mp->pcodePointer[5] = 0x03;	/* Encryption Solution Method */
@@ -535,6 +624,11 @@ int add_mode_ait_device_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	mp->pcodePointer[2] = 0xf0;
 	mp->pcodePointer[3] = 0x0a;
 	mp->pcodePointer[4] = 0x40;
@@ -564,6 +658,10 @@ int add_mode_element_address_assignment(struct lu_phy_attr *lu)
 
 	p[0] = pcode;
 	p[1] = size - sizeof(p[0]) - sizeof(p[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	put_unaligned_be16(START_PICKER, &p[2]); /* First transport. */
 	put_unaligned_be16(smc_slots->num_picker, &p[4]);
@@ -602,6 +700,10 @@ int add_mode_transport_geometry(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
 	return 0;
 }
 
@@ -628,6 +730,10 @@ int add_mode_device_capabilities(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	mp->pcodePointer[2] = 0x0f;
 	mp->pcodePointer[3] = 0x07;
@@ -668,6 +774,10 @@ int add_mode_behavior_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[1] = size
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	mp->pcodePointer[3] = 0; /* Clean Behavior */
 	mp->pcodePointer[4] = 0; /* WORM Behavior */

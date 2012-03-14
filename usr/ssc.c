@@ -45,6 +45,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "log.h"
+#include "mode.h"
 
 uint8_t last_cmd;
 int current_state;
@@ -692,7 +693,8 @@ static void set_mode_compression(struct lu_phy_attr *lu, int dce)
 
 	if (dce) { /* Data Compression Enable bit set */
 		if (pm->set_compression)
-			pm->set_compression(&lu->mode_pg, lu_priv->configCompressionFactor);
+			pm->set_compression(&lu->mode_pg,
+					lu_priv->configCompressionFactor);
 	} else {
 		if (pm->clear_compression)
 			pm->clear_compression(&lu->mode_pg);
@@ -708,6 +710,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	uint8_t *buf = cmd->dbuf_p->data;
 	struct lu_phy_attr *lu = cmd->lu;
 	int block_descriptor_sz;
+	int page_len;
 	uint8_t *bdb = NULL;
 	int i;
 	int long_lba = 0;
@@ -767,8 +770,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		hex_dump(buf, cmd->dbuf_p->sz);
 #endif
 
-	while (i < cmd->dbuf_p->sz) {
-		switch (buf[i + 0]) {
+	count -= i;
+	while (i < count) {
+		/* Default page len is, override if sub-pages */
+		page_len = buf[i + 1];
+		switch (buf[i]) {
 		case MODE_DATA_COMPRESSION:
 			set_mode_compression(lu, buf[i + 2] & 0x80);
 			break;
@@ -783,16 +789,22 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 				if (set_device_configuration_extension(cmd,
 								&buf[i]))
 					return SAM_STAT_CHECK_CONDITION;
+				/* Subpage 1 - override default page length */
+				page_len = get_unaligned_be16(&buf[i + 2]);
 			} else
 				set_device_configuration(cmd, &buf[i]);
 			break;
 
 		default:
-			MHVTL_DBG(1, "mode page 0x%02x not handled",
-						buf[i]);
+			MHVTL_DBG_PRT_CDB(1, cmd->dbuf_p->serialNo, cmd->scb);
+			MHVTL_DBG(1, "mode page 0x%02x not handled", buf[i]);
 			break;
 		}
-		i += buf[i + 1] + 1;	/* Next mode page */
+		if (page_len == 0) { /* Something wrong with data structure */
+			page_len = cmd->dbuf_p->sz;
+			MHVTL_LOG("Problem with mode select data structure");
+		}
+		i += page_len;	/* Next mode page */
 	}
 
 	return SAM_STAT_GOOD;

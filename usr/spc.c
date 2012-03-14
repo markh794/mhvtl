@@ -510,9 +510,12 @@ uint8_t spc_mode_select(struct scsi_cmd *cmd)
  * Add data for pcode to buffer pointed to by p
  * Return: Number of chars moved.
  */
-static int add_pcode(struct mode *m, uint8_t *p)
+static int add_pcode(struct mode *m, uint8_t pc, uint8_t *p)
 {
-	memcpy(p, m->pcodePointer, m->pcodeSize);
+	if (pc == 1)	/* Report Changable bitmap */
+		memcpy(p, m->pcodePointerBitMap, m->pcodeSize);
+	else
+		memcpy(p, m->pcodePointer, m->pcodeSize);
 	return m->pcodeSize;
 }
 
@@ -522,7 +525,7 @@ static int add_pcode(struct mode *m, uint8_t *p)
  */
 uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 {
-	int pcontrol, pcode, subpcode;
+	int pc, pcode, subpcode;
 	int alloc_len, msense_6;
 	int dev_spec, len = 0;
 	int offset = 0;
@@ -537,11 +540,11 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	struct list_head *m = &cmd->lu->mode_pg;
 
 #ifdef MHVTL_DEBUG
-	char *pcontrolString[] = {
-		"Current configuration",
-		"Every bit that can be modified",
-		"Power-on configuration",
-		"Power-on configuration"
+	char *pcString[] = {
+		"Current values",
+		"Changable values",
+		"Default values",
+		"Saved values",
 	};
 #endif
 
@@ -551,13 +554,13 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "MODE SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	/*
-	 pcontrol => page control
+	 pc => page control
 		00 -> 0: Report current vaules
 		01 -> 1: Report Changable Vaules
 		10 -> 2: Report default values
 		11 -> 3: Report saved values
 	*/
-	pcontrol = (scb[2] & 0xc0) >> 6;
+	pc = (scb[2] & 0xc0) >> 6;
 	/* pcode -> Page Code */
 	pcode = scb[2] & 0x3f;
 	subpcode = scb[3];
@@ -567,15 +570,15 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	offset = msense_6 ? 4 : 8;
 
 	MHVTL_DBG(2, " Mode Sense %d byte version", (msense_6) ? 6 : 10);
-	MHVTL_DBG(2, " Page Control  : %s(0x%x)",
-				pcontrolString[pcontrol], pcontrol);
-	MHVTL_DBG(2, " Page Code     : 0x%x", pcode);
-	MHVTL_DBG(2, " Subpage Code  : 0x%x", subpcode);
+	MHVTL_DBG(2, " Page Control  : %s(0x%02x)",
+				pcString[pc], pc);
+	MHVTL_DBG(2, " Page Code     : 0x%02x", pcode);
+	MHVTL_DBG(2, " Subpage Code  : 0x%02x", subpcode);
 	MHVTL_DBG(2, " Disable Block Descriptor => %s",
 				(blockDescriptorLen) ? "No" : "Yes");
 	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
 
-	if (0x3 == pcontrol) {  /* Saving values not supported */
+	if (0x3 == pc) {  /* Saving values not supported */
 		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -603,7 +606,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 			for (i = 1; i < 0x3f; i++) {
 				smp = lookup_pcode(m, i, subpcode);
 				if (smp)
-					len += add_pcode(smp,
+					len += add_pcode(smp, pc,
 							(uint8_t *)ap + len);
 			}
 		} else { /* 0x01 - 0xfe are reserved. Should only be 0xff */
@@ -611,7 +614,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 				for (j = 0; j < 0xff; j++) {
 					smp = lookup_pcode(m, i, j);
 					if (smp)
-						len += add_pcode(smp,
+						len += add_pcode(smp, pc,
 							(uint8_t *)ap + len);
 				}
 			}
@@ -622,13 +625,13 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 			for (i = 0; i < 0xff; i++) {
 				smp = lookup_pcode(m, pcode, i);
 				if (smp)
-					len += add_pcode(smp,
+					len += add_pcode(smp, pc,
 							(uint8_t *)ap + len);
 			}
 		} else {
 			smp = lookup_pcode(m, pcode, subpcode);
 			if (smp)
-				len = add_pcode(smp, (uint8_t *)ap);
+				len = add_pcode(smp, pc, (uint8_t *)ap);
 		}
 		break;
 	}
@@ -650,16 +653,40 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		buf[2] = dev_spec;
 		buf[3] = blockDescriptorLen;
 		/* If the length > 0, copy Block Desc. */
-		if (blockDescriptorLen)
-			memcpy(&buf[4],blockDescriptorBlock,blockDescriptorLen);
+		if (blockDescriptorLen) {
+			switch (pc) {
+			case 0:
+			case 2:
+				memcpy(&buf[4], blockDescriptorBlock,
+							blockDescriptorLen);
+				break;
+			case 1:
+				buf[9] = 0xff;
+				buf[10] = 0xff;
+				buf[11] = 0xff;
+				break;
+			}
+		}
 	} else {
 		put_unaligned_be16(offset - 2, &buf[0]);
 		buf[2] = cmd->lu->mode_media_type;
 		buf[3] = dev_spec;
 		put_unaligned_be16(blockDescriptorLen, &buf[6]);
 		/* If the length > 0, copy Block Desc. */
-		if (blockDescriptorLen)
-			memcpy(&buf[8],blockDescriptorBlock,blockDescriptorLen);
+		if (blockDescriptorLen) {
+			switch (pc) {
+			case 0:
+			case 2:
+				memcpy(&buf[4], blockDescriptorBlock,
+							blockDescriptorLen);
+				break;
+			case 1:
+				buf[13] = 0xff;
+				buf[14] = 0xff;
+				buf[15] = 0xff;
+				break;
+			}
+		}
 	}
 
 #ifdef MHVTL_DEBUG
