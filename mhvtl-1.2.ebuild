@@ -6,7 +6,7 @@ EAPI="2"
 
 inherit linux-mod eutils
 
-MY_P="${PN}-2011-12-24"
+MY_P="${PN}-2012-03-16"
 DESCRIPTION="mhvtl module provides Virtual (SCSI) Tape Library"
 HOMEPAGE="http://sites.google.com/site/linuxvtl2"
 SRC_URI="http://sites.google.com/site/linuxvtl2/${MY_P}.tgz"
@@ -19,6 +19,7 @@ IUSE="doc"
 DEPEND=">=virtual/linux-sources-2.6.19
 		sys-fs/lsscsi
 		sys-libs/zlib
+		sys-libs/lzo
 		sys-apps/sg3_utils"
 RDEPEND=""
 
@@ -39,10 +40,10 @@ pkg_setup() {
 }
 
 src_prepare() {
-	epatch "${FILESDIR}/0.18-kerneldir.patch"
-	epatch "${FILESDIR}/0.18-etc.patch"
-	epatch "${FILESDIR}/0.18-make_vtl_media.patch"
-	epatch "${FILESDIR}/0.18-mhvtl.patch"
+	epatch "${FILESDIR}/1.2-kerneldir.patch"
+	epatch "${FILESDIR}/1.2-etc.patch"
+	epatch "${FILESDIR}/1.2-make_vtl_media.patch"
+	epatch "${FILESDIR}/1.2-mhvtl.patch"
 }
 
 src_compile() {
