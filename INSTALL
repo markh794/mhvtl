@@ -25,10 +25,10 @@ SLES 9 & 10:
 
 
 2) Extract the mhvtl source code.
-# tar xvfz mhvtl-2010-09-01.tgz
+# tar xvfz mhvtl-2012-03-16.tgz
 
 3) Change directory into the kernel driver source.
-# cd mhvtl-0.18/kernel/
+# cd mhvtl-1.2/kernel/
 # make
 # make install
 
