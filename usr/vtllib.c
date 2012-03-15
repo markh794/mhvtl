@@ -25,6 +25,8 @@
  #include <byteswap.h>
 #endif
 
+#define __STDC_FORMAT_MACROS
+
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -270,7 +272,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 #define READBLOCKLIMITS_ARR_SZ 6
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
 {
-	uint8_t *arr = dbuf_p->data;
+	uint8_t *arr = (uint8_t *)dbuf_p->data;
 
 	memset(arr, 0, READBLOCKLIMITS_ARR_SZ);
 	arr[1] = (sz >> 16);
@@ -343,7 +345,7 @@ void completeSCSICommand(int cdev, struct vtl_ds *ds)
 
 	ioctl(cdev, VTL_PUT_DATA, ds);
 
-	s = ds->sense_buf;
+	s = (uint8_t *)ds->sense_buf;
 
 	if (ds->sam_stat == SAM_STAT_CHECK_CONDITION)
 		MHVTL_DBG(3, "[Key/ASC/ASCQ] [%02x %02x %02x]",
@@ -388,7 +390,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 	case 0:         /* Child */
 		pseudo = open(pseudo_filename, O_WRONLY);
 		if (pseudo < 0) {
-			sprintf(errmsg, "Could not open %s", pseudo_filename);
+			snprintf(errmsg, ARRAY_SIZE(errmsg),"Could not open %s", pseudo_filename);
 			MHVTL_DBG(1, "%s : %s", errmsg, strerror(errno));
 			perror("Could not open 'add_lu'");
 			exit(-1);
@@ -570,7 +572,7 @@ void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg)
 {
 	time_t t;
 	char *timestamp;
-	int i;
+	unsigned int i;
 
 	if (!fifo_fd)
 		return;
@@ -682,7 +684,7 @@ char *get_version(void)
 	int x, y, z;
 	char *c;
 
-	c = malloc(32);	/* Way more than enough for a 4 byte string */
+	c = (char *)malloc(32);	/* Way more than enough for a 4 byte string */
 	if (!c)
 		return NULL;
 
@@ -715,7 +717,7 @@ int check_for_running_daemons(int minor)
 }
 
 /* Abort if string length > len */
-void checkstrlen(char *s, int len)
+void checkstrlen(char *s, unsigned int len)
 {
 	if (strlen(s) > len) {
 		MHVTL_DBG(1, "String %s is > %d... Aborting", s, len);
@@ -841,7 +843,7 @@ void update_vpd_86(struct lu_phy_attr *lu, void *p)
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
 	uint8_t *worm;
 
-	worm = p;
+	worm = (uint8_t *)p;
 
 	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
 }
@@ -851,7 +853,7 @@ void update_vpd_b0(struct lu_phy_attr *lu, void *p)
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
 	uint8_t *worm;
 
-	worm = p;
+	worm = (uint8_t *)p;
 
 	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
 }
@@ -874,7 +876,7 @@ void update_vpd_c0(struct lu_phy_attr *lu, void *p)
 {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
 
-	memcpy(&vpd_pg->data[20], p, strlen(p));
+	memcpy(&vpd_pg->data[20], p, strlen((const char *)p));
 }
 
 void update_vpd_c1(struct lu_phy_attr *lu, void *p)
@@ -888,7 +890,7 @@ int add_density_support(struct list_head *l, struct density_info *di, int rw)
 {
 	struct supported_density_list *supported;
 
-	supported = malloc(sizeof(struct supported_density_list));
+	supported = (struct supported_density_list *)malloc(sizeof(struct supported_density_list));
 	if (!supported)
 		return -ENOMEM;
 
@@ -907,7 +909,7 @@ void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
 	checkstrlen(s, MALLOC_SZ - 1);
 	if (lu->fifoname)
 		free(lu->fifoname);
-	lu->fifoname = malloc(strlen(s) + 2);
+	lu->fifoname = (char *)malloc(strlen(s) + 2);
 	if (!lu->fifoname) {
 		printf("Unable to malloc fifo buffer");
 		exit(-ENOMEM);
@@ -958,7 +960,7 @@ static int mhvtl_shared_mem(char *path, int flag)
 		return -ENOMEM;
 	}
 
-	base = shmat(mhvtl_shm, NULL, 0);
+	base = (int *)shmat(mhvtl_shm, NULL, 0);
 	if (base == (void *) -1) {
 		MHVTL_ERR("Failed to attach to shm: %s", strerror(errno));
 		return -1;

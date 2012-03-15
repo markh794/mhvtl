@@ -52,7 +52,7 @@ struct vpd *alloc_vpd(uint16_t sz)
 {
 	struct vpd *vpd_pg = NULL;
 
-	vpd_pg = malloc(sizeof(struct vpd) + sz);
+	vpd_pg = (struct vpd *)malloc(sizeof(struct vpd) + sz);
 	if (!vpd_pg)
 		return NULL;
 	memset(vpd_pg, 0, sizeof(struct vpd) + sz);
@@ -69,7 +69,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 	struct vpd *vpd_pg;
 	unsigned char key = ILLEGAL_REQUEST;
 	uint16_t asc = E_INVALID_FIELD_IN_CDB;
-	uint8_t *data = cmd->dbuf_p->data;
+	uint8_t *data = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
 	struct lu_phy_attr *lu = cmd->lu;
 
@@ -81,7 +81,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 	memset(data, 0, INQUIRY_LEN);
 
 	if (!(cdb[1] & 0x3)) {
-		int i;
+		unsigned int i;
 		uint16_t *desc;
 
 		data[0] = lu->ptype;
@@ -116,7 +116,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 
 		if (pcode == 0x00) {
 			uint8_t *p;
-			int i, cnt;
+			unsigned int i, cnt;
 
 			data[0] = lu->ptype;
 			data[1] = 0;
@@ -207,7 +207,7 @@ uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint16_t SA;
 	uint8_t TYPE;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
-	uint8_t *buf = dbuf_p->data;
+	uint8_t *buf = (uint8_t *)dbuf_p->data;
 
 	if (dbuf_p->sz != 24) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_PARAMETER_LIST_LENGTH_ERR, sam_stat);
@@ -345,7 +345,7 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 {
 	uint16_t alloc_len;
 	uint16_t SA;
-	uint8_t *buf = dbuf_p->data;
+	uint8_t *buf = (uint8_t *)dbuf_p->data;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	uint8_t sam_status;
 
@@ -419,7 +419,7 @@ uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 uint8_t spc_request_sense(struct scsi_cmd *cmd)
 {
 	int sz;
-	uint8_t *sense_buf = cmd->dbuf_p->sense_buf;
+	uint8_t *sense_buf = (uint8_t *)cmd->dbuf_p->sense_buf;
 	uint8_t *cdb = cmd->scb;
 
 	MHVTL_DBG(1, "Request Sense (%ld) : key/ASC/ASCQ "
@@ -536,7 +536,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	int i, j;
 	int WriteProtect = 0;
 
-	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *scb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	struct list_head *m = &cmd->lu->mode_pg;

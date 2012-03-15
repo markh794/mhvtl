@@ -51,6 +51,8 @@
 #define _FILE_OFFSET_BITS 64
 #define _XOPEN_SOURCE 500
 
+#define __STDC_FORMAT_MACROS	/* for PDId64 */
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -394,7 +396,7 @@ mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_vali
 
 static int lookup_media_int(char *s)
 {
-	int i;
+	unsigned int i;
 
 	MHVTL_DBG(2, "looking for media type %s", s);
 
@@ -407,7 +409,7 @@ static int lookup_media_int(char *s)
 
 static const char *lookup_density_name(int den)
 {
-	int i;
+	unsigned int i;
 
 	MHVTL_DBG(2, "looking for density type 0x%02x", den);
 
@@ -420,7 +422,7 @@ static const char *lookup_density_name(int den)
 
 static const char *lookup_media_type(int med)
 {
-	int i;
+	unsigned int i;
 
 	MHVTL_DBG(2, "looking for media type 0x%02x", med);
 
@@ -433,7 +435,7 @@ static const char *lookup_media_type(int med)
 
 int lookup_mode_media_type(int med)
 {
-	int i;
+	unsigned int i;
 
 	MHVTL_DBG(2, "looking for mode media type for 0x%02x", med);
 
@@ -459,7 +461,7 @@ int lookup_mode_media_type(int med)
 int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 						struct vtl_ds *dbuf_p)
 {
-	uint8_t *buf = dbuf_p->data;
+	uint8_t *buf = (uint8_t *)dbuf_p->data;
 	struct list_head *l_head;
 	struct density_info *di;
 	struct supported_density_list *den;
@@ -545,7 +547,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 	int byte_index = 4;
 	int indx, found_attribute;
 	uint8_t *cdb = cmd->scb;
-	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	attrib = get_unaligned_be16(&cdb[8]);
@@ -564,7 +566,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 			if (found_attribute) {
 				/* calculate available data length */
 				ret_val += MAM_Attributes[indx].length + 5;
-				if (ret_val < alloc_len) {
+				if ((uint32_t)ret_val < alloc_len) {
 					/* add it to output */
 					buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
 					buf[byte_index++] = MAM_Attributes[indx].attribute;
@@ -585,7 +587,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
 			/* calculate available data length */
 			ret_val += 2;
-			if (ret_val <= alloc_len) {
+			if ((uint32_t)ret_val <= alloc_len) {
 				/* add it to output */
 				buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
 				buf[byte_index++] = MAM_Attributes[indx].attribute;
@@ -595,7 +597,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 
 	put_unaligned_be32(ret_val, &buf[0]);
 
-	if (ret_val > alloc_len)
+	if ((uint32_t)ret_val > alloc_len)
 		ret_val = alloc_len;
 
 	return ret_val;
@@ -610,17 +612,17 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 int resp_write_attribute(struct scsi_cmd *cmd)
 {
 	uint32_t alloc_len;
-	int byte_index;
+	unsigned int byte_index;
 	int indx, attrib, attribute_length, found_attribute = 0;
 	struct MAM *mamp;
 	struct MAM mam_backup;
-	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *cdb = cmd->scb;
 	struct priv_lu_ssc *lu_priv;
 
 	alloc_len = get_unaligned_be32(&cdb[10]);
-	lu_priv = cmd->lu->lu_private;
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 	mamp = lu_priv->mamp;
 
 	memcpy(&mam_backup, mamp, sizeof(struct MAM));
@@ -677,7 +679,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 	/* Malloc a buffer to hold the compressed data, and read the
 	   data into it.
 	*/
-	cbuf = malloc(disk_blk_size);
+	cbuf = (uint8_t *)malloc(disk_blk_size);
 	if (!cbuf) {
 		MHVTL_ERR("Out of memory: %d", __LINE__);
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
@@ -707,7 +709,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		z = lzo1x_decompress(cbuf, disk_blk_size, buf, &uncompress_sz, NULL);
 	} else {
 		/* Initiator hasn't requested same size as data block */
-		c2buf = malloc(uncompress_sz);
+		c2buf = (uint8_t *)malloc(uncompress_sz);
 		if (c2buf == NULL) {
 			MHVTL_ERR("Out of memory: %d", __LINE__);
 			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
@@ -753,7 +755,7 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 	/* Malloc a buffer to hold the compressed data, and read the
 	   data into it.
 	*/
-	cbuf = malloc(disk_blk_size);
+	cbuf = (uint8_t *)malloc(disk_blk_size);
 	if (!cbuf) {
 		MHVTL_ERR("Out of memory: %d", __LINE__);
 		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
@@ -783,7 +785,7 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 		z = uncompress(buf, &uncompress_sz, cbuf, disk_blk_size);
 	} else {
 		/* Initiator hasn't requested same size as data block */
-		c2buf = malloc(uncompress_sz);
+		c2buf = (uint8_t *)malloc(uncompress_sz);
 		if (c2buf == NULL) {
 			MHVTL_ERR("Out of memory: %d", __LINE__);
 			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
@@ -934,7 +936,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 	int rc;
 	int z;
 
-	lu_priv = cmd->lu->lu_private;
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
 	/* Determine whether or not to store the crypto info in the tape
 	 * blk_header.
@@ -947,7 +949,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	if (*lu_priv->compressionFactor) {
 		dest_len = mhvtl_compressBound(src_sz);
-		dest_buf = malloc(dest_len);
+		dest_buf = (lzo_bytep)malloc(dest_len);
 		wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
 
 		if (!dest_buf) {
@@ -1001,12 +1003,12 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 	uLong dest_len;
 	uLong src_len = src_sz;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t *src_buf = cmd->dbuf_p->data;
+	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
 	struct priv_lu_ssc *lu_priv;
 	int rc;
 	int z;
 
-	lu_priv = cmd->lu->lu_private;
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
 	/* Determine whether or not to store the crypto info in the tape
 	 * blk_header.
@@ -1019,7 +1021,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	if (*lu_priv->compressionFactor) {
 		dest_len = compressBound(src_sz);
-		dest_buf = malloc(dest_len);
+		dest_buf = (Bytef *)malloc(dest_len);
 		if (!dest_buf) {
 			MHVTL_ERR("malloc(%d) failed", (int)dest_len);
 			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
@@ -1078,7 +1080,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	uint64_t current_position;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
-	lu_priv = cmd->lu->lu_private;
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
 	if (lu_priv->compressionType == LZO)
 		src_len = writeBlock_lzo(cmd, src_sz);
@@ -1090,18 +1092,18 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	current_position = current_tape_offset();
 
-	if (current_position <= lu_priv->prog_early_warning_position) {
+	if (current_position <= (uint64_t)lu_priv->prog_early_warning_position) {
 		put_unaligned_be64(lu_priv->max_capacity - current_position,
 						&mam.remaining_capacity);
 	} else if (current_position >= lu_priv->max_capacity) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
 		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
-	} else if (current_position >= lu_priv->early_warning_position) {
+	} else if (current_position >= (uint64_t)lu_priv->early_warning_position) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium (early warning) - Setting EOM flag");
 		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
-	} else if (current_position >= lu_priv->prog_early_warning_position) {
+	} else if (current_position >= (uint64_t)lu_priv->prog_early_warning_position) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - Programmable Early Warning");
 		mkSenseBuf(NO_SENSE | SD_EOM,
@@ -1229,13 +1231,14 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 static int resp_spin_page_20(struct scsi_cmd *cmd)
 {
 	int ret = 0;
-	int indx, count, correct_key;
-	uint8_t *buf = cmd->dbuf_p->data;
+	int indx, correct_key;
+	unsigned int count;
+	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint32_t alloc_len = get_unaligned_be32(&cmd->scb[6]);
 	struct priv_lu_ssc *lu_priv;
-	lu_priv = cmd->lu->lu_private;
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
@@ -1391,7 +1394,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 uint8_t resp_spin(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint32_t alloc_len = get_unaligned_be32(&cdb[6]);
@@ -1420,17 +1423,17 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 uint8_t resp_spout(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t	*buf = cmd->dbuf_p->data;
+	uint8_t	*buf = (uint8_t *)cmd->dbuf_p->data;
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;
-	int count;
+	unsigned int count;
 #ifdef MHVTL_DEBUG
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint8_t inc_512 = (cmd->scb[4] & 0x80) ? 1 : 0;
 #endif
 
 	lu = cmd->lu;
-	lu_priv = cmd->lu->lu_private;
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
 	if (cmd->scb[1] != TAPE_DATA_ENCRYPTION) {
 		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cmd->scb[1]);
@@ -1603,7 +1606,7 @@ static struct media_details *check_media_can_load(struct list_head *mdl, int mt)
 	list_for_each_entry(m_detail, mdl, siblings) {
 		MHVTL_DBG(3, "testing against m_detail->media_type (0x%02x)",
 						m_detail->media_type);
-		if (m_detail->media_type == mt)
+		if (m_detail->media_type == (unsigned int)mt)
 			return m_detail;
 	}
 	return NULL;
@@ -1985,7 +1988,7 @@ static void update_vpd_80(struct lu_phy_attr *lu, void *p)
 {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x80)];
 
-	memcpy(vpd_pg->data, p, strlen(p));
+	memcpy(vpd_pg->data, p, strlen((const char *)p));
 }
 
 static void update_vpd_83(struct lu_phy_attr *lu, void *p)
@@ -2083,7 +2086,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 	struct list_head *den_list;
 	int media_type;
 
-	lu_tape = lu->lu_private;
+	lu_tape = (struct priv_lu_ssc *)lu->lu_private;
 	den_list = &lu_tape->supported_media_list;
 
 	MHVTL_DBG(2, "Adding %s, status: 0x%02x", s, status);
@@ -2098,7 +2101,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 					s, m_detail->load_capability);
 	} else {
 		MHVTL_DBG(2, "Adding new entry for %s", s);
-		m_detail = malloc(sizeof(struct media_details));
+		m_detail = (struct media_details *)malloc(sizeof(struct media_details));
 		if (!m_detail) {
 			MHVTL_DBG(1, "Failed to allocate %d bytes",
 						(int)sizeof(m_detail));

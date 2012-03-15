@@ -70,7 +70,7 @@ struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size)
 
 	log_page = lookup_log_pg(l, page);
 	if (!log_page) {	/* Create a new entry */
-		log_page = malloc(sizeof(struct log_pg_list));
+		log_page = (struct log_pg_list *)malloc(sizeof(struct log_pg_list));
 	}
 	if (log_page) {
 		log_page->p = malloc(size);
@@ -328,7 +328,7 @@ int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 	if (!l)
 		goto log_page_not_found;
 
-	ta = l->p;
+	ta = (struct TapeAlert_page *)l->p;
 
 	MHVTL_DBG(2, "Setting TapeAlert flags 0x%.8x %.8x",
 				(uint32_t)(flags >> 32) & 0xffffffff,
@@ -342,7 +342,7 @@ int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 	 */
 	l = lookup_log_pg(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE);
 	if (l) {
-		sad = l->p;
+		sad = (struct seqAccessDevice *)l->p;
 		put_unaligned_be64(flags, &sad->TapeAlert);
 	}
 

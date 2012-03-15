@@ -143,7 +143,7 @@ static struct s_info *slot2struct(struct smc_priv *smc_p, int addr)
 	slot_head = &smc_p->slot_list;
 
 	list_for_each_entry(sp, slot_head, siblings) {
-		if (sp->slot_location == addr)
+		if (sp->slot_location == (unsigned int)addr)
 			return sp;
 	}
 
@@ -392,7 +392,7 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
  */
 static int determine_element_sz(struct scsi_cmd *cmd, int type)
 {
-	struct smc_priv *smc_p = cmd->lu->lu_private;
+	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	int dvcid;
 	int voltag;
 
@@ -410,7 +410,7 @@ static int determine_element_sz(struct scsi_cmd *cmd, int type)
  */
 static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 {
-	struct smc_priv *smc_p = cmd->lu->lu_private;
+	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	struct d_info *d = NULL;
 	struct s_info *s = NULL;
 	int type;
@@ -701,7 +701,7 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
 {
 	struct list_head *slot_head;
 	struct s_info *sp;
-	int counted = 0;
+	unsigned int counted = 0;
 
 	slot_head = &priv->slot_list;
 
@@ -740,7 +740,7 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 	uint16_t count, avail, space;
 	int min_addr, num_addr;
 	int j;
-	uint8_t *p = cmd->dbuf_p->data;
+	uint8_t *p = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
 
 	uint8_t	type = cdb[1] & 0x0f;
@@ -751,7 +751,7 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
 	max_count = get_unaligned_be16(&cdb[4]);
 	max_bytes = 0xffffff & get_unaligned_be32(&cdb[6]);
 
-	smc_p = cmd->lu->lu_private;
+	smc_p = (struct smc_priv *)cmd->lu->lu_private;
 
 	if (type == ANY)
 		type = slot_type(smc_p, start);
@@ -847,9 +847,9 @@ return SAM_STAT_GOOD;
  */
 uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 {
-	struct smc_priv *smc_p = cmd->lu->lu_private;
+	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	uint8_t *cdb = cmd->scb;
-	uint8_t *buf = cmd->dbuf_p->data;
+	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t	typeCode = cdb[1] & 0x0f;
 	uint16_t req_start_elem;
@@ -1101,7 +1101,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	send_msg(cmd, dest->drv_id);
 
 	if (! smc_p->state_msg)
-		smc_p->state_msg = malloc(64);
+		smc_p->state_msg = (char *)malloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */
 		sprintf(cmd, "%s", src->media->barcode);

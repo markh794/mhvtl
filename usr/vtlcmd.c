@@ -89,7 +89,7 @@ int check_media(char *barcode)
 	char currentMedia[1024];
 	int datafile;
 
-	sprintf((char *)currentMedia, "%s/%s/data", MHVTL_HOME_PATH, barcode);
+	snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", MHVTL_HOME_PATH, barcode);
 	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
 	if (datafile < 0) {
 		fprintf(stderr, "Could not open %s: %s\n",

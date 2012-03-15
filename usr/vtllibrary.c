@@ -773,7 +773,7 @@ static void init_slot_info(struct lu_phy_attr *lu)
 	int x;
 	struct smc_priv *smc_p = lu->lu_private;
 
-	sprintf(conf, MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
+	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
 	ctrl = fopen(conf , "r");
 	if (!ctrl) {
 		MHVTL_DBG(1, "Can not open config file %s : %s", conf,

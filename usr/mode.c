@@ -77,10 +77,10 @@ struct mode *alloc_mode_page(struct list_head *m,
 
 	mp = lookup_pcode(m, pcode, subpcode);
 	if (!mp) {	/* Create a new entry */
-		mp = malloc(sizeof(struct mode));
+		mp = (struct mode *)malloc(sizeof(struct mode));
 	}
 	if (mp) {
-		mp->pcodePointer = malloc(size);
+		mp->pcodePointer = (uint8_t *)malloc(size);
 		MHVTL_DBG(3, "pcodePointer: %p for mode page 0x%02x",
 			mp->pcodePointer, pcode);
 		if (mp->pcodePointer) {	/* If ! null, set size of data */
@@ -294,7 +294,7 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	uint8_t pcode;
 	uint8_t size;
 
-	ssc = lu->lu_private;
+	ssc = (struct priv_lu_ssc *)lu->lu_private;
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DEVICE_CONFIGURATION;
 	size = 16;
@@ -654,7 +654,7 @@ int add_mode_element_address_assignment(struct lu_phy_attr *lu)
 	uint8_t *p;
 
 	mode_pg = &lu->mode_pg;
-	smc_slots = lu->lu_private;
+	smc_slots = (struct smc_priv *)lu->lu_private;
 	pcode = MODE_ELEMENT_ADDRESS;
 	size = 20;
 
@@ -801,7 +801,7 @@ int update_prog_early_warning(struct lu_phy_attr *lu)
 	struct priv_lu_ssc *lu_priv;
 
 	mode_pg = &lu->mode_pg;
-	lu_priv = lu->lu_private;
+	lu_priv = (struct priv_lu_ssc *)lu->lu_private;
 
 	m = lookup_pcode(mode_pg, MODE_DEVICE_CONFIGURATION, 1);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",

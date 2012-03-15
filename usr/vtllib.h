@@ -487,6 +487,8 @@ struct s_info { /* Slot Info */
 	uint8_t media_type;	/* L700 */
 };
 
+#define DEF_SMC_PRIV_STATE_MSG_LENGTH 64
+
 struct smc_priv {
 	uint32_t bufsize;
 	struct list_head drive_list;
@@ -596,7 +598,7 @@ void get_sn_inquiry(int, struct vtl_sn_inquiry *);
 int check_for_running_daemons(int minor);
 
 void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);
-void checkstrlen(char *s, int len);
+void checkstrlen(char *s, unsigned int len);
 extern int device_type_register(struct lu_phy_attr *lu,
 					struct device_type_template *t);
 
