@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 1.2
-Release: 1
-Source: mhvtl-2012-01-21.tgz
+Release: 2
+Source: mhvtl-2012-03-22.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -161,6 +161,14 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Thu Mar 22 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.2-2
+- Changed defaults so fifo is not enabled. If fifo not used, it will
+  block writing process (i.e. hang daemons)
+- Improved MODE SELECT / SENSE to support 'changeable field bitmaps
+- Started implementing ALLOW OVERWRITE support (incomplete)
+- Fixed INQUIRY string match for STK T10000A
+
 * Sat Jan 21 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.2-1
 - Fix memory leak in lzo decompression routine.
