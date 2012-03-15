@@ -89,7 +89,7 @@ struct mode *alloc_mode_page(struct list_head *m,
 			mp->subpcode = subpcode;
 			mp->pcodeSize = size;
 
-			/* Allocate a 'changable bitmap' mode page info */
+			/* Allocate a 'changeable bitmap' mode page info */
 			mp->pcodePointerBitMap = malloc(size);
 			if (!mp->pcodePointerBitMap) {
 				free(mp);
@@ -272,6 +272,12 @@ int add_mode_data_compression(struct lu_phy_attr *lu)
 	put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[4]);
 	put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[8]);
 
+	/* Changeable fields */
+	mp->pcodePointerBitMap[2] = 0xc0; /* DCE & DCC */
+	mp->pcodePointerBitMap[3] = 0x80; /* DDE bit */
+	put_unaligned_be32(0xffffffff, &mp->pcodePointer[4]); /* Comp alg */
+	put_unaligned_be32(0xffffffff, &mp->pcodePointer[8]); /* De-comp alg */
+
 	return 0;
 }
 
@@ -312,7 +318,7 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[14] = ssc->configCompressionFactor;
 	mp->pcodePointer[15] = 0x80;	/* WTRE (WORM handling) */
 
-	mp->pcodePointerBitMap[14] = 0xff;	/* Compression is changable */
+	mp->pcodePointerBitMap[14] = 0xff;	/* Compression is changeable */
 
 	/* Set pointer for compressionFactor to correct location in
 	 * mode page struct
@@ -362,7 +368,7 @@ int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
 	/* default size of early warning */
 	put_unaligned_be16(0, &mp->pcodePointer[6]);
 
-	/* Update mode page bitmap to reflect changable fields */
+	/* Update mode page bitmap to reflect changeable fields */
 	if (pm->drive_supports_append_only_mode)
 		mp->pcodePointerBitMap[5] |= 0xf0;
 	if (pm->drive_supports_prog_early_warning) {
