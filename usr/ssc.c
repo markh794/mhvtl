@@ -63,6 +63,7 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 {
 	uint8_t *cdb = cmd->scb;
 	uint8_t allow_overwrite = cdb[2] & 0x0f;
+	uint8_t partition = cdb[3];
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t ret_stat = SAM_STAT_GOOD;
 	uint64_t allow_overwrite_block;
@@ -70,11 +71,8 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 
 	lu_ssc = cmd->lu->lu_private;
 
-	if (allow_overwrite > 2) {
-		allow_overwrite = 3;	/* Truncate bad values 3 to 15 -> '3' */
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		ret_stat = SAM_STAT_CHECK_CONDITION;
-	}
+	if (allow_overwrite > 2) /* Truncate bad values 3 to 15 -> '3' */
+		allow_overwrite = 3;
 
 	MHVTL_DBG(1, "ALLOW OVERWRITE (%ld) : %s **",
 			(long)cmd->dbuf_p->serialNo,
@@ -86,6 +84,13 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 	case 0:
 		break;
 	case 1:  /* current position */
+		if (partition) { /* Paritions not supported at this stage */
+			MHVTL_LOG("Partitions not implemented at this time");
+			mkSenseBuf(ILLEGAL_REQUEST,
+					E_INVALID_FIELD_IN_CDB,
+					sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
 		allow_overwrite_block = get_unaligned_be64(&cdb[4]);
 		MHVTL_DBG(1, "Allow overwrite block: %ld",
 					allow_overwrite_block);
@@ -93,7 +98,7 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 			lu_ssc->allow_overwrite_block = allow_overwrite_block;
 			lu_ssc->allow_overwrite = TRUE;
 		} else {
-			/* unsigned 64 bit value. Setting to all 'f's */
+			/* Set allow_overwrite position to an invalid number */
 			lu_ssc->allow_overwrite_block = 0;
 			lu_ssc->allow_overwrite_block--;
 			mkSenseBuf(ILLEGAL_REQUEST,
@@ -104,6 +109,10 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 		break;
 	case 2:
 		lu_ssc->allow_overwrite = 2;
+		break;
+	default:
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		ret_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 
