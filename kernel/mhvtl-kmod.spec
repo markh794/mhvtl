@@ -12,8 +12,8 @@
 
 Summary: Virtual Tape Library device driver for Linux
 Name: mhvtl-kmod
-Version: 1.00
-Release: 0%{?dist}
+Version: 1.2
+Release: 2%{?dist}
 License: GPL2
 Group: System Environment/Kernel
 URL: http://sites.google.com/site/linuxvtl2/
@@ -22,7 +22,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 ExclusiveArch: i686 x86_64
 
 # Sources.
-Source0: http://sites.google.com/site/linuxvtl2/mhvtl-2010-09-01.tgz
+Source0: http://sites.google.com/site/linuxvtl2/mhvtl-2012-03-22.tgz
 Source10: kmodtool-mhvtl
 
 # If kversion isn't defined on the rpmbuild line, build for the current kernel.
