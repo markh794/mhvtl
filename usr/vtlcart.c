@@ -62,15 +62,6 @@ struct raw_header {
 	char pad[512 - sizeof(loff_t) - sizeof(struct blk_header)];
 };
 
-/* lzo compression appears to use little CPU overhead.
- * Use lzo to compress the raw_header data.
- */
-struct raw_header_v2 {
-	uint16_t rh_od_sz;	/* Raw Header On Disk size (compressed size) */
-	uint16_t rh_size;	/* Raw Header uncompressed size */
-	struct raw_header raw_header;
-};
-
 /* The .meta file consists of a MAM structure followed by a meta_header
    structure, followed by a variable-length array of filemark block numbers.
    Both the MAM and meta_header structures also contain padding to allow
