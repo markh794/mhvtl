@@ -85,9 +85,9 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 			} else
 				mam.Flags &= ~MAM_FLAGS_ENCRYPTION_FORMAT;
 		}
-		blockDescriptorBlock[0] = lu_priv->pm->native_drive_density->density;
-		mam.MediumDensityCode = blockDescriptorBlock[0];
-		mam.FormattedDensityCode = blockDescriptorBlock[0];
+		modeBlockDescriptor[0] = lu_priv->pm->native_drive_density->density;
+		mam.MediumDensityCode = modeBlockDescriptor[0];
+		mam.FormattedDensityCode = modeBlockDescriptor[0];
 		rewriteMAM(sam_stat);
 	} else {
 		/* Extra check for 3592 to be sure the cartridge is

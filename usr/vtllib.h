@@ -524,7 +524,7 @@ struct supported_density_list {
 extern uint8_t sense[SENSE_BUF_SIZE];
 
 /* Used by Mode Sense - if set, return block descriptor */
-extern uint8_t blockDescriptorBlock[8];
+extern uint8_t modeBlockDescriptor[8];
 
 enum MHVTL_STATE {
 	MHVTL_STATE_INIT,

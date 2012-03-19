@@ -663,7 +663,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 			switch (pc) {
 			case 0:
 			case 2:
-				memcpy(&buf[4], blockDescriptorBlock,
+				memcpy(&buf[4], modeBlockDescriptor,
 							blockDescriptorLen);
 				break;
 			case 1:
@@ -683,7 +683,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 			switch (pc) {
 			case 0:
 			case 2:
-				memcpy(&buf[8], blockDescriptorBlock,
+				memcpy(&buf[8], modeBlockDescriptor,
 							blockDescriptorLen);
 				break;
 			case 1:

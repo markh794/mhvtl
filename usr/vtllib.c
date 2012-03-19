@@ -97,7 +97,7 @@ static struct state_description {
 
 
 uint8_t sense[SENSE_BUF_SIZE];
-uint8_t blockDescriptorBlock[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
+uint8_t modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
 
 void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb)
 {

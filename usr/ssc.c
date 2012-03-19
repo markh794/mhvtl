@@ -140,7 +140,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	fixed = cdb[1] & FIXED;	/* Fixed block read ? */
 	if (fixed) {
 		count = get_unaligned_be24(&cdb[2]);
-		sz = get_unaligned_be24(&blockDescriptorBlock[5]);
+		sz = get_unaligned_be24(&modeBlockDescriptor[5]);
 		MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
 			"READ_6 (%ld) : \"Fixed block read\" "
 			" %d blocks of %d size",
@@ -224,7 +224,7 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 
 	if (cdb[1] & FIXED) {	/* If Fixed block writes */
 		count = get_unaligned_be24(&cdb[2]);
-		sz = get_unaligned_be24(&blockDescriptorBlock[5]);
+		sz = get_unaligned_be24(&modeBlockDescriptor[5]);
 		MHVTL_DBG(last_cmd == WRITE_6 ? 2 : 1,
 				"WRITE_6: %d blks of %d bytes (%ld) **",
 						count,
@@ -410,9 +410,9 @@ uint8_t valid_encryption_media(struct scsi_cmd *cmd)
 	lu_priv = lu->lu_private;
 
 	if (c_pos->blk_number == 0) {
-		blockDescriptorBlock[0] = lu_priv->pm->native_drive_density->density;
-		mam.MediumDensityCode = blockDescriptorBlock[0];
-		mam.FormattedDensityCode = blockDescriptorBlock[0];
+		modeBlockDescriptor[0] = lu_priv->pm->native_drive_density->density;
+		mam.MediumDensityCode = modeBlockDescriptor[0];
+		mam.FormattedDensityCode = modeBlockDescriptor[0];
 		rewriteMAM(sam_stat);
 	} else {
 		if (mam.MediumDensityCode !=
@@ -773,7 +773,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 				"handle long descriptor block (long_lba bit)");
 			return SAM_STAT_CHECK_CONDITION;
 		}
-		memcpy(blockDescriptorBlock, bdb, block_descriptor_sz);
+		memcpy(modeBlockDescriptor, bdb, block_descriptor_sz);
 	}
 
 #ifdef MHVTL_DEBUG
