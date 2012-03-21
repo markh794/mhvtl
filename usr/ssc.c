@@ -684,29 +684,56 @@ static void set_device_configuration(struct scsi_cmd *cmd, uint8_t *p)
 
 	pm = lu_priv->pm;
 
+	MHVTL_DBG(2, " Report Early Warning   : %s",
+			(p[8] & 0x01) ? "Yes" : "No");
+	MHVTL_DBG(2, " Software Write Protect : %s",
+			(p[10] & 0x04) ? "Yes" : "No");
+	MHVTL_DBG(2, " WORM Tamper Read Enable: %s",
+			(p[15] & 0x80) ? "Yes" : "No");
+
+	MHVTL_DBG(2, " Setting device compression Algorithm");
 	if (p[14]) { /* Select Data Compression Alg */
-		MHVTL_DBG(2, "Mode Select->Setting compression");
+		MHVTL_DBG(2, "  Mode Select->Setting compression: %d", p[14]);
 		if (pm->set_compression)
 			pm->set_compression(&lu->mode_pg,
-					lu_priv->configCompressionFactor);
+				lu_priv->configCompressionFactor);
 	} else {
-		MHVTL_DBG(2, "Mode Select->Clearing compression");
+		MHVTL_DBG(2, "  Mode Select->Clearing compression");
 		if (pm->clear_compression)
-				pm->clear_compression(&lu->mode_pg);
+			pm->clear_compression(&lu->mode_pg);
 	}
 }
 
-static void set_mode_compression(struct lu_phy_attr *lu, int dce)
+static void set_mode_compression(struct scsi_cmd *cmd, uint8_t *p)
 {
+	struct lu_phy_attr *lu = cmd->lu;
 	struct priv_lu_ssc *lu_priv = lu->lu_private;
 	struct ssc_personality_template *pm;
+	int dce;
+
 	pm = lu_priv->pm;
+	dce = p[2] & 0x80;
+
+	MHVTL_DBG(2, " Data Compression Enable   : %s (0x%02x)",
+				(p[1] & 0x80) ? "Yes" : "No", p[1]);
+	MHVTL_DBG(2, " Data Compression Capable  : %s",
+				(p[1] & 0x40) ? "Yes" : "No");
+	MHVTL_DBG(2, " Data DeCompression Enable : %s (0x%02x)",
+				(p[2] & 0x80) ? "Yes" : "No", p[2]);
+	MHVTL_DBG(2, " Compression Algorithm     : 0x%04x",
+				get_unaligned_be32(&p[4]));
+	MHVTL_DBG(2, " DeCompression Algorithm   : 0x%04x",
+				get_unaligned_be32(&p[8]));
+	MHVTL_DBG(2, " Report Exception on Decompression: 0x%02x",
+				(p[3] & 0x6) >> 5);
 
 	if (dce) { /* Data Compression Enable bit set */
+		MHVTL_DBG(1, " Setting compression");
 		if (pm->set_compression)
 			pm->set_compression(&lu->mode_pg,
 					lu_priv->configCompressionFactor);
 	} else {
+		MHVTL_DBG(1, " Clearing compression");
 		if (pm->clear_compression)
 			pm->clear_compression(&lu->mode_pg);
 	}
@@ -719,13 +746,15 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *buf = cmd->dbuf_p->data;
-	struct lu_phy_attr *lu = cmd->lu;
 	int block_descriptor_sz;
 	int page_len;
 	uint8_t *bdb = NULL;
 	int i;
 	int long_lba = 0;
 	int count;
+	int save_page;
+
+	save_page = cmd->scb[1] & 0x01;
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
@@ -742,8 +771,9 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(1, "MODE SELECT (%ld) **", (long)cmd->dbuf_p->serialNo);
 
-	if (cmd->scb[1] & 0x10) { /* Page Format: 1 - SPC, 0 - vendor uniq */
-		/* FIXME: Need to add something here */
+	if (!(cmd->scb[1] & 0x10)) { /* Page Format: 1 - SPC, 0 - vendor uniq */
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	switch (cmd->scb[0]) {
@@ -776,18 +806,50 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		memcpy(modeBlockDescriptor, bdb, block_descriptor_sz);
 	}
 
+	/* Ignore mode pages if 'save page' bit not set */
+	if (!save_page) {
+		MHVTL_DBG(1, "Save page bit not set. Ignoring page data");
+		return SAM_STAT_GOOD;
+	}
+
 #ifdef MHVTL_DEBUG
 	if (debug)
 		hex_dump(buf, cmd->dbuf_p->sz);
 #endif
 
+	MHVTL_DBG(3, "count: %d, i: %d", count, i);
+	if (i == 4) {
+	MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x",
+			buf[0], buf[1], buf[2], buf[3]);
+	} else {
+	MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x  %02x %02x %02x %02x",
+			buf[0], buf[1], buf[2], buf[3],
+			buf[4], buf[5], buf[6], buf[7]);
+	}
+
 	count -= i;
 	while (i < count) {
+		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
+			i,
+			buf[i+0], buf[i+1], buf[i+2], buf[i+3],
+			buf[i+4], buf[i+5], buf[i+6], buf[i+7]);
+		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
+			i+8,
+			buf[i+8], buf[i+9], buf[i+10], buf[i+11],
+			buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
+		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
+			i+16,
+			buf[i+16], buf[i+17], buf[i+18], buf[i+19],
+			buf[i+20], buf[i+21], buf[i+22], buf[i+23]);
+		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
+			i+24,
+			buf[i+24], buf[i+25], buf[i+26], buf[i+27],
+			buf[i+28], buf[i+29], buf[i+30], buf[i+31]);
 		/* Default page len is, override if sub-pages */
 		page_len = buf[i + 1];
 		switch (buf[i]) {
 		case MODE_DATA_COMPRESSION:
-			set_mode_compression(lu, buf[i + 2] & 0x80);
+			set_mode_compression(cmd, &buf[i]);
 			break;
 
 		case MODE_DEVICE_CONFIGURATION:
@@ -808,7 +870,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 		default:
 			MHVTL_DBG_PRT_CDB(1, cmd->dbuf_p->serialNo, cmd->scb);
-			MHVTL_DBG(1, "mode page 0x%02x not handled", buf[i]);
+			MHVTL_DBG(1, "Mode page 0x%02x not handled", buf[i]);
 			break;
 		}
 		if (page_len == 0) { /* Something wrong with data structure */
