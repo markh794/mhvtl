@@ -1099,11 +1099,16 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
 		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
-	} else if (current_position >= (uint64_t)lu_priv->early_warning_position) {
+	} else if ((lu_priv->pm->drive_supports_early_warning) &&
+			(current_position >= (uint64_t)lu_priv->early_warning_position)) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium (early warning) - Setting EOM flag");
 		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
-	} else if (current_position >= (uint64_t)lu_priv->prog_early_warning_position) {
+	} else if ((lu_priv->pm->drive_supports_prog_early_warning) &&
+			(current_position >= (uint64_t)lu_priv->prog_early_warning_position)) {
+		/* FIXME: Need to implement REW bit in Device Configuration Mode Page
+		 *	  REW == Report Early Warning
+		 */
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - Programmable Early Warning");
 		mkSenseBuf(NO_SENSE | SD_EOM,
