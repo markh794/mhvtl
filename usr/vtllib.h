@@ -196,6 +196,7 @@ struct mode {
 	int32_t pcodeSize;	/* Size of page code data. */
 	uint8_t *pcodePointerBitMap;	/* bitmap for changable data */
 	uint8_t *pcodePointer;	/* Pointer to page code data */
+	char *description;	/* ASCII text 'description' */
 	};
 
 /* v2 of the tape media

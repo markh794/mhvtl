@@ -36,6 +36,29 @@
 #include "smc.h"
 #include "be_byteshift.h"
 
+static char *mode_rw_error_recover = "Read/Write Error Recovery";
+static char *mode_disconnect_reconnect = "Disconnect/Reconnect";
+static char *mode_control = "Control";
+static char *mode_control_extension = "Control Extension";
+static char *mode_data_compression = "Data Compression";
+static char *mode_device_configuration = "Device Configuration";
+static char *mode_device_configuration_extension =
+					"Device Configuration Extension";
+static char *mode_medium_partition = "Medium Partition";
+static char *mode_power_condition = "Power Condition";
+static char *mode_information_exception = "Information Exception";
+static char *mode_medium_configuration = "Medium Configuration";
+static char *mode_vendor_24h = "Vendor (IBM) unique page 24h"
+				" - Advise ENCRYPTION Capable device";
+static char *mode_vendor_25h = "Vendor (IBM) unique page 25h"
+				" - Early Warning";
+static char *mode_encryption_mode = "Encryption Mode";
+static char *mode_behaviour_configuration = "Behaviour Configuration";
+static char *mode_ait_device_configuration = "AIT Device Configuration";
+static char *mode_element_address = "Element Address";
+static char *mode_transport_geometry = "Transport Geometry";
+static char *mode_device_capabilities = "Device Capabilities";
+
 struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
 {
 	struct mode *mp;
@@ -45,8 +68,9 @@ struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
 
 	list_for_each_entry(mp, m, siblings) {
 		if (mp->pcode == pcode && mp->subpcode == subpcode) {
-			MHVTL_DBG(3, "Matched list entry -> "
+			MHVTL_DBG(3, "Found \"%s\" -> "
 				"pcode 0x%02x, subpcode 0x%02x",
+					mp->description,
 					mp->pcode, mp->subpcode);
 			return mp;
 		}
@@ -137,6 +161,8 @@ int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu)
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
+	mp->description = mode_rw_error_recover;
+
 	return 0;
 }
 
@@ -172,6 +198,8 @@ int add_mode_disconnect_reconnect(struct lu_phy_attr *lu)
 	mp->pcodePointer[3] = 50;	/* Buffer empty ratio */
 	mp->pcodePointer[10] = 4;
 
+	mp->description = mode_disconnect_reconnect;
+
 	return 0;
 }
 
@@ -203,6 +231,8 @@ int add_mode_control(struct lu_phy_attr *lu)
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
+	mp->description = mode_control;
+
 	return 0;
 }
 
@@ -233,6 +263,8 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
+	mp->description = mode_control_extension;
 
 	return 0;
 }
@@ -277,6 +309,8 @@ int add_mode_data_compression(struct lu_phy_attr *lu)
 	mp->pcodePointerBitMap[3] = 0x80; /* DDE bit */
 	put_unaligned_be32(0xffffffff, &mp->pcodePointer[4]); /* Comp alg */
 	put_unaligned_be32(0xffffffff, &mp->pcodePointer[8]); /* De-comp alg */
+
+	mp->description = mode_data_compression;
 
 	return 0;
 }
@@ -324,6 +358,8 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	 * mode page struct
 	 */
 	ssc->compressionFactor = &mp->pcodePointer[14];
+
+	mp->description = mode_device_configuration;
 
 	return 0;
 }
@@ -376,6 +412,8 @@ int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
 		mp->pcodePointerBitMap[7] |= 0xff;
 	}
 
+	mp->description = mode_device_configuration_extension;
+
 	return 0;
 }
 
@@ -403,6 +441,8 @@ int add_mode_medium_partition(struct lu_phy_attr *lu)
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
+	mp->description = mode_medium_partition;
+
 	return 0;
 }
 
@@ -429,6 +469,8 @@ int add_mode_power_condition(struct lu_phy_attr *lu)
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
+	mp->description = mode_power_condition;
 
 	return 0;
 }
@@ -460,6 +502,8 @@ int add_mode_information_exception(struct lu_phy_attr *lu)
 	mp->pcodePointer[2] = 0x08;
 	mp->pcodePointer[3] = 0x03;
 
+	mp->description = mode_information_exception;
+
 	return 0;
 }
 
@@ -489,6 +533,9 @@ int add_mode_medium_configuration(struct lu_phy_attr *lu)
 
 	mp->pcodePointer[4] = 0x01;	/* WORM mode label restrictions */
 	mp->pcodePointer[5] = 0x01;	/* WORM mode filemark restrictions */
+
+	mp->description = mode_medium_configuration;
+
 	return 0;
 }
 
@@ -511,8 +558,6 @@ int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
 	pcode = MODE_VENDOR_SPECIFIC_24H;
 	size = 8;
 
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", mode_pg);
-
 	/* Vendor Unique (IBM Ultrium)
 	 * Page 151, table 118
 	 * Advise ENCRYPTION Capable device
@@ -531,6 +576,9 @@ int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	mp->pcodePointer[7] = ENCR_C;
+
+	mp->description = mode_vendor_24h;
+
 	return 0;
 }
 
@@ -553,8 +601,6 @@ int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu)
 	pcode = MODE_VENDOR_SPECIFIC_25H;
 	size = 32;
 
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", mode_pg);
-
 	/* Vendor Unique (IBM Ultrium)
 	 * Page 151, table 118
 	 * Advise ENCRYPTION Capable device
@@ -574,6 +620,8 @@ int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu)
 
 	mp->pcodePointer[5] = 1;	/* LEOP to maximize medium capacity */
 	mp->pcodePointer[6] = 1;	/* Early Warning */
+
+	mp->description = mode_vendor_25h;
 
 	return 0;
 }
@@ -610,6 +658,8 @@ int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu)
 	mp->pcodePointer[7] = 0x01;	/* Default Encruption State */
 	mp->pcodePointer[8] = 0x00;	/* Desnity Reporting */
 
+	mp->description = mode_encryption_mode;
+
 	return 0;
 }
 
@@ -640,6 +690,8 @@ int add_mode_ait_device_configuration(struct lu_phy_attr *lu)
 	mp->pcodePointer[2] = 0xf0;
 	mp->pcodePointer[3] = 0x0a;
 	mp->pcodePointer[4] = 0x40;
+
+	mp->description = mode_ait_device_configuration;
 
 	return 0;
 }
@@ -680,6 +732,8 @@ int add_mode_element_address_assignment(struct lu_phy_attr *lu)
 	put_unaligned_be16(START_DRIVE, &p[14]); /* First Drives */
 	put_unaligned_be16(smc_slots->num_drives, &p[16]);
 
+	mp->description = mode_element_address;
+
 	return 0;
 }
 
@@ -711,6 +765,8 @@ int add_mode_transport_geometry(struct lu_phy_attr *lu)
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
+	mp->description = mode_transport_geometry;
 
 	return 0;
 }
@@ -756,6 +812,8 @@ int add_mode_device_capabilities(struct lu_phy_attr *lu)
 	mp->pcodePointer[15] = 0x00;
 	/* [16-19] -> reserved */
 
+	mp->description = mode_device_capabilities;
+
 	return 0;
 }
 
@@ -789,6 +847,8 @@ int add_mode_behavior_configuration(struct lu_phy_attr *lu)
 
 	mp->pcodePointer[3] = 0; /* Clean Behavior */
 	mp->pcodePointer[4] = 0; /* WORM Behavior */
+
+	mp->description = mode_behaviour_configuration;
 
 	return 0;
 }

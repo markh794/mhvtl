@@ -586,6 +586,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
 
 	if (0x3 == pc) {  /* Saving values not supported */
+		MHVTL_DBG(2, "Reporting on Saved Values not supported");
 		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
