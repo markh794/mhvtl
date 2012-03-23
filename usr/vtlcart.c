@@ -708,11 +708,14 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	snprintf(newMedia_meta, ARRAY_SIZE(newMedia_meta), "%s/meta", newMedia);
 
 	umask(0007);
-	if (mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_ISGID) < 0)
-	{
-		MHVTL_ERR("Failed to create directory %s: %s", newMedia,
-			strerror(errno));
-		return 2;
+	rc = mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_ISGID);
+	if (rc) {
+		/* No need to fail just because the parent dir exists */
+		if (errno != EEXIST) {
+			MHVTL_ERR("Failed to create directory %s: %s", newMedia,
+				strerror(errno));
+			return 2;
+		}
 	}
 
 	/* Don't really care if chown() fails or not..
