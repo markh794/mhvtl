@@ -577,13 +577,12 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	offset = msense_6 ? 4 : 8;
 
 	MHVTL_DBG(2, " Mode Sense %d byte version", (msense_6) ? 6 : 10);
-	MHVTL_DBG(2, " Page Control  : %s(0x%02x)",
+	MHVTL_DBG(2, " Page Control     : %s(0x%02x)",
 				pcString[pc], pc);
-	MHVTL_DBG(2, " Page Code     : 0x%02x", pcode);
-	MHVTL_DBG(2, " Subpage Code  : 0x%02x", subpcode);
-	MHVTL_DBG(2, " Disable Block Descriptor => %s",
-				(blockDescriptorLen) ? "No" : "Yes");
-	MHVTL_DBG(2, " Allocation len: %d", alloc_len);
+	MHVTL_DBG(2, " Page/Subpage Code: 0x%02x/0x%02x", pcode, subpcode);
+	MHVTL_DBG(2, " %s Block Descriptor",
+				(blockDescriptorLen) ? "Report" : "Disable");
+	MHVTL_DBG(2, " Allocation len   : %d", alloc_len);
 
 	if (0x3 == pc) {  /* Saving values not supported */
 		MHVTL_DBG(2, "Reporting on Saved Values not supported");
@@ -600,8 +599,6 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 
 	offset += blockDescriptorLen;
 	ap = buf + offset;
-
-	MHVTL_DBG(3, "pcode: 0x%02x, subpcode: 0x%02x", pcode, subpcode);
 
 	switch (pcode) {
 	case 0:
