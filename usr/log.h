@@ -47,6 +47,7 @@
 
 struct log_pg_list {
 	struct list_head siblings;
+	char *description;
 	int log_page_num;
 	int size;
 	void *p;

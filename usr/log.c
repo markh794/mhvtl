@@ -37,6 +37,15 @@
 #include "be_byteshift.h"
 #include "log.h"
 
+static char *write_error_counter = "WRITE ERROR Counter";
+static char *read_error_counter = "READ ERROR Counter";
+static char *sequential_access_device = "Sequential Access";
+static char *temperature_page = "Temperature";
+static char *tape_alert = "Tape Alert";
+static char *tape_usage = "Tape Usage";
+static char *tape_capacity = "Tape Capacity";
+static char *data_compression = "Data Compression";
+
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page)
 {
 	struct log_pg_list *log_pg;
@@ -45,7 +54,7 @@ struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page)
 
 	list_for_each_entry(log_pg, l, siblings) {
 		if (log_pg->log_page_num == page) {
-			MHVTL_DBG(3, "Matched list entry -> page 0x%02x", page);
+			MHVTL_DBG(2, "%s (0x%02x)", log_pg->description, page);
 			return log_pg;
 		}
 	}
@@ -112,6 +121,8 @@ int add_log_write_err_counter(struct lu_phy_attr *lu)
 	if (!log_pg)
 		return -ENOMEM;
 
+	log_pg->description = write_error_counter;
+
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 				 &tp.pcode_head.len);
 
@@ -141,6 +152,8 @@ int add_log_read_err_counter(struct lu_phy_attr *lu)
 	log_pg = alloc_log_page(&lu->log_pg, READ_ERROR_COUNTER, sizeof(tp));
 	if (!log_pg)
 		return -ENOMEM;
+
+	log_pg->description = read_error_counter;
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 				 &tp.pcode_head.len);
@@ -175,6 +188,8 @@ int add_log_sequential_access(struct lu_phy_attr *lu)
 	if (!log_pg)
 		return -ENOMEM;
 
+	log_pg->description = sequential_access_device;
+
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 				 &tp.pcode_head.len);
 
@@ -194,6 +209,8 @@ int add_log_temperature_page(struct lu_phy_attr *lu)
 	log_pg = alloc_log_page(&lu->log_pg, TEMPERATURE_PAGE, sizeof(tp));
 	if (!log_pg)
 		return -ENOMEM;
+
+	log_pg->description = temperature_page;
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 				 &tp.pcode_head.len);
@@ -217,6 +234,8 @@ int add_log_tape_alert(struct lu_phy_attr *lu)
 	log_pg = alloc_log_page(&lu->log_pg, TAPE_ALERT, sizeof(tp));
 	if (!log_pg)
 		return -ENOMEM;
+
+	log_pg->description = tape_alert;
 
 	tp.pcode_head.pcode = TAPE_ALERT;
 	tp.pcode_head.res = 0;
@@ -257,6 +276,8 @@ int add_log_tape_usage(struct lu_phy_attr *lu)
 	if (!log_pg)
 		return -ENOMEM;
 
+	log_pg->description = tape_usage;
+
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 				 &tp.pcode_head.len);
 
@@ -279,6 +300,8 @@ int add_log_tape_capacity(struct lu_phy_attr *lu)
 	log_pg = alloc_log_page(&lu->log_pg, TAPE_CAPACITY, sizeof(tp));
 	if (!log_pg)
 		return -ENOMEM;
+
+	log_pg->description = tape_capacity;
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 				 &tp.pcode_head.len);
@@ -308,6 +331,8 @@ int add_log_data_compression(struct lu_phy_attr *lu)
 	log_pg = alloc_log_page(&lu->log_pg, DATA_COMPRESSION, sizeof(tp));
 	if (!log_pg)
 		return -ENOMEM;
+
+	log_pg->description = data_compression;
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 				 &tp.pcode_head.len);
