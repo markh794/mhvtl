@@ -116,6 +116,50 @@ static uint8_t update_ait_encryption_mode(struct list_head *m, void *p, int valu
 	return SAM_STAT_GOOD;
 }
 
+/* FIXME: This is a copy of LTO4/5 encryption capabilities.
+	Need to adjust to suit AIT4
+*/
+static int encr_capabilities_ait(struct scsi_cmd *cmd)
+{
+	uint8_t *buf = cmd->dbuf_p->data;
+	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
+
+	put_unaligned_be16(ENCR_CAPABILITIES, &buf[0]);
+	put_unaligned_be16(40, &buf[2]); /* List length */
+
+	buf[20] = 1;	/* Algorithm index */
+	buf[21] = 0;	/* Reserved */
+	put_unaligned_be16(0x14, &buf[22]); /* Descriptor length */
+	buf[24] = 0x3a;	/* MAC C/DED_C DECRYPT_C = 2 ENCRYPT_C = 2 */
+	buf[25] = 0x10;	/* NONCE_C = 1 */
+	/* Max unauthenticated key data */
+	put_unaligned_be16(0x20, &buf[26]);
+	/* Max authenticated  key data */
+	put_unaligned_be16(0x0c, &buf[28]);
+	/* Key size */
+	put_unaligned_be16(0x20, &buf[30]);
+	buf[32] = 0x01;	/* EAREM */
+	/* buf 12 - 19 reserved */
+
+	buf[40] = 0;	/* Encryption Algorithm Id */
+	buf[41] = 0x01;	/* Encryption Algorithm Id */
+	buf[42] = 0;	/* Encryption Algorithm Id */
+	buf[43] = 0x14;	/* Encryption Algorithm Id */
+
+	/* adjustments for each emulated drive type */
+	buf[4] = 0x1; /* CFG_P == 01b */
+	if (lu_priv->tapeLoaded == TAPE_LOADED) {
+		switch (mam.MediaType) {
+		case Media_AIT4:
+			MHVTL_DBG(1, "AIT4 Medium");
+			buf[24] |= 0x80; /* AVFMV */
+			break;
+		}
+	}
+	buf[32] |= 0x08; /* RDMC_C == 4 */
+	return 44;
+}
+
 static void init_ait_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
@@ -264,6 +308,7 @@ static char *name_ait_4 = "AIT-4";
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk,
 	.update_encryption_mode	= update_ait_encryption_mode,
+	.encryption_capabilities = encr_capabilities_ait,
 	.kad_validation		= ait_kad_validation,
 	.check_restrictions	= check_restrictions,
 	.clear_compression	= clear_ait_compression,
@@ -373,8 +418,10 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	ssc_pm.clear_WORM = clear_ait_WORM,
 	ssc_pm.set_WORM	= set_ait_WORM,
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 10; /* Capacity units in KBytes */
+
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	add_density_support(&lu->den_list, &density_ait2, 0);
 	add_density_support(&lu->den_list, &density_ait3, 1);
 	add_density_support(&lu->den_list, &density_ait4, 1);
