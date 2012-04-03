@@ -965,10 +965,8 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 							sam_stat);
 			return 0;
 		}
-		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"
-				", Compression factor: %d",
-					src_sz, (unsigned long)dest_len,
-					*lu_priv->compressionFactor);
+		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
+					src_sz, (unsigned long)dest_len);
 	} else {
 		dest_buf = src_buf;
 		dest_len = 0;	/* no compression */
