@@ -1965,6 +1965,42 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 						"LZO" : "ZLIB");
 	}
 
+	if (!strncasecmp(msg->text, "append", 6)) {
+		s[0] = '\0';
+		sscanf(msg->text, "Append Only %s", &s[0]);
+		if (strlen(s) < 2)
+			sscanf(msg->text, "APPEND ONLY %s", &s[0]);
+		if (strlen(s) < 2)
+			sscanf(msg->text, "append only %s", &s[0]);
+
+		if (lu_ssc.pm->drive_supports_append_only_mode) {
+			struct mode *m;
+
+			m = lookup_pcode(&lu->mode_pg, 0x10, 1);
+			if (!m) {
+				MHVTL_LOG("Can't find Append Only mode page"
+					", Drive should support Append Only");
+				return 0;
+			}
+
+			if (!strncasecmp(s, "Yes", 3)) {
+				m->pcodePointer[5] |= 0x10;
+				lu_ssc.append_only_mode = 1;
+				MHVTL_DBG(1, "Append Only set to \"Yes\"");
+			} else if (!strncasecmp(s, "No", 2)) {
+				m->pcodePointer[5] &= 0x0f;
+				lu_ssc.append_only_mode = 0;
+				MHVTL_DBG(1, "Append Only set to \"No\"");
+			} else {
+				MHVTL_LOG("Append Only value: %s unknown,"
+					" Leaving unchanged at: %s", s,
+					(m->pcodePointer[5] & 0xf0) ?
+							"Yes" : "No");
+			}
+		} else
+			MHVTL_LOG("This drive does not support Append Only mode");
+	}
+
 	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug > 4) {
 			debug = 1;

@@ -69,10 +69,11 @@ void usage(char *prog)
 	fprintf(stderr, "   exit        -> To shutdown tape/library "
 			"daemon/device\n");
 	fprintf(stderr, "\nTape specific commands:\n");
-	fprintf(stderr, "   load ID     -> To 'load' media ID\n");
-	fprintf(stderr, "   unload ID   -> To 'unload' media ID\n");
+	fprintf(stderr, "   Append Only [Yes|No] -> To 'load' media ID\n");
 	fprintf(stderr, "   compression [zlib|lzo] -> Use zlib or lzo "
 						"compression\n");
+	fprintf(stderr, "   load ID     -> To 'load' media ID\n");
+	fprintf(stderr, "   unload ID   -> To 'unload' media ID\n");
 	fprintf(stderr, "\nLibrary specific commands:\n");
 	fprintf(stderr, "   online      -> To enable library\n");
 	fprintf(stderr, "   offline     -> To take library offline\n");
@@ -191,6 +192,17 @@ void Check_Compression(int argc, char **argv)
 	PrintErrorExit(argv[0], "compression : missing lzo or zlib");
 }
 
+void Check_append_only(int argc, char **argv)
+{
+	if (argc > 4) {
+		if (argc == 5)
+			return;
+
+		PrintErrorExit(argv[0], "Append Only");
+	}
+	PrintErrorExit(argv[0], "Append Only : missing Yes / No");
+}
+
 void Check_List(int argc, char **argv)
 {
 	if (argc != 4)
@@ -265,22 +277,26 @@ void Check_Params(int argc, char **argv)
 					return;
 				PrintErrorExit(argv[0], "exit");
 			}
-			if (!strcmp(argv[2], "TapeAlert")) {
+			if (!strncasecmp(argv[2], "TapeAlert", 9)) {
 				Check_TapeAlert(argc, argv);
 				return;
 			}
 
 			/* Tape commands */
-			if (!strcmp(argv[2], "load")) {
+			if (!strncasecmp(argv[2], "load", 4)) {
 				Check_Load(argc, argv);
 				return;
 			}
-			if (!strcmp(argv[2], "unload")) {
+			if (!strncasecmp(argv[2], "unload", 6)) {
 				Check_Unload(argc, argv);
 				return;
 			}
-			if (!strcmp(argv[2], "compression")) {
+			if (!strncasecmp(argv[2], "compression", 11)) {
 				Check_Compression(argc, argv);
+				return;
+			}
+			if (!strncasecmp(argv[2], "Append", 6)) {
+				Check_append_only(argc, argv);
 				return;
 			}
 
@@ -327,7 +343,7 @@ int CreateNewQueue(void)
 	queue_id = msgget(IPC_PRIVATE,
 			IPC_CREAT|S_IRUSR|S_IWUSR|S_IWGRP|S_IWOTH);
 	if (queue_id == -1)
-		fprintf(stderr, "%s %s\n", __func__, strerror(errno));
+		fprintf(stderr, "%s: %s\n", __func__, strerror(errno));
 
 	return queue_id;
 }
@@ -340,7 +356,7 @@ int OpenExistingQueue(key_t key)
 	/* Attempt to open an existing message queue */
 	queue_id = msgget(key, 0);
 	if (queue_id == -1)
-		fprintf(stderr, "%s %s\n", __func__, strerror(errno));
+		fprintf(stderr, "%s: %s\n", __func__, strerror(errno));
 
 	return queue_id;
 }
@@ -477,6 +493,7 @@ int main(int argc, char **argv)
 		} else if (!strncmp(buf, "exit", 4)) {
 		} else if (!strncmp(buf, "compression", 11)) {
 		} else if (!strncmp(buf, "TapeAlert", 9)) {
+		} else if (!strncasecmp(buf, "append", 6)) {
 		} else {
 			fprintf(stderr, "Command for tape not allowed\n");
 			exit(1);
