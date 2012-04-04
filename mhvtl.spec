@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
 Version: 1.2
-Release: 2
-Source: mhvtl-2012-03-22.tgz
+Release: 3
+Source: mhvtl-2012-04-04.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -161,6 +161,12 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Wed Apr 04 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.2-3
+- Fix segfault in AIT4 when attempting to access Security Protocol IN/OUT
+- No need to fail in virtual media parent directory exists
+- Add more descriptive debug messages for log/mode page lookups
+
 * Thu Mar 22 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.2-2
 - Changed defaults so fifo is not enabled. If fifo not used, it will

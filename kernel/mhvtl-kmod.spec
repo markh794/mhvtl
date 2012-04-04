@@ -13,7 +13,7 @@
 Summary: Virtual Tape Library device driver for Linux
 Name: mhvtl-kmod
 Version: 1.2
-Release: 2%{?dist}
+Release: 3%{?dist}
 License: GPL2
 Group: System Environment/Kernel
 URL: http://sites.google.com/site/linuxvtl2/

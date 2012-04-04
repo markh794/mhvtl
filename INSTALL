@@ -25,7 +25,7 @@ SLES 9 & 10:
 
 
 2) Extract the mhvtl source code.
-# tar xvfz mhvtl-2012-03-16.tgz
+# tar xvfz mhvtl-2012-04-04.tgz
 
 3) Change directory into the kernel driver source.
 # cd mhvtl-1.2/kernel/
@@ -36,7 +36,7 @@ SLES 9 & 10:
 User space daemons:
 ===================
 Pre-req for a running mhvtl
-- sg3_utils (http://www.torque.net/sg/)
+- sg3_utils (http://sg.danny.cz/sg/sg3_utils.html)
 
 Pre-req to build/compile userspace:
 - zlib-devel
@@ -47,7 +47,7 @@ Pre-req to build/compile userspace:
  cd /usr/src/packages/SOURCE
  rpmbuild -tb mhvtl-YYYY-MM-DD.tar.gz
  <wait for rpm build to complete>
- rpm -Uvh /usr/src/packages/RPMS/<cpu type>/mhvtl-0.16-z.<cpu type>.rpm
+ rpm -Uvh /usr/src/packages/RPMS/<cpu type>/mhvtl-1.2-z.<cpu type>.rpm
  (The rpm install will create system group & accounts vtl)
 - Note: For RedHat, replace 'packages' with 'redhat'
 
@@ -63,7 +63,7 @@ a group and user called 'vtl'
 
 Now build user space daemons:
 From the parent directory where you extracted the source.
-# cd mhvtl-0.18
+# cd mhvtl-1.2
 
 Build the binaries
 # make
