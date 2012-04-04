@@ -513,7 +513,7 @@ uint8_t spc_mode_select(struct scsi_cmd *cmd)
  */
 static int add_pcode(struct mode *m, uint8_t pc, uint8_t *p)
 {
-	if (pc == 1)	/* Report Changable bitmap */
+	if (pc == 1)	/* Report Changeable bitmap */
 		memcpy(p, m->pcodePointerBitMap, m->pcodeSize);
 	else
 		memcpy(p, m->pcodePointer, m->pcodeSize);
@@ -549,7 +549,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 #ifdef MHVTL_DEBUG
 	char *pcString[] = {
 		"Current values",
-		"Changable values",
+		"Changeable values",
 		"Default values",
 		"Saved values",
 	};
@@ -563,7 +563,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	/*
 	 pc => page control
 		00 -> 0: Report current vaules
-		01 -> 1: Report Changable Vaules
+		01 -> 1: Report Changeable Vaules
 		10 -> 2: Report default values
 		11 -> 3: Report saved values
 	*/
