@@ -15,7 +15,7 @@ extern char *vtl_driver_name;
 #define MHVTL_ERR(format, arg...) {				\
 	if (debug)						\
 		printf("%s: ERROR %s: " format "\n",		\
-			vtl_driver_name, __func__, ## arg); 	\
+			"vtl_driver_name", __func__, ## arg);	\
 	else							\
 		syslog(LOG_DAEMON|LOG_ERR, "ERROR %s: " format,	\
 			__func__, ## arg); 			\
