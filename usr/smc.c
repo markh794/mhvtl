@@ -1192,13 +1192,27 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 /* Return OK if 'addr' is within either a MAP, Drive or Storage slot */
 static int valid_slot(struct smc_priv *smc_p, int addr)
 {
+	struct s_info *slt;
+	struct d_info *drv;
+
 	switch (slot_type(smc_p, addr)) {
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
+		slt  = slot2struct(smc_p, addr);
+		if (slt)
+			return TRUE;	/* slot, return true */
+		break;
 	case DATA_TRANSFER:
-		return 1;
+		drv  = drive2struct(smc_p, addr);
+		if (!drv) {
+			MHVTL_DBG(1, "No target drive %d in device.conf", addr);
+			return FALSE;	/* No drive, return false */
+		}
+		if (drv->drv_id)
+			return TRUE;	/* Found a drive ID */
+		break;
 	}
-	return 0;
+	return FALSE;
 }
 
 static int move_drive2slot(struct smc_priv *smc_p,
