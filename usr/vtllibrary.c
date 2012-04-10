@@ -1008,6 +1008,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	lu->fifo_fd = NULL;
 	lu->fifo_flag = 0;
 
+	smc_slots.movecommand = NULL;
+	smc_slots.commandtimeout = 20;
+
 	/* While read in a line */
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
@@ -1055,6 +1058,12 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			}
 			if (sscanf(b, " fifo: %s", s))
 				process_fifoname(lu, s, 0);
+
+			if (sscanf(b, " movecommand: %s", s))
+				smc_slots.movecommand=strndup(s,MALLOC_SZ);
+
+			if (sscanf(b, " commandtimeout: %d", &d))
+				smc_slots.commandtimeout=d;
 
 			i = sscanf(b,
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
