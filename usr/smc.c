@@ -43,6 +43,7 @@
 #include "smc.h"
 #include "q.h"
 #include "log.h"
+#include "subprocess.h"
 
 int current_state;
 
@@ -1058,12 +1059,54 @@ static void move_cart(struct s_info *src, struct s_info *dest)
 	setSlotEmpty(src);		/* Clear Full bit */
 }
 
+static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
+			struct s_info *dest, uint8_t *sam_stat)
+{
+	char *movecommand;
+	char barcode[MAX_BARCODE_LEN + 1];
+	int res = 0;
+	int cmdlen;
+
+	if (!smc_p->movecommand) {
+		// no command: do nothing
+		return SAM_STAT_GOOD;
+	}
+	
+	cmdlen = strlen(smc_p->movecommand)+MAX_BARCODE_LEN+4*10;
+	movecommand = malloc(cmdlen+1);
+
+	if (!movecommand) {
+		MHVTL_ERR("malloc failed");
+		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	sprintf(barcode, "%s", src->media->barcode);
+	truncate_spaces(&barcode[0], MAX_BARCODE_LEN + 1);
+	snprintf(movecommand,cmdlen,"%s %s %d %s %d %s",
+			smc_p->movecommand,
+			slot_type_str[src->element_type],
+			slot_number(src),
+			slot_type_str[dest->element_type],
+			slot_number(dest),
+			barcode
+	);
+	res = run_command(movecommand,smc_p->commandtimeout);
+	if (res) {
+		MHVTL_ERR("move command returned %d",res);
+		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	return SAM_STAT_GOOD;
+}
+
 static int move_slot2drive(struct smc_priv *smc_p,
 		 int src_addr, int dest_addr, uint8_t *sam_stat)
 {
 	struct s_info *src;
 	struct d_info *dest;
 	char cmd[MAX_BARCODE_LEN + 12];
+	int retval;
 
 	current_state = MHVTL_STATE_MOVING_SLOT_2_DRIVE;
 
@@ -1122,10 +1165,12 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
+	retval = run_move_command(smc_p, src, dest->slot, sam_stat);
+	if (retval) return retval;
 	move_cart(src, dest->slot);
 	setDriveFull(dest);
 
-	return 0;
+	return retval;
 }
 
 static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
@@ -1134,6 +1179,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	struct s_info *src;
 	struct s_info *dest;
 	char cmd[MAX_BARCODE_LEN + 1];
+	int retval;
 
 	current_state = MHVTL_STATE_MOVING_SLOT_2_SLOT;
 
@@ -1185,8 +1231,10 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 					slot_number(dest));
 	}
 
+	retval = run_move_command(smc_p, src, dest, sam_stat);
+	if (retval) return retval;
 	move_cart(src, dest);
-	return 0;
+	return retval;
 }
 
 /* Return OK if 'addr' is within either a MAP, Drive or Storage slot */
@@ -1221,6 +1269,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	char cmd[MAX_BARCODE_LEN + 1];
 	struct d_info *src;
 	struct s_info *dest;
+	int retval;
 
 	current_state = MHVTL_STATE_MOVING_DRIVE_2_SLOT;
 
@@ -1259,10 +1308,12 @@ static int move_drive2slot(struct smc_priv *smc_p,
 					slot_number(dest));
 	}
 
+	retval = run_move_command(smc_p, src->slot, dest, sam_stat);
+	if (retval) return retval;
 	move_cart(src->slot, dest);
 	setDriveEmpty(src);
 
-return SAM_STAT_GOOD;
+return retval;
 }
 
 /* Move media in drive 'src_addr' to drive 'dest_addr' */
@@ -1272,6 +1323,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	struct d_info *src;
 	struct d_info *dest;
 	char cmd[MAX_BARCODE_LEN + 12];
+	int retval;
 
 	current_state = MHVTL_STATE_MOVING_DRIVE_2_DRIVE;
 
@@ -1294,6 +1346,8 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	send_msg("unload", src->drv_id);
 
+	retval = run_move_command(smc_p, src->slot, dest->slot, sam_stat);
+	if (retval) return retval;
 	move_cart(src->slot, dest->slot);
 
 	sprintf(cmd, "lload %s", dest->slot->media->barcode);
@@ -1332,7 +1386,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 					slot_number(dest->slot));
 	}
 
-return SAM_STAT_GOOD;
+return retval;
 }
 
 /* Move a piece of medium from one slot to another */
