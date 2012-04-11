@@ -32,31 +32,34 @@
 #include "logging.h"
 
 static pid_t pid;
-static int timedout = 0;
+static int timedout;
 
-void alarm_timeout(int sig) {
+void alarm_timeout(int sig)
+{
 	alarm(0);
-	timedout=1;
-	if (pid) kill(pid,9);
+	timedout = 1;
+	if (pid)
+		kill(pid, 9);
 }
 
-int run_command(char* command,int timeout) {
-
+int run_command(char *command, int timeout)
+{
 	pid = fork();
 	if (!pid) {
-		// child
-		execlp("/bin/sh","/bin/sh","-c",command,(char *)NULL);
+		/* child */
+		execlp("/bin/sh", "/bin/sh", "-c", command, (char *)NULL);
 	} else if (pid < 0) {
-		// TODO error handling
+		/* TODO error handling */
 		return -1;
 	} else {
-		signal(SIGALRM,alarm_timeout);
+		signal(SIGALRM, alarm_timeout);
 		timedout = 0;
 		alarm(timeout);
 		int status;
-		while (waitpid(pid,&status,0) <= 0) {
+
+		while (waitpid(pid, &status, 0) <= 0)
 			usleep(1);
-		}
+
 		alarm(0);
 
 		if (WIFEXITED(status)) {
@@ -64,14 +67,11 @@ int run_command(char* command,int timeout) {
 			return res;
 		} else if (WIFSIGNALED(status)) {
 			int sig = WTERMSIG(status);
-			//MHVTL_LOG("command died with signal: %d (timedout: %d)\n",sig,timedout);
+			MHVTL_DBG(1, "command died with signal: %d "
+					"(timedout: %d)\n", sig, timedout);
 			return -sig;
 		}
 	}
 
 	return -1;
-
 }
-
-
-

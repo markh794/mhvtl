@@ -1,2 +1,2 @@
 
-int run_command(char* command,int timeout);
+int run_command(char *command, int timeout);

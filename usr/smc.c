@@ -1069,12 +1069,12 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 	int cmdlen;
 
 	if (!smc_p->movecommand) {
-		// no command: do nothing
+		/* no command: do nothing */
 		return SAM_STAT_GOOD;
 	}
-	
+
 	cmdlen = strlen(smc_p->movecommand)+MAX_BARCODE_LEN+4*10;
-	movecommand = malloc(cmdlen+1);
+	movecommand = malloc(cmdlen + 1);
 
 	if (!movecommand) {
 		MHVTL_ERR("malloc failed");
@@ -1084,7 +1084,7 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 
 	sprintf(barcode, "%s", src->media->barcode);
 	truncate_spaces(&barcode[0], MAX_BARCODE_LEN + 1);
-	snprintf(movecommand,cmdlen,"%s %s %d %s %d %s",
+	snprintf(movecommand, cmdlen, "%s %s %d %s %d %s",
 			smc_p->movecommand,
 			slot_type_str[src->element_type],
 			slot_number(src),
@@ -1092,9 +1092,9 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 			slot_number(dest),
 			barcode
 	);
-	res = run_command(movecommand,smc_p->commandtimeout);
+	res = run_command(movecommand, smc_p->commandtimeout);
 	if (res) {
-		MHVTL_ERR("move command returned %d",res);
+		MHVTL_ERR("move command returned %d", res);
 		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1167,7 +1167,8 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	}
 
 	retval = run_move_command(smc_p, src, dest->slot, sam_stat);
-	if (retval) return retval;
+	if (retval)
+		return retval;
 	move_cart(src, dest->slot);
 	setDriveFull(dest);
 
@@ -1233,7 +1234,8 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	}
 
 	retval = run_move_command(smc_p, src, dest, sam_stat);
-	if (retval) return retval;
+	if (retval)
+		return retval;
 	move_cart(src, dest);
 	return retval;
 }
@@ -1310,7 +1312,8 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	}
 
 	retval = run_move_command(smc_p, src->slot, dest, sam_stat);
-	if (retval) return retval;
+	if (retval)
+		return retval;
 	move_cart(src->slot, dest);
 	setDriveEmpty(src);
 
@@ -1348,7 +1351,8 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	send_msg("unload", src->drv_id);
 
 	retval = run_move_command(smc_p, src->slot, dest->slot, sam_stat);
-	if (retval) return retval;
+	if (retval)
+		return retval;
 	move_cart(src->slot, dest->slot);
 
 	sprintf(cmd, "lload %s", dest->slot->media->barcode);
@@ -1599,4 +1603,3 @@ log_page_not_found:
 	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
-
