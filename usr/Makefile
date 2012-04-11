@@ -55,6 +55,7 @@ all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
 	mktape vtllibrary make_vtl_media tapeexerciser
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
+		subprocess.c subprocess.h \
 		mode.c log.c be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic log.c
@@ -63,8 +64,9 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 	$(CC) $(CFLAGS) -c -fpic spc.c
 	$(CC) $(CFLAGS) -c -fpic smc.c
 	$(CC) $(CFLAGS) -c -fpic q.c
+	$(CC) $(CFLAGS) -c -fpic subprocess.c
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o \
-		mode.o log.o -lpthread
+		mode.o log.o subprocess.o -lpthread
 
 libvtlcart.so: vtlcart.c vtllib.h vtllib.c scsi.h log.c q.c \
 		../kernel/vtl_common.h
@@ -129,6 +131,7 @@ clean:
 		hp_ultrium_pm.o \
 		mode.o \
 		log.o \
+		subprocess.o \
 		stk9x40_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		dump_messageQ dump_tape make_vtl_media \
@@ -155,6 +158,7 @@ distclean:
 	z.o z \
 	mode.o \
 	log.o \
+	subprocess.o \
 	TAGS \
 	make_vtl_media \
 	make_vtl_media.1 \
