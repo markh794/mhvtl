@@ -51,8 +51,8 @@ else
 LIBDIR = lib
 endif
 
-all:	libvtlscsi.so vtltape dump_tape vtlcmd dump_messageQ mktape \
-	vtllibrary make_vtl_media tapeexerciser
+all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
+	mktape vtllibrary make_vtl_media tapeexerciser
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 		mode.c log.c be_byteshift.h \
@@ -66,6 +66,15 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o \
 		mode.o log.o -lpthread
 
+libvtlcart.so: vtlcart.c vtllib.h vtllib.c scsi.h log.c q.c \
+		../kernel/vtl_common.h
+	$(CC) $(CFLAGS) -c -fpic log.c
+	$(CC) $(CFLAGS) -c -fpic q.c
+	$(CC) $(CFLAGS) -c -fpic -o vtlcart.o vtlcart.c
+	$(CC) $(CFLAGS) -c -fpic vtllib.c
+	$(CC) $(CLFLAGS) -o libvtlcart.so vtllib.o vtlcart.o q.o log.o \
+				-lpthread
+
 tapeexerciser:	tapeexerciser.c
 	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
 
@@ -77,11 +86,11 @@ vtlcmd:	vtlcmd.o
 
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o dump_tape dump_tape.o vtlcart.o -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o dump_tape dump_tape.o -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o mktape mktape.o vtlcart.o -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o mktape mktape.o -L. -lvtlcart -lvtlscsi
 
 vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		libvtlscsi.so \
@@ -97,13 +106,13 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		be_byteshift.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtltape vtltape.o vtlcart.o ssc.o \
+	$(CC) $(CFLAGS) -o vtltape vtltape.o ssc.o \
 		default_ssc_pm.o \
 		ult3580_pm.o \
 		hp_ultrium_pm.o \
 		stk9x40_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		-lz -llzo2 -L. -lvtlscsi
+		-lz -llzo2 -L. -lvtlcart -lvtlscsi
 
 make_vtl_media:	make_vtl_media.in
 	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1
@@ -113,7 +122,7 @@ make_vtl_media:	make_vtl_media.in
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o q.o dump_messageQ.o core mktape.o \
-		vtllib.o libvtlscsi.so z.o vtllibrary.o \
+		vtllib.o libvtlscsi.so libvtlcart.o z.o vtllibrary.o \
 		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
 		default_ssc_pm.o \
 		ult3580_pm.o \
@@ -136,7 +145,7 @@ distclean:
 	dump_messageQ.o dump_messageQ \
 	core mktape mktape.o \
 	vtllib.o libvtlscsi.so \
-	vtlcart.o spc.o \
+	libvtlcart.so vtlcart.o spc.o \
 	smc.o ssc.o \
 	default_ssc_pm.o \
 	ult3580_pm.o \
@@ -155,6 +164,7 @@ distclean:
 install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)/$(LIBDIR)
 	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/$(LIBDIR)/
+	install -o $(SUSER) -g bin -m 755 libvtlcart.so $(DESTDIR)$(PREFIX)/$(LIBDIR)/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/

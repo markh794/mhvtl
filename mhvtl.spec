@@ -61,8 +61,10 @@ install -m 700 usr/tapeexerciser $RPM_BUILD_ROOT/usr/bin/tapeexerciser
 
 %ifarch x86_64 amd64 ppc64
 install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib64/libvtlscsi.so
+install -m 755 usr/libvtlcart.so $RPM_BUILD_ROOT/usr/lib64/libvtlcart.so
 %else
 install -m 755 usr/libvtlscsi.so $RPM_BUILD_ROOT/usr/lib/libvtlscsi.so
+install -m 755 usr/libvtlcart.so $RPM_BUILD_ROOT/usr/lib/libvtlcart.so
 %endif
 
 install -m 644 man/build_library_config.1 $RPM_BUILD_ROOT%{_mandir}/man1/build_library_config.1
@@ -154,8 +156,10 @@ fi
 %{_bindir}/make_vtl_media
 %ifarch x86_64 amd64 ppc64
 %{_prefix}/lib64/libvtlscsi.so
+%{_prefix}/lib64/libvtlcart.so
 %else
 %{_prefix}/lib/libvtlscsi.so
+%{_prefix}/lib/libvtlcart.so
 %endif
 %doc %{_mandir}/man1/*
 %doc %{_mandir}/man5/*
