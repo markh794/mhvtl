@@ -495,6 +495,7 @@ struct smc_priv {
 	struct list_head drive_list;
 	struct list_head slot_list;
 	struct list_head media_list;
+	int commandtimeout;	/* Timeout for 'movecommand' */
 	int num_drives;
 	int num_picker;
 	int num_map;
@@ -503,6 +504,7 @@ struct smc_priv {
 	char dvcid_serial_only;
 	char cap_closed;
 	char *state_msg;	/* Custom State message */
+	char *movecommand;	/* 3rd party command to call */
 };
 
 struct density_info {
