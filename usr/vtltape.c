@@ -71,6 +71,7 @@
 #include "vtl_common.h"
 #include "scsi.h"
 #include "q.h"
+#include "logging.h"
 #include "vtllib.h"
 #include "vtltape.h"
 #include "spc.h"

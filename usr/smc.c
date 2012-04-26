@@ -40,6 +40,7 @@
 #include "list.h"
 #include "vtl_common.h"
 #include "vtllib.h"
+#include "logging.h"
 #include "smc.h"
 #include "q.h"
 #include "log.h"

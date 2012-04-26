@@ -55,6 +55,7 @@
 #include "scsi.h"
 #include "list.h"
 #include "q.h"
+#include "logging.h"
 #include "vtllib.h"
 #include "spc.h"
 #include "smc.h"

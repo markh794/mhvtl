@@ -31,6 +31,7 @@
 #include <errno.h>
 #include "scsi.h"
 #include "list.h"
+#include "logging.h"
 #include "vtllib.h"
 #include "ssc.h"
 #include "smc.h"

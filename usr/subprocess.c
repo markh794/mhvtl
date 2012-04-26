@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <signal.h>
+#include "logging.h"
 
 static pid_t pid;
 static int timedout = 0;

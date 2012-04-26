@@ -41,6 +41,7 @@
 #include "list.h"
 #include "vtl_common.h"
 #include "vtllib.h"
+#include "logging.h"
 #include "ssc.h"
 #include "spc.h"
 #include "vtltape.h"

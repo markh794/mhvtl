@@ -39,6 +39,7 @@
 #include "scsi.h"
 #include "list.h"
 #include "vtl_common.h"
+#include "logging.h"
 #include "vtllib.h"
 #include "spc.h"
 #include "ssc.h"

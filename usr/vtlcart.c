@@ -44,6 +44,7 @@
 #include <unistd.h>
 #include <pwd.h>
 
+#include "logging.h"
 #include "scsi.h"
 #include "list.h"
 #include "vtltape.h"
