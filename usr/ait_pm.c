@@ -325,6 +325,12 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = name_ait_1;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
 	add_log_write_err_counter(lu);
@@ -350,6 +356,12 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = name_ait_2;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
 	add_log_write_err_counter(lu);
@@ -376,8 +388,15 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = name_ait_3;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -405,8 +424,15 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = name_ait_4;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_ait_inquiry(lu);
 	init_ait_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);

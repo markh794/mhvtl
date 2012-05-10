@@ -310,7 +310,7 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 
 	/* Drive capabilities need to be defined before mode pages */
 	ssc_pm.drive_supports_append_only_mode = FALSE;
-	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 
 	/* IBM Ultrium SCSI Reference (5edition - Oct 2001)
@@ -347,7 +347,7 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 
 	/* Drive capabilities need to be defined before mode pages */
 	ssc_pm.drive_supports_append_only_mode = FALSE;
-	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 
 	ssc_pm.native_drive_density = &density_lto2;
@@ -393,7 +393,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 
 	/* Drive capabilities need to be defined before mode pages */
 	ssc_pm.drive_supports_append_only_mode = FALSE;
-	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 
 	/* Based on 9th edition of IBM SCSI Reference */

@@ -425,7 +425,14 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_t10kA;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_t10k_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -452,7 +459,14 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_t10kB;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_t10k_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -486,7 +500,14 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_t10kC;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_t10k_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);

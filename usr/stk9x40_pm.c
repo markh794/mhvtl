@@ -436,7 +436,14 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_9840A;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_9840_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -463,7 +470,14 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_9840B;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_9840_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -497,7 +511,14 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_9840C;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
 	init_9840_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
