@@ -27,6 +27,11 @@ else
 LIBDIR=lib
 endif
 
+# Ubuntu / mint seem to have stopped using /lib64/
+ifeq ($(shell grep lib64 /etc/ld.so.conf.d/* | wc -l),0)
+LIBDIR=lib
+endif
+
 PREFIX ?= /usr
 USR ?= vtl
 SUSER = root
@@ -44,12 +49,6 @@ CFLAGS += -DMHVTL_HOME_PATH=\"$(MHVTL_HOME_PATH)\"
 CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
-
-ifeq ($(shell uname -m),x86_64)
-LIBDIR = lib64
-else
-LIBDIR = lib
-endif
 
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
 	mktape vtllibrary make_vtl_media tapeexerciser
