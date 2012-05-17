@@ -127,6 +127,7 @@
 #define	WRITE_FILEMARKS		0x10
 
 /* Service codes */
+#define FORCED_EJECT		0x1f
 #define MANAGEMENT_PROTOCOL_IN	0x10
 #define MANAGEMENT_PROTOCOL_OUT	0x10
 #define CHANGE_ALIASES		0x0b

@@ -559,6 +559,9 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd)
 	case CHANGE_ALIASES:
 		log_opcode("CHANGE ALIASES **", cmd->scb, cmd->dbuf_p);
 		break;
+	case FORCED_EJECT:
+		log_opcode("FORCED EJECT **", cmd->scb, cmd->dbuf_p);
+		break;
 	}
 	log_opcode("Unknown service action A4 **", cmd->scb, cmd->dbuf_p);
 	return cmd->dbuf_p->sam_stat;
