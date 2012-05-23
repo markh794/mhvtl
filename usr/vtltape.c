@@ -2495,14 +2495,12 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	/* Unit Serial Number */
 	pg = 0x80 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(strlen(lu->lu_serial_no));
-	lu_vpd[pg]->vpd_update = update_vpd_80;
-	lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
+	update_vpd_80(lu, lu->lu_serial_no);
 
 	/* Device Identification */
 	pg = 0x83 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
-	lu_vpd[pg]->vpd_update = update_vpd_83;
-	lu_vpd[pg]->vpd_update(lu, NULL);
+	update_vpd_83(lu, NULL);
 
 	return found;
 }

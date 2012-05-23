@@ -1119,10 +1119,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	/* Unit Serial Number */
 	pg = 0x80 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(strlen(lu->lu_serial_no));
-	if (lu_vpd[pg]) {
-		lu_vpd[pg]->vpd_update = update_vpd_80;
-		lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
-	} else
+	if (lu_vpd[pg])
+		update_vpd_80(lu, lu->lu_serial_no);
+	else
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				(int)strlen(lu->lu_serial_no),
 				__LINE__);
@@ -1130,50 +1129,45 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	/* Device Identification */
 	pg = 0x83 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
-	if (lu_vpd[pg]) {
-		lu_vpd[pg]->vpd_update = update_vpd_83;
-		lu_vpd[pg]->vpd_update(lu, NULL);
-	} else
+	if (lu_vpd[pg])
+		update_vpd_83(lu, NULL);
+	else
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				VPD_83_SZ, __LINE__);
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
 	pg = 0xB1 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
-	if (lu_vpd[pg]) {
-		lu_vpd[pg]->vpd_update = update_vpd_b1;
-		lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
-	} else
+	if (lu_vpd[pg])
+		update_vpd_b1(lu, lu->lu_serial_no);
+	else
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				VPD_B1_SZ, __LINE__);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
 	pg = 0xB2 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
-	if (lu_vpd[pg]) {
-		lu_vpd[pg]->vpd_update = update_vpd_b2;
-		lu_vpd[pg]->vpd_update(lu, &local_TapeAlert);
-	} else
+	if (lu_vpd[pg])
+		update_vpd_b2(lu, &local_TapeAlert);
+	else
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				VPD_B2_SZ, __LINE__);
 
 	/* VPD page 0xC0 */
 	pg = 0xC0 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
-	if (lu_vpd[pg]) {
-		lu_vpd[pg]->vpd_update = update_vpd_c0;
-		lu_vpd[pg]->vpd_update(lu, "10-03-2008 19:38:00");
-	} else
+	if (lu_vpd[pg])
+		update_vpd_c0(lu, "10-03-2008 19:38:00");
+	else
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				VPD_C0_SZ, __LINE__);
 
 	/* VPD page 0xC1 */
 	pg = 0xC1 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(strlen("Security"));
-	if (lu_vpd[pg]) {
-		lu_vpd[pg]->vpd_update = update_vpd_c1;
-		lu_vpd[pg]->vpd_update(lu, "Security");
-	} else
+	if (lu_vpd[pg])
+		update_vpd_c1(lu, "Security");
+	else
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				(int)strlen(lu->lu_serial_no),
 				(int)__LINE__);
