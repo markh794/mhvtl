@@ -10,6 +10,7 @@
 /scripts/update_device.conf
 /usr/dump_messageQ
 /usr/dump_tape
+/usr/libvtlcart.so
 /usr/libvtlscsi.so
 /usr/make_vtl_media
 /usr/mktape
