@@ -2295,7 +2295,7 @@ static struct device_type_template ssc_ops = {
 		[0x90 ... 0x9f] = {spc_illegal_op,},
 
 		/* 0xa0 -> 0xaf */
-		{ssc_report_luns,},
+		{spc_illegal_op,}, /* processed in the kernel module */
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{ssc_a3_service_action,},

@@ -173,7 +173,6 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd);
 uint8_t ssc_read_position(struct scsi_cmd *cmd);
 uint8_t ssc_release(struct scsi_cmd *cmd);
 uint8_t ssc_report_density_support(struct scsi_cmd *cmd);
-uint8_t ssc_report_luns(struct scsi_cmd *cmd);
 uint8_t ssc_reserve(struct scsi_cmd *cmd);
 uint8_t ssc_rewind(struct scsi_cmd *cmd);
 uint8_t ssc_seek_10(struct scsi_cmd *cmd);

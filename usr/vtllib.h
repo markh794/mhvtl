@@ -111,12 +111,6 @@
 #define VPD_B2_SZ 8
 #define VPD_C0_SZ 0x28
 
-struct report_luns {
-	uint32_t size;
-	uint32_t reserved;
-	uint32_t LUN_0;
-	};
-
 struct mode {
 	struct list_head siblings;
 	uint8_t pcode;		/* Page code */
@@ -368,7 +362,6 @@ struct lu_phy_attr {
 	struct vpd *lu_vpd[1 << PCODE_SHIFT];
 	void *lu_private;	/* Private data struct per lu */
 
-	struct report_luns report_luns;
 	FILE *fifo_fd;
 	char *fifoname;
 	int fifo_flag;
@@ -499,7 +492,6 @@ void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
 void resp_log_select(uint8_t *, uint8_t *);
 int resp_read_position_long(loff_t, uint8_t *, uint8_t *);
 int resp_read_position(loff_t, uint8_t *, uint8_t *);
-int resp_report_lun(struct report_luns *, uint8_t *, uint8_t *);
 int resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
 struct mode *lookup_pcode(struct list_head *l, uint8_t pcode, uint8_t subpcode);

@@ -285,17 +285,6 @@ int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
 }
 
 /*
- * Copy data in struct 'report_luns' into bufer and return length
- */
-int resp_report_lun(struct report_luns *rpLUNs, uint8_t *buf, uint8_t *sam_stat)
-{
-	uint64_t size = get_unaligned_be64(&rpLUNs->size) + 8;
-
-	memcpy( buf, (uint8_t *)&rpLUNs, size);
-	return size;
-}
-
-/*
  * Respond with S/No. of media currently mounted
  */
 int resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)

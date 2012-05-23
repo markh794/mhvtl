@@ -1192,25 +1192,6 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t ssc_report_luns(struct scsi_cmd *cmd)
-{
-	uint8_t *sam_stat;
-
-	sam_stat = &cmd->dbuf_p->sam_stat;
-
-	MHVTL_DBG(1, "Report LUNs (%ld) **", (long)cmd->dbuf_p->serialNo);
-
-	/* Minimum allocation length is 16 bytes. */
-	if (get_unaligned_be32(&cmd->scb[6]) < 16) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-	cmd->lu->report_luns.size = htonl(sizeof(struct report_luns) - 8);
-	resp_report_lun(&cmd->lu->report_luns, cmd->dbuf_p->data, sam_stat);
-
-	return SAM_STAT_GOOD;
-}
-
 uint8_t ssc_reserve(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;

@@ -186,7 +186,7 @@ struct device_type_template smc_template = {
 		[0x60 ... 0x9f] = {spc_illegal_op,},
 
 		/* 0xa0 -> 0xaf */
-		{spc_illegal_op,},
+		{spc_illegal_op,}, /* processed in the kernel module */
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
