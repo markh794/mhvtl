@@ -171,32 +171,27 @@ static void init_ait_inquiry(struct lu_phy_attr *lu)
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = 0xb0 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_b0;
-	lu->lu_vpd[pg]->vpd_update(lu, &worm);
+	update_vpd_b0(lu, &worm);
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
 	pg = 0xb1 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_b1;
-	lu->lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
+	update_vpd_b1(lu, lu->lu_serial_no);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
 	pg = 0xb2 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_b2;
-	lu->lu_vpd[pg]->vpd_update(lu, &local_TapeAlert);
+	update_vpd_b2(lu, &local_TapeAlert);
 
 	/* VPD page 0xC0 */
 	pg = 0xc0 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_c0;
-	lu->lu_vpd[pg]->vpd_update(lu, "10-03-2008 19:38:00");
+	update_vpd_c0(lu, "10-03-2008 19:38:00");
 
 	/* VPD page 0xC1 */
 	pg = 0xc1 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(strlen("Security"));
-	lu->lu_vpd[pg]->vpd_update = update_vpd_c1;
-	lu->lu_vpd[pg]->vpd_update(lu, "Security");
+	update_vpd_c1(lu, "Security");
 }
 
 /* Dummy routine. Always return false */

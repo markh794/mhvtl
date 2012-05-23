@@ -168,6 +168,26 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 	return 44;
 }
 
+/* Reference HP LTO5 v3 SCSI Reference
+
+[04 - 29] - Component "cccc"
+[30 - 48] - Version "rrr.vvv"
+[49 - 72] - Date "yyyy/mm/dd hh:mm"
+[73 - 95] - Variant "xxxx"
+
+ */
+
+static void update_hp_vpd_cx(struct lu_phy_attr *lu, uint8_t pg, char *comp,
+				char *vers, char *date, char *variant)
+{
+	struct vpd *vpd_p = lu->lu_vpd[pg];
+	char *data = (char *)vpd_p->data;
+	snprintf((char *)&data[0x04], 24, "%-24s", comp);
+	snprintf((char *)&data[0x30], 18, "%-18s", vers);
+	snprintf((char *)&data[0x49], 24, "%-24s", date);
+	snprintf((char *)&data[0x73], 22, "%-22s", variant);
+}
+
 static void init_ult_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
@@ -177,37 +197,57 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	pg = 0x86 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_86_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_86;
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = 0xb0 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_b0;
-	lu->lu_vpd[pg]->vpd_update(lu, &worm);
+	update_vpd_b0(lu, &worm);
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
 	pg = 0xb1 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_b1;
-	lu->lu_vpd[pg]->vpd_update(lu, lu->lu_serial_no);
+	update_vpd_b1(lu, lu->lu_serial_no);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
 	pg = 0xb2 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_b2;
-	lu->lu_vpd[pg]->vpd_update(lu, &local_TapeAlert);
+	update_vpd_b2(lu, &local_TapeAlert);
 
-	/* VPD page 0xC0 */
+	/* VPD page 0xC0 - Firmware revision page */
 	pg = 0xc0 & 0x7f;
-	lu->lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_c0;
-	lu->lu_vpd[pg]->vpd_update(lu, "10-03-2008 19:38:00");
+	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	update_hp_vpd_cx(lu, 0xc0, "Firmware", MHVTL_VERSION,
+						"2012/04/18 19:38", "6");
 
-	/* VPD page 0xC1 */
+	/* VPD page 0xC1 - Hardware */
 	pg = 0xc1 & 0x7f;
-	lu->lu_vpd[pg] = alloc_vpd(strlen("Security"));
-	lu->lu_vpd[pg]->vpd_update = update_vpd_c1;
-	lu->lu_vpd[pg]->vpd_update(lu, "Security");
+	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	update_hp_vpd_cx(lu, 0xc1, "Hardware", MHVTL_VERSION,
+						"2012/04/18 06:53", "5");
+
+	/* VPD page 0xC2 - PCA */
+	pg = 0xc2 & 0x7f;
+	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	update_hp_vpd_cx(lu, 0xc2, "PCA", MHVTL_VERSION,
+						"1996/11/29 10:00", "4");
+
+	/* VPD page 0xC3 - Mechanism */
+	pg = 0xc3 & 0x7f;
+	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	update_hp_vpd_cx(lu, 0xc3, "Mechanism", MHVTL_VERSION,
+						"1992/08/11 10:00", "3");
+
+	/* VPD page 0xC4 - Head Assembly */
+	pg = 0xc4 & 0x7f;
+	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	update_hp_vpd_cx(lu, 0xc4, "Head Assy", MHVTL_VERSION,
+						"1966/07/28 10:00", "2");
+
+	/* VPD page 0xC5 - ACI */
+	pg = 0xc5 & 0x7f;
+	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	update_hp_vpd_cx(lu, 0xc5, "ACI", MHVTL_VERSION,
+						"1960/03/10 10:00", "1");
 }
 
 static int hp_lto_kad_validation(int encrypt_mode, int ukad, int akad)

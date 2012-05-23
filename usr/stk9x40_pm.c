@@ -333,8 +333,7 @@ static void init_9840_inquiry(struct lu_phy_attr *lu)
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = 0xb0 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
-	lu->lu_vpd[pg]->vpd_update = update_vpd_b0;
-	lu->lu_vpd[pg]->vpd_update(lu, &worm);
+	update_vpd_b0(lu, &worm);
 }
 
 #define INQUIRY_LEN 74

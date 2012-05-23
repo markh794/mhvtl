@@ -197,7 +197,6 @@ struct lu_phy_attr;
 
 struct vpd {
 	uint16_t sz;
-	void (*vpd_update)(struct lu_phy_attr *lu, void *data);
 	uint8_t data[0];
 };
 

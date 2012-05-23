@@ -51,11 +51,14 @@ uint64_t SPR_Reservation_Key;
 
 struct vpd *alloc_vpd(uint16_t sz)
 {
-	struct vpd *vpd_pg = NULL;
+	struct vpd *vpd_pg;
 
 	vpd_pg = (struct vpd *)malloc(sizeof(struct vpd) + sz);
-	if (!vpd_pg)
+	if (!vpd_pg) {
+		MHVTL_LOG("Could not malloc %d bytes of mem",
+					(int)sizeof(struct vpd) + sz);
 		return NULL;
+	}
 	memset(vpd_pg, 0, sizeof(struct vpd) + sz);
 	vpd_pg->sz = sz;
 
