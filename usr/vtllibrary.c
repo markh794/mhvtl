@@ -1191,7 +1191,7 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
 	/* Interpret the SCSI command & process
 	-> Returns no. of bytes to send back to kernel
 	 */
-	memset(&dbuf, 0, sizeof(struct vtl_ds));
+	dbuf.sz = 0;
 	dbuf.serialNo = vtl_cmd->serialNo;
 	dbuf.data = buf;
 	dbuf.sam_stat = sam_status;
