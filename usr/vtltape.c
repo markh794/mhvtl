@@ -1419,9 +1419,8 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 	default:
 		MHVTL_DBG(1, "Security protocol 0x%04x unknown", cdb[1]);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 	}
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 uint8_t resp_spout(struct scsi_cmd *cmd)
