@@ -180,7 +180,7 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 static void update_hp_vpd_cx(struct lu_phy_attr *lu, uint8_t pg, char *comp,
 				char *vers, char *date, char *variant)
 {
-	struct vpd *vpd_p = lu->lu_vpd[pg];
+	struct vpd *vpd_p = lu->lu_vpd[PCODE_OFFSET(pg)];
 	char *data = (char *)vpd_p->data;
 	snprintf((char *)&data[0x04], 24, "%-24s", comp);
 	snprintf((char *)&data[0x30], 18, "%-18s", vers);
