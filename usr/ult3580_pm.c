@@ -78,6 +78,20 @@ static uint8_t set_ult_compression(struct list_head *m, int lvl)
 	return set_compression_mode_pg(m, lvl);
 }
 
+static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn)
+{
+	uint8_t *data;
+	struct vpd *vpd_p;
+
+	vpd_p = lu->lu_vpd[PCODE_OFFSET(0xc1)];
+	data = vpd_p->data;
+
+	data[1] = 0xc1;
+	data[3] = 0x18;
+	snprintf((char *)&data[4], 12, "%-12s", sn);
+	snprintf((char *)&data[16], 12, "%-12s", sn);
+}
+
 static uint8_t set_ult_WORM(struct list_head *lst)
 {
 	uint8_t *mp;
@@ -171,6 +185,7 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 static void init_ult_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
+	char *data;
 	uint8_t worm = 1;	/* Supports WORM */
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -213,12 +228,12 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC1 */
 	pg = PCODE_OFFSET(0xc1);
-	lu->lu_vpd[pg] = alloc_vpd(strlen("Security"));
+	lu->lu_vpd[pg] = alloc_vpd(28);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
-	update_vpd_c1(lu, "Security");
+	update_vpd_ult_c1(lu, lu->lu_serial_no);
 }
 
 static int td4_kad_validation(int encrypt_mode, int ukad, int akad)
