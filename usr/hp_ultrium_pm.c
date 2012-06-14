@@ -213,6 +213,10 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
 	update_vpd_b2(lu, &local_TapeAlert);
 
+#ifdef notdef
+/* FIXME: This is causing malloc() to segfault.. Commenting out until
+ * root cause is known
+ */
 	/* VPD page 0xC0 - Firmware revision page */
 	pg = 0xc0 & 0x7f;
 	lu->lu_vpd[pg] = alloc_vpd(0x5c);
@@ -248,6 +252,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	lu->lu_vpd[pg] = alloc_vpd(0x5c);
 	update_hp_vpd_cx(lu, 0xc5, "ACI", MHVTL_VERSION,
 						"1960/03/10 10:00", "1");
+#endif
 }
 
 static int hp_lto_kad_validation(int encrypt_mode, int ukad, int akad)
