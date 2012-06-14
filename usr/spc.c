@@ -53,23 +53,19 @@ struct vpd *alloc_vpd(uint16_t sz)
 {
 	struct vpd *vpd_pg;
 
-	MHVTL_DBG(3, "About to malloc(%d)", (int)sizeof(struct vpd));
 	vpd_pg = malloc(sizeof(struct vpd));
 	if (!vpd_pg) {
 		MHVTL_LOG("Could not malloc %d bytes of mem",
 					(int)sizeof(struct vpd));
 		return NULL;
 	}
-	MHVTL_DBG(3, "successfull malloc header");
 	vpd_pg->data = malloc(sz);
 	if (!vpd_pg->data) {
 		MHVTL_LOG("Could not malloc %d bytes of mem", sz);
 		free(vpd_pg);
 		return NULL;
 	}
-	MHVTL_DBG(3, "successfull malloc data of size %d", sz);
 	memset(vpd_pg->data, 0, sz);
-	MHVTL_DBG(3, "Successfully set mem to 0");
 	vpd_pg->sz = sz;
 
 	return vpd_pg;

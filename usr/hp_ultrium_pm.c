@@ -180,12 +180,20 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 static void update_hp_vpd_cx(struct lu_phy_attr *lu, uint8_t pg, char *comp,
 				char *vers, char *date, char *variant)
 {
-	struct vpd *vpd_p = lu->lu_vpd[PCODE_OFFSET(pg)];
-	char *data = (char *)vpd_p->data;
-	snprintf((char *)&data[0x04], 24, "%-24s", comp);
-	snprintf((char *)&data[0x30], 18, "%-18s", vers);
-	snprintf((char *)&data[0x49], 24, "%-24s", date);
-	snprintf((char *)&data[0x73], 22, "%-22s", variant);
+	struct vpd *vpd_p;
+	char *data;
+
+	vpd_p = lu->lu_vpd[PCODE_OFFSET(pg)];
+	if (!vpd_p) {
+		MHVTL_LOG("Arrhhh... vpd pg %d not defined...", pg);
+	}
+	data = (char *)vpd_p->data;
+
+	data[3] = 0x5c;
+	snprintf(&data[4], 24, "%-24s", comp);
+	snprintf(&data[30], 18, "%-18s", vers);
+	snprintf(&data[49], 24, "%-24s", date);
+	snprintf(&data[73], 22, "%-22s", variant);
 }
 
 static void init_ult_inquiry(struct lu_phy_attr *lu)
@@ -196,7 +204,6 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	pg = PCODE_OFFSET(0x86);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_86_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
@@ -205,7 +212,6 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
@@ -215,7 +221,6 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
 	pg = PCODE_OFFSET(0xb1);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
@@ -225,7 +230,6 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
 	pg = PCODE_OFFSET(0xb2);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
@@ -233,14 +237,9 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	}
 	update_vpd_b2(lu, &local_TapeAlert);
 
-#ifdef notdef
-/* FIXME: This is causing malloc() to segfault.. Commenting out until
- * root cause is known
- */
 	/* VPD page 0xC0 - Firmware revision page */
 	pg = PCODE_OFFSET(0xc0);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
-	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	lu->lu_vpd[pg] = alloc_vpd(0x60);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
@@ -250,8 +249,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC1 - Hardware */
 	pg = PCODE_OFFSET(0xc1);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
-	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	lu->lu_vpd[pg] = alloc_vpd(0x60);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
@@ -261,8 +259,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC2 - PCA */
 	pg = PCODE_OFFSET(0xc2);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
-	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	lu->lu_vpd[pg] = alloc_vpd(0x60);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
@@ -272,8 +269,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC3 - Mechanism */
 	pg = PCODE_OFFSET(0xc3);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
-	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	lu->lu_vpd[pg] = alloc_vpd(0x60);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
@@ -283,8 +279,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC4 - Head Assembly */
 	pg = PCODE_OFFSET(0xc4);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
-	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	lu->lu_vpd[pg] = alloc_vpd(0x60);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
@@ -294,15 +289,13 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC5 - ACI */
 	pg = PCODE_OFFSET(0xc5);
-	MHVTL_DBG(3, "init page: 0x%02x, line: %d", pg, __LINE__);
-	lu->lu_vpd[pg] = alloc_vpd(0x5c);
+	lu->lu_vpd[pg] = alloc_vpd(0x60);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_hp_vpd_cx(lu, pg, "ACI", MHVTL_VERSION,
 						"1960/03/10 10:00", "1");
-#endif
 }
 
 static int hp_lto_kad_validation(int encrypt_mode, int ukad, int akad)
