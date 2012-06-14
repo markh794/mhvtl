@@ -212,28 +212,48 @@ static void init_3592_inquiry(struct lu_phy_attr *lu)
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
-	pg = 0xb0 & 0x7f;
+	pg = PCODE_OFFSET(0xb0);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
 	update_vpd_b0(lu, &worm);
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
-	pg = 0xb1 & 0x7f;
+	pg = PCODE_OFFSET(0xb1);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
 	update_vpd_b1(lu, lu->lu_serial_no);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
-	pg = 0xb2 & 0x7f;
+	pg = PCODE_OFFSET(0xb2);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
 	update_vpd_b2(lu, &local_TapeAlert);
 
 	/* VPD page 0xC0 */
-	pg = 0xc0 & 0x7f;
+	pg = PCODE_OFFSET(0xc0);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
 	update_vpd_c0(lu, "10-03-2008 19:38:00");
 
 	/* VPD page 0xC1 */
-	pg = 0xc1 & 0x7f;
+	pg = PCODE_OFFSET(0xc1);
 	lu->lu_vpd[pg] = alloc_vpd(strlen("Security"));
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
 	update_vpd_c1(lu, "Security");
 }
 

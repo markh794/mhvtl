@@ -191,7 +191,7 @@ struct lu_phy_attr;
 
 struct vpd {
 	uint16_t sz;
-	uint8_t data[0];
+	uint8_t *data;
 };
 
 enum drive_type_list {
@@ -359,7 +359,7 @@ struct lu_phy_attr {
 	struct device_type_template *scsi_ops;
 
 	uint8_t *naa;
-	struct vpd *lu_vpd[1 << PCODE_SHIFT];
+	struct vpd *lu_vpd[1 << (PCODE_SHIFT + 1)];
 	void *lu_private;	/* Private data struct per lu */
 
 	FILE *fifo_fd;

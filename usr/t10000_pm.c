@@ -320,8 +320,12 @@ static void init_t10k_inquiry(struct lu_phy_attr *lu)
 	uint8_t worm = 1;	/* Supports WORM */
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
-	pg = 0xb0 & 0x7f;
+	pg = PCODE_OFFSET(0xb0);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
 	update_vpd_b0(lu, &worm);
 }
 
