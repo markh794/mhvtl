@@ -1217,7 +1217,8 @@ void rereadconfig(int sig)
 	struct vtl_ctl ctl;
 	int i;
 
-	MHVTL_DBG(1, "Caught signal (%d)", sig);
+	MHVTL_DBG(1, "Caught signal (%d): Re-initialising library %d",
+			sig, (int)my_id);
 
 	MHVTL_DBG(2, "Removing existing slots");
 	slot_head = &smc_slots.slot_list;
@@ -1261,6 +1262,13 @@ void rereadconfig(int sig)
 		MHVTL_DBG(2, "Log Page: 0x%02x", logp->log_page_num);
 		list_del(&logp->siblings);
 		free(logp);
+	}
+
+	for (i = 0; i < 0x80; i++) {
+		if (lunit.lu_vpd[i]) {
+			free(lunit.lu_vpd[i]->data);
+			free(lunit.lu_vpd[i]);
+		}
 	}
 
 	if (lunit.fifo_fd) {

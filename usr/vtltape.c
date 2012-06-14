@@ -2565,8 +2565,8 @@ void personality_module_register(struct ssc_personality_template *pm)
 
 static void caught_signal(int signo)
 {
-	MHVTL_DBG(1, "(%d)", signo);
-	printf("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
+	printf("Please use 'vtlcmd <index> exit' to shutdown nicely\n"
+			" Received signal: %d\n\n", signo);
 	MHVTL_LOG("Please use 'vtlcmd <index> exit' to shutdown nicely,"
 			" Received signal: %d", signo);
 }
