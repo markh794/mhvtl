@@ -260,5 +260,52 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_density_support(&lu->den_list, &density_default, 1);
+
+	/* LTO media */
+	add_drive_media_list(lu, LOAD_RW, "LTO1");
+	add_drive_media_list(lu, LOAD_RW, "LTO2");
+	add_drive_media_list(lu, LOAD_RW, "LTO3");
+	add_drive_media_list(lu, LOAD_RW, "LTO4");
+	add_drive_media_list(lu, LOAD_RW, "LTO5");
+
+	/* DDS media */
+	add_drive_media_list(lu, LOAD_RW, "DDS1");
+	add_drive_media_list(lu, LOAD_RW, "DDS2");
+	add_drive_media_list(lu, LOAD_RW, "DDS3");
+	add_drive_media_list(lu, LOAD_RW, "DDS4");
+	add_drive_media_list(lu, LOAD_RW, "DDS5");
+
+	/* DLT media */
+	add_drive_media_list(lu, LOAD_RW, "DLT2");
+	add_drive_media_list(lu, LOAD_RW, "DLT3");
+	add_drive_media_list(lu, LOAD_RW, "DLT4");
+	add_drive_media_list(lu, LOAD_RW, "SDLT");
+	add_drive_media_list(lu, LOAD_RW, "SDLT 220");
+	add_drive_media_list(lu, LOAD_RW, "SDLT 320");
+	add_drive_media_list(lu, LOAD_RW, "SDLT 600");
+
+	/* STK T10000 */
+	add_drive_media_list(lu, LOAD_RW, "T10KA");
+	add_drive_media_list(lu, LOAD_RW, "T10KB");
+	add_drive_media_list(lu, LOAD_RW, "T10KC");
+
+	/* STK 9x40 */
+	add_drive_media_list(lu, LOAD_RW, "9840A");
+	add_drive_media_list(lu, LOAD_RW, "9840B");
+	add_drive_media_list(lu, LOAD_RW, "9840C");
+	add_drive_media_list(lu, LOAD_RW, "9840D");
+	add_drive_media_list(lu, LOAD_RW, "9940A");
+	add_drive_media_list(lu, LOAD_RW, "9940B");
+
+	/* AIT media */
+	add_drive_media_list(lu, LOAD_RW, "AIT1");
+	add_drive_media_list(lu, LOAD_RW, "AIT2");
+	add_drive_media_list(lu, LOAD_RW, "AIT3");
+	add_drive_media_list(lu, LOAD_RW, "AIT4");
+
+	/* IBM 03592 series */
+	add_drive_media_list(lu, LOAD_RW, "03592 JA");
+	add_drive_media_list(lu, LOAD_RW, "03592 JB");
+	add_drive_media_list(lu, LOAD_RW, "03592 JC");
 }
 
