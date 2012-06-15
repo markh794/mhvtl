@@ -93,8 +93,8 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		allow_overwrite_block = get_unaligned_be64(&cdb[4]);
-		MHVTL_DBG(1, "Allow overwrite block: %ld",
-					allow_overwrite_block);
+		MHVTL_DBG(1, "Allow overwrite block: %lld",
+					(long long)allow_overwrite_block);
 		if (allow_overwrite_block == current_tape_block()) {
 			lu_ssc->allow_overwrite_block = allow_overwrite_block;
 			lu_ssc->allow_overwrite = TRUE;

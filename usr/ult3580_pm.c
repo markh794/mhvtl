@@ -185,7 +185,6 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 static void init_ult_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
-	char *data;
 	uint8_t worm = 1;	/* Supports WORM */
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
