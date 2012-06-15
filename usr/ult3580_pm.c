@@ -78,6 +78,53 @@ static uint8_t set_ult_compression(struct list_head *m, int lvl)
 	return set_compression_mode_pg(m, lvl);
 }
 
+/* As per IBM LTO5 SCSI Programmers Guide..
+ * Filling in compile time/date & dummy 'platform' string
+ */
+static void update_vpd_ult_c0(struct lu_phy_attr *lu)
+{
+	uint8_t *data;
+	struct vpd *vpd_p;
+	int h, m, s;
+	int day, month, year;
+
+	vpd_p = lu->lu_vpd[PCODE_OFFSET(0xc0)];
+	data = vpd_p->data;
+
+	sscanf(__TIME__, "%d:%d:%d", &h, &m, &s);
+	if (sscanf(__DATE__, "Jan %d %d", &day, &year) == 2)
+		month = 1;
+	if (sscanf(__DATE__, "Feb %d %d", &day, &year) == 2)
+		month = 2;
+	if (sscanf(__DATE__, "Mar %d %d", &day, &year) == 2)
+		month = 3;
+	if (sscanf(__DATE__, "Apr %d %d", &day, &year) == 2)
+		month = 4;
+	if (sscanf(__DATE__, "May %d %d", &day, &year) == 2)
+		month = 5;
+	if (sscanf(__DATE__, "Jun %d %d", &day, &year) == 2)
+		month = 6;
+	if (sscanf(__DATE__, "Jul %d %d", &day, &year) == 2)
+		month = 7;
+	if (sscanf(__DATE__, "Aug %d %d", &day, &year) == 2)
+		month = 8;
+	if (sscanf(__DATE__, "Sep %d %d", &day, &year) == 2)
+		month = 9;
+	if (sscanf(__DATE__, "Oct %d %d", &day, &year) == 2)
+		month = 10;
+	if (sscanf(__DATE__, "Nov %d %d", &day, &year) == 2)
+		month = 11;
+	if (sscanf(__DATE__, "Dec %d %d", &day, &year) == 2)
+		month = 12;
+
+	data[1] = 0xc0;
+	data[3] = 0x27;
+
+	sprintf((char *)&data[16], "%02d%02d%02d", h, m, s);
+	sprintf((char *)&data[23], "%04d%02d%02d", year, month, day);
+	sprintf((char *)&data[31], "mhvtl_fl_f");
+}
+
 static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn)
 {
 	uint8_t *data;
@@ -218,12 +265,12 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC0 */
 	pg = PCODE_OFFSET(0xc0);
-	lu->lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
+	lu->lu_vpd[pg] = alloc_vpd(43);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
-	update_vpd_c0(lu, "10-03-2008 19:38:00");
+	update_vpd_ult_c0(lu);
 
 	/* VPD page 0xC1 */
 	pg = PCODE_OFFSET(0xc1);
