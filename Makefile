@@ -89,6 +89,6 @@ tar:
 		 $(PARENTDIR)/Makefile \
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
-		 $(PARENTDIR)/mhvtl-1.2.ebuild \
+		 $(PARENTDIR)/mhvtl-1.3.ebuild \
 		 $(PARENTDIR)/mhvtl.spec)
 

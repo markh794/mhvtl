@@ -1,8 +1,8 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl
-Version: 1.2
-Release: 3
-Source: mhvtl-2012-04-04.tgz
+Version: 1.3
+Release: 0
+Source: mhvtl-2012-06-15.tgz
 License: GPL
 Group: System/Kernel
 BuildRoot: /var/tmp/%{name}-buildroot
@@ -165,6 +165,16 @@ fi
 %doc %{_mandir}/man5/*
 
 %changelog
+* Fri Jun 15 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.3-0
+- Move 'on disk' unique functions into its own shared lib (libvtlcart.so)
+- HP Ultrium VPD page data update to match HP documentation
+- IBM Ultrium VPD page 0xC0 & 0xC1 update to match IBM documentation
+- Fix SPIN return status
+- Add helper functions for moving media within library
+  (in prep for library partition manager)
+- Add ability to set/clear APPEND ONLY status from user (vtlcmd)
+
 * Wed Apr 04 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.2-3
 - Fix segfault in AIT4 when attempting to access Security Protocol IN/OUT
