@@ -1742,11 +1742,24 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 				lu_ssc.prog_early_warning_sz;
 	}
 
-	MHVTL_DBG(2, "Tape capacity: %" PRId64 ", + Early Warning %" PRId64
-			", + Prog Early Warning %" PRId64,
-			lu_ssc.max_capacity,
-			lu_ssc.early_warning_sz,
-			lu_ssc.prog_early_warning_sz);
+	if (lu_ssc.pm->drive_supports_early_warning) {
+		if (lu_ssc.pm->drive_supports_prog_early_warning) {
+			MHVTL_DBG(2, "Tape capacity: %" PRId64
+				", + Early Warning %" PRId64
+				", + Prog Early Warning %" PRId64,
+					lu_ssc.max_capacity,
+					lu_ssc.early_warning_sz,
+					lu_ssc.prog_early_warning_sz);
+
+		} else {
+			MHVTL_DBG(2, "Tape capacity: %" PRId64
+				", + Early Warning %" PRId64,
+					lu_ssc.max_capacity,
+					lu_ssc.early_warning_sz);
+		}
+	} else {
+		MHVTL_DBG(2, "Tape capacity: %" PRId64, lu_ssc.max_capacity);
+	}
 
 	mam.record_dirty = 1;
 	/* Increment load count */
