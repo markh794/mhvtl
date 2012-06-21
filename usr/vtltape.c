@@ -114,6 +114,11 @@ int verbose = 0;
 int debug = 0;
 long my_id;
 
+/* Backoff algrithm..
+ * Each empty poll of kernel module, add backoff to sleep time
+ * and call usleep() before polling again.
+ */
+long backoff = 0;
 
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
@@ -2450,6 +2455,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
 			}
+			if (sscanf(b, " Backoff: %d", &i)) {
+				if ((i > 0) && (i < 10000)) {
+					MHVTL_DBG(1, "Backoff value: %d", i);
+					backoff = i;
+				} else {
+					MHVTL_LOG("Backoff defaulting to 1000");
+					backoff = 1000;
+				}
+			}
 			if (sscanf(b, " Compression type: %s", s)) {
 				if (!strncasecmp(s, "lzo", 3))
 					lu_ssc.compressionType = LZO;
@@ -2517,6 +2531,11 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	pg = 0x83 & 0x7f;
 	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
 	update_vpd_83(lu, NULL);
+
+	if ((backoff < 10) || (backoff > 10000)) {
+		backoff = 1000;
+		MHVTL_LOG("Set default backoff value to %ld", backoff);
+	}
 
 	return found;
 }
@@ -2593,7 +2612,7 @@ int main(int argc, char *argv[])
 	int cdev;
 	int ret;
 	int last_state = MHVTL_STATE_UNKNOWN;
-	long pollInterval = 50000L;
+	useconds_t pollInterval = 50000L;
 	uint8_t *buf;
 	pid_t child_cleanup, pid, sid;
 	struct sigaction new_action, old_action;
@@ -2836,7 +2855,7 @@ int main(int argc, char *argv[])
 			if (debug)
 				printf("ioctl(VX_TAPE_POLL_STATUS) "
 					"returned: %d, interval: %ld\n",
-						ret, pollInterval);
+						ret, (long)pollInterval);
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
 					MHVTL_DBG(1,
@@ -2863,13 +2882,13 @@ int main(int argc, char *argv[])
 				break;
 
 			case VTL_IDLE:
+				usleep(pollInterval);
+
 				/* While nothing to do, increase
 				 * time we sleep before polling again.
 				 */
 				if (pollInterval < 1000000)
-					pollInterval += 1000;
-
-				usleep(pollInterval);
+					pollInterval += backoff;
 
 				break;
 

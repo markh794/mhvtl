@@ -62,6 +62,11 @@ is 1 through 9.
 zlib or lzo
 
 .PP
+.B Backoff:
+Value between 10 and 10000. Default is 1000.
+This value is added to existing 'usleep' time in between ioctl polls. If there is work to do, the usleep time is reset to 10.
+
+.PP
 .B fifo:
 /some/where/for/named/pipe
 .PP
