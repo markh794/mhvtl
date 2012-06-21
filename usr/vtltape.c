@@ -213,6 +213,7 @@ static struct tape_drives_table {
 	{ "T9840A          ", init_9840A_ssc },
 	{ "T9940B          ", init_9940B_ssc },
 	{ "T9940A          ", init_9940A_ssc },
+	{ "SDLT600         ", init_sdlt600_ssc },
 	{ NULL, NULL},
 };
 

@@ -104,6 +104,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		ult3580_pm.o \
 		hp_ultrium_pm.o \
 		stk9x40_pm.o \
+		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		be_byteshift.h \
 		../kernel/vtl_common.h
@@ -112,6 +113,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		ult3580_pm.o \
 		hp_ultrium_pm.o \
 		stk9x40_pm.o \
+		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		-lz -llzo2 -L. -lvtlcart -lvtlscsi
 
@@ -132,6 +134,7 @@ clean:
 		log.o \
 		subprocess.o \
 		stk9x40_pm.o \
+		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		dump_messageQ dump_tape make_vtl_media \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
@@ -153,6 +156,7 @@ distclean:
 	ult3580_pm.o \
 	hp_ultrium_pm.o \
 	stk9x40_pm.o \
+	quantum_dlt_pm.o \
 	ait_pm.o t10000_pm.o ibm_03592_pm.o \
 	z.o z \
 	mode.o \
