@@ -56,9 +56,9 @@ void usage(char *progname) {
 	printf("                   LTO4\n");
 	printf("                   LTO5\n");
 	printf("                   SDLT1\n");
-	printf("                   SDLT2\n");
-	printf("                   SDLT3\n");
-	printf("                   SDLT4\n");
+	printf("                   SDLT220\n");
+	printf("                   SDLT320\n");
+	printf("                   SDLT600\n");
 	printf("                   T10KA\n");
 	printf("                   T10KB\n");
 	printf("                   T10KC\n");
@@ -202,21 +202,21 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.density_name, "SDLT-1", 6);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		put_unaligned_be32(133000, &mamp->media_info.bits_per_mm);
-	} else if (!(strncmp(density, "SDLT2", 5))) {
+	} else if (!(strncmp(density, "SDLT220", 7))) {
 		mamp->MediumDensityCode = medium_density_code_220;
 		mamp->MediaType = Media_SDLT220;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT220", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		put_unaligned_be32(133000, &mamp->media_info.bits_per_mm);
-	} else if (!(strncmp(density, "SDLT3", 5))) {
+	} else if (!(strncmp(density, "SDLT320", 7))) {
 		mamp->MediumDensityCode = medium_density_code_320;
 		mamp->MediaType = Media_SDLT320;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT320", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		put_unaligned_be32(190000, &mamp->media_info.bits_per_mm);
-	} else if (!(strncmp(density, "SDLT4", 5))) {
+	} else if (!(strncmp(density, "SDLT600", 7))) {
 		mamp->MediumDensityCode = medium_density_code_600;
 		mamp->MediaType = Media_SDLT600;
 		memcpy(&mamp->media_info.description, "SDLT II media", 13);

@@ -66,7 +66,15 @@ set_density() {
 			DENSITY=`echo -e "LTO${BASH_REMATCH[2]}"`
 		fi
 		if [ ${BASH_REMATCH[1]} = 'S' ]; then
-			DENSITY=`echo -e "SDLT${BASH_REMATCH[2]}"`
+			if [ ${BASH_REMATCH[2]} = '3' ]; then
+				DENSITY=`echo -e "SDLT600"`;
+			elif [ ${BASH_REMATCH[2]} = '2' ]; then
+				DENSITY=`echo -e "SDLT320"`;
+			elif [ ${BASH_REMATCH[2]} = '1' ]; then
+				DENSITY=`echo -e "SDLT220"`;
+			else
+				DENSITY=`echo -e "SDLT"`;
+			fi
 		fi
 		if [ ${BASH_REMATCH[1]} = 'X' ]; then
 			DENSITY=`echo -e "AIT${BASH_REMATCH[2]}"`
