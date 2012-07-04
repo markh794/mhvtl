@@ -48,12 +48,16 @@
 #include "mode.h"
 #include "log.h"
 
+/* FIXME: This data needs to be updated to suit SDLT range of media */
+static struct density_info density_sdlt = {
+	15142, 640, 1502, 80000, medium_density_code_sdlt,
+			"DLT-CVE", "U-216", "SDLT" };
 static struct density_info density_sdlt220 = {
 	15142, 640, 1502, 80000, medium_density_code_220,
-			"DLT-CVE", "U-516", "SDLT 220" };
+			"DLT-CVE", "U-316", "SDLT 220" };
 static struct density_info density_sdlt320 = {
 	15142, 640, 1502, 80000, medium_density_code_320,
-			"DLT-CVE", "U-516", "SDLT 320" };
+			"DLT-CVE", "U-416", "SDLT 320" };
 static struct density_info density_sdlt600 = {
 	15142, 640, 1502, 80000, medium_density_code_600,
 			"DLT-CVE", "U-516", "SDLT 600" };
@@ -310,6 +314,7 @@ static uint8_t dlt_cleaning(void *ssc_priv)
 	return 0;
 }
 
+static char *pm_name_sdlt320 = "SDLT320";
 static char *pm_name_sdlt600 = "SDLT600";
 
 static struct ssc_personality_template ssc_pm = {
@@ -320,6 +325,55 @@ static struct ssc_personality_template ssc_pm = {
 	.media_load		= dlt_media_load,
 	.cleaning_media		= dlt_cleaning,
 };
+
+void init_sdlt320_ssc(struct lu_phy_attr *lu)
+{
+	init_dlt_inquiry(lu);
+	ssc_pm.name = pm_name_sdlt320;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
+	ssc_pm.native_drive_density = &density_sdlt320;
+	ssc_pm.clear_WORM = clear_dlt_WORM,
+	ssc_pm.set_WORM = set_dlt_WORM,
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
+	add_density_support(&lu->den_list, &density_sdlt, 0);
+	add_density_support(&lu->den_list, &density_sdlt220, 1);
+	add_density_support(&lu->den_list, &density_sdlt320, 1);
+	add_drive_media_list(lu, LOAD_RO, "SDLT");
+	add_drive_media_list(lu, LOAD_RW, "SDLT 220");
+	add_drive_media_list(lu, LOAD_RW, "SDLT 320");
+	add_drive_media_list(lu, LOAD_RO, "SDLT 320 Clean");
+}
 
 void init_sdlt600_ssc(struct lu_phy_attr *lu)
 {

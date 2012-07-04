@@ -212,6 +212,7 @@ void init_hp_ult_5(struct lu_phy_attr *lu);
 void init_3592_j1a(struct lu_phy_attr *lu);
 void init_3592_E05(struct lu_phy_attr *lu);
 void init_3592_E06(struct lu_phy_attr *lu);
+void init_sdlt320_ssc(struct lu_phy_attr *lu);
 void init_sdlt600_ssc(struct lu_phy_attr *lu);
 
 void register_ops(struct lu_phy_attr *lu, int op, void *f);
