@@ -1133,7 +1133,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	smc_slots.state_msg = NULL;
 
 	/* Unit Serial Number */
-	pg = 0x80 & 0x7f;
+	pg = PCODE_OFFSET(0x80);
 	lu_vpd[pg] = alloc_vpd(strlen(lu->lu_serial_no));
 	if (lu_vpd[pg])
 		update_vpd_80(lu, lu->lu_serial_no);
@@ -1143,7 +1143,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				__LINE__);
 
 	/* Device Identification */
-	pg = 0x83 & 0x7f;
+	pg = PCODE_OFFSET(0x83);
 	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
 	if (lu_vpd[pg])
 		update_vpd_83(lu, NULL);
@@ -1152,7 +1152,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				VPD_83_SZ, __LINE__);
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
-	pg = 0xB1 & 0x7f;
+	pg = PCODE_OFFSET(0xB1);
 	lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
 	if (lu_vpd[pg])
 		update_vpd_b1(lu, lu->lu_serial_no);
@@ -1161,7 +1161,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				VPD_B1_SZ, __LINE__);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
-	pg = 0xB2 & 0x7f;
+	pg = PCODE_OFFSET(0xB2);
 	lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
 	if (lu_vpd[pg])
 		update_vpd_b2(lu, &local_TapeAlert);
@@ -1170,7 +1170,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				VPD_B2_SZ, __LINE__);
 
 	/* VPD page 0xC0 */
-	pg = 0xC0 & 0x7f;
+	pg = PCODE_OFFSET(0xC0);
 	lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
 	if (lu_vpd[pg])
 		update_vpd_c0(lu, "10-03-2008 19:38:00");
@@ -1179,7 +1179,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				VPD_C0_SZ, __LINE__);
 
 	/* VPD page 0xC1 */
-	pg = 0xC1 & 0x7f;
+	pg = PCODE_OFFSET(0xC1);
 	lu_vpd[pg] = alloc_vpd(strlen("Security"));
 	if (lu_vpd[pg])
 		update_vpd_c1(lu, "Security");

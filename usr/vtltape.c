@@ -2370,7 +2370,6 @@ void register_ops(struct lu_phy_attr *lu, int op, void *f)
 static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
-	int pg;
 
 	char *config=MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
@@ -2537,13 +2536,11 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	}
 
 	/* Unit Serial Number */
-	pg = 0x80 & 0x7f;
-	lu_vpd[pg] = alloc_vpd(strlen(lu->lu_serial_no));
+	lu_vpd[PCODE_OFFSET(0x80)] = alloc_vpd(strlen(lu->lu_serial_no));
 	update_vpd_80(lu, lu->lu_serial_no);
 
 	/* Device Identification */
-	pg = 0x83 & 0x7f;
-	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
+	lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(VPD_83_SZ);
 	update_vpd_83(lu, NULL);
 
 	if ((backoff < 10) || (backoff > 10000)) {
