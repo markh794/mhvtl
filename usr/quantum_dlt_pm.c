@@ -112,11 +112,24 @@ static void update_vpd_dlt_c0(struct lu_phy_attr *lu)
 		month = 12;
 
 	data[1] = 0xc0;
-	data[3] = 0x27;
+	data[3] = 0x28;
 
-	sprintf((char *)&data[16], "%02d%02d%02d", h, m, s);
-	sprintf((char *)&data[23], "%04d%02d%02d", year, month, day);
-	sprintf((char *)&data[31], "mhvtl_fl_f");
+	/* Controller firmware build date */
+	sprintf((char *)&data[20], "%02d-%02d-%04d %02d:%02d:%02d",
+			day, month, year, h, m, s);
+}
+
+static int get_product_family(struct lu_phy_attr *lu)
+{
+	int ret;
+	if (!strncmp(lu->product_id, "SDLT600", 7))
+		ret = 0xc0;	/* Product Family - (300/600 GB)  */
+	else  if (!strncmp(lu->product_id, "SDLT 320", 8))
+		ret = 0xb0;	/* Product Family - (160/320 GB)  */
+	else
+		ret = 0xa0;	/* Product Family - (110/220 GB)  */
+
+	return ret;
 }
 
 static void update_vpd_dlt_c1(struct lu_phy_attr *lu, char *sn)
@@ -128,9 +141,10 @@ static void update_vpd_dlt_c1(struct lu_phy_attr *lu, char *sn)
 	data = vpd_p->data;
 
 	data[1] = 0xc1;
-	data[3] = 0x18;
+	data[3] = 0x39;
+	data[4] = get_product_family(lu);
 	snprintf((char *)&data[4], 12, "%-12s", sn);
-	snprintf((char *)&data[16], 12, "%-12s", sn);
+	snprintf((char *)&data[24], 12, "%-12s", sn);
 }
 
 static uint8_t set_dlt_WORM(struct list_head *lst)
@@ -167,6 +181,20 @@ static void init_dlt_inquiry(struct lu_phy_attr *lu)
 	int pg;
 	uint8_t worm = 1;	/* Supports WORM */
 	uint8_t ta[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	char b[32];
+	int x, y, z;
+
+	lu->inquiry[36] = get_product_family(lu);
+
+	sprintf(b, "%s", MHVTL_VERSION);
+	sscanf(b, "%d.%d.%d", &x, &y, &z);
+	if (x) {
+		lu->inquiry[37] = x;
+		lu->inquiry[38] = y;
+	} else {
+		lu->inquiry[37] = y;
+		lu->inquiry[38] = z;
+	}
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
@@ -197,7 +225,7 @@ static void init_dlt_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC0 */
 	pg = PCODE_OFFSET(0xc0);
-	lu->lu_vpd[pg] = alloc_vpd(43);
+	lu->lu_vpd[pg] = alloc_vpd(44);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
@@ -206,7 +234,7 @@ static void init_dlt_inquiry(struct lu_phy_attr *lu)
 
 	/* VPD page 0xC1 */
 	pg = PCODE_OFFSET(0xc1);
-	lu->lu_vpd[pg] = alloc_vpd(28);
+	lu->lu_vpd[pg] = alloc_vpd(44);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
