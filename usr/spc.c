@@ -71,8 +71,6 @@ struct vpd *alloc_vpd(uint16_t sz)
 	return vpd_pg;
 }
 
-#define INQUIRY_LEN 512
-
 uint8_t spc_inquiry(struct scsi_cmd *cmd)
 {
 	int len = 0;
@@ -88,31 +86,13 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2]))
 		goto sense;
 
-	memset(data, 0, INQUIRY_LEN);
-
-	if (!(cdb[1] & 0x3)) {
-		unsigned int i;
-		uint16_t *desc;
-
-		data[0] = lu->ptype;
-		data[1] = (lu->removable) ? 0x80 : 0;
-		data[2] = 5;	/* ANSI-Approved Version -> SPC-3 */
-		data[3] = 0x02; /* Response Data Format (2) */
-		data[7] = 0x00;
-
-		memset(data + 8, 0x20, 28);
-		memcpy(data + 8,  &lu->vendor_id, VENDOR_ID_LEN);
-		memcpy(data + 16, &lu->product_id, PRODUCT_ID_LEN);
-		memcpy(data + 32, &lu->product_rev, PRODUCT_REV_LEN);
-
-		desc = (uint16_t *)(data + 58);
-		for (i = 0; i < ARRAY_SIZE(lu->version_desc); i++)
-			*desc++ = htons(lu->version_desc[i]);
-
-		len = 66;
-		data[4] = len - 5;	/* Additional Length */
-
-	} else if (cdb[1] & 0x2) {
+	if (cdb[1] & 0x3) /* VPD bit set - clear memory */
+		memset(data, 0, MAX_INQUIRY_SZ);
+	else {	/* Standard inquiry - copy in-mem data struct */
+		memcpy(cmd->dbuf_p->data, lu->inquiry, MAX_INQUIRY_SZ);
+		len = lu->inquiry[4] + 5;
+	}
+	if (cdb[1] & 0x2) {
 		/* CmdDt bit is set */
 		/* We do not support it now. */
 		data[1] = 0x1;

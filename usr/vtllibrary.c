@@ -987,6 +987,23 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	struct vtl_ctl tmpctl;
 	int found = 0;
 
+	/* Configure default inquiry data */
+	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
+	lu->inquiry[0] = TYPE_MEDIUM_CHANGER;	/* SMC device */
+	lu->inquiry[1] = 0x80;	/* Removable bit set */
+	lu->inquiry[2] = 0x05;	/* SCSI Version (v3) */
+	lu->inquiry[3] = 0x02;	/* Response Data Format */
+	lu->inquiry[4] = 59;	/* Additional Length */
+	lu->inquiry[6] = 0x01;	/* Addr16 */
+	lu->inquiry[7] = 0x20;	/* Wbus16 */
+
+	put_unaligned_be16(0x0300, &lu->inquiry[58]); /* SPC-3 No ver claimed */
+	put_unaligned_be16(0x0960, &lu->inquiry[60]); /* iSCSI */
+	put_unaligned_be16(0x0200, &lu->inquiry[62]); /* SSC */
+
+	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
+	lu->removable = 1;	/* Supports removable media */
+
 	conf = fopen(config , "r");
 	if (!conf) {
 		MHVTL_ERR("Can not open config file %s : %s", config,
@@ -1024,15 +1041,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			MHVTL_DBG(2, "Found Library %d, looking for %d",
 							indx, minor);
 			if (indx == minor) {
-				char *v;
-
 				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
-
-				/* Default rev with mhvtl release info */
-				v = get_version();
-				sprintf(lu->product_rev, "%-4s", v);
-				free(v);
 			}
 		}
 		if (indx == minor) {
@@ -1048,14 +1058,16 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				i = strlen(b) - 25; /* len of ' Product identification: ' */
 				s[i] = '\0';
 				snprintf(lu->product_id, PRODUCT_ID_LEN + 1, "%-16s", s);
+				sprintf(&lu->inquiry[16], "%-16s", s);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
-				sprintf(lu->product_rev, "%-4s", s);
+				sprintf(&lu->inquiry[32], "%-4s", s);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
 				checkstrlen(s, VENDOR_ID_LEN);
 				sprintf(lu->vendor_id, "%-8s", s);
+				sprintf(&lu->inquiry[8], "%-8s", s);
 			}
 			if (sscanf(b, " fifo: %s", s))
 				process_fifoname(lu, s, 0);
@@ -1093,6 +1105,16 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	free(b);
 	free(s);
 
+	if (found && !lu->inquiry[32]) {
+		char *v;
+
+		/* Default rev with mhvtl release info */
+		v = get_version();
+		MHVTL_DBG(1, "Adding default vers info: %s", v);
+		sprintf(&lu->inquiry[32], "%-4s", v);
+		free(v);
+	}
+
 	INIT_LIST_HEAD(&lu->den_list);
 	INIT_LIST_HEAD(&lu->log_pg);
 	INIT_LIST_HEAD(&lu->mode_pg);
@@ -1109,12 +1131,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	smc_slots.num_storage = 0;
 	smc_slots.bufsize = SMC_BUF_SIZE;
 	smc_slots.state_msg = NULL;
-
-	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
-	lu->removable = 1;	/* Supports removable media */
-	lu->version_desc[0] = 0x0300;	/* SPC-3 No version claimed */
-	lu->version_desc[1] = 0x0960;	/* iSCSI */
-	lu->version_desc[2] = 0x0200;	/* SSC */
 
 	/* Unit Serial Number */
 	pg = 0x80 & 0x7f;

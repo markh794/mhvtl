@@ -325,10 +325,17 @@ static struct ssc_personality_template ssc_pm = {
 	.cleaning_media		= T9840_cleaning,
 };
 
+#define INQUIRY_LEN 74
 static void init_9840_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
 	uint8_t worm = 1;	/* Supports WORM */
+
+	lu->inquiry[2] = 5;	/* SPC-3 */
+	lu->inquiry[3] = 0x42;
+	lu->inquiry[4] = INQUIRY_LEN - 5;	/* Additional Length */
+	lu->inquiry[54] = 0x04;	/* Key Management */
+	lu->inquiry[55] = 0x12;	/* Support Encryption & Compression */
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
@@ -338,98 +345,6 @@ static void init_9840_inquiry(struct lu_phy_attr *lu)
 		exit(-ENOMEM);
 	}
 	update_vpd_b0(lu, &worm);
-}
-
-#define INQUIRY_LEN 74
-uint8_t T9840_inquiry(struct scsi_cmd *cmd)
-{
-	int len = 0;
-	struct vpd *vpd_pg;
-	unsigned char key = ILLEGAL_REQUEST;
-	uint16_t asc = E_INVALID_FIELD_IN_CDB;
-	uint8_t *data = cmd->dbuf_p->data;
-	uint8_t *cdb = cmd->scb;
-	struct lu_phy_attr *lu = cmd->lu;
-
-	MHVTL_DBG(1, "INQUIRY ** (%ld)", (long)cmd->dbuf_p->serialNo);
-
-	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2]))
-		goto sense;
-
-	memset(data, 0, INQUIRY_LEN);
-
-	if (!(cdb[1] & 0x3)) {
-		int i;
-		uint16_t *desc;
-
-		data[0] = lu->ptype;
-		data[1] = (lu->removable) ? 0x80 : 0;
-		data[2] = 5;	/* SPC-3 */
-		data[3] = 0x42;
-
-		memset(data + 8, 0x20, 28);
-		memcpy(data + 8,  &lu->vendor_id, VENDOR_ID_LEN);
-		memcpy(data + 16, &lu->product_id, PRODUCT_ID_LEN);
-		memcpy(data + 32, &lu->product_rev, PRODUCT_REV_LEN);
-
-		data[54] = 0x04;	/* Key Management */
-		data[55] = 0x12;	/* Support Encryption & Compression */
-
-		desc = (uint16_t *)(data + 58);
-		for (i = 0; i < ARRAY_SIZE(lu->version_desc); i++)
-			*desc++ = htons(lu->version_desc[i]);
-
-		len = INQUIRY_LEN;
-		data[4] = INQUIRY_LEN - 5;	/* Additional Length */
-	} else if (cdb[1] & 0x2) {
-		/* CmdDt bit is set */
-		/* We do not support it now. */
-		data[1] = 0x1;
-		data[5] = 0;
-		len = 6;
-	} else if (cdb[1] & 0x1) {
-		uint8_t pcode = cdb[2];
-
-		MHVTL_DBG(2, "Page code 0x%02x\n", pcode);
-
-		if (pcode == 0x00) {
-			uint8_t *p;
-			int i, cnt;
-
-			data[0] = lu->ptype;
-			data[1] = 0;
-			data[2] = 0;
-
-			cnt = 1;
-			p = data + 5;
-			for (i = 0; i < ARRAY_SIZE(lu->lu_vpd); i++) {
-				if (lu->lu_vpd[i]) {
-					*p++ = i | 0x80;
-					cnt++;
-				}
-			}
-			data[3] = cnt;
-			data[4] = 0x0;
-			len = cnt + 4;
-		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
-			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
-
-			MHVTL_DBG(2, "Found page 0x%x\n", pcode);
-
-			data[0] = lu->ptype;
-			data[1] = pcode;
-			data[2] = (vpd_pg->sz >> 8);
-			data[3] = vpd_pg->sz & 0xff;
-			memcpy(&data[4], vpd_pg->data, vpd_pg->sz);
-			len = vpd_pg->sz + 4;
-		}
-	}
-	cmd->dbuf_p->sz = len;
-	return SAM_STAT_GOOD;
-
-sense:
-	mkSenseBuf(key, asc, &cmd->dbuf_p->sam_stat);
-	return SAM_STAT_CHECK_CONDITION;
 }
 
 void init_9840A_ssc(struct lu_phy_attr *lu)
@@ -458,7 +373,6 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_9840A;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
-	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9840A, 1);
@@ -493,7 +407,6 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_9840B;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
-	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 
 	register_ops(lu, LOG_SENSE, ssc_log_sense);
@@ -533,7 +446,6 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_9840C;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
-	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9840A, 0);
@@ -566,7 +478,6 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_9840D;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
-	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9840A, 0);
@@ -600,7 +511,6 @@ void init_9940A_ssc(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_9940A;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
-	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9940A, 1);
@@ -631,7 +541,6 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_9940B;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
-	register_ops(lu, INQUIRY, T9840_inquiry);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
 	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9940A, 1);

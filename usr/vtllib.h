@@ -338,17 +338,18 @@ struct device_type_template {
 	struct device_type_operations ops[256];
 };
 
+#define MAX_INQUIRY_SZ	256
+
 /* Logical Unit information */
 struct lu_phy_attr {
 	char ptype;
 	char removable;
 	char mode_media_type;
 	char online;
+	char inquiry[MAX_INQUIRY_SZ];
 	char vendor_id[VENDOR_ID_LEN + 1];
 	char product_id[PRODUCT_ID_LEN + 1];
-	char product_rev[PRODUCT_REV_LEN + 1];
 	char lu_serial_no[SCSI_SN_LEN];
-	uint16_t version_desc[3];
 
 	struct list_head den_list;
 

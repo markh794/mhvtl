@@ -2389,6 +2389,21 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	lu->fifoname = NULL;
 	lu->fifo_fd = NULL;
 	lu->fifo_flag = 0;
+	lu->ptype = TYPE_TAPE;
+
+	/* Default inquiry bits */
+	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
+	lu->inquiry[0] = TYPE_TAPE;	/* SSC device */
+	lu->inquiry[1] = 0x80;	/* Removable bit set */
+	lu->inquiry[2] = 0x05;	/* SCSI Version (v3) */
+	lu->inquiry[3] = 0x02;	/* Response Data Format */
+	lu->inquiry[4] = 59;	/* Additional Length */
+	lu->inquiry[6] = 0x01;	/* Addr16 */
+	lu->inquiry[7] = 0x20;	/* Wbus16 */
+
+	put_unaligned_be16(0x0300, &lu->inquiry[58]); /* SPC-3 No ver claimed */
+	put_unaligned_be16(0x0960, &lu->inquiry[60]); /* iSCSI */
+	put_unaligned_be16(0x0200, &lu->inquiry[62]); /* SSC */
 
 	conf = fopen(config , "r");
 	if (!conf) {
@@ -2420,15 +2435,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			MHVTL_DBG(2, "Looking for %d, Found drive %d",
 							minor, indx);
 			if (indx == minor) {
-				char *v;
-
 				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
-
-				/* Default rev with mhvtl release info */
-				v = get_version();
-				sprintf(lu->product_rev, "%-4s", v);
-				free(v);
 			}
 		}
 		if (indx == minor) {
@@ -2441,20 +2449,22 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				checkstrlen(s, SCSI_SN_LEN);
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			}
+			if (sscanf(b, " Vendor identification: %s", s)) {
+				checkstrlen(s, VENDOR_ID_LEN);
+				sprintf(lu->vendor_id, "%-8s", s);
+				sprintf(&lu->inquiry[8], "%-8s", s);
+			}
 			if (sscanf(b, " Product identification: %16c", s)) {
 				/* sscanf does not NULL terminate */
 				/* 25 is len of ' Product identification: ' */
 				s[strlen(b) - 25] = '\0';
 				checkstrlen(s, PRODUCT_ID_LEN);
 				sprintf(lu->product_id, "%-16s", s);
+				sprintf(&lu->inquiry[16], "%-16s", s);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
-				sprintf(lu->product_rev, "%-4s", s);
-			}
-			if (sscanf(b, " Vendor identification: %s", s)) {
-				checkstrlen(s, VENDOR_ID_LEN);
-				sprintf(lu->vendor_id, "%-8s", s);
+				sprintf(&lu->inquiry[32], "%-4s", s);
 			}
 			if (sscanf(b, " Backoff: %d", &i)) {
 				if ((i > 0) && (i < 10000)) {
@@ -2516,12 +2526,15 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	free(b);
 	free(s);
 
-	lu->ptype = TYPE_TAPE;
-	lu->removable = 1;	/* Supports removable media */
+	if (found && !lu->inquiry[32]) {
+		char *v;
 
-	lu->version_desc[0] = 0x0300;	/* SPC-3 No version claimed */
-	lu->version_desc[1] = 0x0960;	/* iSCSI */
-	lu->version_desc[2] = 0x0200;	/* SSC */
+		/* Default rev with mhvtl release info */
+		v = get_version();
+		MHVTL_DBG(1, "Adding default vers info: %s", v);
+		sprintf(&lu->inquiry[32], "%-4s", v);
+		free(v);
+	}
 
 	/* Unit Serial Number */
 	pg = 0x80 & 0x7f;
