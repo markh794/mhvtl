@@ -343,7 +343,6 @@ struct device_type_template {
 /* Logical Unit information */
 struct lu_phy_attr {
 	char ptype;
-	char removable;
 	char mode_media_type;
 	char online;
 	char inquiry[MAX_INQUIRY_SZ];

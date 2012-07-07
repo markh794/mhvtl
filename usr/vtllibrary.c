@@ -1002,7 +1002,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	put_unaligned_be16(0x0200, &lu->inquiry[62]); /* SSC */
 
 	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
-	lu->removable = 1;	/* Supports removable media */
 
 	conf = fopen(config , "r");
 	if (!conf) {
