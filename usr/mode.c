@@ -64,13 +64,13 @@ struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
 {
 	struct mode *mp;
 
-	MHVTL_DBG(3, "Looking for: pcode 0x%02x, subpcode 0x%02x",
+	MHVTL_DBG(3, "Looking for: Page/subpage (%02x/%02x)",
 					pcode, subpcode);
 
 	list_for_each_entry(mp, m, siblings) {
 		if (mp->pcode == pcode && mp->subpcode == subpcode) {
 			MHVTL_DBG(3, "Found \"%s\" -> "
-				"pcode 0x%02x, subpcode 0x%02x",
+				"Page/subpage (%02x/%02x)",
 					mp->description,
 					mp->pcode, mp->subpcode);
 			return mp;
@@ -98,7 +98,8 @@ struct mode *alloc_mode_page(struct list_head *m,
 {
 	struct mode *mp;
 
-	MHVTL_DBG(3, "%p : Allocate mode page 0x%02x, size %d", m, pcode, size);
+	MHVTL_DBG(3, "Allocating %d bytes for (%02x/%02x)",
+					size, pcode, subpcode);
 
 	mp = lookup_pcode(m, pcode, subpcode);
 	if (!mp) {	/* Create a new entry */
@@ -106,8 +107,6 @@ struct mode *alloc_mode_page(struct list_head *m,
 	}
 	if (mp) {
 		mp->pcodePointer = (uint8_t *)malloc(size);
-		MHVTL_DBG(3, "pcodePointer: %p for mode page 0x%02x",
-			mp->pcodePointer, pcode);
 		if (mp->pcodePointer) {	/* If ! null, set size of data */
 			memset(mp->pcodePointer, 0, size);
 			mp->pcode = pcode;
@@ -142,14 +141,19 @@ int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	pcode = MODE_RW_ERROR_RECOVER;
+	subpcode = 0;
 	size = 12;
 
 	mode_pg = &lu->mode_pg;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_rw_error_recover, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -176,13 +180,18 @@ int add_mode_disconnect_reconnect(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DISCONNECT_RECONNECT;
+	subpcode = 0;
 	size = 12;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_disconnect_reconnect, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -213,13 +222,18 @@ int add_mode_control(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_CONTROL;
+	subpcode = 0;
 	size = 12;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_control, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -246,13 +260,18 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_CONTROL;
+	subpcode = 1;
 	size = 0x1c;
 
-	mp = alloc_mode_page(mode_pg, pcode, 1, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_control_extension, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -281,13 +300,18 @@ int add_mode_data_compression(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DATA_COMPRESSION;
+	subpcode = 0;
 	size = 16;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_data_compression, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -327,14 +351,19 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	struct mode *mp;
 	struct priv_lu_ssc *ssc;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	ssc = (struct priv_lu_ssc *)lu->lu_private;
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DEVICE_CONFIGURATION;
+	subpcode = 0;
 	size = 16;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_device_configuration, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -387,6 +416,9 @@ int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
 	subpcode = 0x01;
 	size = 32;
 
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+			mode_device_configuration_extension, pcode, subpcode);
+
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
@@ -423,13 +455,18 @@ int add_mode_medium_partition(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_MEDIUM_PARTITION;
+	subpcode = 0;
 	size = 16;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_medium_partition, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -452,13 +489,18 @@ int add_mode_power_condition(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_POWER_CONDITION;
+	subpcode = 0;
 	size = 0x26;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_power_condition, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -481,13 +523,18 @@ int add_mode_information_exception(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_INFORMATION_EXCEPTION;
+	subpcode = 0;
 	size = 12;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_information_exception, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -513,13 +560,18 @@ int add_mode_medium_configuration(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_MEDIUM_CONFIGURATION;
+	subpcode = 0;
 	size = 32;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_medium_configuration, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -553,17 +605,22 @@ int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;	/* Mode Page list */
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_VENDOR_SPECIFIC_24H;
+	subpcode = 0;
 	size = 8;
 
 	/* Vendor Unique (IBM Ultrium)
 	 * Page 151, table 118
 	 * Advise ENCRYPTION Capable device
 	 */
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_vendor_24h, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -596,17 +653,22 @@ int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;	/* Mode Page list */
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_VENDOR_SPECIFIC_25H;
+	subpcode = 0;
 	size = 32;
 
 	/* Vendor Unique (IBM Ultrium)
 	 * Page 151, table 118
 	 * Advise ENCRYPTION Capable device
 	 */
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_vendor_25h, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -640,6 +702,9 @@ int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu)
 	subpcode = 0x20;
 	size = 9;
 
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_encryption_mode, pcode, subpcode);
+
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
@@ -669,13 +734,18 @@ int add_mode_ait_device_configuration(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_AIT_DEVICE_CONFIGURATION;
+	subpcode = 0;
 	size = 8;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_ait_device_configuration, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -703,15 +773,20 @@ int add_mode_element_address_assignment(struct lu_phy_attr *lu)
 	struct mode *mp;
 	static struct smc_priv *smc_slots;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 	uint8_t *p;
 
 	mode_pg = &lu->mode_pg;
 	smc_slots = (struct smc_priv *)lu->lu_private;
 	pcode = MODE_ELEMENT_ADDRESS;
+	subpcode = 0;
 	size = 20;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_element_address, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -748,13 +823,18 @@ int add_mode_transport_geometry(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_TRANSPORT_GEOMETRY;
+	subpcode = 0;
 	size = 4;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_transport_geometry, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -781,13 +861,18 @@ int add_mode_device_capabilities(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DEVICE_CAPABILITIES;
+	subpcode = 0;
 	size = 20;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_device_capabilities, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
@@ -827,13 +912,18 @@ int add_mode_behavior_configuration(struct lu_phy_attr *lu)
 	struct list_head *mode_pg;
 	struct mode *mp;
 	uint8_t pcode;
+	uint8_t subpcode;
 	uint8_t size;
 
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_BEHAVIOR_CONFIGURATION;
+	subpcode = 0;
 	size = 10;
 
-	mp = alloc_mode_page(mode_pg, pcode, 0, size);
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_behaviour_configuration, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
