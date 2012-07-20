@@ -98,6 +98,7 @@ static struct encryption encryption;
 extern uint8_t last_cmd;
 
 extern int current_state;	/* scope, Global -> Last status sent to fifo */
+extern char home_directory[64];	/* user specified home dir for media */
 
 /* Suppress Incorrect Length Indicator */
 #define SILI  0x2
@@ -119,6 +120,8 @@ long my_id;
  * and call usleep() before polling again.
  */
 long backoff = 0;
+
+int library_id = 0;
 
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
@@ -1907,6 +1910,74 @@ void unloadTape(uint8_t *sam_stat)
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 }
 
+static void update_home_directory(int lib_id)
+{
+	char *config = MHVTL_CONFIG_PATH"/device.conf";
+	FILE *conf;
+	char *b;	/* Read from file into this buffer */
+	char *s;	/* Somewhere for sscanf to store results */
+	int i;
+	int found;
+
+	found = 0;
+
+	conf = fopen(config , "r");
+	if (!conf) {
+		MHVTL_ERR("Can not open config file %s : %s", config,
+					strerror(errno));
+		perror("Can not open config file");
+		exit(1);
+	}
+	s = malloc(MALLOC_SZ);
+	if (!s) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	b = malloc(MALLOC_SZ);
+	if (!b) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	while (readline(b, MALLOC_SZ, conf) != NULL) {
+		if (b[0] == '#')	/* Ignore comments */
+			continue;
+		if (strlen(b) == 1)	/* Reset drive number of blank line */
+			i = 0xff;
+		if (sscanf(b, "Library: %d ", &i)) {
+			MHVTL_DBG(2, "Found Library %d, looking for %d",
+							i, lib_id);
+			if (i == lib_id)
+				found = 1;
+		}
+		if (found == 1) {
+			int a;
+			a = sscanf(b, " Home directory: %s", s);
+			if (a > 0) {
+				strncpy(home_directory, s,
+						sizeof(home_directory) - 1);
+				MHVTL_DBG(2, "Found home directory (a %d) : %s",
+						a, home_directory);
+			i = 0xff;	/* Finished parsing info */
+			found = 2;	/* flag we found an entry */
+			}
+		}
+	}
+
+	/* Not found, then append the library id to default path */
+	if (found != 2) {
+		snprintf(b, sizeof(home_directory) - 1, "%s/%d",
+						home_directory, lib_id);
+		strncpy(home_directory, b, sizeof(home_directory) - 1);
+		MHVTL_DBG(2, "Append library id %d to default path %s: %s",
+						lib_id, MHVTL_HOME_PATH,
+						home_directory);
+	}
+
+	free(s);
+	free(b);
+	fclose(conf);
+}
+
 static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 {
 	char *pcl;
@@ -1961,6 +2032,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	if (!strncmp(msg->text, "Register", 8)) {
 		lu_ssc.inLibrary = 1;
 		MHVTL_DBG(1, "Notice from Library controller : %s", msg->text);
+		update_home_directory(library_id);
 	}
 
 	if (!strncmp(msg->text, "verbose", 7)) {
@@ -2386,6 +2458,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 
 	lu->scsi_ops = &ssc_ops;
 
+	strncpy(home_directory, MHVTL_HOME_PATH, sizeof(home_directory));
+
 	lu->fifoname = NULL;
 	lu->fifo_fd = NULL;
 	lu->fifo_flag = 0;
@@ -2465,6 +2539,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN);
 				sprintf(&lu->inquiry[32], "%-4s", s);
+			}
+			if (sscanf(b, " Library ID: %d", &library_id)) {
+				MHVTL_DBG(2, "Library ID: %d", library_id);
 			}
 			if (sscanf(b, " Backoff: %d", &i)) {
 				if ((i > 0) && (i < 10000)) {

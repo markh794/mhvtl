@@ -93,6 +93,7 @@ static uint32_t *filemarks = NULL;
 struct MAM mam;
 struct blk_header *c_pos = &raw_pos.hdr;
 int OK_to_write = 0;
+char home_directory[64];
 
 #ifdef MHVTL_DEBUG
 static char * mhvtl_block_type_desc(int blk_type)
@@ -819,12 +820,28 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 
 	/* Open all three files and stat them to get their current sizes. */
 
-	snprintf(currentPCL, ARRAY_SIZE(currentPCL),"%s/%s", MHVTL_HOME_PATH, pcl);
-	MHVTL_DBG(2, "Opening file/media %s", currentPCL);
+	if (strlen(home_directory))
+		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
+						home_directory, pcl);
+	else
+		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
+						MHVTL_HOME_PATH, pcl);
 
 	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
 	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
 	snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
+
+	MHVTL_DBG(2, "Opening media: %s", pcl);
+
+	if (stat(pcl_data, &data_stat) == -1) {
+		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
+				pcl_data, MHVTL_HOME_PATH, pcl);
+		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
+						MHVTL_HOME_PATH, pcl);
+		snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
+		snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
+		snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
+	}
 
 	if ((datafile = open(pcl_data, O_RDWR|O_LARGEFILE)) == -1) {
 		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
