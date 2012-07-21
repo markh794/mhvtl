@@ -10,13 +10,13 @@
 # 	kernel	to build kernel module
 #
 
-VER = $(shell grep Version mhvtl.spec|awk '{print $$2}')
-REL = $(shell grep Release mhvtl.spec|awk '{print $$2}')
+VER = $(shell grep Version mhvtl-utils.spec|awk '{print $$2}')
+REL = $(shell grep Release mhvtl-utils.spec|awk '{print $$2}')
 
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git branch |awk '/\*/ {print $$2}'))
 
-PARENTDIR = mhvtl-$(VER)
+PARENTDIR = mhvtl-utils-$(VER)
 PREFIX ?= /usr
 USR ?= vtl
 SUSER ?=root
@@ -78,7 +78,7 @@ install:
 tar:
 	$(MAKE) distclean
 	test -d ../$(PARENTDIR) || ln -s mhvtl ../$(PARENTDIR)
-	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`-$(VERSION)$(EXTRAVERSION).tgz  --exclude=.git \
+	(cd ..;  tar cvfz /home/markh/mhvtl-utils-`date +%F`-$(VERSION)$(EXTRAVERSION).tgz  --exclude=.git \
 		 $(PARENTDIR)/man \
 		 $(PARENTDIR)/doc \
 		 $(PARENTDIR)/kernel \
@@ -90,5 +90,5 @@ tar:
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
 		 $(PARENTDIR)/mhvtl-1.3.ebuild \
-		 $(PARENTDIR)/mhvtl.spec)
+		 $(PARENTDIR)/mhvtl-utils.spec)
 
