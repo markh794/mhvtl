@@ -93,7 +93,7 @@ static uint32_t *filemarks = NULL;
 struct MAM mam;
 struct blk_header *c_pos = &raw_pos.hdr;
 int OK_to_write = 0;
-char home_directory[64];
+char home_directory[HOME_DIR_PATH_SZ + 1];
 
 #ifdef MHVTL_DEBUG
 static char * mhvtl_block_type_desc(int blk_type)
@@ -684,6 +684,7 @@ rewriteMAM(uint8_t *sam_stat)
 int
 create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 {
+	struct stat data_stat;
 	char newMedia[1024];
 	char newMedia_data[1024];
 	char newMedia_indx[1024];
@@ -704,18 +705,23 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		return 1;
 	}
 
-	snprintf(newMedia, ARRAY_SIZE(newMedia), "%s/%s", MHVTL_HOME_PATH, pcl);
+	snprintf(newMedia, ARRAY_SIZE(newMedia), "%s/%s", home_directory, pcl);
+
 	snprintf(newMedia_data, ARRAY_SIZE(newMedia_data), "%s/data", newMedia);
 	snprintf(newMedia_indx, ARRAY_SIZE(newMedia_indx), "%s/indx", newMedia);
 	snprintf(newMedia_meta, ARRAY_SIZE(newMedia_meta), "%s/meta", newMedia);
+
+	/* Check if data file already exists, nothing to create */
+	if (stat(newMedia_data, &data_stat) != -1)
+		return 0;
 
 	umask(0007);
 	rc = mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_ISGID);
 	if (rc) {
 		/* No need to fail just because the parent dir exists */
 		if (errno != EEXIST) {
-			MHVTL_ERR("Failed to create directory %s: %s", newMedia,
-				strerror(errno));
+			MHVTL_ERR("Failed to create directory %s: %s",
+					newMedia, strerror(errno));
 			return 2;
 		}
 	}

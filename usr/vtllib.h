@@ -81,6 +81,7 @@
 #define TAPE_UNLOADED 0
 #define TAPE_LOADED 1
 
+#define HOME_DIR_PATH_SZ 64
 /*
  * Medium Type Definations
  */
@@ -550,4 +551,5 @@ void cleanup_msg(void);
 int add_density_support(struct list_head *l, struct density_info *di, int rw);
 int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);
 
+void find_media_home_directory(char *home_directory, int lib_id);
 #endif /*  _VTLLIB_H_ */

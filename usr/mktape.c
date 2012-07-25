@@ -33,44 +33,25 @@ char vtl_driver_name[] = "mktape";
 int verbose = 0;
 int debug = 0;
 long my_id = 0;
+extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 void usage(char *progname) {
-	printf("Usage: %s -m PCL -s size -t type -d density\n", progname);
+	printf("Usage: %s -l lib -m PCL -s size -t type -d density\n",
+					progname);
 	printf("       Where 'size' is in Megabytes\n");
 	printf("             'type' is data | clean | WORM\n");
 	printf("             'PCL' is Physical Cartridge Label (barcode)\n");
-	printf("             'density' is\n");
-	printf("                   AIT1\n");
-	printf("                   AIT2\n");
-	printf("                   AIT3\n");
-	printf("                   AIT4\n");
-	printf("                   DDS1\n");
-	printf("                   DDS2\n");
-	printf("                   DDS3\n");
-	printf("                   DDS4\n");
-	printf("                   DLT3\n");
-	printf("                   DLT4\n");
-	printf("                   LTO1\n");
-	printf("                   LTO2\n");
-	printf("                   LTO3\n");
-	printf("                   LTO4\n");
-	printf("                   LTO5\n");
-	printf("                   SDLT1\n");
-	printf("                   SDLT220\n");
-	printf("                   SDLT320\n");
-	printf("                   SDLT600\n");
-	printf("                   T10KA\n");
-	printf("                   T10KB\n");
-	printf("                   T10KC\n");
-	printf("                   9840A\n");
-	printf("                   9840B\n");
-	printf("                   9840C\n");
-	printf("                   9840D\n");
-	printf("                   9940B\n");
-	printf("                   9940A\n");
-	printf("                   J1A\n");
-	printf("                   E05\n");
-	printf("                   E06\n\n");
+	printf("             'lib' is Library number\n");
+	printf("             'density' can be on of the following:\n");
+	printf("           AIT1     AIT2     AIT3     AIT4\n");
+	printf("           DDS1     DDS2     DDS3     DDS4\n");
+	printf("           DLT3     DLT4\n");
+	printf("           SDLT1    SDLT220  SDLT320  SDLT600\n");
+	printf("           LTO1     LTO2     LTO3     LTO4     LTO5\n");
+	printf("           T10KA    T10KB    T10KC\n");
+	printf("           9840A    9840B    9840C    9840D\n");
+	printf("           9940A    9940B\n");
+	printf("           J1A      E05      E06\n\n");
 }
 
 static unsigned int set_params(struct MAM *mamp, char *density)
@@ -371,7 +352,9 @@ int main(int argc, char *argv[])
 	char *mediaType = NULL;
 	char *mediaCapacity = NULL;
 	char *density = NULL;
+	char *lib = NULL;
 	uint64_t size;
+	int libno;
 	struct stat statb;
 	struct passwd *pw;
 
@@ -392,6 +375,14 @@ int main(int argc, char *argv[])
 			case 'd':
 				if (argc > 1)
 					density = argv[1];
+				break;
+			case 'l':
+				if (argc > 1) {
+					lib = argv[1];
+				} else {
+					puts("    More args needed for -l\n");
+					exit(1);
+				}
 				break;
 			case 'm':
 				if (argc > 1) {
@@ -445,7 +436,11 @@ int main(int argc, char *argv[])
 		usage(progname);
 		exit(1);
 	}
-
+	if (lib == NULL) {
+		printf("Please supply Library number (-l xx)\n\n");
+		usage(progname);
+		exit(1);
+	}
 	if (density == NULL) {
 		printf("Please supply media density (-d xx)\n\n");
 		usage(progname);
@@ -456,30 +451,40 @@ int main(int argc, char *argv[])
 	if (size == 0)
 		size = 8000;
 
+	sscanf(lib, "%d", &libno);
+	if (!libno) {
+		printf("Invalid library number\n");
+		exit(1);
+	}
+
+	find_media_home_directory(home_directory, libno);
+
 	if (strlen(pcl) > MAX_BARCODE_LEN) {
 		printf("Max barcode length (%d) exceeded\n\n", MAX_BARCODE_LEN);
 		usage(progname);
 		exit(1);
 	}
 
-	/* Verify that the MHVTL home directory exists. */
+	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
 
-	if (stat(MHVTL_HOME_PATH, &statb) < 0 && errno == ENOENT) {
+	/* Verify that the MHVTL home directory exists. */
+	if (stat(home_directory, &statb) < 0 && errno == ENOENT) {
 		umask(0007);
-		if (mkdir(MHVTL_HOME_PATH, 02770) < 0) {
-			printf("Cannot create PCL %s, directory " MHVTL_HOME_PATH
-				" does not exist and cannot be created\n", pcl);
+		if (mkdir(home_directory, 02770) < 0) {
+			printf("Cannot create PCL %s, directory %s:"
+				"Doesn't exist and cannot be created\n",
+						pcl, home_directory);
 			exit(1);
 		}
-		pw = getpwnam(USR);	/* Find UID for user 'vtl' */
-		/* Don't really care if this fails or not..
-		 * But lets try anyway
-		 */
-		if (chown(MHVTL_HOME_PATH, pw->pw_uid, pw->pw_gid));
 	}
 
-	/* Initialize the contents of the MAM to be used for the new PCL. */
+	/* Don't really care if this fails or not..
+	 * But lets try anyway
+	 */
+	if (chown(home_directory, pw->pw_uid, pw->pw_gid))
+		;
 
+	/* Initialize the contents of the MAM to be used for the new PCL. */
 	memset((uint8_t *)&mam, 0, sizeof(mam));
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
@@ -489,7 +494,7 @@ int main(int argc, char *argv[])
 	put_unaligned_be64(sizeof(mam.pad), &mam.MAMSpaceRemaining);
 
 	memcpy(&mam.MediumManufacturer, "linuxVTL", 8);
-	memcpy(&mam.ApplicationVendor, "vtl-0.18", 8);
+	memcpy(&mam.ApplicationVendor, "vtl-1.4 ", 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (! strncmp("clean", mediaType, 5)) {

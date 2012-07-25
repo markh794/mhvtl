@@ -1041,3 +1041,68 @@ int get_fifo_count(char *path)
 {
 	return mhvtl_fifo_count(path, QUERYSHM);
 }
+
+void find_media_home_directory(char *home_directory, int lib_id)
+{
+	char *config = MHVTL_CONFIG_PATH"/device.conf";
+	FILE *conf;
+	char *b;	/* Read from file into this buffer */
+	char *s;	/* Somewhere for sscanf to store results */
+	int i;
+	int found;
+
+	found = 0;
+	home_directory[0] = '\0';
+
+	conf = fopen(config , "r");
+	if (!conf) {
+		MHVTL_ERR("Can not open config file %s : %s", config,
+					strerror(errno));
+		perror("Can not open config file");
+		exit(1);
+	}
+	s = malloc(MALLOC_SZ);
+	if (!s) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	b = malloc(MALLOC_SZ);
+	if (!b) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	while (readline(b, MALLOC_SZ, conf) != NULL) {
+		if (b[0] == '#')	/* Ignore comments */
+			continue;
+		if (strlen(b) < 3)	/* Reset drive number of blank line */
+			i = 0xff;
+		if (sscanf(b, "Library: %d ", &i)) {
+			MHVTL_DBG(2, "Found Library %d, looking for %d",
+							i, lib_id);
+			if (i == lib_id)
+				found = 1;
+		}
+		if (found == 1) {
+			int a;
+			a = sscanf(b, " Home directory: %s", s);
+			if (a > 0) {
+				strncpy(home_directory, s, HOME_DIR_PATH_SZ);
+				MHVTL_DBG(2, "Found home directory  : %s",
+						home_directory);
+				goto finished; /* Found what we came for */
+			}
+		}
+	}
+
+	/* Not found, then append the library id to default path */
+	snprintf(home_directory, HOME_DIR_PATH_SZ, "%s/%d",
+						MHVTL_HOME_PATH, lib_id);
+	MHVTL_DBG(1, "Append library id %d to default path %s: %s",
+						lib_id, MHVTL_HOME_PATH,
+						home_directory);
+
+finished:
+	free(s);
+	free(b);
+	fclose(conf);
+}
