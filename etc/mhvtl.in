@@ -33,6 +33,7 @@
 
 USER=@USR@
 MHVTL_CONFIG_PATH=@CONF_PATH@
+MHVTL_HOME_PATH=@HOME_PATH@
 
 DEVICE_CONF=$MHVTL_CONFIG_PATH/device.conf
 
@@ -59,6 +60,7 @@ echo " Product identification: $6" >> $DEVICE_CONF
 echo " Unit serial number: $8" >> $DEVICE_CONF
 printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
 		$ID $CH $TARGET $LUN >> $DEVICE_CONF
+echo " Home directory: $MHVTL_HOME_PATH" >> $DEVICE_CONF
 echo "# fifo: /var/tmp/mhvtl" >> $DEVICE_CONF
 echo "" >> $DEVICE_CONF
 }
