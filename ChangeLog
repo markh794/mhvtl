@@ -1,3 +1,17 @@
+* Wed Aug 01 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-0
+- Allow 'default' personality module to load all media R/W
+- Add IBM half-hight INQUIRY string match
+- vtltape: Update log entry regarding media capacity depending on capabilities
+- vtltape: Make the backoff algrithm value configurable
+- Add SDLT600 & SDLT320 personality module
+- mhvtl.ko: Silence install 'depmod' error
+- Move standard inquiry info into memory structure
+- Default media belonging to a library in a subdir
+- Remove kmod-mhvtl.spec
+- Rename 'mhvtl' package as 'mhvtl-utils'
+- Use ELRepo spec file
+- Move 'make install' from RPM to Makefile
 
 * Fri Jun 15 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.3-0
