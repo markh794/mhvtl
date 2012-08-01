@@ -16,21 +16,10 @@
 #
 
 VER = $(shell awk '/Version/ {print $$2}' ../mhvtl-utils.spec)
-REL = $(shell awk '/Release/ {print $$2}' ../mhvtl-utils.spec)
+REL = $(shell awk '/Release/ {print $$2}' ../mhvtl-utils.spec | sed 's/%{?dist}//g')
 
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
-
-ifeq ($(shell uname -m),x86_64)
-LIBDIR=lib64
-else
-LIBDIR=lib
-endif
-
-# Ubuntu / mint seem to have stopped using /lib64/
-ifeq ($(shell grep lib64 /etc/ld.so.conf.d/* | wc -l),0)
-LIBDIR=lib
-endif
 
 PREFIX ?= /usr
 USR ?= vtl
@@ -40,6 +29,17 @@ MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
 HOME_PATH = $(shell echo $(MHVTL_HOME_PATH) | sed -e s'/\//\\\//g')
+
+ifeq ($(shell uname -m),x86_64)
+LIBDIR ?= $(PREFIX)/lib64
+else
+LIBDIR ?= $(PREFIX)/lib
+endif
+
+# Ubuntu / mint seem to have stopped using /lib64/
+ifeq ($(shell grep lib64 /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
+LIBDIR = $(PREFIX)/lib
+endif
 
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
@@ -169,9 +169,9 @@ distclean:
 	vtllibrary vtllibrary.o
 
 install:
-	install -d -m 755 $(DESTDIR)$(PREFIX)/$(LIBDIR)
-	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(PREFIX)/$(LIBDIR)/
-	install -o $(SUSER) -g bin -m 755 libvtlcart.so $(DESTDIR)$(PREFIX)/$(LIBDIR)/
+	install -d -m 755 $(DESTDIR)$(LIBDIR)
+	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
+	install -o $(SUSER) -g bin -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/

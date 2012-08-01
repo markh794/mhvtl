@@ -10,8 +10,8 @@
 # 	kernel	to build kernel module
 #
 
-VER = $(shell grep Version mhvtl-utils.spec|awk '{print $$2}')
-REL = $(shell grep Release mhvtl-utils.spec|awk '{print $$2}')
+VER = $(shell awk '/Version/ {print $$2}'  mhvtl-utils.spec)
+REL = $(shell awk '/Release/ {print $$2}'  mhvtl-utils.spec | sed s/%{?dist}//g)
 
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git branch |awk '/\*/ {print $$2}'))
@@ -23,6 +23,7 @@ SUSER ?=root
 GROUP ?= vtl
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
+LIBDIR ?= /usr/lib
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 
@@ -69,11 +70,13 @@ distclean:
 
 install:
 	$(MAKE) usr
-	$(MAKE) -C usr install $(PREFIX) $(DESTDIR)
+	$(MAKE) -C usr install $(LIBDIR) $(PREFIX) $(DESTDIR)
 	$(MAKE) scripts
 	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
 	$(MAKE) etc
-	$(MAKE) -C etc install USR=$(USR)
+	$(MAKE) -i -C etc install $(DESTDIR) USR=$(USR)
+	$(MAKE) -C man install $(PREFIX) $(DESTDIR) USR=$(USR)
+	test -d $(DESTDIR)/opt/mhvtl || mkdir -p $(DESTDIR)/opt/mhvtl
 
 tar:
 	$(MAKE) distclean
@@ -89,6 +92,5 @@ tar:
 		 $(PARENTDIR)/Makefile \
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
-		 $(PARENTDIR)/mhvtl-1.3.ebuild \
 		 $(PARENTDIR)/mhvtl-utils.spec)
 

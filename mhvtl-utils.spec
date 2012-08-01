@@ -39,36 +39,12 @@ The SSC/SMC target daemons have been written from scratch.
 
 %build
 %{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" usr
-%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" etc
+%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" INITD="%{_initrddir}" etc
 %{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" scripts
 
 %install
 %{__rm} -rf %{buildroot}
-%{__install} -d -m0755 %{buildroot}/opt/mhvtl/
-
-%{__install} -Dp -m0750 etc/mhvtl %{buildroot}%{_initrddir}/mhvtl
-
-%{__install} -Dp -m0700 usr/build_library_config %{buildroot}%{_bindir}/build_library_config
-%{__install} -Dp -m0750 usr/dump_tape %{buildroot}%{_bindir}/dump_tape
-%{__install} -Dp -m0700 usr/make_vtl_media %{buildroot}%{_bindir}/make_vtl_media
-%{__install} -Dp -m0750 usr/mktape %{buildroot}%{_bindir}/mktape
-%{__install} -Dp -m0750 usr/vtlcmd %{buildroot}%{_bindir}/vtlcmd
-%{__install} -Dp -m0750 usr/vtllibrary %{buildroot}%{_bindir}/vtllibrary
-%{__install} -Dp -m0750 usr/vtltape %{buildroot}%{_bindir}/vtltape
-%{__install} -Dp -m0700 usr/tapeexerciser %{buildroot}%{_bindir}/tapeexerciser
-
-%{__install} -Dp -m0755 usr/libvtlcart.so %{buildroot}%{_libdir}/libvtlcart.so
-%{__install} -Dp -m0755 usr/libvtlscsi.so %{buildroot}%{_libdir}/libvtlscsi.so
-
-%{__install} -Dp -m0644 man/build_library_config.1 %{buildroot}%{_mandir}/man1/build_library_config.1
-%{__install} -Dp -m0644 man/mhvtl.1 %{buildroot}%{_mandir}/man1/mhvtl.1
-%{__install} -Dp -m0644 man/mktape.1 %{buildroot}%{_mandir}/man1/mktape.1
-%{__install} -Dp -m0644 man/vtlcmd.1 %{buildroot}%{_mandir}/man1/vtlcmd.1
-%{__install} -Dp -m0644 man/vtllibrary.1 %{buildroot}%{_mandir}/man1/vtllibrary.1
-%{__install} -Dp -m0644 man/vtltape.1 %{buildroot}%{_mandir}/man1/vtltape.1
-
-%{__install} -Dp -m0644 man/device.conf.5 %{buildroot}%{_mandir}/man5/device.conf.5
-%{__install} -Dp -m0644 man/library_contents.5 %{buildroot}%{_mandir}/man5/library_contents.5
+%{__make} install DESTDIR="%{buildroot}" INITD="%{_initrddir}" LIBDIR="%{_libdir}"
 
 %pre
 if ! getent group vtl &>/dev/null; then
@@ -102,7 +78,9 @@ fi
 %doc %{_mandir}/man1/vtlcmd.1*
 %doc %{_mandir}/man1/vtllibrary.1*
 %doc %{_mandir}/man1/vtltape.1*
+%doc %{_mandir}/man1/make_vtl_media.1*
 %doc %{_mandir}/man5/device.conf.5*
+%doc %{_mandir}/man5/mhvtl.conf.5*
 %doc %{_mandir}/man5/library_contents.5*
 %config %{_initrddir}/mhvtl
 %{_bindir}/vtlcmd
@@ -111,6 +89,7 @@ fi
 %{_bindir}/tapeexerciser
 %{_bindir}/build_library_config
 %{_bindir}/make_vtl_media
+%{_bindir}/update_device.conf
 %{_libdir}/libvtlscsi.so
 %{_libdir}/libvtlcart.so
 
@@ -122,6 +101,10 @@ fi
 /opt/mhvtl/
 
 %changelog
+* Wed Aug  1 2012 Mark Harvey <markh794@gmail.com> - 1.4-0
+- Updated to release 1.4 (2012-08-01).
+- install using Makefile
+
 * Thu Jun 21 2012 Dag Wieers <dag@wieers.com> - 1.3-1
 - Updated to release 1.3 (2012-06-15).
 
