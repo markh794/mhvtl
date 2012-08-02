@@ -17,6 +17,7 @@ Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
  Product revision level: 550V
  Unit serial number: XYZZY_A
  NAA: 10:22:33:44:ab:00:00:00
+ Home directory: /opt/mhvtl/Spectra
  fifo: /var/tmp/mhvtl
 .PP
 Where descriptor
@@ -65,6 +66,13 @@ zlib or lzo
 .B Backoff:
 Value between 10 and 10000. Default is 1000.
 This value is added to existing 'usleep' time in between ioctl polls. If there is work to do, the usleep time is reset to 10.
+
+.PP
+.B Home directory:
+/some/where/with/space
+.PP
+Specify a parent directory for the virtual media associated with this library.
+Only in valid ^Library: entries (not for ^Tape: entries)
 
 .PP
 .B fifo:
