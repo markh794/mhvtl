@@ -38,13 +38,13 @@
 #include "vtllib.h"
 #include "vtltape.h"
 
-/* The following variables are needed for the MHVTL_DBG() macro to work. */
-
 char vtl_driver_name[] = "dump_tape";
 int verbose = 0;
 int debug = 0;
 long my_id = 0;
+int lib_id;
 
+extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 struct blk_header *c_pos;
 
@@ -59,14 +59,22 @@ static void print_mam_info(void)
 				get_unaligned_be64(&mam.remaining_capacity));
 }
 
+void find_media_home_directory(char *home_directory, int lib_id);
+
 int main(int argc, char *argv[])
 {
 	uint8_t sam_stat;
 	char *pcl = NULL;
 	int rc;
+	int libno = 0;
+	int indx;
+	char *config = MHVTL_CONFIG_PATH"/device.conf";
+	FILE *conf;
+	char *b;	/* Read from file into this buffer */
+	char *s;	/* Somewhere for sscanf to store results */
 
 	if (argc < 2) {
-		printf("Usage: %s -f <pcl>\n", argv[0]);
+		printf("Usage: %s [-l lib_no] -f <pcl>\n", argv[0]);
 		exit(1);
 	}
 
@@ -85,6 +93,15 @@ int main(int argc, char *argv[])
 					exit(1);
 				}
 				break;
+			case 'l':
+				if (argc > 1) {
+					libno = atoi(argv[1]);
+				} else {
+					puts("    More args needed for -l\n");
+					exit(1);
+				}
+				break;
+
 			case 'v':
 				verbose++;
 				break;
@@ -99,13 +116,54 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	printf("PCL is : %s\n", pcl);
+	conf = fopen(config , "r");
+	if (!conf) {
+		printf("Can not open config file %s : %s", config,
+					strerror(errno));
+		perror("Can not open config file");
+		exit(1);
+	}
+	s = malloc(MALLOC_SZ);
+	if (!s) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
+	b = malloc(MALLOC_SZ);
+	if (!b) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
 
-	rc = load_tape(pcl, &sam_stat);
+	rc = ENOENT;
+
+	if (libno) {
+		printf("Looking for PCL: %s in library %d\n", pcl, libno);
+		find_media_home_directory(home_directory, libno);
+		rc = load_tape(pcl, &sam_stat);
+	} else { /* Walk thru all defined libraries looking for media */
+		while (readline(b, MALLOC_SZ, conf) != NULL) {
+			if (b[0] == '#')	/* Ignore comments */
+				continue;
+			/* If found a library: Attempt to load media
+			 * Break out of loop if found. Otherwise try next lib.
+			 */
+			if (sscanf(b, "Library: %d CHANNEL:", &indx)) {
+				find_media_home_directory(home_directory, indx);
+				rc = load_tape(pcl, &sam_stat);
+				if (!rc)
+					break;
+			}
+		}
+	}
+
+	fclose(conf);
+	free(s);
+	free(b);
+
 	if (rc) {
-		fprintf(stderr,
-			"PCL %s cannot be dumped, load_tape() returned %d\n",
-			pcl, rc);
+		fprintf(stderr, "PCL %s cannot be dumped, "
+				"load_tape() returned %d\n",
+					pcl, rc);
 		exit(1);
 	}
 

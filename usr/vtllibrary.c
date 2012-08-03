@@ -660,7 +660,7 @@ static void init_smc_mode_pages(struct lu_phy_attr *lu)
  */
 static void update_drive_details(struct lu_phy_attr *lu)
 {
-	char *config=MHVTL_CONFIG_PATH"/device.conf";
+	char *config = MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */

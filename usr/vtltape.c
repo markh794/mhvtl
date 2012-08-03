@@ -2378,7 +2378,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
 
-	char *config=MHVTL_CONFIG_PATH"/device.conf";
+	char *config = MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
