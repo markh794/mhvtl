@@ -122,6 +122,7 @@ long my_id;
  * and call usleep() before polling again.
  */
 long backoff = 0;
+static useconds_t cumul_pollInterval;
 
 int library_id = 0;
 
@@ -1565,7 +1566,8 @@ static void updateMAM(uint8_t *sam_stat, int loadCount)
  *	cdb      -> SCSI Command buffer pointer,
  *	dbuf     -> struct vtl_ds *
  */
-static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
+static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
+			useconds_t pollInterval)
 {
 	static int last_count;
 	struct scsi_cmd _cmd;
@@ -1577,11 +1579,12 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	cmd->dbuf_p = dbuf_p;
 	cmd->lu = &lunit;
 	cmd->cdev = cdev;
+	cmd->pollInterval = pollInterval;
 
 	dbuf_p->sz = 0;
 
 	if ((cdb[0] == READ_6 || cdb[0] == WRITE_6) && cdb[0] == last_cmd) {
-		MHVTL_DBG_PRT_CDB(2, dbuf_p->serialNo, cdb);
+		MHVTL_DBG_PRT_CDB(2, cmd);
 		if ((++last_count % 50) == 0) {
 			MHVTL_DBG(1, "%dth contiguous %s request (%ld) ",
 				last_count,
@@ -1589,7 +1592,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 				(long)dbuf_p->serialNo);
 		}
 	} else {
-		MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
+		MHVTL_DBG_PRT_CDB(1, cmd);
 		last_count = 0;
 	}
 
@@ -2563,7 +2566,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	return found;
 }
 
-static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
+static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd,
+			useconds_t pollInterval)
 {
 	struct vtl_ds dbuf;
 	uint8_t *cdb;
@@ -2582,7 +2586,7 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
 	dbuf.sam_stat = lu_ssc.sam_status;
 	dbuf.sense_buf = &sense;
 
-	processCommand(cdev, cdb, &dbuf);
+	processCommand(cdev, cdb, &dbuf, pollInterval);
 
 	/* Complete SCSI cmd processing */
 	completeSCSICommand(cdev, &dbuf);
@@ -2614,6 +2618,8 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	INIT_LIST_HEAD(&lu_priv->supported_media_list);
 	lu_priv->pm = NULL;
 	lu_priv->state_msg = NULL;
+
+	cumul_pollInterval = 0L;
 }
 
 void personality_module_register(struct ssc_personality_template *pm)
@@ -2635,7 +2641,7 @@ int main(int argc, char *argv[])
 	int cdev;
 	int ret;
 	int last_state = MHVTL_STATE_UNKNOWN;
-	useconds_t pollInterval = 50000L;
+	useconds_t sleep_time = 50000L;	/* Used as backoff counter */
 	uint8_t *buf;
 	pid_t child_cleanup, pid, sid;
 	struct sigaction new_action, old_action;
@@ -2878,7 +2884,7 @@ int main(int argc, char *argv[])
 			if (debug)
 				printf("ioctl(VX_TAPE_POLL_STATUS) "
 					"returned: %d, interval: %ld\n",
-						ret, (long)pollInterval);
+						ret, (long)sleep_time);
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
 					MHVTL_DBG(1,
@@ -2894,24 +2900,24 @@ int main(int argc, char *argv[])
 				cmd = malloc(sizeof(struct vtl_header));
 				if (!cmd) {
 					MHVTL_ERR("Out of memory");
-					pollInterval = 1000000;
+					sleep_time = 1000000;
 				} else {
 					memcpy(cmd, &vtl_cmd, sizeof(vtl_cmd));
-					process_cmd(cdev, buf, cmd);
+					process_cmd(cdev, buf, cmd, sleep_time);
 					/* Something to do, reduce poll time */
-					pollInterval = 10;
+					sleep_time = 10;
 					free(cmd);
 				}
 				break;
 
 			case VTL_IDLE:
-				usleep(pollInterval);
+				usleep(sleep_time);
 
 				/* While nothing to do, increase
 				 * time we sleep before polling again.
 				 */
-				if (pollInterval < 1000000)
-					pollInterval += backoff;
+				if (sleep_time < 1000000)
+					sleep_time += backoff;
 
 				break;
 
@@ -2928,7 +2934,7 @@ int main(int argc, char *argv[])
 							&lu_ssc.state_msg);
 				last_state = current_state;
 			}
-			if (pollInterval > 0xf000) {
+			if (sleep_time > 0xf000) {
 				if (lu_ssc.tapeLoaded == TAPE_LOADED)
 					current_state = MHVTL_STATE_LOADED_IDLE;
 				else

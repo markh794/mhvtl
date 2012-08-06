@@ -27,6 +27,7 @@
 #endif
 #include <inttypes.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "vtl_common.h"
 
@@ -325,6 +326,7 @@ struct scsi_cmd {
 	uint8_t *scb;	/* SCSI Command Block */
 	int scb_len;
 	int cdev;	/* filepointer to char dev */
+	useconds_t pollInterval;	/* Poor mans Performance counter */
 	struct vtl_ds *dbuf_p;
 	struct lu_phy_attr *lu;
 };
@@ -509,7 +511,7 @@ void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);
 char *readline(char *s, int len, FILE *f);
 void blank_fill(uint8_t *dest, char *src, int len);
 
-void log_opcode(char *opcode, uint8_t *SCpnt, struct vtl_ds *dbuf_p);
+void log_opcode(char *opcode, struct scsi_cmd *cmd);
 
 struct vpd *alloc_vpd(uint16_t sz);
 pid_t add_lu(int minor, struct vtl_ctl *ctl);
@@ -520,7 +522,7 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *dbuf_p);
 void get_sn_inquiry(int, struct vtl_sn_inquiry *);
 int check_for_running_daemons(int minor);
 
-void mhvtl_prt_cdb(int l, uint64_t sn, uint8_t * cdb);
+void mhvtl_prt_cdb(int l, struct scsi_cmd *cmd);
 void checkstrlen(char *s, unsigned int len);
 extern int device_type_register(struct lu_phy_attr *lu,
 					struct device_type_template *t);

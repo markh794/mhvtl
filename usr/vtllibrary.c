@@ -276,7 +276,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	cmd->dbuf_p = dbuf_p;
 	cmd->lu = &lunit;
 
-	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
+	MHVTL_DBG_PRT_CDB(1, cmd);
 
 	switch (cdb[0]) {
 	case REPORT_LUNS:

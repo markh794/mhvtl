@@ -540,13 +540,13 @@ uint8_t ssc_a3_service_action(struct scsi_cmd *cmd)
 {
 	switch (cmd->scb[1]) {
 	case MANAGEMENT_PROTOCOL_IN:
-		log_opcode("MANAGEMENT PROTOCOL IN **", cmd->scb, cmd->dbuf_p);
+		log_opcode("MANAGEMENT PROTOCOL IN **", cmd);
 		break;
 	case REPORT_ALIASES:
-		log_opcode("REPORT ALIASES **", cmd->scb, cmd->dbuf_p);
+		log_opcode("REPORT ALIASES **", cmd);
 		break;
 	}
-	log_opcode("Unknown service action A3 **", cmd->scb, cmd->dbuf_p);
+	log_opcode("Unknown service action A3 **", cmd);
 	return cmd->dbuf_p->sam_stat;
 }
 
@@ -554,16 +554,16 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd)
 {
 	switch (cmd->scb[1]) {
 	case MANAGEMENT_PROTOCOL_OUT:
-		log_opcode("MANAGEMENT PROTOCOL OUT **", cmd->scb, cmd->dbuf_p);
+		log_opcode("MANAGEMENT PROTOCOL OUT **", cmd);
 		break;
 	case CHANGE_ALIASES:
-		log_opcode("CHANGE ALIASES **", cmd->scb, cmd->dbuf_p);
+		log_opcode("CHANGE ALIASES **", cmd);
 		break;
 	case FORCED_EJECT:
-		log_opcode("FORCED EJECT **", cmd->scb, cmd->dbuf_p);
+		log_opcode("FORCED EJECT **", cmd);
 		break;
 	}
-	log_opcode("Unknown service action A4 **", cmd->scb, cmd->dbuf_p);
+	log_opcode("Unknown service action A4 **", cmd);
 	return cmd->dbuf_p->sam_stat;
 }
 
@@ -873,7 +873,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			break;
 
 		default:
-			MHVTL_DBG_PRT_CDB(1, cmd->dbuf_p->serialNo, cmd->scb);
+			MHVTL_DBG_PRT_CDB(1, cmd);
 			MHVTL_DBG(1, "Mode page 0x%02x not handled", buf[i]);
 			break;
 		}

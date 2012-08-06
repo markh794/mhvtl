@@ -61,11 +61,11 @@ extern int verbose;
 			__func__, ## arg);			\
 }
 
-#define MHVTL_DBG_PRT_CDB(lvl, sn, cdb) {			\
+#define MHVTL_DBG_PRT_CDB(lvl, cmd) {				\
 	if (debug) {						\
-		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
+		mhvtl_prt_cdb((lvl), (cmd));			\
 	} else if ((verbose & MHVTL_OPT_NOISE) >= (lvl)) {	\
-		mhvtl_prt_cdb((lvl), (sn), (cdb));		\
+		mhvtl_prt_cdb((lvl), (cmd));			\
 	}							\
 }
 
@@ -73,7 +73,7 @@ extern int verbose;
 
 #define MHVTL_DBG(lvl, s...)
 #define MHVTL_DBG_NO_FUNC(lvl, s...)
-#define MHVTL_DBG_PRT_CDB(lvl, sn, cdb)
+#define MHVTL_DBG_PRT_CDB(lvl, cmd)
 
 #define MHVTL_ERR(format, arg...) {			\
 	syslog(LOG_DAEMON|LOG_ERR, "ERROR: %s(): " format,	\

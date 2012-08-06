@@ -100,56 +100,66 @@ static struct state_description {
 uint8_t sense[SENSE_BUF_SIZE];
 uint8_t modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
 
-void mhvtl_prt_cdb(int lvl, uint64_t sn, uint8_t *cdb)
+void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 {
 	int groupCode;
+	uint64_t sn = cmd->dbuf_p->serialNo;
+	uint8_t *cdb = cmd->scb;
+	uint64_t delay = (uint64_t)cmd->pollInterval;
 
 	groupCode = (cdb[0] & 0xe0) >> 5;
 	switch (groupCode) {
 	case 0:	/*  6 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
 				"%02x %02x %02x %02x %02x %02x",
-			sn, cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5]);
+			sn, delay,
+			cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5]);
 		break;
 	case 1: /* 10 byte commands */
 	case 2: /* 10 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
 			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x",
-			sn, cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, delay,
+			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9]);
 		break;
 	case 3: /* Reserved - There is always one exception ;) */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
 			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x",
-			sn, cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, delay,
+			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 4: /* 16 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
 			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-			sn, cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, delay,
+			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9], cdb[10], cdb[11],
 			cdb[12], cdb[13], cdb[14], cdb[15]);
 		break;
 	case 5: /* 12 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
 			"%02x %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x",
-			sn, cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, delay,
+			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5], cdb[6], cdb[7],
 			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 6: /* Vendor Specific */
 	case 7: /* Vendor Specific */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") VENDOR SPECIFIC !! "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld), "
+					"VENDOR SPECIFIC !! "
 			" %02x %02x %02x %02x %02x %02x",
-			sn, cdb[0], cdb[1], cdb[2], cdb[3],
+			sn, delay,
+			cdb[0], cdb[1], cdb[2], cdb[3],
 			cdb[4], cdb[5]);
 		break;
 	}
@@ -689,11 +699,11 @@ char *get_version(void)
 	return c;
 }
 
-void log_opcode(char *opcode, uint8_t *cdb, struct vtl_ds *dbuf_p)
+void log_opcode(char *opcode, struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "*** Unsupported op code: %s ***", opcode);
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &dbuf_p->sam_stat);
-	MHVTL_DBG_PRT_CDB(1, dbuf_p->serialNo, cdb);
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &cmd->dbuf_p->sam_stat);
+	MHVTL_DBG_PRT_CDB(1, cmd);
 }
 
 /*
