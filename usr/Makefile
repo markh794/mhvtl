@@ -83,7 +83,7 @@ dump_messageQ:	libvtlscsi.so dump_messageQ.o
 	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.o -L. -lvtlscsi
 
 vtlcmd:	vtlcmd.o
-	$(CC) $(CFLAGS) -o vtlcmd vtlcmd.o
+	$(CC) $(CFLAGS) -o vtlcmd vtlcmd.o -L. -lvtlcart -lvtlscsi
 
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
 		../kernel/vtl_common.h

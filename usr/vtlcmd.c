@@ -49,10 +49,17 @@
 #include "vtllib.h"
 
 long my_id = VTLCMD_Q;
+char vtl_driver_name[] = "vtlcmd";
+int verbose = 0;
+int debug = 0;
 
 #define TYPE_UNKNOWN 0
 #define TYPE_LIBRARY 1
 #define TYPE_DRIVE 2
+
+extern char home_directory[HOME_DIR_PATH_SZ + 1];
+
+void find_media_home_directory(char *home_directory, int lib_id);
 
 void usage(char *prog)
 {
@@ -85,12 +92,13 @@ void usage(char *prog)
 }
 
 /* check if media (tape) exists in directory (/opt/mhvtl/..) */
-int check_media(char *barcode)
+int check_media(int libno, char *barcode)
 {
 	char currentMedia[1024];
 	int datafile;
 
-	snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", MHVTL_HOME_PATH, barcode);
+	find_media_home_directory(home_directory, libno);
+	snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", home_directory, barcode);
 	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
 	if (datafile < 0) {
 		fprintf(stderr, "Could not open %s: %s\n",
@@ -503,7 +511,7 @@ int main(int argc, char **argv)
 	/* Check for the existance of a datafile first - abort if not there */
 	if (device_type == TYPE_LIBRARY) {
 		if (!strcmp(argv[2], "load") && !strcmp(argv[3], "map")) {
-			if (check_media(argv[4])) {
+			if (check_media(deviceNo, argv[4])) {
 				fprintf(stderr, "Hint: Use command 'mktape' to "
 					"create media first\n");
 				exit(1);
