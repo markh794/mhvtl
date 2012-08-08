@@ -1,3 +1,9 @@
+* Wed Aug 08 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-1
+- Bug fix:
+  Fix dump_tape to understand new library subdirectory format
+  Fix vtlcmd to understand new library subdirectory format
+
 * Wed Aug 01 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-0
 - Allow 'default' personality module to load all media R/W
