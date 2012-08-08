@@ -82,6 +82,9 @@
 #define TAPE_UNLOADED 0
 #define TAPE_LOADED 1
 
+#define MIN_SLEEP_TIME 5
+#define DEFLT_BACKOFF_VALUE 400
+
 #define HOME_DIR_PATH_SZ 64
 /*
  * Medium Type Definations

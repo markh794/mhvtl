@@ -121,7 +121,7 @@ long my_id;
  * Each empty poll of kernel module, add backoff to sleep time
  * and call usleep() before polling again.
  */
-long backoff = 0;
+long backoff;
 static useconds_t cumul_pollInterval;
 
 int library_id = 0;
@@ -2402,6 +2402,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	lu->fifo_flag = 0;
 	lu->ptype = TYPE_TAPE;
 
+	backoff = DEFLT_BACKOFF_VALUE;
+
 	/* Default inquiry bits */
 	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
 	lu->inquiry[0] = TYPE_TAPE;	/* SSC device */
@@ -2481,12 +2483,9 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				MHVTL_DBG(2, "Library ID: %d", library_id);
 			}
 			if (sscanf(b, " Backoff: %d", &i)) {
-				if ((i > 0) && (i < 10000)) {
+				if ((i > 1) && (i < 10000)) {
 					MHVTL_DBG(1, "Backoff value: %d", i);
 					backoff = i;
-				} else {
-					MHVTL_LOG("Backoff defaulting to 1000");
-					backoff = 1000;
 				}
 			}
 			if (sscanf(b, " Compression type: %s", s)) {
@@ -2559,7 +2558,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	update_vpd_83(lu, NULL);
 
 	if ((backoff < 10) || (backoff > 10000)) {
-		backoff = 1000;
+		backoff = DEFLT_BACKOFF_VALUE;
 		MHVTL_LOG("Set default backoff value to %ld", backoff);
 	}
 
@@ -2905,7 +2904,7 @@ int main(int argc, char *argv[])
 					memcpy(cmd, &vtl_cmd, sizeof(vtl_cmd));
 					process_cmd(cdev, buf, cmd, sleep_time);
 					/* Something to do, reduce poll time */
-					sleep_time = 10;
+					sleep_time = MIN_SLEEP_TIME;
 					free(cmd);
 				}
 				break;

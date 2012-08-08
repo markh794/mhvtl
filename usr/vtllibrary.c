@@ -83,6 +83,7 @@ long my_id = 0;
 int verbose = 0;
 int debug = 0;
 static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
+long backoff;	/* Backoff value for polling char device */
 
 extern int current_state;	/* scope, Global -> Last status sent to fifo */
 
@@ -987,6 +988,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	struct vtl_ctl tmpctl;
 	int found = 0;
 
+	backoff = DEFLT_BACKOFF_VALUE;
+
 	/* Configure default inquiry data */
 	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
 	lu->inquiry[0] = TYPE_MEDIUM_CHANGER;	/* SMC device */
@@ -1070,13 +1073,16 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 			}
 			if (sscanf(b, " fifo: %s", s))
 				process_fifoname(lu, s, 0);
-
 			if (sscanf(b, " movecommand: %s", s))
 				smc_slots.movecommand = strndup(s, MALLOC_SZ);
-
 			if (sscanf(b, " commandtimeout: %d", &d))
 				smc_slots.commandtimeout = d;
-
+			if (sscanf(b, " Backoff: %d", &i)) {
+				if ((i > 1) && (i < 10000)) {
+					MHVTL_DBG(1, "Backoff value: %d", i);
+					backoff = i;
+				}
+			}
 			i = sscanf(b,
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
@@ -1616,14 +1622,14 @@ int main(int argc, char *argv[])
 			switch(ret) {
 			case VTL_QUEUE_CMD:
 				process_cmd(cdev, buf, &vtl_cmd);
-				pollInterval = 10;
+				pollInterval = MIN_SLEEP_TIME;
 				break;
 
 			case VTL_IDLE:
-				if (pollInterval < 1000000)
-					pollInterval += 4000;
-
 				usleep(pollInterval);
+
+				if (pollInterval < 1000000)
+					pollInterval += backoff;
 				break;
 
 			default:
