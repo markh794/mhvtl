@@ -1570,6 +1570,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 			useconds_t pollInterval)
 {
 	static int last_count;
+	static uint64_t tot_delay;
 	struct scsi_cmd _cmd;
 	struct scsi_cmd *cmd;
 	cmd = &_cmd;
@@ -1585,15 +1586,19 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 
 	if ((cdb[0] == READ_6 || cdb[0] == WRITE_6) && cdb[0] == last_cmd) {
 		MHVTL_DBG_PRT_CDB(2, cmd);
+		tot_delay += cmd->pollInterval;
 		if ((++last_count % 50) == 0) {
-			MHVTL_DBG(1, "%dth contiguous %s request (%ld) ",
+			MHVTL_DBG(1, "%dth contiguous %s request (%ld) "
+					"(delay %ld)",
 				last_count,
 				last_cmd == READ_6 ? "READ_6" : "WRITE_6",
-				(long)dbuf_p->serialNo);
+				(long)dbuf_p->serialNo, tot_delay);
+			tot_delay = 0;
 		}
 	} else {
 		MHVTL_DBG_PRT_CDB(1, cmd);
 		last_count = 0;
+		tot_delay = 0;
 	}
 
 	/* Limited subset of commands don't need to check for power-on reset */
