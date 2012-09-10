@@ -120,6 +120,31 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 	return ret_stat;
 }
 
+uint8_t ssc_log_select(struct scsi_cmd *cmd)
+{
+	uint8_t sam_status;
+	uint8_t pcr = cmd->scb[1] & 0x2;	/* Parameter code reset */
+	struct priv_lu_ssc *lu_priv;
+
+	lu_priv = cmd->lu->lu_private;
+
+	sam_status = spc_log_select(cmd);
+	if (sam_status)	/* spc_log_select() failed - return */
+		return sam_status;
+
+	if (pcr) {
+		switch ((cmd->scb[2] & 0xc0) >> 6) {
+		case 3:
+			lu_priv->bytesRead_I = 0;
+			lu_priv->bytesRead_M = 0;
+			lu_priv->bytesWritten_I = 0;
+			lu_priv->bytesWritten_M = 0;
+			break;
+		}
+	}
+	return SAM_STAT_GOOD;
+}
+
 uint8_t ssc_read_6(struct scsi_cmd *cmd)
 {
 	uint8_t *cdb = cmd->scb;
