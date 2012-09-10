@@ -266,7 +266,8 @@ __attribute__((constructor)) static void smc_init(void)
  * Return:
  *	SAM status returned in struct vtl_ds.sam_stat
  */
-static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
+static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
+			useconds_t pollInterval)
 {
 	struct scsi_cmd _cmd;
 	struct scsi_cmd *cmd;
@@ -276,6 +277,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p)
 	cmd->scb_len = 16;	/* fixme */
 	cmd->dbuf_p = dbuf_p;
 	cmd->lu = &lunit;
+	cmd->pollInterval = pollInterval;
 
 	MHVTL_DBG_PRT_CDB(1, cmd);
 
@@ -1199,7 +1201,8 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 	return found;
 }
 
-static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
+static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd,
+			useconds_t pollInterval)
 {
 	struct vtl_ds dbuf;
 	uint8_t *cdb;
@@ -1218,7 +1221,7 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd)
 	dbuf.sam_stat = sam_status;
 	dbuf.sense_buf = &sense;
 
-	processCommand(cdev, cdb, &dbuf);
+	processCommand(cdev, cdb, &dbuf, pollInterval);
 
 	/* Complete SCSI cmd processing */
 	completeSCSICommand(cdev, &dbuf);
@@ -1621,7 +1624,7 @@ int main(int argc, char *argv[])
 			fflush(NULL);	/* So I can pipe debug o/p thru tee */
 			switch(ret) {
 			case VTL_QUEUE_CMD:
-				process_cmd(cdev, buf, &vtl_cmd);
+				process_cmd(cdev, buf, &vtl_cmd, pollInterval);
 				pollInterval = MIN_SLEEP_TIME;
 				break;
 
