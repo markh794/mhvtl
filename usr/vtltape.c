@@ -1589,7 +1589,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 		tot_delay += cmd->pollInterval;
 		if ((++last_count % 50) == 0) {
 			MHVTL_DBG(1, "%dth contiguous %s request (%ld) "
-					"(delay %ld)",
+					"(delay %" PRId64 ")",
 				last_count,
 				last_cmd == READ_6 ? "READ_6" : "WRITE_6",
 				(long)dbuf_p->serialNo, tot_delay);
