@@ -110,14 +110,14 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 	groupCode = (cdb[0] & 0xe0) >> 5;
 	switch (groupCode) {
 	case 0:	/*  6 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
 				"%02x %02x %02x %02x %02x %02x",
 			sn, delay,
 			cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5]);
 		break;
 	case 1: /* 10 byte commands */
 	case 2: /* 10 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
 			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x",
 			sn, delay,
@@ -126,7 +126,7 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 			cdb[8], cdb[9]);
 		break;
 	case 3: /* Reserved - There is always one exception ;) */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
 			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x",
 			sn, delay,
@@ -135,7 +135,7 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 			cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 4: /* 16 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
 			"%02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
 			sn, delay,
@@ -145,7 +145,7 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 			cdb[12], cdb[13], cdb[14], cdb[15]);
 		break;
 	case 5: /* 12 byte commands */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld): "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
 			"%02x %02x %02x %02x %02x %02x %02x"
 			" %02x %02x %02x %02x %02x",
 			sn, delay,
@@ -155,7 +155,7 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 		break;
 	case 6: /* Vendor Specific */
 	case 7: /* Vendor Specific */
-		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %ld), "
+		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "), "
 					"VENDOR SPECIFIC !! "
 			" %02x %02x %02x %02x %02x %02x",
 			sn, delay,

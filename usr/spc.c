@@ -451,7 +451,8 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 {
 	uint8_t *cdb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	char pcr = cdb[1] & 0x1;
+	char sp = cdb[1] & 0x1; /* Save Parameters */
+	char pcr = cdb[1] & 0x2; /* Parameter Code Reset */
 	uint16_t parmList;
 	char *parmString = "Undefined";
 
@@ -460,6 +461,11 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "LOG SELECT (%ld) %s",
 				(long)cmd->dbuf_p->serialNo,
 				(pcr) ? ": Parameter Code Reset **" : "**");
+	if (sp) {
+		MHVTL_DBG(1, " Log Select - Save Parameters not supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	if (pcr) {	/* Check for Parameter code reset */
 		if (parmList) {	/* If non-zero, error */
@@ -467,7 +473,7 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 						sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
-		switch ((cdb[2] & 0xc0) >> 5) {
+		switch ((cdb[2] & 0xc0) >> 6) {
 		case 0:
 			parmString = LOG_SELECT_00;
 			break;
