@@ -1,3 +1,9 @@
+* Wed Sep 12 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-3
+- Add 'performance' counter to vtllibrary
+- Fix off-by-one error in LOG SELECT
+- Implement LOG reset via PCR bit in LOG SELECT
+
 * Sat Sep 01 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-2
 - Add 'performance' counter to each SCSI op code logged
