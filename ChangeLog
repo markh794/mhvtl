@@ -1,3 +1,9 @@
+* Thu Sep 13 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-4
+- Fix a build issue on older (SLES9) linux distributions
+- Silence a compiler warning about uninitialised var 'month' in quantum PM
+- Note: 1.4-2 & 1.4-3 never made it as released packages.
+
 * Wed Sep 12 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-3
 - Add 'performance' counter to vtllibrary
