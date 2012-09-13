@@ -88,6 +88,7 @@ static void update_vpd_dlt_c0(struct lu_phy_attr *lu)
 
 	vpd_p = lu->lu_vpd[PCODE_OFFSET(0xc0)];
 	data = vpd_p->data;
+	month = 0;
 
 	sscanf(__TIME__, "%d:%d:%d", &h, &m, &s);
 	if (sscanf(__DATE__, "Jan %d %d", &day, &year) == 2)
