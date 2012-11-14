@@ -21,9 +21,9 @@ struct ssc_personality_template {
 	char *name;
 	int drive_type;
 
-	uint8_t drive_supports_append_only_mode;
-	uint8_t drive_supports_early_warning;
-	uint8_t drive_supports_prog_early_warning;
+	uint32_t drive_supports_append_only_mode:1;
+	uint32_t drive_supports_early_warning:1;
+	uint32_t drive_supports_prog_early_warning:1;
 
 	struct density_info *native_drive_density;
 
