@@ -316,6 +316,7 @@ static struct scsi_host_template vtl_driver_template = {
 	.unchecked_isa_dma = 	0,
 	.use_clustering = 	ENABLE_CLUSTERING,
 	.module =		THIS_MODULE,
+	.ordered_tag =		1,
 };
 
 static struct file_operations vtl_fops = {
@@ -1089,13 +1090,13 @@ opts_done:
 	vtl_cmnd_count = 0;
 	return count;
 }
-DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, vtl_opts_show, vtl_opts_store);
+static DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, vtl_opts_show, vtl_opts_store);
 
 static ssize_t vtl_major_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_major);
 }
-DRIVER_ATTR(major, S_IRUGO, vtl_major_show, NULL);
+static DRIVER_ATTR(major, S_IRUGO, vtl_major_show, NULL);
 
 static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 				     const char *buf, size_t count)
@@ -1121,7 +1122,7 @@ static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 
 	return count;
 }
-DRIVER_ATTR(add_lu, S_IWUSR|S_IWGRP, NULL, vtl_add_lu_action);
+static DRIVER_ATTR(add_lu, S_IWUSR|S_IWGRP, NULL, vtl_add_lu_action);
 
 static int do_create_driverfs_files(void)
 {
@@ -1233,7 +1234,7 @@ static void __exit vtl_exit(void)
 device_initcall(mhvtl_init);
 module_exit(vtl_exit);
 
-void pseudo_0_release(struct device *dev)
+static void pseudo_0_release(struct device *dev)
 {
 	MHVTL_DBG(1, "pseudo_0_release() called\n");
 }
@@ -1503,9 +1504,9 @@ give_up:
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
-DEFINE_SEMAPHORE(tmp_mutex);
+static DEFINE_SEMAPHORE(tmp_mutex);
 #else
-DECLARE_MUTEX(tmp_mutex);
+static DECLARE_MUTEX(tmp_mutex);
 #endif
 
 static int vtl_remove_lu(int minor, char __user *arg)
@@ -1553,7 +1554,7 @@ give_up:
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
-DEFINE_MUTEX(ioctl_mutex);
+static DEFINE_MUTEX(ioctl_mutex);
 #endif
 
 static long vtl_c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
