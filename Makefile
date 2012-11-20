@@ -47,7 +47,7 @@ kernel: patch
 	$(MAKE) -C kernel
 
 .PHONY:check
-check:	ARCH=$(shell sh script/checkarch.sh)
+check:	ARCH=$(shell sh scripts/checkarch.sh)
 check:
 	CC=$(CHECK_CC_FLAGS) $(MAKE) all
 
