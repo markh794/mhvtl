@@ -47,7 +47,8 @@ void usage(char *progname) {
 	printf("           DDS1     DDS2     DDS3     DDS4\n");
 	printf("           DLT3     DLT4\n");
 	printf("           SDLT1    SDLT220  SDLT320  SDLT600\n");
-	printf("           LTO1     LTO2     LTO3     LTO4     LTO5\n");
+	printf("           LTO1     LTO2     LTO3     LTO4\n");
+	printf("           LTO5     LTO6\n");
 	printf("           T10KA    T10KB    T10KC\n");
 	printf("           9840A    9840B    9840C    9840D\n");
 	printf("           9940A    9940B\n");
@@ -120,13 +121,13 @@ static unsigned int set_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(15142, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO6", 4))) { /* FIXME */
 		mamp->MediumDensityCode = medium_density_code_lto6;
-		mamp->MediaType = Media_LTO5;
-		put_unaligned_be32(1280, &mamp->MediumLength);
+		mamp->MediaType = Media_LTO6;
+		put_unaligned_be32(2176, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
-		memcpy(&mamp->media_info.description, "Ultrium 6/8T", 12);
+		memcpy(&mamp->media_info.description, "Ultrium 6/16T", 13);
 		memcpy(&mamp->media_info.density_name, "U-616  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
-		put_unaligned_be32(12725, &mamp->media_info.bits_per_mm);
+		put_unaligned_be32(18441, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT1", 4))) {
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
 		mamp->MediumDensityCode = medium_density_code_ait1;

@@ -271,7 +271,8 @@ MAP 4:
 # Trailing "S3" - SDLT600
 # Trailing "X4" - AIT-4
 # Trailing "L1" - LTO 1, "L2" - LTO 2, "L3" - LTO 3, "L4" - LTO 4, "L5" - LTO 5
-# Training "LT" - LTO 3 WORM, "LU" LTO 4 WORM, "LV" LTO 5 WORM
+# Trailing "LT" - LTO 3 WORM, "LU" -  LTO 4 WORM, "LV" - LTO 5 WORM
+# Trailing "L6" - LTO 6, "LW" - LTO 6 WORM
 # Trailing "TA" - T10000+
 # Trailing "JA" - 3592+
 # Trailing "JB" - 3592E05+

@@ -91,7 +91,8 @@ struct blk_header {
 #define medium_density_code_lto4_WORM	0x4C
 #define medium_density_code_lto5	0x58
 #define medium_density_code_lto5_WORM	0x5C
-#define medium_density_code_lto6	0x4a
+#define medium_density_code_lto6	0x5a
+#define medium_density_code_lto6_WORM	0x5a
 #define medium_density_code_j1a		0x51
 #define medium_density_code_e05		0x52
 #define medium_density_code_e06		0x53
@@ -143,6 +144,8 @@ struct blk_header {
 #define media_type_lto4_worm	0x4C
 #define media_type_lto5_data	0x58
 #define media_type_lto5_worm	0x5c
+#define media_type_lto6_data	0x68
+#define media_type_lto6_worm	0x6c
 
 #define LZO	1	/* Using lzo compression libraries */
 #define ZLIB	2	/* Using zlib compression libraries */

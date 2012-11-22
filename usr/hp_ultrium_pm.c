@@ -49,20 +49,23 @@
 #include "log.h"
 
 static struct density_info density_lto1 = {
-	4880, 127, 384, 80000, medium_density_code_lto1,
+	4880, 127, 384, 10000, medium_density_code_lto1,
 			"LTO-CVE", "U-18", "Ultrium 1/8T" };
 static struct density_info density_lto2 = {
-	4880, 127, 512, 80000, medium_density_code_lto2,
+	4880, 127, 512, 20000, medium_density_code_lto2,
 			"LTO-CVE", "U-28", "Ultrium 2/8T" };
 static struct density_info density_lto3 = {
-	9638, 127, 704, 80000, medium_density_code_lto3,
+	9638, 127, 704, 381469, medium_density_code_lto3,
 			"LTO-CVE", "U-316", "Ultrium 3/16T" };
 static struct density_info density_lto4 = {
 	12725, 127, 896, 80000, medium_density_code_lto4,
 			"LTO-CVE", "U-416", "Ultrium 4/16T" };
 static struct density_info density_lto5 = {
-	15142, 127, 1280, 80000, medium_density_code_lto5,
+	15142, 127, 1280, 1500000, medium_density_code_lto5,
 			"LTO-CVE", "U-516", "Ultrium 5/16T" };
+static struct density_info density_lto6 = {
+	18441, 127, 2176, 3200000, medium_density_code_lto6,
+			"LTO-CVE", "U-616", "Ultrium 6/16T" };
 
 static uint8_t clear_ult_compression(struct list_head *m)
 {
@@ -382,6 +385,7 @@ static char *pm_name_lto2 = "HP LTO-2";
 static char *pm_name_lto3 = "HP LTO-3";
 static char *pm_name_lto4 = "HP LTO-4";
 static char *pm_name_lto5 = "HP LTO-5";
+static char *pm_name_lto6 = "HP LTO-6";
 
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk, /* default in ssc.c */
@@ -648,4 +652,71 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RO, "LTO5 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO5 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO5 ENCR");
+}
+
+void init_hp_ult_6(struct lu_phy_attr *lu)
+{
+	init_ult_inquiry(lu);
+	ssc_pm.name = pm_name_lto6;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_encryption_mode_attribute(lu);
+
+	/* Supports non-zero programable early warning */
+	update_prog_early_warning(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
+	ssc_pm.native_drive_density = &density_lto6;
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
+	ssc_pm.encryption_capabilities = encr_capabilities_ult,
+	ssc_pm.kad_validation = hp_lto_kad_validation,
+	ssc_pm.clear_WORM = clear_ult_WORM,
+	ssc_pm.set_WORM = set_ult_WORM,
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
+	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
+	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	add_density_support(&lu->den_list, &density_lto4, 0);
+	add_density_support(&lu->den_list, &density_lto5, 1);
+	add_density_support(&lu->den_list, &density_lto6, 1);
+	add_drive_media_list(lu, LOAD_RO, "LTO4");
+	add_drive_media_list(lu, LOAD_RO, "LTO4 Clean");
+	add_drive_media_list(lu, LOAD_RO, "LTO4 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO5");
+	add_drive_media_list(lu, LOAD_RO, "LTO5 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO5 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO5 ENCR");
+	add_drive_media_list(lu, LOAD_RW, "LTO6");
+	add_drive_media_list(lu, LOAD_RO, "LTO6 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO6 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO6 ENCR");
 }
