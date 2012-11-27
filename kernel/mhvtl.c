@@ -102,7 +102,7 @@ struct scatterlist;
 #ifndef MHVTL_VERSION
 #define MHVTL_VERSION "0.18.11"
 #endif
-static const char *vtl_version_date = "20110801-0";
+static const char *vtl_version_date = "20121129-0";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
