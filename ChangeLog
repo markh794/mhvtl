@@ -1,3 +1,9 @@
+* Sat Jan 12 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-5
+- Added support for LTO-6
+- Fix EOM handling
+- Fix data returned in TAPE CAPACITY log page
+
 * Thu Sep 13 2012 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-4
 - Fix a build issue on older (SLES9) linux distributions
