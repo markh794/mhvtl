@@ -1574,10 +1574,12 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		if (lu_ssc->tapeLoaded == TAPE_LOADED) {
 			uint64_t cap;
 
-			cap = mam.remaining_capacity / lu_ssc->capacity_unit;
+			cap = get_unaligned_be64(&mam.remaining_capacity);
+			cap /= lu_ssc->capacity_unit;
 			put_unaligned_be64(cap, &tp->value01);
 
-			cap = mam.max_capacity / lu_ssc->capacity_unit;
+			cap = get_unaligned_be64(&mam.max_capacity);
+			cap /= lu_ssc->capacity_unit;
 			put_unaligned_be64(cap, &tp->value03);
 		} else {
 			tp->value01 = 0;
