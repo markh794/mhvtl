@@ -1104,6 +1104,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	struct priv_lu_ssc *lu_priv;
 	int src_len;
 	uint64_t current_position;
+	int64_t remaining_capacity;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
@@ -1128,24 +1129,24 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	current_position = current_tape_offset();
 
-	if (current_position <= (uint64_t)lu_priv->prog_early_warning_position) {
-		put_unaligned_be64(lu_priv->max_capacity - current_position,
-						&mam.remaining_capacity);
-	} else if ((lu_priv->pm->drive_supports_early_warning) &&
+	if ((lu_priv->pm->drive_supports_early_warning) &&
 			(current_position >= (uint64_t)lu_priv->early_warning_position)) {
-		mam.remaining_capacity = 0L;
-		MHVTL_DBG(1, "End of Medium (early warning) - Setting EOM flag");
+		MHVTL_DBG(1, "End of Medium - Early Warning");
 		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	} else if ((lu_priv->pm->drive_supports_prog_early_warning) &&
 			(current_position >= (uint64_t)lu_priv->prog_early_warning_position)) {
 		/* FIXME: Need to implement REW bit in Device Configuration Mode Page
 		 *	  REW == Report Early Warning
 		 */
-		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - Programmable Early Warning");
 		mkSenseBuf(NO_SENSE | SD_EOM,
 					E_PROGRAMMABLE_EARLY_WARNING, sam_stat);
 	}
+	remaining_capacity = lu_priv->max_capacity - current_position;
+	if (remaining_capacity < 0)
+		remaining_capacity = 0L;
+
+	put_unaligned_be64(remaining_capacity, &mam.remaining_capacity);
 
 	return src_len;
 }
