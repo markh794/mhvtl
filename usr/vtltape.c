@@ -1107,6 +1107,16 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+	src_len = 0;
+
+	/* Check if we hit EOT and fail before attempting to write */
+	current_position = current_tape_offset();
+	if (current_position >= lu_priv->max_capacity) {
+		mam.remaining_capacity = 0L;
+		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
+		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
+		return src_len;
+	}
 
 	if (lu_priv->compressionType == LZO)
 		src_len = writeBlock_lzo(cmd, src_sz);
@@ -1121,10 +1131,6 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (current_position <= (uint64_t)lu_priv->prog_early_warning_position) {
 		put_unaligned_be64(lu_priv->max_capacity - current_position,
 						&mam.remaining_capacity);
-	} else if (current_position >= lu_priv->max_capacity) {
-		mam.remaining_capacity = 0L;
-		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
-		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
 	} else if ((lu_priv->pm->drive_supports_early_warning) &&
 			(current_position >= (uint64_t)lu_priv->early_warning_position)) {
 		mam.remaining_capacity = 0L;
