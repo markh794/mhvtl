@@ -1561,7 +1561,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, "%s %s", msg, "Tape Capacity page");
 		struct TapeCapacity *tp;
 
-		l = lookup_log_pg(&lu->log_pg, TAPE_USAGE);
+		l = lookup_log_pg(&lu->log_pg, TAPE_CAPACITY);
 		if (!l)
 			goto log_page_not_found;
 
