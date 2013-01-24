@@ -52,7 +52,7 @@ CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
-	mktape vtllibrary make_vtl_media tapeexerciser
+	mktape edit_tape vtllibrary make_vtl_media tapeexerciser
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 		subprocess.c subprocess.h \
@@ -93,6 +93,10 @@ dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
 mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o mktape mktape.o -L. -lvtlcart -lvtlscsi
+
+edit_tape:	edit_tape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
+		../kernel/vtl_common.h
+	$(CC) $(CFLAGS) -o edit_tape edit_tape.o -L. -lvtlcart -lvtlscsi
 
 vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		libvtlscsi.so \
@@ -137,7 +141,9 @@ clean:
 		stk9x40_pm.o \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		dump_messageQ dump_tape make_vtl_media \
+		edit_tape.o
+		dump_messageQ make_vtl_media \
+		dump_tape edit_tape \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
 
 tags:
@@ -146,6 +152,7 @@ tags:
 distclean:
 	rm -f vtltape.o vtltape \
 	dump_tape.o dump_tape \
+	edit_tape.o edit_tape \
 	q.o q \
 	vtlcmd.o vtlcmd \
 	dump_messageQ.o dump_messageQ \
@@ -179,6 +186,7 @@ install:
 	install -o $(USR) -g $(GROUP) -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
 	install -o $(USR) -g $(GROUP) -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
 	install -o $(USR) -g $(GROUP) -m 750 dump_tape $(DESTDIR)$(PREFIX)/bin/
+	install -o $(USR) -g $(GROUP) -m 750 edit_tape $(DESTDIR)$(PREFIX)/bin/
 	install -o $(USR) -g $(GROUP) -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
