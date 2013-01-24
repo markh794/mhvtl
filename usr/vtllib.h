@@ -557,4 +557,5 @@ int add_density_support(struct list_head *l, struct density_info *di, int rw);
 int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);
 
 void find_media_home_directory(char *home_directory, int lib_id);
+unsigned int set_media_params(struct MAM *mamp, char *density);
 #endif /*  _VTLLIB_H_ */
