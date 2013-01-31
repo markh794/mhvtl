@@ -75,6 +75,7 @@ fi
 %doc %{_mandir}/man1/build_library_config.1*
 %doc %{_mandir}/man1/mhvtl.1*
 %doc %{_mandir}/man1/mktape.1*
+%doc %{_mandir}/man1/edit_tape.1*
 %doc %{_mandir}/man1/vtlcmd.1*
 %doc %{_mandir}/man1/vtllibrary.1*
 %doc %{_mandir}/man1/vtltape.1*
@@ -85,6 +86,7 @@ fi
 %config %{_initrddir}/mhvtl
 %{_bindir}/vtlcmd
 %{_bindir}/mktape
+%{_bindir}/edit_tape
 %{_bindir}/dump_tape
 %{_bindir}/tapeexerciser
 %{_bindir}/build_library_config
