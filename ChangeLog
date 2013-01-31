@@ -1,3 +1,10 @@
+* Sat Jan 31 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-6
+- Return correct TAPE CAPACITY log page
+- Fix overflow TAPE CAPACITY log page
+- Fix potential vtltape segfault when 'block position back'
+- New utility 'edit_tape' to update virtual media metadata
+
 * Sat Jan 12 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-5
 - Added support for LTO-6
