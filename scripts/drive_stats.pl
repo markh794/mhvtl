@@ -76,7 +76,8 @@ while($line = <>) {
 			$read_errors = 0;
 		}
 	}
-	if ($last_drive) { # last loop make key.. This time around is the value
+	# last loop matched key.. This time around is the value
+	if ($last_drive) {
 		$last_drive_value = 1;
 	}
 	if ($line =~ /attribute\s0x020[abcd]/) { # Key match
