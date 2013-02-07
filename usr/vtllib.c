@@ -1405,5 +1405,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		printf("mamp->MediaType is still Media_undefined, exiting\n");
 		return 1;
 	}
+	mamp->FormattedDensityCode = mamp->MediumDensityCode;
 	return 0;
 }
