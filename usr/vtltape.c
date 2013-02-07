@@ -1543,32 +1543,48 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 /*
  * Update MAM contents with current counters
  */
-static void updateMAM(uint8_t *sam_stat, int loadCount)
+static void updateMAM(uint8_t *sam_stat, int load)
 {
 	uint64_t bw;		/* Bytes Written */
 	uint64_t br;		/* Bytes Read */
-	uint64_t load;	/* load count */
+	uint64_t load_count;	/* load count */
 
-	MHVTL_DBG(2, "updateMAM(%d)", loadCount);
+	MHVTL_DBG(2, "updateMAM(%s)", (load) ? "load" : "unload");
 
-	/* Update bytes written this load. */
-	put_unaligned_be64(lu_ssc.bytesWritten_I, &mam.WrittenInLastLoad);
-	put_unaligned_be64(lu_ssc.bytesRead_I, &mam.ReadInLastLoad);
+	/* Update on load */
+	if (load) {
+		mam.record_dirty = 1;
+		load_count = get_unaligned_be64(&mam.LoadCount);
+		load_count++;
+		put_unaligned_be64(load_count, &mam.LoadCount);
 
-	/* Update total bytes read/written */
-	bw = get_unaligned_be64(&mam.WrittenInMediumLife);
-	bw += lu_ssc.bytesWritten_I;
-	put_unaligned_be64(bw, &mam.WrittenInMediumLife);
+		memcpy(&mam.DevMakeSerialLastLoad3, &mam.DevMakeSerialLastLoad2,
+						40);
+		memcpy(&mam.DevMakeSerialLastLoad2, &mam.DevMakeSerialLastLoad1,
+						40);
+		memcpy(&mam.DevMakeSerialLastLoad1, &mam.DevMakeSerialLastLoad,
+						40);
+		/* Initialise with ' ' space char */
+		memset(&mam.DevMakeSerialLastLoad, 0x20, 40);
+		memcpy(&mam.DevMakeSerialLastLoad, &lunit.vendor_id,
+						VENDOR_ID_LEN);
+		memcpy(&mam.DevMakeSerialLastLoad[8], &lunit.lu_serial_no,
+						SCSI_SN_LEN);
+	} else { /* Update on unload */
+		mam.record_dirty = 0;
+		/* Update bytes written this load. */
+		put_unaligned_be64(lu_ssc.bytesWritten_I,
+						&mam.WrittenInLastLoad);
+		put_unaligned_be64(lu_ssc.bytesRead_I, &mam.ReadInLastLoad);
 
-	br = get_unaligned_be64(&mam.ReadInMediumLife);
-	br += lu_ssc.bytesRead_I;
-	put_unaligned_be64(br, &mam.ReadInMediumLife);
+		/* Update total bytes read/written */
+		bw = get_unaligned_be64(&mam.WrittenInMediumLife);
+		bw += lu_ssc.bytesWritten_I;
+		put_unaligned_be64(bw, &mam.WrittenInMediumLife);
 
-	/* Update load count */
-	if (loadCount) {
-		load = get_unaligned_be64(&mam.LoadCount);
-		load++;
-		put_unaligned_be64(load, &mam.LoadCount);
+		br = get_unaligned_be64(&mam.ReadInMediumLife);
+		br += lu_ssc.bytesRead_I;
+		put_unaligned_be64(br, &mam.ReadInMediumLife);
 	}
 
 	rewriteMAM(sam_stat);
@@ -1798,7 +1814,6 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		MHVTL_DBG(2, "Tape capacity: %" PRId64, lu_ssc.max_capacity);
 	}
 
-	mam.record_dirty = 1;
 	/* Increment load count */
 	updateMAM(sam_stat, 1);
 
@@ -1919,7 +1934,6 @@ void unloadTape(uint8_t *sam_stat)
 
 	switch (lu_ssc.tapeLoaded) {
 	case TAPE_LOADED:
-		mam.record_dirty = 0;
 		/* Don't update load count on unload -done at load time */
 		updateMAM(sam_stat, 0);
 		unload_tape(sam_stat);
