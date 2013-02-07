@@ -23,6 +23,8 @@ my $line;
 my $tape_usage = 0;
 my $read_errors = 0;
 my $write_errors = 0;
+my $last_drive = 0;
+my $last_drive_value = 0;
 
 my $write_bytes_initiator;
 my $write_bytes_media;
@@ -74,6 +76,13 @@ while($line = <>) {
 			$read_errors = 0;
 		}
 	}
+	if ($last_drive) { # last loop make key.. This time around is the value
+		$last_drive_value = 1;
+	}
+	if ($line =~ /attribute\s0x020[abcd]/) { # Key match
+		$last_drive = 1;
+		$last_drive_value = 0;
+	}
 
 	if ($tape_usage) {
 		if ($line =~ /parameter\s+code:\s+0x0000,\s+value:\s+(.*)/) {
@@ -112,6 +121,11 @@ while($line = <>) {
 			$total_write_retries = hex("$1");
 			print "Total write retries           : $total_write_retries\n";
 		}
+	}
+	if ($last_drive_value) {
+		print "Media previously mounted in  : $line\n";
+		$last_drive_value = 0;
+		$last_drive = 0;
 	}
 }
 
