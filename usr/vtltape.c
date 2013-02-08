@@ -1825,7 +1825,15 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		goto mismatchmedia;
 	}
 
-	MHVTL_DBG(2, "Density Status: 0x%x", m_detail->load_capability);
+	MHVTL_DBG(2, "Load Capability: 0x%02x", m_detail->load_capability);
+
+	/* If media write-protect & mount is permitted R/W -> set to RO */
+	if ((mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) &&
+				(m_detail->load_capability & LOAD_RW)) {
+			m_detail->load_capability |= LOAD_RO;
+			m_detail->load_capability &= ~LOAD_RW;
+			MHVTL_DBG(1, "Media write-protect flag set.");
+	}
 
 	/* Now check for WORM support */
 	if (mam.MediumType == MEDIA_TYPE_WORM) {

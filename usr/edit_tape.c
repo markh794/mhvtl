@@ -53,17 +53,23 @@ void *largefile_support = "No largefile support";
 char vtl_driver_name[] = "edit_tape";
 int verbose;
 int debug;
+int wp;	/* Write protect flag */
 long my_id;
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
+#define WRITE_PROTECT_OFF 1
+#define WRITE_PROTECT_ON  2
+
 void usage(char *progname)
 {
-	printf("Usage: %s -l lib -m PCL -s size -t type -d density\n",
+	printf("Usage: %s -l lib -m PCL [-s size] [-t type] [-d density]"
+		" [-w on|off]\n",
 					progname);
 	printf("       Where 'size' is in Megabytes\n");
 	printf("             'lib' is Library number\n");
 	printf("             'type' is data | clean | WORM\n");
 	printf("             'PCL' is Physical Cartridge Label (barcode)\n");
+	printf("             '-w on|off' enable/disable write protect flag\n");
 	printf("             'density' can be on of the following:\n");
 	printf("           AIT1     AIT2     AIT3     AIT4\n");
 	printf("           DDS1     DDS2     DDS3     DDS4\n");
@@ -110,6 +116,7 @@ int main(int argc, char *argv[])
 	debug = 0;
 	my_id = 0;
 	verbose = 0;
+	wp = 0;
 
 	while (argc > 0) {
 		if (argv[0][0] == '-') {
@@ -156,6 +163,19 @@ int main(int argc, char *argv[])
 				break;
 			case 'v':
 				verbose++;
+				break;
+			case 'w':
+				if (argc > 1) {
+					if (!strncasecmp("yes", argv[1], 3))
+						wp = WRITE_PROTECT_ON;
+					else if (!strncasecmp("on", argv[1], 3))
+						wp = WRITE_PROTECT_ON;
+					else
+						wp = WRITE_PROTECT_OFF;
+				} else {
+					puts("    More args needed for -m\n");
+					exit(1);
+				}
 				break;
 			}
 		}
@@ -227,7 +247,8 @@ int main(int argc, char *argv[])
 	size = 0L;
 	if (mediaCapacity) {
 		sscanf(mediaCapacity, "%" PRId64, &size);
-		printf("New capacity %ldMB\n", (unsigned long)size);
+		printf("New capacity for %s: %ldMB\n",
+					pcl, (unsigned long)size);
 	}
 
 	if (mediaType) {
@@ -259,12 +280,22 @@ int main(int argc, char *argv[])
 		 */
 		put_unaligned_be64(size * 1048576, &new_mam.remaining_capacity);
 	}
+	switch (wp) {
+	case WRITE_PROTECT_ON:
+		new_mam.Flags |= MAM_FLAGS_MEDIA_WRITE_PROTECT;
+		printf("Setting write-protect for %s\n", pcl);
+		break;
+	case WRITE_PROTECT_OFF:
+		new_mam.Flags &= ~MAM_FLAGS_MEDIA_WRITE_PROTECT;
+		printf("Turning off write-protect for %s\n", pcl);
+		break;
+	}
+
 	put_unaligned_be64(sizeof(mam.pad), &new_mam.MAMSpaceRemaining);
 
 	memcpy(&mam, &new_mam, sizeof(mam));
 	rewriteMAM(&sam_stat);
 	unload_tape(&sam_stat);
 
-	printf("Successfully updated %s\n", pcl);
 	exit(0);
 }

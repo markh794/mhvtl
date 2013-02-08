@@ -187,7 +187,8 @@ struct MAM {
 	uint8_t pad[1024 - 876];
 } __attribute__((packed));
 
-#define MAM_FLAGS_ENCRYPTION_FORMAT 0x0001
+#define MAM_FLAGS_ENCRYPTION_FORMAT   0x0001
+#define MAM_FLAGS_MEDIA_WRITE_PROTECT 0x0002
 
 #define PCODE_SHIFT 7
 #define PCODE_OFFSET(x) (x & ((1 << PCODE_SHIFT) - 1))

@@ -55,6 +55,9 @@ static void print_mam_info(void)
 	printf("Media description : %s\n", mam.media_info.description);
 	printf("Tape Capacity     : %" PRId64 "\n",
 					get_unaligned_be64(&mam.max_capacity));
+	printf("Media             : %s\n",
+				(mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) ?
+					"Write-protected" : "read-write");
 	printf("Remaining Tape Capacity : %" PRId64 "\n",
 				get_unaligned_be64(&mam.remaining_capacity));
 }
