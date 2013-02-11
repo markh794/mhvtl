@@ -1827,14 +1827,6 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	MHVTL_DBG(2, "Load Capability: 0x%02x", m_detail->load_capability);
 
-	/* If media write-protect & mount is permitted R/W -> set to RO */
-	if ((mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) &&
-				(m_detail->load_capability & LOAD_RW)) {
-			m_detail->load_capability |= LOAD_RO;
-			m_detail->load_capability &= ~LOAD_RW;
-			MHVTL_DBG(1, "Media write-protect flag set.");
-	}
-
 	/* Now check for WORM support */
 	if (mam.MediumType == MEDIA_TYPE_WORM) {
 		/* If media is WORM, check drive will allow mount */
@@ -1855,9 +1847,15 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			lu_ssc.MediaWriteProtect = MEDIA_READONLY;
 			OK_to_write = 0;
 		} else if (m_detail->load_capability & LOAD_RW) {
-			MHVTL_DBG(2, "Mounting READ/WRITE");
-			lu_ssc.MediaWriteProtect = MEDIA_WRITABLE;
-			OK_to_write = 1;
+			if (mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) {
+				MHVTL_DBG(2, "Mounting READ ONLY - WP set");
+				lu_ssc.MediaWriteProtect = MEDIA_READONLY;
+				OK_to_write = 0;
+			} else {
+				MHVTL_DBG(2, "Mounting READ/WRITE");
+				lu_ssc.MediaWriteProtect = MEDIA_WRITABLE;
+				OK_to_write = 1;
+			}
 		} else if (m_detail->load_capability & LOAD_FAIL) {
 			MHVTL_ERR("Load failed: Data format not suitable for "
 					"read/write or read-only");
