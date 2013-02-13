@@ -367,7 +367,9 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 	p += 8;
 
 	MHVTL_DBG(3, "Element Status Page");
-	MHVTL_DBG(3, "  Element Type code            : %d", p[0]);
+	MHVTL_DBG(3, "  Element Type code            : %d (%s)",
+					p[0], slot_type_str[p[0]]);
+
 	voltag = (p[1] & 0x80) ? 1 : 0;
 	MHVTL_DBG(3, "  Primary Vol Tag              : %s",
 					voltag ? "Yes" : "No");
@@ -410,12 +412,11 @@ static int determine_element_sz(struct scsi_cmd *cmd, int type)
  *
  * Returns number of bytes in element data.
  */
-static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
+static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
+						struct s_info *s)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	struct d_info *d = NULL;
-	struct s_info *s = NULL;
-	int type;
 	int j = 0;
 	uint8_t voltag;
 	uint8_t dvcid;
@@ -423,23 +424,8 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 	dvcid = cmd->scb[6] & 0x01;	/* Device ID */
 
-	type = slot_type(smc_p, addr);
-
-	switch (type) {
-	case DATA_TRANSFER:
-		d = drive2struct(smc_p, addr);
-		s = slot2struct(smc_p, addr);
-		break;
-	case MEDIUM_TRANSPORT:
-		s = slot2struct(smc_p, addr);
-		break;
-	case MAP_ELEMENT:
-		s = slot2struct(smc_p, addr);
-		break;
-	case STORAGE_ELEMENT:
-		s = slot2struct(smc_p, addr);
-		break;
-	}
+	if (s->element_type == DATA_TRANSFER)
+		d = s->drive;
 
 	/* Should never occur, but better to trap then core */
 	if (!s) {
@@ -451,7 +437,7 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 	j += 2;
 
 	p[j] = s->status;
-	if (type == MAP_ELEMENT) {
+	if (s->element_type == MAP_ELEMENT) {
 		if (smc_p->cap_closed)
 			p[j] |= STATUS_Access;
 		else
@@ -476,7 +462,7 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 	p[j++] = s->asc_ascq | 0xff; /* Additional Sense Code Qualifer */
 
 	j++;		/* Reserved */
-	if (type == DATA_TRANSFER)
+	if (s->element_type == DATA_TRANSFER)
 		p[j++] = d->SCSI_ID;
 	else
 		j++;	/* Reserved */
@@ -522,7 +508,7 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p, int addr)
 		j += VOLTAG_LEN;	/* Account for barcode */
 	}
 
-	if (dvcid && type == DATA_TRANSFER) {
+	if (dvcid && s->element_type == DATA_TRANSFER) {
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
 		j++;		/* Reserved */
@@ -552,7 +538,7 @@ return j;
  */
 static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 					uint16_t element_count,
-					uint8_t typeCode)
+					uint8_t type)
 {
 	int element_sz;
 	uint32_t element_len;
@@ -560,9 +546,9 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 
-	element_sz = determine_element_sz(cmd, typeCode);
+	element_sz = determine_element_sz(cmd, type);
 
-	p[0] = typeCode;	/* Element type Code */
+	p[0] = type;	/* Element type Code */
 
 	/* Primary Volume Tag set - Returning Barcode info */
 	p[1] = (voltag == 0) ? 0 : 0x80;
@@ -619,82 +605,26 @@ static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
 return 8;	/* Header is 8 bytes in size.. */
 }
 
-/*
- * Read Element Status command will pass 'start element address' & type of slot
- *
- * We return the first valid slot number which matches.
- * or zero on no matching slots..
- */
-static int find_first_matching_element(struct smc_priv *smc_p,
-					uint16_t start,
-					uint8_t typeCode)
+/* Returns address of first available elements from starting number */
+static uint32_t find_first_matching_element(struct smc_priv *priv,
+						uint32_t start,
+						uint8_t type)
 {
-	switch (typeCode) {
-	case ANY:	/* Don't care what 'type' */
-		/* Logic here depends on Storage slots being
-		 * higher (numerically) than MAP which is higher than
-		 * Picker, which is higher than the drive slot number..
-		 * See DWR: near top of this file !!
-		 */
+	struct list_head *slot_head;
+	struct s_info *sp;
 
-		/* Special case - 'All types'
-		 * If Start is undefined/defined as '0', then return
-		 * Beginning slot
-		 */
-		if (start == 0)
-			return START_DRIVE;
+	slot_head = &priv->slot_list;
 
-		/* If we are above Storage range, return nothing. */
-		if (start >= START_STORAGE + smc_p->num_storage)
-			return 0;
-		if (start >= START_STORAGE)
-			return start;
-		/* If we are above I/O Range -> return START_STORAGE */
-		if (start >= START_MAP + smc_p->num_map)
-			return START_STORAGE;
-		if (start >= START_MAP)
-			return start;
-		/* If we are above the Picker range -> Return I/O Range.. */
-		if (start >= START_PICKER + smc_p->num_picker)
-			return START_MAP;
-		if (start >= START_PICKER)
-			return start;
-		/* If we are above the Drive range, return Picker.. */
-		if (start >= START_DRIVE + smc_p->num_drives)
-			return START_PICKER;
-		if (start >= START_DRIVE)
-			return start;
-		break;
-	case MEDIUM_TRANSPORT:	/* Medium Transport. */
-		if ((start >= START_PICKER) &&
-		   (start < (START_PICKER + smc_p->num_picker)))
-			return start;
-		if (start < START_PICKER)
-			return START_PICKER;
-		break;
-	case STORAGE_ELEMENT:	/* Storage Slots */
-		if ((start >= START_STORAGE) &&
-		   (start < (START_STORAGE + smc_p->num_storage)))
-			return start;
-		if (start < START_STORAGE)
-			return START_STORAGE;
-		break;
-	case MAP_ELEMENT:	/* Import/Export */
-		if ((start >= START_MAP) &&
-		   (start < (START_MAP + smc_p->num_map)))
-			return start;
-		if (start < START_MAP)
-			return START_MAP;
-		break;
-	case DATA_TRANSFER:	/* Data transfer */
-		if ((start >= START_DRIVE) &&
-		   (start < (START_DRIVE + smc_p->num_drives)))
-			return start;
-		if (start < START_DRIVE)
-			return START_DRIVE;
-		break;
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (!type) {	/* Element type not defined */
+			if (sp->slot_location >= start)
+				return sp->slot_location;
+		} else if (sp->element_type == type) {
+			if (sp->slot_location >= start)
+				return sp->slot_location;
+		}
 	}
-return 0;
+	return 0;
 }
 
 /* Returns number of available elements left from starting number */
@@ -731,115 +661,72 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
 /*
  * Fill in Element status page header + each Element descriptor
  *
- * Returns zero on success, or error code if illegal request.
+ * Returns number of bytes in element page(s)
  */
-static uint32_t fill_element_page(struct scsi_cmd *cmd, uint16_t start,
-				uint16_t *cur_count, uint32_t *cur_offset,
-				uint32_t *need_bytes)
+static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
+				uint16_t start)
 {
 	struct smc_priv *smc_p;
-	uint16_t begin;
-	uint16_t count, avail, space;
-	int min_addr, num_addr;
 	int j;
-	uint8_t *p = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
+	struct s_info *sp;
 
 	uint8_t	type = cdb[1] & 0x0f;
-	uint16_t max_count;
-	uint32_t max_bytes;
+	uint16_t max_count;	/* Max element count */
+	uint16_t avail_count;
 	uint32_t element_sz;
+	uint16_t begin_element;
 
 	max_count = get_unaligned_be16(&cdb[4]);
-	max_bytes = 0xffffff & get_unaligned_be32(&cdb[6]);
+	if (max_count == 0)
+		max_count = ~0;
 
 	smc_p = (struct smc_priv *)cmd->lu->lu_private;
 
-	if (type == ANY)
-		type = slot_type(smc_p, start);
-
-	switch (type) {
-	case MEDIUM_TRANSPORT:
-		min_addr = START_PICKER;
-		num_addr = smc_p->num_picker;
-		MHVTL_DBG(2, "Element type: Medium Transport, min: %d num: %d",
-					min_addr, num_addr);
-		break;
-	case STORAGE_ELEMENT:
-		min_addr = START_STORAGE;
-		num_addr = smc_p->num_storage;
-		MHVTL_DBG(2, "Element type: Storage Element, min: %d num: %d",
-					min_addr, num_addr);
-		break;
-	case MAP_ELEMENT:
-		min_addr = START_MAP;
-		num_addr = smc_p->num_map;
-		MHVTL_DBG(2, "Element type: MAP Element, min: %d num: %d",
-					min_addr, num_addr);
-		break;
-	case DATA_TRANSFER:
-		min_addr = START_DRIVE;
-		num_addr = smc_p->num_drives;
-		MHVTL_DBG(2, "Element type: Data Transfer (drive) Element, "
-				"min: %d num: %d",
-					min_addr, num_addr);
-		break;
-	default:
+	if ((type < 1) || (type > 4)) {
 		MHVTL_DBG(1, "Invalid type: %d (valid values 1 - 4)", type);
 		return E_INVALID_FIELD_IN_CDB;
 	}
 
+	MHVTL_DBG(2, "Query %d element%s starting from addr: %d"
+			" of type: (%d) %s",
+				max_count,
+				(max_count == 1) ? "" : "s",
+				start,
+				type, slot_type_str[type]);
+
 	/* Find first valid slot. */
-	begin = find_first_matching_element(smc_p, start, type);
-	if (begin == 0)
+	begin_element = find_first_matching_element(smc_p, start, type);
+	if (begin_element == 0)
 		return E_INVALID_FIELD_IN_CDB;
 
-	/*
-	 *   The number of elements to report is the minimum of:
-	 * 1. the number the caller asked for (max_count - *cur_count).
-	 * 2. the number that remain starting at address begin, and
-	 * 3. the number that will fit in the remaining
-	 *    (max_bytes - *cur_offset) bytes, allowing for an 8-byte header.
-	 */
+	avail_count =  num_available_elements(smc_p, type, start, max_count);
 
-	MHVTL_DBG(3, "max_count: %d, max_bytes: %d", max_count, max_bytes);
-
-	avail = min_addr + num_addr - begin;
-	count = avail < max_count - *cur_count ? avail : max_count - *cur_count;
-	element_sz = determine_element_sz(cmd, type);
-	space = (max_bytes - *cur_offset - 8) / element_sz;
-
-	count = space < count ? space : count;
-
-	*need_bytes = avail * element_sz + 8;
-
-	MHVTL_DBG(3, "avail: %d, count: %d, space: %d cur_count: %d"
-			" need_bytes: %d (0x%04x)",
-				avail, count, space, *cur_count,
-				*need_bytes, *need_bytes);
-
-	if (count == 0) {
-		if (*cur_count == 0)
-			return E_PARAMETER_LIST_LENGTH_ERR;
-		else
-			return SAM_STAT_GOOD;
-	}
+	MHVTL_DBG(3, "Available count: %d, type: %d", avail_count, type);
 
 	/* Create Element Status Page Header. */
-	fill_element_status_page_hdr(cmd, &p[*cur_offset], count, type);
+	fill_element_status_page_hdr(cmd, p, avail_count, type);
 
 	/* Account for the 8 bytes in element status page header */
-	*cur_offset += 8;
+	p += 8;
+	avail_count = 8;
 
 	/* Now loop over each slot and fill in details. */
-	for (j = 0; j < count; j++, begin++) {
-		MHVTL_DBG(2, "Slot: %d", begin);
-		*cur_offset += fill_element_descriptor(cmd, &p[*cur_offset],
-						begin);
+	j = 1;
+	list_for_each_entry(sp, &smc_p->slot_list, siblings) {
+		if (sp->slot_location < start)
+			continue;
+		element_sz = fill_element_descriptor(cmd, p, sp);
+		avail_count += element_sz;	/* inc byte count */
+		p += element_sz;		/* inc pointer into dest buf */
+		MHVTL_DBG(3, "Count: %d, max_count: %d, slot: %d",
+				j, max_count, sp->slot_location);
+		j++;
+		if (j > max_count)
+			break;
 	}
-	*cur_count += count;
 
-return SAM_STAT_GOOD;
+return avail_count;
 }
 
 /*
@@ -851,19 +738,17 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	uint8_t *cdb = cmd->scb;
-	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
+	uint8_t *p = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t	typeCode = cdb[1] & 0x0f;
+	uint8_t	type = cdb[1] & 0x0f;
 	uint16_t req_start_elem;
-	uint16_t number;
-	uint32_t alloc_len;
-	uint16_t start;	/* First valid slot location */
-	uint16_t start_any;	/* First valid slot location */
-	uint32_t cur_offset;
-	uint16_t cur_count;
-	uint32_t need_bytes;
-	uint32_t all_bytes;
-	uint32_t ec;
+	uint16_t req_number;	/* Num of elements initiator requested */
+	uint32_t alloc_len;	/* Amount of space initiator has pre alloc */
+	uint16_t start;		/* First valid slot location */
+	uint16_t start_any;	/* First valid slot location - temp count */
+	uint32_t elem_byte_count;
+	uint32_t byte_count;
+	uint32_t cur_count;
 #ifdef MHVTL_DEBUG
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
 	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
@@ -873,36 +758,14 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 				(long)cmd->dbuf_p->serialNo);
 
 	req_start_elem = get_unaligned_be16(&cdb[2]);
-	number = get_unaligned_be16(&cdb[4]);
+	req_number = get_unaligned_be16(&cdb[4]);
 	alloc_len = 0xffffff & get_unaligned_be32(&cdb[6]);
 
-	switch (typeCode) {
-	case ANY:
-		MHVTL_DBG(3, " Element type(%d) => All Elements", typeCode);
-		break;
-	case MEDIUM_TRANSPORT:
-		MHVTL_DBG(3, " Element type(%d) => Medium Transport", typeCode);
-		break;
-	case STORAGE_ELEMENT:
-		MHVTL_DBG(3, " Element type(%d) => Storage Elements", typeCode);
-		break;
-	case MAP_ELEMENT:
-		MHVTL_DBG(3, " Element type(%d) => Import/Export", typeCode);
-		break;
-	case DATA_TRANSFER:
-		MHVTL_DBG(3,
-			" Element type(%d) => Data Transfer Elements",typeCode);
-		break;
-	default:
-		MHVTL_DBG(3,
-			" Element type(%d) => Invalid type requested",typeCode);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-		break;
-	}
+	MHVTL_DBG(3, " Element type(%d) => %s", type, slot_type_str[type]);
 	MHVTL_DBG(3, "  Starting Element Address: %d", req_start_elem);
-	MHVTL_DBG(3, "  Number of Elements      : %d", number);
-	MHVTL_DBG(3, "  Allocation length       : %d", alloc_len);
+	MHVTL_DBG(3, "  Number of Elements      : %d", req_number);
+	MHVTL_DBG(3, "  Allocation length       : %d (0x%04x)",
+						 alloc_len, alloc_len);
 	MHVTL_DBG(3, "  Device ID: %s, voltag: %s",
 					(dvcid == 0) ? "No" :  "Yes",
 					(voltag == 0) ? "No" :  "Yes");
@@ -911,7 +774,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	alloc_len = min(alloc_len, smc_p->bufsize);
 
 	/* Init buffer */
-	memset(buf, 0, alloc_len);
+	memset(p, 0, alloc_len);
 
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		MHVTL_DBG(3, "cdb[11] : Illegal value");
@@ -919,8 +782,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	/* Find first matching slot number which matches the typeCode. */
-	start = find_first_matching_element(smc_p, req_start_elem, typeCode);
+	/* Find first matching slot number which matches the type. */
+	start = find_first_matching_element(smc_p, req_start_elem, type);
 	if (start == 0) {	/* Nothing found.. */
 		MHVTL_DBG(3, "Start element is still 0");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
@@ -928,19 +791,15 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	}
 
 	/* Leave room for 'master' header which is filled in at the end... */
-	cur_offset = 8;
-	cur_count = 0;
-	all_bytes = 0;
-	ec = 0;
+	p += 8;
+	elem_byte_count = 8;
 
-	switch (typeCode) {
+	switch (type) {
 	case MEDIUM_TRANSPORT:
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
 	case DATA_TRANSFER:
-		ec = fill_element_page(cmd, start, &cur_count,
-						&cur_offset, &need_bytes);
-		all_bytes += need_bytes;
+		elem_byte_count += fill_element_page(cmd, p, start);
 		break;
 	case ANY:
 		/* Don't modify 'start' value as it is needed later */
@@ -952,35 +811,26 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		 * See DWR: near top of this file !!
 		 */
 		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
-			ec = fill_element_page(cmd, start_any,
-					&cur_count, &cur_offset, &need_bytes);
-			all_bytes += need_bytes;
-			if (ec)
-				break;
+			byte_count = fill_element_page(cmd, p, start_any);
+			p += byte_count;
 			start_any = START_PICKER;
 		}
 		if (slot_type(smc_p, start_any) == MEDIUM_TRANSPORT) {
-			ec = fill_element_page(cmd, start_any,
-					&cur_count, &cur_offset, &need_bytes);
-			all_bytes += need_bytes;
-			if (ec)
-				break;
+			byte_count = fill_element_page(cmd, p, start_any);
+			elem_byte_count += byte_count;
+			p += byte_count;
 			start_any = START_MAP;
 		}
 		if (slot_type(smc_p, start_any) == MAP_ELEMENT) {
-			ec = fill_element_page(cmd, start_any,
-					&cur_count, &cur_offset, &need_bytes);
-			all_bytes += need_bytes;
-			if (ec)
-				break;
+			byte_count = fill_element_page(cmd, p, start_any);
+			elem_byte_count += byte_count;
+			p += byte_count;
 			start_any = START_STORAGE;
 		}
 		if (slot_type(smc_p, start_any) == STORAGE_ELEMENT) {
-			ec = fill_element_page(cmd, start_any,
-					&cur_count, &cur_offset, &need_bytes);
-			all_bytes += need_bytes;
-			if (ec)
-				break;
+			byte_count = fill_element_page(cmd, p, start_any);
+			elem_byte_count += byte_count;
+			p += byte_count;
 		}
 		break;
 	default:	/* Illegal descriptor type. */
@@ -989,28 +839,26 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		break;
 	}
 
-	if (ec != 0) {
-		mkSenseBuf(ILLEGAL_REQUEST, ec, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
-	cur_count = num_available_elements(smc_p, typeCode, start, number);
-	MHVTL_DBG(2, "cur_count: %d, all_bytes: 0x%04x", cur_count, all_bytes);
+	cur_count = num_available_elements(smc_p, type, start, req_number);
 
 	/* Now populate the 'main' header structure with byte count.. */
-	fill_element_status_data_hdr(&buf[0], start, cur_count, all_bytes);
-
-	MHVTL_DBG(3, "Returning %d bytes", cur_offset);
+	fill_element_status_data_hdr(cmd->dbuf_p->data, start, cur_count,
+					elem_byte_count);
 
 #ifdef MHVTL_DEBUG
 	if (debug)
-		hex_dump(buf, cur_offset);
+		hex_dump(cmd->dbuf_p->data, elem_byte_count);
 #endif
 
-	decode_element_status(smc_p, buf);
+	decode_element_status(smc_p, cmd->dbuf_p->data);
 
 	/* Return the smallest number */
-	cmd->dbuf_p->sz = min(cur_offset, alloc_len);
+	cmd->dbuf_p->sz = min(elem_byte_count, alloc_len);
+
+	MHVTL_DBG(2, "Element count: %d, Elem byte count: 0x%04x,"
+				" alloc_len: %d",
+					cur_count, elem_byte_count,
+					cmd->dbuf_p->sz);
 
 	return SAM_STAT_GOOD;
 }
