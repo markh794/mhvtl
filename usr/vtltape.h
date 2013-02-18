@@ -115,10 +115,16 @@ struct blk_header {
 #define medium_density_code_9940A	0x43
 #define medium_density_code_9940B	0x44
 
+#define medium_density_code_dlt2	0x16	/* X3.193-1990 */
+#define medium_density_code_dlt3_2G	0x17	/* 2.6G */
+#define medium_density_code_dlt3_6G	0x18	/* 6G */
+#define medium_density_code_dlt3_10G	0x19	/* 10G */
+#define medium_density_code_dlt3	0x19	/* default to 10G density */
+#define medium_density_code_dlt4_20G	0x1a
+#define medium_density_code_dlt4_35G	0x1b
+#define medium_density_code_dlt4	0x1b	/* Default to 35G density */
+
 /* FIXME: Find density code for these media types */
-#define medium_density_code_dlt2	0x20
-#define medium_density_code_dlt3	0x20
-#define medium_density_code_dlt4	0x20
 #define medium_density_code_sdlt	0x20
 
 #define medium_density_code_220		0x48
@@ -136,6 +142,11 @@ struct blk_header {
 
 /* Used by MODE SENSE 'media type' field */
 #define media_type_unknown	0x00
+#define media_type_dlt_clean	0x81
+#define media_type_dlt1		0x82
+#define media_type_dlt3		0x83
+#define media_type_dlt3xt	0x84
+#define media_type_dlt4		0x85
 #define media_type_lto1_data	0x18
 #define media_type_lto2_data	0x28
 #define media_type_lto3_data	0x38

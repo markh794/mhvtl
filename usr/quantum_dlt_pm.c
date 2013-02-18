@@ -49,6 +49,15 @@
 #include "log.h"
 
 /* FIXME: This data needs to be updated to suit SDLT range of media */
+static struct density_info density_dlt2 = {
+	1000, 640, 64, 1000, medium_density_code_dlt2,
+			"DLT-CVE", "DLT II", "DLTtape II" };
+static struct density_info density_dlt3 = {
+	62500, 640, 64, 20000, medium_density_code_dlt3,
+			"DLT-CVE", "DLT III", "DLTtape III" };
+static struct density_info density_dlt4 = {
+	85937, 640, 52, 35000, medium_density_code_dlt4,
+			"DLT-CVE", "DLT IV", "DLTtape IV" };
 static struct density_info density_sdlt = {
 	15142, 640, 1502, 80000, medium_density_code_sdlt,
 			"DLT-CVE", "U-216", "SDLT" };
@@ -181,7 +190,47 @@ static uint8_t clear_dlt_WORM(struct list_head *m)
 	return clear_WORM(m);
 }
 
+/* DLT7000 & DLT8000 */
 static void init_dlt_inquiry(struct lu_phy_attr *lu)
+{
+	int pg;
+	uint8_t worm = 1;	/* Supports WORM */
+	char b[32];
+	int x, y, z;
+
+	lu->inquiry[36] = get_product_family(lu);
+
+	sprintf(b, "%s", MHVTL_VERSION);
+	sscanf(b, "%d.%d.%d", &x, &y, &z);
+	if (x) {
+		lu->inquiry[37] = x;
+		lu->inquiry[38] = y;
+	} else {
+		lu->inquiry[37] = y;
+		lu->inquiry[38] = z;
+	}
+
+	/* VPD page 0xC0 */
+	pg = PCODE_OFFSET(0xc0);
+	lu->lu_vpd[pg] = alloc_vpd(44);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
+	update_vpd_dlt_c0(lu);
+
+	/* VPD page 0xC1 */
+	pg = PCODE_OFFSET(0xc1);
+	lu->lu_vpd[pg] = alloc_vpd(44);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
+	update_vpd_dlt_c1(lu, lu->lu_serial_no);
+}
+
+/* SuperDLT range */
+static void init_sdlt_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
 	uint8_t worm = 1;	/* Supports WORM */
@@ -315,6 +364,8 @@ static uint8_t dlt_cleaning(void *ssc_priv)
 	return 0;
 }
 
+static char *pm_name_dlt7000 = "DLT7000";
+static char *pm_name_dlt8000 = "DLT8000";
 static char *pm_name_sdlt320 = "SDLT320";
 static char *pm_name_sdlt600 = "SDLT600";
 
@@ -327,9 +378,98 @@ static struct ssc_personality_template ssc_pm = {
 	.cleaning_media		= dlt_cleaning,
 };
 
-void init_sdlt320_ssc(struct lu_phy_attr *lu)
+void init_dlt7000_ssc(struct lu_phy_attr *lu)
 {
 	init_dlt_inquiry(lu);
+	ssc_pm.name = pm_name_dlt7000;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
+	ssc_pm.native_drive_density = &density_dlt4;
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
+	add_density_support(&lu->den_list, &density_dlt2, 0);
+	add_density_support(&lu->den_list, &density_dlt3, 1);
+	add_density_support(&lu->den_list, &density_dlt4, 1);
+	add_drive_media_list(lu, LOAD_RO, "DLT3");
+	add_drive_media_list(lu, LOAD_RW, "DLT4");
+	add_drive_media_list(lu, LOAD_RO, "DLT4 Clean");
+}
+void init_dlt8000_ssc(struct lu_phy_attr *lu)
+{
+	init_dlt_inquiry(lu);
+	ssc_pm.name = pm_name_dlt8000;
+	ssc_pm.lu = lu;
+	personality_module_register(&ssc_pm);
+
+	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
+	ssc_pm.native_drive_density = &density_dlt4;
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
+	add_density_support(&lu->den_list, &density_dlt2, 0);
+	add_density_support(&lu->den_list, &density_dlt3, 1);
+	add_density_support(&lu->den_list, &density_dlt4, 1);
+	add_drive_media_list(lu, LOAD_RO, "DLT3");
+	add_drive_media_list(lu, LOAD_RW, "DLT4");
+	add_drive_media_list(lu, LOAD_RO, "DLT4 Clean");
+}
+
+void init_sdlt320_ssc(struct lu_phy_attr *lu)
+{
+	init_sdlt_inquiry(lu);
 	ssc_pm.name = pm_name_sdlt320;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);
@@ -378,7 +518,7 @@ void init_sdlt320_ssc(struct lu_phy_attr *lu)
 
 void init_sdlt600_ssc(struct lu_phy_attr *lu)
 {
-	init_dlt_inquiry(lu);
+	init_sdlt_inquiry(lu);
 	ssc_pm.name = pm_name_sdlt600;
 	ssc_pm.lu = lu;
 	personality_module_register(&ssc_pm);

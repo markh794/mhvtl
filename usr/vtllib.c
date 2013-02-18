@@ -1229,15 +1229,15 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "SONY", 4);
 		put_unaligned_be32(0x17d6, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DLT3", 4))) {
-		mamp->MediumDensityCode = 0x0;
+		mamp->MediumDensityCode = medium_density_code_dlt3;
 		mamp->MediaType = Media_DLT3;
-		memcpy(&mamp->media_info.description, "DLT4000 media", 13);
+		memcpy(&mamp->media_info.description, "DLTtape III", 11);
 		memcpy(&mamp->media_info.density_name, "DLT-III", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 	} else if (!(strncmp(density, "DLT4", 4))) {
-		mamp->MediumDensityCode = 0x0;
+		mamp->MediumDensityCode = medium_density_code_dlt4;
 		mamp->MediaType = Media_DLT4;
-		memcpy(&mamp->media_info.description, "DLT7000 media", 13);
+		memcpy(&mamp->media_info.description, "DLTtape IV", 10);
 		memcpy(&mamp->media_info.density_name, "DLT-IV", 6);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 	} else if (!(strncmp(density, "SDLT1", 5))) {
