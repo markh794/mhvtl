@@ -318,7 +318,11 @@ static struct ssc_personality_template ssc_pm = {
 static void init_t10k_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
-	uint8_t worm = 1;	/* Supports WORM */
+	uint8_t worm;
+
+	worm = ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_WORM;
+	lu->inquiry[2] =
+		((struct priv_lu_ssc *)lu->lu_private)->pm->drive_ANSI_VERSION;
 
 	lu->inquiry[3] = 0x42;
 	lu->inquiry[4] = INQUIRY_LEN - 5;	/* Additional Length */
@@ -337,16 +341,18 @@ static void init_t10k_inquiry(struct lu_phy_attr *lu)
 
 void init_t10kA_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	ssc_pm.name = pm_name_t10kA;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.native_drive_density = &density_t10kA;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_t10k_inquiry(lu);
 
 	init_t10k_mode_pages(lu);
 
@@ -358,11 +364,9 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_t10kA;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	init_t10k_inquiry(lu);
 	add_density_support(&lu->den_list, &density_t10kA, 1);
 	add_drive_media_list(lu, LOAD_RW, "T10KA");
 	add_drive_media_list(lu, LOAD_RO, "T10KA Clean");
@@ -370,16 +374,16 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 
 void init_t10kB_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	ssc_pm.name = pm_name_t10kB;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.native_drive_density = &density_t10kB;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+
+	personality_module_register(&ssc_pm);
+
+	init_t10k_inquiry(lu);
 
 	init_t10k_mode_pages(lu);
 
@@ -392,14 +396,11 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	ssc_pm.native_drive_density = &density_t10kB;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-
 	register_ops(lu, LOG_SENSE, ssc_log_sense);
 
-	init_t10k_inquiry(lu);
 	add_density_support(&lu->den_list, &density_t10kA, 1);
 	add_density_support(&lu->den_list, &density_t10kB, 1);
 	add_drive_media_list(lu, LOAD_RW, "T10KA");
@@ -414,12 +415,16 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.name = pm_name_t10kC;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.native_drive_density = &density_t10kC;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_t10k_inquiry(lu);
 
 	init_t10k_mode_pages(lu);
 
@@ -431,11 +436,9 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_t10kC;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	init_t10k_inquiry(lu);
 	add_density_support(&lu->den_list, &density_t10kA, 0);
 	add_density_support(&lu->den_list, &density_t10kB, 1);
 	add_density_support(&lu->den_list, &density_t10kC, 1);

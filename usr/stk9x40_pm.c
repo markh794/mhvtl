@@ -329,9 +329,12 @@ static struct ssc_personality_template ssc_pm = {
 static void init_9840_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
-	uint8_t worm = 1;	/* Supports WORM */
+	uint8_t worm;
 
-	lu->inquiry[2] = 5;	/* SPC-3 */
+	worm = ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_WORM;
+	lu->inquiry[2] =
+		((struct priv_lu_ssc *)lu->lu_private)->pm->drive_ANSI_VERSION;
+
 	lu->inquiry[3] = 0x42;
 	lu->inquiry[4] = INQUIRY_LEN - 5;	/* Additional Length */
 	lu->inquiry[54] = 0x04;	/* Key Management */
@@ -349,16 +352,17 @@ static void init_9840_inquiry(struct lu_phy_attr *lu)
 
 void init_9840A_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	ssc_pm.name = pm_name_9840A;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_9840_inquiry(lu);
 
 	init_9840_mode_pages(lu);
 
@@ -374,7 +378,6 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9840A, 1);
 	add_drive_media_list(lu, LOAD_RW, "9840A");
 	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
@@ -382,16 +385,17 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 
 void init_9840B_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	ssc_pm.name = pm_name_9840B;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_9840_inquiry(lu);
 
 	init_9840_mode_pages(lu);
 
@@ -411,7 +415,6 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 
 	register_ops(lu, LOG_SENSE, ssc_log_sense);
 
-	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9840A, 1);
 	add_density_support(&lu->den_list, &density_9840B, 1);
 	add_drive_media_list(lu, LOAD_RW, "9840A");
@@ -422,16 +425,17 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 
 void init_9840C_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	ssc_pm.name = pm_name_9840C;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_9840_inquiry(lu);
 
 	init_9840_mode_pages(lu);
 
@@ -447,7 +451,6 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9840A, 0);
 	add_density_support(&lu->den_list, &density_9840B, 1);
 	add_density_support(&lu->den_list, &density_9840C, 1);
@@ -461,11 +464,15 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 
 void init_9840D_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	ssc_pm.name = pm_name_9840D;
 	ssc_pm.lu = lu;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
 	personality_module_register(&ssc_pm);
+
+	init_9840_inquiry(lu);
+
 	init_9840_mode_pages(lu);
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
@@ -479,7 +486,6 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9840A, 0);
 	add_density_support(&lu->den_list, &density_9840B, 0);
 	add_density_support(&lu->den_list, &density_9840C, 1);
@@ -494,12 +500,17 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 
 void init_9940A_ssc(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
 	ssc_pm.name = pm_name_9940A;
 	ssc_pm.lu = lu;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
 	personality_module_register(&ssc_pm);
+
+	init_9840_inquiry(lu);
+
 	init_9840_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -512,7 +523,6 @@ void init_9940A_ssc(struct lu_phy_attr *lu)
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	init_9840_inquiry(lu);
 	add_density_support(&lu->den_list, &density_9940A, 1);
 	add_drive_media_list(lu, LOAD_RW, "9840A");
 	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
@@ -528,8 +538,14 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.name = pm_name_9940B;
 	ssc_pm.lu = lu;
+	ssc_pm.native_drive_density = &density_9940B;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
 	personality_module_register(&ssc_pm);
+
 	init_9840_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -538,7 +554,6 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_9940B;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);

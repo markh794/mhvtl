@@ -24,6 +24,8 @@ struct ssc_personality_template {
 	uint32_t drive_supports_append_only_mode:1;
 	uint32_t drive_supports_early_warning:1;
 	uint32_t drive_supports_prog_early_warning:1;
+	uint32_t drive_supports_WORM:1;
+	uint32_t drive_ANSI_VERSION:5;
 
 	struct density_info *native_drive_density;
 

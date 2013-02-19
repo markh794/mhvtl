@@ -88,9 +88,13 @@ static uint8_t clear_default_WORM(struct list_head *l)
 static void init_default_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
-	uint8_t worm = 1;	/* Supports WORM */
+	uint8_t worm;
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+	worm = ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_WORM;
+	lu->inquiry[2] =
+		((struct priv_lu_ssc *)lu->lu_private)->pm->drive_ANSI_VERSION;
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
@@ -244,11 +248,19 @@ void init_default_ssc(struct lu_phy_attr *lu)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 
-	init_default_inquiry(lu);
 	ssc_pm.name = pm_name;
 	ssc_pm.lu = lu;
 	ssc_pm.native_drive_density = &density_default;
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = FALSE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 2;
+
+	init_default_inquiry(lu);
+
 	personality_module_register(&ssc_pm);
+
 	init_default_mode_pages(lu);
 
 	add_log_write_err_counter(lu);

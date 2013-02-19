@@ -194,9 +194,11 @@ static uint8_t clear_dlt_WORM(struct list_head *m)
 static void init_dlt_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
-	uint8_t worm = 1;	/* Supports WORM */
 	char b[32];
 	int x, y, z;
+
+	lu->inquiry[2] =
+		((struct priv_lu_ssc *)lu->lu_private)->pm->drive_ANSI_VERSION;
 
 	lu->inquiry[36] = get_product_family(lu);
 
@@ -233,10 +235,15 @@ static void init_dlt_inquiry(struct lu_phy_attr *lu)
 static void init_sdlt_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
-	uint8_t worm = 1;	/* Supports WORM */
+	uint8_t worm;
 	uint8_t ta[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	char b[32];
 	int x, y, z;
+
+	worm = ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_WORM;
+	lu->inquiry[2] =
+		((struct priv_lu_ssc *)lu->lu_private)->pm->drive_ANSI_VERSION;
+
 
 	lu->inquiry[36] = get_product_family(lu);
 
@@ -380,26 +387,26 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_dlt7000_ssc(struct lu_phy_attr *lu)
 {
-	init_dlt_inquiry(lu);
 	ssc_pm.name = pm_name_dlt7000;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
 
-	/* Drive capabilities need to be defined before mode pages */
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = FALSE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 2;
+
+	personality_module_register(&ssc_pm);
+
+	init_dlt_inquiry(lu);
 
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control(lu);
-	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_medium_partition(lu);
-	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
-	add_mode_medium_configuration(lu);
 
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
@@ -424,26 +431,26 @@ void init_dlt7000_ssc(struct lu_phy_attr *lu)
 }
 void init_dlt8000_ssc(struct lu_phy_attr *lu)
 {
-	init_dlt_inquiry(lu);
 	ssc_pm.name = pm_name_dlt8000;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.native_drive_density = &density_dlt4;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = FALSE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 2;
+
+	personality_module_register(&ssc_pm);
+
+	init_dlt_inquiry(lu);
 
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control(lu);
-	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_medium_partition(lu);
-	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
-	add_mode_medium_configuration(lu);
 
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
@@ -453,8 +460,6 @@ void init_dlt8000_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-
-	ssc_pm.native_drive_density = &density_dlt4;
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
@@ -469,15 +474,18 @@ void init_dlt8000_ssc(struct lu_phy_attr *lu)
 
 void init_sdlt320_ssc(struct lu_phy_attr *lu)
 {
-	init_sdlt_inquiry(lu);
 	ssc_pm.name = pm_name_sdlt320;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.native_drive_density = &density_sdlt320;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_sdlt_inquiry(lu);
 
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
@@ -499,10 +507,6 @@ void init_sdlt320_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-
-	ssc_pm.native_drive_density = &density_sdlt320;
-	ssc_pm.clear_WORM = clear_dlt_WORM,
-	ssc_pm.set_WORM = set_dlt_WORM,
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
@@ -518,15 +522,20 @@ void init_sdlt320_ssc(struct lu_phy_attr *lu)
 
 void init_sdlt600_ssc(struct lu_phy_attr *lu)
 {
-	init_sdlt_inquiry(lu);
 	ssc_pm.name = pm_name_sdlt600;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.native_drive_density = &density_sdlt600;
+	ssc_pm.clear_WORM = clear_dlt_WORM,
+	ssc_pm.set_WORM = set_dlt_WORM,
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_sdlt_inquiry(lu);
 
 	add_mode_page_rw_err_recovery(lu);
 	add_mode_disconnect_reconnect(lu);
@@ -548,10 +557,6 @@ void init_sdlt600_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-
-	ssc_pm.native_drive_density = &density_sdlt600;
-	ssc_pm.clear_WORM = clear_dlt_WORM,
-	ssc_pm.set_WORM = set_dlt_WORM,
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;

@@ -207,9 +207,13 @@ static int encr_capabilities_3592(struct scsi_cmd *cmd)
 static void init_3592_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
-	uint8_t worm = 1;	/* Supports WORM */
+	uint8_t worm;
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+	worm = ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_WORM;
+	lu->inquiry[2] =
+		((struct priv_lu_ssc *)lu->lu_private)->pm->drive_ANSI_VERSION;
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
@@ -369,18 +373,21 @@ static struct ssc_personality_template ssc_pm = {
 
 void init_3592_j1a(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
-	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_j1a;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-	init_03592_mode_pages(lu);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_type = drive_3592_J1A;
+	ssc_pm.native_drive_density = &density_j1a;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_3592_inquiry(lu);
+
+	init_03592_mode_pages(lu);
 
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
@@ -390,8 +397,6 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_type = drive_3592_J1A;
-	ssc_pm.native_drive_density = &density_j1a;
 	add_density_support(&lu->den_list, &density_j1a, 1);
 	add_drive_media_list(lu, LOAD_RW, "03592 JA");
 	add_drive_media_list(lu, LOAD_RO, "03592 JA Clean");
@@ -400,17 +405,19 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 
 void init_3592_E05(struct lu_phy_attr *lu)
 {
-	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
-
-	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e05;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.drive_type = drive_3592_E05;
+	ssc_pm.native_drive_density = &density_e05;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_3592_inquiry(lu);
 
 	init_03592_mode_pages(lu);
 	add_log_write_err_counter(lu);
@@ -421,8 +428,6 @@ void init_3592_E05(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.drive_type = drive_3592_E05;
-	ssc_pm.native_drive_density = &density_e05;
 	add_density_support(&lu->den_list, &density_j1a, 1);
 	add_density_support(&lu->den_list, &density_e05, 1);
 	add_drive_media_list(lu, LOAD_RW, "03592 JA");
@@ -437,15 +442,19 @@ void init_3592_E06(struct lu_phy_attr *lu)
 {
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", &lu->mode_pg);
 
-	init_3592_inquiry(lu);
 	ssc_pm.name = pm_name_e06;
 	ssc_pm.lu = lu;
-	personality_module_register(&ssc_pm);
-
-	/* Drive capabilities need to be defined before mode pages */
+	ssc_pm.native_drive_density = &density_e06;
+	ssc_pm.encryption_capabilities = encr_capabilities_3592;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	personality_module_register(&ssc_pm);
+
+	init_3592_inquiry(lu);
 
 	init_03592_mode_pages(lu);
 	add_log_write_err_counter(lu);
@@ -457,8 +466,6 @@ void init_3592_E06(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	ssc_pm.drive_type = drive_3592_E06;
-	ssc_pm.native_drive_density = &density_e06;
-	ssc_pm.encryption_capabilities = encr_capabilities_3592;
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_j1a, 0);
