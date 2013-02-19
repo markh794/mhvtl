@@ -1350,6 +1350,7 @@ int main(int argc, char *argv[])
 	int ret;
 	long pollInterval = 0L;
 	uint8_t *buf;
+	int buffer_size;
 	int fifo_retval;
 
 	int last_state = MHVTL_STATE_UNKNOWN;
@@ -1500,7 +1501,15 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	buf = (uint8_t *)malloc(SMC_BUF_SIZE);
+	/* malloc a big enough buffer to fit worst case read element status */
+	buffer_size = (smc_slots.num_drives +
+				smc_slots.num_picker +
+				smc_slots.num_map +
+				smc_slots.num_storage) * 80;
+	buffer_size = max(SMC_BUF_SIZE, buffer_size);
+	smc_slots.bufsize = buffer_size;
+	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
+	buf = (uint8_t *)malloc(buffer_size);
 	if (NULL == buf) {
 		perror("Problems allocating memory");
 		exit(1);

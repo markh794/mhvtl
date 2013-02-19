@@ -738,7 +738,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	uint8_t *cdb = cmd->scb;
-	uint8_t *p = (uint8_t *)cmd->dbuf_p->data;
+	uint8_t *p;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t	type = cdb[1] & 0x0f;
 	uint16_t req_start_elem;
@@ -769,6 +769,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	MHVTL_DBG(3, "  Device ID: %s, voltag: %s",
 					(dvcid == 0) ? "No" :  "Yes",
 					(voltag == 0) ? "No" :  "Yes");
+
+	p = (uint8_t *)cmd->dbuf_p->data;
 
 	/* Set alloc_len to smallest value */
 	alloc_len = min(alloc_len, smc_p->bufsize);
