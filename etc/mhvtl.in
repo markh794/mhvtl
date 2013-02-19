@@ -274,10 +274,13 @@ MAP 4:
 # Trailing "LT" - LTO 3 WORM, "LU" -  LTO 4 WORM, "LV" - LTO 5 WORM
 # Trailing "L6" - LTO 6, "LW" - LTO 6 WORM
 # Trailing "TA" - T10000+
+# Trailing "TZ" - 9840A, "TY" - 9840B, "TX" - 9840C, "TW" - 9840D
+# Trailing "TV" - 9940A, "TU" - 9940B
 # Trailing "JA" - 3592+
 # Trailing "JB" - 3592E05+
 # Trailing "JW" - WORM 3592+
 # Trailing "JX" - WORM 3592E05+
+# Trailing "D7" - DLT7000 media (DLT IV)
 #
 CONF_SAMPLE
 

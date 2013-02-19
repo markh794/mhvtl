@@ -57,13 +57,18 @@ run() {
 # There is.. Thanks to Gavin Barnard.
 set_density() {
 	density=$1
-	regex='[A-Z0-9]{6,8}([SLXTJ])([123456ABWX])$'
+	regex='[A-Z0-9]{6,8}([SLXTJD])([1234567ABWXYZ])$'
 	#regex='[A-Z0-9]{4,6}([SLXTJ])([123456ABWX])[0-9]*$' # for bacula
 
 	if [[ $density =~ $regex ]]; then
 		matches=${#BASH_REMATCH[*]}
 		if [ ${BASH_REMATCH[1]} = 'L' ]; then
 			DENSITY=`echo -e "LTO${BASH_REMATCH[2]}"`
+		fi
+		if [ ${BASH_REMATCH[1]} = 'D' ]; then
+			if [ ${BASH_REMATCH[2]} = '7' ]; then
+				DENSITY=`echo -e "DLT4"`;
+			fi
 		fi
 		if [ ${BASH_REMATCH[1]} = 'S' ]; then
 			if [ ${BASH_REMATCH[2]} = '3' ]; then
@@ -80,7 +85,21 @@ set_density() {
 			DENSITY=`echo -e "AIT${BASH_REMATCH[2]}"`
 		fi
 		if [ ${BASH_REMATCH[1]} = 'T' ]; then
-			DENSITY=`echo -e "T10K${BASH_REMATCH[2]}"`
+			if [ ${BASH_REMATCH[2]} = 'Z' ]; then
+				DENSITY=`echo -e "9840A"`;
+			elif [ ${BASH_REMATCH[2]} = 'Y' ]; then
+				DENSITY=`echo -e "9840B"`;
+			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
+				DENSITY=`echo -e "9840C"`;
+			elif [ ${BASH_REMATCH[2]} = 'W' ]; then
+				DENSITY=`echo -e "9840D"`;
+			elif [ ${BASH_REMATCH[2]} = 'V' ]; then
+				DENSITY=`echo -e "9940A"`;
+			elif [ ${BASH_REMATCH[2]} = 'U' ]; then
+				DENSITY=`echo -e "9940B"`;
+			else
+				DENSITY=`echo -e "T10K${BASH_REMATCH[2]}"`
+			fi
 		fi
 		if [ ${BASH_REMATCH[1]} = 'J' ]; then
 #FIXME: please fix me when ever the J WORM TAPE are added to mktape
