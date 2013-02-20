@@ -1240,6 +1240,7 @@ void rereadconfig(int sig)
 	struct log_pg_list *logp, *logn;	/* Log page info */
 	struct vtl_ctl ctl;
 	int i;
+	int buffer_size;
 
 	MHVTL_DBG(1, "Caught signal (%d): Re-initialising library %d",
 			sig, (int)my_id);
@@ -1313,6 +1314,19 @@ void rereadconfig(int sig)
 	update_drive_details(&lunit);
 	init_smc_mode_pages(&lunit);
 	init_smc_log_pages(&lunit);
+
+	/* malloc a big enough buffer to fit worst case read element status */
+	buffer_size = (smc_slots.num_drives +
+				smc_slots.num_picker +
+				smc_slots.num_map +
+				smc_slots.num_storage) * 80;
+	if (buffer_size > smc_slots.bufsize) {
+		MHVTL_LOG("Too many slots configured"
+			" - possible buffer overflow");
+		MHVTL_LOG("Please shutdown this daemon and restart so"
+			" correct buffer allocation can be performed");
+	}
+
 }
 
 static void caught_signal(int signo)
