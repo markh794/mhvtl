@@ -1195,7 +1195,6 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 				(int)strlen(lu->lu_serial_no),
 				(int)__LINE__);
 
-	lu->online = 1;
 	lu->lu_private = &smc_slots;
 	smc_slots.cap_closed = CAP_CLOSED;
 	return found;
@@ -1241,6 +1240,8 @@ void rereadconfig(int sig)
 	struct vtl_ctl ctl;
 	int i;
 	int buffer_size;
+
+	lunit.online = 0;	/* Report library offline until finished */
 
 	MHVTL_DBG(1, "Caught signal (%d): Re-initialising library %d",
 			sig, (int)my_id);
@@ -1326,7 +1327,8 @@ void rereadconfig(int sig)
 		MHVTL_LOG("Please shutdown this daemon and restart so"
 			" correct buffer allocation can be performed");
 	}
-
+	reset_device();	/* Force a POWER-ON/RESET sense code */
+	lunit.online = 1;	/* Should be good to go */
 }
 
 static void caught_signal(int signo)
@@ -1425,6 +1427,7 @@ int main(int argc, char *argv[])
 	update_drive_details(&lunit);
 	init_smc_mode_pages(&lunit);
 	init_smc_log_pages(&lunit);
+	lunit.online = 1; /* Mark unit online */
 
 	if (chrdev_create(my_id)) {
 		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);
