@@ -2388,26 +2388,7 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 
-		/* 0xb0 -> 0xbf */
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-
-		[0xc0 ... 0xff] = {spc_illegal_op,},
+		[0xb0 ... 0xff] = {spc_illegal_op,},
 	}
 };
 
