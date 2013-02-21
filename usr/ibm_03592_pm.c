@@ -381,6 +381,8 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -413,6 +415,8 @@ void init_3592_E05(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -450,6 +454,8 @@ void init_3592_E06(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);

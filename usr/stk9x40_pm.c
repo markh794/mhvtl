@@ -358,7 +358,10 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.native_drive_density = &density_9840A;
 
 	personality_module_register(&ssc_pm);
 
@@ -374,11 +377,11 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_9840A;
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+
 	add_density_support(&lu->den_list, &density_9840A, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "9840A");
 	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
 }
@@ -391,7 +394,10 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.native_drive_density = &density_9840B;
 
 	personality_module_register(&ssc_pm);
 
@@ -408,15 +414,11 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	ssc_pm.native_drive_density = &density_9840B;
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-
-	register_ops(lu, LOG_SENSE, ssc_log_sense);
 
 	add_density_support(&lu->den_list, &density_9840A, 1);
 	add_density_support(&lu->den_list, &density_9840B, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "9840A");
 	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
 	add_drive_media_list(lu, LOAD_RW, "9840B");
@@ -431,6 +433,8 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -447,13 +451,15 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+
 	ssc_pm.native_drive_density = &density_9840C;
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+
 	add_density_support(&lu->den_list, &density_9840A, 0);
 	add_density_support(&lu->den_list, &density_9840B, 1);
 	add_density_support(&lu->den_list, &density_9840C, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "9840A");
 	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
 	add_drive_media_list(lu, LOAD_RW, "9840B");
@@ -468,12 +474,16 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	ssc_pm.drive_supports_WORM = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.native_drive_density = &density_9840D;
 
 	personality_module_register(&ssc_pm);
 
 	init_9840_inquiry(lu);
 
 	init_9840_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -482,14 +492,14 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_9840D;
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+
 	add_density_support(&lu->den_list, &density_9840A, 0);
 	add_density_support(&lu->den_list, &density_9840B, 0);
 	add_density_support(&lu->den_list, &density_9840C, 1);
 	add_density_support(&lu->den_list, &density_9840D, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "9840B");
 	add_drive_media_list(lu, LOAD_RO, "9840B Clean");
 	add_drive_media_list(lu, LOAD_RW, "9840C");
@@ -503,7 +513,10 @@ void init_9940A_ssc(struct lu_phy_attr *lu)
 	ssc_pm.name = pm_name_9940A;
 	ssc_pm.lu = lu;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.native_drive_density = &density_9940A;
 
 	personality_module_register(&ssc_pm);
 
@@ -519,11 +532,11 @@ void init_9940A_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_9940A;
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+
 	add_density_support(&lu->den_list, &density_9940A, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "9840A");
 	add_drive_media_list(lu, LOAD_RO, "9840A Clean");
 	add_drive_media_list(lu, LOAD_RW, "9840A");
@@ -540,9 +553,13 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 	ssc_pm.lu = lu;
 	ssc_pm.native_drive_density = &density_9940B;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
+
+	init_9840_inquiry(lu);
 
 	init_9840_mode_pages(lu);
 
@@ -554,12 +571,12 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	init_9840_inquiry(lu);
+
 	add_density_support(&lu->den_list, &density_9940A, 1);
 	add_density_support(&lu->den_list, &density_9940B, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "9940A");
 	add_drive_media_list(lu, LOAD_RO, "9940A Clean");
 	add_drive_media_list(lu, LOAD_RW, "9940B");

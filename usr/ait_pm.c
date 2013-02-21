@@ -348,6 +348,8 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = FALSE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 2;
 
 	personality_module_register(&ssc_pm);
@@ -381,6 +383,8 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -418,6 +422,8 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -459,6 +465,8 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -479,9 +487,6 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	ssc_pm.native_drive_density = &density_ait4;
 
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 10; /* Capacity units in KBytes */
-
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 
 	add_density_support(&lu->den_list, &density_ait2, 0);
 	add_density_support(&lu->den_list, &density_ait3, 1);

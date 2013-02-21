@@ -348,6 +348,8 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -364,10 +366,11 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+
 	add_density_support(&lu->den_list, &density_t10kA, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "T10KA");
 	add_drive_media_list(lu, LOAD_RO, "T10KA Clean");
 }
@@ -380,6 +383,9 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 
 	personality_module_register(&ssc_pm);
 
@@ -396,13 +402,11 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
-	register_ops(lu, LOG_SENSE, ssc_log_sense);
 
 	add_density_support(&lu->den_list, &density_t10kA, 1);
 	add_density_support(&lu->den_list, &density_t10kB, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "T10KA");
 	add_drive_media_list(lu, LOAD_RO, "T10KA Clean");
 	add_drive_media_list(lu, LOAD_RW, "T10KB");
@@ -420,6 +424,8 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -436,12 +442,13 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+
 	add_density_support(&lu->den_list, &density_t10kA, 0);
 	add_density_support(&lu->den_list, &density_t10kB, 1);
 	add_density_support(&lu->den_list, &density_t10kC, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "T10KA");
 	add_drive_media_list(lu, LOAD_RO, "T10KA Clean");
 	add_drive_media_list(lu, LOAD_RW, "T10KB");

@@ -409,6 +409,8 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -451,6 +453,8 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -499,6 +503,8 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -550,6 +556,8 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_lto4;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
@@ -614,6 +622,8 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_lto5;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
@@ -683,6 +693,8 @@ void init_hp_ult_6(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_lto6;
 	ssc_pm.update_encryption_mode = update_ult_encryption_mode,

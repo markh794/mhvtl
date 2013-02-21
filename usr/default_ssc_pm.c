@@ -255,6 +255,8 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = FALSE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = FALSE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 2;
 
 	init_default_inquiry(lu);

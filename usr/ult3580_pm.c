@@ -395,6 +395,8 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -421,7 +423,9 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	add_density_support(&lu->den_list, &density_lto1, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "LTO1");
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 }
@@ -435,6 +439,8 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -462,8 +468,10 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	add_density_support(&lu->den_list, &density_lto1, 1);
 	add_density_support(&lu->den_list, &density_lto2, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "LTO1");
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO2");
@@ -481,6 +489,8 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -510,9 +520,11 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	add_density_support(&lu->den_list, &density_lto1, 0);
 	add_density_support(&lu->den_list, &density_lto2, 1);
 	add_density_support(&lu->den_list, &density_lto3, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO1");
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO2");
@@ -536,6 +548,8 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -569,11 +583,10 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_lto2, 0);
 	add_density_support(&lu->den_list, &density_lto3, 1);
 	add_density_support(&lu->den_list, &density_lto4, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO2");
 	add_drive_media_list(lu, LOAD_RO, "LTO2 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO3");
@@ -598,6 +611,8 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = TRUE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -634,11 +649,10 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_lto3, 0);
 	add_density_support(&lu->den_list, &density_lto4, 1);
 	add_density_support(&lu->den_list, &density_lto5, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO3");
 	add_drive_media_list(lu, LOAD_RO, "LTO3 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO4");
@@ -665,6 +679,8 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = TRUE;
 	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
@@ -701,11 +717,10 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
 	add_density_support(&lu->den_list, &density_lto4, 0);
 	add_density_support(&lu->den_list, &density_lto5, 1);
 	add_density_support(&lu->den_list, &density_lto6, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO4");
 	add_drive_media_list(lu, LOAD_RO, "LTO4 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO4 WORM");
@@ -718,4 +733,3 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO6 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO6 ENCR");
 }
-

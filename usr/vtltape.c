@@ -2343,8 +2343,8 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
-		{ssc_pr_in,},
-		{ssc_pr_out,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
 
 		[0x60 ... 0x7f] = {spc_illegal_op,},
 
@@ -2649,6 +2649,16 @@ void personality_module_register(struct ssc_personality_template *pm)
 {
 	MHVTL_DBG(2, "%s", pm->name);
 	lu_ssc.pm = pm;
+
+	if (pm->drive_supports_SP) {
+		register_ops(pm->lu, SECURITY_PROTOCOL_IN, ssc_spin);
+		register_ops(pm->lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	}
+	if (pm->drive_supports_SPR) {
+		register_ops(pm->lu, PERSISTENT_RESERVE_IN, ssc_pr_in);
+		register_ops(pm->lu, PERSISTENT_RESERVE_OUT, ssc_pr_out);
+	}
+
 }
 
 static void caught_signal(int signo)
