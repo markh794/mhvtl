@@ -371,8 +371,7 @@ rewind_tape(uint8_t *sam_stat)
 		break;
 	}
 
-	MHVTL_DBG(1, "Media is %s",
-				(OK_to_write) ? "writable" : "not writable");
+	MHVTL_DBG(1, "Media is%s writable", (OK_to_write) ? "" : " not");
 
 	return 1;
 }

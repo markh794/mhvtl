@@ -1869,8 +1869,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	/* Update TapeAlert flags */
 	update_TapeAlert(lu, fg);
 
-	MHVTL_DBG(1, "Media is %s",
-				(OK_to_write) ? "writable" : "not writable");
+	MHVTL_DBG(1, "Media is%s writable", (OK_to_write) ? "" : " not");
 
 	modeBlockDescriptor[0] = mam.MediumDensityCode;
 	lu->mode_media_type = lookup_mode_media_type(mam.MediaType);

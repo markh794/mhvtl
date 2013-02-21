@@ -371,8 +371,8 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 		}
 	}
 
-	MHVTL_DBG(2, "returning %s",
-			(*lu_ssc->OK_2_write) ? "Writable" : "Non-writable");
+	MHVTL_DBG(2, "returning:%s writable",
+			(*lu_ssc->OK_2_write) ? "" : " not");
 	return *lu_ssc->OK_2_write;
 }
 
