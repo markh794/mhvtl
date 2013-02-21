@@ -435,7 +435,9 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	add_density_support(&lu->den_list, &density_lto1, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "LTO1");
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 }
@@ -476,8 +478,10 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	add_density_support(&lu->den_list, &density_lto1, 1);
 	add_density_support(&lu->den_list, &density_lto2, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "LTO1");
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO2");
@@ -524,9 +528,11 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
 	add_density_support(&lu->den_list, &density_lto1, 0);
 	add_density_support(&lu->den_list, &density_lto2, 1);
 	add_density_support(&lu->den_list, &density_lto3, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO1");
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO2");
@@ -585,9 +591,11 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	add_density_support(&lu->den_list, &density_lto2, 0);
 	add_density_support(&lu->den_list, &density_lto3, 1);
 	add_density_support(&lu->den_list, &density_lto4, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO2");
 	add_drive_media_list(lu, LOAD_RO, "LTO2 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO3");
@@ -650,9 +658,11 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	add_density_support(&lu->den_list, &density_lto3, 0);
 	add_density_support(&lu->den_list, &density_lto4, 1);
 	add_density_support(&lu->den_list, &density_lto5, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO3");
 	add_drive_media_list(lu, LOAD_RO, "LTO3 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO4");
@@ -717,9 +727,11 @@ void init_hp_ult_6(struct lu_phy_attr *lu)
 
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+
 	add_density_support(&lu->den_list, &density_lto4, 0);
 	add_density_support(&lu->den_list, &density_lto5, 1);
 	add_density_support(&lu->den_list, &density_lto6, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "LTO4");
 	add_drive_media_list(lu, LOAD_RO, "LTO4 Clean");
 	add_drive_media_list(lu, LOAD_RO, "LTO4 WORM");

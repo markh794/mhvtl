@@ -343,7 +343,7 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.name = name_ait_1;
 	ssc_pm.lu = lu;
-
+	ssc_pm.native_drive_density = &density_ait1;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
@@ -355,6 +355,7 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	init_ait_inquiry(lu);
 
 	init_ait_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -367,8 +368,6 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	add_density_support(&lu->den_list, &density_ait1, 1);
 	add_drive_media_list(lu, LOAD_RW, "AIT1");
 	add_drive_media_list(lu, LOAD_RO, "AIT1 Clean");
-
-	ssc_pm.native_drive_density = &density_ait1;
 }
 
 void init_ait2_ssc(struct lu_phy_attr *lu)
@@ -377,7 +376,7 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.name = name_ait_2;
 	ssc_pm.lu = lu;
-
+	ssc_pm.native_drive_density = &density_ait2;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
@@ -389,6 +388,7 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	init_ait_inquiry(lu);
 
 	init_ait_mode_pages(lu);
+
 	add_log_write_err_counter(lu);
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
@@ -397,9 +397,10 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_ait2;
+
 	add_density_support(&lu->den_list, &density_ait1, 1);
 	add_density_support(&lu->den_list, &density_ait2, 1);
+
 	add_drive_media_list(lu, LOAD_RW, "AIT1");
 	add_drive_media_list(lu, LOAD_RO, "AIT1 Clean");
 	add_drive_media_list(lu, LOAD_RW, "AIT2");
@@ -412,7 +413,7 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.name = name_ait_3;
 	ssc_pm.lu = lu;
-
+	ssc_pm.native_drive_density = &density_ait3;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
@@ -433,10 +434,11 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
-	ssc_pm.native_drive_density = &density_ait3;
+
 	add_density_support(&lu->den_list, &density_ait1, 0);
 	add_density_support(&lu->den_list, &density_ait2, 1);
 	add_density_support(&lu->den_list, &density_ait3, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "AIT1");
 	add_drive_media_list(lu, LOAD_RO, "AIT1 Clean");
 	add_drive_media_list(lu, LOAD_RW, "AIT2");
@@ -451,7 +453,8 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.name = name_ait_4;
 	ssc_pm.lu = lu;
-
+	ssc_pm.clear_WORM = clear_ait_WORM,
+	ssc_pm.set_WORM	= set_ait_WORM,
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
@@ -472,9 +475,9 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+
 	ssc_pm.native_drive_density = &density_ait4;
-	ssc_pm.clear_WORM = clear_ait_WORM,
-	ssc_pm.set_WORM	= set_ait_WORM,
+
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 10; /* Capacity units in KBytes */
 
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
@@ -483,6 +486,7 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	add_density_support(&lu->den_list, &density_ait2, 0);
 	add_density_support(&lu->den_list, &density_ait3, 1);
 	add_density_support(&lu->den_list, &density_ait4, 1);
+
 	add_drive_media_list(lu, LOAD_RO, "AIT2");
 	add_drive_media_list(lu, LOAD_RO, "AIT2 Clean");
 	add_drive_media_list(lu, LOAD_RW, "AIT3");
@@ -491,4 +495,3 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RO, "AIT4 Clean");
 	add_drive_media_list(lu, LOAD_RW, "AIT4 WORM");
 }
-
