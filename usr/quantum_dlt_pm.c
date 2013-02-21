@@ -422,6 +422,10 @@ void init_dlt7000_ssc(struct lu_phy_attr *lu)
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 
+	/* Don't support PERSISTENT RESERVATION */
+	register_ops(lu, PERSISTENT_RESERVE_IN, spc_illegal_op);
+	register_ops(lu, PERSISTENT_RESERVE_OUT, spc_illegal_op);
+
 	add_density_support(&lu->den_list, &density_dlt2, 0);
 	add_density_support(&lu->den_list, &density_dlt3, 1);
 	add_density_support(&lu->den_list, &density_dlt4, 1);
@@ -429,6 +433,7 @@ void init_dlt7000_ssc(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "DLT4");
 	add_drive_media_list(lu, LOAD_RO, "DLT4 Clean");
 }
+
 void init_dlt8000_ssc(struct lu_phy_attr *lu)
 {
 	ssc_pm.name = pm_name_dlt8000;
@@ -463,6 +468,10 @@ void init_dlt8000_ssc(struct lu_phy_attr *lu)
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
+	/* Don't support PERSISTENT RESERVATION */
+	register_ops(lu, PERSISTENT_RESERVE_IN, spc_illegal_op);
+	register_ops(lu, PERSISTENT_RESERVE_OUT, spc_illegal_op);
 
 	add_density_support(&lu->den_list, &density_dlt2, 0);
 	add_density_support(&lu->den_list, &density_dlt3, 1);
