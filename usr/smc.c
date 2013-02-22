@@ -461,13 +461,13 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 	p[j++] = (s->asc_ascq >> 8) & 0xff;  /* Additional Sense Code */
 	p[j++] = s->asc_ascq & 0xff; /* Additional Sense Code Qualifer */
 
-	j++;		/* Reserved */
+	p[j++] = 0;		/* Reserved */
 	if (s->element_type == DATA_TRANSFER)
 		p[j++] = d->SCSI_ID;
 	else
-		j++;	/* Reserved */
+		p[j++] = 0;	/* Reserved */
 
-	j++;		/* Reserved */
+	p[j++] = 0;	/* Reserved */
 
 	/* bit 8 set if Source Storage Element is valid | s->occupied */
 	if (s->media)
@@ -511,7 +511,7 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 	if (dvcid && s->element_type == DATA_TRANSFER) {
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
-		j++;		/* Reserved */
+		p[j++] = 0;	/* Reserved */
 		p[j++] = smc_p->dvcid_len;	/* Identifier Length */
 		if (smc_p->dvcid_serial_only) {
 			blank_fill(&p[j], d->inq_product_sno,
@@ -526,7 +526,10 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 			j += 10;
 		}
 	} else {
-		j += 4;		/* Reserved */
+		p[j++] = 0;	/* Reserved */
+		p[j++] = 0;	/* Reserved */
+		p[j++] = 0;	/* Reserved */
+		p[j++] = 0;	/* Reserved */
 	}
 	MHVTL_DBG(3, "Returning %d bytes", j);
 
