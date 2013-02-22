@@ -21,8 +21,8 @@
  *   Some of the logic in this source depends on it.
  */
 #define START_DRIVE	0x0001
-#define START_PICKER	0x0100
-#define START_MAP	0x0200
+#define START_PICKER	0x02c0
+#define START_MAP	0x0300
 #define START_STORAGE	0x0400
 
 uint8_t smc_allow_removal(struct scsi_cmd *cmd);
