@@ -40,6 +40,11 @@
 #define MHVTL_HOME_PATH "/opt/vtl"
 #endif
 
+/*
+http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
+ */
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+
 #if __BYTE_ORDER == __BIG_ENDIAN
 
 #define htonll(x)	(x)

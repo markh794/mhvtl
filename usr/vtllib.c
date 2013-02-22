@@ -219,6 +219,13 @@ return retval;
 void reset_device(void)
 {
 	reset = 1;
+
+/*
+http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
+
+If this fails to compile - sizeof MAM != 1024 bytes !
+*/
+	BUILD_BUG_ON(sizeof(struct MAM) % 1024);
 }
 
 #define READ_POSITION_LONG_LEN 32
