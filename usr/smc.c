@@ -458,8 +458,8 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
  * 0x80/0x63 Drive operating with low module fan speed
  * 0x80/0x5f Drive being shutdown due to low module fan speed
  */
-	p[j++] = (s->asc_ascq >> 8) | 0xff;  /* Additional Sense Code */
-	p[j++] = s->asc_ascq | 0xff; /* Additional Sense Code Qualifer */
+	p[j++] = (s->asc_ascq >> 8) & 0xff;  /* Additional Sense Code */
+	p[j++] = s->asc_ascq & 0xff; /* Additional Sense Code Qualifer */
 
 	j++;		/* Reserved */
 	if (s->element_type == DATA_TRANSFER)
