@@ -39,11 +39,11 @@ struct	q_msg {
 	char text[MAXTEXTLEN+1];
 };
 
-#define QKEY	(key_t)0x4d61726b	// Identifying key for queue
-#define QPERM	0660		// Permissions for queue
-#define MAXOBN	sizeof(struct q_msg)	// Maximum length of message for Q.
-#define MAXPRIOR 256		// max priority level
-#define VTLCMD_Q 32768		// Priority for vtlcmd
+#define QKEY	(key_t)0x4d61726b	/* Identifying key for queue */
+#define QPERM	0660		/* Permissions for queue */
+#define MAXOBN	sizeof(struct q_msg)	/* Maximum length of message for Q. */
+#define MAXPRIOR 1024		/* max priority level */
+#define VTLCMD_Q 32768		/* Priority for vtlcmd */
 
 struct q_entry {
 	long rcv_id;

@@ -510,9 +510,9 @@ struct mode *lookup_pcode(struct list_head *l, uint8_t pcode, uint8_t subpcode);
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);
 
 void hex_dump(uint8_t *, int);
-int chrdev_open(char *name, uint8_t);
-int chrdev_create(uint8_t minor);
-int chrdev_chown(uint8_t minor, uid_t uid, gid_t gid);
+int chrdev_open(char *name, unsigned minor);
+int chrdev_create(unsigned minor);
+int chrdev_chown(unsigned minor, uid_t uid, gid_t gid);
 int oom_adjust(void);
 int open_fifo(FILE **fifo_fd, char *fifoname);
 void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);
@@ -523,13 +523,13 @@ void blank_fill(uint8_t *dest, char *src, int len);
 void log_opcode(char *opcode, struct scsi_cmd *cmd);
 
 struct vpd *alloc_vpd(uint16_t sz);
-pid_t add_lu(int minor, struct vtl_ctl *ctl);
+pid_t add_lu(unsigned minor, struct vtl_ctl *ctl);
 
 void completeSCSICommand(int, struct vtl_ds *ds);
 void getCommand(int, struct vtl_header *);
 int retrieve_CDB_data(int cdev, struct vtl_ds *dbuf_p);
 void get_sn_inquiry(int, struct vtl_sn_inquiry *);
-int check_for_running_daemons(int minor);
+int check_for_running_daemons(unsigned minor);
 
 void mhvtl_prt_cdb(int l, struct scsi_cmd *cmd);
 void checkstrlen(char *s, unsigned int len);

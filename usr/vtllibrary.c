@@ -974,7 +974,7 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 	d[num + 4] |= 0x50;
 }
 
-static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
+static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 {
 
 	struct vpd **lu_vpd = lu->lu_vpd;
@@ -1042,7 +1042,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		if (sscanf(b, "Library: %d CHANNEL: %d TARGET: %d LUN: %d",
 					&indx, &tmpctl.channel,
 					&tmpctl.id, &tmpctl.lun)) {
-			MHVTL_DBG(2, "Found Library %d, looking for %d",
+			MHVTL_DBG(2, "Found Library %d, looking for %u",
 							indx, minor);
 			if (indx == minor) {
 				found = 1;

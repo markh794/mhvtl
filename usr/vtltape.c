@@ -2401,7 +2401,7 @@ void register_ops(struct lu_phy_attr *lu, int op, void *f)
 }
 
 #define MALLOC_SZ 512
-static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
+static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
 
@@ -2469,7 +2469,7 @@ static int init_lu(struct lu_phy_attr *lu, int minor, struct vtl_ctl *ctl)
 		if (sscanf(b, "Drive: %d CHANNEL: %d TARGET: %d LUN: %d",
 					&indx, &tmpctl.channel,
 					&tmpctl.id, &tmpctl.lun)) {
-			MHVTL_DBG(2, "Looking for %d, Found drive %d",
+			MHVTL_DBG(2, "Looking for %d, Found drive %u",
 							minor, indx);
 			if (indx == minor) {
 				found = 1;
@@ -2683,7 +2683,7 @@ int main(int argc, char *argv[])
 	char *progname = argv[0];
 	char *fifoname = NULL;
 	char *name = "mhvtl";
-	int minor = 0;
+	unsigned minor = 0;
 	struct passwd *pw;
 
 	struct vtl_header vtl_cmd;
@@ -2765,7 +2765,7 @@ int main(int argc, char *argv[])
 
 	/* Parse config file and build up each device */
 	if (!init_lu(&lunit, minor, &ctl)) {
-		printf("Can not find entry for '%d' in config file\n", minor);
+		printf("Can not find entry for '%u' in config file\n", minor);
 		exit(1);
 	}
 
@@ -2784,7 +2784,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (chrdev_create(minor)) {
-		MHVTL_DBG(1, "Unable to create device node mhvtl%d", minor);
+		MHVTL_DBG(1, "Unable to create device node mhvtl%u", minor);
 		exit(1);
 	}
 
@@ -2820,7 +2820,7 @@ int main(int argc, char *argv[])
 
 	cdev = chrdev_open(name, minor);
 	if (cdev == -1) {
-		MHVTL_ERR("Could not open /dev/%s%d: %s", name, minor,
+		MHVTL_ERR("Could not open /dev/%s%u: %s", name, minor,
 						strerror(errno));
 		fflush(NULL);
 		exit(1);

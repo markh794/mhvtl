@@ -382,7 +382,7 @@ void hex_dump(uint8_t *p, int count)
  * So spawn child process and don't wait for return.
  * Let the child process write to the kernel module
  */
-pid_t add_lu(int minor, struct vtl_ctl *ctl)
+pid_t add_lu(unsigned minor, struct vtl_ctl *ctl)
 {
 	char str[1024];
 	pid_t pid;
@@ -391,7 +391,7 @@ pid_t add_lu(int minor, struct vtl_ctl *ctl)
 	char *pseudo_filename = "/sys/bus/pseudo/drivers/mhvtl/add_lu";
 	char errmsg[512];
 
-	sprintf(str, "add %d %d %d %d\n",
+	sprintf(str, "add %u %d %d %d\n",
 			minor, ctl->channel, ctl->id, ctl->lun);
 
 	switch(pid = fork()) {
@@ -449,12 +449,12 @@ static int chrdev_get_major(void)
 	return rc;
 }
 
-int chrdev_chown(uint8_t minor, uid_t uid, uid_t gid)
+int chrdev_chown(unsigned minor, uid_t uid, uid_t gid)
 {
 	char pathname[64];
 	int x;
 
-	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%d", minor);
+	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%u", minor);
 
 	MHVTL_DBG(3, "chown(%s, %d, %d)", pathname, (int)uid, (int)gid);
 	x = chown(pathname, uid, uid);
@@ -466,7 +466,7 @@ int chrdev_chown(uint8_t minor, uid_t uid, uid_t gid)
 	return 0;
 }
 
-int chrdev_create(uint8_t minor)
+int chrdev_create(unsigned minor)
 {
 	int majno;
 	int x;
@@ -474,7 +474,7 @@ int chrdev_create(uint8_t minor)
 	dev_t dev;
 	char pathname[64];
 
-	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%d", minor);
+	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%u", minor);
 
 	majno = chrdev_get_major();
 	if (majno == -ENOENT) {
@@ -484,7 +484,7 @@ int chrdev_create(uint8_t minor)
 	}
 
 	dev = makedev(majno, minor);
-	MHVTL_DBG(2, "Major number: %d, minor number: %d",
+	MHVTL_DBG(2, "Major number: %d, minor number: %u",
 			major(dev), minor(dev));
 	MHVTL_DBG(3, "mknod(%s, %02o, major: %d minor: %d",
 		pathname, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP,
@@ -503,7 +503,7 @@ err:
 	return ret;
 }
 
-int chrdev_open(char *name, uint8_t minor)
+int chrdev_open(char *name, unsigned minor)
 {
 	FILE *f;
 	char devname[256];
@@ -534,7 +534,7 @@ int chrdev_open(char *name, uint8_t minor)
 				"make sure the module is loaded\n", name);
 		return -1;
 	}
-	snprintf(devname, sizeof(devname), "/dev/%s%d", name, minor);
+	snprintf(devname, sizeof(devname), "/dev/%s%u", name, minor);
 	ctlfd = open(devname, O_RDWR|O_NONBLOCK);
 	if (ctlfd < 0) {
 		printf("Cannot open %s %s\n", devname, strerror(errno));
@@ -580,7 +580,7 @@ void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg)
 {
 	time_t t;
 	char *timestamp;
-	unsigned int i;
+	unsigned i;
 
 	if (!fifo_fd)
 		return;
@@ -719,13 +719,13 @@ void log_opcode(char *opcode, struct scsi_cmd *cmd)
  * If we get a response after 2 seconds, there must be another
  * daemon listening on this message queue.
  */
-int check_for_running_daemons(int minor)
+int check_for_running_daemons(unsigned minor)
 {
 	return 0;
 }
 
 /* Abort if string length > len */
-void checkstrlen(char *s, unsigned int len)
+void checkstrlen(char *s, unsigned len)
 {
 	if (strlen(s) > len) {
 		MHVTL_DBG(1, "String %s is > %d... Aborting", s, len);
