@@ -314,6 +314,15 @@ CONF_SAMPLE
 			printf "Slot 40: CLN%02d3TA\n" $LIBID \
 				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
 		fi # End if [$LIBID == 30 ]
+
+		# Not a library this script created, but create some
+		# slots anyway
+		if [ $LIBID != 10 ] && [ $LIBID != 30 ]; then
+			for a in `seq 1 39`; do
+				printf "Slot $a: M0%02d%02d\n" $LIBID $a \
+				>> $MHVTL_CONFIG_PATH/library_contents.$LIBID
+			done
+		fi
 	fi
 done
 
