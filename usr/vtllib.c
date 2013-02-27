@@ -725,10 +725,11 @@ int check_for_running_daemons(unsigned minor)
 }
 
 /* Abort if string length > len */
-void checkstrlen(char *s, unsigned len)
+void checkstrlen(char *s, unsigned len, int lineno)
 {
 	if (strlen(s) > len) {
-		MHVTL_DBG(1, "String %s is > %d... Aborting", s, len);
+		MHVTL_DBG(1, "Line #: %d, String %s is > %d... Aborting",
+						lineno, s, len);
 		printf("String %s longer than %d chars\n", s, len);
 		printf("Please fix config file\n");
 		abort();
@@ -914,7 +915,7 @@ void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
 				s, flag, lu->fifoname);
 	if (lu->fifo_flag)	/* fifo set via '-f <fifo>' switch */
 		return;
-	checkstrlen(s, MALLOC_SZ - 1);
+	checkstrlen(s, MALLOC_SZ - 1, 0);
 	if (lu->fifoname)
 		free(lu->fifoname);
 	lu->fifoname = (char *)malloc(strlen(s) + 2);

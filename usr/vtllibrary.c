@@ -989,6 +989,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	int indx;
 	struct vtl_ctl tmpctl;
 	int found = 0;
+	int linecount;
 
 	backoff = DEFLT_BACKOFF_VALUE;
 
@@ -1034,7 +1035,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	smc_slots.commandtimeout = 20;
 
 	/* While read in a line */
+	linecount = 0;	/* Line count */
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
+		linecount++;
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (strlen(b) == 1)	/* Reset drive number of blank line */
@@ -1054,7 +1057,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 			int i;
 
 			if (sscanf(b, " Unit serial number: %s", s)) {
-				checkstrlen(s, SCSI_SN_LEN);
+				checkstrlen(s, SCSI_SN_LEN, linecount);
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			}
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
@@ -1065,11 +1068,11 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 				sprintf(&lu->inquiry[16], "%-16s", s);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
-				checkstrlen(s, PRODUCT_REV_LEN);
+				checkstrlen(s, PRODUCT_REV_LEN, linecount);
 				sprintf(&lu->inquiry[32], "%-4s", s);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
-				checkstrlen(s, VENDOR_ID_LEN);
+				checkstrlen(s, VENDOR_ID_LEN, linecount);
 				sprintf(lu->vendor_id, "%-8s", s);
 				sprintf(&lu->inquiry[8], "%-8s", s);
 			}

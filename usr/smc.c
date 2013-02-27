@@ -1099,6 +1099,7 @@ static int valid_slot(struct smc_priv *smc_p, int addr)
 	struct s_info *slt;
 	struct d_info *drv;
 
+	MHVTL_DBG(3, "%s slot %d", slot_type_str[slot_type(smc_p, addr)], addr);
 	switch (slot_type(smc_p, addr)) {
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
@@ -1112,8 +1113,12 @@ static int valid_slot(struct smc_priv *smc_p, int addr)
 			MHVTL_DBG(1, "No target drive %d in device.conf", addr);
 			return FALSE;	/* No drive, return false */
 		}
-		if (drv->drv_id)
+		if (drv->drv_id) {
+			MHVTL_DBG(3, "Found drive id: %d", (int)drv->drv_id);
 			return TRUE;	/* Found a drive ID */
+		} else {
+			MHVTL_ERR("No drive in slot: %d", addr);
+		}
 		break;
 	}
 	return FALSE;
@@ -1278,10 +1283,12 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 	}
 
 	if (cdb[10] != 0) {	/* Can not Invert media */
+		MHVTL_ERR("Can not invert media");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	if (cdb[11] == 0xc0) {	/* Invalid combo of Extend/retract I/O port */
+		MHVTL_ERR("Extend/retract I/O port invalid");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1291,14 +1298,18 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 	if (transport_addr == 0)
 		transport_addr = START_PICKER;
 	if (slot_type(smc_p, transport_addr) != MEDIUM_TRANSPORT) {
+		MHVTL_ERR("Can't move media using slot type %d",
+				slot_type(smc_p, transport_addr));
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, src_addr)) {
+		MHVTL_ERR("Invalid source slot: %d", src_addr);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, dest_addr)) {
+		MHVTL_ERR("Invalid dest slot: %d", dest_addr);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}

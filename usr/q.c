@@ -115,7 +115,7 @@ int enter(char *objname, long rcv_id)
 
 	/* Send message, waiting if nessary */
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
-		perror("msgsnd failed");
+		MHVTL_ERR("msgsnd failed: %s", strerror(errno));
 		return -1;
 	}
 
@@ -134,9 +134,10 @@ int serve(void)
 
 	/* Get and process next message, waiting if necessary */
 	for (;;) {
-		if ((mlen = msgrcv(r_qid, &r_entry, MAXOBN,
-					(-1 * MAXPRIOR), MSG_NOERROR)) == -1) {
-			perror("msgrcv failed");
+		mlen = msgrcv(r_qid, &r_entry, MAXOBN,
+					(-1 * MAXPRIOR), MSG_NOERROR);
+		if (mlen == -1) {
+			MHVTL_ERR("msgsnd failed: %s", strerror(errno));
 			return -1;
 		} else {
 			/* Process object name */

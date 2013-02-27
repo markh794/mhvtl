@@ -532,7 +532,7 @@ void get_sn_inquiry(int, struct vtl_sn_inquiry *);
 int check_for_running_daemons(unsigned minor);
 
 void mhvtl_prt_cdb(int l, struct scsi_cmd *cmd);
-void checkstrlen(char *s, unsigned int len);
+void checkstrlen(char *s, unsigned int len, int linecount);
 extern int device_type_register(struct lu_phy_attr *lu,
 					struct device_type_template *t);
 

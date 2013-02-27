@@ -2412,6 +2412,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	int indx;
 	struct vtl_ctl tmpctl;
 	int found = 0;
+	int linecount;
 
 	INIT_LIST_HEAD(&lu->den_list);
 	INIT_LIST_HEAD(&lu->log_pg);
@@ -2461,7 +2462,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	}
 
 	/* While read in a line */
+	linecount = 0;
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
+		linecount++;
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
 		if (strlen(b) == 1)	/* Reset drive number of blank line */
@@ -2483,11 +2486,11 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 			memset(s, 0x20, MALLOC_SZ);
 
 			if (sscanf(b, " Unit serial number: %s", s)) {
-				checkstrlen(s, SCSI_SN_LEN);
+				checkstrlen(s, SCSI_SN_LEN, linecount);
 				sprintf(lu->lu_serial_no, "%-10s", s);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
-				checkstrlen(s, VENDOR_ID_LEN);
+				checkstrlen(s, VENDOR_ID_LEN, linecount);
 				sprintf(lu->vendor_id, "%-8s", s);
 				sprintf(&lu->inquiry[8], "%-8s", s);
 			}
@@ -2495,12 +2498,12 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 				/* sscanf does not NULL terminate */
 				/* 25 is len of ' Product identification: ' */
 				s[strlen(b) - 25] = '\0';
-				checkstrlen(s, PRODUCT_ID_LEN);
+				checkstrlen(s, PRODUCT_ID_LEN, linecount);
 				sprintf(lu->product_id, "%-16s", s);
 				sprintf(&lu->inquiry[16], "%-16s", s);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
-				checkstrlen(s, PRODUCT_REV_LEN);
+				checkstrlen(s, PRODUCT_REV_LEN, linecount);
 				sprintf(&lu->inquiry[32], "%-4s", s);
 			}
 			if (sscanf(b, " Library ID: %d", &library_id)) {
