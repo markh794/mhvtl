@@ -59,6 +59,7 @@ set_density() {
 	density=$1
 	regex='[A-Z0-9]{6,8}([SLXTJD])([1234567ABWXYZ])$'
 	#regex='[A-Z0-9]{4,6}([SLXTJ])([123456ABWX])[0-9]*$' # for bacula
+	DENSITY=UNKNOWN
 
 	if [[ $density =~ $regex ]]; then
 		matches=${#BASH_REMATCH[*]}

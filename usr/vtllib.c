@@ -1410,7 +1410,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		printf("'%s' is an invalid density\n", density);
 
 	if (mamp->MediaType == Media_undefined)	{
-		printf("mamp->MediaType is still Media_undefined, exiting\n");
+		printf("Warning: mamp->MediaType is still undefined\n");
 		return 1;
 	}
 	mamp->FormattedDensityCode = mamp->MediumDensityCode;
