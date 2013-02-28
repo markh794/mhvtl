@@ -66,13 +66,6 @@
 char vtl_driver_name[] = "vtllibrary";
 long my_id = 0;
 
-/* Element type codes */
-#define ANY			0
-#define MEDIUM_TRANSPORT	1
-#define STORAGE_ELEMENT		2
-#define MAP_ELEMENT		3
-#define DATA_TRANSFER		4
-
 #define CAP_CLOSED	1
 #define CAP_OPEN	0
 #define OPERATOR	1
@@ -759,23 +752,100 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	fclose(conf);
 }
 
-/*
- * Read config file and populate d_info struct with library's drives
- *
- * One very long and serial function...
- */
-static void init_slot_info(struct lu_phy_attr *lu)
+void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s)
+{
+	struct s_info *sp = NULL;
+	struct d_info *dp = NULL;
+	struct smc_priv *smc_p = lu->lu_private;
+
+	dp = lookup_drive(lu, slt);
+	if (!dp) {
+		dp = malloc(sizeof(struct d_info));
+		if (!dp) {
+			MHVTL_DBG(1, "Couldn't malloc memory");
+			exit(-ENOMEM);
+		}
+		memset(dp, 0, sizeof(struct d_info));
+
+		sp = add_new_slot(lu);
+		sp->element_type = DATA_TRANSFER;
+		dp->slot = sp;
+		sp->drive = dp;
+		list_add_tail(&dp->siblings, &smc_p->drive_list);
+	}
+	dp->slot->slot_location = slt + START_DRIVE - 1;
+	dp->slot->status = STATUS_Access;
+	smc_p->num_drives++;
+	if (strlen(s)) {
+		strncpy(dp->inq_product_sno, s, 10);
+		MHVTL_DBG(2, "Drive s/no: %s", s);
+	}
+}
+
+void init_map_slot(struct lu_phy_attr *lu, int slt, char *barcode)
+{
+	struct s_info *sp = NULL;
+	struct smc_priv *smc_p = lu->lu_private;
+
+	sp = add_new_slot(lu);
+	sp->element_type = MAP_ELEMENT;
+	smc_p->num_map++;
+
+	sp->slot_location = slt + START_MAP - 1;
+	sp->status = STATUS_InEnab | STATUS_ExEnab |
+				STATUS_Access | STATUS_ImpExp;
+
+	if (strlen(barcode)) {
+		MHVTL_DBG(2, "Barcode %s in MAP %d", barcode, slt);
+		sp->media = add_barcode(lu, barcode);
+		sp->status |= STATUS_Full;
+	}
+}
+
+void init_transport_slot(struct lu_phy_attr *lu, int slt, char *barcode)
+{
+	struct s_info *sp = NULL;
+	struct smc_priv *smc_p = lu->lu_private;
+
+	sp = add_new_slot(lu);
+	sp->element_type = MEDIUM_TRANSPORT;
+	smc_p->num_picker++;
+	sp->slot_location = slt + START_PICKER - 1;
+	sp->status = 0;
+
+	if (strlen(barcode)) {
+		MHVTL_DBG(2, "Barcode %s in Picker %d", barcode, slt);
+		sp->media = add_barcode(lu, barcode);
+		sp->slot_location = slt + START_PICKER - 1;
+		sp->status |= STATUS_Full;
+	}
+}
+
+void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode)
+{
+	struct s_info *sp = NULL;
+	struct smc_priv *smc_p = lu->lu_private;
+
+	sp = add_new_slot(lu);
+	sp->element_type = STORAGE_ELEMENT;
+	smc_p->num_storage++;
+	sp->status = STATUS_Access;
+	sp->slot_location = slt + START_STORAGE - 1;
+	if (strlen(barcode)) {
+		MHVTL_DBG(2, "Barcode %s in slot %d", barcode, slt);
+		sp->media = add_barcode(lu, barcode);
+		/* Slot full */
+		sp->status |= STATUS_Full;
+	}
+}
+
+static void __init_slot_info(struct lu_phy_attr *lu, int type)
 {
 	char conf[1024];
 	FILE *ctrl;
-	struct d_info *dp = NULL;
-	struct s_info *sp = NULL;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
-	char *barcode;
 	int slt;
-	int x;
-	struct smc_priv *smc_p = lu->lu_private;
 
 	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
 	ctrl = fopen(conf , "r");
@@ -798,112 +868,45 @@ static void init_slot_info(struct lu_phy_attr *lu)
 	}
 
 	rewind(ctrl);
-	barcode = s;
 	while (readline(b, MALLOC_SZ, ctrl) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		barcode[0] = '\0';
+		s[0] = '\0';
 
-		x = sscanf(b, "Drive %d: %s", &slt, s);
-
-		if (x) {
-			dp = lookup_drive(lu, slt);
-			if (!dp) {
-				dp = malloc(sizeof(struct d_info));
-				if (!dp) {
-					MHVTL_DBG(1, "Couldn't malloc memory");
-					exit(-ENOMEM);
-				}
-				memset(dp, 0, sizeof(struct d_info));
-
-				sp = add_new_slot(lu);
-				sp->element_type = DATA_TRANSFER;
-				dp->slot = sp;
-				sp->drive = dp;
-				list_add_tail(&dp->siblings,
-						&smc_p->drive_list);
-			}
-		}
-
-		switch (x) {
-		case 2:
-			/* Pull serial number out and fall thru to case 1*/
-			strncpy(dp->inq_product_sno, s, 10);
-			MHVTL_DBG(2, "Drive s/no: %s", s);
-		case 1:
-			dp->slot->slot_location = slt + START_DRIVE - 1;
-			dp->slot->status = STATUS_Access;
-			smc_p->num_drives++;
+		switch (type) {
+		case DATA_TRANSFER:
+			if (sscanf(b, "Drive %d: %s", &slt, s))
+				init_drive_slot(lu, slt, s);
 			break;
-		}
 
-		x = sscanf(b, "MAP %d: %s", &slt, barcode);
-		if (x) {
-			sp = add_new_slot(lu);
-			sp->element_type = MAP_ELEMENT;
-			smc_p->num_map++;
-		}
-
-		switch (x) {
-		case 1:
-			sp->slot_location = slt + START_MAP - 1;
-			sp->status = STATUS_InEnab | STATUS_ExEnab |
-					STATUS_Access | STATUS_ImpExp;
+		case MAP_ELEMENT:
+			if (sscanf(b, "MAP %d: %s", &slt, s))
+				init_map_slot(lu, slt, s);
 			break;
-		case 2:
-			MHVTL_DBG(2, "Barcode %s in MAP %d", barcode, slt);
-			sp->media = add_barcode(lu, barcode);
-			sp->status = STATUS_InEnab | STATUS_ExEnab |
-					STATUS_Access | STATUS_ImpExp |
-					STATUS_Full;
-			sp->slot_location = slt + START_MAP - 1;
-			break;
-		}
 
-		x = sscanf(b, "Picker %d: %s", &slt, barcode);
-		if (x) {
-			sp = add_new_slot(lu);
-			sp->element_type = MEDIUM_TRANSPORT;
-			smc_p->num_picker++;
-		}
-
-		switch (x) {
-		case 1:
-			sp->slot_location = slt + START_PICKER - 1;
-			sp->status = 0;
+		case MEDIUM_TRANSPORT:
+			if (sscanf(b, "Picker %d: %s", &slt, s))
+				init_transport_slot(lu, slt, s);
 			break;
-		case 2:
-			MHVTL_DBG(2, "Barcode %s in Picker %d", barcode, slt);
-			sp->media = add_barcode(lu, barcode);
-			sp->slot_location = slt + START_PICKER - 1;
-			sp->status = STATUS_Full;
-			break;
-		}
 
-		x = sscanf(b, "Slot %d: %s", &slt, barcode);
-		if (x) {
-			sp = add_new_slot(lu);
-			sp->element_type = STORAGE_ELEMENT;
-			smc_p->num_storage++;
-		}
-
-		switch (x) {
-		case 1:
-			sp->slot_location = slt + START_STORAGE - 1;
-			sp->status = STATUS_Access;
-			break;
-		case 2:
-			MHVTL_DBG(2, "Barcode %s in slot %d", barcode, slt);
-			sp->media = add_barcode(lu, barcode);
-			sp->slot_location = slt + START_STORAGE - 1;
-			/* Slot full */
-			sp->status = STATUS_Access | STATUS_Full;
+		case STORAGE_ELEMENT:
+			if (sscanf(b, "Slot %d: %s", &slt, s))
+				init_storage_slot(lu, slt, s);
 			break;
 		}
 	}
 	fclose(ctrl);
 	free(b);
 	free(s);
+}
+
+/* Linked list data needs to be built in slot order */
+static void init_slot_info(struct lu_phy_attr *lu)
+{
+	__init_slot_info(lu, DATA_TRANSFER);
+	__init_slot_info(lu, MEDIUM_TRANSPORT);
+	__init_slot_info(lu, MAP_ELEMENT);
+	__init_slot_info(lu, STORAGE_ELEMENT);
 }
 
 /* Set VPD data with device serial number */
