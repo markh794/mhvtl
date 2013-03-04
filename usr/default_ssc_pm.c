@@ -259,9 +259,9 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 2;
 
-	init_default_inquiry(lu);
-
 	personality_module_register(&ssc_pm);
+
+	init_default_inquiry(lu);
 
 	init_default_mode_pages(lu);
 
