@@ -686,9 +686,9 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 
 	smc_p = (struct smc_priv *)cmd->lu->lu_private;
 
-	if ((type < 1) || (type > 4)) {
-		MHVTL_DBG(1, "Invalid type: %d (valid values 1 - 4)", type);
-		return E_INVALID_FIELD_IN_CDB;
+	if (type > 4) {
+		MHVTL_DBG(1, "Invalid type: %d (valid values 0 - 4)", type);
+		return 0;
 	}
 
 	MHVTL_DBG(2, "Query %d element%s starting from addr: %d"
@@ -700,8 +700,10 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 
 	/* Find first valid slot. */
 	begin_element = find_first_matching_element(smc_p, start, type);
-	if (begin_element == 0)
-		return E_INVALID_FIELD_IN_CDB;
+	if (begin_element == 0) {
+		MHVTL_DBG(1, "Start element is still 0, line %d", __LINE__);
+		return 0;
+	}
 
 	avail_count =  num_available_elements(smc_p, type, start, max_count);
 
@@ -790,7 +792,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	/* Find first matching slot number which matches the type. */
 	start = find_first_matching_element(smc_p, req_start_elem, type);
 	if (start == 0) {	/* Nothing found.. */
-		MHVTL_DBG(3, "Start element is still 0");
+		MHVTL_DBG(1, "Start element is still 0, line %d", __LINE__);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
