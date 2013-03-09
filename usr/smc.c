@@ -299,7 +299,7 @@ static int map_access_ok(struct smc_priv *smc_p, struct s_info *s)
 	return 0;
 }
 
-static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
+static int dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
 				char dvcid_serial_only)
 {
 	int i, j, idlen;
@@ -348,6 +348,7 @@ static void dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
 		}
 		i = (j + 1) * len;
 	}
+	return i;
 }
 
 static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
@@ -355,6 +356,10 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 	int voltag;
 	int elem_len;
 	int page_elements, page_bytes;
+	int total_count;
+	int i;
+
+	total_count = get_unaligned_be24(&p[5]);
 
 	MHVTL_DBG(3, "Element Status Data");
 	MHVTL_DBG(3, "  First element reported       : %d",
@@ -365,28 +370,34 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 					get_unaligned_be24(&p[5]));
 
 	p += 8;
+	total_count -= 8;
 
-	MHVTL_DBG(3, "Element Status Page");
-	MHVTL_DBG(3, "  Element Type code            : %d (%s)",
+	while (total_count > 0) {
+		MHVTL_DBG(3, "Element Status Page");
+		MHVTL_DBG(3, "  Element Type code            : %d (%s)",
 					p[0], slot_type_str[p[0]]);
 
-	voltag = (p[1] & 0x80) ? 1 : 0;
-	MHVTL_DBG(3, "  Primary Vol Tag              : %s",
+		voltag = (p[1] & 0x80) ? 1 : 0;
+		MHVTL_DBG(3, "  Primary Vol Tag              : %s",
 					voltag ? "Yes" : "No");
-	MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
+		MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
 					(p[1] & 0x40) ? "Yes" : "No");
-	elem_len = get_unaligned_be16(&p[2]);
-	MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
-	page_bytes = get_unaligned_be24(&p[5]);
-	MHVTL_DBG(3, "  Byte count of descriptor data: %d", page_bytes);
-	page_elements = page_bytes / elem_len;
-	p += 8;
+		elem_len = get_unaligned_be16(&p[2]);
+		MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
+		page_bytes = get_unaligned_be24(&p[5]);
+		MHVTL_DBG(3, "  Byte count of descriptor data: %d", page_bytes);
+		page_elements = page_bytes / elem_len;
+		p += 8;
+		total_count -= 8;
 
-	MHVTL_DBG(3, "Element Descriptor(s) : Num of Elements %d",
+		MHVTL_DBG(3, "Element Descriptor(s) : Num of Elements %d",
 					page_elements);
 
-	dump_element_desc(p, voltag, page_elements, elem_len,
+		i = dump_element_desc(p, voltag, page_elements, elem_len,
 					smc_p->dvcid_serial_only);
+		p += i;
+		total_count -= i;
+	}
 
 	fflush(NULL);
 }
@@ -531,7 +542,7 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 		p[j++] = 0;	/* Reserved */
 		p[j++] = 0;	/* Reserved */
 	}
-	MHVTL_DBG(3, "Returning %d bytes", j);
+	MHVTL_DBG(3, "Returning %d (0x%02x) bytes", j, j);
 
 return j;
 }
@@ -664,32 +675,40 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
 /*
  * Fill in Element status page header + each Element descriptor
  *
+ * uint8_t *p -> Pointer to data buffer address
+ * uint16_t start -> Starting slot number
+ * uint8_t type -> Slot type
+ * uint16_t residual -> Sum of slots already reported on
+ *
  * Returns number of bytes in element page(s)
  */
 static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
-				uint16_t start)
+				uint16_t start, uint8_t type,
+				uint16_t residual)
 {
 	struct smc_priv *smc_p;
 	int j;
 	uint8_t *cdb = cmd->scb;
 	struct s_info *sp;
 
-	uint8_t	type = cdb[1] & 0x0f;
 	uint16_t max_count;	/* Max element count */
 	uint16_t avail_count;
 	uint32_t element_sz;
 	uint16_t begin_element;
+	int slot_count;
 
 	max_count = get_unaligned_be16(&cdb[4]);
 	if (max_count == 0)
 		max_count = ~0;
 
-	smc_p = (struct smc_priv *)cmd->lu->lu_private;
+	slot_count = max_count - residual;
+	if (slot_count <= 0)
+		return 0;	/* No more slots to report on */
 
-	if (type > 4) {
-		MHVTL_DBG(1, "Invalid type: %d (valid values 0 - 4)", type);
-		return 0;
-	}
+	/* Update max_count to reflect 'sum' value */
+	max_count = (uint16_t)slot_count;
+
+	smc_p = (struct smc_priv *)cmd->lu->lu_private;
 
 	MHVTL_DBG(2, "Query %d element%s starting from addr: %d"
 			" of type: (%d) %s",
@@ -714,13 +733,21 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 
 	/* Account for the 8 bytes in element status page header */
 	p += 8;
-	avail_count = 8;
+	avail_count = 8; /* Reuse avail_count as available byte count */
 
 	/* Now loop over each slot and fill in details. */
 	j = 1;
 	list_for_each_entry(sp, &smc_p->slot_list, siblings) {
 		if (sp->slot_location < start)
 			continue;
+		if (type) {
+			if (sp->element_type != type)
+				continue;	/* Don't report on this one */
+		} else {
+			/* Any type.. Need to fill in one type at a time */
+			if (sp->slot_location == start)
+				type = sp->element_type;
+		}
 		element_sz = fill_element_descriptor(cmd, p, sp);
 		avail_count += element_sz;	/* inc byte count */
 		p += element_sz;		/* inc pointer into dest buf */
@@ -746,6 +773,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	uint8_t *p;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t	type = cdb[1] & 0x0f;
+	uint16_t sum;
 	uint16_t req_start_elem;
 	uint16_t req_number;	/* Num of elements initiator requested */
 	uint32_t alloc_len;	/* Amount of space initiator has pre alloc */
@@ -800,13 +828,14 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	/* Leave room for 'master' header which is filled in at the end... */
 	p += 8;
 	elem_byte_count = 8;
+	sum = 0;
 
 	switch (type) {
 	case MEDIUM_TRANSPORT:
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
 	case DATA_TRANSFER:
-		elem_byte_count += fill_element_page(cmd, p, start);
+		elem_byte_count += fill_element_page(cmd, p, start, type, sum);
 		break;
 	case ANY:
 		/* Don't modify 'start' value as it is needed later */
@@ -818,24 +847,34 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		 * See DWR: near top of this file !!
 		 */
 		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
-			byte_count = fill_element_page(cmd, p, start_any);
+			byte_count = fill_element_page(cmd, p, start_any,
+							DATA_TRANSFER, sum);
 			p += byte_count;
 			start_any = START_PICKER;
+			sum = byte_count /
+				determine_element_sz(cmd, DATA_TRANSFER);
 		}
 		if (slot_type(smc_p, start_any) == MEDIUM_TRANSPORT) {
-			byte_count = fill_element_page(cmd, p, start_any);
+			byte_count = fill_element_page(cmd, p, start_any,
+							MEDIUM_TRANSPORT, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
 			start_any = START_MAP;
+			sum += byte_count /
+				determine_element_sz(cmd, MEDIUM_TRANSPORT);
 		}
 		if (slot_type(smc_p, start_any) == MAP_ELEMENT) {
-			byte_count = fill_element_page(cmd, p, start_any);
+			byte_count = fill_element_page(cmd, p, start_any,
+							MAP_ELEMENT, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
 			start_any = START_STORAGE;
+			sum += byte_count /
+				determine_element_sz(cmd, MAP_ELEMENT);
 		}
 		if (slot_type(smc_p, start_any) == STORAGE_ELEMENT) {
-			byte_count = fill_element_page(cmd, p, start_any);
+			byte_count = fill_element_page(cmd, p, start_any,
+							STORAGE_ELEMENT, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
 		}
@@ -857,7 +896,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		hex_dump(cmd->dbuf_p->data, elem_byte_count);
 #endif
 
-	decode_element_status(smc_p, cmd->dbuf_p->data);
+	if (verbose > 2)
+		decode_element_status(smc_p, cmd->dbuf_p->data);
 
 	/* Return the smallest number */
 	cmd->dbuf_p->sz = min(elem_byte_count, alloc_len);
