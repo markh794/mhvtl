@@ -155,7 +155,7 @@ static const char vtl_driver_name[] = "mhvtl";
 /* Major number assigned to vtl driver => 0 means to ask for one */
 static int vtl_major = 0;
 
-#define DEF_MAX_MINOR_NO 256	/* Max number of minor nos. this driver will handle */
+#define DEF_MAX_MINOR_NO 1024	/* Max number of minor nos. this driver will handle */
 
 #define VTL_CANQUEUE  255 	/* needs to be >= 1 */
 #define VTL_MAX_CMD_LEN 16
@@ -977,7 +977,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *hpnt, uint channel, uint
  *   -> slave_alloc()
  *   -> slave_configure()
  */
-static int vtl_add_device(int minor, struct vtl_ctl *ctl)
+static int vtl_add_device(unsigned int minor, struct vtl_ctl *ctl)
 {
 	struct Scsi_Host *hpnt;
 	struct vtl_hba_info *vtl_hba;
@@ -1102,7 +1102,7 @@ static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 				     const char *buf, size_t count)
 {
 	int retval;
-	int minor;
+	unsigned int minor;
 	struct vtl_ctl ctl;
 	char str[512];
 
@@ -1111,10 +1111,10 @@ static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 		return count;
 	}
 
-	retval = sscanf(buf, "%s %d %d %d %d",
+	retval = sscanf(buf, "%s %u %d %d %d",
 			str, &minor, &ctl.channel, &ctl.id, &ctl.lun);
 
-	MHVTL_DBG(2, "Calling 'vtl_add_device(minor: %d,"
+	MHVTL_DBG(2, "Calling 'vtl_add_device(minor: %u,"
 			" Channel: %d, ID: %d, LUN: %d)\n",
 			minor, ctl.channel, ctl.id, ctl.lun);
 
@@ -1396,7 +1396,7 @@ static int vtl_driver_remove(struct device *dev)
  * Char device driver routines
  *******************************************************************
  */
-static int get_user_data(int minor, char __user *arg)
+static int get_user_data(unsigned int minor, char __user *arg)
 {
 	struct vtl_queued_cmd *sqcp = NULL;
 	struct vtl_ds ds;
@@ -1423,7 +1423,7 @@ static int get_user_data(int minor, char __user *arg)
 	return ret;
 }
 
-static int put_user_data(int minor, char __user *arg)
+static int put_user_data(unsigned int minor, char __user *arg)
 {
 	struct vtl_queued_cmd *sqcp = NULL;
 	struct vtl_ds ds;
@@ -1477,7 +1477,7 @@ give_up:
 	return ret;
 }
 
-static int send_vtl_header(int minor, char __user *arg)
+static int send_vtl_header(unsigned int minor, char __user *arg)
 {
 	struct vtl_header *vheadp;
 	struct vtl_queued_cmd *sqcp;
@@ -1509,7 +1509,7 @@ static DEFINE_SEMAPHORE(tmp_mutex);
 static DECLARE_MUTEX(tmp_mutex);
 #endif
 
-static int vtl_remove_lu(int minor, char __user *arg)
+static int vtl_remove_lu(unsigned int minor, char __user *arg)
 {
 	struct vtl_ctl ctl;
 	struct vtl_hba_info *vtl_hba;
@@ -1630,7 +1630,7 @@ static int vtl_release(struct inode *inode, struct file *filp)
 #ifdef MHVTL_DEBUG
 	unsigned int minor = iminor(inode);
 #endif
-	MHVTL_DBG(1, "lu for minor %d Release\n", minor);
+	MHVTL_DBG(1, "lu for minor %u Release\n", minor);
 	return 0;
 }
 
@@ -1639,7 +1639,7 @@ static int vtl_open(struct inode *inode, struct file *filp)
 #ifdef MHVTL_DEBUG
 	unsigned int minor = iminor(inode);
 #endif
-	MHVTL_DBG(1, "mhvtl%d: opened\n", minor);
+	MHVTL_DBG(1, "mhvtl%u: opened\n", minor);
 	return 0;
 }
 
