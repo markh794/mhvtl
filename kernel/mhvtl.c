@@ -1586,7 +1586,7 @@ static int vtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 	unsigned int minor = iminor(inode);
 	int ret;
 
-	if (minor > DEF_MAX_MINOR_NO) {	/* Check limit minor no. */
+	if (minor >= DEF_MAX_MINOR_NO) {	/* Check limit minor no. */
 		return -ENODEV;
 	}
 
