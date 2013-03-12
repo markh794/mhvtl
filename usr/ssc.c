@@ -744,11 +744,11 @@ static void set_mode_compression(struct scsi_cmd *cmd, uint8_t *p)
 	dce = p[2] & 0x80;
 
 	MHVTL_DBG(2, " Data Compression Enable   : %s (0x%02x)",
-				(p[1] & 0x80) ? "Yes" : "No", p[1]);
-	MHVTL_DBG(2, " Data Compression Capable  : %s",
-				(p[1] & 0x40) ? "Yes" : "No");
-	MHVTL_DBG(2, " Data DeCompression Enable : %s (0x%02x)",
 				(p[2] & 0x80) ? "Yes" : "No", p[2]);
+	MHVTL_DBG(2, " Data Compression Capable  : %s",
+				(p[2] & 0x40) ? "Yes" : "No");
+	MHVTL_DBG(2, " Data DeCompression Enable : %s (0x%02x)",
+				(p[3] & 0x80) ? "Yes" : "No", p[3]);
 	MHVTL_DBG(2, " Compression Algorithm     : 0x%04x",
 				get_unaligned_be32(&p[4]));
 	MHVTL_DBG(2, " DeCompression Algorithm   : 0x%04x",
