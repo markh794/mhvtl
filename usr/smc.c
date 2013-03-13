@@ -405,7 +405,7 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 /*
  * Calculate length of one element
  */
-static int determine_element_sz(struct scsi_cmd *cmd, int type)
+static int sizeof_element(struct scsi_cmd *cmd, int type)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	int dvcid;
@@ -560,7 +560,7 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 
-	element_sz = determine_element_sz(cmd, type);
+	element_sz = sizeof_element(cmd, type);
 
 	p[0] = type;	/* Element type Code */
 
@@ -608,9 +608,11 @@ static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
 			"%02x %02x %02x %02x %02x %02x %02x %02x",
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 	MHVTL_DBG(3, " Decoded:");
-	MHVTL_DBG(3, "  First element Address    : %d",
+	MHVTL_DBG(3, "  First element Address    : %d (0x%02x)",
+					get_unaligned_be16(&p[0]),
 					get_unaligned_be16(&p[0]));
-	MHVTL_DBG(3, "  Number elements reported : %d",
+	MHVTL_DBG(3, "  Number elements reported : %d (0x%02x)",
+					get_unaligned_be16(&p[2]),
 					get_unaligned_be16(&p[2]));
 	MHVTL_DBG(3, "  Total byte count         : %d (0x%04x)",
 					get_unaligned_be32(&p[4]),
@@ -808,6 +810,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	/* Set alloc_len to smallest value */
 	alloc_len = min(alloc_len, smc_p->bufsize);
 
+	cmd->dbuf_p->sz = 0;
+
 	/* Init buffer */
 	memset(p, 0, alloc_len);
 
@@ -853,7 +857,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 			p += byte_count;
 			start_any = START_PICKER;
 			sum = byte_count /
-				determine_element_sz(cmd, DATA_TRANSFER);
+				sizeof_element(cmd, DATA_TRANSFER);
 		}
 		if (slot_type(smc_p, start_any) == MEDIUM_TRANSPORT) {
 			byte_count = fill_element_page(cmd, p, start_any,
@@ -862,7 +866,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 			p += byte_count;
 			start_any = START_MAP;
 			sum += byte_count /
-				determine_element_sz(cmd, MEDIUM_TRANSPORT);
+				sizeof_element(cmd, MEDIUM_TRANSPORT);
 		}
 		if (slot_type(smc_p, start_any) == MAP_ELEMENT) {
 			byte_count = fill_element_page(cmd, p, start_any,
@@ -871,7 +875,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 			p += byte_count;
 			start_any = START_STORAGE;
 			sum += byte_count /
-				determine_element_sz(cmd, MAP_ELEMENT);
+				sizeof_element(cmd, MAP_ELEMENT);
 		}
 		if (slot_type(smc_p, start_any) == STORAGE_ELEMENT) {
 			byte_count = fill_element_page(cmd, p, start_any,
@@ -900,13 +904,13 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	if (verbose > 2)
 		decode_element_status(smc_p, cmd->dbuf_p->data);
 
-	/* Return the smallest number */
 	cmd->dbuf_p->sz = min(elem_byte_count, alloc_len);
 
-	MHVTL_DBG(2, "Element count: %d, Elem byte count: 0x%04x,"
-				" alloc_len: %d",
-					cur_count, elem_byte_count,
-					cmd->dbuf_p->sz);
+	MHVTL_DBG(2, "Element count: %d, Elem byte count: %d (0x%04x),"
+				" alloc_len: %d, returning %d",
+					cur_count,
+					elem_byte_count, elem_byte_count,
+					alloc_len, cmd->dbuf_p->sz);
 
 	return SAM_STAT_GOOD;
 }
