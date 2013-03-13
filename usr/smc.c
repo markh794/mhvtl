@@ -849,6 +849,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
 			byte_count = fill_element_page(cmd, p, start_any,
 							DATA_TRANSFER, sum);
+			elem_byte_count += byte_count;
 			p += byte_count;
 			start_any = START_PICKER;
 			sum = byte_count /
