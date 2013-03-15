@@ -829,10 +829,18 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	/* Leave room for 'master' header which is filled in at the end... */
+	/* Leave room for 'Element Status data' header which is filled in
+	 * after we figure out how many elements to report
+	 */
 	p += 8;
-	elem_byte_count = 8;
-	sum = 0;
+
+	/* Byte count of report available all pages, n-7
+	 * Reference: table 44 6.12.2 smc3r15
+	 * i.e. Don't include 8 byte 'Element Status data' header in the count
+	 */
+	elem_byte_count = 0;
+
+	sum = 0; /* keep track of number of elements already reported */
 
 	switch (type) {
 	case MEDIUM_TRANSPORT:
@@ -904,7 +912,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	if (verbose > 2)
 		decode_element_status(smc_p, cmd->dbuf_p->data);
 
-	cmd->dbuf_p->sz = min(elem_byte_count, alloc_len);
+	cmd->dbuf_p->sz = min(elem_byte_count + 8, alloc_len);
 
 	MHVTL_DBG(2, "Element count: %d, Elem byte count: %d (0x%04x),"
 				" alloc_len: %d, returning %d",
