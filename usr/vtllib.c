@@ -256,17 +256,11 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 		buf[0] = 0x80;	/* Begining of Partition */
 
 	/* partition should be zero, as we only support one */
-	buf[4] = (partition >> 24);
-	buf[5] = (partition >> 16);
-	buf[6] = (partition >> 8);
-	buf[7] = partition;
+	put_unaligned_be32(partition, &buf[4]);
 
-	/* we don't know logical field identifier */
-	/* FIXME: this code is wrong -- pos should be returned in [8 - 15] */
-	buf[8] = buf[9]  = (pos >> 16);
-	buf[6] = buf[10] = (pos >> 8);
-	buf[7] = buf[11] = pos;
+	put_unaligned_be64(pos, &buf[8]);
 
+	MHVTL_DBG(1, "Positioned at block %ld", (long)pos);
 	return READ_POSITION_LONG_LEN;
 }
 
@@ -279,10 +273,8 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Begining of Partition */
 
-	buf[4] = buf[8] = (pos >> 24);
-	buf[5] = buf[9] = (pos >> 16);
-	buf[6] = buf[10] = (pos >> 8);
-	buf[7] = buf[11] = pos;
+	put_unaligned_be32(pos, &buf[4]);
+	put_unaligned_be32(pos, &buf[8]);
 	MHVTL_DBG(1, "Positioned at block %ld", (long)pos);
 
 	return READ_POSITION_LEN;

@@ -1156,10 +1156,24 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_LOADED:
-		if ((service_action == 0) || (service_action == 1))
+		switch (service_action) {
+		case 0:
+		case 1:
 			cmd->dbuf_p->sz = resp_read_position(c_pos->blk_number,
 							cmd->dbuf_p->data,
 							sam_stat);
+			break;
+		case 6:
+			cmd->dbuf_p->sz =
+				resp_read_position_long(c_pos->blk_number,
+							cmd->dbuf_p->data,
+							sam_stat);
+			break;
+		default:
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
 		break;
 	case TAPE_UNLOADED:
 		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
