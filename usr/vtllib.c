@@ -246,7 +246,7 @@ If this fails to compile - sizeof MAM != 1024 bytes !
  */
 int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
-	uint64_t partition = 1L;
+	uint32_t partition = 1;
 
 	MHVTL_DBG(1, "Position %ld", (long)pos);
 
@@ -254,10 +254,11 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Begining of Partition */
+	buf[0] |= 0x04;	/* Set LONU bit valid */
 
-	/* partition should be zero, as we only support one */
+	/* FIXME: Need to update EOP & BPEW bits too */
+
 	put_unaligned_be32(partition, &buf[4]);
-
 	put_unaligned_be64(pos, &buf[8]);
 
 	MHVTL_DBG(1, "Positioned at block %ld", (long)pos);
@@ -272,6 +273,10 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Begining of Partition */
+	buf[0] |= 0x20;	/* Logical object count unknwon */
+	buf[0] |= 0x10;	/* Logical byte count unknwon */
+
+	/* FIXME: Need to update EOP & BPEW bits too */
 
 	put_unaligned_be32(pos, &buf[4]);
 	put_unaligned_be32(pos, &buf[8]);
