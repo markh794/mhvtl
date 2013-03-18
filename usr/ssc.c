@@ -781,9 +781,9 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	int i;
 	int long_lba = 0;
 	int count;
-	int save_page;
+	int save_pages;
 
-	save_page = cmd->scb[1] & 0x01;
+	save_pages = cmd->scb[1] & 0x01;
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
@@ -835,9 +835,9 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		memcpy(modeBlockDescriptor, bdb, block_descriptor_sz);
 	}
 
-	/* Ignore mode pages if 'save page' bit not set */
-	if (!save_page) {
-		MHVTL_DBG(1, "Save page bit not set. Ignoring page data");
+	/* Ignore mode pages if 'save pages' bit not set */
+	if (!save_pages) {
+		MHVTL_DBG(1, "Save pages bit not set. Ignoring page data");
 		return SAM_STAT_GOOD;
 	}
 
