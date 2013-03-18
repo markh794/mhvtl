@@ -1150,6 +1150,8 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 	service_action = cmd->scb[1] & 0x1f;
 	/* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
 
+	MHVTL_DBG(1, "service_action: %d", service_action);
+
 	*sam_stat = SAM_STAT_GOOD;
 
 	switch (lu_priv->tapeLoaded) {
