@@ -558,10 +558,10 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 
 	/*
 	 pc => page control
-		00 -> 0: Report current vaules
-		01 -> 1: Report Changeable Vaules
-		10 -> 2: Report default values
-		11 -> 3: Report saved values
+		00 -> 0: Report Current values
+		01 -> 1: Report Changeable values
+		10 -> 2: Report Default values
+		11 -> 3: Report Saved values
 	*/
 	pc = (scb[2] & 0xc0) >> 6;
 	/* pcode -> Page Code */
