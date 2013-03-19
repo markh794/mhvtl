@@ -1172,6 +1172,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 							sam_stat);
 			break;
 		default:
+			MHVTL_DBG(1, "service_action not supported");
 			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
