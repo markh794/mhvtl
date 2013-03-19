@@ -246,7 +246,7 @@ If this fails to compile - sizeof MAM != 1024 bytes !
  */
 int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
-	uint32_t partition = 1;
+	uint32_t partition = 0;
 
 	MHVTL_DBG(1, "Position %ld", (long)pos);
 
