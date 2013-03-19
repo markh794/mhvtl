@@ -782,8 +782,10 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	int long_lba = 0;
 	int count;
 	int save_pages;
+	int page_format;
 
 	save_pages = cmd->scb[1] & 0x01;
+	page_format = (cmd->scb[1] & (1 << 4)) ? 1 : 0;
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
@@ -799,9 +801,9 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	count = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
 
 	MHVTL_DBG(1, "MODE SELECT (%ld) **", (long)cmd->dbuf_p->serialNo);
-	MHVTL_DBG(1, " Save Pages: %d", save_pages);
+	MHVTL_DBG(1, " Save Pages: %d, Page Format: %d", save_pages, page_format);
 
-	if (!(cmd->scb[1] & 0x10)) { /* Page Format: 1 - SPC, 0 - vendor uniq */
+	if (!page_format) { /* Page Format: 1 - SPC, 0 - vendor uniq */
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
