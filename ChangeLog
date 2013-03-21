@@ -1,3 +1,24 @@
+* Fri Mar 22 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-7
+- Add DLT7000/DLT8000 emulation
+- Record 'last load' data in MAM
+- New utility 'edit_tape' which will allow modificiation of media 'meta data'
+- Prevent and log possibility of READ ELEMENT STATUS overflowing data buffer
+- Set 'POWERON-RESET' if library re-configured via HUP signal
+- Update 'minor' number from 'unsigned char' to 'unsigned int' which removes
+ max number of device nodes at 256
+- Rework READ ELEMENT STATUS - Simplify code and correct bug where incorrect
+ byte count returned.
+- Add 'support' for specifying 9x40 and DLT media via barcode suffix
+- Update kernel module to prevent overflow if DEF_MAX_MINOR_NO reached.
+- Update kernel module to allow up to 1024 minor numbers
+- Update kernel module vers to 0.18.12, vers date 20130310-0
+- off-by-one fix of compression mode page
+- Fix 'READ POSITION' ssc op code
+- Helper scripts for NetBackup added
+ - drive_stats.pl (parse 'scsi_command' output and email on tape unload)
+ - vlt_endeject_notify.pl (NetBackup Vault helper)
+
 * Sat Jan 31 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-6
 - Return correct TAPE CAPACITY log page
