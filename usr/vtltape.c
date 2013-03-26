@@ -140,6 +140,7 @@ struct MAM_Attributes_table {
 	int format;
 	void *value;
 } MAM_Attributes[] = {
+	/* 0x0000 - 0x03ff - Device (subclause 6.4.2.2) */
 	{0x000, 8, 1, 0, &mam.remaining_capacity },
 	{0x001, 8, 1, 0, &mam.max_capacity },
 	{0x002, 8, 1, 0, &mam.TapeAlert },
@@ -148,6 +149,10 @@ struct MAM_Attributes_table {
 	{0x005, 8, 1, 1, &mam.AssigningOrganization_1 },
 	{0x006, 1, 1, 0, &mam.FormattedDensityCode },
 	{0x007, 2, 1, 0, &mam.InitializationCount },
+
+	/* 0x008 - Not Supported - Volume Identifier */
+
+	/* 0x009 - Not Supported - Volume Change reference */
 	{0x20a, 40, 1, 1, &mam.DevMakeSerialLastLoad },
 	{0x20b, 40, 1, 1, &mam.DevMakeSerialLastLoad1 },
 	{0x20c, 40, 1, 1, &mam.DevMakeSerialLastLoad2 },
@@ -156,6 +161,8 @@ struct MAM_Attributes_table {
 	{0x221, 8, 1, 0, &mam.ReadInMediumLife },
 	{0x222, 8, 1, 0, &mam.WrittenInLastLoad },
 	{0x223, 8, 1, 0, &mam.ReadInLastLoad },
+
+	/* 0x400 - 0x07ff - Medium (subclause 6.4.2.3) */
 	{0x400, 8, 1, 1, &mam.MediumManufacturer },
 	{0x401, 32, 1, 1, &mam.MediumSerialNumber },
 	{0x402, 4, 1, 0, &mam.MediumLength },
@@ -166,6 +173,8 @@ struct MAM_Attributes_table {
 	{0x407, 8, 1, 0, &mam.MAMCapacity },
 	{0x408, 1, 0, 0, &mam.MediumType },
 	{0x409, 2, 1, 0, &mam.MediumTypeInformation },
+
+	/* 0x800 - 0x0bff - Host (subclause 6.4.2.4) */
 	{0x800, 8, 0, 1, &mam.ApplicationVendor },
 	{0x801, 32, 0, 1, &mam.ApplicationName },
 	{0x802, 8, 0, 1, &mam.ApplicationVersion },
@@ -176,6 +185,10 @@ struct MAM_Attributes_table {
 	{0x807, 80, 0, 2, &mam.OwningHostTextualName },
 	{0x808, 160, 0, 2, &mam.MediaPool },
 	{0xbff, 0, 1, 0, NULL }
+
+	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
+	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
+	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
 };
 
 static struct tape_drives_table {
