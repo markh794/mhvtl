@@ -29,8 +29,8 @@
 /* Block type definitations */
 #define B_DATA		11
 #define B_FILEMARK	 3
-#define B_EOD		 5	// End of data
-#define B_NOOP		 8	// No Operation - fake it
+#define B_EOD		 5	/* End of data */
+#define B_NOOP		 8	/* No Operation - fake it */
 
 #define BLKHDR_FLG_ZLIB_COMPRESSED 0x01
 #define BLKHDR_FLG_ENCRYPTED  0x02
