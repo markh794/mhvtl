@@ -22,9 +22,9 @@
 #include "vtllib.h"
 
 #if defined _LARGEFILE64_SOURCE
-void *largefile_support = "large file support";
+static void *largefile_support = "large file support";
 #else
-void *largefile_support = "No largefile support";
+static void *largefile_support = "No largefile support";
 #endif
 
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
@@ -120,8 +120,9 @@ int main(int argc, char *argv[])
 				}
 				break;
 			case 'V':
-				printf("%s: version %s\n\n",
-						progname, MHVTL_VERSION);
+				printf("%s: version %s\n%s\n\n",
+						progname, MHVTL_VERSION,
+						(char *)largefile_support);
 				break;
 			case 'v':
 				verbose++;
