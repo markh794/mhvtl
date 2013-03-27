@@ -803,11 +803,6 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "MODE SELECT (%ld) **", (long)cmd->dbuf_p->serialNo);
 	MHVTL_DBG(1, " Save Pages: %d, Page Format: %d", save_pages, page_format);
 
-	if (!page_format) { /* Page Format: 1 - SPC, 0 - vendor uniq */
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
 		block_descriptor_sz = buf[3];
@@ -842,6 +837,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	if (!save_pages) {
 		MHVTL_DBG(1, "Save pages bit not set. Ignoring page data");
 		return SAM_STAT_GOOD;
+	}
+
+	if (!page_format) { /* Page Format: 1 - SPC, 0 - vendor uniq */
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 #ifdef MHVTL_DEBUG
