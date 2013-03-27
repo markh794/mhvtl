@@ -149,10 +149,10 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat)
 {
 	loff_t nread;
 
-	if (blk_number > eod_blk_number)
+	if (blk_number > eod_blk_number) {
 		MHVTL_ERR("Attempt to seek [%d] beyond EOD [%d]",
 				blk_number, eod_blk_number);
-	else if (blk_number == eod_blk_number)
+	} else if (blk_number == eod_blk_number)
 		mkEODHeader(eod_blk_number, eod_data_offset);
 	else {
 		nread = pread(indxfile, &raw_pos, sizeof(raw_pos),
