@@ -210,6 +210,8 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	lu->inquiry[2] =
 		((struct priv_lu_ssc *)lu->lu_private)->pm->drive_ANSI_VERSION;
 
+	lu->inquiry[40] = worm;	/* Reference 3.7.1 HP Ultrium ISV Cookbook */
+
 	pg = PCODE_OFFSET(0x86);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_86_SZ);
 	if (!lu->lu_vpd[pg]) {
