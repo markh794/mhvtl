@@ -17,6 +17,13 @@
 #define EARLY_WARNING_SZ		1024 * 1024 * 2	/* 2M EW size */
 #define PROG_EARLY_WARNING_SZ		1024 * 1024 * 3	/* 3M Prog EW size */
 
+struct name_to_media_info {
+	char *name;
+	int media_type;
+	int mode_media_type;
+	int media_density;
+};
+
 struct ssc_personality_template {
 	char *name;
 	int drive_type;
@@ -30,6 +37,7 @@ struct ssc_personality_template {
 	uint32_t drive_ANSI_VERSION:5;
 
 	struct density_info *native_drive_density;
+	struct name_to_media_info *media_handling;
 
 	struct lu_phy_attr *lu;
 

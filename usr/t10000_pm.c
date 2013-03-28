@@ -61,6 +61,28 @@ static struct density_info density_t10kC = {
 	0, 127, 0x600, 0x30000, medium_density_code_10kC,
 			"STK", "T2 - 5000", "T1 - 5000 GB" };
 
+static struct name_to_media_info media_info[] = {
+	{"T10KA", Media_T10KA,
+			media_type_unknown, medium_density_code_10kA},
+	{"T10KA WORM", Media_T10KA_WORM,
+			media_type_unknown, medium_density_code_10kA},
+	{"T10KA Clean", Media_T10KA_CLEAN,
+			media_type_unknown, medium_density_code_10kA},
+	{"T10KB", Media_T10KB,
+			media_type_unknown, medium_density_code_10kB},
+	{"T10KB WORM", Media_T10KB_WORM,
+			media_type_unknown, medium_density_code_10kB},
+	{"T10KB Clean", Media_T10KB_CLEAN,
+			media_type_unknown, medium_density_code_10kB},
+	{"T10KC", Media_T10KC,
+			media_type_unknown, medium_density_code_10kC},
+	{"T10KC WORM", Media_T10KC_WORM,
+			media_type_unknown, medium_density_code_10kC},
+	{"T10KC Clean", Media_T10KC_CLEAN,
+			media_type_unknown, medium_density_code_10kC},
+	{"", 0, 0, 0},
+};
+
 /*
  * Returns true if blk header has correct encryption key data
  */
@@ -312,6 +334,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_WORM		= set_t10k_WORM,
 	.media_load		= t10k_media_load,
 	.cleaning_media		= t10k_cleaning,
+	.media_handling		= media_info,
 };
 
 #define INQUIRY_LEN 74

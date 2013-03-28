@@ -157,6 +157,9 @@ struct blk_header {
 #define media_type_lto5_worm	0x5c
 #define media_type_lto6_data	0x68
 #define media_type_lto6_worm	0x6c
+#define media_type_hp_lto_data	0x00
+#define media_type_hp_lto_worm	0x01
+#define media_type_hp_lto_cd	0x80
 
 #define LZO	1	/* Using lzo compression libraries */
 #define ZLIB	2	/* Using zlib compression libraries */

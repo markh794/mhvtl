@@ -71,6 +71,30 @@ static struct density_info density_sdlt600 = {
 	15142, 640, 1502, 80000, medium_density_code_600,
 			"DLT-CVE", "U-516", "SDLT 600" };
 
+static struct name_to_media_info media_info[] = {
+	{"DLT2", Media_DLT2,
+			media_type_unknown, medium_density_code_dlt2},
+	{"DLT3", Media_DLT3,
+			media_type_unknown, medium_density_code_dlt3},
+	{"DLT4", Media_DLT4,
+			media_type_unknown, medium_density_code_dlt4},
+	{"SDLT", Media_SDLT,
+			media_type_unknown, medium_density_code_sdlt},
+	{"SDLT 220", Media_SDLT220,
+			media_type_unknown, medium_density_code_220},
+	{"SDLT 320", Media_SDLT320,
+			media_type_unknown, medium_density_code_320},
+	{"SDLT 320 Clean", Media_SDLT320_CLEAN,
+			media_type_unknown, medium_density_code_320},
+	{"SDLT 600", Media_SDLT600,
+			media_type_unknown, medium_density_code_600},
+	{"SDLT 600 Clean", Media_SDLT600_CLEAN,
+			media_type_unknown, medium_density_code_600},
+	{"SDLT 600 WORM", Media_SDLT600_WORM,
+			media_type_unknown, medium_density_code_600},
+	{"", 0, 0, 0},
+};
+
 static uint8_t clear_dlt_compression(struct list_head *m)
 {
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
@@ -383,6 +407,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_compression	= set_dlt_compression,
 	.media_load		= dlt_media_load,
 	.cleaning_media		= dlt_cleaning,
+	.media_handling		= media_info,
 };
 
 void init_dlt7000_ssc(struct lu_phy_attr *lu)

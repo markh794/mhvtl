@@ -61,6 +61,30 @@ static struct density_info density_e06 = {
 	0x348c, 0x0d, 0x480, 0x7a120, medium_density_code_e06,
 			"IBM", "3592A3", "" };
 
+static struct name_to_media_info media_info[] = {
+	{"03592 JA", Media_3592_JA,
+			media_type_unknown, medium_density_code_j1a},
+	{"03592 JA Clean", Media_3592_JA_CLEAN,
+			media_type_unknown, medium_density_code_j1a},
+	{"03592 JA WORM", Media_3592_JW,
+			media_type_unknown, medium_density_code_j1a},
+
+	{"03592 JB", Media_3592_JB,
+			media_type_unknown, medium_density_code_e05},
+	{"03592 JB Clean", Media_3592_JB_CLEAN,
+			media_type_unknown, medium_density_code_e05},
+	{"03592 JB ENCR", Media_3592_JB,
+			media_type_unknown, medium_density_code_e05_ENCR},
+
+	{"03592 JC", Media_3592_JX,
+			media_type_unknown, medium_density_code_e06},
+	{"03592 JC Clean", Media_3592_JX_CLEAN,
+			media_type_unknown, medium_density_code_e06},
+	{"03592 JC ENCR", Media_3592_JX,
+			media_type_unknown, medium_density_code_e06_ENCR},
+	{"", 0, 0, 0},
+};
+
 static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
@@ -369,6 +393,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_WORM		= set_3592_WORM,
 	.media_load		= ibm_media_load,
 	.cleaning_media		= ibm_cleaning,
+	.media_handling		= media_info,
 };
 
 void init_3592_j1a(struct lu_phy_attr *lu)

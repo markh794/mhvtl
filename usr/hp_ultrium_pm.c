@@ -67,6 +67,42 @@ static struct density_info density_lto6 = {
 	18441, 127, 2176, 3200000, medium_density_code_lto6,
 			"LTO-CVE", "U-616", "Ultrium 6/16T" };
 
+static struct name_to_media_info media_info[] = {
+	{"LTO1", Media_LTO1,
+			media_type_hp_lto_data, medium_density_code_lto1},
+	{"LTO1 Clean", Media_LTO1_CLEAN,
+			media_type_hp_lto_data, medium_density_code_lto1},
+	{"LTO2", Media_LTO2,
+			media_type_hp_lto_data, medium_density_code_lto2},
+	{"LTO2 Clean", Media_LTO2_CLEAN,
+			media_type_hp_lto_data, medium_density_code_lto2},
+	{"LTO3", Media_LTO3,
+			media_type_hp_lto_data, medium_density_code_lto3},
+	{"LTO3 Clean", Media_LTO3_CLEAN,
+			media_type_hp_lto_data, medium_density_code_lto3},
+	{"LTO3 WORM", Media_LTO3_WORM,
+			media_type_hp_lto_worm, medium_density_code_lto3_WORM},
+	{"LTO4", Media_LTO4,
+			media_type_hp_lto_data, medium_density_code_lto4},
+	{"LTO4 Clean", Media_LTO4_CLEAN,
+			media_type_hp_lto_data, medium_density_code_lto4},
+	{"LTO4 WORM", Media_LTO4_WORM,
+			media_type_hp_lto_worm, medium_density_code_lto4_WORM},
+	{"LTO5", Media_LTO5,
+			media_type_hp_lto_data, medium_density_code_lto5},
+	{"LTO5 Clean", Media_LTO5_CLEAN,
+			media_type_hp_lto_data, medium_density_code_lto5},
+	{"LTO5 WORM", Media_LTO5_WORM,
+			media_type_hp_lto_worm, medium_density_code_lto5_WORM},
+	{"LTO6", Media_LTO6,
+			media_type_hp_lto_data, medium_density_code_lto6},
+	{"LTO6 Clean", Media_LTO6_CLEAN,
+			media_type_hp_lto_data, medium_density_code_lto6},
+	{"LTO6 WORM", Media_LTO6_WORM,
+			media_type_hp_lto_worm, medium_density_code_lto6_WORM},
+	{"", 0, 0, 0},
+};
+
 static uint8_t clear_ult_compression(struct list_head *m)
 {
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
@@ -400,6 +436,8 @@ static struct ssc_personality_template ssc_pm = {
 	.set_compression	= set_ult_compression,
 	.media_load		= hp_media_load,
 	.cleaning_media		= hp_cleaning,
+	.media_handling		= media_info,
+
 };
 
 void init_hp_ult_1(struct lu_phy_attr *lu)

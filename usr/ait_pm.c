@@ -64,6 +64,28 @@ static struct density_info density_ait4 = {
 	0x17d6, 0x50, 1, 400, medium_density_code_ait4,
 		"SONY", "AIT-4", "Adv Intellgent Tape" };
 
+static struct name_to_media_info media_info[] = {
+	{"AIT1", Media_AIT1,
+			media_type_unknown, medium_density_code_ait1},
+	{"AIT1 Clean", Media_AIT1_CLEAN,
+			media_type_unknown, medium_density_code_ait1},
+	{"AIT2", Media_AIT2,
+			media_type_unknown, medium_density_code_ait2},
+	{"AIT2 Clean", Media_AIT2_CLEAN,
+			media_type_unknown, medium_density_code_ait2},
+	{"AIT3", Media_AIT3,
+			media_type_unknown, medium_density_code_ait3},
+	{"AIT3 Clean", Media_AIT3_CLEAN,
+			media_type_unknown, medium_density_code_ait3},
+	{"AIT4",  Media_AIT4,
+			media_type_unknown, medium_density_code_ait4},
+	{"AIT4 Clean", Media_AIT4_CLEAN,
+			media_type_unknown, medium_density_code_ait4},
+	{"AIT4 WORM", Media_AIT4_WORM,
+			media_type_unknown, medium_density_code_ait4},
+	{"", 0, 0, 0},
+};
+
 static uint8_t clear_ait_WORM(struct list_head *l)
 {
 	uint8_t *smp_dp;
@@ -335,6 +357,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_compression	= set_ait_compression,
 	.media_load		= ait_media_load,
 	.cleaning_media		= ait_cleaning,
+	.media_handling		= media_info,
 };
 
 void init_ait1_ssc(struct lu_phy_attr *lu)

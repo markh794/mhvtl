@@ -73,6 +73,35 @@ static struct density_info density_9940B = {
 	0, 127, 576, 0x30d40, medium_density_code_9940B,
 			"STK", "P-200", "PeakCapacity 200 GB" };
 
+static struct name_to_media_info media_info[] = {
+	{"9840A", Media_9840A,
+			media_type_unknown, medium_density_code_9840A},
+	{"9840A Clean", Media_9840A_CLEAN,
+			media_type_unknown, medium_density_code_9840A},
+	{"9840B", Media_9840B,
+			media_type_unknown, medium_density_code_9840B},
+	{"9840B Clean", Media_9840B_CLEAN,
+			media_type_unknown, medium_density_code_9840B},
+	{"9840C", Media_9840C,
+			media_type_unknown, medium_density_code_9840C},
+	{"9840C Clean", Media_9840C_CLEAN,
+			media_type_unknown, medium_density_code_9840C},
+	{"9840D", Media_9840D,
+			media_type_unknown, medium_density_code_9840D},
+	{"9840D Clean", Media_9840D_CLEAN,
+			media_type_unknown, medium_density_code_9840D},
+
+	{"9940A", Media_9940A,
+			media_type_unknown, medium_density_code_9940A},
+	{"9940A Clean", Media_9940A_CLEAN,
+			media_type_unknown, medium_density_code_9940A},
+	{"9940B", Media_9940B,
+			media_type_unknown, medium_density_code_9940B},
+	{"9940B Clean", Media_9940B_CLEAN,
+			media_type_unknown, medium_density_code_9940B},
+	{"", 0, 0, 0},
+};
+
 /*
  * Returns true if blk header has correct encryption key data
  */
@@ -323,6 +352,7 @@ static struct ssc_personality_template ssc_pm = {
 	.set_WORM		= set_9840_WORM,
 	.media_load		= T9840_media_load,
 	.cleaning_media		= T9840_cleaning,
+	.media_handling		= media_info,
 };
 
 #define INQUIRY_LEN 74
