@@ -482,8 +482,8 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.name = name_ait_4;
 	ssc_pm.lu = lu;
-	ssc_pm.clear_WORM = clear_ait_WORM,
-	ssc_pm.set_WORM	= set_ait_WORM,
+	ssc_pm.clear_WORM = clear_ait_WORM;
+	ssc_pm.set_WORM	= set_ait_WORM;
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;

@@ -600,11 +600,11 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_lto4;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
-	ssc_pm.encryption_capabilities = encr_capabilities_ult,
-	ssc_pm.kad_validation = hp_lto_kad_validation,
-	ssc_pm.clear_WORM = clear_ult_WORM,
-	ssc_pm.set_WORM = set_ult_WORM,
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities = encr_capabilities_ult;
+	ssc_pm.kad_validation = hp_lto_kad_validation;
+	ssc_pm.clear_WORM = clear_ult_WORM;
+	ssc_pm.set_WORM = set_ult_WORM;
 
 	personality_module_register(&ssc_pm);
 
@@ -666,11 +666,11 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_lto5;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
-	ssc_pm.encryption_capabilities = encr_capabilities_ult,
-	ssc_pm.kad_validation = hp_lto_kad_validation,
-	ssc_pm.clear_WORM = clear_ult_WORM,
-	ssc_pm.set_WORM = set_ult_WORM,
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities = encr_capabilities_ult;
+	ssc_pm.kad_validation = hp_lto_kad_validation;
+	ssc_pm.clear_WORM = clear_ult_WORM;
+	ssc_pm.set_WORM = set_ult_WORM;
 
 	personality_module_register(&ssc_pm);
 
@@ -737,11 +737,11 @@ void init_hp_ult_6(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_lto6;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode,
-	ssc_pm.encryption_capabilities = encr_capabilities_ult,
-	ssc_pm.kad_validation = hp_lto_kad_validation,
-	ssc_pm.clear_WORM = clear_ult_WORM,
-	ssc_pm.set_WORM = set_ult_WORM,
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities = encr_capabilities_ult;
+	ssc_pm.kad_validation = hp_lto_kad_validation;
+	ssc_pm.clear_WORM = clear_ult_WORM;
+	ssc_pm.set_WORM = set_ult_WORM;
 
 	personality_module_register(&ssc_pm);
 
