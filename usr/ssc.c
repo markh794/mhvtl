@@ -843,7 +843,22 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	if (!page_format) { /* Page Format: 1 - SPC, 0 - vendor uniq */
+	/* Page Format: Reference HP LTO 5 Vol 3_E2
+	 * 0 - Data is NOT SCSI-2 mode page compatible.
+	 *     Only parameter header and block descriptor is valid
+	 * 1 - Data is SCSI-2 Compatible
+	 *
+	 * IBM LTO5: Ignores PF bit but assumes SCSI-2 Compat
+	 * IBM 3592: Does not check this bit
+	 * SDLT600: If PF = 0, only parameter header and block descriptor
+	 *
+	 * Hence, aborting at this point with PF bit cleared is OK
+	 */
+	page_len = buf[i + 1];
+
+	if (!page_format && page_len) {
+		MHVTL_DBG(1, "FP bit cleared, yet page data supplied. Len: %d",
+					page_len);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
