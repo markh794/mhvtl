@@ -835,7 +835,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 	/* Ignore mode pages if 'save pages' bit not set */
 	if (!save_pages) {
-		MHVTL_DBG(1, "Save pages bit not set. Ignoring page data");
+		MHVTL_DBG(1, " Save pages bit not set. Ignoring page data");
 		return SAM_STAT_GOOD;
 	}
 
@@ -908,6 +908,9 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		if (page_len == 0) { /* Something wrong with data structure */
 			page_len = cmd->dbuf_p->sz;
 			MHVTL_LOG("Problem with mode select data structure");
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+								sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
 		}
 		i += page_len;	/* Next mode page */
 	}
