@@ -784,6 +784,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	int save_pages;
 	int page_format;
 	int mselect_6 = 0;
+	int page;
 
 	save_pages = cmd->scb[1] & 0x01;
 	page_format = (cmd->scb[1] & (1 << 4)) ? 1 : 0;
@@ -879,9 +880,12 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			i+24,
 			buf[i+24], buf[i+25], buf[i+26], buf[i+27],
 			buf[i+28], buf[i+29], buf[i+30], buf[i+31]);
+
+		page = buf[i];
+		MHVTL_DBG(2, "Page: 0x%02x", page);
 		/* Default page len is, override if sub-pages */
 		page_len = buf[i + 1];
-		switch (buf[i]) {
+		switch (page) {
 		case MODE_DATA_COMPRESSION:
 			set_mode_compression(cmd, &buf[i]);
 			break;
@@ -904,7 +908,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 		default:
 			MHVTL_DBG_PRT_CDB(1, cmd);
-			MHVTL_DBG(1, "Mode page 0x%02x not handled", buf[i]);
+			MHVTL_DBG(1, "Mode page 0x%02x not handled", page);
 			break;
 		}
 		if (page_len == 0) { /* Something wrong with data structure */
