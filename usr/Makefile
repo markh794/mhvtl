@@ -141,7 +141,7 @@ clean:
 		stk9x40_pm.o \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		edit_tape.o
+		edit_tape.o \
 		dump_messageQ make_vtl_media \
 		dump_tape edit_tape \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser
