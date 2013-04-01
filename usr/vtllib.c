@@ -272,9 +272,9 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 	memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
-		buf[0] = 0x80;	/* Begining of Partition */
-	buf[0] |= 0x20;	/* Logical object count unknwon */
-	buf[0] |= 0x10;	/* Logical byte count unknwon */
+		buf[0] = 0x80;	/* Beginning of Partition */
+	buf[0] |= 0x20;	/* Logical object count unknown */
+	buf[0] |= 0x10;	/* Logical byte count unknown  */
 
 	/* FIXME: Need to update EOP & BPEW bits too */
 
