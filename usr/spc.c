@@ -554,8 +554,6 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	/* Disable Block Descriptors */
 	uint8_t blockDescriptorLen = (scb[1] & 0x8) ? 0 : 8;
 
-	MHVTL_DBG(1, "MODE SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
-
 	/*
 	 pc => page control
 		00 -> 0: Report Current values
@@ -572,7 +570,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	alloc_len = msense_6 ? scb[4] : ((scb[7] << 8) | scb[8]);
 	offset = msense_6 ? 4 : 8;
 
-	MHVTL_DBG(2, " Mode Sense %d byte version", (msense_6) ? 6 : 10);
+	MHVTL_DBG(1, "MODE SENSE %d (%ld) **", (msense_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
 	MHVTL_DBG(2, " Page Control     : %s(0x%02x)",
 				pcString[pc], pc);
 	MHVTL_DBG(2, " Page/Subpage Code: 0x%02x/0x%02x", pcode, subpcode);
