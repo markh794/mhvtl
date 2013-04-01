@@ -267,6 +267,8 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 /* Return tape position - short format */
 int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
+	uint8_t partition = 0;
+
 	memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
@@ -276,6 +278,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 
 	/* FIXME: Need to update EOP & BPEW bits too */
 
+	buf[1] = partition;
 	put_unaligned_be32(pos, &buf[4]);
 	put_unaligned_be32(pos, &buf[8]);
 	MHVTL_DBG(1, "Positioned at block %ld", (long)pos);
