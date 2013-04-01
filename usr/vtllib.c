@@ -238,10 +238,10 @@ If this fails to compile - sizeof MAM != 1024 bytes !
  *           - The number of logical blocks between the beginning of the
  *           - partition and the current logical position.
  * [16 - 23] Logical Field Identifier
- *           - Number of Filemarks between the beginning of the partiion and
+ *           - Number of Filemarks between the beginning of the partition and
  *           - the logical position.
  * [24 - 31] Logical Set Identifier
- *           - Number of Setmarks between the beginning of the partiion and
+ *           - Number of Setmarks between the beginning of the partition and
  *           - the logical position.
  */
 int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
@@ -253,7 +253,7 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 	memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
-		buf[0] = 0x80;	/* Begining of Partition */
+		buf[0] = 0x80;	/* Beginning of Partition */
 	buf[0] |= 0x04;	/* Set LONU bit valid */
 
 	/* FIXME: Need to update EOP & BPEW bits too */
