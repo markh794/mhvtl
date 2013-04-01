@@ -783,6 +783,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	int count;
 	int save_pages;
 	int page_format;
+	int mselect_6 = 0;
 
 	save_pages = cmd->scb[1] & 0x01;
 	page_format = (cmd->scb[1] & (1 << 4)) ? 1 : 0;
@@ -790,6 +791,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
 		cmd->dbuf_p->sz = cmd->scb[4];
+		mselect_6 = 1;
 		break;
 	case MODE_SELECT_10:
 		cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
@@ -800,7 +802,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 	count = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
 
-	MHVTL_DBG(1, "MODE SELECT (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "MODE SELECT %d (%ld) **", (mselect_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
 	MHVTL_DBG(1, " Save Pages: %d, Page Format: %d", save_pages, page_format);
 
 	switch (cmd->scb[0]) {
