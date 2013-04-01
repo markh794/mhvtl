@@ -248,8 +248,6 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint32_t partition = 0;
 
-	MHVTL_DBG(1, "Position %ld", (long)pos);
-
 	memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
