@@ -836,10 +836,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		memcpy(modeBlockDescriptor, bdb, block_descriptor_sz);
 	}
 
-	/* Ignore mode pages if 'save pages' bit not set */
-	if (!save_pages) {
-		MHVTL_DBG(1, " Save pages bit not set. Ignoring page data");
-		return SAM_STAT_GOOD;
+	/* Saved mode pages are not implemented */
+	if (save_pages) {
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		MHVTL_DBG(1, " Saved mode pages are not implemented.");
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	if (!page_format) { /* Page Format: 1 - SPC, 0 - vendor uniq */
