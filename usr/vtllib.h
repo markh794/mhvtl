@@ -134,7 +134,7 @@ struct mode {
 /* v2 of the tape media
  * Between BOT & blk #1, is the MAM (Medium Auxiliary Memory)
  */
-#define MAM_VERSION 2
+#define MAM_VERSION 3
 struct MAM {
 	uint32_t tape_fmt_version;
 	uint32_t mam_fmt_version;
