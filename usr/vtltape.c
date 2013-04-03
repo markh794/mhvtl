@@ -2137,7 +2137,7 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
-		{ssc_seek_10,},
+		{ssc_locate_10,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
