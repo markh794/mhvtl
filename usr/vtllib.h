@@ -187,9 +187,11 @@ struct MAM {
 		char density_name[8];
 		char description[32];
 	} media_info;
+	uint8_t max_partitions;
+	uint8_t num_partitions;
 
 	/* Pad to keep MAM to 1024 bytes */
-	uint8_t pad[1024 - 876];
+	uint8_t pad[1024 - 878];
 } __attribute__((packed));
 
 #define MAM_FLAGS_ENCRYPTION_FORMAT   0x0001
