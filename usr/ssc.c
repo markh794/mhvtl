@@ -870,37 +870,49 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(3, "count: %d, i: %d", count, i);
 	if (i == 4) {
-	MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x",
+		MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x",
 			buf[0], buf[1], buf[2], buf[3]);
 	} else {
-	MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x  %02x %02x %02x %02x",
+		MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x"
+				"  %02x %02x %02x %02x",
 			buf[0], buf[1], buf[2], buf[3],
 			buf[4], buf[5], buf[6], buf[7]);
 	}
 
 	while (i < count) {
 		offset = 2;
-		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
-			i,
-			buf[i+0], buf[i+1], buf[i+2], buf[i+3],
-			buf[i+4], buf[i+5], buf[i+6], buf[i+7]);
-		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
+		page = buf[i];
+		page_len = buf[i + 1];
+
+		MHVTL_DBG(2, " Page: 0x%02x, Page Len: %d", page, page_len);
+
+		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
+					"  %02x %02x %02x %02x",
+				i,
+				buf[i+0], buf[i+1], buf[i+2], buf[i+3],
+				buf[i+4], buf[i+5], buf[i+6], buf[i+7]);
+		if (page_len > 8) {
+			MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
+					"  %02x %02x %02x %02x",
 			i+8,
 			buf[i+8], buf[i+9], buf[i+10], buf[i+11],
 			buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
-		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
+		}
+		if (page_len > 16) {
+			MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
+					"  %02x %02x %02x %02x",
 			i+16,
 			buf[i+16], buf[i+17], buf[i+18], buf[i+19],
 			buf[i+20], buf[i+21], buf[i+22], buf[i+23]);
-		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
+		}
+		if (page_len > 24) {
+			MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
+					"  %02x %02x %02x %02x",
 			i+24,
 			buf[i+24], buf[i+25], buf[i+26], buf[i+27],
 			buf[i+28], buf[i+29], buf[i+30], buf[i+31]);
+		}
 
-		page = buf[i];
-		MHVTL_DBG(2, "Page: 0x%02x", page);
-		/* Default page len is, override if sub-pages */
-		page_len = buf[i + 1];
 		switch (page) {
 		case MODE_DATA_COMPRESSION:
 			set_mode_compression(cmd, &buf[i]);
