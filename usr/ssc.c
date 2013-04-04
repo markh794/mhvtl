@@ -925,13 +925,16 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 		default:
 			MHVTL_DBG_PRT_CDB(1, cmd);
-			MHVTL_DBG(1, "Mode page 0x%02x not handled", page);
+			MHVTL_LOG("Mode page 0x%02x not handled", page);
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+							sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
 			break;
 		}
 		if (page_len == 0) { /* Something wrong with data structure */
 			page_len = cmd->dbuf_p->sz;
 			MHVTL_LOG("Problem with mode select data structure");
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
 								sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
