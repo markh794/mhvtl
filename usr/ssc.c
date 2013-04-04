@@ -785,6 +785,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	int page_format;
 	int mselect_6 = 0;
 	int page;
+	int offset;
 
 	save_pages = cmd->scb[1] & 0x01;
 	page_format = (cmd->scb[1] & (1 << 4)) ? 1 : 0;
@@ -877,8 +878,8 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			buf[4], buf[5], buf[6], buf[7]);
 	}
 
-	count -= i;
 	while (i < count) {
+		offset = 2;
 		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x  %02x %02x %02x %02x",
 			i,
 			buf[i+0], buf[i+1], buf[i+2], buf[i+3],
@@ -917,6 +918,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 					return SAM_STAT_CHECK_CONDITION;
 				/* Subpage 1 - override default page length */
 				page_len = get_unaligned_be16(&buf[i + 2]);
+				offset = 4;
 			} else
 				set_device_configuration(cmd, &buf[i]);
 			break;
@@ -933,7 +935,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 								sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
-		i += page_len;	/* Next mode page */
+		i += page_len + offset;	/* Next mode page */
 	}
 
 	return SAM_STAT_GOOD;
