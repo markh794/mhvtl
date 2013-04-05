@@ -856,7 +856,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	page_len = buf[i + 1];
 
 	if (!page_format && page_len) {
-		MHVTL_DBG(1, "FP bit cleared, yet page data supplied. Len: %d",
+		MHVTL_DBG(1, "PF bit cleared, yet page data supplied. Len: %d",
 					page_len);
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
