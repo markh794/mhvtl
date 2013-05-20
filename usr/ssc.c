@@ -490,8 +490,7 @@ uint8_t ssc_locate_10(struct scsi_cmd *cmd)
 
 	current_state = MHVTL_STATE_LOCATE;
 
-	MHVTL_DBG(1, "Fast Block Locate (%ld) **",
-						(long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "LOCATE (%ld) **", (long)cmd->dbuf_p->serialNo);
 	blk_no = get_unaligned_be32(&cmd->scb[3]);
 
 	/* If we want to seek closer to beginning of file than
