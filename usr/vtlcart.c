@@ -1183,23 +1183,46 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 			raw_pos.hdr.encryption.key[i] = encryptp->key[i];
 	}
 
-	/* Now write out both the header and the data. */
+	/* Now write out both the data and the header. */
+	nwrite = pwrite(datafile, buffer, disk_blk_size, data_offset);
+	if (nwrite != disk_blk_size) {
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+
+		MHVTL_ERR("Data file write failure, pos: %" PRId64 ": %s",
+			data_offset, strerror(errno));
+
+		/* Truncate last partital write */
+		MHVTL_DBG(1, "Truncating data file size to: %ld", data_offset);
+		if (ftruncate(datafile, data_offset) < 0) {
+			MHVTL_ERR("Error truncating data: %s", strerror(errno));
+		}
+
+		mkEODHeader(blk_number, data_offset);
+		return -1;
+	}
 
 	nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
 		blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
+		long indxsz = (blk_number - 1) * sizeof(raw_pos);
+
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+
 		MHVTL_ERR("Index file write failure, pos: %" PRId64 ": %s",
 			(uint64_t)blk_number * sizeof(raw_pos),
 			strerror(errno));
-		return -1;
-	}
 
-	nwrite = pwrite(datafile, buffer, disk_blk_size, data_offset);
-	if (nwrite != disk_blk_size) {
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-		MHVTL_ERR("Data file write failure, pos: %" PRId64 ": %s",
-			data_offset, strerror(errno));
+		MHVTL_DBG(1, "Truncating index file size to: %ld", indxsz);
+		if (ftruncate(indxfile, indxsz) < 0) {
+			MHVTL_ERR("Error truncating indx: %s", strerror(errno));
+		}
+
+		MHVTL_DBG(1, "Truncating data file size to: %ld", data_offset);
+		if (ftruncate(datafile, data_offset) < 0) {
+			MHVTL_ERR("Error truncating data: %s", strerror(errno));
+		}
+
+		mkEODHeader(blk_number, data_offset);
 		return -1;
 	}
 
