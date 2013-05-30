@@ -975,8 +975,11 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	else
 		src_len = writeBlock_zlib(cmd, src_sz);
 
-	if (!src_len)
+	if (!src_len) {
+		uint64_t fg = 0x6; /* Set 'Read/Write error' TapeAlert flag */
+		update_TapeAlert(cmd->lu, fg);
 		return 0;
+	}
 
 	current_position = current_tape_offset();
 
