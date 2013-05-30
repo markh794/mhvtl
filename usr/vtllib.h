@@ -86,6 +86,7 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 
 #define TAPE_UNLOADED 0
 #define TAPE_LOADED 1
+#define TAPE_LOADING 2
 
 #define MIN_SLEEP_TIME 5
 #define DEFLT_BACKOFF_VALUE 400

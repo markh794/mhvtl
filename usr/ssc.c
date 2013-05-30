@@ -188,6 +188,10 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	}
 
 	switch (lu_ssc->tapeLoaded) {
+	case TAPE_LOADING:
+		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+		break;
 	case TAPE_LOADED:
 		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 			MHVTL_DBG(3, "Cleaning cart loaded");
@@ -302,6 +306,11 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 
 	/* Check that there is a piece of media loaded.. */
 	switch (lu_ssc->tapeLoaded) {
+	case TAPE_LOADING:
+		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		*lu_ssc->OK_2_write = 0;
+		return *lu_ssc->OK_2_write;
+		break;
 	case TAPE_LOADED:	/* Do nothing */
 		break;
 	case TAPE_UNLOADED:
@@ -1017,6 +1026,11 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
 		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
+	case TAPE_LOADING:
+		strcat(str, "No, Tape loading");
+		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		*sam_stat = SAM_STAT_CHECK_CONDITION;
+		break;
 	case TAPE_LOADED:
 		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 			int state;
@@ -1084,6 +1098,7 @@ uint8_t ssc_rewind(struct scsi_cmd *cmd)
 		break;
 	case TAPE_LOADED:
 		retval = rewind_tape(sam_stat);
+		delay_opcode(DELAY_REWIND, lu_priv->delay_rewind);
 		if (retval < 0) {
 			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
@@ -1151,6 +1166,10 @@ uint8_t ssc_read_block_limits(struct scsi_cmd *cmd)
 	case TAPE_UNLOADED:
 		cmd->dbuf_p->sz = resp_read_block_limits(cmd->dbuf_p,
 							lu_priv->bufsize);
+		break;
+	case TAPE_LOADING:
+		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
 		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);

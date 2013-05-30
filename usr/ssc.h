@@ -73,6 +73,16 @@ struct ssc_personality_template {
 	uint8_t (*media_load)(struct lu_phy_attr *lu, int load);
 };
 
+enum delay_list {
+	DELAY_UNDEFINED,	/* Must be first */
+	DELAY_LOAD,
+	DELAY_THREAD,
+	DELAY_POSITION,
+	DELAY_REWIND,
+	DELAY_UNLOAD,
+	DELAY_LAST_ITEM		/* Flag end of list */
+};
+
 /* Load capabilities - density_status bits */
 #define	LOAD_INVALID		1
 #define	LOAD_RW			2
@@ -134,6 +144,13 @@ struct priv_lu_ssc {
 	uint64_t bytesRead_I;	/* Bytes read and sent to initiator */
 	uint64_t bytesWritten_M; /* Bytes written to media (compressed) */
 	uint64_t bytesWritten_I; /* Bytes recevied from initiator */
+
+	/* Allow to insert delays into op codes */
+	int delay_load;
+	int delay_unload;
+	int delay_thread;
+	int delay_position;
+	int delay_rewind;
 
 	struct blk_header *c_pos;
 
@@ -245,3 +262,4 @@ int resp_report_density(struct priv_lu_ssc *lu_ssc, uint8_t media,
 						struct vtl_ds *dbuf_p);
 void resp_space(int32_t count, int code, uint8_t *sam_stat);
 void unloadTape(uint8_t *sam_stat);
+void delay_opcode(int what, int value);

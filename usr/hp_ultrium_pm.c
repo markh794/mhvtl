@@ -437,7 +437,6 @@ static struct ssc_personality_template ssc_pm = {
 	.media_load		= hp_media_load,
 	.cleaning_media		= hp_cleaning,
 	.media_handling		= media_info,
-
 };
 
 void init_hp_ult_1(struct lu_phy_attr *lu)

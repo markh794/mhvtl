@@ -330,6 +330,35 @@ int lookup_mode_media_type(struct name_to_media_info *media_info, int med)
 	return media_type_unknown;
 }
 
+static void set_mount(int sig)
+{
+	MHVTL_DBG(3, "+++ Trace +++");
+	if (lu_ssc.tapeLoaded == TAPE_LOADING)
+		lu_ssc.tapeLoaded = TAPE_LOADED;
+
+}
+
+static void set_mount_timer(int t)
+{
+	MHVTL_DBG(3, "+++ Trace +++ Setting alarm for %d", t);
+	signal(SIGALRM, set_mount);
+	alarm(t);
+}
+
+void delay_opcode(int what, int value)
+{
+	MHVTL_DBG(3, "+++ Trace +++");
+
+	switch (what) {
+	case DELAY_LOAD:
+		set_mount_timer(value);
+		break;
+	default:
+		sleep(value);
+		break;
+	}
+}
+
 /***********************************************************************/
 
 /*
@@ -1014,6 +1043,7 @@ void resp_space(int32_t count, int code, uint8_t *sam_stat)
 	switch (code) {
 	/* Space 'count' blocks */
 	case 0:
+		delay_opcode(DELAY_POSITION, lu_ssc.delay_position);
 		if (count >= 0)
 			position_blocks_forw(count, sam_stat);
 		else
@@ -1021,6 +1051,7 @@ void resp_space(int32_t count, int code, uint8_t *sam_stat)
 		break;
 	/* Space 'count' filemarks */
 	case 1:
+		delay_opcode(DELAY_POSITION, lu_ssc.delay_position);
 		if (count >= 0)
 			position_filemarks_forw(count, sam_stat);
 		else
@@ -1568,7 +1599,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		return rc;
 	}
 
-	lu_ssc.tapeLoaded = TAPE_LOADED;
+	lu_ssc.tapeLoaded = TAPE_LOADING;
 	lu_ssc.pm->media_load(lu, TAPE_LOADED);
 
 	strncpy((char *)lu_ssc.mediaSerialNo, (char *)mam.MediumSerialNumber,
@@ -1743,8 +1774,9 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			mam.MediumDensityCode,
 			lu->mode_media_type);
 
+	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
 	current_state = MHVTL_STATE_LOADED;
-	return TAPE_LOADED;	/* Return successful load */
+	return 0;	/* Return successful load */
 
 mismatchmedia:
 	unload_tape(sam_stat);
@@ -1757,8 +1789,9 @@ mismatchmedia:
 			lu_ssc.pm->name);
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 	lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
+	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
 	current_state = MHVTL_STATE_LOAD_FAILED;
-	return TAPE_UNLOADED;
+	return 1;
 }
 
 static void dump_linked_list(void)
@@ -1804,6 +1837,7 @@ void unloadTape(uint8_t *sam_stat)
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
 
 	switch (lu_ssc.tapeLoaded) {
+	case TAPE_LOADING:
 	case TAPE_LOADED:
 		/* Don't update load count on unload -done at load time */
 		updateMAM(sam_stat, 0);
@@ -1813,6 +1847,7 @@ void unloadTape(uint8_t *sam_stat)
 		if (lu_ssc.cleaning_media_state)
 			lu_ssc.cleaning_media_state = NULL;
 		lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
+		delay_opcode(DELAY_UNLOAD, lu_ssc.delay_unload);
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");
@@ -1845,10 +1880,10 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		} else {
 			pcl = strip_PCL(msg->text, 6); /* 'lload ' => offset of 6 */
 			loadTape(pcl, sam_stat);
-			if (lu_ssc.tapeLoaded == TAPE_LOADED)
-				sprintf(s, "Loaded OK: %s", pcl);
-			else
+			if (lu_ssc.tapeLoaded == TAPE_UNLOADED)
 				sprintf(s, "Load failed: %s", pcl);
+			else
+				sprintf(s, "Loaded OK: %s", pcl);
 			send_msg(s, msg->snd_id);
 		}
 	}
@@ -1866,8 +1901,8 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	}
 
 	if (!strncmp(msg->text, "unload", 6)) {
-		unloadTape(sam_stat);
 		MHVTL_DBG(1, "Library requested tape unload");
+		unloadTape(sam_stat);
 	}
 
 	if (!strncmp(msg->text, "exit", 4))
@@ -2530,6 +2565,12 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	lu_priv->state_msg = NULL;
 
 	cumul_pollInterval = 0L;
+
+	lu_priv->delay_load = 0;
+	lu_priv->delay_unload = 0;
+	lu_priv->delay_thread = 0;
+	lu_priv->delay_position = 0;
+	lu_priv->delay_rewind = 0;
 }
 
 void personality_module_register(struct ssc_personality_template *pm)
