@@ -976,7 +976,8 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		src_len = writeBlock_zlib(cmd, src_sz);
 
 	if (!src_len) {
-		uint64_t fg = 0x6; /* Set 'Read/Write error' TapeAlert flag */
+		/* Set 'Read/Write error' TapeAlert flag */
+		uint64_t fg = TA_HARD | TA_WRITE;
 		update_TapeAlert(cmd->lu, fg);
 		return 0;
 	}
@@ -1555,7 +1556,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		lu_ssc.mediaSerialNo[0] = '\0';
 		if (rc == 2) {
 			/* TapeAlert - Unsupported format */
-			fg = 0x800;
+			fg = TA_MEDIA_NOT_SUPPORTED;
 			update_TapeAlert(lu, fg);
 		}
 		return rc;
@@ -1637,7 +1638,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	/* Set TapeAlert flg 32h => */
 	/*	Lost Statics */
 	if (mam.record_dirty != 0) {
-		fg = 0x02000000000000ull;
+		fg = TA_LOST_STATISTICS;
 		MHVTL_DBG(1, "Previous unload was not clean");
 	}
 
@@ -1741,7 +1742,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 mismatchmedia:
 	unload_tape(sam_stat);
-	fg |= 0x800;	/* Unsupported format */
+	fg |= TA_MEDIA_NOT_SUPPORTED;	/* Unsupported format */
 	update_TapeAlert(lu, fg);
 	MHVTL_ERR("Tape %s failed to load with type '%s' in drive type '%s'",
 			PCL,
@@ -1882,7 +1883,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	}
 
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
-		uint64_t flg = 0L;
+		uint64_t flg = TA_NONE;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
 		update_TapeAlert(lu, flg);
 	}

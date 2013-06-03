@@ -586,7 +586,7 @@ static int processMessageQ(struct q_msg *msg)
 		lunit.online = 1;
 	}
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
-		uint64_t flg = 0L;
+		uint64_t flg = TA_NONE;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
 		update_TapeAlert(&lunit, flg);
 	}
