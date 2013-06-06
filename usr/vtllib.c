@@ -345,17 +345,21 @@ void completeSCSICommand(int cdev, struct vtl_ds *ds)
 {
 	uint8_t *s;
 
-	MHVTL_DBG(2, "OP s/n: (%ld), sz: %d, sam_status: %d",
-			(unsigned long)ds->serialNo,
-			ds->sz, ds->sam_stat);
-
 	ioctl(cdev, VTL_PUT_DATA, ds);
 
 	s = (uint8_t *)ds->sense_buf;
 
-	if (ds->sam_stat == SAM_STAT_CHECK_CONDITION)
-		MHVTL_DBG(3, "[Key/ASC/ASCQ] [%02x %02x %02x]",
-						s[2], s[12], s[13]);
+	if (ds->sam_stat == SAM_STAT_CHECK_CONDITION) {
+		MHVTL_DBG(2, "s/n: (%ld), sz: %d, sam_status: %d"
+			" [%02x %02x %02x]",
+			(unsigned long)ds->serialNo,
+			ds->sz, ds->sam_stat,
+			s[2], s[12], s[13]);
+	} else {
+		MHVTL_DBG(2, "OP s/n: (%ld), sz: %d, sam_status: %d",
+			(unsigned long)ds->serialNo,
+			ds->sz, ds->sam_stat);
+	}
 
 	ds->sam_stat = 0;
 }
