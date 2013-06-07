@@ -390,7 +390,7 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_t10kA, 1);
 
@@ -425,7 +425,7 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_t10kA, 1);
 	add_density_support(&lu->den_list, &density_t10kB, 1);
@@ -466,7 +466,7 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_t10kA, 0);
 	add_density_support(&lu->den_list, &density_t10kB, 1);

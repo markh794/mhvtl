@@ -497,8 +497,8 @@ void init_3592_E06(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	ssc_pm.drive_type = drive_3592_E06;
-	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin);
-	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin, NULL, NULL);
+	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout, NULL, NULL);
 	add_density_support(&lu->den_list, &density_j1a, 0);
 	add_density_support(&lu->den_list, &density_e05, 1);
 	add_density_support(&lu->den_list, &density_e06, 1);

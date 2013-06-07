@@ -2253,9 +2253,12 @@ static struct device_type_template ssc_ops = {
 /*
  * Update ops[xx] with new/updated/custom function 'f'
  */
-void register_ops(struct lu_phy_attr *lu, int op, void *f)
+void register_ops(struct lu_phy_attr *lu, int op,
+			void *f, void *g, void *h)
 {
 	lu->scsi_ops->ops[op].cmd_perform = f;
+	lu->scsi_ops->ops[op].pre_cmd_perform = g;
+	lu->scsi_ops->ops[op].post_cmd_perform = h;
 }
 
 #define MALLOC_SZ 512
@@ -2512,12 +2515,16 @@ void personality_module_register(struct ssc_personality_template *pm)
 	lu_ssc.pm = pm;
 
 	if (pm->drive_supports_SP) {
-		register_ops(pm->lu, SECURITY_PROTOCOL_IN, ssc_spin);
-		register_ops(pm->lu, SECURITY_PROTOCOL_OUT, ssc_spout);
+		register_ops(pm->lu, SECURITY_PROTOCOL_IN,
+						ssc_spin, NULL, NULL);
+		register_ops(pm->lu, SECURITY_PROTOCOL_OUT,
+						ssc_spout, NULL, NULL);
 	}
 	if (pm->drive_supports_SPR) {
-		register_ops(pm->lu, PERSISTENT_RESERVE_IN, ssc_pr_in);
-		register_ops(pm->lu, PERSISTENT_RESERVE_OUT, ssc_pr_out);
+		register_ops(pm->lu, PERSISTENT_RESERVE_IN,
+						ssc_pr_in, NULL, NULL);
+		register_ops(pm->lu, PERSISTENT_RESERVE_OUT,
+						ssc_pr_out, NULL, NULL);
 	}
 
 }

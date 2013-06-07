@@ -488,6 +488,6 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "03592 JC");
 
 	/* Don't support PERSISTENT RESERVATION */
-	register_ops(lu, PERSISTENT_RESERVE_IN, spc_illegal_op);
-	register_ops(lu, PERSISTENT_RESERVE_OUT, spc_illegal_op);
+	register_ops(lu, PERSISTENT_RESERVE_IN, spc_illegal_op, NULL, NULL);
+	register_ops(lu, PERSISTENT_RESERVE_OUT, spc_illegal_op, NULL, NULL);
 }

@@ -408,7 +408,7 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_9840A, 1);
 
@@ -444,7 +444,7 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_9840A, 1);
 	add_density_support(&lu->den_list, &density_9840B, 1);
@@ -484,7 +484,7 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 
 	ssc_pm.native_drive_density = &density_9840C;
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_9840A, 0);
 	add_density_support(&lu->den_list, &density_9840B, 1);
@@ -523,7 +523,7 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_9840A, 0);
 	add_density_support(&lu->den_list, &density_9840B, 0);
@@ -563,7 +563,7 @@ void init_9940A_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_9940A, 1);
 
@@ -602,7 +602,7 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 
-	register_ops(lu, LOAD_DISPLAY, ssc_load_display);
+	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_9940A, 1);
 	add_density_support(&lu->den_list, &density_9940B, 1);
