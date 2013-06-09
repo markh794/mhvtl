@@ -366,7 +366,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 			mkSenseBuf(DATA_PROTECT, E_MEDIUM_OVERWRITE_ATTEMPTED,
 						sam_stat);
 			/* And set TapeAlert flg 09 -> WRITE PROTECT */
-			TAflag = 0x100;
+			TAflag = TA_WRITE_PROTECT;
 			update_TapeAlert(cmd->lu, TAflag);
 		}
 	}
@@ -1603,7 +1603,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 
 		/* Clear flags after value read. */
 		if (alloc_len > 4)
-			update_TapeAlert(lu, 0);
+			update_TapeAlert(lu, TA_NONE);
 		else
 			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
 				" Not clearing TapeAlert flags.");

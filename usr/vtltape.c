@@ -1540,7 +1540,7 @@ static struct media_details *check_media_can_load(struct list_head *mdl, int mt)
 static int loadTape(char *PCL, uint8_t *sam_stat)
 {
 	int rc;
-	uint64_t fg = 0;	/* TapeAlert flags */
+	uint64_t fg = TA_NONE;	/* TapeAlert flags */
 	struct media_details *m_detail;
 	struct lu_phy_attr *lu;
 
@@ -1591,7 +1591,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
 		if (lu_ssc.pm->cleaning_media)
 			lu_ssc.pm->cleaning_media(&lu_ssc);
-		fg |= 0x400;
+		fg |= TA_CLEANING_MEDIA;
 		MHVTL_DBG(1, "Cleaning media loaded");
 		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
