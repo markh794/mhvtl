@@ -2225,7 +2225,24 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 
-		[0x90 ... 0x9f] = {spc_illegal_op,},
+		/* 0x90 -> 0x9f */
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{ssc_locate,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
+		{spc_illegal_op,},
 
 		/* 0xa0 -> 0xaf */
 		{spc_illegal_op,}, /* processed in the kernel module */
