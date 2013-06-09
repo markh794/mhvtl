@@ -484,7 +484,7 @@ uint8_t ssc_format_media(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t ssc_locate_10(struct scsi_cmd *cmd)
+uint8_t ssc_locate(struct scsi_cmd *cmd)
 {
 	uint32_t blk_no;
 

@@ -188,7 +188,7 @@ uint8_t ssc_release(struct scsi_cmd *cmd);
 uint8_t ssc_report_density_support(struct scsi_cmd *cmd);
 uint8_t ssc_reserve(struct scsi_cmd *cmd);
 uint8_t ssc_rewind(struct scsi_cmd *cmd);
-uint8_t ssc_locate_10(struct scsi_cmd *cmd);
+uint8_t ssc_locate(struct scsi_cmd *cmd);
 uint8_t ssc_space(struct scsi_cmd *cmd);
 uint8_t ssc_spin(struct scsi_cmd *cmd);
 uint8_t ssc_spout(struct scsi_cmd *cmd);
