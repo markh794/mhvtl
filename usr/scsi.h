@@ -78,17 +78,19 @@
 #define A3_SA			0xa3
 #define A4_SA			0xa4
 #define ERASE_6			0x19
+#define ERASE_16		0x93
 #define FORMAT_UNIT		0x04
+#define EXCHANGE_MEDIUM		0xa6
 #define INITIALIZE_ELEMENT_STATUS	0x07
 #define INITIALIZE_ELEMENT_STATUS_WITH_RANGE 0xE7
 #define INQUIRY			0x12
 #define LOAD_DISPLAY		0x06	/* STK T10000 specific */
+#define LOCATE_16		0x92
 #define MODE_SENSE		0x1a
 #define MODE_SENSE_10		0x5a
 #define MODE_SELECT		0x15
 #define	MODE_SELECT_10		0x55
 #define	MOVE_MEDIUM		0xa5
-#define SEEK_10			0x2b
 #define	LOG_SELECT		0x4c
 #define	LOG_SENSE		0x4d
 #define PERSISTENT_RESERVE_IN	0x5e
@@ -103,10 +105,14 @@
 #define	READ_ELEMENT_STATUS	0xb8
 #define READ_MEDIA_SERIAL_NUMBER	0xab
 #define	READ_POSITION		0x34
+#define	READ_REVERSE_6		0x0f
+#define	READ_REVERSE_16		0x81
 #define RECEIVE_DIAGNOSTIC	0x1c
+#define RECOVER_BUFFERED_DATA	0x14
 #define	RELEASE			0x17
 #define	RELEASE_10		0x57
 #define REPORT_DENSITY		0x44
+#define REPORT_ELEMENT_INFORMATION 0x9e
 #define	REPORT_LUNS		0xa0
 #define	REQUEST_SENSE		0x03
 #define	RESERVE			0x16
@@ -115,9 +121,13 @@
 #define SECURITY_PROTOCOL_IN	0xa2
 #define SECURITY_PROTOCOL_OUT	0xb5
 #define SEND_DIAGNOSTIC		0x1d
+#define SET_CAPACITY		0x0b
 #define	SPACE			0x11
+#define	SPACE_16		0x91
 #define	START_STOP		0x1b
 #define	TEST_UNIT_READY		0x00
+#define VERIFY_6		0x13
+#define VERIFY_16		0x8f
 #define	WRITE_6			0x0a
 #define	WRITE_10		0x2a
 #define	WRITE_12		0xaa
@@ -125,6 +135,7 @@
 #define WRITE_ATTRIBUTE		0x8d
 #define WRITE_BUFFER		0x3b
 #define	WRITE_FILEMARKS		0x10
+#define	WRITE_FILEMARKS_16	0x80
 
 /* Service codes */
 #define FORCED_EJECT		0x1f
