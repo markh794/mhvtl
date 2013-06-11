@@ -1507,6 +1507,9 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 
 	dbuf_p->sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
 
+	if (cmd->lu->scsi_ops->ops[cdb[0]].post_cmd_perform)
+		cmd->lu->scsi_ops->ops[cdb[0]].post_cmd_perform(cmd, NULL);
+
 	last_cmd = cdb[0];
 
 	return;
