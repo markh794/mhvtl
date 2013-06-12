@@ -248,6 +248,17 @@ __attribute__((constructor)) static void smc_init(void)
 }
 
 /*
+ * Update ops[xx] with new/updated/custom function 'f'
+ */
+void register_ops(struct lu_phy_attr *lu, int op,
+			void *f, void *g, void *h)
+{
+	lu->scsi_ops->ops[op].cmd_perform = f;
+	lu->scsi_ops->ops[op].pre_cmd_perform = g;
+	lu->scsi_ops->ops[op].post_cmd_perform = h;
+}
+
+/*
  *
  * Process the SCSI command
  *
