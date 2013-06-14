@@ -291,10 +291,9 @@ int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
 {
 	uint8_t *arr = (uint8_t *)dbuf_p->data;
 
+	MHVTL_DBG(2, "Min/Max sz: %d/%d", 4, sz);
 	memset(arr, 0, READBLOCKLIMITS_ARR_SZ);
-	arr[1] = (sz >> 16);
-	arr[2] = (sz >> 8);
-	arr[3] = sz;
+	put_unaligned_be24(sz, &arr[1]);
 	arr[5] = 0x4;	/* Minimum block size */
 
 	return READBLOCKLIMITS_ARR_SZ;
