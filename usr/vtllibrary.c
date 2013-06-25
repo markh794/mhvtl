@@ -273,6 +273,7 @@ void register_ops(struct lu_phy_attr *lu, int op,
 static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 			useconds_t pollInterval)
 {
+	int err = 0;
 	struct scsi_cmd _cmd;
 	struct scsi_cmd *cmd;
 	cmd = &_cmd;
@@ -301,11 +302,14 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 			return;
 	}
 
+	/* Skip main op code processing if pre-cmd returns non-zero */
 	if (cmd->lu->scsi_ops->ops[cdb[0]].pre_cmd_perform)
-		cmd->lu->scsi_ops->ops[cdb[0]].pre_cmd_perform(cmd, NULL);
+		err = cmd->lu->scsi_ops->ops[cdb[0]].pre_cmd_perform(cmd, NULL);
 
-	dbuf_p->sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
+	if (!err)
+		dbuf_p->sam_stat = cmd->lu->scsi_ops->ops[cdb[0]].cmd_perform(cmd);
 
+	/* Post op code processing regardless */
 	if (cmd->lu->scsi_ops->ops[cdb[0]].post_cmd_perform)
 		cmd->lu->scsi_ops->ops[cdb[0]].post_cmd_perform(cmd, NULL);
 
