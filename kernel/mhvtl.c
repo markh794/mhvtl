@@ -106,16 +106,15 @@ static const char *vtl_version_date = "20130310-0";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
-#define NO_ADDED_SENSE 0x0
 #define INVALID_FIELD_IN_CDB 0x24
-#define POWERON_RESET 0x29
-#define NOT_SELF_CONFIGURED 0x3e
 
 #define VTL_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 
 #ifndef SCSI_MAX_SG_CHAIN_SEGMENTS
 	#define SCSI_MAX_SG_CHAIN_SEGMENTS SG_ALL
 #endif
+
+#define	TIMEOUT_FOR_USER_DAEMON	50000
 
 /* Default values for driver parameters */
 #define DEF_NUM_HOST   1
@@ -515,7 +514,7 @@ static int q_cmd(struct scsi_cmnd *scp,
 	sqcp->done_funct = done;
 	sqcp->cmnd_timer.function = timer_intr_handler;
 	sqcp->cmnd_timer.data = scp->serial_number;
-	sqcp->cmnd_timer.expires = jiffies + 25000;
+	sqcp->cmnd_timer.expires = jiffies + TIMEOUT_FOR_USER_DAEMON;
 	add_timer(&sqcp->cmnd_timer);
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 	if (VTL_OPT_NOISE & vtl_opts)
