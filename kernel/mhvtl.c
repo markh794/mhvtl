@@ -411,9 +411,11 @@ static int resp_write_to_user(struct scsi_cmnd *SCpnt,
 
 	fetched = fetch_to_dev_buffer(SCpnt, up, count);
 
-	if (fetched < count)
+	if (fetched < count) {
 		MHVTL_DBG(1, " cdb indicated=%d, IO sent=%d bytes\n",
 				count, fetched);
+		return -EIO;
+	}
 
 	return 0;
 }
