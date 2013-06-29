@@ -17,6 +17,12 @@
 #define EARLY_WARNING_SZ		1024 * 1024 * 2	/* 2M EW size */
 #define PROG_EARLY_WARNING_SZ		1024 * 1024 * 3	/* 3M Prog EW size */
 
+#define MAX_DELAY_LOAD		20
+#define MAX_DELAY_UNLOAD	20
+#define MAX_DELAY_THREAD	20
+#define MAX_DELAY_POSITION	20
+#define MAX_DELAY_REWIND	30
+
 struct name_to_media_info {
 	char *name;
 	int media_type;

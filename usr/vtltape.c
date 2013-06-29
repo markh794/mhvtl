@@ -330,7 +330,7 @@ int lookup_mode_media_type(struct name_to_media_info *media_info, int med)
 	return media_type_unknown;
 }
 
-static void set_mount(int sig)
+static void finish_mount(int sig)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
 	if (lu_ssc.tapeLoaded == TAPE_LOADING)
@@ -341,22 +341,26 @@ static void set_mount(int sig)
 static void set_mount_timer(int t)
 {
 	MHVTL_DBG(3, "+++ Trace +++ Setting alarm for %d", t);
-	signal(SIGALRM, set_mount);
+	signal(SIGALRM, finish_mount);
 	alarm(t);
 }
 
 void delay_opcode(int what, int value)
 {
-	MHVTL_DBG(3, "+++ Trace +++");
+	MHVTL_DBG(3, "+++ Trace --> what: %d, value: %d", what, value);
 
 	switch (what) {
 	case DELAY_LOAD:
-		set_mount_timer(value);
+		if (value)
+			set_mount_timer(value);
+		else
+			finish_mount(1);
 		break;
 	default:
 		sleep(value);
 		break;
 	}
+	MHVTL_DBG(2, "Completed %d, sleep(%d)", what, value);
 }
 
 /***********************************************************************/
@@ -1043,7 +1047,6 @@ void resp_space(int32_t count, int code, uint8_t *sam_stat)
 	switch (code) {
 	/* Space 'count' blocks */
 	case 0:
-		delay_opcode(DELAY_POSITION, lu_ssc.delay_position);
 		if (count >= 0)
 			position_blocks_forw(count, sam_stat);
 		else
@@ -1051,7 +1054,6 @@ void resp_space(int32_t count, int code, uint8_t *sam_stat)
 		break;
 	/* Space 'count' filemarks */
 	case 1:
-		delay_opcode(DELAY_POSITION, lu_ssc.delay_position);
 		if (count >= 0)
 			position_filemarks_forw(count, sam_stat);
 		else
@@ -1066,6 +1068,7 @@ void resp_space(int32_t count, int code, uint8_t *sam_stat)
 		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB, sam_stat);
 		break;
 	}
+	delay_opcode(DELAY_POSITION, lu_ssc.delay_position);
 }
 
 #ifdef MHVTL_DEBUG
@@ -1861,6 +1864,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 {
 	char *pcl;
 	char s[128];
+	char *z;
 	struct lu_phy_attr *lu;
 
 	lu = lu_ssc.pm->lu;
@@ -1878,7 +1882,9 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			MHVTL_DBG(2, "Tape already mounted");
 			send_msg("Load failed", msg->snd_id);
 		} else {
-			pcl = strip_PCL(msg->text, 6); /* 'lload ' => offset of 6 */
+			/* 'lload ' => offset of 6 */
+			pcl = strip_PCL(msg->text, 6);
+
 			loadTape(pcl, sam_stat);
 			if (lu_ssc.tapeLoaded == TAPE_UNLOADED)
 				sprintf(s, "Load failed: %s", pcl);
@@ -1975,7 +1981,56 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		} else
 			MHVTL_LOG("This drive does not support Append Only mode");
 	}
-
+	if (!strncasecmp(msg->text, "delay load", 10)) {
+		z = strtok(msg->text, " ");
+		z = strtok(NULL, " ");
+		z = strtok(NULL, " ");
+		if (z)
+			lu_ssc.delay_load = min(atoi(z), MAX_DELAY_LOAD);
+		else
+			lu_ssc.delay_load = 0;
+		MHVTL_DBG(2, "Setting delay_load to %d", lu_ssc.delay_load);
+	}
+	if (!strncasecmp(msg->text, "delay unload", 12)) {
+		z = strtok(msg->text, " ");
+		z = strtok(NULL, " ");
+		z = strtok(NULL, " ");
+		if (z)
+			lu_ssc.delay_unload = min(atoi(z), MAX_DELAY_UNLOAD);
+		else
+			lu_ssc.delay_unload = 0;
+		MHVTL_DBG(2, "Setting delay_unload to %d", lu_ssc.delay_unload);
+	}
+	if (!strncasecmp(msg->text, "delay rewind", 12)) {
+		z = strtok(msg->text, " ");
+		z = strtok(NULL, " ");
+		z = strtok(NULL, " ");
+		if (z)
+			lu_ssc.delay_rewind = min(atoi(z), MAX_DELAY_REWIND);
+		else
+			lu_ssc.delay_rewind = 0;
+		MHVTL_DBG(2, "Setting delay_rewind to %d", lu_ssc.delay_rewind);
+	}
+	if (!strncasecmp(msg->text, "delay thread", 12)) {
+		z = strtok(msg->text, " ");
+		z = strtok(NULL, " ");
+		z = strtok(NULL, " ");
+		if (z)
+			lu_ssc.delay_thread = min(atoi(z), MAX_DELAY_THREAD);
+		else
+			lu_ssc.delay_thread = 0;
+		MHVTL_DBG(2, "Setting delay_thread to %d", lu_ssc.delay_thread);
+	}
+	if (!strncasecmp(msg->text, "delay position", 14)) {
+		z = strtok(msg->text, " ");
+		z = strtok(NULL, " ");
+		z = strtok(NULL, " ");
+		if (z)
+			lu_ssc.delay_position = min(atoi(z), MAX_DELAY_POSITION);
+		else
+			lu_ssc.delay_position = 0;
+		MHVTL_DBG(2, "Setting delay_position to %d", lu_ssc.delay_position);
+	}
 	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug > 4) {
 			debug = 1;

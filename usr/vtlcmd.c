@@ -79,16 +79,21 @@ void usage(char *prog)
 	fprintf(stderr, "   Append Only [Yes|No] -> To 'load' media ID\n");
 	fprintf(stderr, "   compression [zlib|lzo] -> Use zlib or lzo "
 						"compression\n");
-	fprintf(stderr, "   load ID     -> To 'load' media ID\n");
-	fprintf(stderr, "   unload ID   -> To 'unload' media ID\n");
+	fprintf(stderr, "   load ID        -> To 'load' media ID\n");
+	fprintf(stderr, "   unload ID      -> To 'unload' media ID\n");
+	fprintf(stderr, "   delay load n   -> Set load delay to n seconds\n");
+	fprintf(stderr, "   delay unload n -> Set unload delay to n seconds\n");
+	fprintf(stderr, "   delay rewind n -> Set rewind delay to n seconds\n");
+	fprintf(stderr, "   delay position n -> Set position delay to n seconds\n");
+	fprintf(stderr, "   delay thread n -> Set thread delay to n seconds\n");
 	fprintf(stderr, "\nLibrary specific commands:\n");
-	fprintf(stderr, "   online      -> To enable library\n");
-	fprintf(stderr, "   offline     -> To take library offline\n");
-	fprintf(stderr, "   list map    -> To list map contents\n");
-	fprintf(stderr, "   empty map   -> To remove media from map\n");
-	fprintf(stderr, "   open map    -> Open map to allow media export\n");
-	fprintf(stderr, "   close map   -> Close map to allow media import\n");
-	fprintf(stderr, "   load map ID -> Load media ID into map\n");
+	fprintf(stderr, "   online       -> To enable library\n");
+	fprintf(stderr, "   offline      -> To take library offline\n");
+	fprintf(stderr, "   list map     -> To list map contents\n");
+	fprintf(stderr, "   empty map    -> To remove media from map\n");
+	fprintf(stderr, "   open map     -> Open map to allow media export\n");
+	fprintf(stderr, "   close map    -> Close map to allow media import\n");
+	fprintf(stderr, "   load map ID  -> Load media ID into map\n");
 }
 
 /* check if media (tape) exists in directory (/opt/mhvtl/..) */
@@ -176,6 +181,17 @@ void Check_Load(int argc, char **argv)
 		PrintErrorExit(argv[0], "load");
 	}
 	PrintErrorExit(argv[0], "load");
+}
+
+void Check_delay(int argc, char **argv)
+{
+	if (argc > 4) {
+		if (argc == 5)
+			return;
+
+		PrintErrorExit(argv[0], "delay");
+	}
+	PrintErrorExit(argv[0], "delay");
 }
 
 void Check_Unload(int argc, char **argv)
@@ -297,6 +313,10 @@ void Check_Params(int argc, char **argv)
 			}
 			if (!strncasecmp(argv[2], "unload", 6)) {
 				Check_Unload(argc, argv);
+				return;
+			}
+			if (!strncasecmp(argv[2], "delay", 5)) {
+				Check_delay(argc, argv);
 				return;
 			}
 			if (!strncasecmp(argv[2], "compression", 11)) {
@@ -502,6 +522,11 @@ int main(int argc, char **argv)
 		} else if (!strncmp(buf, "compression", 11)) {
 		} else if (!strncmp(buf, "TapeAlert", 9)) {
 		} else if (!strncasecmp(buf, "append", 6)) {
+		} else if (!strncasecmp(buf, "delay load", 10)) {
+		} else if (!strncasecmp(buf, "delay unload", 12)) {
+		} else if (!strncasecmp(buf, "delay rewind", 12)) {
+		} else if (!strncasecmp(buf, "delay position", 14)) {
+		} else if (!strncasecmp(buf, "delay thread", 12)) {
 		} else {
 			fprintf(stderr, "Command for tape not allowed\n");
 			exit(1);
