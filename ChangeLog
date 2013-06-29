@@ -1,3 +1,14 @@
+* Sat Jun 29 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-8
+- Add additional fields in MAM for multi-partition support capability
+- MODE SELECT fixes
+- Solaris 11.1 st mode select
+- Make virtual media more resilient against disk full conditions
+- Add additional error checking between kernel and userspace ioctl
+- Add ability to introduce delays in load/unload/position/thread/rewind op codes
+- Add 16byte CDB locate command support
+- Minor kernel module tweeks - increase timeout & error checking on ioctl()
+
 * Fri Mar 22 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-7
 - Add DLT7000/DLT8000 emulation
