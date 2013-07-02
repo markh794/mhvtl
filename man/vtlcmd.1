@@ -27,7 +27,41 @@ Load media ID (barcode) - Used for stand-alone tape drive daemon.
 .IP "unload <ID>"
 Unload media ID (barcode)
 .IP "compression <ZLIB|LZO>"
-Changes compression libraries used to compress each block of data
+Changes compression libraries used to compress each block of data. Valid for
+.B tape
+only.
+.IP "delay load x"
+Sets a delay for loading media to
+.B x
+seconds. Valid values 0 - 20. ssc target returns <02/04/01> 'NOT READY/BECOMMING READY' status in response to any 'Test Unit Ready' requested until timer expires.
+Valid for
+.B tape
+only.
+.IP "delay unload x"
+Sets a delay for unloading media to
+.B x
+seconds. Valid values 0 - 20. Valid for
+.B tape
+only.
+.IP "delay rewind x"
+Sets a delay for rewinding media to
+.B x
+seconds. Valid values 0 - 30. Valid for
+.B tape
+only.
+.IP "delay position x"
+Sets a delay for positioning media to
+.B x
+seconds. Valid values 0 - 20. Valid for
+.B tape
+only.
+.IP "delay thread x"
+Sets a delay for \'threading\' media to
+.B x
+seconds. Valid values 0 - 20. Valid for
+.B tape
+only.
+
 .IP "TapeAlert <alert flag>"
 Send a 64bit hex number, each bit corresponds to one TapeAlert flag as defined by t10.org. Where bit 0 is TapeAlert flag 1, and bit 63 is TapeAlert flag 64.
 .IP exit
