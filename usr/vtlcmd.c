@@ -186,9 +186,11 @@ void Check_Load(int argc, char **argv)
 void Check_delay(int argc, char **argv)
 {
 	if (argc > 4) {
-		if (argc == 5)
-			return;
-
+		if (argc == 5) {
+			if (atoi(argv[4]) >= 0)
+				return;
+			PrintErrorExit(argv[0], "delay: Negative value");
+		}
 		PrintErrorExit(argv[0], "delay");
 	}
 	PrintErrorExit(argv[0], "delay");

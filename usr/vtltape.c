@@ -1985,7 +1985,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		z = strtok(msg->text, " ");
 		z = strtok(NULL, " ");
 		z = strtok(NULL, " ");
-		if (z)
+		if (atoi(z) > 0)
 			lu_ssc.delay_load = min(atoi(z), MAX_DELAY_LOAD);
 		else
 			lu_ssc.delay_load = 0;
@@ -1995,7 +1995,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		z = strtok(msg->text, " ");
 		z = strtok(NULL, " ");
 		z = strtok(NULL, " ");
-		if (z)
+		if (atoi(z) > 0)
 			lu_ssc.delay_unload = min(atoi(z), MAX_DELAY_UNLOAD);
 		else
 			lu_ssc.delay_unload = 0;
@@ -2005,7 +2005,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		z = strtok(msg->text, " ");
 		z = strtok(NULL, " ");
 		z = strtok(NULL, " ");
-		if (z)
+		if (atoi(z) > 0)
 			lu_ssc.delay_rewind = min(atoi(z), MAX_DELAY_REWIND);
 		else
 			lu_ssc.delay_rewind = 0;
@@ -2015,7 +2015,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		z = strtok(msg->text, " ");
 		z = strtok(NULL, " ");
 		z = strtok(NULL, " ");
-		if (z)
+		if (atoi(z) > 0)
 			lu_ssc.delay_thread = min(atoi(z), MAX_DELAY_THREAD);
 		else
 			lu_ssc.delay_thread = 0;
@@ -2025,7 +2025,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		z = strtok(msg->text, " ");
 		z = strtok(NULL, " ");
 		z = strtok(NULL, " ");
-		if (z)
+		if (atoi(z) > 0)
 			lu_ssc.delay_position = min(atoi(z), MAX_DELAY_POSITION);
 		else
 			lu_ssc.delay_position = 0;
