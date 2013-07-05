@@ -243,6 +243,7 @@ void setTapeAlert(struct TapeAlert_page *, uint64_t);
 void initTapeAlert(struct TapeAlert_page *);
 
 int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);
+int set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);
 struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size);

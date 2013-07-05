@@ -342,7 +342,30 @@ int add_log_data_compression(struct lu_phy_attr *lu)
 	return 0;
 }
 
+/* Only valid for SSC devices */
 int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
+{
+	struct seqAccessDevice *sad;
+	struct log_pg_list *l;
+	uint64_t ta;
+
+	l = lookup_log_pg(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE);
+	if (l) {
+		MHVTL_DBG(2, "Adding flags: %.8x %.8x",
+					(uint32_t)(flags >> 32) & 0xffffffff,
+					(uint32_t)flags & 0xffffffff);
+		sad = (struct seqAccessDevice *)l->p;
+		ta = get_unaligned_be64(&sad->TapeAlert);
+		MHVTL_DBG(2, "Existing flags: %.8x %.8x",
+					(uint32_t)(ta >> 32) & 0xffffffff,
+					(uint32_t)ta & 0xffffffff);
+		set_TapeAlert(lu, ta | flags);
+		return 0;
+	}
+	return -1;
+}
+
+int set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 {
 	struct seqAccessDevice *sad;
 	struct TapeAlert_page *ta;
@@ -351,7 +374,7 @@ int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 
 	l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
 	if (!l)
-		goto log_page_not_found;
+		return -1;
 
 	ta = (struct TapeAlert_page *)l->p;
 
@@ -372,7 +395,4 @@ int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 	}
 
 	return 0;
-
-log_page_not_found:
-	return -1;
 }
