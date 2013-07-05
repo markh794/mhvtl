@@ -2181,6 +2181,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 		list_add_tail(&m_detail->siblings, den_list);
 	}
 
+	set_TapeAlert(lu, 0);
 	return 0;
 }
 
