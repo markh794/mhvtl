@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
 		;
 
 	/* Initialize the contents of the MAM to be used for the new PCL. */
-	memset((uint8_t *)&mam, 0, sizeof(mam));
+	bzero((uint8_t *)&mam, sizeof(mam));
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
 	mam.mam_fmt_version = MAM_VERSION;

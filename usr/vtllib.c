@@ -167,6 +167,21 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 }
 
 /*
+ * zalloc(int size)
+ *
+ * Wrapper to first call malloc() and zero out any allocated space.
+ */
+void *zalloc(int sz)
+{
+	void *p = malloc(sz);
+
+	if (p)
+		bzero(p, sz);
+
+	return p;
+}
+
+/*
  * Fills in a global array with current sense data
  * Sets 'sam status' to SAM_STAT_CHECK_CONDITION.
  */
@@ -174,7 +189,7 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 {
 	/* Clear Sense key status */
-	memset(sense, 0, SENSE_BUF_SIZE);
+	bzero(sense, SENSE_BUF_SIZE);
 
 	*sam_stat = SAM_STAT_CHECK_CONDITION;
 
@@ -248,7 +263,7 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint32_t partition = 0;
 
-	memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
+	bzero(buf, READ_POSITION_LONG_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Beginning of Partition */
@@ -269,7 +284,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint8_t partition = 0;
 
-	memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
+	bzero(buf, READ_POSITION_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Beginning of Partition */
@@ -292,7 +307,7 @@ int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
 	uint8_t *arr = (uint8_t *)dbuf_p->data;
 
 	MHVTL_DBG(2, "Min/Max sz: %d/%d", 4, sz);
-	memset(arr, 0, READBLOCKLIMITS_ARR_SZ);
+	bzero(arr, READBLOCKLIMITS_ARR_SZ);
 	put_unaligned_be24(sz, &arr[1]);
 	arr[5] = 0x4;	/* Minimum block size */
 
@@ -700,7 +715,7 @@ char *get_version(void)
 	int x, y, z;
 	char *c;
 
-	c = (char *)malloc(32);	/* Way more than enough for a 4 byte string */
+	c = (char *)zalloc(32);	/* Way more than enough for a 4 byte string */
 	if (!c)
 		return NULL;
 
@@ -907,7 +922,7 @@ int add_density_support(struct list_head *l, struct density_info *di, int rw)
 {
 	struct supported_density_list *supported;
 
-	supported = (struct supported_density_list *)malloc(sizeof(struct supported_density_list));
+	supported = zalloc(sizeof(struct supported_density_list));
 	if (!supported)
 		return -ENOMEM;
 
@@ -926,7 +941,7 @@ void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
 	checkstrlen(s, MALLOC_SZ - 1, 0);
 	if (lu->fifoname)
 		free(lu->fifoname);
-	lu->fifoname = (char *)malloc(strlen(s) + 2);
+	lu->fifoname = (char *)zalloc(strlen(s) + 2);
 	if (!lu->fifoname) {
 		printf("Unable to malloc fifo buffer");
 		exit(-ENOMEM);
@@ -1088,12 +1103,12 @@ void find_media_home_directory(char *home_directory, int lib_id)
 		perror("Can not open config file");
 		exit(1);
 	}
-	s = malloc(MALLOC_SZ);
+	s = zalloc(MALLOC_SZ);
 	if (!s) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	b = malloc(MALLOC_SZ);
+	b = zalloc(MALLOC_SZ);
 	if (!b) {
 		perror("Could not allocate memory");
 		exit(1);

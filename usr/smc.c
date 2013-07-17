@@ -512,9 +512,9 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 			if (!(s->media->internal_status & INSTATUS_NO_BARCODE))
 				blank_fill(&p[j], s->media->barcode, VOLTAG_LEN);
 			else
-				memset(&p[j], 0, VOLTAG_LEN);
+				bzero(&p[j], VOLTAG_LEN);
 		} else
-			memset(&p[j], 0, VOLTAG_LEN);
+			bzero(&p[j], VOLTAG_LEN);
 
 		j += VOLTAG_LEN;	/* Account for barcode */
 	}
@@ -813,7 +813,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	cmd->dbuf_p->sz = 0;
 
 	/* Init buffer */
-	memset(p, 0, alloc_len);
+	bzero(p, alloc_len);
 
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		MHVTL_DBG(3, "cdb[11] : Illegal value");
@@ -982,7 +982,7 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 	}
 
 	cmdlen = strlen(smc_p->movecommand)+MAX_BARCODE_LEN+4*10;
-	movecommand = malloc(cmdlen + 1);
+	movecommand = zalloc(cmdlen + 1);
 
 	if (!movecommand) {
 		MHVTL_ERR("malloc failed");
@@ -1053,7 +1053,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	send_msg(cmd, dest->drv_id);
 
 	if (! smc_p->state_msg)
-		smc_p->state_msg = (char *)malloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
+		smc_p->state_msg = (char *)zalloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */
 		sprintf(cmd, "%s", src->media->barcode);
@@ -1128,7 +1128,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	}
 
 	if (! smc_p->state_msg)
-		smc_p->state_msg = malloc(64);
+		smc_p->state_msg = zalloc(64);
 	if (smc_p->state_msg) {
 		sprintf(cmd, "%s", src->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
@@ -1212,7 +1212,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	send_msg("unload", src->drv_id);
 
 	if (! smc_p->state_msg)
-		smc_p->state_msg = malloc(64);
+		smc_p->state_msg = zalloc(64);
 	if (smc_p->state_msg) {
 		sprintf(cmd, "%s", src->slot->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
@@ -1292,7 +1292,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	}
 
 	if (! smc_p->state_msg)
-		smc_p->state_msg = malloc(64);
+		smc_p->state_msg = zalloc(64);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */
 		sprintf(cmd, "%s", dest->slot->media->barcode);
@@ -1468,7 +1468,7 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd)
 	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
 		MHVTL_DBG(1, "LOG SENSE: Sending supported pages");
-		memset(b, 0, 4);	/* Clear first few (4) bytes */
+		bzero(b, 4);	/* Clear first few (4) bytes */
 		i = 4;
 		b[i++] = 0;	/* b[0] is log page '0' (this one) */
 		list_for_each_entry(l, l_head, siblings) {

@@ -385,7 +385,7 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 	l_head = &lu_priv->pm->lu->den_list;
 
 	/* Zero out buf */
-	memset(buf, 0, len);
+	bzero(buf, len);
 	ds = &buf[4];
 	count = 0;
 
@@ -467,7 +467,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 	MHVTL_DBG(2, "Read Attribute: 0x%x, allocation len: %d",
 							attrib, alloc_len);
 
-	memset(buf, 0, alloc_len);	/* Clear memory */
+	bzero(buf, alloc_len);	/* Clear memory */
 
 	if (cdb[1] == 0) {
 		/* Attribute Values */
@@ -1125,7 +1125,7 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
-	memset(buf, 0, alloc_len);
+	bzero(buf, alloc_len);
 	switch (sps) {
 	case SUPPORTED_SECURITY_PROTOCOL_LIST:
 		buf[6] = 0;	/* list length (MSB) */
@@ -1169,7 +1169,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
-	memset(buf, 0, alloc_len);
+	bzero(buf, alloc_len);
 	switch (sps) {
 	case ENCR_IN_SUPPORT_PAGES:
 		put_unaligned_be16(ENCR_IN_SUPPORT_PAGES, &buf[0]);
@@ -2170,7 +2170,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 					s, m_detail->load_capability);
 	} else {
 		MHVTL_DBG(2, "Adding new entry for %s", s);
-		m_detail = (struct media_details *)malloc(sizeof(struct media_details));
+		m_detail = zalloc(sizeof(struct media_details));
 		if (!m_detail) {
 			MHVTL_DBG(1, "Failed to allocate %d bytes",
 						(int)sizeof(m_detail));
@@ -2404,7 +2404,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	backoff = DEFLT_BACKOFF_VALUE;
 
 	/* Default inquiry bits */
-	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
+	bzero(&lu->inquiry, MAX_INQUIRY_SZ);
 	lu->inquiry[0] = TYPE_TAPE;	/* SSC device */
 	lu->inquiry[1] = 0x80;	/* Removable bit set */
 	lu->inquiry[2] = 0x05;	/* SCSI Version (v3) */
@@ -2424,12 +2424,12 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 		perror("Can not open config file");
 		exit(1);
 	}
-	s = malloc(MALLOC_SZ);
+	s = zalloc(MALLOC_SZ);
 	if (!s) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	b = malloc(MALLOC_SZ);
+	b = zalloc(MALLOC_SZ);
 	if (!b) {
 		perror("Could not allocate memory");
 		exit(1);
@@ -2517,7 +2517,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 			if (i == 8) {
 				if (lu->naa)
 					free(lu->naa);
-				lu->naa = malloc(48);
+				lu->naa = zalloc(48);
 				if (lu->naa)
 					sprintf((char *)lu->naa,
 				"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
@@ -2740,7 +2740,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Clear Sense arr */
-	memset(sense, 0, sizeof(sense));
+	bzero(sense, sizeof(sense));
 
 	/* Powered on / reset flag */
 	reset_device();
@@ -2813,7 +2813,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	buf = (uint8_t *)malloc(lu_ssc.bufsize);
+	buf = (uint8_t *)zalloc(lu_ssc.bufsize);
 	if (NULL == buf) {
 		perror("Problems allocating memory");
 		exit(1);

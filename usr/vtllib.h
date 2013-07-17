@@ -513,6 +513,7 @@ struct mode *lookup_pcode(struct list_head *l, uint8_t pcode, uint8_t subpcode);
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);
 
 void hex_dump(uint8_t *, int);
+void *zalloc(int sz);
 int chrdev_open(char *name, unsigned minor);
 int chrdev_create(unsigned minor);
 int chrdev_chown(unsigned minor, uid_t uid, gid_t gid);

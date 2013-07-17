@@ -80,14 +80,13 @@ struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size)
 
 	log_page = lookup_log_pg(l, page);
 	if (!log_page) {	/* Create a new entry */
-		log_page = (struct log_pg_list *)malloc(sizeof(struct log_pg_list));
+		log_page = zalloc(sizeof(struct log_pg_list));
 	}
 	if (log_page) {
-		log_page->p = malloc(size);
+		log_page->p = zalloc(size);
 		MHVTL_DBG(3, "log page pointer: %p for log page 0x%02x",
 			log_page->p, page);
 		if (log_page->p) {	/* If ! null, set size of data */
-			memset(log_page->p, 0, size);
 			log_page->log_page_num = page;
 			log_page->size = size;
 			list_add_tail(&log_page->siblings, l);

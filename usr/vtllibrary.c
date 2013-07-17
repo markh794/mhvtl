@@ -429,7 +429,7 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 		exit(1);
 	}
 
-	m = malloc(sizeof(struct m_info));
+	m = zalloc(sizeof(struct m_info));
 	if (!m) {
 		MHVTL_DBG(1, "Out of memory allocating memory for barcode %s",
 			barcode);
@@ -438,7 +438,7 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 
 	media_list_head = &((struct smc_priv *)lu->lu_private)->media_list;
 
-	memset(m, 0, sizeof(struct m_info));
+	bzero(m, sizeof(struct m_info));
 
 	snprintf((char *)m->barcode, MAX_BARCODE_LEN + 1, LEFT_JUST_16_STR,
 					barcode);
@@ -643,12 +643,11 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 
 	slot_list_head = &((struct smc_priv *)lu->lu_private)->slot_list;
 
-	new = malloc(sizeof(struct s_info));
+	new = zalloc(sizeof(struct s_info));
 	if (!new) {
 		MHVTL_DBG(1, "Could not allocate memory for new slot struct");
 		exit(-ENOMEM);
 	}
-	memset(new, 0, sizeof(struct s_info));
 
 	list_add_tail(&new->siblings, slot_list_head);
 	return new;
@@ -692,12 +691,12 @@ static void update_drive_details(struct lu_phy_attr *lu)
 		perror("Can not open config file");
 		exit(1);
 	}
-	s = malloc(MALLOC_SZ);
+	s = zalloc(MALLOC_SZ);
 	if (!s) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	b = malloc(MALLOC_SZ);
+	b = zalloc(MALLOC_SZ);
 	if (!b) {
 		perror("Could not allocate memory");
 		exit(1);
@@ -720,13 +719,11 @@ static void update_drive_details(struct lu_phy_attr *lu)
 					drv_id, slot);
 			dp = lookup_drive(lu, slot);
 			if (!dp) {
-				dp = malloc(sizeof(struct d_info));
+				dp = zalloc(sizeof(struct d_info));
 				if (!dp) {
 					MHVTL_DBG(1, "Couldn't malloc memory");
 					exit(-ENOMEM);
 				}
-				memset(dp, 0, sizeof(struct d_info));
-
 				sp = add_new_slot(lu);
 				sp->element_type = DATA_TRANSFER;
 				dp->slot = sp;
@@ -779,13 +776,11 @@ void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s)
 
 	dp = lookup_drive(lu, slt);
 	if (!dp) {
-		dp = malloc(sizeof(struct d_info));
+		dp = zalloc(sizeof(struct d_info));
 		if (!dp) {
 			MHVTL_DBG(1, "Couldn't malloc memory");
 			exit(-ENOMEM);
 		}
-		memset(dp, 0, sizeof(struct d_info));
-
 		sp = add_new_slot(lu);
 		sp->element_type = DATA_TRANSFER;
 		dp->slot = sp;
@@ -875,12 +870,12 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 	}
 
 	/* Grab a couple of generic MALLOC_SZ buffers.. */
-	s = malloc(MALLOC_SZ);
+	s = zalloc(MALLOC_SZ);
 	if (!s) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	b = malloc(MALLOC_SZ);
+	b = zalloc(MALLOC_SZ);
 	if (!b) {
 		perror("Could not allocate memory");
 		exit(1);
@@ -1016,7 +1011,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	backoff = DEFLT_BACKOFF_VALUE;
 
 	/* Configure default inquiry data */
-	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
+	bzero(&lu->inquiry, MAX_INQUIRY_SZ);
 	lu->inquiry[0] = TYPE_MEDIUM_CHANGER;	/* SMC device */
 	lu->inquiry[1] = 0x80;	/* Removable bit set */
 	lu->inquiry[2] = 0x05;	/* SCSI Version (v3) */
@@ -1038,12 +1033,12 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 		perror("Can not open config file");
 		exit(1);
 	}
-	s = malloc(MALLOC_SZ);
+	s = zalloc(MALLOC_SZ);
 	if (!s) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	b = malloc(MALLOC_SZ);
+	b = zalloc(MALLOC_SZ);
 	if (!b) {
 		perror("Could not allocate memory");
 		exit(1);
@@ -1116,7 +1111,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 			if (i == 8) {
 				if (lu->naa)
 					free(lu->naa);
-				lu->naa = malloc(48);
+				lu->naa = zalloc(48);
 				if (lu->naa)
 					sprintf((char *)lu->naa,
 				"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
@@ -1442,7 +1437,7 @@ int main(int argc, char *argv[])
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 
 	/* Clear Sense arr */
-	memset(sense, 0, sizeof(sense));
+	bzero(sense, sizeof(sense));
 	reset_device();	/* power-on reset */
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
@@ -1534,7 +1529,7 @@ int main(int argc, char *argv[])
 	buffer_size = max(SMC_BUF_SIZE, buffer_size);
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
-	buf = (uint8_t *)malloc(buffer_size);
+	buf = (uint8_t *)zalloc(buffer_size);
 	if (NULL == buf) {
 		perror("Problems allocating memory");
 		exit(1);

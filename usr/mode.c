@@ -103,24 +103,22 @@ struct mode *alloc_mode_page(struct list_head *m,
 
 	mp = lookup_pcode(m, pcode, subpcode);
 	if (!mp) {	/* Create a new entry */
-		mp = (struct mode *)malloc(sizeof(struct mode));
+		mp = (struct mode *)zalloc(sizeof(struct mode));
 	}
 	if (mp) {
-		mp->pcodePointer = (uint8_t *)malloc(size);
+		mp->pcodePointer = (uint8_t *)zalloc(size);
 		if (mp->pcodePointer) {	/* If ! null, set size of data */
-			memset(mp->pcodePointer, 0, size);
 			mp->pcode = pcode;
 			mp->subpcode = subpcode;
 			mp->pcodeSize = size;
 
 			/* Allocate a 'changeable bitmap' mode page info */
-			mp->pcodePointerBitMap = malloc(size);
+			mp->pcodePointerBitMap = zalloc(size);
 			if (!mp->pcodePointerBitMap) {
 				free(mp);
 				MHVTL_ERR("Unable to malloc(%d)", size);
 				return NULL;
 			}
-			memset(mp->pcodePointerBitMap, 0, size);
 
 			list_add_tail(&mp->siblings, m);
 			return mp;

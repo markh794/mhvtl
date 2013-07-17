@@ -197,12 +197,12 @@ int main(int argc, char *argv[])
 		perror("Can not open config file");
 		exit(1);
 	}
-	s = malloc(MALLOC_SZ);
+	s = zalloc(MALLOC_SZ);
 	if (!s) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	b = malloc(MALLOC_SZ);
+	b = zalloc(MALLOC_SZ);
 	if (!b) {
 		perror("Could not allocate memory");
 		exit(1);
