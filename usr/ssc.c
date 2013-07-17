@@ -500,7 +500,7 @@ uint8_t ssc_locate(struct scsi_cmd *cmd)
 
 	current_state = MHVTL_STATE_LOCATE;
 
-	locate_16 = (cmd->scb[0] == 0x92) ? 1 : 0;
+	locate_16 = (cmd->scb[0] == LOCATE_16) ? 1 : 0;
 
 	MHVTL_DBG(1, "LOCATE %d (%ld) **", (locate_16) ? 16 : 10, (long)cmd->dbuf_p->serialNo);
 
