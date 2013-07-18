@@ -129,7 +129,7 @@ make_vtl_media:	make_vtl_media.in
 
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
-		vtlcmd.o q.o dump_messageQ.o core mktape.o \
+		vtlcmd.o dump_messageQ.o core mktape.o \
 		vtllib.o libvtlscsi.so libvtlcart.o z.o vtllibrary.o \
 		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
 		default_ssc_pm.o \
