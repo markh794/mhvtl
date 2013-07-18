@@ -85,6 +85,7 @@
 #define INITIALIZE_ELEMENT_STATUS_WITH_RANGE 0xE7
 #define INQUIRY			0x12
 #define LOAD_DISPLAY		0x06	/* STK T10000 specific */
+#define LOCATE_10		0x2b
 #define LOCATE_16		0x92
 #define MODE_SENSE		0x1a
 #define MODE_SENSE_10		0x5a
