@@ -1275,16 +1275,14 @@ void rereadconfig(int sig)
 	}
 
 	MHVTL_DBG(2, "Removing existing drives");
-	i = 0;
 	slot_head = &smc_slots.drive_list;
 	list_for_each_entry_safe(dp, dn, slot_head, siblings) {
-		MHVTL_DBG(2, "Drive: %d", i++);
+		MHVTL_DBG(2, "Drive: %d", dp->slot->slot_location);
 		list_del(&dp->siblings);
 		free(dp);
 	}
 
 	MHVTL_DBG(2, "Removing existing media");
-	i = 0;
 	slot_head = &smc_slots.media_list;
 	list_for_each_entry_safe(mp, mn, slot_head, siblings) {
 		MHVTL_DBG(2, "Media: %s", mp->barcode);
@@ -1293,7 +1291,6 @@ void rereadconfig(int sig)
 	}
 
 	MHVTL_DBG(2, "Removing existing mode pages");
-	i = 0;
 	slot_head = &lunit.mode_pg;
 	list_for_each_entry_safe(modep, moden, slot_head, siblings) {
 		MHVTL_DBG(2, "Mode Page: 0x%02x", modep->pcode);
@@ -1302,7 +1299,6 @@ void rereadconfig(int sig)
 	}
 
 	MHVTL_DBG(2, "Removing existing log pages");
-	i = 0;
 	slot_head = &lunit.log_pg;
 	list_for_each_entry_safe(logp, logn, slot_head, siblings) {
 		MHVTL_DBG(2, "Log Page: 0x%02x", logp->log_page_num);
