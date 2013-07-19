@@ -77,6 +77,7 @@
 #include "spc.h"
 #include "ssc.h"
 #include "log.h"
+#include "mode.h"
 
 char vtl_driver_name[] = "vtltape";
 
@@ -2148,6 +2149,21 @@ static void config_lu(struct lu_phy_attr *lu)
 		lu_ssc.pm->clear_compression(&lu->mode_pg);
 }
 
+static void cleanup_drive_media_list(struct lu_phy_attr *lu)
+{
+	struct priv_lu_ssc *lu_tape;
+	struct media_details *mdp, *ndp;
+	struct list_head *den_list;
+
+	lu_tape = (struct priv_lu_ssc *)lu->lu_private;
+	den_list = &lu_tape->supported_media_list;
+
+	list_for_each_entry_safe(mdp, ndp, den_list, siblings) {
+		list_del(&mdp->siblings);
+		free(mdp);
+	}
+}
+
 int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 {
 	struct priv_lu_ssc *lu_tape;
@@ -2629,6 +2645,32 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	lu_priv->delay_rewind = 0;
 }
 
+/*
+ * Be nice and free all malloc() on exit
+ */
+static void cleanup_lu(struct lu_phy_attr *lu)
+{
+	int i;
+
+	/* Free all VPD pages */
+	for (i = 0x80; i < 0x100; i++) {
+		if (lu->lu_vpd[PCODE_OFFSET(i)]) {
+			dealloc_vpd(lu->lu_vpd[PCODE_OFFSET(i)]);
+			lu->lu_vpd[PCODE_OFFSET(i)] = NULL;
+		}
+	}
+
+	dealloc_all_mode_pages(lu);
+	dealloc_all_log_pages(lu);
+
+	cleanup_drive_media_list(lu);
+	cleanup_density_support(&lu->den_list);
+
+	free(lu->naa);
+
+	cart_deinit();
+}
+
 void personality_module_register(struct ssc_personality_template *pm)
 {
 	MHVTL_DBG(2, "%s", pm->name);
@@ -2681,6 +2723,9 @@ int main(int argc, char *argv[])
 	/* Message Q */
 	int	mlen, r_qid;
 	struct q_entry r_entry;
+
+	bzero(&vtl_cmd, sizeof(struct vtl_header));
+	bzero(&ctl, sizeof(struct vtl_ctl));
 
 	current_state = MHVTL_STATE_INIT;
 
@@ -2885,8 +2930,10 @@ int main(int argc, char *argv[])
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			if (processMessageQ(&r_entry.msg, &lu_ssc.sam_status))
+			if (processMessageQ(&r_entry.msg, &lu_ssc.sam_status)) {
+				cleanup_lu(&lunit);
 				goto exit;
+			}
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
 				MHVTL_ERR("Can not open message queue: %s",

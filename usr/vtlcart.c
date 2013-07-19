@@ -1387,3 +1387,10 @@ void print_metadata(void)
 		printf("Filemark: %d\n", filemarks[a]);
 }
 
+/*
+ * Cleanup entry point
+ */
+void cart_deinit(void)
+{
+	free(filemarks);
+}

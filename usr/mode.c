@@ -93,7 +93,7 @@ struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
  *
  * Return pointer to mode structure being init. or NULL if alloc failed
  */
-struct mode *alloc_mode_page(struct list_head *m,
+static struct mode *alloc_mode_page(struct list_head *m,
 				uint8_t pcode, uint8_t subpcode, int size)
 {
 	struct mode *mp;
@@ -128,6 +128,19 @@ struct mode *alloc_mode_page(struct list_head *m,
 		}
 	}
 	return NULL;
+}
+
+void dealloc_all_mode_pages(struct lu_phy_attr *lu)
+{
+	struct mode *mp, *mn;
+
+	list_for_each_entry_safe(mp, mn, &lu->mode_pg, siblings) {
+		MHVTL_DBG(2, "Removing %s", mp->description);
+		free(mp->pcodePointer);
+		free(mp->pcodePointerBitMap);
+		list_del(&mp->siblings);
+		free(mp);
+	}
 }
 
 /*

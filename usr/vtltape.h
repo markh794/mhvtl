@@ -201,5 +201,6 @@ uint64_t current_tape_block(void);
 void print_raw_header(void);
 void print_filemark_count(void);
 void print_metadata(void);
+void cart_deinit(void);
 
 #endif /* _VTLTAPE_H_ */

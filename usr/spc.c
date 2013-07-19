@@ -70,6 +70,12 @@ struct vpd *alloc_vpd(uint16_t sz)
 	return vpd_pg;
 }
 
+void dealloc_vpd(struct vpd *pg)
+{
+	free(pg->data);
+	free(pg);
+}
+
 uint8_t spc_inquiry(struct scsi_cmd *cmd)
 {
 	int len = 0;

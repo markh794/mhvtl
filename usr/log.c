@@ -99,6 +99,18 @@ struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size)
 	return NULL;
 }
 
+void dealloc_all_log_pages(struct lu_phy_attr *lu)
+{
+	struct log_pg_list *lp, *ln;
+
+	list_for_each_entry_safe(lp, ln, &lu->log_pg, siblings) {
+		MHVTL_DBG(2, "Removing %s", lp->description);
+		free(lp->p);
+		list_del(&lp->siblings);
+		free(lp);
+	}
+}
+
 int add_log_write_err_counter(struct lu_phy_attr *lu)
 {
 	struct log_pg_list *log_pg;

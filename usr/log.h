@@ -241,6 +241,7 @@ struct	seqAccessDevice {
 
 void setTapeAlert(struct TapeAlert_page *, uint64_t);
 void initTapeAlert(struct TapeAlert_page *);
+void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
 int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);
 int set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);

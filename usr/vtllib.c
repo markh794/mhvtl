@@ -918,6 +918,16 @@ void update_vpd_c1(struct lu_phy_attr *lu, void *p)
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
+void cleanup_density_support(struct list_head *l)
+{
+	struct supported_density_list *dp, *ndp;
+
+	list_for_each_entry_safe(dp, ndp, l, siblings) {
+		list_del(&dp->siblings);
+		free(dp);
+	}
+}
+
 int add_density_support(struct list_head *l, struct density_info *di, int rw)
 {
 	struct supported_density_list *supported;

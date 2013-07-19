@@ -527,6 +527,9 @@ void blank_fill(uint8_t *dest, char *src, int len);
 void log_opcode(char *opcode, struct scsi_cmd *cmd);
 
 struct vpd *alloc_vpd(uint16_t sz);
+void dealloc_vpd(struct vpd *pg);
+void cleanup_density_support(struct list_head *l);
+
 pid_t add_lu(unsigned minor, struct vtl_ctl *ctl);
 
 void completeSCSICommand(int, struct vtl_ds *ds);
