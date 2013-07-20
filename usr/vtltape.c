@@ -2677,9 +2677,6 @@ int main(int argc, char *argv[])
 	struct vtl_header *cmd;
 	struct vtl_ctl ctl;
 
-	/* Output file pointer (data file) */
-	int ofp = -1;
-
 	/* Message Q */
 	int	mlen, r_qid;
 	struct q_entry r_entry;
@@ -2967,7 +2964,6 @@ int main(int argc, char *argv[])
 exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
-	close(ofp);
 	free(buf);
 	if (!dec_fifo_count(lunit.fifoname))
 		unlink(lunit.fifoname);
