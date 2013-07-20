@@ -2872,7 +2872,7 @@ int main(int argc, char *argv[])
 	if (lunit.fifoname)
 		open_fifo(&lunit.fifo_fd, lunit.fifoname);
 
-	fifo_retval = inc_fifo_count(lunit.fifoname);
+	fifo_retval = inc_fifo_count();
 	if (fifo_retval == -ENOMEM) {
 		MHVTL_ERR("shared memory setup failed - exiting...");
 		goto exit;
@@ -2965,10 +2965,10 @@ exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
 	close(cdev);
 	free(buf);
-	if (!dec_fifo_count(lunit.fifoname))
-		unlink(lunit.fifoname);
+	dec_fifo_count();
 	if (lunit.fifo_fd) {
 		fclose(lunit.fifo_fd);
+		unlink(lunit.fifoname);
 		free(lunit.fifoname);
 	}
 	exit(0);

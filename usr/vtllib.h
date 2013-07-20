@@ -558,9 +558,9 @@ void update_vpd_b2(struct lu_phy_attr *lu, void *p);
 void update_vpd_c0(struct lu_phy_attr *lu, void *p);
 void update_vpd_c1(struct lu_phy_attr *lu, void *p);
 
-int get_fifo_count(char *path);
-int dec_fifo_count(char *path);
-int inc_fifo_count(char *path);
+int get_fifo_count(void);
+int dec_fifo_count(void);
+int inc_fifo_count(void);
 void cleanup_msg(void);
 
 int add_density_support(struct list_head *l, struct density_info *di, int rw);

@@ -975,7 +975,7 @@ void cleanup_msg(void)
 #define INCSHM	1
 #define DECSHM	2
 
-static int mhvtl_shared_mem(char *path, int flag)
+static int mhvtl_shared_mem(int flag)
 {
 	int mhvtl_shm;
 	int retval = -1;
@@ -1034,7 +1034,7 @@ static int mhvtl_shared_mem(char *path, int flag)
 	return retval;
 }
 
-static int mhvtl_fifo_count(char *path, int direction)
+static int mhvtl_fifo_count(int direction)
 {
 	sem_t *mhvtl_sem;
 	int sval;
@@ -1059,7 +1059,7 @@ static int mhvtl_fifo_count(char *path, int direction)
 								mhvtl_sem);
 				sem_post(mhvtl_sem);
 		} else {
-			retval = mhvtl_shared_mem(path, direction);
+			retval = mhvtl_shared_mem(direction);
 			sem_post(mhvtl_sem);
 			break;
 		}
@@ -1069,19 +1069,19 @@ static int mhvtl_fifo_count(char *path, int direction)
 	return retval;
 }
 
-int dec_fifo_count(char *path)
+int dec_fifo_count(void)
 {
-	return mhvtl_fifo_count(path, DECSHM);
+	return mhvtl_fifo_count(DECSHM);
 }
 
-int inc_fifo_count(char *path)
+int inc_fifo_count(void)
 {
-	return mhvtl_fifo_count(path, INCSHM);
+	return mhvtl_fifo_count(INCSHM);
 }
 
-int get_fifo_count(char *path)
+int get_fifo_count(void)
 {
-	return mhvtl_fifo_count(path, QUERYSHM);
+	return mhvtl_fifo_count(QUERYSHM);
 }
 
 void find_media_home_directory(char *home_directory, int lib_id)
