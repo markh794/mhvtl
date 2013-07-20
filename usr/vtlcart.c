@@ -84,8 +84,8 @@ static struct meta_header meta;
 static uint64_t eod_data_offset;
 static uint32_t eod_blk_number;
 
+#define FM_DELTA 500
 static int filemark_alloc = 0;
-static int filemark_delta = 500;
 static uint32_t *filemarks = NULL;
 
 /* Globally visible variables. */
@@ -294,8 +294,7 @@ static int check_filemarks_alloc(uint32_t count)
 	*/
 
 	if (count > (uint32_t)filemark_alloc) {
-		new_size = ((count + filemark_delta - 1) / filemark_delta) *
-			filemark_delta;
+		new_size = ((count + FM_DELTA - 1) / FM_DELTA) * FM_DELTA;
 
 		filemarks = (uint32_t *)realloc(filemarks, new_size * sizeof(*filemarks));
 		if (filemarks == NULL) {
@@ -1246,6 +1245,9 @@ void unload_tape(uint8_t *sam_stat)
 		close(metafile);
 		metafile = -1;
 	}
+	free(filemarks);
+	filemarks = NULL;
+	filemark_alloc = 0;
 }
 
 uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
