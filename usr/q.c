@@ -63,6 +63,8 @@ int send_msg(char *cmd, long rcv_id)
 	int len, s_qid;
 	struct q_entry s_entry;
 
+	bzero(&s_entry, sizeof(struct q_entry));
+
 	s_qid = init_queue();
 	if (s_qid == -1)
 		return -1;

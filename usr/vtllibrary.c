@@ -1249,6 +1249,52 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd,
 	sam_status = dbuf.sam_stat;
 }
 
+/*
+ * Be nice and free all malloc() on exit
+ */
+static void cleanup_lu(struct lu_phy_attr *lu)
+{
+	int i;
+	struct smc_priv *lu_priv;
+	struct list_head *slot_head;
+	struct s_info *sp, *sn;	/* Slot */
+	struct d_info *dp, *dn;	/* Drive */
+	struct m_info *mp, *mn;	/* Media */
+
+	lu_priv = lu->lu_private;
+
+	/* Free all VPD pages */
+	for (i = 0x80; i < 0x100; i++) {
+		if (lu->lu_vpd[PCODE_OFFSET(i)]) {
+			dealloc_vpd(lu->lu_vpd[PCODE_OFFSET(i)]);
+			lu->lu_vpd[PCODE_OFFSET(i)] = NULL;
+		}
+	}
+	free(lu->naa);
+
+	dealloc_all_mode_pages(lu);
+	dealloc_all_log_pages(lu);
+
+	slot_head = &lu_priv->slot_list;
+	list_for_each_entry_safe(sp, sn, slot_head, siblings) {
+		list_del(&sp->siblings);
+		free(sp);
+	}
+
+	slot_head = &lu_priv->drive_list;
+	list_for_each_entry_safe(dp, dn, slot_head, siblings) {
+		list_del(&dp->siblings);
+		free(dp);
+	}
+
+	slot_head = &lu_priv->media_list;
+	list_for_each_entry_safe(mp, mn, slot_head, siblings) {
+		list_del(&mp->siblings);
+		free(mp);
+	}
+	free(lu_priv->state_msg);
+}
+
 void rereadconfig(int sig)
 {
 	struct list_head *slot_head;
@@ -1386,6 +1432,9 @@ int main(int argc, char *argv[])
 	char *name = "mhvtl";
 	char *fifoname = NULL;
 	struct passwd *pw;
+
+	bzero(&vtl_cmd, sizeof(struct vtl_header));
+	bzero(&ctl, sizeof(struct vtl_ctl));
 
 	/* Message Q */
 	int mlen, r_qid;
@@ -1641,8 +1690,10 @@ int main(int argc, char *argv[])
 		/* Check for any messages */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			if (processMessageQ(&r_entry.msg))
+			if (processMessageQ(&r_entry.msg)) {
+				cleanup_lu(&lunit);
 				goto exit;
+			}
 		} else if (mlen < 0) {
 			r_qid = init_queue();
 			if (r_qid == -1)
