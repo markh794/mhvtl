@@ -1271,6 +1271,7 @@ static void cleanup_lu(struct lu_phy_attr *lu)
 		}
 	}
 	free(lu->naa);
+	lu->naa = NULL;
 
 	dealloc_all_mode_pages(lu);
 	dealloc_all_log_pages(lu);
@@ -1293,18 +1294,12 @@ static void cleanup_lu(struct lu_phy_attr *lu)
 		free(mp);
 	}
 	free(lu_priv->state_msg);
+	lu_priv->state_msg = NULL;
 }
 
 void rereadconfig(int sig)
 {
-	struct list_head *slot_head;
-	struct s_info *sp, *sn;	/* Slot */
-	struct d_info *dp, *dn;	/* Drive */
-	struct m_info *mp, *mn;	/* Media */
-	struct mode *modep, *moden;	/* Mode page info */
-	struct log_pg_list *logp, *logn;	/* Log page info */
 	struct vtl_ctl ctl;
-	int i;
 	int buffer_size;
 
 	lunit.online = 0;	/* Report library offline until finished */
@@ -1312,52 +1307,7 @@ void rereadconfig(int sig)
 	MHVTL_DBG(1, "Caught signal (%d): Re-initialising library %d",
 			sig, (int)my_id);
 
-	MHVTL_DBG(2, "Removing existing slots");
-	slot_head = &smc_slots.slot_list;
-	list_for_each_entry_safe(sp, sn, slot_head, siblings) {
-		MHVTL_DBG(2, "slot %d", sp->slot_location);
-		list_del(&sp->siblings);
-		free(sp);
-	}
-
-	MHVTL_DBG(2, "Removing existing drives");
-	slot_head = &smc_slots.drive_list;
-	list_for_each_entry_safe(dp, dn, slot_head, siblings) {
-		MHVTL_DBG(2, "Drive: %d", dp->slot->slot_location);
-		list_del(&dp->siblings);
-		free(dp);
-	}
-
-	MHVTL_DBG(2, "Removing existing media");
-	slot_head = &smc_slots.media_list;
-	list_for_each_entry_safe(mp, mn, slot_head, siblings) {
-		MHVTL_DBG(2, "Media: %s", mp->barcode);
-		list_del(&mp->siblings);
-		free(mp);
-	}
-
-	MHVTL_DBG(2, "Removing existing mode pages");
-	slot_head = &lunit.mode_pg;
-	list_for_each_entry_safe(modep, moden, slot_head, siblings) {
-		MHVTL_DBG(2, "Mode Page: 0x%02x", modep->pcode);
-		list_del(&modep->siblings);
-		free(modep);
-	}
-
-	MHVTL_DBG(2, "Removing existing log pages");
-	slot_head = &lunit.log_pg;
-	list_for_each_entry_safe(logp, logn, slot_head, siblings) {
-		MHVTL_DBG(2, "Log Page: 0x%02x", logp->log_page_num);
-		list_del(&logp->siblings);
-		free(logp);
-	}
-
-	for (i = 0; i < 0x80; i++) {
-		if (lunit.lu_vpd[i]) {
-			free(lunit.lu_vpd[i]->data);
-			free(lunit.lu_vpd[i]);
-		}
-	}
+	cleanup_lu(&lunit);
 
 	if (lunit.fifo_fd) {
 		fclose(lunit.fifo_fd);
