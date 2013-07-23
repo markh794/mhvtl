@@ -558,7 +558,7 @@ int chrdev_open(char *name, unsigned minor)
 		return -1;
 	}
 	snprintf(devname, sizeof(devname), "/dev/%s%u", name, minor);
-	ctlfd = open(devname, O_RDWR|O_NONBLOCK);
+	ctlfd = open(devname, O_RDWR|O_NONBLOCK|O_EXCL);
 	if (ctlfd < 0) {
 		printf("Cannot open %s %s\n", devname, strerror(errno));
 		fflush(NULL);
