@@ -9,12 +9,22 @@ mktape \- Utility to create new/blank virtual media for the VTL.
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
-Create and initialise new media for the Virtual Tape Library. Media is created in the
-/opt/vtl/ directory. This path is hard coded.
+Create and initialise new media for the Virtual Tape Library. Media is
+created in the /opt/mhvtl/ directory by default. This can be over-ridden
+using the 'Home directory: ' setting in device.conf.
 .SH OPTIONS
 .TP
 \fB\-h\fR
 display this help and exit
+.TP
+\fB\-l n\fR
+Where n is the library index number (default library index numbers 10 & 30).
+The 'Home directory: ' entry for the library specified is used as parent
+directory for media created.
+If the library index number does not exist, then a subdir under /opt/mhvtl/<n>
+is created and virtual media created in this directory.
+e.g. "vtlcmd -l 20 -m ABC123 -s 1024 -t data -d LTO3" will create a virtual
+media 'ABC123' in /opt/mhvtl/20/ (if no library index 20 defined in device.conf)
 .TP
 \fB\-m PCL\fR
 where PCL is the Physical Cartridge Label (barcode).
