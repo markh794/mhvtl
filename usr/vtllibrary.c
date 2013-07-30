@@ -1497,7 +1497,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (check_for_running_daemons(my_id)) {
-		MHVTL_LOG("%s: version %s, found another running daemon... exiting\n", progname, MHVTL_VERSION);
+		MHVTL_LOG("%s: version %s, found another running daemon... exiting", progname, MHVTL_VERSION);
 		exit(2);
 	}
 
@@ -1679,7 +1679,7 @@ int main(int argc, char *argv[])
 				break;
 
 			default:
-				MHVTL_LOG("ioctl(0x%x) returned %d\n",
+				MHVTL_LOG("ioctl(0x%x) returned %d",
 						VTL_POLL_AND_GET_HEADER, ret);
 				sleep(1);
 				break;

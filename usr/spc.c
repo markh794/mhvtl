@@ -107,7 +107,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 	} else if (cdb[1] & 0x1) {
 		uint8_t pcode = cdb[2];
 
-		MHVTL_DBG(2, "Page code 0x%02x\n", pcode);
+		MHVTL_DBG(2, "Page code 0x%02x", pcode);
 
 		if (pcode == 0x00) {
 			uint8_t *p;
@@ -131,7 +131,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
 			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
 
-			MHVTL_DBG(2, "Found page 0x%x\n", pcode);
+			MHVTL_DBG(2, "Found page 0x%x", pcode);
 
 			data[0] = lu->ptype;
 			data[1] = pcode;
@@ -218,13 +218,13 @@ uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	SARK = get_unaligned_be64(&buf[8]);
 
 	MHVTL_DBG(2, "Key 0x%.8x %.8x SA Key 0x%.8x %.8x "
-			"Service Action: %s, Type: %s\n",
+			"Service Action: %s, Type: %s",
 			(uint32_t)(RK >> 32) & 0xffffffff,
 			(uint32_t) RK & 0xffffffff,
 			(uint32_t)(SARK >> 32) & 0xffffffff,
 			(uint32_t)SARK & 0xffffffff,
 			lookup_sa(SA), lookup_type(TYPE));
-	MHVTL_DBG(2, "Reservation key was: 0x%.8x 0x%.8x\n",
+	MHVTL_DBG(2, "Reservation key was: 0x%.8x 0x%.8x",
 			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
 			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
 
@@ -327,7 +327,7 @@ uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
-	MHVTL_DBG(2, "Reservation key now: 0x%.8x 0x%.8x\n",
+	MHVTL_DBG(2, "Reservation key now: 0x%.8x 0x%.8x",
 			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
 			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
 	return *sam_stat;
@@ -350,7 +350,7 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	bzero(buf, alloc_len);	// Clear memory
 
-	MHVTL_DBG(1, "service action: %d\n", SA);
+	MHVTL_DBG(1, "service action: %d", SA);
 
 	sam_status = SAM_STAT_GOOD;
 	switch(SA) {

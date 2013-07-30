@@ -254,14 +254,14 @@ int main(int argc, char *argv[])
 
 	if (mediaType) {
 		if (strncmp("clean", mediaType, 5)) {
-			MHVTL_DBG(1, "Setting media type to CLEAN\n");
+			MHVTL_DBG(1, "Setting media type to CLEAN");
 			new_mam.MediumType = MEDIA_TYPE_CLEAN;
 			new_mam.MediumTypeInformation = 20;
 		} else if (!strncmp("WORM", mediaType, 4)) {
-			MHVTL_DBG(1, "Setting media type to WORM\n");
+			MHVTL_DBG(1, "Setting media type to WORM");
 			new_mam.MediumType = MEDIA_TYPE_WORM;
 		} else {
-			MHVTL_DBG(1, "Setting media type to DATA\n");
+			MHVTL_DBG(1, "Setting media type to DATA");
 			new_mam.MediumType = MEDIA_TYPE_DATA;
 		}
 	}
