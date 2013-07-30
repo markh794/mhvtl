@@ -1633,7 +1633,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 
 		/* Clear flags after value read. */
 		if (alloc_len > 4)
-			update_TapeAlert(lu, TA_NONE);
+			set_TapeAlert(lu, TA_NONE);
 		else
 			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
 				" Not clearing TapeAlert flags.");
