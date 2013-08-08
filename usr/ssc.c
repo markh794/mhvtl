@@ -794,28 +794,34 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *buf = cmd->dbuf_p->data;
-	int block_descriptor_sz;
-	int page_len;
 	uint8_t *bdb = NULL;
-	int i;
-	int long_lba = 0;
+	int page_len = 0;
+	int mode_param_h_sz = 0;
+	int i, j;
 	int count;
 	int save_pages;
 	int page_format;
 	int mselect_6 = 0;
 	int page;
 	int offset;
+	int mode_medium_type;
+	int mode_dev_spec_param;
+	int mode_block_descriptor_len;
 
 	save_pages = cmd->scb[1] & 0x01;
 	page_format = (cmd->scb[1] & (1 << 4)) ? 1 : 0;
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
-		cmd->dbuf_p->sz = cmd->scb[4];
 		mselect_6 = 1;
+		cmd->dbuf_p->sz = cmd->scb[4];
+		page_len = buf[5];
+		mode_param_h_sz = 4;
 		break;
 	case MODE_SELECT_10:
 		cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
+		page_len = get_unaligned_be16(&buf[9]);
+		mode_param_h_sz = 8;
 		break;
 	default:
 		cmd->dbuf_p->sz = 0;
@@ -823,58 +829,18 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 	count = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
 
-	MHVTL_DBG(1, "MODE SELECT %d (%ld) **", (mselect_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
-	MHVTL_DBG(1, " Save Pages: %d, Page Format: %d", save_pages, page_format);
+	MHVTL_DBG(1, "MODE SELECT %d (%ld) **",
+			(mselect_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, " Save Pages: %d, conforms to %s standard",
+			save_pages, (page_format) ? "T10" : "Vendor uniq");
 
-	switch (cmd->scb[0]) {
-	case MODE_SELECT:
-		block_descriptor_sz = buf[3];
-		if (block_descriptor_sz)
-			bdb = &buf[4];
-		i = 4 + block_descriptor_sz;
-		break;
-	case MODE_SELECT_10:
-		block_descriptor_sz = get_unaligned_be16(&buf[6]);
-		long_lba = buf[4] & 1;
-		if (block_descriptor_sz)
-			bdb = &buf[8];
-		i = 8 + block_descriptor_sz;
-		break;
-	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
-	if (bdb) {
-		if (long_lba) {
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							sam_stat);
-			MHVTL_DBG(1, "Warning can not "
-				"handle long descriptor block (long_lba bit)");
-			return SAM_STAT_CHECK_CONDITION;
-		}
-		memcpy(modeBlockDescriptor, bdb, block_descriptor_sz);
-	}
-
-	/* Ignore mode pages if 'save pages' bit not set */
-	if (!save_pages) {
-		MHVTL_DBG(1, " Save pages bit not set. Ignoring page data");
-		return SAM_STAT_GOOD;
-	}
-
-	/* Page Format: Reference HP LTO 5 Vol 3_E2
-	 * 0 - Data is NOT SCSI-2 mode page compatible.
-	 *     Only parameter header and block descriptor is valid
-	 * 1 - Data is SCSI-2 Compatible
-	 *
-	 * IBM LTO5: Ignores PF bit but assumes SCSI-2 Compat
-	 * IBM 3592: Does not check this bit
-	 * SDLT600: If PF = 0, only parameter header and block descriptor
-	 *
-	 * Hence, aborting at this point with PF bit cleared is OK
-	 */
-	page_len = buf[i + 1];
-
+/*
+ * A page format (PF) bit set to zero specifies that all parameters after
+ * the block descriptors are vendor specific. A PF bit set to one specifies
+ * that the MODE SELECT parameters following the header and block
+ * descriptor(s) are structured as pages of related parameters and are
+ * as defined in this standard.
+ */
 	if (!page_format && page_len) {
 		MHVTL_DBG(1, "PF bit cleared, yet page data supplied. Len: %d",
 					page_len);
@@ -887,54 +853,111 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		hex_dump(buf, cmd->dbuf_p->sz);
 #endif
 
-	MHVTL_DBG(3, "count: %d, i: %d", count, i);
-	if (i == 4) {
-		MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x",
-			buf[0], buf[1], buf[2], buf[3]);
-	} else {
-		MHVTL_DBG(3, "Offset 0: %02x %02x %02x %02x"
-				"  %02x %02x %02x %02x",
-			buf[0], buf[1], buf[2], buf[3],
-			buf[4], buf[5], buf[6], buf[7]);
+	/* T10 spec => MODE DATA LEN is reserved for MODE SELECT */
+	MHVTL_DBG(3, "count: %d, param header len: %d", count, mode_param_h_sz);
+	switch (mode_param_h_sz) {
+	case 4:	/* MODE SELECT 6 */
+		mode_medium_type = buf[1];
+		mode_dev_spec_param = buf[2];
+		mode_block_descriptor_len = buf[3];
+		bdb = &buf[4];
+		break;
+	case 8: /* MODE SELECT 10 */
+		mode_medium_type = buf[2];
+		mode_dev_spec_param = buf[3];
+		mode_block_descriptor_len = get_unaligned_be16(&buf[6]);
+		bdb = &buf[8];
+		break;
+	default: /* Shouldn't be possible */
+		MHVTL_LOG("Should never see this: line %d", __LINE__);
+		mode_medium_type = 0;
+		mode_dev_spec_param = 0;
+		mode_block_descriptor_len = 0;
 	}
 
+	i = j = 0;
+	MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
+				"  %02x %02x %02x %02x"
+				"  %02x %02x %02x %02x"
+				"  %02x %02x %02x %02x",
+				j,
+				buf[i+0], buf[i+1], buf[i+2], buf[i+3],
+				buf[i+4], buf[i+5], buf[i+6], buf[i+7],
+				buf[i+8], buf[i+9], buf[i+10], buf[i+11],
+				buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
+
+	MHVTL_DBG(3, "Mode Param header: Medium type %02x, "
+				"Device spec param %02x, "
+				"Blk Descr Len %02x, "
+				"Buff mode %d, Speed %d",
+			mode_medium_type,
+			mode_dev_spec_param,
+			mode_block_descriptor_len,
+			(mode_dev_spec_param & 0x70) >> 4,
+			(mode_dev_spec_param & 0x0f)
+			);
+
+	i = mode_param_h_sz;
+	if (mode_block_descriptor_len) {
+		memcpy(modeBlockDescriptor, bdb, mode_block_descriptor_len);
+		MHVTL_DBG(3, "Descriptor block: density code 0x%02x, "
+				"No. of blocks 0x%02x, "
+				"Block length 0x%02x",
+				buf[i],
+				get_unaligned_be24(&buf[i+1]),
+				get_unaligned_be24(&buf[i+5]));
+	}
+
+	i += mode_block_descriptor_len;
+	j = 0;
 	while (i < count) {
 		offset = 2;
 		page = buf[i];
 		page_len = buf[i + 1];
 
-		MHVTL_DBG(2, " Page: 0x%02x, Page Len: %d", page, page_len);
+		MHVTL_DBG(2, " Page: 0x%02x, Page Len: 0x%02x", page, page_len);
 
-		MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
-					"  %02x %02x %02x %02x",
-				i,
-				buf[i+0], buf[i+1], buf[i+2], buf[i+3],
-				buf[i+4], buf[i+5], buf[i+6], buf[i+7]);
-		if (page_len > 8) {
+		if (page_len) {
 			MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
 					"  %02x %02x %02x %02x",
-			i+8,
-			buf[i+8], buf[i+9], buf[i+10], buf[i+11],
-			buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
+				j,
+				buf[i+0], buf[i+1], buf[i+2], buf[i+3],
+				buf[i+4], buf[i+5], buf[i+6], buf[i+7]);
+		}
+		if (page_len > 8) {
+			if (page_len == 0x0e) { /* Common page len */
+				MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
+						"  %02x %02x",
+				j + 8,
+				buf[i+8], buf[i+9], buf[i+10], buf[i+11],
+				buf[i+12], buf[i+13]);
+			} else {
+				MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
+						"  %02x %02x %02x %02x",
+				j + 8,
+				buf[i+8], buf[i+9], buf[i+10], buf[i+11],
+				buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
+			}
 		}
 		if (page_len > 16) {
 			MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
 					"  %02x %02x %02x %02x",
-			i+16,
+			j + 16,
 			buf[i+16], buf[i+17], buf[i+18], buf[i+19],
 			buf[i+20], buf[i+21], buf[i+22], buf[i+23]);
 		}
 		if (page_len > 24) {
 			MHVTL_DBG(3, " %02d: %02x %02x %02x %02x"
 					"  %02x %02x %02x %02x",
-			i+24,
+			j + 24,
 			buf[i+24], buf[i+25], buf[i+26], buf[i+27],
 			buf[i+28], buf[i+29], buf[i+30], buf[i+31]);
 		}
 
 		switch (page) {
 		case MODE_DATA_COMPRESSION:
-			set_mode_compression(cmd, &buf[i]);
+			if (page_len == 0x0e)
+				set_mode_compression(cmd, &buf[i]);
 			break;
 
 		case MODE_DEVICE_CONFIGURATION:
@@ -943,21 +966,29 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			 * If it's 0x0e, it indicates a page length
 			 * for MODE DEVICE CONFIGURATION
 			 */
-			if (buf[i + 1] == 0x01) {
+			if (page_len == 0x01) {
 				if (set_device_configuration_extension(cmd,
-								&buf[i]))
+							&buf[i]))
 					return SAM_STAT_CHECK_CONDITION;
 				/* Subpage 1 - override default page length */
 				page_len = get_unaligned_be16(&buf[i + 2]);
 				offset = 4;
-			} else
+			} else if (page_len == 0x0e) {
 				set_device_configuration(cmd, &buf[i]);
+			} else {
+				MHVTL_DBG(2, "Invalid page len: 0x%02x",
+							page_len);
+				mkSenseBuf(ILLEGAL_REQUEST,
+							E_INVALID_FIELD_IN_CDB,
+							sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			}
 			break;
 
 		default:
 			MHVTL_DBG_PRT_CDB(1, cmd);
 			MHVTL_LOG("Mode page 0x%02x not handled", page);
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 			break;
@@ -965,11 +996,40 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		if (page_len == 0) { /* Something wrong with data structure */
 			page_len = cmd->dbuf_p->sz;
 			MHVTL_LOG("Problem with mode select data structure");
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 								sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		i += page_len + offset;	/* Next mode page */
+		j += page_len;
+	}
+
+/*
+ *  A save pages (SP) bit set to zero specifies that the device server
+ *  shall perform the specified MODE SELECT operation, and shall not
+ *  save any mode pages. If the logical unit implements no distinction
+ *  between current and saved mode pages and the SP bit is set to zero,
+ *  the command shall be terminated with CHECK CONDITION status,
+ *  with the sense key set to ILLEGAL REQUEST, and the additional
+ *  sense code set to INVALID FIELD IN CDB.
+ *  An SP bit set to one specifies that the device server shall perform
+ *  the specified MODE SELECT operation, and shall save to a nonvolatile
+ *  vendor specific location all the saveable mode pages including any
+ *  sent in the Data-Out Buffer.
+ *  Mode pages that are saved are specified by the parameter saveable
+ *  (PS) bit that is returned in the first byte of each mode page by
+ *  the MODE SENSE command (see 7.5). If the PS bit is set to one in
+ *  the MODE SENSE data, then the mode page shall be saveable by
+ *  issuing a MODE SELECT command with the SP bit set to one. If the
+ *  logical unit does not implement saved mode pages and the SP bit is
+ *  set to one, then the command shall be terminated with CHECK CONDITION
+ *  status, with the sense key set to ILLEGAL REQUEST, and the additional
+ *  sense code set to INVALID FIELD IN CDB.
+ */
+	if (save_pages) {
+		MHVTL_DBG(1, " Save pages bit set. Not supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	return SAM_STAT_GOOD;
