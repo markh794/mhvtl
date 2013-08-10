@@ -829,6 +829,18 @@ static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
 	return src_sz + src_sz / 16 + 67;
 }
 
+/* Determine whether or not to store the crypto info in the tape
+ * blk_header.
+ * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
+ */
+static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
+{
+	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
+
+	if (lu_priv->pm->valid_encryption_media)
+		lu_priv->pm->valid_encryption_media(cmd);
+}
+
 /*
  * Return number of bytes written to 'file'
  *
@@ -843,14 +855,7 @@ int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
-	/* Determine whether or not to store the crypto info in the tape
-	 * blk_header.
-	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
-	 */
-	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
-
-	if (lu_priv->pm->valid_encryption_media)
-		lu_priv->pm->valid_encryption_media(cmd);
+	setup_crypto(cmd, lu_priv);
 
 	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop,
 							0, sam_stat);
@@ -890,14 +895,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
 		return writeBlock_nocomp(cmd, src_sz);
 
-	/* Determine whether or not to store the crypto info in the tape
-	 * blk_header.
-	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
-	 */
-	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
-
-	if (lu_priv->pm->valid_encryption_media)
-		lu_priv->pm->valid_encryption_media(cmd);
+	setup_crypto(cmd, lu_priv);
 
 	dest_len = mhvtl_compressBound(src_sz);
 	dest_buf = (lzo_bytep)malloc(dest_len);
@@ -956,14 +954,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
 		return writeBlock_nocomp(cmd, src_sz);
 
-	/* Determine whether or not to store the crypto info in the tape
-	 * blk_header.
-	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
-	 */
-	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
-
-	if (lu_priv->pm->valid_encryption_media)
-		lu_priv->pm->valid_encryption_media(cmd);
+	setup_crypto(cmd, lu_priv);
 
 	dest_len = compressBound(src_sz);
 	dest_buf = (Bytef *)malloc(dest_len);
