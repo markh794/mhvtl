@@ -834,6 +834,41 @@ static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
  *
  * Zero on error with sense buffer already filled in
  */
+int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz)
+{
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
+	struct priv_lu_ssc *lu_priv;
+	int rc;
+
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+
+	/* Determine whether or not to store the crypto info in the tape
+	 * blk_header.
+	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
+	 */
+	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
+
+	if (lu_priv->pm->valid_encryption_media)
+		lu_priv->pm->valid_encryption_media(cmd);
+
+	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop,
+							0, sam_stat);
+
+	lu_priv->bytesWritten_M += src_sz;
+	lu_priv->bytesWritten_I += src_sz;
+
+	if (rc < 0)
+		return 0;
+
+	return src_sz;
+}
+
+/*
+ * Return number of bytes written to 'file'
+ *
+ * Zero on error with sense buffer already filled in
+ */
 int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 {
 	lzo_uint dest_len;
@@ -851,6 +886,10 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
+	/* No compression - use the no-compression function */
+	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
+		return writeBlock_nocomp(cmd, src_sz);
+
 	/* Determine whether or not to store the crypto info in the tape
 	 * blk_header.
 	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
@@ -860,41 +899,33 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (lu_priv->pm->valid_encryption_media)
 		lu_priv->pm->valid_encryption_media(cmd);
 
-	if (*lu_priv->compressionFactor) {
-		dest_len = mhvtl_compressBound(src_sz);
-		dest_buf = (lzo_bytep)malloc(dest_len);
-		wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
+	dest_len = mhvtl_compressBound(src_sz);
+	dest_buf = (lzo_bytep)malloc(dest_len);
+	wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
 
-		if (!dest_buf) {
-			MHVTL_ERR("malloc(%d) failed", (int)dest_len);
-			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-			return 0;
-		}
-		z = lzo1x_1_compress(src_buf, src_sz, dest_buf, &dest_len,
-						wrkmem);
-		if (z != LZO_E_OK) {
-			MHVTL_ERR("LZO compression error");
-			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
-							sam_stat);
-			return 0;
-		}
-		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
-					src_sz, (unsigned long)dest_len);
-	} else {
-		dest_buf = src_buf;
-		dest_len = 0;	/* no compression */
+	if (!dest_buf) {
+		MHVTL_ERR("malloc(%d) failed", (int)dest_len);
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		return 0;
 	}
+
+	z = lzo1x_1_compress(src_buf, src_sz, dest_buf, &dest_len, wrkmem);
+	if (z != LZO_E_OK) {
+		MHVTL_ERR("LZO compression error");
+		mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
+							sam_stat);
+		return 0;
+	}
+
+	MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
+					src_sz, (unsigned long)dest_len);
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
 						LZO, sam_stat);
 
-	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION) {
-		lu_priv->bytesWritten_M += src_len;
-	} else {
-		free(dest_buf);
-		free(wrkmem);
-		lu_priv->bytesWritten_M += dest_len;
-	}
+	free(dest_buf);
+	free(wrkmem);
+	lu_priv->bytesWritten_M += dest_len;
 	lu_priv->bytesWritten_I += src_len;
 
 	if (rc < 0)
@@ -921,6 +952,10 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
+	/* No compression - use the no-compression function */
+	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
+		return writeBlock_nocomp(cmd, src_sz);
+
 	/* Determine whether or not to store the crypto info in the tape
 	 * blk_header.
 	 * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
@@ -930,52 +965,42 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (lu_priv->pm->valid_encryption_media)
 		lu_priv->pm->valid_encryption_media(cmd);
 
-	if (*lu_priv->compressionFactor) {
-		dest_len = compressBound(src_sz);
-		dest_buf = (Bytef *)malloc(dest_len);
-		if (!dest_buf) {
-			MHVTL_ERR("malloc(%d) failed", (int)dest_len);
-			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
-			return 0;
-		}
-		z = compress2(dest_buf, &dest_len, src_buf, src_sz,
+	dest_len = compressBound(src_sz);
+	dest_buf = (Bytef *)malloc(dest_len);
+	if (!dest_buf) {
+		MHVTL_ERR("malloc(%d) failed", (int)dest_len);
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		return 0;
+	}
+
+	z = compress2(dest_buf, &dest_len, src_buf, src_sz,
 						*lu_priv->compressionFactor);
-		if (z != Z_OK) {
-			switch (z) {
-			case Z_MEM_ERROR:
-				MHVTL_ERR("Not enough memory to compress "
-						"data");
-				break;
-			case Z_BUF_ERROR:
-				MHVTL_ERR("Not enough memory in destination "
-						"buf to compress data");
-				break;
-			case Z_DATA_ERROR:
-				MHVTL_ERR("Input data corrupt / incomplete");
-				break;
-			}
-			mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
-							sam_stat);
-			return 0;
+	if (z != Z_OK) {
+		switch (z) {
+		case Z_MEM_ERROR:
+			MHVTL_ERR("Not enough memory to compress data");
+			break;
+		case Z_BUF_ERROR:
+			MHVTL_ERR("Not enough memory in destination "
+					"buf to compress data");
+			break;
+		case Z_DATA_ERROR:
+			MHVTL_ERR("Input data corrupt / incomplete");
+			break;
 		}
-		MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"
+		mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK, sam_stat);
+		return 0;
+	}
+	MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"
 				", Compression factor: %d",
 					src_sz, (unsigned long)dest_len,
 					*lu_priv->compressionFactor);
-	} else {
-		dest_buf = src_buf;
-		dest_len = 0;	/* no compression */
-	}
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
 							ZLIB, sam_stat);
 
-	if (*lu_priv->compressionFactor != Z_NO_COMPRESSION) {
-		free(dest_buf);
-		lu_priv->bytesWritten_M += dest_len;
-	} else {
-		lu_priv->bytesWritten_M += src_len;
-	}
+	free(dest_buf);
+	lu_priv->bytesWritten_M += dest_len;
 	lu_priv->bytesWritten_I += src_len;
 
 	if (rc < 0)
@@ -1004,10 +1029,17 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		return src_len;
 	}
 
-	if (lu_priv->compressionType == LZO)
+	switch (lu_priv->compressionType) {
+	case LZO:
 		src_len = writeBlock_lzo(cmd, src_sz);
-	else
+		break;
+	case ZLIB:
 		src_len = writeBlock_zlib(cmd, src_sz);
+		break;
+	default:
+		src_len = writeBlock_nocomp(cmd, src_sz);
+		break;
+	}
 
 	if (!src_len) {
 		/* Set 'Read/Write error' TapeAlert flag */
