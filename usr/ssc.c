@@ -827,7 +827,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(1, "MODE SELECT %d (%ld) **",
 			(mselect_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
-	MHVTL_DBG(1, " Save Pages: %d, conforms to %s standard",
+	MHVTL_DBG(1, " Save Pages: %d, Page Format conforms to %s standard",
 			save_pages, (page_format) ? "T10" : "Vendor uniq");
 
 	count = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
@@ -842,6 +842,8 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	}
 
 /*
+ * As per t10.org SPC4r31 (6.9)
+ *
  * A page format (PF) bit set to zero specifies that all parameters after
  * the block descriptors are vendor specific. A PF bit set to one specifies
  * that the MODE SELECT parameters following the header and block
@@ -893,9 +895,9 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 				buf[i+8], buf[i+9], buf[i+10], buf[i+11],
 				buf[i+12], buf[i+13], buf[i+14], buf[i+15]);
 
-	MHVTL_DBG(3, "Mode Param header: Medium type %02x, "
-				"Device spec param %02x, "
-				"Blk Descr Len %02x, "
+	MHVTL_DBG(3, "Mode Param header: Medium type 0x%02x, "
+				"Device spec param 0x%02x, "
+				"Blk Descr Len 0x%02x, "
 				"Buff mode %d, Speed %d",
 			mode_medium_type,
 			mode_dev_spec_param,
@@ -1012,26 +1014,28 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	}
 
 /*
- *  A save pages (SP) bit set to zero specifies that the device server
- *  shall perform the specified MODE SELECT operation, and shall not
- *  save any mode pages. If the logical unit implements no distinction
- *  between current and saved mode pages and the SP bit is set to zero,
- *  the command shall be terminated with CHECK CONDITION status,
- *  with the sense key set to ILLEGAL REQUEST, and the additional
- *  sense code set to INVALID FIELD IN CDB.
- *  An SP bit set to one specifies that the device server shall perform
- *  the specified MODE SELECT operation, and shall save to a nonvolatile
- *  vendor specific location all the saveable mode pages including any
- *  sent in the Data-Out Buffer.
- *  Mode pages that are saved are specified by the parameter saveable
- *  (PS) bit that is returned in the first byte of each mode page by
- *  the MODE SENSE command (see 7.5). If the PS bit is set to one in
- *  the MODE SENSE data, then the mode page shall be saveable by
- *  issuing a MODE SELECT command with the SP bit set to one. If the
- *  logical unit does not implement saved mode pages and the SP bit is
- *  set to one, then the command shall be terminated with CHECK CONDITION
- *  status, with the sense key set to ILLEGAL REQUEST, and the additional
- *  sense code set to INVALID FIELD IN CDB.
+ * As per t10.org SPC4r31 (6.9)
+ *
+ * A save pages (SP) bit set to zero specifies that the device server
+ * shall perform the specified MODE SELECT operation, and shall not
+ * save any mode pages. If the logical unit implements no distinction
+ * between current and saved mode pages and the SP bit is set to zero,
+ * the command shall be terminated with CHECK CONDITION status,
+ * with the sense key set to ILLEGAL REQUEST, and the additional
+ * sense code set to INVALID FIELD IN CDB.
+ * An SP bit set to one specifies that the device server shall perform
+ * the specified MODE SELECT operation, and shall save to a nonvolatile
+ * vendor specific location all the saveable mode pages including any
+ * sent in the Data-Out Buffer.
+ * Mode pages that are saved are specified by the parameter saveable
+ * (PS) bit that is returned in the first byte of each mode page by
+ * the MODE SENSE command (see 7.5). If the PS bit is set to one in
+ * the MODE SENSE data, then the mode page shall be saveable by
+ * issuing a MODE SELECT command with the SP bit set to one. If the
+ * logical unit does not implement saved mode pages and the SP bit is
+ * set to one, then the command shall be terminated with CHECK CONDITION
+ * status, with the sense key set to ILLEGAL REQUEST, and the additional
+ * sense code set to INVALID FIELD IN CDB.
  */
 	if (save_pages) {
 		MHVTL_DBG(1, " Save pages bit set. Not supported");
