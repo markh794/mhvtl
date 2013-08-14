@@ -815,24 +815,31 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	case MODE_SELECT:
 		mselect_6 = 1;
 		cmd->dbuf_p->sz = cmd->scb[4];
-		page_len = buf[5];
 		mode_param_h_sz = 4;
 		break;
 	case MODE_SELECT_10:
 		cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
-		page_len = get_unaligned_be16(&buf[9]);
 		mode_param_h_sz = 8;
 		break;
 	default:
 		cmd->dbuf_p->sz = 0;
 	}
 
-	count = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
-
 	MHVTL_DBG(1, "MODE SELECT %d (%ld) **",
 			(mselect_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
 	MHVTL_DBG(1, " Save Pages: %d, conforms to %s standard",
 			save_pages, (page_format) ? "T10" : "Vendor uniq");
+
+	count = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+
+	switch (cmd->scb[0]) {
+	case MODE_SELECT:
+		page_len = buf[5];
+		break;
+	case MODE_SELECT_10:
+		page_len = get_unaligned_be16(&buf[9]);
+		break;
+	}
 
 /*
  * A page format (PF) bit set to zero specifies that all parameters after
