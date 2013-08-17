@@ -283,6 +283,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 	cmd->dbuf_p = dbuf_p;
 	cmd->lu = &lunit;
 	cmd->pollInterval = pollInterval;
+	cmd->cdev = cdev;
 
 	MHVTL_DBG_PRT_CDB(1, cmd);
 
