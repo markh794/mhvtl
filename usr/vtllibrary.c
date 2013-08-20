@@ -439,7 +439,7 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 
 	media_list_head = &((struct smc_priv *)lu->lu_private)->media_list;
 
-	bzero(m, sizeof(struct m_info));
+	memset(m, 0, sizeof(struct m_info));
 
 	snprintf((char *)m->barcode, MAX_BARCODE_LEN + 1, LEFT_JUST_16_STR,
 					barcode);
@@ -1012,7 +1012,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	backoff = DEFLT_BACKOFF_VALUE;
 
 	/* Configure default inquiry data */
-	bzero(&lu->inquiry, MAX_INQUIRY_SZ);
+	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
 	lu->inquiry[0] = TYPE_MEDIUM_CHANGER;	/* SMC device */
 	lu->inquiry[1] = 0x80;	/* Removable bit set */
 	lu->inquiry[2] = 0x05;	/* SCSI Version (v3) */
@@ -1384,8 +1384,8 @@ int main(int argc, char *argv[])
 	char *fifoname = NULL;
 	struct passwd *pw;
 
-	bzero(&vtl_cmd, sizeof(struct vtl_header));
-	bzero(&ctl, sizeof(struct vtl_ctl));
+	memset(&vtl_cmd, 0, sizeof(struct vtl_header));
+	memset(&ctl, 0, sizeof(struct vtl_ctl));
 
 	/* Message Q */
 	int mlen, r_qid;
@@ -1433,7 +1433,7 @@ int main(int argc, char *argv[])
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 
 	/* Clear Sense arr */
-	bzero(sense, sizeof(sense));
+	memset(sense, 0, sizeof(sense));
 	reset_device();	/* power-on reset */
 
 	if (!init_lu(&lunit, my_id, &ctl)) {

@@ -1644,7 +1644,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
 		MHVTL_DBG(1, "%s %s", msg, "Sending supported pages");
-		bzero(b, 4);	/* Clear first few (4) bytes */
+		memset(b, 0, 4);	/* Clear first few (4) bytes */
 		i = 4;
 		b[i++] = 0;	/* b[0] is log page '0' (this one) */
 		list_for_each_entry(l, l_head, siblings) {

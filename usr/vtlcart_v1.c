@@ -165,7 +165,7 @@ static int mkNewHeader(uint32_t type, int blk_size, int comp_size,
 {
 	struct raw_header h;
 
-	bzero(&h, sizeof(h));
+	memset(&h, 0, sizeof(h));
 
 	h.hdr.blk_type = type;	/* Header type */
 	h.hdr.blk_flags = 0;
@@ -599,7 +599,7 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	/* Write a B_BOT record consisting of the B_BOT header plus the MAM. */
 
-	bzero(&h, sizeof(h));
+	memset(&h, 0, sizeof(h));
 	h.next_blk = sizeof(*mamp) + sizeof(h);
 	h.hdr.blk_type = B_BOT;
 	h.hdr.blk_size = ntohll(mamp->max_capacity) / 1048576;
@@ -618,7 +618,7 @@ create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	/* Write a B_EOD record. */
 
-	bzero(&h, sizeof(h));
+	memset(&h, 0, sizeof(h));
 	h.curr_blk = lseek64(datafile, 0, SEEK_CUR);
 	h.next_blk = h.curr_blk;
 	h.hdr.blk_type = B_EOD;

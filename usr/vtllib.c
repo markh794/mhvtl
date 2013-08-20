@@ -176,7 +176,7 @@ void *zalloc(int sz)
 	void *p = malloc(sz);
 
 	if (p)
-		bzero(p, sz);
+		memset(p, 0, sz);
 
 	return p;
 }
@@ -189,7 +189,7 @@ void *zalloc(int sz)
 void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 {
 	/* Clear Sense key status */
-	bzero(sense, SENSE_BUF_SIZE);
+	memset(sense, 0, SENSE_BUF_SIZE);
 
 	*sam_stat = SAM_STAT_CHECK_CONDITION;
 
@@ -263,7 +263,7 @@ int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint32_t partition = 0;
 
-	bzero(buf, READ_POSITION_LONG_LEN);	/* Clear 'array' */
+	memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Beginning of Partition */
@@ -284,7 +284,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint8_t partition = 0;
 
-	bzero(buf, READ_POSITION_LEN);	/* Clear 'array' */
+	memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
 
 	if ((pos == 0) || (pos == 1))
 		buf[0] = 0x80;	/* Beginning of Partition */
@@ -307,7 +307,7 @@ int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
 	uint8_t *arr = (uint8_t *)dbuf_p->data;
 
 	MHVTL_DBG(2, "Min/Max sz: %d/%d", 4, sz);
-	bzero(arr, READBLOCKLIMITS_ARR_SZ);
+	memset(arr, 0, READBLOCKLIMITS_ARR_SZ);
 	put_unaligned_be24(sz, &arr[1]);
 	arr[5] = 0x4;	/* Minimum block size */
 

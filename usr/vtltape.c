@@ -386,7 +386,7 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 	l_head = &lu_priv->pm->lu->den_list;
 
 	/* Zero out buf */
-	bzero(buf, len);
+	memset(buf, 0, len);
 	ds = &buf[4];
 	count = 0;
 
@@ -468,7 +468,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 	MHVTL_DBG(2, "Read Attribute: 0x%x, allocation len: %d",
 							attrib, alloc_len);
 
-	bzero(buf, alloc_len);	/* Clear memory */
+	memset(buf, 0, alloc_len);	/* Clear memory */
 
 	if (cdb[1] == 0) {
 		/* Attribute Values */
@@ -1149,7 +1149,7 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
-	bzero(buf, alloc_len);
+	memset(buf, 0, alloc_len);
 	switch (sps) {
 	case SUPPORTED_SECURITY_PROTOCOL_LIST:
 		buf[6] = 0;	/* list length (MSB) */
@@ -1193,7 +1193,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
-	bzero(buf, alloc_len);
+	memset(buf, 0, alloc_len);
 	switch (sps) {
 	case ENCR_IN_SUPPORT_PAGES:
 		put_unaligned_be16(ENCR_IN_SUPPORT_PAGES, &buf[0]);
@@ -2444,7 +2444,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	backoff = DEFLT_BACKOFF_VALUE;
 
 	/* Default inquiry bits */
-	bzero(&lu->inquiry, MAX_INQUIRY_SZ);
+	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
 	lu->inquiry[0] = TYPE_TAPE;	/* SSC device */
 	lu->inquiry[1] = 0x80;	/* Removable bit set */
 	lu->inquiry[2] = 0x05;	/* SCSI Version (v3) */
@@ -2747,8 +2747,8 @@ int main(int argc, char *argv[])
 	int	mlen, r_qid;
 	struct q_entry r_entry;
 
-	bzero(&vtl_cmd, sizeof(struct vtl_header));
-	bzero(&ctl, sizeof(struct vtl_ctl));
+	memset(&vtl_cmd, 0, sizeof(struct vtl_header));
+	memset(&ctl, 0, sizeof(struct vtl_ctl));
 
 	current_state = MHVTL_STATE_INIT;
 
@@ -2806,7 +2806,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Clear Sense arr */
-	bzero(sense, sizeof(sense));
+	memset(sense, 0, sizeof(sense));
 
 	/* Powered on / reset flag */
 	reset_device();

@@ -349,8 +349,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	bzero(&mtstat, sizeof(struct mtget));
-	bzero(&mtpos, sizeof(struct mtpos));
+	memset(&mtstat, 0, sizeof(struct mtget));
+	memset(&mtpos, 0, sizeof(struct mtpos));
 
 	tape_fd = open(dev, O_RDWR);
 	if (tape_fd < 0) {

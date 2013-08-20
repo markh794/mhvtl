@@ -124,7 +124,7 @@ static char *mhvtl_block_type_desc(int blk_type)
 
 static int mkEODHeader(uint32_t blk_number, uint64_t data_offset)
 {
-	bzero(&raw_pos, sizeof(raw_pos));
+	memset(&raw_pos, 0, sizeof(raw_pos));
 
 	raw_pos.data_offset = data_offset;
 
@@ -730,7 +730,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	mam = *mamp;
 
-	bzero(&meta, sizeof(meta));
+	memset(&meta, 0, sizeof(meta));
 	meta.filemark_count = 0;
 
 	if (write(metafile, &mam, sizeof(mam)) != sizeof(mam) ||
@@ -1087,7 +1087,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat)
 	blk_number = raw_pos.hdr.blk_number;
 	data_offset = raw_pos.data_offset;
 
-	bzero(&raw_pos, sizeof(raw_pos));
+	memset(&raw_pos, 0, sizeof(raw_pos));
 
 	raw_pos.data_offset = data_offset;
 
@@ -1147,7 +1147,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	blk_number = raw_pos.hdr.blk_number;
 	data_offset = raw_pos.data_offset;
 
-	bzero(&raw_pos, sizeof(raw_pos));
+	memset(&raw_pos, 0, sizeof(raw_pos));
 
 	raw_pos.data_offset = data_offset;
 

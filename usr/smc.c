@@ -512,9 +512,9 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 			if (!(s->media->internal_status & INSTATUS_NO_BARCODE))
 				blank_fill(&p[j], s->media->barcode, VOLTAG_LEN);
 			else
-				bzero(&p[j], VOLTAG_LEN);
+				memset(&p[j], 0, VOLTAG_LEN);
 		} else
-			bzero(&p[j], VOLTAG_LEN);
+			memset(&p[j], 0, VOLTAG_LEN);
 
 		j += VOLTAG_LEN;	/* Account for barcode */
 	}
@@ -813,7 +813,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	cmd->dbuf_p->sz = 0;
 
 	/* Init buffer */
-	bzero(p, alloc_len);
+	memset(p, 0, alloc_len);
 
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		MHVTL_DBG(3, "cdb[11] : Illegal value");
@@ -1468,7 +1468,7 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd)
 	switch (cdb[2] & 0x3f) {
 	case 0:	/* Send supported pages */
 		MHVTL_DBG(1, "LOG SENSE: Sending supported pages");
-		bzero(b, 4);	/* Clear first few (4) bytes */
+		memset(b, 0, 4);	/* Clear first few (4) bytes */
 		i = 4;
 		b[i++] = 0;	/* b[0] is log page '0' (this one) */
 		list_for_each_entry(l, l_head, siblings) {

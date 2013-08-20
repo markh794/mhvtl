@@ -92,7 +92,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 		goto sense;
 
 	if (cdb[1] & 0x3) /* VPD bit set - clear memory */
-		bzero(data, MAX_INQUIRY_SZ);
+		memset(data, 0, MAX_INQUIRY_SZ);
 	else {	/* Standard inquiry - copy in-mem data struct */
 		memcpy(cmd->dbuf_p->data, lu->inquiry, MAX_INQUIRY_SZ);
 		len = lu->inquiry[4] + 5;
@@ -348,7 +348,7 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 	alloc_len = get_unaligned_be16(&cdb[7]);
 
-	bzero(buf, alloc_len);	// Clear memory
+	memset(buf, 0, alloc_len);	/* Clear memory */
 
 	MHVTL_DBG(1, "service action: %d", SA);
 
@@ -435,7 +435,7 @@ uint8_t spc_request_sense(struct scsi_cmd *cmd)
 	/* set buf size */
 	cmd->dbuf_p->sz = sz;
 	memcpy(cmd->dbuf_p->data, sense_buf, cmd->dbuf_p->sz);
-	bzero(sense_buf, cmd->dbuf_p->sz);
+	memset(sense_buf, 0, cmd->dbuf_p->sz);
 	sense_buf[0] = SD_CURRENT_INFORMATION_FIXED;
 	return SAM_STAT_GOOD;
 }
@@ -594,7 +594,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	bzero(buf, alloc_len);	/* Set return data to null */
+	memset(buf, 0, alloc_len);	/* Set return data to null */
 
 	offset += blockDescriptorLen;
 	ap = buf + offset;
