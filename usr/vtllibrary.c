@@ -1608,6 +1608,7 @@ int main(int argc, char *argv[])
 	oom_adjust();
 
 	/* Tweak as necessary to properly mimic the specified library type. */
+	/* FIXME: This moves into personality modules once implemented */
 
 	if (!strcmp(lunit.vendor_id, "SPECTRA ") &&
 		!strcmp(lunit.product_id, "PYTHON          ")) {
@@ -1620,6 +1621,47 @@ int main(int argc, char *argv[])
 		smc_slots.dvcid_len = 34;
 		/* dvcid area contains vendor, product, serial */
 		smc_slots.dvcid_serial_only = FALSE;
+	}
+	/* Reference Quantum 6-00423013 SCSI Reference - Rev A */
+	if (!strncmp(lunit.product_id, "Scalar", 6)) {
+		int h, m, sec;
+		int day, month, year;
+
+		month = 0;
+
+		MHVTL_DBG(3, "Detected Scalar library");
+
+		sscanf(__TIME__, "%d:%d:%d", &h, &m, &sec);
+		if (sscanf(__DATE__, "Jan %d %d", &day, &year) == 2)
+			month = 1;
+		if (sscanf(__DATE__, "Feb %d %d", &day, &year) == 2)
+			month = 2;
+		if (sscanf(__DATE__, "Mar %d %d", &day, &year) == 2)
+			month = 3;
+		if (sscanf(__DATE__, "Apr %d %d", &day, &year) == 2)
+			month = 4;
+		if (sscanf(__DATE__, "May %d %d", &day, &year) == 2)
+			month = 5;
+		if (sscanf(__DATE__, "Jun %d %d", &day, &year) == 2)
+			month = 6;
+		if (sscanf(__DATE__, "Jul %d %d", &day, &year) == 2)
+			month = 7;
+		if (sscanf(__DATE__, "Aug %d %d", &day, &year) == 2)
+			month = 8;
+		if (sscanf(__DATE__, "Sep %d %d", &day, &year) == 2)
+			month = 9;
+		if (sscanf(__DATE__, "Oct %d %d", &day, &year) == 2)
+			month = 10;
+		if (sscanf(__DATE__, "Nov %d %d", &day, &year) == 2)
+			month = 11;
+		if (sscanf(__DATE__, "Dec %d %d", &day, &year) == 2)
+			month = 12;
+
+		/* Controller firmware build date */
+		sprintf((char *)&lunit.inquiry[36], "%04d-%02d-%02d %02d:%02d:%02d",
+				year, month, day, h, m, sec);
+
+		lunit.inquiry[55] = 0x01;	/* Contains barcode scanner : BarC */
 	}
 
 	/* If fifoname passed as switch */
