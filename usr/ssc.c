@@ -917,6 +917,36 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 				get_unaligned_be24(&buf[i+5]));
 	}
 
+	/*
+	 * As per t10.org SPC4r31 (6.9)
+	 *
+	 * A save pages (SP) bit set to zero specifies that the device server
+	 * shall perform the specified MODE SELECT operation, and shall not
+	 * save any mode pages. If the logical unit implements no distinction
+	 * between current and saved mode pages and the SP bit is set to zero,
+	 * the command shall be terminated with CHECK CONDITION status,
+	 * with the sense key set to ILLEGAL REQUEST, and the additional
+	 * sense code set to INVALID FIELD IN CDB.
+	 * An SP bit set to one specifies that the device server shall perform
+	 * the specified MODE SELECT operation, and shall save to a nonvolatile
+	 * vendor specific location all the saveable mode pages including any
+	 * sent in the Data-Out Buffer.
+	 * Mode pages that are saved are specified by the parameter saveable
+	 * (PS) bit that is returned in the first byte of each mode page by
+	 * the MODE SENSE command (see 7.5). If the PS bit is set to one in
+	 * the MODE SENSE data, then the mode page shall be saveable by
+	 * issuing a MODE SELECT command with the SP bit set to one. If the
+	 * logical unit does not implement saved mode pages and the SP bit is
+	 * set to one, then the command shall be terminated with CHECK CONDITION
+	 * status, with the sense key set to ILLEGAL REQUEST, and the additional
+	 * sense code set to INVALID FIELD IN CDB.
+	 */
+	if (save_pages) {
+		MHVTL_DBG(1, " Save pages bit set. Not supported");
+		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
 	i += mode_block_descriptor_len;
 	j = 0;
 	while (i < count) {
@@ -1011,36 +1041,6 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		}
 		i += page_len + offset;	/* Next mode page */
 		j += page_len;
-	}
-
-/*
- * As per t10.org SPC4r31 (6.9)
- *
- * A save pages (SP) bit set to zero specifies that the device server
- * shall perform the specified MODE SELECT operation, and shall not
- * save any mode pages. If the logical unit implements no distinction
- * between current and saved mode pages and the SP bit is set to zero,
- * the command shall be terminated with CHECK CONDITION status,
- * with the sense key set to ILLEGAL REQUEST, and the additional
- * sense code set to INVALID FIELD IN CDB.
- * An SP bit set to one specifies that the device server shall perform
- * the specified MODE SELECT operation, and shall save to a nonvolatile
- * vendor specific location all the saveable mode pages including any
- * sent in the Data-Out Buffer.
- * Mode pages that are saved are specified by the parameter saveable
- * (PS) bit that is returned in the first byte of each mode page by
- * the MODE SENSE command (see 7.5). If the PS bit is set to one in
- * the MODE SENSE data, then the mode page shall be saveable by
- * issuing a MODE SELECT command with the SP bit set to one. If the
- * logical unit does not implement saved mode pages and the SP bit is
- * set to one, then the command shall be terminated with CHECK CONDITION
- * status, with the sense key set to ILLEGAL REQUEST, and the additional
- * sense code set to INVALID FIELD IN CDB.
- */
-	if (save_pages) {
-		MHVTL_DBG(1, " Save pages bit set. Not supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	return SAM_STAT_GOOD;
