@@ -1631,31 +1631,7 @@ int main(int argc, char *argv[])
 
 		MHVTL_DBG(3, "Detected Scalar library");
 
-		sscanf(__TIME__, "%d:%d:%d", &h, &m, &sec);
-		if (sscanf(__DATE__, "Jan %d %d", &day, &year) == 2)
-			month = 1;
-		if (sscanf(__DATE__, "Feb %d %d", &day, &year) == 2)
-			month = 2;
-		if (sscanf(__DATE__, "Mar %d %d", &day, &year) == 2)
-			month = 3;
-		if (sscanf(__DATE__, "Apr %d %d", &day, &year) == 2)
-			month = 4;
-		if (sscanf(__DATE__, "May %d %d", &day, &year) == 2)
-			month = 5;
-		if (sscanf(__DATE__, "Jun %d %d", &day, &year) == 2)
-			month = 6;
-		if (sscanf(__DATE__, "Jul %d %d", &day, &year) == 2)
-			month = 7;
-		if (sscanf(__DATE__, "Aug %d %d", &day, &year) == 2)
-			month = 8;
-		if (sscanf(__DATE__, "Sep %d %d", &day, &year) == 2)
-			month = 9;
-		if (sscanf(__DATE__, "Oct %d %d", &day, &year) == 2)
-			month = 10;
-		if (sscanf(__DATE__, "Nov %d %d", &day, &year) == 2)
-			month = 11;
-		if (sscanf(__DATE__, "Dec %d %d", &day, &year) == 2)
-			month = 12;
+		ymd(&year, &month, &day, &h, &m, &sec);
 
 		/* Controller firmware build date */
 		sprintf((char *)&lunit.inquiry[36], "%04d-%02d-%02d %02d:%02d:%02d",

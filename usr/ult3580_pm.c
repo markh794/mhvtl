@@ -130,31 +130,7 @@ static void update_vpd_ult_c0(struct lu_phy_attr *lu)
 	vpd_p = lu->lu_vpd[PCODE_OFFSET(0xc0)];
 	data = vpd_p->data;
 
-	sscanf(__TIME__, "%d:%d:%d", &h, &m, &s);
-	if (sscanf(__DATE__, "Jan %d %d", &day, &year) == 2)
-		month = 1;
-	if (sscanf(__DATE__, "Feb %d %d", &day, &year) == 2)
-		month = 2;
-	if (sscanf(__DATE__, "Mar %d %d", &day, &year) == 2)
-		month = 3;
-	if (sscanf(__DATE__, "Apr %d %d", &day, &year) == 2)
-		month = 4;
-	if (sscanf(__DATE__, "May %d %d", &day, &year) == 2)
-		month = 5;
-	if (sscanf(__DATE__, "Jun %d %d", &day, &year) == 2)
-		month = 6;
-	if (sscanf(__DATE__, "Jul %d %d", &day, &year) == 2)
-		month = 7;
-	if (sscanf(__DATE__, "Aug %d %d", &day, &year) == 2)
-		month = 8;
-	if (sscanf(__DATE__, "Sep %d %d", &day, &year) == 2)
-		month = 9;
-	if (sscanf(__DATE__, "Oct %d %d", &day, &year) == 2)
-		month = 10;
-	if (sscanf(__DATE__, "Nov %d %d", &day, &year) == 2)
-		month = 11;
-	if (sscanf(__DATE__, "Dec %d %d", &day, &year) == 2)
-		month = 12;
+	ymd(&year, &month, &day, &h, &m, &s);
 
 	data[1] = 0xc0;
 	data[3] = 0x27;

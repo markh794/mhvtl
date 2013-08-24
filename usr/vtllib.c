@@ -1455,3 +1455,33 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 	mamp->FormattedDensityCode = mamp->MediumDensityCode;
 	return 0;
 }
+
+void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec)
+{
+	sscanf(__TIME__, "%d:%d:%d", hh, min, sec);
+
+	if (sscanf(__DATE__, "Jan %d %d", day, year) == 2)
+		*month = 1;
+	if (sscanf(__DATE__, "Feb %d %d", day, year) == 2)
+		*month = 2;
+	if (sscanf(__DATE__, "Mar %d %d", day, year) == 2)
+		*month = 3;
+	if (sscanf(__DATE__, "Apr %d %d", day, year) == 2)
+		*month = 4;
+	if (sscanf(__DATE__, "May %d %d", day, year) == 2)
+		*month = 5;
+	if (sscanf(__DATE__, "Jun %d %d", day, year) == 2)
+		*month = 6;
+	if (sscanf(__DATE__, "Jul %d %d", day, year) == 2)
+		*month = 7;
+	if (sscanf(__DATE__, "Aug %d %d", day, year) == 2)
+		*month = 8;
+	if (sscanf(__DATE__, "Sep %d %d", day, year) == 2)
+		*month = 9;
+	if (sscanf(__DATE__, "Oct %d %d", day, year) == 2)
+		*month = 10;
+	if (sscanf(__DATE__, "Nov %d %d", day, year) == 2)
+		*month = 11;
+	if (sscanf(__DATE__, "Dec %d %d", day, year) == 2)
+		*month = 12;
+}

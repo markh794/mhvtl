@@ -571,4 +571,6 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);
 
 void find_media_home_directory(char *home_directory, int lib_id);
 unsigned int set_media_params(struct MAM *mamp, char *density);
+
+void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec);
 #endif /*  _VTLLIB_H_ */
