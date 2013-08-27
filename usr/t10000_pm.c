@@ -409,6 +409,7 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_WORM = FALSE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_ANSI_VERSION = 5;
 
 	personality_module_register(&ssc_pm);
 
