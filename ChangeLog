@@ -1,3 +1,14 @@
+* Thu Aug 29 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-9
+- SSC -> MODE SELECT overhaul.
+- Sanitize delay values introduced in 1.4-8
+- daemons now open /dev/mhvtlXX nodes in exclusive mode
+- Code cleanup based on Valgrind - memory leaks and unused file handles
+- Correctly set SCSI revision field for T10000B
+- SMC -> Adjust behaviour if 'Scalar' library defined
+ set 'BarC' field in inquiry page and
+ pad "Full Firmware Revision" field with compile time/date
+
 * Sat Jun 29 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-8
 - Add additional fields in MAM for multi-partition support capability
