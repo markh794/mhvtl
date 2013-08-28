@@ -1191,7 +1191,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 			data_offset, strerror(errno));
 
 		/* Truncate last partital write */
-		MHVTL_DBG(1, "Truncating data file size to: %ld", data_offset);
+		MHVTL_DBG(1, "Truncating data file size: %"PRId64, data_offset);
 		if (ftruncate(datafile, data_offset) < 0) {
 			MHVTL_ERR("Error truncating data: %s", strerror(errno));
 		}
@@ -1216,7 +1216,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 			MHVTL_ERR("Error truncating indx: %s", strerror(errno));
 		}
 
-		MHVTL_DBG(1, "Truncating data file size to: %ld", data_offset);
+		MHVTL_DBG(1, "Truncating data file size: %"PRId64, data_offset);
 		if (ftruncate(datafile, data_offset) < 0) {
 			MHVTL_ERR("Error truncating data: %s", strerror(errno));
 		}
