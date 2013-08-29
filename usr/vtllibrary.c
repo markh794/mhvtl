@@ -646,7 +646,7 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 
 	new = zalloc(sizeof(struct s_info));
 	if (!new) {
-		MHVTL_DBG(1, "Could not allocate memory for new slot struct");
+		MHVTL_LOG("Could not allocate memory for new slot struct");
 		exit(-ENOMEM);
 	}
 
