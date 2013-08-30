@@ -48,30 +48,30 @@ int main(int argc, char **argv)
 {
 	int r_qid;
 	long mcounter = 0;
-	long count;
+	int i;
 	struct q_entry r_entry;
 
 	my_id = 0;
 
 	/* checking several positions of -h/-help */
-	for (count = 1; count < argc; count++) {
-		if (!strcmp(argv[count], "-h")) {
+	for (i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-h")) {
 			usage(argv[0]);
 			exit(1);
 		}
-		if (!strcmp(argv[count], "-?")) {
+		if (!strcmp(argv[i], "-?")) {
 			usage(argv[0]);
 			exit(1);
 		}
-		if (!strcmp(argv[count], "/h")) {
+		if (!strcmp(argv[i], "/h")) {
 			usage(argv[0]);
 			exit(1);
 		}
-		if (!strcmp(argv[count], "/?")) {
+		if (!strcmp(argv[i], "/?")) {
 			usage(argv[0]);
 			exit(1);
 		}
-		if (!strcmp(argv[count], "-help")) {
+		if (!strcmp(argv[i], "-help")) {
 			usage(argv[0]);
 			exit(1);
 		}

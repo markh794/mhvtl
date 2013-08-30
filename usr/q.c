@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <syslog.h>
 #include "q.h"
+
 extern int debug;
 extern char *vtl_driver_name;
 
