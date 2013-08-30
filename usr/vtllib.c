@@ -949,8 +949,7 @@ void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
 	if (lu->fifo_flag)	/* fifo set via '-f <fifo>' switch */
 		return;
 	checkstrlen(s, MALLOC_SZ - 1, 0);
-	if (lu->fifoname)
-		free(lu->fifoname);
+	free(lu->fifoname);
 	lu->fifoname = (char *)zalloc(strlen(s) + 2);
 	if (!lu->fifoname) {
 		printf("Unable to malloc fifo buffer");

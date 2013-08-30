@@ -1110,8 +1110,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
 			if (i == 8) {
-				if (lu->naa)
-					free(lu->naa);
+				free(lu->naa);
 				lu->naa = zalloc(48);
 				if (lu->naa)
 					sprintf((char *)lu->naa,
@@ -1150,8 +1149,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	INIT_LIST_HEAD(&smc_slots.drive_list);
 	INIT_LIST_HEAD(&smc_slots.media_list);
 
-	if (smc_slots.state_msg)
-		free(smc_slots.state_msg);
+	free(smc_slots.state_msg);
 
 	smc_slots.num_drives = 0;
 	smc_slots.num_picker = 0;

@@ -2555,8 +2555,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 					&c, &d, &e, &f, &g, &h, &j, &k);
 			if (i == 8) {
-				if (lu->naa)
-					free(lu->naa);
+				free(lu->naa);
 				lu->naa = zalloc(48);
 				if (lu->naa)
 					sprintf((char *)lu->naa,
