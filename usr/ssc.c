@@ -364,7 +364,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 	 * Some writes would be OK, like the first write to an empty tape or
 	 * WORM media overwriting a filemark that is next to EOD
 	 */
-	if (lu_ssc->OK_2_write && lu_ssc->append_only_mode) {
+	if (*lu_ssc->OK_2_write && lu_ssc->append_only_mode) {
 		if ((c_pos->blk_number != lu_ssc->allow_overwrite_block) &&
 				(c_pos->blk_type != B_EOD)) {
 
