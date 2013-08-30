@@ -929,7 +929,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
  * FIXME: I really need a timeout here..
  */
-static int check_tape_load()
+static int check_tape_load(void)
 {
 	int mlen, r_qid;
 	struct q_entry q;
