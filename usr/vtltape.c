@@ -901,14 +901,14 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 	dest_buf = (lzo_bytep)malloc(dest_len);
 	wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
 
-	if (!dest_buf) {
+	if (unlikely(!dest_buf)) {
 		MHVTL_ERR("dest_buf malloc(%d) failed", (int)dest_len);
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 		free(wrkmem);
 		return 0;
 	}
 
-	if (!wrkmem) {
+	if (unlikely(!wrkmem)) {
 		MHVTL_ERR("wrkmem malloc(%d) failed", LZO1X_1_MEM_COMPRESS);
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
 		free(dest_buf);
@@ -916,7 +916,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 	}
 
 	z = lzo1x_1_compress(src_buf, src_sz, dest_buf, &dest_len, wrkmem);
-	if (z != LZO_E_OK) {
+	if (unlikely(z != LZO_E_OK)) {
 		MHVTL_ERR("LZO compression error");
 		mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
 							sam_stat);
