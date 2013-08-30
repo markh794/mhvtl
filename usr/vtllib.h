@@ -401,7 +401,7 @@ struct d_info {
 struct m_info { /* Media Info */
 	struct list_head siblings;
 	uint32_t last_location;
-	char barcode[MAX_BARCODE_LEN + 2];
+	char barcode[MAX_BARCODE_LEN + 1];
 	uint8_t media_domain;
 	uint8_t media_type;
 	uint8_t cart_type;

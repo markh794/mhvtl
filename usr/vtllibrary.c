@@ -443,7 +443,7 @@ static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
 
 	snprintf((char *)m->barcode, MAX_BARCODE_LEN + 1, LEFT_JUST_16_STR,
 					barcode);
-	m->barcode[MAX_BARCODE_LEN + 1] = '\0';
+	m->barcode[MAX_BARCODE_LEN] = '\0';
 	m->cart_type = cart_type((char *)barcode);
 	if (!strncmp((char *)m->barcode, "NOBAR", 5))
 		m->internal_status = INSTATUS_NO_BARCODE;
@@ -504,7 +504,7 @@ static int load_map(struct q_msg *msg)
 
 		snprintf((char *)mp->barcode, MAX_BARCODE_LEN, LEFT_JUST_16_STR,
 						barcode);
-		mp->barcode[MAX_BARCODE_LEN + 1] = '\0';
+		mp->barcode[MAX_BARCODE_LEN] = '\0';
 
 		/* 1 = data, 2 = Clean */
 		mp->cart_type = cart_type(barcode);
