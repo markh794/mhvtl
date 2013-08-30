@@ -902,8 +902,16 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 	wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
 
 	if (!dest_buf) {
-		MHVTL_ERR("malloc(%d) failed", (int)dest_len);
+		MHVTL_ERR("dest_buf malloc(%d) failed", (int)dest_len);
 		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		free(wrkmem);
+		return 0;
+	}
+
+	if (!wrkmem) {
+		MHVTL_ERR("wrkmem malloc(%d) failed", LZO1X_1_MEM_COMPRESS);
+		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		free(dest_buf);
 		return 0;
 	}
 
