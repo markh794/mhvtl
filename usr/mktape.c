@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while(argc > 0) {
+	while (argc > 0) {
 		if (argv[0][0] == '-') {
 			switch (argv[0][1]) {
 			case 'd':
