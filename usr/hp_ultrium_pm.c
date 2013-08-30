@@ -225,6 +225,7 @@ static void update_hp_vpd_cx(struct lu_phy_attr *lu, uint8_t pg, char *comp,
 	vpd_p = lu->lu_vpd[PCODE_OFFSET(pg)];
 	if (!vpd_p) {
 		MHVTL_LOG("Arrhhh... vpd pg %d not defined...", pg);
+		return;
 	}
 	data = (char *)vpd_p->data;
 
