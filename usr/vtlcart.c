@@ -1313,11 +1313,11 @@ void print_raw_header(void)
 	printf("Hdr:");
 	switch (raw_pos.hdr.blk_type) {
 	case B_DATA:
-		if ((raw_pos.hdr.blk_flags &&
+		if ((raw_pos.hdr.blk_flags &
 			(BLKHDR_FLG_LZO_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
 			(BLKHDR_FLG_LZO_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
 			printf("  Encrypt/Comp data");
-		else if ((raw_pos.hdr.blk_flags &&
+		else if ((raw_pos.hdr.blk_flags &
 			(BLKHDR_FLG_ZLIB_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
 			(BLKHDR_FLG_ZLIB_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
 			printf("  Encrypt/Comp data");
