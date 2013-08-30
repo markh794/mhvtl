@@ -435,14 +435,14 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 	dvcid = cmd->scb[6] & 0x01;	/* Device ID */
 
-	if (s->element_type == DATA_TRANSFER)
-		d = s->drive;
-
 	/* Should never occur, but better to trap then core */
 	if (!s) {
 		MHVTL_DBG(1, "Slot out of range");
 		return 0;
 	}
+
+	if (s->element_type == DATA_TRANSFER)
+		d = s->drive;
 
 	put_unaligned_be16(s->slot_location, &p[j]);
 	j += 2;
