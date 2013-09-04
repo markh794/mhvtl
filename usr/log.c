@@ -363,12 +363,11 @@ int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 
 	l = lookup_log_pg(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE);
 	if (l) {
-		MHVTL_DBG(2, "Adding flags: %.8x %.8x",
-					(uint32_t)(flags >> 32) & 0xffffffff,
-					(uint32_t)flags & 0xffffffff);
 		sad = (struct seqAccessDevice *)l->p;
 		ta = get_unaligned_be64(&sad->TapeAlert);
-		MHVTL_DBG(2, "Existing flags: %.8x %.8x",
+		MHVTL_DBG(2, "Adding flags: %.8x %.8x to %.8x %.8x",
+					(uint32_t)(flags >> 32) & 0xffffffff,
+					(uint32_t)flags & 0xffffffff,
 					(uint32_t)(ta >> 32) & 0xffffffff,
 					(uint32_t)ta & 0xffffffff);
 		set_TapeAlert(lu, ta | flags);
