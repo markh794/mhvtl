@@ -233,7 +233,7 @@ if [ $EXIST -eq 0 ]; then
 fi
 
 # Now check for for 'library_contents'
-LIBLIST=`awk '$1 == "Library:" {print $2}' $DEVICE_CONF`
+LIBLIST=`awk '/^Library:/ {print $2}' $DEVICE_CONF`
 for LIBID in $LIBLIST
 do
 	if [ ! -f $MHVTL_CONFIG_PATH/library_contents.$LIBID ]; then
