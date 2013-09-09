@@ -156,28 +156,14 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	int sz;
 	int k;
 	int retval = 0;
-	int fixed;
+	int fixed = cdb[1] & FIXED;
 
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
 
 	current_state = MHVTL_STATE_READING;
 
-	fixed = cdb[1] & FIXED;	/* Fixed block read ? */
-	if (fixed) {
-		count = get_unaligned_be24(&cdb[2]);
-		sz = get_unaligned_be24(&modeBlockDescriptor[5]);
-		MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
-			"READ_6 (%ld) : \"Fixed block read\" "
-			" %d blocks of %d size",
-					(long)dbuf_p->serialNo, count, sz);
-	} else { /* else - Variable block read */
-		sz = get_unaligned_be24(&cdb[2]);
-		count = 1;
-		MHVTL_DBG(last_cmd == READ_6 ? 2 : 1,
-				"READ_6 (%ld) : %d bytes **",
-					(long)dbuf_p->serialNo, sz);
-	}
+	rw_6(cmd, &count, &sz, last_cmd == READ_6 ? 2 : 1);
 
 	/* If both FIXED & SILI bits set, invalid combo.. */
 	if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
@@ -239,7 +225,6 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 
 uint8_t ssc_write_6(struct scsi_cmd *cmd)
 {
-	uint8_t *cdb = cmd->scb;
 	struct vtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
 	int count;
@@ -252,22 +237,7 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 
 	current_state = MHVTL_STATE_WRITING;
 
-	if (cdb[1] & FIXED) {	/* If Fixed block writes */
-		count = get_unaligned_be24(&cdb[2]);
-		sz = get_unaligned_be24(&modeBlockDescriptor[5]);
-		MHVTL_DBG(last_cmd == WRITE_6 ? 2 : 1,
-				"WRITE_6: %d blks of %d bytes (%ld) **",
-						count,
-						sz,
-						(long)dbuf_p->serialNo);
-	} else {		 /* else - Variable Block writes */
-		count = 1;
-		sz = get_unaligned_be24(&cdb[2]);
-		MHVTL_DBG(last_cmd == WRITE_6 ? 2 : 1,
-				"WRITE_6: %d bytes (%ld) **",
-						sz,
-						(long)dbuf_p->serialNo);
-	}
+	rw_6(cmd, &count, &sz, last_cmd == WRITE_6 ? 2 : 1);
 
 	/* FIXME: Should handle this instead of 'check & warn' */
 	if ((sz * count) > lu_ssc->bufsize)

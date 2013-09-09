@@ -576,4 +576,5 @@ void find_media_home_directory(char *home_directory, int lib_id);
 unsigned int set_media_params(struct MAM *mamp, char *density);
 
 void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec);
+void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg);
 #endif /*  _VTLLIB_H_ */
