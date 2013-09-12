@@ -726,7 +726,29 @@ uint8_t spc_send_diagnostics(struct scsi_cmd *cmd)
 
 uint8_t spc_recv_diagnostics(struct scsi_cmd *cmd)
 {
+	uint8_t *data;
+	uint8_t pc;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+
 	MHVTL_DBG(1, "RECEIVE DIAGNOSTIC (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
-	return SAM_STAT_GOOD;
+
+	if (cmd->scb[1] & 0x01) {	/* Page Code Valid bit */
+		pc = cmd->scb[2];
+
+		MHVTL_DBG(3, "Page code: %d", pc);
+		if (pc == 0) {
+			data = cmd->dbuf_p->data;
+
+			memset(data, 0, 10);	/* Clear any junk */
+			put_unaligned_be16(1, &data[2]);
+			cmd->dbuf_p->sz = 5;
+
+			return SAM_STAT_GOOD;
+		}
+	}
+
+	cmd->dbuf_p->sz = 0;
+	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
 }

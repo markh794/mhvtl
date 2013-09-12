@@ -1535,8 +1535,6 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 	cmd->cdev = cdev;
 	cmd->pollInterval = pollInterval;
 
-	dbuf_p->sz = 0;
-
 	if ((cdb[0] == READ_6 || cdb[0] == WRITE_6) && cdb[0] == last_cmd) {
 		MHVTL_DBG_PRT_CDB(2, cmd);
 		tot_delay += cmd->pollInterval;
