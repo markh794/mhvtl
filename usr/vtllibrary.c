@@ -382,7 +382,7 @@ int already_in_slot(char *barcode)
 	return 0;
 }
 
-static struct s_info * locate_empty_map(void)
+static struct s_info *locate_empty_map(void)
 {
 	struct s_info *sp = NULL;
 	struct list_head *slot_head = &smc_slots.slot_list;
@@ -395,7 +395,7 @@ static struct s_info * locate_empty_map(void)
 	return NULL;
 }
 
-static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
+static struct m_info *lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 {
 	struct list_head *media_list_head;
 	struct m_info *m;
@@ -415,7 +415,7 @@ static struct m_info * lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 	return NULL;
 }
 
-static struct m_info * add_barcode(struct lu_phy_attr *lu, char *barcode)
+static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode)
 {
 	struct list_head *media_list_head;
 	struct m_info *m;
@@ -710,9 +710,8 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		if (sscanf(b, "Drive: %ld", &drv_id) > 0) {
+		if (sscanf(b, "Drive: %ld", &drv_id) > 0)
 			continue;
-		}
 		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2
 					&& lib_id == my_id
 					&& drv_id >= 0) {
@@ -1000,7 +999,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	uint8_t local_TapeAlert[8] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	char *config=MHVTL_CONFIG_PATH"/device.conf";
+	char *config = MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
@@ -1490,7 +1489,8 @@ int main(int argc, char *argv[])
 	MHVTL_DBG(2, "Running as %s, uid: %d", pw->pw_name, getuid());
 
 	/* Initialise message queue as necessary */
-	if ((r_qid = init_queue()) == -1) {
+	r_qid = init_queue();
+	if (r_qid == -1) {
 		printf("Could not initialise message queue\n");
 		exit(1);
 	}
@@ -1571,7 +1571,7 @@ int main(int argc, char *argv[])
 
 	/* If debug, don't fork/run in background */
 	if (!debug) {
-		switch(pid = fork()) {
+		switch (pid = fork()) {
 		case 0:         /* Child */
 			break;
 		case -1:
@@ -1682,7 +1682,7 @@ int main(int argc, char *argv[])
 				}
 			}
 			fflush(NULL);	/* So I can pipe debug o/p thru tee */
-			switch(ret) {
+			switch (ret) {
 			case VTL_QUEUE_CMD:
 				process_cmd(cdev, buf, &vtl_cmd, pollInterval);
 				pollInterval = MIN_SLEEP_TIME;

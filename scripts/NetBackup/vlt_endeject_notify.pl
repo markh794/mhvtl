@@ -4,10 +4,11 @@
 # This script is called after the vault job completes the eject processing for
 # the media to be vaulted.
 #
-# This script will empty the MAP after a vault eject and insert any tapes "returning"
-# from the vault into
+# This script will empty the MAP after a vault eject and insert any tapes
+# "returning" from the vault into
 #
-# Netbackup provides 4 parameters to the script when executed from a vault profile:
+# Netbackup provides 4 parameters to the script when executed from
+# a vault profile:
 #  1 = $robot_number     - robot number
 #  2 = $vault_name       - logical vault name
 #  3 = $vault_profile    - profile name
@@ -21,13 +22,13 @@
 # CAUTION:  writing anything to stdout or stderr will cause problems in the
 #           calling program.
 #
-# This script closes STDOUT and STDERR and opens them as a pipe to the mail command.
+# This script closes STDOUT and STDERR and opens them as a pipe to the
+# mail command.
 # Any errors encountered will be in the output that is emailed.
 use strict;
 use warnings;
 
-my ($robot_number, $vault_name, $vault_profile, $vault_session_id)
-  = @ARGV;
+my ($robot_number, $vault_name, $vault_profile, $vault_session_id) = @ARGV;
 
 my $mail_to = join ",", qw(
   admin1@example.com
@@ -107,11 +108,11 @@ sub insert_tapes {
       (split /\s+/, $_)[3]
     }
     grep {
-      # This regex filters all lines that don't have the 12th field (Volume Pool)
-      # as the Scratch Volume Pool
+     # This regex filters all lines that don't have the 12th field (Volume Pool)
+     # as the Scratch Volume Pool
       /^(?:[^\s]+\s+){11}$scratch_pool/
     } `$vmquery_binary -rt NONE -W`;
-    
+
   if ($?) {
     die "Error running vmquery: $!";
   }
@@ -132,6 +133,6 @@ sub find_mail_binary {
       return "$mail_dir/$mail_command" if -e "$mail_dir/$mail_command";
     }
   }
-  
+
   die "No mail binary found!";
 }

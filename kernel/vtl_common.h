@@ -1,5 +1,3 @@
-/* $Id: vtl_common.h,v 1.1 2009/01/26 14:29:18 $ */
-
 /* Common stuff for kernel and usr programs */
 #ifndef VTL_COMMON_H
 #define VTL_COMMON_H

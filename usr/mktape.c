@@ -35,7 +35,8 @@ int debug = 0;
 long my_id = 0;
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
-void usage(char *progname) {
+void usage(char *progname)
+{
 	printf("Usage: %s -l lib -m PCL -s size -t type -d density\n",
 					progname);
 	printf("       Where 'size' is in Megabytes\n");
@@ -209,10 +210,10 @@ int main(int argc, char *argv[])
 	memcpy(&mam.ApplicationVendor, "vtl-1.4 ", 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
-	if (! strncmp("clean", mediaType, 5)) {
+	if (!strncmp("clean", mediaType, 5)) {
 		mam.MediumType = MEDIA_TYPE_CLEAN;	/* Cleaning cart */
 		mam.MediumTypeInformation = 20;		/* Max cleaning loads */
-	} else if (! strncmp("WORM", mediaType, 4)) {
+	} else if (!strncmp("WORM", mediaType, 4)) {
 		mam.MediumType = MEDIA_TYPE_WORM;	/* WORM cart */
 	} else {
 		mam.MediumType = MEDIA_TYPE_DATA;	/* Normal data cart */

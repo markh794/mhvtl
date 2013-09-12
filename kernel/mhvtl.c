@@ -117,13 +117,13 @@ static const char vtl_driver_name[] = "mhvtl";
 #define	TIMEOUT_FOR_USER_DAEMON	50000
 
 /* Default values for driver parameters */
-#define DEF_NUM_HOST   1
-#define DEF_NUM_TGTS   0
-#define DEF_MAX_LUNS   32
-#define DEF_OPTS   1		/* Default to verbose logging */
+#define DEF_NUM_HOST	1
+#define DEF_NUM_TGTS	0
+#define DEF_MAX_LUNS	32
+#define DEF_OPTS	1		/* Default to verbose logging */
 
 /* bit mask values for vtl_opts */
-#define VTL_OPT_NOISE   3
+#define VTL_OPT_NOISE	3
 
 #ifndef MHVTL_DEBUG
 
@@ -156,7 +156,7 @@ static int vtl_major = 0;
 
 #define DEF_MAX_MINOR_NO 1024	/* Max number of minor nos. this driver will handle */
 
-#define VTL_CANQUEUE  255 	/* needs to be >= 1 */
+#define VTL_CANQUEUE	255	/* needs to be >= 1 */
 #define VTL_MAX_CMD_LEN 16
 
 static int vtl_add_host = DEF_NUM_HOST;
@@ -203,7 +203,7 @@ static spinlock_t vtl_hba_list_lock = __SPIN_LOCK_UNLOCKED(vtl_hba_list_lock);
 static spinlock_t vtl_hba_list_lock = SPIN_LOCK_UNLOCKED;
 #endif
 
-typedef void (* done_funct_t) (struct scsi_cmnd *);
+typedef void (*done_funct_t) (struct scsi_cmnd *);
 
 /* vtl_queued_cmd-> state */
 enum cmd_state {
@@ -233,10 +233,10 @@ static int vtl_driver_remove(struct device *);
 static struct bus_type pseudo_lld_bus;
 
 static struct device_driver vtl_driverfs_driver = {
-	.name 		= vtl_driver_name,
+	.name		= vtl_driver_name,
 	.bus		= &pseudo_lld_bus,
-	.probe          = vtl_driver_probe,
-	.remove         = vtl_driver_remove,
+	.probe		= vtl_driver_probe,
+	.remove		= vtl_driver_remove,
 };
 
 static const int check_condition_result =
@@ -264,13 +264,13 @@ static void vtl_slave_destroy(struct scsi_device *);
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
-				  int reason);
+					int reason);
 #else
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
 #endif
 #endif
 static int vtl_queuecommand_lck(struct scsi_cmnd *,
-				   void (*done) (struct scsi_cmnd *));
+					 void (*done) (struct scsi_cmnd *));
 static int vtl_b_ioctl(struct scsi_device *, int, void __user *);
 static long vtl_c_ioctl(struct file *, unsigned int, unsigned long);
 static int vtl_c_ioctl_bkl(struct inode *, struct file *, unsigned int, unsigned long);
@@ -312,21 +312,21 @@ static struct scsi_host_template vtl_driver_template = {
 	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
 	.cmd_per_lun =		32,
 	.max_sectors =		4096,
-	.unchecked_isa_dma = 	0,
-	.use_clustering = 	ENABLE_CLUSTERING,
+	.unchecked_isa_dma =	0,
+	.use_clustering =	ENABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 	.ordered_tag =		1,
 };
 
-static struct file_operations vtl_fops = {
-	.owner   =  THIS_MODULE,
+static const struct file_operations vtl_fops = {
+	.owner		= THIS_MODULE,
 #if defined(HAVE_UNLOCKED_IOCTL)
-	.unlocked_ioctl   =  vtl_c_ioctl,
+	.unlocked_ioctl	= vtl_c_ioctl,
 #else
-	.ioctl   =  vtl_c_ioctl_bkl,
+	.ioctl		= vtl_c_ioctl_bkl,
 #endif
-	.open    =  vtl_open,
-	.release =  vtl_release,
+	.open		= vtl_open,
+	.release	= vtl_release,
 };
 
 
@@ -347,15 +347,15 @@ static void mhvtl_prt_cdb(char *f, uint64_t sn, uint8_t *s, int l)
 	int i;
 
 	if (sn)
-		printk("mhvtl: %s (%llu) %d bytes\n",
+		printk(KERN_DEBUG "mhvtl: %s (%llu) %d bytes\n",
 				f, (long long unsigned)sn, l);
 	else
-		printk("mhvtl: %s (%d bytes)\n", f, l);
+		printk(KERN_DEBUG "mhvtl: %s (%d bytes)\n", f, l);
 
 	for (i = 0; i < l; i += 2)
-		printk(" %02x %02x", s[i], s[i + 1]);
+		printk(KERN_DEBUG " %02x %02x", s[i], s[i + 1]);
 
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 }
 #endif /* MHVTL_DEBUG */
 
@@ -390,8 +390,8 @@ static int schedule_resp(struct scsi_cmnd *SCpnt,
 		/* simulate autosense by this driver */
 		if (SAM_STAT_CHECK_CONDITION == (scsi_result & 0xff))
 			memcpy(SCpnt->sense_buffer, lu->sense_buff,
-			       (SCSI_SENSE_BUFFERSIZE > SENSE_BUF_SIZE) ?
-			       SENSE_BUF_SIZE : SCSI_SENSE_BUFFERSIZE);
+				(SCSI_SENSE_BUFFERSIZE > SENSE_BUF_SIZE) ?
+				SENSE_BUF_SIZE : SCSI_SENSE_BUFFERSIZE);
 	}
 	if (SCpnt)
 		SCpnt->result = scsi_result;
@@ -404,7 +404,7 @@ static int schedule_resp(struct scsi_cmnd *SCpnt,
  *                SCSI data handling routines
  **********************************************************************/
 static int resp_write_to_user(struct scsi_cmnd *SCpnt,
-			  void __user *up, int count)
+				void __user *up, int count)
 {
 	int fetched;
 
@@ -557,7 +557,7 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 	}
 
 	if (SCpnt->device->lun >= vtl_max_luns) {
-		printk("mhvtl: %s max luns exceeded\n", __func__);
+		printk(KERN_INFO "mhvtl: %s max luns exceeded\n", __func__);
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
 
@@ -566,7 +566,7 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 
 	lu = devInfoReg(SCpnt->device);
 	if (NULL == lu) {
-		printk("mhvtl: %s could not find lu\n", __func__);
+		printk(KERN_INFO "mhvtl: %s could not find lu\n", __func__);
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
 
@@ -576,7 +576,7 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 		break;
 
 	/* All commands down the list are handled by a user-space daemon */
-	default:	// Pass on to user space daemon to process
+	default:	/* Pass on to user space daemon to process */
 		errsts = q_cmd(SCpnt, done, lu);
 		if (!errsts)
 			return 0;
@@ -624,12 +624,12 @@ static inline int scsi_get_tag_type(struct scsi_device *sdev)
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
-				  int reason)
+					int reason)
 #else
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth)
 #endif
 {
-	printk("mhvtl %s(%d)\n", __func__, qdepth);
+	printk(KERN_INFO "mhvtl %s(%d)\n", __func__, qdepth);
 
 	if (qdepth < 1)
 		qdepth = 1;
@@ -690,13 +690,13 @@ static int resp_report_luns(struct scsi_cmnd *scp, struct vtl_lu_info *lu)
 	arr[2] = ((sizeof(struct scsi_lun) * lun_cnt) >> 8) & 0xff;
 	arr[3] = (sizeof(struct scsi_lun) * lun_cnt) & 0xff;
 	lun_cnt = min((int)((MHVTL_RLUN_ARR_SZ - 8) /
-			    sizeof(struct scsi_lun)), lun_cnt);
+				sizeof(struct scsi_lun)), lun_cnt);
 	one_lun = (struct scsi_lun *) &arr[8];
 	for (i = 0; i < lun_cnt; i++) {
 		upper = (i >> 8) & 0x3f;
 		if (upper)
 			one_lun[i].scsi_lun[0] =
-			    (upper | (SAM2_LUN_ADDRESS_METHOD << 6));
+				(upper | (SAM2_LUN_ADDRESS_METHOD << 6));
 		one_lun[i].scsi_lun[1] = i & 0xff;
 	}
 	return fill_from_dev_buffer(scp, arr, min((int)alloc_len, MHVTL_RLUN_ARR_SZ));
@@ -759,7 +759,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 	struct vtl_lu_info *lu = (struct vtl_lu_info *)sdp->hostdata;
 
 	MHVTL_DBG(2, "slave_alloc <%u %u %u %u>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+			sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 
 	if (lu)
 		return 0;
@@ -771,7 +771,7 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 	}
 
 	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
-		if((lu->channel == sdp->channel) &&
+		if ((lu->channel == sdp->channel) &&
 			(lu->target == sdp->id) &&
 			(lu->lun == sdp->lun)) {
 				MHVTL_DBG(3, "line %d found matching lu\n", __LINE__);
@@ -786,7 +786,7 @@ static int vtl_slave_configure(struct scsi_device *sdp)
 	struct vtl_lu_info *lu;
 
 	MHVTL_DBG(2, "slave_configure <%u %u %u %u>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+			sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (sdp->host->max_cmd_len != VTL_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = VTL_MAX_CMD_LEN;
 	lu = devInfoReg(sdp);
@@ -802,7 +802,7 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 	struct vtl_lu_info *lu = (struct vtl_lu_info *)sdp->hostdata;
 
 	MHVTL_DBG(2, "slave_destroy <%u %u %u %u>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+			sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
 	if (lu) {
 		MHVTL_DBG(2, "Removing lu structure, minor %d\n", lu->minor);
 		/* make this slot avaliable for re-use */
@@ -836,20 +836,18 @@ static struct vtl_lu_info *devInfoReg(struct scsi_device *sdp)
 	return NULL;
 }
 
-static void mk_sense_buffer(struct vtl_lu_info *lu, int key,
-			    int asc, int asq)
+static void mk_sense_buffer(struct vtl_lu_info *lu, int key, int asc, int asq)
 {
 	unsigned char *sbuff;
 
 	sbuff = lu->sense_buff;
 	memset(sbuff, 0, SENSE_BUF_SIZE);
-	sbuff[0] = 0x70;  /* fixed, current */
+	sbuff[0] = 0x70;	/* fixed, current */
 	sbuff[2] = key;
-	sbuff[7] = 0xa;	  /* implies 18 byte sense buffer */
+	sbuff[7] = 0xa;		/* implies 18 byte sense buffer */
 	sbuff[12] = asc;
 	sbuff[13] = asq;
-	MHVTL_DBG(1, " [sense_key,asc,ascq]: "
-		      "[0x%x,0x%x,0x%x]\n", key, asc, asq);
+	MHVTL_DBG(1, " [key,asc,ascq]: [0x%x,0x%x,0x%x]\n", key, asc, asq);
 }
 
 static int vtl_device_reset(struct scsi_cmnd *SCpnt)
@@ -1077,7 +1075,7 @@ static ssize_t vtl_opts_store(struct device_driver *ddp,
 	char work[20];
 
 	if (1 == sscanf(buf, "%10s", work)) {
-		if (0 == strnicmp(work,"0x", 2)) {
+		if (0 == strnicmp(work, "0x", 2)) {
 			if (1 == sscanf(&work[2], "%x", &opts))
 				goto opts_done;
 		} else {
@@ -1100,7 +1098,7 @@ static ssize_t vtl_major_show(struct device_driver *ddp, char *buf)
 static DRIVER_ATTR(major, S_IRUGO, vtl_major_show, NULL);
 
 static ssize_t vtl_add_lu_action(struct device_driver *ddp,
-				     const char *buf, size_t count)
+					const char *buf, size_t count)
 {
 	int retval;
 	unsigned int minor;
@@ -1108,7 +1106,8 @@ static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 	char str[512];
 
 	if (strncmp(buf, "add", 3)) {
-		printk("mhvtl: %s Invalid command: %s\n", __func__, buf);
+		printk(KERN_ERR "mhvtl: %s Invalid command: %s\n",
+				__func__, buf);
 		return count;
 	}
 
@@ -1149,32 +1148,31 @@ static int __init mhvtl_init(void)
 
 	vtl_major = register_chrdev(vtl_major, "mhvtl", &vtl_fops);
 	if (vtl_major < 0) {
-		printk(KERN_WARNING "mhvtl: can't get major number\n");
+		printk(KERN_ERR "mhvtl: can't get major number\n");
 		goto register_chrdev_error;
 	}
 
 	ret = device_register(&pseudo_primary);
 	if (ret < 0) {
-		printk(KERN_WARNING "mhvtl: device_register error: %d\n", ret);
+		printk(KERN_ERR "mhvtl: device_register error: %d\n", ret);
 		goto device_register_error;
 	}
 
 	ret = bus_register(&pseudo_lld_bus);
 	if (ret < 0) {
-		printk(KERN_WARNING "mhvtl: bus_register error: %d\n", ret);
+		printk(KERN_ERR "mhvtl: bus_register error: %d\n", ret);
 		goto bus_register_error;
 	}
 
 	ret = driver_register(&vtl_driverfs_driver);
 	if (ret < 0) {
-		printk(KERN_WARNING "mhvtl: driver_register error: %d\n", ret);
+		printk(KERN_ERR "mhvtl: driver_register error: %d\n", ret);
 		goto driver_register_error;
 	}
 
 	ret = do_create_driverfs_files();
 	if (ret < 0) {
-		printk(KERN_WARNING "mhvtl: driver_create_file "
-			"error: %d\n", ret);
+		printk(KERN_ERR "mhvtl: driver_create_file error: %d\n", ret);
 		goto do_create_driverfs_error;
 	}
 
@@ -1188,7 +1186,7 @@ static int __init mhvtl_init(void)
 	}
 
 	MHVTL_DBG(1, "Built %d host%s\n",
-		       vtl_add_host, (vtl_add_host == 1) ? "" : "s");
+			vtl_add_host, (vtl_add_host == 1) ? "" : "s");
 
 	return 0;
 
@@ -1222,7 +1220,7 @@ static void __exit vtl_exit(void)
 		vtl_remove_adapter();
 
 	if (vtl_add_host != 0)
-		printk(KERN_WARNING "mhvtl %s: vtl_remove_adapter "
+		printk(KERN_ERR "mhvtl %s: vtl_remove_adapter "
 			"error at line %d\n", __func__, __LINE__);
 
 	do_remove_driverfs_files();
@@ -1442,7 +1440,7 @@ static int put_user_data(unsigned int minor, char __user *arg)
 						ds.sam_stat, ds.sam_stat);
 	sqcp = lookup_sqcp(devp[minor], ds.serialNo);
 	if (!sqcp) {
-		printk(KERN_WARNING "%s: callback function not found for "
+		printk(KERN_ERR "%s: callback function not found for "
 				"SCSI cmd s/no. %ld\n",
 				__func__, (long)ds.serialNo);
 		ret = 1;	/* report busy to mid level */
@@ -1454,7 +1452,7 @@ static int put_user_data(unsigned int minor, char __user *arg)
 		sqcp->a_cmnd->result = ds.sam_stat;
 		if (copy_from_user(sqcp->a_cmnd->sense_buffer,
 						ds.sense_buf, SENSE_BUF_SIZE))
-			printk("Failed to retrieve autosense data\n");
+			printk(KERN_ERR "Failed to retrieve autosense data\n");
 		sqcp->a_cmnd->sense_buffer[0] |= 0x70; /* force valid sense */
 		s = sqcp->a_cmnd->sense_buffer;
 		MHVTL_DBG(2, "Auto-Sense returned [key/ASC/ASCQ] "
@@ -1468,7 +1466,8 @@ static int put_user_data(unsigned int minor, char __user *arg)
 	if (sqcp->done_funct)
 		sqcp->done_funct(sqcp->a_cmnd);
 	else
-		printk("%s FATAL, line %d: SCSI done_funct callback => NULL\n",
+		printk(KERN_ERR
+			"%s FATAL, line %d: SCSI done_funct callback => NULL\n",
 						__func__, __LINE__);
 	remove_sqcp(devp[minor], sqcp);
 
@@ -1515,7 +1514,7 @@ static int vtl_remove_lu(unsigned int minor, char __user *arg)
 	struct vtl_ctl ctl;
 	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu, *n;
-  struct scsi_device *baksdev;
+	struct scsi_device *baksdev;
 	int ret = -ENODEV;
 
 	down(&tmp_mutex);
@@ -1541,7 +1540,7 @@ static int vtl_remove_lu(unsigned int minor, char __user *arg)
 			MHVTL_DBG(2, "line %d found matching lu\n", __LINE__);
 			list_del(&lu->lu_sibling);
 			devp[minor] = NULL;
-      baksdev = lu->sdev;
+			baksdev = lu->sdev;
 			scsi_remove_device(lu->sdev);
 			scsi_device_put(baksdev);
 		}

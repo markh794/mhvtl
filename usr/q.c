@@ -19,7 +19,7 @@ extern char *vtl_driver_name;
 			"vtl_driver_name", __func__, ## arg);	\
 	else							\
 		syslog(LOG_DAEMON|LOG_ERR, "ERROR %s: " format,	\
-			__func__, ## arg); 			\
+			__func__, ## arg);			\
 }
 
 static void warn(char *s)
@@ -35,7 +35,7 @@ int init_queue(void)
 	queue_id = msgget(QKEY, IPC_CREAT | QPERM);
 	if (queue_id == -1) {
 		char s[245];
-		switch(errno) {
+		switch (errno) {
 		case EACCES:
 			strcpy(s, "Operation not permitted");
 			break;

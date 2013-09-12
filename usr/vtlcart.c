@@ -295,7 +295,8 @@ static int check_filemarks_alloc(uint32_t count)
 	if (count > (uint32_t)filemark_alloc) {
 		new_size = ((count + FM_DELTA - 1) / FM_DELTA) * FM_DELTA;
 
-		filemarks = (uint32_t *)realloc(filemarks, new_size * sizeof(*filemarks));
+		filemarks = (uint32_t *)realloc(filemarks,
+						new_size * sizeof(*filemarks));
 		if (filemarks == NULL) {
 			MHVTL_ERR("filemark map realloc failed, %s",
 				strerror(errno));
@@ -503,7 +504,8 @@ int position_blocks_back(uint32_t count, uint8_t *sam_stat)
 
 	if (num_filemarks > 0) {
 		for (i = num_filemarks - 1; i >= 0; i--) {
-			MHVTL_DBG(3, "filemark at %ld", (unsigned long)filemarks[i]);
+			MHVTL_DBG(3, "filemark at %ld",
+						(unsigned long)filemarks[i]);
 			if (filemarks[i] < raw_pos.hdr.blk_number)
 				break;
 		}
@@ -733,8 +735,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	meta.filemark_count = 0;
 
 	if (write(metafile, &mam, sizeof(mam)) != sizeof(mam) ||
-	    write(metafile, &meta, sizeof(meta)) != sizeof(meta))
-	{
+		    write(metafile, &meta, sizeof(meta)) != sizeof(meta)) {
 		MHVTL_ERR("Failed to initialize file %s: %s", newMedia_meta,
 			strerror(errno));
 		unlink(newMedia_data);
@@ -866,8 +867,8 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	}
 
 	/* Read in the MAM and sanity-check it. */
-
-	if ((nread = read(metafile, &mam, sizeof(mam))) < 0) {
+	nread = read(metafile, &mam, sizeof(mam));
+	if (nread < 0) {
 		MHVTL_ERR("Error reading pcl %s MAM from metafile: %s",
 			pcl, strerror(errno));
 		rc = 2;
@@ -958,8 +959,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	*/
 
 	if (meta.filemark_count > 0 &&
-		filemarks[meta.filemark_count - 1] >= eod_blk_number)
-	{
+		filemarks[meta.filemark_count - 1] >= eod_blk_number) {
 		MHVTL_ERR("pcl %s indx file has improper length as compared "
 			"to the meta file, indicating possible file corruption",
 			pcl);

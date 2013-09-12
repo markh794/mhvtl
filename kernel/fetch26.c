@@ -9,14 +9,12 @@
  * @nents:		 Number of SG entries
  * @buf:		 Where to copy from
  * @buflen:		 The number of bytes to copy
- * @to_buffer: 		 transfer direction (non zero == from an sg list to a
- * 			 buffer, 0 == from a buffer to an sg list
+ * @to_buffer:		 transfer direction (non zero == from an sg list to a
+ *			 buffer, 0 == from a buffer to an sg list
  *
  * Returns the number of copied bytes.
  *
  **/
-//static size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents,
-//			     void *buf, size_t buflen, int to_buffer)
 static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 				__user void *buf, size_t buflen, int to_buffer)
 {
@@ -89,8 +87,7 @@ size_t vtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
  *
  * Returns number of bytes fetched into 'arr' or -1 if error.
  */
-static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
-		       int len)
+static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len)
 {
 	struct scsi_data_buffer *sdb = scsi_out(scp);
 
@@ -117,7 +114,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 	if (!sdb->length)
 		return 0;
 	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
-		return (DID_ERROR << 16);
+		return DID_ERROR << 16;
 
 	act_len = vtl_copy_from_user(sdb->table.sgl, sdb->table.nents,
 					arr, arr_len);
@@ -140,7 +137,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 	if (!sdb->length)
 		return 0;
 	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
-		return (DID_ERROR << 16);
+		return DID_ERROR << 16;
 
 	act_len = sg_copy_from_buffer(sdb->table.sgl, sdb->table.nents,
 					arr, arr_len);

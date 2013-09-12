@@ -187,8 +187,8 @@ static void init_ait_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
 	uint8_t worm;
-	uint8_t local_TapeAlert[8] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	uint8_t local_TapeAlert[8] = {
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	worm = ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_WORM;
 	lu->inquiry[2] =

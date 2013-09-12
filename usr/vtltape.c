@@ -60,6 +60,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <strings.h>
 #include <syslog.h>
@@ -111,7 +112,6 @@ extern char home_directory[HOME_DIR_PATH_SZ + 1];
 #ifndef Solaris
   /* I'm sure there must be a header where lseek64() is defined */
   loff_t lseek64(int, loff_t, int);
-  int ioctl(int, int, void *);
 #endif
 
 int verbose = 0;
@@ -1135,7 +1135,7 @@ static char *lookup_sp_specific(uint16_t field)
 #endif
 
 #define SUPPORTED_SECURITY_PROTOCOL_LIST 0
-#define CERTIFICATE_DATA		 1
+#define CERTIFICATE_DATA		1
 #define SECURITY_PROTOCOL_INFORMATION	0
 #define TAPE_DATA_ENCRYPTION		0x20
 
@@ -1190,7 +1190,7 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 static int resp_spin_page_20(struct scsi_cmd *cmd)
 {
 	int ret = 0;
-	int indx, correct_key;
+	int i, correct_key;
 	unsigned int count;
 	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
@@ -1254,27 +1254,27 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 		buf[7] = 0x01;	/* Algorithm Index */
 		put_unaligned_be32(lu_priv->KEY_INSTANCE_COUNTER, &buf[8]);
 		ret = 24;
-		indx = 24;
+		i = 24;
 		if (UKAD_LENGTH) {
 			buf[3] += 4 + UKAD_LENGTH;
-			buf[indx++] = 0x00;
-			buf[indx++] = 0x00;
-			buf[indx++] = 0x00;
-			buf[indx++] = UKAD_LENGTH;
-			for (count = 0; count < UKAD_LENGTH; ++count) {
-				buf[indx++] = UKAD[count];
-			}
+			buf[i++] = 0x00;
+			buf[i++] = 0x00;
+			buf[i++] = 0x00;
+			buf[i++] = UKAD_LENGTH;
+			for (count = 0; count < UKAD_LENGTH; ++count)
+				buf[i++] = UKAD[count];
+
 			ret += 4 + UKAD_LENGTH;
 		}
 		if (AKAD_LENGTH) {
 			buf[3] += 4 + AKAD_LENGTH;
-			buf[indx++] = 0x01;
-			buf[indx++] = 0x00;
-			buf[indx++] = 0x00;
-			buf[indx++] = AKAD_LENGTH;
-			for (count = 0; count < AKAD_LENGTH; ++count) {
-				buf[indx++] = AKAD[count];
-			}
+			buf[i++] = 0x01;
+			buf[i++] = 0x00;
+			buf[i++] = 0x00;
+			buf[i++] = AKAD_LENGTH;
+			for (count = 0; count < AKAD_LENGTH; ++count)
+				buf[i++] = AKAD[count];
+
 			ret += 4 + AKAD_LENGTH;
 		}
 		break;
@@ -1300,27 +1300,25 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 		ret = 16;
 		if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 			correct_key = TRUE;
-			indx = 16;
+			i = 16;
 			if (c_pos->encryption.ukad_length) {
 				buf[3] += 4 + c_pos->encryption.ukad_length;
-				buf[indx++] = 0x00;
-				buf[indx++] = 0x01;
-				buf[indx++] = 0x00;
-				buf[indx++] = c_pos->encryption.ukad_length;
-				for (count = 0; count < c_pos->encryption.ukad_length; ++count) {
-					buf[indx++] = c_pos->encryption.ukad[count];
-				}
+				buf[i++] = 0x00;
+				buf[i++] = 0x01;
+				buf[i++] = 0x00;
+				buf[i++] = c_pos->encryption.ukad_length;
+				for (count = 0; count < c_pos->encryption.ukad_length; ++count)
+					buf[i++] = c_pos->encryption.ukad[count];
 				ret += 4 + c_pos->encryption.ukad_length;
 			}
 			if (c_pos->encryption.akad_length) {
 				buf[3] += 4 + c_pos->encryption.akad_length;
-				buf[indx++] = 0x01;
-				buf[indx++] = 0x03;
-				buf[indx++] = 0x00;
-				buf[indx++] = c_pos->encryption.akad_length;
-				for (count = 0; count < c_pos->encryption.akad_length; ++count) {
-					buf[indx++] = c_pos->encryption.akad[count];
-				}
+				buf[i++] = 0x01;
+				buf[i++] = 0x03;
+				buf[i++] = 0x00;
+				buf[i++] = c_pos->encryption.akad_length;
+				for (count = 0; count < c_pos->encryption.akad_length; ++count)
+					buf[i++] = c_pos->encryption.akad[count];
 				ret += 4 + c_pos->encryption.akad_length;
 			}
 			/* compare the keys */
@@ -1405,8 +1403,8 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 
 	/* check for a legal "set data encryption page" */
 	if ((buf[0] != 0x00) || (buf[1] != 0x10) ||
-	    (buf[2] != 0x00) || (buf[3] < 16) ||
-	    (buf[8] != 0x01) || (buf[9] != 0x00)) {
+		(buf[2] != 0x00) || (buf[3] < 16) ||
+		(buf[8] != 0x01) || (buf[9] != 0x00)) {
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1449,7 +1447,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 		lu_ssc.ENCRYPT_MODE = 0;
 		lu_ssc.DECRYPT_MODE = buf[7];
 		UKAD_LENGTH = 0;
-	        AKAD_LENGTH = 0;
+		AKAD_LENGTH = 0;
 		KEY_LENGTH = 0;
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -1647,7 +1645,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 
 	lu_ssc.max_capacity = 0L;
 
-	switch(mam.MediumType) {
+	switch (mam.MediumType) {
 	case MEDIA_TYPE_DATA:
 		current_state = MHVTL_STATE_LOADING;
 		OK_to_write = 1;	/* Reset flag to OK. */
@@ -1694,11 +1692,10 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		} else if (position_to_block(1, sam_stat)) {
 			OK_to_write = 0;
 		} else {
-			if (c_pos->blk_type == B_EOD) {
+			if (c_pos->blk_type == B_EOD)
 				OK_to_write = 1;
-			} else {
+			else
 				OK_to_write = 0;
-			}
 			rewind_tape(sam_stat);
 		}
 		if (lu_ssc.pm->set_WORM)
@@ -1836,7 +1833,7 @@ static void dump_linked_list(void)
 
 	MHVTL_DBG(3, "Dumping media type support");
 
-	mdl = &lu_ssc.supported_media_list;;
+	mdl = &lu_ssc.supported_media_list;
 
 	list_for_each_entry(m_detail, mdl, siblings) {
 		MHVTL_DBG(3, "Media type: 0x%02x, status: 0x%02x",
@@ -1848,7 +1845,7 @@ static void dump_linked_list(void)
 /* Strip (recover) the 'Physical Cartridge Label'
  *   Well at least the data filename which relates to the same thing
  */
-static char * strip_PCL(char *p, int start)
+static char *strip_PCL(char *p, int start)
 {
 	char *q;
 
@@ -1958,7 +1955,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		else
 			verbose = 3;
 		MHVTL_LOG("Verbose: %s at level %d",
-				 verbose ? "enabled" : "disabled", verbose);
+				verbose ? "enabled" : "disabled", verbose);
 	}
 
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
@@ -2077,9 +2074,8 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		}
 	}
 
-	if (!strncmp(msg->text, "dump", 4)) {
+	if (!strncmp(msg->text, "dump", 4))
 		dump_linked_list();
-	}
 
 return 0;
 }
@@ -2849,7 +2845,7 @@ int main(int argc, char *argv[])
 	}
 
 	child_cleanup = add_lu(my_id, &ctl);
-	if (! child_cleanup) {
+	if (!child_cleanup) {
 		MHVTL_DBG(1, "Could not create logical unit");
 		exit(1);
 	}

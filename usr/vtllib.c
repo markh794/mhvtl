@@ -34,6 +34,7 @@
 #include <err.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -53,10 +54,6 @@
 #include "ssc.h"
 #include "log.h"
 #include "q.h"
-
-#ifndef Solaris
-	int ioctl(int, int, void *);
-#endif
 
 static int reset = 0;
 
@@ -417,11 +414,12 @@ pid_t add_lu(unsigned minor, struct vtl_ctl *ctl)
 	sprintf(str, "add %u %d %d %d\n",
 			minor, ctl->channel, ctl->id, ctl->lun);
 
-	switch(pid = fork()) {
+	switch (pid = fork()) {
 	case 0:         /* Child */
 		pseudo = open(pseudo_filename, O_WRONLY);
 		if (pseudo < 0) {
-			snprintf(errmsg, ARRAY_SIZE(errmsg),"Could not open %s", pseudo_filename);
+			snprintf(errmsg, ARRAY_SIZE(errmsg),
+					"Could not open %s", pseudo_filename);
 			MHVTL_DBG(1, "%s : %s", errmsg, strerror(errno));
 			perror("Could not open 'add_lu'");
 			exit(-1);

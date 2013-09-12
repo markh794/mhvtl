@@ -35,7 +35,7 @@ chown -Rf vtl:vtl /etc/mhvtl
 mkdir -p /usr/src/mhvtl
 cd /usr/src/mhvtl
 git init
-git pull http://github.com/markh794/mhvtl.git 
+git pull http://github.com/markh794/mhvtl.git
 make distclean
 cd kernel/
 make && make install

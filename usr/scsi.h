@@ -2,8 +2,6 @@
  * The userspace tape/library header file for the vtl virtual
  * tape kernel module.
  *
- * $Id: scsi.h,v 1.3.2.1 2006-08-06 07:58:44 markh Exp $
- *
  * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
  *                                mark_harvey at symantec dot com
  *

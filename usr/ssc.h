@@ -14,8 +14,8 @@
 
 #define ENCR_SET_DATA_ENCRYPTION	0x10
 
-#define EARLY_WARNING_SZ		1024 * 1024 * 2	/* 2M EW size */
-#define PROG_EARLY_WARNING_SZ		1024 * 1024 * 3	/* 3M Prog EW size */
+#define EARLY_WARNING_SZ		(1024 * 1024 * 2) /* 2M EW size */
+#define PROG_EARLY_WARNING_SZ		(1024 * 1024 * 3) /* 3M Prog EW size */
 
 #define MAX_DELAY_LOAD		20
 #define MAX_DELAY_UNLOAD	20

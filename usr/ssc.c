@@ -305,8 +305,9 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 		/* If we are not at end of data for a write
 		 * and media is defined as WORM, fail...
 		 */
+
+		 /* OK to append to end of 'tape' */
 		if (c_pos->blk_type == B_EOD)
-			 /* OK to append to end of 'tape' */
 			*lu_ssc->OK_2_write = 1;
 
 		if (!*lu_ssc->OK_2_write) {
@@ -358,12 +359,12 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 /*
  * Returns true if blk header has correct encryption key data
  */
-#define	UKAD_LENGTH	encr->ukad_length
-#define	AKAD_LENGTH	encr->akad_length
-#define	KEY_LENGTH	encr->key_length
-#define	UKAD		encr->ukad
-#define	AKAD		encr->akad
-#define	KEY		encr->key
+#define	UKAD_LENGTH	(encr->ukad_length)
+#define	AKAD_LENGTH	(encr->akad_length)
+#define	KEY_LENGTH	(encr->key_length)
+#define	UKAD		(encr->ukad)
+#define	AKAD		(encr->akad)
+#define	KEY		(encr->key)
 uint8_t valid_encryption_blk(struct scsi_cmd *cmd)
 {
 	uint8_t correct_key;

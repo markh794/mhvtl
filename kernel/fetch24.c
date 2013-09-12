@@ -6,7 +6,7 @@
  * Returns number of bytes fetched into 'arr'/FIFO or -1 if error.
  */
 static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
-		       int max_arr_len)
+				int max_arr_len)
 {
 	int k, req_len, act_len, len, active;
 	int retval;
@@ -24,7 +24,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 	}
 
 	if (!((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
-	      (scp->sc_data_direction == DMA_TO_DEVICE)))
+		(scp->sc_data_direction == DMA_TO_DEVICE)))
 		return -1;
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
@@ -40,7 +40,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 		if (active) {
 			kaddr = (unsigned char *)kmap(sg_page(sg));
 			if (NULL == kaddr)
-				return (DID_ERROR << 16);
+				return DID_ERROR << 16;
 			kaddr_off = (unsigned char *)kaddr + sg->offset;
 			len = sg->length;
 			if ((req_len + len) > max_arr_len) {
@@ -84,10 +84,10 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 	if (0 == scp->request_bufflen)
 		return 0;
 	if (NULL == scp->request_buffer)
-		return (DID_ERROR << 16);
+		return DID_ERROR << 16;
 	if (!((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
-	      (scp->sc_data_direction == DMA_FROM_DEVICE)))
-		return (DID_ERROR << 16);
+		(scp->sc_data_direction == DMA_FROM_DEVICE)))
+		return DID_ERROR << 16;
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
 		act_len = (req_len < arr_len) ? req_len : arr_len;
@@ -105,7 +105,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 		if (active) {
 			kaddr = (unsigned char *)kmap(sg_page(sg));
 			if (NULL == kaddr)
-				return (DID_ERROR << 16);
+				return DID_ERROR << 16;
 			kaddr_off = (unsigned char *)kaddr + sg->offset;
 			len = sg->length;
 			if ((req_len + len) > arr_len) {
@@ -143,10 +143,10 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 	if (0 == scp->request_bufflen)
 		return 0;
 	if (NULL == scp->request_buffer)
-		return (DID_ERROR << 16);
+		return DID_ERROR << 16;
 	if (!((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
-	      (scp->sc_data_direction == DMA_FROM_DEVICE)))
-		return (DID_ERROR << 16);
+		(scp->sc_data_direction == DMA_FROM_DEVICE)))
+		return DID_ERROR << 16;
 	if (0 == scp->use_sg) {
 		req_len = scp->request_bufflen;
 		act_len = (req_len < arr_len) ? req_len : arr_len;
@@ -161,7 +161,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 			kaddr = (unsigned char *)
 				kmap_atomic(sg_page(sg), KM_USER0);
 			if (NULL == kaddr)
-				return (DID_ERROR << 16);
+				return DID_ERROR << 16;
 			kaddr_off = (unsigned char *)kaddr + sg->offset;
 			len = sg->length;
 			if ((req_len + len) > arr_len) {

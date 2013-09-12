@@ -86,12 +86,12 @@ static struct name_to_media_info media_info[] = {
 /*
  * Returns true if blk header has correct encryption key data
  */
-#define	UKAD_LENGTH	encr->ukad_length
-#define	AKAD_LENGTH	encr->akad_length
-#define	KEY_LENGTH	encr->key_length
-#define	UKAD		encr->ukad
-#define	AKAD		encr->akad
-#define	KEY		encr->key
+#define	UKAD_LENGTH	(encr->ukad_length)
+#define	AKAD_LENGTH	(encr->akad_length)
+#define	KEY_LENGTH	(encr->key_length)
+#define	UKAD		(encr->ukad)
+#define	AKAD		(encr->akad)
+#define	KEY		(encr->key)
 uint8_t valid_encryption_blk_t10k(struct scsi_cmd *cmd)
 {
 	uint8_t correct_key;

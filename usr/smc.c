@@ -121,7 +121,7 @@ static int slot_type(struct smc_priv *smc_p, int addr)
  */
 static int slot_number(struct s_info *sp)
 {
-	switch(sp->element_type) {
+	switch (sp->element_type) {
 	case MEDIUM_TRANSPORT:
 		return sp->slot_location - START_PICKER + 1;
 	case STORAGE_ELEMENT:
@@ -1052,7 +1052,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 
 	send_msg(cmd, dest->drv_id);
 
-	if (! smc_p->state_msg)
+	if (!smc_p->state_msg)
 		smc_p->state_msg = (char *)zalloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */
@@ -1127,7 +1127,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 		}
 	}
 
-	if (! smc_p->state_msg)
+	if (!smc_p->state_msg)
 		smc_p->state_msg = zalloc(64);
 	if (smc_p->state_msg) {
 		sprintf(cmd, "%s", src->media->barcode);
@@ -1211,7 +1211,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	/* Send 'unload' message to drive b4 the move.. */
 	send_msg("unload", src->drv_id);
 
-	if (! smc_p->state_msg)
+	if (!smc_p->state_msg)
 		smc_p->state_msg = zalloc(64);
 	if (smc_p->state_msg) {
 		sprintf(cmd, "%s", src->slot->media->barcode);
@@ -1291,7 +1291,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	if (! smc_p->state_msg)
+	if (!smc_p->state_msg)
 		smc_p->state_msg = zalloc(64);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */

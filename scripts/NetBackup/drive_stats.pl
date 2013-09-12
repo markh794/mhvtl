@@ -37,7 +37,7 @@ my $total_read_retries;
 my $total_corrective_write_errors;
 my $total_write_retries;
 
-print "\n  =============== \n";
+print "\n  ===============\n";
 while($line = <>) {
 	$line =~ s/^M//g;       # Strip any cr/lf to lf
 	chomp($line);

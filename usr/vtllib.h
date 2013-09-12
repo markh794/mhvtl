@@ -45,26 +45,13 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
  */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
-#if __BYTE_ORDER == __BIG_ENDIAN
-
-#define htonll(x)	(x)
-#define htonl(x)	(x)
-#define htons(x)	(x)
-#else
-# if __BYTE_ORDER == __LITTLE_ENDIAN
-#  define htonll(x)	__bswap_64 (x)
-#  define htonl(x)	__bswap_32 (x)
-#  define htons(x)	__bswap_16 (x)
-# endif
-#endif
-
-#define min(x,y) ({		\
+#define min(x, y) ({		\
 	typeof(x) _x = (x);	\
 	typeof(y) _y = (y);	\
 	(void) (&_x == &_y);	\
 	_x < _y ? _x : _y; })
 
-#define max(x,y) ({		\
+#define max(x, y) ({		\
 	typeof(x) _x = (x);	\
 	typeof(y) _y = (y);	\
 	(void) (&_x == &_y);	\

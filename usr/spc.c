@@ -228,7 +228,7 @@ uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 			(uint32_t)(SPR_Reservation_Key >> 32) & 0xffffffff,
 			(uint32_t)(SPR_Reservation_Key & 0xffffffff));
 
-	switch(SA) {
+	switch (SA) {
 	case 0: /* REGISTER */
 		if (SPR_Reservation_Key) {
 			if (RK == SPR_Reservation_Key) {
@@ -353,7 +353,7 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	MHVTL_DBG(1, "service action: %d", SA);
 
 	sam_status = SAM_STAT_GOOD;
-	switch(SA) {
+	switch (SA) {
 	case 0: /* READ KEYS */
 		put_unaligned_be32(SPR_Reservation_Generation, &buf[0]);
 		if (!SPR_Reservation_Key) {
@@ -575,7 +575,9 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	alloc_len = msense_6 ? scb[4] : ((scb[7] << 8) | scb[8]);
 	offset = msense_6 ? 4 : 8;
 
-	MHVTL_DBG(1, "MODE SENSE %d (%ld) **", (msense_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "MODE SENSE %d (%ld) **",
+				(msense_6) ? 6 : 10,
+				(long)cmd->dbuf_p->serialNo);
 	MHVTL_DBG(2, " Page Control     : %s(0x%02x)",
 				pcString[pc], pc);
 	MHVTL_DBG(2, " Page/Subpage Code: 0x%02x/0x%02x", pcode, subpcode);
