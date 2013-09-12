@@ -394,7 +394,7 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 
 uint8_t spc_tur(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "** %s (%ld) %s **", "Test Unit Ready : Returning => ",
+	MHVTL_DBG(1, "** %s (%ld) %s **", "TEST UNIT READY : Returning => ",
 				(long)cmd->dbuf_p->serialNo,
 				(cmd->lu->online) ? "Online" : "Offline");
 	if (cmd->lu->online)
@@ -406,7 +406,7 @@ uint8_t spc_tur(struct scsi_cmd *cmd)
 
 uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "Unsupported OP CODE");
+	MHVTL_DBG(1, "UNSUPPORTED OP CODE **");
 	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &cmd->dbuf_p->sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
@@ -417,7 +417,7 @@ uint8_t spc_request_sense(struct scsi_cmd *cmd)
 	uint8_t *sense_buf = (uint8_t *)cmd->dbuf_p->sense_buf;
 	uint8_t *cdb = cmd->scb;
 
-	MHVTL_DBG(1, "Request Sense (%ld) : key/ASC/ASCQ "
+	MHVTL_DBG(1, "REQUEST SENSE (%ld) : KEY/ASC/ASCQ "
 			"[0x%02x 0x%02x 0x%02x]"
 			" Filemark: %s, EOM: %s, ILI: %s",
 				(long)cmd->dbuf_p->serialNo,
@@ -463,9 +463,9 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 
 	parmList = get_unaligned_be16(&cdb[7]); /* bytes 7 & 8 are parm list. */
 
-	MHVTL_DBG(1, "LOG SELECT (%ld) %s",
+	MHVTL_DBG(1, "LOG SELECT (%ld)%s **",
 				(long)cmd->dbuf_p->serialNo,
-				(pcr) ? ": Parameter Code Reset **" : "**");
+				(pcr) ? " : Parameter Code Reset " : "");
 	if (sp) {
 		MHVTL_DBG(1, " Log Select - Save Parameters not supported");
 		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
@@ -726,8 +726,7 @@ uint8_t spc_send_diagnostics(struct scsi_cmd *cmd)
 
 uint8_t spc_recv_diagnostics(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "Receive Diagnostic (%ld) **",
+	MHVTL_DBG(1, "RECEIVE DIAGNOSTIC (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
-

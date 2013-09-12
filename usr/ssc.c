@@ -434,8 +434,8 @@ uint8_t valid_encryption_media(struct scsi_cmd *cmd)
 uint8_t ssc_allow_prevent_removal(struct scsi_cmd *cmd)
 {
 	/* FIXME: Currently does nothing... */
-	MHVTL_DBG(1, "%s MEDIA removal (%ld) **",
-					(cmd->scb[4]) ? "Prevent" : "Allow",
+	MHVTL_DBG(1, "%s MEDIA REMOVAL (%ld) **",
+					(cmd->scb[4]) ? "PREVENT" : "ALLOW",
 					(long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
@@ -448,13 +448,13 @@ uint8_t ssc_format_media(struct scsi_cmd *cmd)
 	lu = cmd->lu;
 	lu_priv = lu->lu_private;
 
-	MHVTL_DBG(1, "Format Medium (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "FORMAT MEDIUM (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
 
 	if (c_pos->blk_number != 0) {
-		MHVTL_DBG(2, "Not at beginning **");
+		MHVTL_DBG(2, "Failed - Not at beginning");
 		mkSenseBuf(ILLEGAL_REQUEST, E_POSITION_PAST_BOM,
 					&cmd->dbuf_p->sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -561,7 +561,7 @@ uint8_t ssc_a3_service_action(struct scsi_cmd *cmd)
 		log_opcode("REPORT ALIASES **", cmd);
 		break;
 	}
-	log_opcode("Unknown service action A3 **", cmd);
+	log_opcode("UNKNOWN SERVICE ACTION A3 **", cmd);
 	return cmd->dbuf_p->sam_stat;
 }
 
@@ -578,13 +578,13 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd)
 		log_opcode("FORCED EJECT **", cmd);
 		break;
 	}
-	log_opcode("Unknown service action A4 **", cmd);
+	log_opcode("UNKNOWN SERVICE ACTION A4 **", cmd);
 	return cmd->dbuf_p->sam_stat;
 }
 
 uint8_t ssc_spout(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "Security Protocol Out (%ld) **",
+	MHVTL_DBG(1, "SECURITY PROTOCOL OUT (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 
 	cmd->dbuf_p->sz = get_unaligned_be32(&cmd->scb[6]);
@@ -598,7 +598,7 @@ uint8_t ssc_spout(struct scsi_cmd *cmd)
 
 uint8_t ssc_spin(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "Security Protocol In (%ld) **",
+	MHVTL_DBG(1, "SECURITY PROTOCOL IN (%ld) **",
 					(long)cmd->dbuf_p->serialNo);
 
 	return resp_spin(cmd);
@@ -1026,7 +1026,7 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Write Attributes (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "WRITE ATTRIBUTES (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_UNLOADED:
@@ -1129,7 +1129,7 @@ uint8_t ssc_rewind(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Rewinding (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "REWINDING (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	current_state = MHVTL_STATE_REWIND;
 
@@ -1163,7 +1163,7 @@ uint8_t ssc_read_attributes(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Read Attribute (%ld) **",
+	MHVTL_DBG(1, "READ ATTRIBUTE (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 
 	switch (lu_priv->tapeLoaded) {
@@ -1200,7 +1200,7 @@ uint8_t ssc_read_block_limits(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Read block limits (%ld) **",
+	MHVTL_DBG(1, "READ BLOCK LIMITS (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 
 	switch (lu_priv->tapeLoaded) {
@@ -1230,7 +1230,7 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Read Medium Serial No. (%ld) **",
+	MHVTL_DBG(1, "READ MEDIUM SERIAL NO. (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_LOADED:
@@ -1259,7 +1259,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Read Position (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "READ POSITION (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	service_action = cmd->scb[1] & 0x1f;
 	/* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
@@ -1308,7 +1308,7 @@ uint8_t ssc_release(struct scsi_cmd *cmd)
 
 	lu_priv = cmd->lu->lu_private;
 
-	MHVTL_DBG(1, "Release (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "RELEASE (%ld) **", (long)cmd->dbuf_p->serialNo);
 	if (!SPR_Reservation_Type && SPR_Reservation_Key)
 		return SAM_STAT_RESERVATION_CONFLICT;
 
@@ -1328,8 +1328,8 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 	media = cmd->scb[1] & 0x01;
 	cmd->dbuf_p->sz = 0;
 
-	MHVTL_DBG(1, "Report %s Density Support (%ld) **",
-					(media) ? "mounted Media" : "Drive",
+	MHVTL_DBG(1, "REPORT %s DENSITY SUPPORT (%ld) **",
+					(media) ? "MOUNTED MEDIA" : "DRIVE",
 					(long)cmd->dbuf_p->serialNo);
 
 	if (cmd->scb[1] & 0x02) { /* Don't support Medium Type (yet) */
@@ -1355,7 +1355,7 @@ uint8_t ssc_reserve(struct scsi_cmd *cmd)
 
 	lu_priv = cmd->lu->lu_private;
 
-	MHVTL_DBG(1, "Reserve (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "RESERVE (%ld) **", (long)cmd->dbuf_p->serialNo);
 	if (!SPR_Reservation_Type && !SPR_Reservation_Key)
 		lu_priv->I_am_SPC_2_Reserved = 1;
 	if (!SPR_Reservation_Type && SPR_Reservation_Key)
@@ -1371,7 +1371,7 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	MHVTL_DBG(1, "Erasing (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "ERASING (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	current_state = MHVTL_STATE_ERASE;
 
@@ -1475,7 +1475,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	MHVTL_DBG(1, "%s tape (%ld) **", (load) ? "Loading" : "Unloading",
+	MHVTL_DBG(1, "%s TAPE (%ld) **", (load) ? "LOADING" : "UNLOADING",
 						(long)cmd->dbuf_p->serialNo);
 
 	switch (lu_priv->tapeLoaded) {
@@ -1512,7 +1512,7 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd)
 
 	count = get_unaligned_be24(&cmd->scb[2]);
 
-	MHVTL_DBG(1, "Write %d filemarks (%ld) **", count,
+	MHVTL_DBG(1, "WRITE %d FILEMARKS (%ld) **", count,
 						(long)cmd->dbuf_p->serialNo);
 	if (!lu_priv->pm->check_restrictions(cmd)) {
 		/* If restrictions & WORM media at block 0.. OK

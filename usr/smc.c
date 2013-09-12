@@ -58,8 +58,8 @@ static char *slot_type_str[] = {
 
 uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "%s MEDIUM Removal (%ld) **",
-				(cmd->scb[4]) ? "Prevent" : "Allow",
+	MHVTL_DBG(1, "%s MEDIUM REMOVAL (%ld) **",
+				(cmd->scb[4]) ? "PREVENT" : "ALLOW",
 				(long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
@@ -1391,7 +1391,7 @@ return retval;
 
 uint8_t smc_rezero(struct scsi_cmd *cmd)
 {
-	MHVTL_DBG(1, "Rezero (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "REZERO (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	if (!cmd->lu->online) {
 		mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, &cmd->dbuf_p->sam_stat);
