@@ -1446,8 +1446,7 @@ static int put_user_data(unsigned int minor, char __user *arg)
 		ret = 1;	/* report busy to mid level */
 		goto give_up;
 	}
-	if (ds.sz)
-		ret = fill_from_user_buffer(sqcp->a_cmnd, ds.data, ds.sz);
+	ret = fill_from_user_buffer(sqcp->a_cmnd, ds.data, ds.sz);
 	if (ds.sam_stat) { /* Auto-sense */
 		sqcp->a_cmnd->result = ds.sam_stat;
 		if (copy_from_user(sqcp->a_cmnd->sense_buffer,
