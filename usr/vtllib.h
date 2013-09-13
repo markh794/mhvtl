@@ -451,6 +451,14 @@ struct supported_density_list {
 
 extern uint8_t sense[SENSE_BUF_SIZE];
 
+/* Sense Specific Data - SPC4.5.5.2.4
+ * For those sense keys where the invalid byte/field is known
+ */
+struct s_sd {
+	uint8_t byte0;
+	uint16_t field_pointer;
+};
+
 /* Used by Mode Sense - if set, return block descriptor */
 extern uint8_t modeBlockDescriptor[8];
 
@@ -493,7 +501,9 @@ enum MHVTL_STATE {
 
 int check_reset(uint8_t *);
 void reset_device(void);
-void mkSenseBuf(uint8_t, uint32_t, uint8_t *);
+void mkSenseBufExtended(uint8_t key, uint32_t asc_ascq,
+				struct s_sd *sd, uint8_t *);
+void mkSenseBuf(uint8_t key, uint32_t asc_ascq, uint8_t *sam_stat);
 void resp_log_select(uint8_t *, uint8_t *);
 int resp_read_position_long(loff_t, uint8_t *, uint8_t *);
 int resp_read_position(loff_t, uint8_t *, uint8_t *);

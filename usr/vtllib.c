@@ -183,7 +183,8 @@ void *zalloc(int sz)
  * Sets 'sam status' to SAM_STAT_CHECK_CONDITION.
  */
 
-void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
+void mkSenseBufExtended(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
+						uint8_t *sam_stat)
 {
 	/* Clear Sense key status */
 	memset(sense, 0, SENSE_BUF_SIZE);
@@ -197,11 +198,11 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 	 * - The ADDITIONAL SENSE CODE field is set to 29h
 	 * - The ADDITIONAL SENSE CODE is set to MODE PARAMETERS CHANGED
 	 */
-	switch (sense_d) {
+	switch (key) {
 	case UNIT_ATTENTION:
-		if ((sense_q >> 8) == 0x29)
+		if ((asc_ascq >> 8) == 0x29)
 			break;
-		if (sense_q == E_MODE_PARAMETERS_CHANGED)
+		if (asc_ascq == E_MODE_PARAMETERS_CHANGED)
 			break;
 		/* Fall thru to default handling */
 	default:
@@ -209,12 +210,22 @@ void mkSenseBuf(uint8_t sense_d, uint32_t sense_q, uint8_t *sam_stat)
 		break;
 	}
 
-	sense[2] = sense_d;
+	sense[2] = key;
 	sense[7] = SENSE_BUF_SIZE - 8;
-	put_unaligned_be16(sense_q, &sense[12]);
+	put_unaligned_be16(asc_ascq, &sense[12]);
+
+	if (sd) {
+		sense[15] = sd->byte0;
+		put_unaligned_be16(sd->field_pointer, &sense[16]);
+	}
 
 	MHVTL_DBG(1, "SENSE [Key/ASC/ASCQ] [%02x %02x %02x]",
 				sense[2], sense[12], sense[13]);
+}
+
+void mkSenseBuf(uint8_t key, uint32_t asc_ascq, uint8_t *sam_stat)
+{
+	mkSenseBufExtended(key, asc_ascq, NULL, sam_stat);
 }
 
 int check_reset(uint8_t *sam_stat)
