@@ -551,6 +551,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	struct priv_lu_ssc *ssc;
 	int i, j;
 	int WriteProtect = 0;
+	struct s_sd sd;
 
 	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *scb = cmd->scb;
@@ -607,7 +608,10 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	}
 
 	if (pcode == 0x3f && (subpcode != 0x0 && subpcode != 0xff)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		put_unaligned_be16(3, &sd.field_pointer); /* Byte 3 sub page */
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -662,7 +666,10 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		if (0 == len) {	/* Page not found.. */
 		MHVTL_DBG(2, "Unknown mode page: 0x%02x sub-page code: 0x%02x",
 							pcode, subpcode);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		put_unaligned_be16(2, &sd.field_pointer); /* Byte 3 page code */
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		}
 
