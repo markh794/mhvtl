@@ -406,8 +406,16 @@ uint8_t spc_tur(struct scsi_cmd *cmd)
 
 uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 {
+	struct s_sd sd;
+
 	MHVTL_DBG(1, "UNSUPPORTED OP CODE **");
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &cmd->dbuf_p->sam_stat);
+
+	sd.byte0 = SKSV | CD;
+	sd.field_pointer = 0;	/* byte 0 in cdb is invalid (the op code) */
+
+	mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_OP_CODE,
+					&sd, &cmd->dbuf_p->sam_stat);
+
 	return SAM_STAT_CHECK_CONDITION;
 }
 
