@@ -468,6 +468,7 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 	char pcr = cdb[1] & 0x2; /* Parameter Code Reset */
 	uint16_t parmList;
 	char *parmString = "Undefined";
+	struct s_sd sd;
 
 	parmList = get_unaligned_be16(&cdb[7]); /* bytes 7 & 8 are parm list. */
 
@@ -476,14 +477,20 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 				(pcr) ? " : Parameter Code Reset " : "");
 	if (sp) {
 		MHVTL_DBG(1, " Log Select - Save Parameters not supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD | BPV | 1; /* bit 1 */
+		put_unaligned_be16(1, &sd.field_pointer); /* cbd byte 1 */
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	if (pcr) {	/* Check for Parameter code reset */
 		if (parmList) {	/* If non-zero, error */
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						sam_stat);
+		sd.byte0 = SKSV | CD;
+		put_unaligned_be16(7, &sd.field_pointer); /* cbd byte 7 */
+			mkSenseBufExtended(ILLEGAL_REQUEST,
+						E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		switch ((cdb[2] & 0xc0) >> 6) {
