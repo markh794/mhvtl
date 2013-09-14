@@ -630,6 +630,7 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
 	struct ssc_personality_template *pm;
 	struct mode *mp;
+	struct s_sd sd;
 	int page_code_len;
 	int write_mode;
 	int pews;	/* Programable Early Warning Size */
@@ -648,14 +649,20 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 	page_code_len = get_unaligned_be16(&p[2]);
 
 	if (page_code_len != 0x1c) {
+		sd.byte0 = SKSV;
+		sd.field_pointer = 2;
 		MHVTL_LOG("Unexpected page code length.. Unexpected results");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	write_mode = (p[5] & 0xf0) >> 4;
 	if (write_mode > 1) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
+		sd.byte0 = SKSV | BPV | 7;	/* bit 7 */
+		sd.field_pointer = 5;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	MHVTL_DBG(2, "%s mode", write_mode ? "Append-only" : "Write-anywhere");
