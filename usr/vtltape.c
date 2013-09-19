@@ -533,6 +533,7 @@ int resp_write_attribute(struct scsi_cmd *cmd)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *cdb = cmd->scb;
 	struct priv_lu_ssc *lu_priv;
+	struct s_sd sd;
 
 	alloc_len = get_unaligned_be32(&cdb[10]);
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
@@ -563,11 +564,15 @@ int resp_write_attribute(struct scsi_cmd *cmd)
 				break;
 			} else {
 				found_attribute = 0;
+				sd.field_pointer = indx;
 			}
 		}
 		if (!found_attribute) {
 			memcpy(&mamp, &mam_backup, sizeof(mamp));
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
+			sd.byte0 = SKSV;
+			mkSenseBufExtended(ILLEGAL_REQUEST,
+						E_INVALID_FIELD_IN_PARMS,
+						&sd, sam_stat);
 			return 0;
 		}
 	}
