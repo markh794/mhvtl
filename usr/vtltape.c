@@ -1081,6 +1081,8 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
  */
 void resp_space(int32_t count, int code, uint8_t *sam_stat)
 {
+	struct s_sd sd;
+
 	switch (code) {
 	/* Space 'count' blocks */
 	case 0:
@@ -1102,7 +1104,10 @@ void resp_space(int32_t count, int code, uint8_t *sam_stat)
 		break;
 
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST,E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 		break;
 	}
 	delay_opcode(DELAY_POSITION, lu_ssc.delay_position);
