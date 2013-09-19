@@ -1383,6 +1383,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;
 	unsigned int count;
+	struct s_sd sd;
 #ifdef MHVTL_DEBUG
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint8_t inc_512 = (cmd->scb[4] & 0x80) ? 1 : 0;
@@ -1393,7 +1394,10 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 
 	if (cmd->scb[1] != TAPE_DATA_ENCRYPTION) {
 		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cmd->scb[1]);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	MHVTL_DBG(2, "Tape Data Encryption, %s, "
@@ -1405,7 +1409,22 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 	if ((buf[0] != 0x00) || (buf[1] != 0x10) ||
 		(buf[2] != 0x00) || (buf[3] < 16) ||
 		(buf[8] != 0x01) || (buf[9] != 0x00)) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV;
+		/* Make sure the 'byte closest to [0]' is the one reported */
+		if (buf[9])
+			sd.field_pointer = 9;
+		if (buf[8] != 1)
+			sd.field_pointer = 8;
+		if (buf[3] < 16)
+			sd.field_pointer = 3;
+		if (buf[2])
+			sd.field_pointer = 2;
+		if (buf[1] != 0x10)
+			sd.field_pointer = 1;
+		if (buf[0])
+			sd.field_pointer = 0;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+						&sd,  sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
