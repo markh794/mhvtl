@@ -1164,6 +1164,7 @@ static char *lookup_sp_specific(uint16_t field)
 static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sam_stat)
 {
 	int ret = 0;
+	struct s_sd sd;
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
@@ -1189,7 +1190,10 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 		break;
 
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 2;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 	}
 	return ret;
 }
@@ -1208,6 +1212,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 	uint32_t alloc_len = get_unaligned_be32(&cmd->scb[6]);
 	struct priv_lu_ssc *lu_priv;
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+	struct s_sd sd;
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
@@ -1350,7 +1355,10 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 		break;
 
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 2;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 	}
 	return ret;
 }
@@ -1366,6 +1374,7 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint32_t alloc_len = get_unaligned_be32(&cdb[6]);
 	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
+	struct s_sd sd;
 
 	cmd->dbuf_p->sz = 0;
 
@@ -1381,7 +1390,10 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 		break;
 	default:
 		MHVTL_DBG(1, "Security protocol 0x%04x unknown", cdb[1]);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 	}
 	return *sam_stat;
 }
