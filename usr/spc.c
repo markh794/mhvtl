@@ -667,7 +667,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		MHVTL_DBG(2, "Unknown mode page: 0x%02x sub-page code: 0x%02x",
 							pcode, subpcode);
 		sd.byte0 = SKSV | CD;
-		put_unaligned_be16(2, &sd.field_pointer); /* Byte 3 page code */
+		put_unaligned_be16(2, &sd.field_pointer); /* Byte 2 page code */
 		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
