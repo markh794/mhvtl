@@ -478,7 +478,7 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 	if (sp) {
 		MHVTL_DBG(1, " Log Select - Save Parameters not supported");
 		sd.byte0 = SKSV | CD | BPV | 1; /* bit 1 */
-		put_unaligned_be16(1, &sd.field_pointer); /* cbd byte 1 */
+		sd.field_pointer = 1;
 		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -486,8 +486,8 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 
 	if (pcr) {	/* Check for Parameter code reset */
 		if (parmList) {	/* If non-zero, error */
-		sd.byte0 = SKSV | CD;
-		put_unaligned_be16(7, &sd.field_pointer); /* cbd byte 7 */
+			sd.byte0 = SKSV | CD;
+			sd.field_pointer = 7;
 			mkSenseBufExtended(ILLEGAL_REQUEST,
 						E_INVALID_FIELD_IN_CDB,
 						&sd, sam_stat);
@@ -609,7 +609,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 
 	if (pcode == 0x3f && (subpcode != 0x0 && subpcode != 0xff)) {
 		sd.byte0 = SKSV | CD;
-		put_unaligned_be16(3, &sd.field_pointer); /* Byte 3 sub page */
+		sd.field_pointer = 3;
 		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -667,7 +667,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 		MHVTL_DBG(2, "Unknown mode page: 0x%02x sub-page code: 0x%02x",
 							pcode, subpcode);
 		sd.byte0 = SKSV | CD;
-		put_unaligned_be16(2, &sd.field_pointer); /* Byte 2 page code */
+		sd.field_pointer = 2;	/* Byte 2 page code */
 		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
