@@ -1163,7 +1163,7 @@ static char *lookup_sp_specific(uint16_t field)
  */
 static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint8_t *sam_stat)
 {
-	int ret = 0;
+	int ret = SAM_STAT_GOOD;
 	struct s_sd sd;
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
@@ -1194,6 +1194,7 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 		sd.field_pointer = 2;
 		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
+		ret = SAM_STAT_CHECK_CONDITION;
 	}
 	return ret;
 }
@@ -1374,12 +1375,24 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
 	uint32_t alloc_len = get_unaligned_be32(&cdb[6]);
 	uint8_t inc_512 = (cdb[4] & 0x80) ? 1 : 0;
+	struct priv_lu_ssc *lu_priv;
 	struct s_sd sd;
+
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
 	cmd->dbuf_p->sz = 0;
 
 	if (inc_512)
 		alloc_len = alloc_len * 512;
+
+	if (alloc_len > lu_priv->bufsize) {
+		MHVTL_LOG("buffer too large - aborting");
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 6;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	switch (cdb[1]) {
 	case SECURITY_PROTOCOL_INFORMATION:
