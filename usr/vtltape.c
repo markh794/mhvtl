@@ -2233,7 +2233,7 @@ static struct device_type_template ssc_ops = {
 		{ssc_rewind,},
 		{spc_illegal_op,},
 		{spc_request_sense,},
-		{ssc_format_media,},
+		{ssc_format_medium,},
 		{ssc_read_block_limits,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},

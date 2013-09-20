@@ -440,7 +440,7 @@ uint8_t ssc_allow_prevent_removal(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t ssc_format_media(struct scsi_cmd *cmd)
+uint8_t ssc_format_medium(struct scsi_cmd *cmd)
 {
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;

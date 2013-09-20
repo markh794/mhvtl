@@ -194,7 +194,7 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd);
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd);
 uint8_t ssc_allow_prevent_removal(struct scsi_cmd *cmd);
 uint8_t ssc_erase(struct scsi_cmd *cmd);
-uint8_t ssc_format_media(struct scsi_cmd *cmd);
+uint8_t ssc_format_medium(struct scsi_cmd *cmd);
 uint8_t ssc_load_display(struct scsi_cmd *cmd);
 uint8_t ssc_log_select(struct scsi_cmd *cmd);
 uint8_t ssc_log_sense(struct scsi_cmd *cmd);
