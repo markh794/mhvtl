@@ -784,6 +784,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	uint32_t elem_byte_count;
 	uint32_t byte_count;
 	uint32_t cur_count;
+	struct s_sd sd;
 #ifdef MHVTL_DEBUG
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
 	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
@@ -817,7 +818,10 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
 		MHVTL_DBG(3, "cdb[11] : Illegal value");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 11;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -825,7 +829,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	start = find_first_matching_element(smc_p, req_start_elem, type);
 	if (start == 0) {	/* Nothing found.. */
 		MHVTL_DBG(1, "Start element is still 0, line %d", __LINE__);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -893,7 +898,10 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		}
 		break;
 	default:	/* Illegal descriptor type. */
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
