@@ -785,6 +785,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	int mode_medium_type;
 	int mode_dev_spec_param;
 	int mode_block_descriptor_len;
+	struct s_sd sd;
 
 	save_pages = cmd->scb[1] & 0x01;
 	page_format = (cmd->scb[1] & (1 << 4)) ? 1 : 0;
@@ -831,7 +832,10 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	if (!page_format && page_len) {
 		MHVTL_DBG(1, "PF bit cleared, yet page data supplied. Len: %d",
 					page_len);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD | BPV | 4;	/* bit 4 is invalid */
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -921,7 +925,10 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 	 */
 	if (save_pages) {
 		MHVTL_DBG(1, " Save pages bit set. Not supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD | BPV | 1;	/* bit 1 is invalid */
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -995,9 +1002,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			} else {
 				MHVTL_DBG(2, "Invalid page len: 0x%02x",
 							page_len);
-				mkSenseBuf(ILLEGAL_REQUEST,
+				sd.byte0 = SKSV;
+				sd.field_pointer = i + 1;
+				mkSenseBufExtended(ILLEGAL_REQUEST,
 							E_INVALID_FIELD_IN_CDB,
-							sam_stat);
+							&sd, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
 			}
 			break;
@@ -1005,16 +1014,22 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		default:
 			MHVTL_DBG_PRT_CDB(1, cmd);
 			MHVTL_LOG("Mode page 0x%02x not handled", page);
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							sam_stat);
+			sd.byte0 = SKSV;
+			sd.field_pointer = i;
+			mkSenseBufExtended(ILLEGAL_REQUEST,
+							E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 			break;
 		}
 		if (page_len == 0) { /* Something wrong with data structure */
 			page_len = cmd->dbuf_p->sz;
 			MHVTL_LOG("Problem with mode select data structure");
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-								sam_stat);
+			sd.byte0 = SKSV;
+			sd.field_pointer = i + 1;
+			mkSenseBufExtended(ILLEGAL_REQUEST,
+							E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		i += page_len + offset;	/* Next mode page */
