@@ -462,6 +462,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 	uint8_t *cdb = cmd->scb;
 	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	struct s_sd sd;
 
 	attrib = get_unaligned_be16(&cdb[8]);
 	alloc_len = get_unaligned_be32(&cdb[10]);
@@ -492,8 +493,12 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 			}
 		}
 		if (!found_attribute) {
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
-			return 0;
+			sd.byte0 = SKSV | CD;
+			sd.field_pointer = 8;
+			mkSenseBufExtended(ILLEGAL_REQUEST,
+						E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
 		}
 	} else {
 		/* Attribute List */
