@@ -1438,6 +1438,7 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 	int count;
 	int icount;
 	int code;
+	struct s_sd sd;
 
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
@@ -1483,7 +1484,10 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 			(long)cmd->dbuf_p->serialNo,
 			code);
 
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS, sam_stat);
+		sd.byte0 = SKSV | CD | BPV | code;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
+						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
