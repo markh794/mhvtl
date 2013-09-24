@@ -1351,6 +1351,7 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
 	uint8_t media;
+	struct s_sd sd;
 
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
@@ -1364,7 +1365,10 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 
 	if (cmd->scb[1] & 0x02) { /* Don't support Medium Type (yet) */
 		MHVTL_DBG(1, "Medium Type - not currently supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
