@@ -1656,6 +1656,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 	struct list_head *l_head;
 	struct log_pg_list *l;
 	char msg[64];
+	struct s_sd sd;
 
 	sprintf(msg, "LOG SENSE (%ld) ** : ", (long)cmd->dbuf_p->serialNo);
 
@@ -1795,7 +1796,10 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 
 log_page_not_found:
 	cmd->dbuf_p->sz = 0;
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+	sd.byte0 = SKSV | CD;
+	sd.field_pointer = 2;
+	mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
 
