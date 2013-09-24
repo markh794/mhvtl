@@ -183,9 +183,11 @@ void *zalloc(int sz)
  * Sets 'sam status' to SAM_STAT_CHECK_CONDITION.
  */
 
-void mkSenseBufExtended(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
+void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
 						uint8_t *sam_stat)
 {
+	char extended[32];
+
 	/* Clear Sense key status */
 	memset(sense, 0, SENSE_BUF_SIZE);
 
@@ -217,15 +219,23 @@ void mkSenseBufExtended(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
 	if (sd) {
 		sense[15] = sd->byte0;
 		put_unaligned_be16(sd->field_pointer, &sense[16]);
+		sprintf(extended, " 0x%02x %04x", sd->byte0, sd->field_pointer);
 	}
 
-	MHVTL_DBG(1, "SENSE [Key/ASC/ASCQ] [%02x %02x %02x]",
-				sense[2], sense[12], sense[13]);
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x %02x %02x]%s",
+				sense[2], sense[12], sense[13],
+				(sd) ? extended : "");
+}
+
+void mkSenseBufExtended(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
+						uint8_t *sam_stat)
+{
+	return_sense(key, asc_ascq, sd, sam_stat);
 }
 
 void mkSenseBuf(uint8_t key, uint32_t asc_ascq, uint8_t *sam_stat)
 {
-	mkSenseBufExtended(key, asc_ascq, NULL, sam_stat);
+	return_sense(key, asc_ascq, NULL, sam_stat);
 }
 
 int check_reset(uint8_t *sam_stat)
