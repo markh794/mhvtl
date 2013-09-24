@@ -1432,6 +1432,7 @@ uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	int addr;
 	int action_code;
+	struct s_sd sd;
 
 	MHVTL_DBG(1, "OPEN/CLOSE IMPORT/EXPORT ELEMENT (%ld) **",
 					(long)cmd->dbuf_p->serialNo);
@@ -1459,7 +1460,10 @@ uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
 		break;
 	default:
 		MHVTL_DBG(1, "unknown action code: %d", action_code);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 4;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
