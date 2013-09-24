@@ -1401,6 +1401,7 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
+	struct s_sd sd;
 
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
@@ -1414,7 +1415,10 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 
 	if (c_pos->blk_number != 0) {
 		MHVTL_LOG("Not at BOT.. Can't erase unless at BOT");
-		mkSenseBuf(NOT_READY, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 0;
+		mkSenseBufExtended(NOT_READY, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
