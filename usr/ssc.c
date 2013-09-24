@@ -1502,6 +1502,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
+	struct s_sd sd;
 	int load;
 
 	lu_priv = cmd->lu->lu_private;
@@ -1513,7 +1514,10 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 
 	if (cmd->scb[4] & 0x04) { /* EOT bit */
 		MHVTL_ERR("EOT bit set on load. Not supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD | BPV | 4;
+		sd.field_pointer = 4;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
