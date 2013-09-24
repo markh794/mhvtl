@@ -1325,6 +1325,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 	int dest_addr, dest_type;
 	int retval = SAM_STAT_GOOD;
 	struct smc_priv *smc_p = cmd->lu->lu_private;
+	struct s_sd sd;
 
 	MHVTL_DBG(1, "MOVE MEDIUM (%ld) **", (long)cmd->dbuf_p->serialNo);
 
@@ -1347,12 +1348,18 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 
 	if (cdb[10] != 0) {	/* Can not Invert media */
 		MHVTL_ERR("Can not invert media");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 10;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	if (cdb[11] == 0xc0) {	/* Invalid combo of Extend/retract I/O port */
 		MHVTL_ERR("Extend/retract I/O port invalid");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 11;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	if (cdb[11]) /* Must be an Extend/Retract I/O port cdb.. NO-OP */
@@ -1363,17 +1370,26 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 	if (slot_type(smc_p, transport_addr) != MEDIUM_TRANSPORT) {
 		MHVTL_ERR("Can't move media using slot type %d",
 				slot_type(smc_p, transport_addr));
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 2;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, src_addr)) {
 		MHVTL_ERR("Invalid source slot: %d", src_addr);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 4;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, dest_addr)) {
 		MHVTL_ERR("Invalid dest slot: %d", dest_addr);
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 6;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 
