@@ -163,6 +163,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	int k;
 	int retval = 0;
 	int fixed = cdb[1] & FIXED;
+	struct s_sd sd;
 
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
@@ -175,7 +176,10 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
 		MHVTL_DBG(1, "Suppress ILI and Fixed block "
 					"read not allowed by SSC3");
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
