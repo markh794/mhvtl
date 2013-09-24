@@ -69,6 +69,7 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 	uint8_t ret_stat = SAM_STAT_GOOD;
 	uint64_t allow_overwrite_block;
 	struct priv_lu_ssc *lu_ssc;
+	struct s_sd sd;
 
 	lu_ssc = cmd->lu->lu_private;
 
@@ -87,9 +88,11 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 	case 1:  /* current position */
 		if (partition) { /* Paritions not supported at this stage */
 			MHVTL_LOG("Partitions not implemented at this time");
-			mkSenseBuf(ILLEGAL_REQUEST,
+			sd.byte0 = SKSV | CD;
+			sd.field_pointer = 3;
+			mkSenseBufExtended(ILLEGAL_REQUEST,
 					E_INVALID_FIELD_IN_CDB,
-					sam_stat);
+					&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		allow_overwrite_block = get_unaligned_be64(&cdb[4]);
@@ -112,7 +115,10 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 		lu_ssc->allow_overwrite = 2;
 		break;
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 2;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
 		ret_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
