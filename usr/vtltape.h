@@ -174,6 +174,7 @@ extern struct blk_header *c_pos;
 extern int OK_to_write;
 
 int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat);
+void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len);
 
 int load_tape(const char *pcl, uint8_t *sam_stat);
 void unload_tape(uint8_t *sam_stat);

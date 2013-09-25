@@ -1388,8 +1388,10 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
+	memset_ssc_buf(cmd, get_unaligned_be16(&cmd->scb[7]));
+
 	cmd->dbuf_p->sz = resp_report_density(lu_priv, media, cmd->dbuf_p);
+
 	return SAM_STAT_GOOD;
 }
 

@@ -331,6 +331,16 @@ int lookup_mode_media_type(struct name_to_media_info *media_info, int med)
 	return media_type_unknown;
 }
 
+void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len)
+{
+	struct priv_lu_ssc *lu_priv;
+	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
+
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+
+	memset(buf, 0, min((int)alloc_len, lu_priv->bufsize));
+}
+
 static void finish_mount(int sig)
 {
 	MHVTL_DBG(3, "+++ Trace +++");
@@ -378,7 +388,6 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 	struct list_head *l_head;
 	struct density_info *di;
 	struct supported_density_list *den;
-	int len = dbuf_p->sz;
 	int count;
 	uint32_t a;
 	uint8_t *ds;	/* Density Support Data Block Descriptor */
@@ -386,7 +395,6 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 	l_head = &lu_priv->pm->lu->den_list;
 
 	/* Zero out buf */
-	memset(buf, 0, len);
 	ds = &buf[4];
 	count = 0;
 
@@ -469,7 +477,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 	MHVTL_DBG(2, "Read Attribute: 0x%x, allocation len: %d",
 							attrib, alloc_len);
 
-	memset(buf, 0, alloc_len);	/* Clear memory */
+	memset_ssc_buf(cmd, alloc_len);	/* Clear memory */
 
 	if (cdb[1] == 0) {
 		/* Attribute Values */
@@ -1173,7 +1181,6 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
-	memset(buf, 0, alloc_len);
 	switch (sps) {
 	case SUPPORTED_SECURITY_PROTOCOL_LIST:
 		buf[6] = 0;	/* list length (MSB) */
@@ -1215,14 +1222,12 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 	uint8_t *buf = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint16_t sps = get_unaligned_be16(&cmd->scb[2]);
-	uint32_t alloc_len = get_unaligned_be32(&cmd->scb[6]);
 	struct priv_lu_ssc *lu_priv;
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 	struct s_sd sd;
 
 	MHVTL_DBG(2, "%s", lookup_sp_specific(sps));
 
-	memset(buf, 0, alloc_len);
 	switch (sps) {
 	case ENCR_IN_SUPPORT_PAGES:
 		put_unaligned_be16(ENCR_IN_SUPPORT_PAGES, &buf[0]);
@@ -1398,6 +1403,8 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
+
+	memset_ssc_buf(cmd, alloc_len);
 
 	switch (cdb[1]) {
 	case SECURITY_PROTOCOL_INFORMATION:
