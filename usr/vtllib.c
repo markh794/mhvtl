@@ -335,11 +335,12 @@ int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
 /*
  * Respond with S/No. of media currently mounted
  */
-int resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
+uint32_t resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
 {
-	uint64_t size = 0L;
+	uint32_t size = 38;
 
-	MHVTL_DBG(1, "Read media S/No not implemented yet!");
+	snprintf((char *)&buf[4], size - 5, "%-34s", sno);
+	put_unaligned_be16(size, &buf[2]);
 
 	return size;
 }

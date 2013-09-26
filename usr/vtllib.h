@@ -507,7 +507,7 @@ void mkSenseBuf(uint8_t key, uint32_t asc_ascq, uint8_t *sam_stat);
 void resp_log_select(uint8_t *, uint8_t *);
 int resp_read_position_long(loff_t, uint8_t *, uint8_t *);
 int resp_read_position(loff_t, uint8_t *, uint8_t *);
-int resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
+uint32_t resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
 struct mode *lookup_pcode(struct list_head *l, uint8_t pcode, uint8_t subpcode);
 int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz);

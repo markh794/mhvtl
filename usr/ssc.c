@@ -1258,16 +1258,31 @@ uint8_t ssc_read_block_limits(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
+/* SPC 6.17 - READ MEDIA SERIAL NUMBER */
 uint8_t ssc_read_media_sn(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
+	uint32_t alloc_len;
+	struct s_sd sd;
 
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
+	alloc_len = get_unaligned_be32(&cmd->scb[6]);
 
 	MHVTL_DBG(1, "READ MEDIUM SERIAL NO. (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
+
+	if (cmd->scb[1] != 1) {	/* Service Action 1 only */
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+							&sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	memset_ssc_buf(cmd, alloc_len);
+
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_LOADED:
 		cmd->dbuf_p->sz = resp_read_media_serial(lu_priv->mediaSerialNo,
