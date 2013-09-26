@@ -788,7 +788,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 		MHVTL_DBG(1, "Expected to find DATA header, found: EOD");
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
+		sam_blank_check(E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(save_sense, &sense[3]);
 		return 0;
 		break;

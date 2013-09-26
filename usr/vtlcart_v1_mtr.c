@@ -103,7 +103,7 @@ static int skip_to_next_header(uint8_t *sam_stat)
 {
 	MHVTL_DBG(1, "skip_to_next_header");
 	if (raw_pos.hdr.blk_type == B_EOD) {
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
+		sam_blank_check(E_END_OF_DATA, sam_stat);
 		MHVTL_DBG(1, "End of data detected while forward SPACEing!!");
 		return -1;
 	}
@@ -322,7 +322,7 @@ static int skip_next_filemark(uint8_t *sam_stat)
 	while (raw_pos.hdr.blk_type != B_FILEMARK) {
 		/* END-OF-DATA -> Treat this as an error - return.. */
 		if (raw_pos.hdr.blk_type == B_EOD) {
-			mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
+			sam_blank_check(E_END_OF_DATA, sam_stat);
 			MHVTL_DBG(2, "%s", "Found end of media");
 			if (MediumType == MEDIA_TYPE_WORM)
 				OK_to_write = 1;

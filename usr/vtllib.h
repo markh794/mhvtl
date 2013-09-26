@@ -510,6 +510,7 @@ void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat);
 void sam_not_ready(uint16_t ascq, uint8_t *sam_stat);
 void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat);
 void sam_medium_error(uint16_t ascq, uint8_t *sam_stat);
+void sam_blank_check(uint16_t ascq, uint8_t *sam_stat);
 
 void resp_log_select(uint8_t *, uint8_t *);
 int resp_read_position_long(loff_t, uint8_t *, uint8_t *);

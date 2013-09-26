@@ -399,7 +399,7 @@ int position_to_block(uint32_t blk_number, uint8_t *sam_stat)
 		OK_to_write = 0;
 
 	if (blk_number > eod_blk_number) {
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
+		sam_blank_check(E_END_OF_DATA, sam_stat);
 		MHVTL_DBG(1, "End of data detected while positioning");
 		return position_to_eod(sam_stat);
 	}
@@ -466,7 +466,7 @@ int position_blocks_forw(uint32_t count, uint8_t *sam_stat)
 			return -1;
 
 		MHVTL_DBG(1, "EOD encountered");
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
+		sam_blank_check(E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
 	}
@@ -574,7 +574,7 @@ int position_filemarks_forw(uint32_t count, uint8_t *sam_stat)
 		if (read_header(eod_blk_number, sam_stat))
 			return -1;
 
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
+		sam_blank_check(E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
 	}
@@ -1266,7 +1266,7 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 	*/
 
 	if (raw_pos.hdr.blk_type == B_EOD) {
-		mkSenseBuf(BLANK_CHECK, E_END_OF_DATA, sam_stat);
+		sam_blank_check(E_END_OF_DATA, sam_stat);
 		MHVTL_ERR("End of data detected while reading");
 		return -1;
 	}
