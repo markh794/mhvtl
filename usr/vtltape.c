@@ -934,8 +934,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 	z = lzo1x_1_compress(src_buf, src_sz, dest_buf, &dest_len, wrkmem);
 	if (unlikely(z != LZO_E_OK)) {
 		MHVTL_ERR("LZO compression error");
-		mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK,
-							sam_stat);
+		sam_hardware_error(E_COMPRESSION_CHECK, sam_stat);
 		return 0;
 	}
 
@@ -1003,7 +1002,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 			MHVTL_ERR("Input data corrupt / incomplete");
 			break;
 		}
-		mkSenseBuf(HARDWARE_ERROR, E_COMPRESSION_CHECK, sam_stat);
+		sam_hardware_error(E_COMPRESSION_CHECK, sam_stat);
 		return 0;
 	}
 	MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"

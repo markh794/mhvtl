@@ -991,7 +991,7 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 
 	if (!movecommand) {
 		MHVTL_ERR("malloc failed");
-		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1008,7 +1008,7 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 	res = run_command(movecommand, smc_p->commandtimeout);
 	if (res) {
 		MHVTL_ERR("move command returned %d", res);
-		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	return SAM_STAT_GOOD;
@@ -1075,7 +1075,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	if (check_tape_load()) {
 		MHVTL_ERR("Load of %s into drive %d failed",
 					cmd, slot_number(dest->slot));
-		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1292,7 +1292,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 		send_msg(cmd, src->drv_id);
 		check_tape_load();
-		mkSenseBuf(HARDWARE_ERROR, E_MANUAL_INTERVENTION_REQ, sam_stat);
+		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 

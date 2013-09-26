@@ -645,7 +645,7 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 	/* Code error
 	 * Any device supporting this should have this mode page defined */
 	if (!mp) {
-		mkSenseBuf(HARDWARE_ERROR, E_INTERNAL_TARGET_FAILURE, sam_stat);
+		sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
