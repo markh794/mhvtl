@@ -296,7 +296,7 @@ static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
 		break;
 	default:
 		if (cmd->lu->online == 0) {
-			mkSenseBuf(NOT_READY, E_OFFLINE, &dbuf_p->sam_stat);
+			sam_not_ready(E_OFFLINE, &dbuf_p->sam_stat);
 			return;
 		}
 		if (check_reset(&dbuf_p->sam_stat))

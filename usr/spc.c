@@ -400,7 +400,7 @@ uint8_t spc_tur(struct scsi_cmd *cmd)
 	if (cmd->lu->online)
 		return SAM_STAT_GOOD;
 
-	mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, &cmd->dbuf_p->sam_stat);
+	sam_not_ready(NO_ADDITIONAL_SENSE, &cmd->dbuf_p->sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
 

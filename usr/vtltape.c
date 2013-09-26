@@ -1307,7 +1307,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 
 	case ENCR_NEXT_BLK_ENCR_STATUS:
 		if (lu_priv->tapeLoaded != TAPE_LOADED) {
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		}
 		/* c_pos contains the NEXT block's header info already */

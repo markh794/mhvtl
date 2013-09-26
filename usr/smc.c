@@ -73,7 +73,7 @@ uint8_t smc_initialize_element_status(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "%s (%ld) **", "INITIALIZE ELEMENT",
 				(long)cmd->dbuf_p->serialNo);
 	if (!cmd->lu->online) {
-		mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
+		sam_not_ready(NO_ADDITIONAL_SENSE, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	sleep(1);
@@ -90,7 +90,7 @@ uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd)
 				(long)cmd->dbuf_p->serialNo);
 
 	if (!cmd->lu->online) {
-		mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, sam_stat);
+		sam_not_ready(NO_ADDITIONAL_SENSE, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	sleep(1);
@@ -1041,7 +1041,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	if (src->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, src)) {
 			MHVTL_DBG(2, "SOURCE MAP port not accessable");
-			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
+			sam_not_ready(E_MAP_OPEN, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1122,7 +1122,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	if (src->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, src)) {
 			MHVTL_DBG(2, "SOURCE MAP port not accessable");
-			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
+			sam_not_ready(E_MAP_OPEN, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1130,7 +1130,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	if (dest->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, dest)) {
 			MHVTL_DBG(2, "DESTINATION MAP port not accessable");
-			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
+			sam_not_ready(E_MAP_OPEN, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1211,7 +1211,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 
 	if (dest->element_type == MAP_ELEMENT) {
 		if (!map_access_ok(smc_p, dest)) {
-			mkSenseBuf(NOT_READY, E_MAP_OPEN, sam_stat);
+			sam_not_ready(E_MAP_OPEN, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1418,7 +1418,7 @@ uint8_t smc_rezero(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "REZERO (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	if (!cmd->lu->online) {
-		mkSenseBuf(NOT_READY, NO_ADDITIONAL_SENSE, &cmd->dbuf_p->sam_stat);
+		sam_not_ready(NO_ADDITIONAL_SENSE, &cmd->dbuf_p->sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	sleep(1);

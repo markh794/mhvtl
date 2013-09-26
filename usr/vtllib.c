@@ -232,6 +232,11 @@ void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat)
 	return_sense(UNIT_ATTENTION, ascq, NULL, sam_stat);
 }
 
+void sam_not_ready(uint16_t ascq, uint8_t *sam_stat)
+{
+	return_sense(NOT_READY, ascq, NULL, sam_stat);
+}
+
 int check_reset(uint8_t *sam_stat)
 {
 	int retval = reset;

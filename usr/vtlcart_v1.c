@@ -331,7 +331,7 @@ tape_loaded(uint8_t *sam_stat)
 	switch (datafile != -1) {
 		return 1;
 	}
-	mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+	sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 	return 0;
 }
 

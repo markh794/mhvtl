@@ -185,25 +185,25 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 
 	switch (lu_ssc->tapeLoaded) {
 	case TAPE_LOADING:
-		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		sam_not_ready(E_BECOMING_READY, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
 		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 			MHVTL_DBG(3, "Cleaning cart loaded");
-			mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
+			sam_not_ready(E_CLEANING_CART_INSTALLED,
 								sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
 	case TAPE_UNLOADED:
 		MHVTL_DBG(3, "No media loaded");
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
 		MHVTL_DBG(1, "Media format corrupt");
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -287,19 +287,19 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 	/* Check that there is a piece of media loaded.. */
 	switch (lu_ssc->tapeLoaded) {
 	case TAPE_LOADING:
-		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		sam_not_ready(E_BECOMING_READY, sam_stat);
 		*lu_ssc->OK_2_write = 0;
 		return *lu_ssc->OK_2_write;
 		break;
 	case TAPE_LOADED:	/* Do nothing */
 		break;
 	case TAPE_UNLOADED:
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		*lu_ssc->OK_2_write = 0;
 		return *lu_ssc->OK_2_write;
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		*lu_ssc->OK_2_write = 0;
 		return *lu_ssc->OK_2_write;
 		break;
@@ -307,7 +307,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 
 	switch (mam.MediumType) {
 	case MEDIA_TYPE_CLEAN:
-		mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED, sam_stat);
+		sam_not_ready(E_CLEANING_CART_INSTALLED, sam_stat);
 		MHVTL_DBG(2, "Can not write - Cleaning cart");
 		*lu_ssc->OK_2_write = 0;
 		break;
@@ -1062,7 +1062,7 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd)
 
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_UNLOADED:
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
@@ -1074,7 +1074,7 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd)
 			rewriteMAM(sam_stat);
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1097,12 +1097,12 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_UNLOADED:
 		strcat(str, "No, No tape loaded");
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADING:
 		strcat(str, "No, Tape loading");
-		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		sam_not_ready(E_BECOMING_READY, sam_stat);
 		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
@@ -1118,20 +1118,20 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 
 			switch (state) {
 			case CLEAN_MOUNT_STAGE1:
-				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
+				sam_not_ready(E_CLEANING_CART_INSTALLED,
 								sam_stat);
 				break;
 			case CLEAN_MOUNT_STAGE2:
-				mkSenseBuf(NOT_READY, E_CAUSE_NOT_REPORTABLE,
+				sam_not_ready(E_CAUSE_NOT_REPORTABLE,
 								sam_stat);
 				break;
 			case CLEAN_MOUNT_STAGE3:
-				mkSenseBuf(NOT_READY, E_INITIALIZING_REQUIRED,
+				sam_not_ready(E_INITIALIZING_REQUIRED,
 								sam_stat);
 				break;
 			default:
 				MHVTL_ERR("Unknown cleaning media mount state");
-				mkSenseBuf(NOT_READY, E_CLEANING_CART_INSTALLED,
+				sam_not_ready(E_CLEANING_CART_INSTALLED,
 								sam_stat);
 				break;
 			}
@@ -1142,7 +1142,7 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 		break;
 	default:
 		strcat(str, "No, Media format corrupt");
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1167,19 +1167,19 @@ uint8_t ssc_rewind(struct scsi_cmd *cmd)
 
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_UNLOADED:
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
 		retval = rewind_tape(sam_stat);
 		delay_opcode(DELAY_REWIND, lu_priv->delay_rewind);
 		if (retval < 0) {
-			mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+			sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1202,14 +1202,14 @@ uint8_t ssc_read_attributes(struct scsi_cmd *cmd)
 	switch (lu_priv->tapeLoaded) {
 	case TAPE_UNLOADED:
 		MHVTL_DBG(1, "Failed due to \"no media loaded\"");
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
 		break;
 	default:
 		MHVTL_DBG(1, "Failed due to \"media corrupt\"");
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1246,11 +1246,11 @@ uint8_t ssc_read_block_limits(struct scsi_cmd *cmd)
 							lu_priv->bufsize);
 		break;
 	case TAPE_LOADING:
-		mkSenseBuf(NOT_READY, E_BECOMING_READY, sam_stat);
+		sam_not_ready(E_BECOMING_READY, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1290,11 +1290,11 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd)
 							sam_stat);
 		break;
 	case TAPE_UNLOADED:
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1346,11 +1346,11 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 		}
 		break;
 	case TAPE_UNLOADED:
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1399,7 +1399,7 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 
 	if (media == 1 && lu_priv->tapeLoaded != TAPE_LOADED) {
 		MHVTL_DBG(1, "Media has to be mounted to return media density");
-		mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1428,7 +1428,6 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 {
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
-	struct s_sd sd;
 
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
@@ -1442,10 +1441,7 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 
 	if (c_pos->blk_number != 0) {
 		MHVTL_LOG("Not at BOT.. Can't erase unless at BOT");
-		sd.byte0 = SKSV | CD;
-		sd.field_pointer = 0;
-		return_sense(NOT_READY, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_not_ready(E_INVALID_FIELD_IN_CDB, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1453,7 +1449,7 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 		format_tape(sam_stat);
 	else {
 		MHVTL_LOG("Attempt to erase Write-protected media");
-		mkSenseBuf(NOT_READY, E_MEDIUM_OVERWRITE_ATTEMPTED, sam_stat);
+		sam_not_ready(E_MEDIUM_OVERWRITE_ATTEMPTED, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	return SAM_STAT_GOOD;
@@ -1556,7 +1552,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 		if (load)
 			rewind_tape(sam_stat);
 		else {
-			mkSenseBuf(NOT_READY, E_MEDIUM_NOT_PRESENT, sam_stat);
+			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
@@ -1567,7 +1563,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 		break;
 
 	default:
-		mkSenseBuf(NOT_READY, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
