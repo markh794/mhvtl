@@ -80,16 +80,20 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 {
 	int len = 0;
 	struct vpd *vpd_pg;
-	unsigned char key = ILLEGAL_REQUEST;
-	uint16_t asc = E_INVALID_FIELD_IN_CDB;
 	uint8_t *data = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t *cdb = cmd->scb;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	struct lu_phy_attr *lu = cmd->lu;
+	struct s_sd sd;
 
 	MHVTL_DBG(1, "INQUIRY ** (%ld)", (long)cmd->dbuf_p->serialNo);
 
-	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2]))
-		goto sense;
+	if (((cdb[1] & 0x3) == 0x3) || (!(cdb[1] & 0x3) && cdb[2])) {
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	if (cdb[1] & 0x3) /* VPD bit set - clear memory */
 		memset(data, 0, MAX_INQUIRY_SZ);
@@ -143,10 +147,6 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 	}
 	cmd->dbuf_p->sz = len;
 	return SAM_STAT_GOOD;
-
-sense:
-	mkSenseBuf(key, asc, &cmd->dbuf_p->sam_stat);
-	return SAM_STAT_CHECK_CONDITION;
 }
 
 #ifdef MHVTL_DEBUG
@@ -203,9 +203,12 @@ uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint8_t TYPE;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	uint8_t *buf = (uint8_t *)dbuf_p->data;
+	struct s_sd sd;
 
 	if (dbuf_p->sz != 24) {
-		mkSenseBuf(ILLEGAL_REQUEST, E_PARAMETER_LIST_LENGTH_ERR, sam_stat);
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 5;
+		sam_illegal_request(E_PARAMETER_LIST_LENGTH_ERR, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -319,11 +322,11 @@ uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		SPR_Reservation_Generation++;
 		break;
 	case 7: /* REGISTER AND MOVE */
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -343,6 +346,7 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 	uint8_t *buf = (uint8_t *)dbuf_p->data;
 	uint8_t *sam_stat = &dbuf_p->sam_stat;
 	uint8_t sam_status;
+	struct s_sd sd;
 
 	SA = cdb[1] & 0x1f;
 
@@ -384,8 +388,10 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
 		break;
 	case 3: /* READ FULL STATUS */
 	default:
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
 		dbuf_p->sz = 0;
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		sam_status = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -406,6 +412,7 @@ uint8_t spc_tur(struct scsi_cmd *cmd)
 
 uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 {
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	struct s_sd sd;
 
 	MHVTL_DBG(1, "UNSUPPORTED OP CODE **");
@@ -413,8 +420,7 @@ uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 	sd.byte0 = SKSV | CD;
 	sd.field_pointer = 0;	/* byte 0 in cdb is invalid (the op code) */
 
-	return_sense(ILLEGAL_REQUEST, E_INVALID_OP_CODE,
-					&sd, &cmd->dbuf_p->sam_stat);
+	sam_illegal_request(E_INVALID_OP_CODE, &sd, sam_stat);
 
 	return SAM_STAT_CHECK_CONDITION;
 }
@@ -479,8 +485,7 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, " Log Select - Save Parameters not supported");
 		sd.byte0 = SKSV | CD | BPV | 1; /* bit 1 */
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-					&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -488,9 +493,8 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 		if (parmList) {	/* If non-zero, error */
 			sd.byte0 = SKSV | CD;
 			sd.field_pointer = 7;
-			return_sense(ILLEGAL_REQUEST,
-						E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd,
+								sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		switch ((cdb[2] & 0xc0) >> 6) {
@@ -603,15 +607,14 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 
 	if (0x3 == pc) {  /* Saving values not supported */
 		MHVTL_DBG(2, "Reporting on Saved Values not supported");
-		mkSenseBuf(ILLEGAL_REQUEST, E_SAVING_PARMS_UNSUP, sam_stat);
+		sam_illegal_request(E_SAVING_PARMS_UNSUP, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	if (pcode == 0x3f && (subpcode != 0x0 && subpcode != 0xff)) {
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 3;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -668,8 +671,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 							pcode, subpcode);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 2;	/* Byte 2 page code */
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-					&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		}
 
@@ -751,6 +753,7 @@ uint8_t spc_recv_diagnostics(struct scsi_cmd *cmd)
 	uint8_t *data;
 	uint8_t pc;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	struct s_sd sd;
 
 	MHVTL_DBG(1, "RECEIVE DIAGNOSTIC (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
@@ -770,7 +773,9 @@ uint8_t spc_recv_diagnostics(struct scsi_cmd *cmd)
 		}
 	}
 
+	sd.byte0 = SKSV | CD;
+	sd.field_pointer = 1;
 	cmd->dbuf_p->sz = 0;
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }

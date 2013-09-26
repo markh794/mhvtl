@@ -503,9 +503,8 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 		if (!found_attribute) {
 			sd.byte0 = SKSV | CD;
 			sd.field_pointer = 8;
-			return_sense(ILLEGAL_REQUEST,
-						E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd,
+								sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	} else {
@@ -583,9 +582,8 @@ int resp_write_attribute(struct scsi_cmd *cmd)
 		if (!found_attribute) {
 			memcpy(&mamp, &mam_backup, sizeof(mamp));
 			sd.byte0 = SKSV;
-			return_sense(ILLEGAL_REQUEST,
-						E_INVALID_FIELD_IN_PARMS,
-						&sd, sam_stat);
+			sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd,
+								sam_stat);
 			return 0;
 		}
 	}
@@ -1119,8 +1117,7 @@ void resp_space(int32_t count, int code, uint8_t *sam_stat)
 	default:
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		break;
 	}
 	delay_opcode(DELAY_POSITION, lu_ssc.delay_position);
@@ -1204,8 +1201,7 @@ static int resp_spin_page_0(uint8_t *buf, uint16_t sps, uint32_t alloc_len, uint
 	default:
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 2;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		ret = SAM_STAT_CHECK_CONDITION;
 	}
 	return ret;
@@ -1368,8 +1364,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 	default:
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 2;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	}
 	return ret;
 }
@@ -1399,8 +1394,7 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 		MHVTL_LOG("buffer too large - aborting");
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 6;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1417,8 +1411,7 @@ uint8_t resp_spin(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, "Security protocol 0x%04x unknown", cdb[1]);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	}
 	return *sam_stat;
 }
@@ -1443,8 +1436,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cmd->scb[1]);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	MHVTL_DBG(2, "Tape Data Encryption, %s, "
@@ -1470,8 +1462,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 			sd.field_pointer = 1;
 		if (buf[0])
 			sd.field_pointer = 0;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
-						&sd,  sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1515,7 +1506,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 		UKAD_LENGTH = 0;
 		AKAD_LENGTH = 0;
 		KEY_LENGTH = 0;
-		mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 

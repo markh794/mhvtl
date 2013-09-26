@@ -237,6 +237,11 @@ void sam_not_ready(uint16_t ascq, uint8_t *sam_stat)
 	return_sense(NOT_READY, ascq, NULL, sam_stat);
 }
 
+void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat)
+{
+	return_sense(ILLEGAL_REQUEST, ascq, sd, sam_stat);
+}
+
 int check_reset(uint8_t *sam_stat)
 {
 	int retval = reset;
@@ -751,8 +756,12 @@ char *get_version(void)
 
 void log_opcode(char *opcode, struct scsi_cmd *cmd)
 {
+	struct s_sd sd;
+
 	MHVTL_DBG(1, "*** Unsupported op code: %s ***", opcode);
-	mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_OP_CODE, &cmd->dbuf_p->sam_stat);
+	sd.byte0 = SKSV | CD;
+	sd.field_pointer = 0;
+	sam_illegal_request(E_INVALID_OP_CODE, &sd, &cmd->dbuf_p->sam_stat);
 	MHVTL_DBG_PRT_CDB(1, cmd);
 }
 

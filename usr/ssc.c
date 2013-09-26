@@ -90,8 +90,7 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 			MHVTL_LOG("Partitions not implemented at this time");
 			sd.byte0 = SKSV | CD;
 			sd.field_pointer = 3;
-			return_sense(ILLEGAL_REQUEST,
-					E_INVALID_FIELD_IN_CDB,
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB,
 					&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
@@ -105,9 +104,8 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 			/* Set allow_overwrite position to an invalid number */
 			lu_ssc->allow_overwrite_block = 0;
 			lu_ssc->allow_overwrite_block--;
-			mkSenseBuf(ILLEGAL_REQUEST,
-					E_SEQUENTIAL_POSITIONING_ERROR,
-					sam_stat);
+			sam_illegal_request(E_SEQUENTIAL_POSITIONING_ERROR,
+						NULL, sam_stat);
 			ret_stat = SAM_STAT_CHECK_CONDITION;
 		}
 		break;
@@ -117,8 +115,7 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 	default:
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 2;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		ret_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -178,8 +175,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 					"read not allowed by SSC3");
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -331,7 +327,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 		break;
 	default:
 		*lu_ssc->OK_2_write = 0;
-		mkSenseBuf(ILLEGAL_REQUEST, E_MEDIUM_INCOMPATIBLE, sam_stat);
+		sam_illegal_request(E_MEDIUM_INCOMPATIBLE, NULL, sam_stat);
 	}
 
 	/* over-ride the above IF the virtual write protect switch is on */
@@ -465,7 +461,7 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd)
 
 	if (c_pos->blk_number != 0) {
 		MHVTL_DBG(2, "Failed - Not at beginning");
-		mkSenseBuf(ILLEGAL_REQUEST, E_POSITION_PAST_BOM,
+		sam_illegal_request(E_POSITION_PAST_BOM, NULL,
 					&cmd->dbuf_p->sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -662,8 +658,7 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 		sd.byte0 = SKSV;
 		sd.field_pointer = 2;
 		MHVTL_LOG("Unexpected page code length.. Unexpected results");
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
-					&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -671,8 +666,7 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 	if (write_mode > 1) {
 		sd.byte0 = SKSV | BPV | 7;	/* bit 7 */
 		sd.field_pointer = 5;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
-					&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	MHVTL_DBG(2, "%s mode", write_mode ? "Append-only" : "Write-anywhere");
@@ -695,8 +689,8 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 		/* Can't reset append-only mode via mode page ssc4 8.3.8 */
 		if (lu_priv->append_only_mode && write_mode == 0) {
 			MHVTL_LOG("Can't reset append only mode via mode page");
-			mkSenseBuf(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
-							sam_stat);
+			sam_illegal_request(E_INVALID_FIELD_IN_PARMS,
+						NULL, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		if (write_mode) {
@@ -844,8 +838,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 					page_len);
 		sd.byte0 = SKSV | CD | BPV | 4;	/* bit 4 is invalid */
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -937,8 +930,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, " Save pages bit set. Not supported");
 		sd.byte0 = SKSV | CD | BPV | 1;	/* bit 1 is invalid */
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1014,8 +1006,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 							page_len);
 				sd.byte0 = SKSV;
 				sd.field_pointer = i + 1;
-				return_sense(ILLEGAL_REQUEST,
-							E_INVALID_FIELD_IN_CDB,
+				sam_illegal_request(E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
 			}
@@ -1026,8 +1017,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			MHVTL_LOG("Mode page 0x%02x not handled", page);
 			sd.byte0 = SKSV;
 			sd.field_pointer = i;
-			return_sense(ILLEGAL_REQUEST,
-							E_INVALID_FIELD_IN_CDB,
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 			break;
@@ -1037,8 +1027,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			MHVTL_LOG("Problem with mode select data structure");
 			sd.byte0 = SKSV;
 			sd.field_pointer = i + 1;
-			return_sense(ILLEGAL_REQUEST,
-							E_INVALID_FIELD_IN_CDB,
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
@@ -1218,8 +1207,7 @@ uint8_t ssc_read_attributes(struct scsi_cmd *cmd)
 	if (cmd->scb[1] > 1) {
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1276,8 +1264,7 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd)
 	if (cmd->scb[1] != 1) {	/* Service Action 1 only */
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1339,9 +1326,8 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 			MHVTL_DBG(1, "service_action not supported");
 			sd.byte0 = SKSV | CD;
 			sd.field_pointer = 1;
-			return_sense(ILLEGAL_REQUEST,
-							E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd,
+								sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
@@ -1392,8 +1378,7 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, "Medium Type - not currently supported");
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1509,8 +1494,7 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 
 		sd.byte0 = SKSV | CD | BPV | code;
 		sd.field_pointer = 1;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_PARMS,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1539,8 +1523,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 		MHVTL_ERR("EOT bit set on load. Not supported");
 		sd.byte0 = SKSV | CD | BPV | 4;
 		sd.field_pointer = 4;
-		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-						&sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1811,8 +1794,7 @@ log_page_not_found:
 	cmd->dbuf_p->sz = 0;
 	sd.byte0 = SKSV | CD;
 	sd.field_pointer = 2;
-	return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
-							&sd, sam_stat);
+	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
 
