@@ -502,8 +502,6 @@ enum MHVTL_STATE {
 int check_reset(uint8_t *);
 void reset_device(void);
 
-void return_sense(uint8_t key, uint32_t asc_ascq,
-				struct s_sd *sd, uint8_t *);
 void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat);
 void sam_not_ready(uint16_t ascq, uint8_t *sam_stat);
 void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat);

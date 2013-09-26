@@ -183,7 +183,7 @@ void *zalloc(int sz)
  * Sets 'sam status' to SAM_STAT_CHECK_CONDITION.
  */
 
-void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
+static void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
 						uint8_t *sam_stat)
 {
 	char extended[32];
