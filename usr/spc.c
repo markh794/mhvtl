@@ -413,7 +413,7 @@ uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 	sd.byte0 = SKSV | CD;
 	sd.field_pointer = 0;	/* byte 0 in cdb is invalid (the op code) */
 
-	mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_OP_CODE,
+	return_sense(ILLEGAL_REQUEST, E_INVALID_OP_CODE,
 					&sd, &cmd->dbuf_p->sam_stat);
 
 	return SAM_STAT_CHECK_CONDITION;
@@ -479,7 +479,7 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, " Log Select - Save Parameters not supported");
 		sd.byte0 = SKSV | CD | BPV | 1; /* bit 1 */
 		sd.field_pointer = 1;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -488,7 +488,7 @@ uint8_t spc_log_select(struct scsi_cmd *cmd)
 		if (parmList) {	/* If non-zero, error */
 			sd.byte0 = SKSV | CD;
 			sd.field_pointer = 7;
-			mkSenseBufExtended(ILLEGAL_REQUEST,
+			return_sense(ILLEGAL_REQUEST,
 						E_INVALID_FIELD_IN_CDB,
 						&sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
@@ -610,7 +610,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 	if (pcode == 0x3f && (subpcode != 0x0 && subpcode != 0xff)) {
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 3;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 						&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -668,7 +668,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd)
 							pcode, subpcode);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 2;	/* Byte 2 page code */
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 					&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		}

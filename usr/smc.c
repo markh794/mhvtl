@@ -820,7 +820,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		MHVTL_DBG(3, "cdb[11] : Illegal value");
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 11;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -829,7 +829,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	start = find_first_matching_element(smc_p, req_start_elem, type);
 	if (start == 0) {	/* Nothing found.. */
 		MHVTL_DBG(1, "Start element is still 0, line %d", __LINE__);
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -900,7 +900,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	default:	/* Illegal descriptor type. */
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 1;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
@@ -1350,7 +1350,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 		MHVTL_ERR("Can not invert media");
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 10;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1358,7 +1358,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 		MHVTL_ERR("Extend/retract I/O port invalid");
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 11;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1372,7 +1372,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 				slot_type(smc_p, transport_addr));
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 2;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
@@ -1380,7 +1380,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 		MHVTL_ERR("Invalid source slot: %d", src_addr);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 4;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
@@ -1388,7 +1388,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 		MHVTL_ERR("Invalid dest slot: %d", dest_addr);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 6;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
@@ -1462,7 +1462,7 @@ uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
 		MHVTL_DBG(1, "unknown action code: %d", action_code);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 4;
-		mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+		return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
@@ -1550,7 +1550,7 @@ log_page_not_found:
 	cmd->dbuf_p->sz = 0;
 	sd.byte0 = SKSV | CD;
 	sd.field_pointer = 2;
-	mkSenseBufExtended(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
+	return_sense(ILLEGAL_REQUEST, E_INVALID_FIELD_IN_CDB,
 							&sd,  sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }

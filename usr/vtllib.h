@@ -501,7 +501,7 @@ enum MHVTL_STATE {
 
 int check_reset(uint8_t *);
 void reset_device(void);
-void mkSenseBufExtended(uint8_t key, uint32_t asc_ascq,
+void return_sense(uint8_t key, uint32_t asc_ascq,
 				struct s_sd *sd, uint8_t *);
 void mkSenseBuf(uint8_t key, uint32_t asc_ascq, uint8_t *sam_stat);
 void resp_log_select(uint8_t *, uint8_t *);

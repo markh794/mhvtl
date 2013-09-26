@@ -227,12 +227,6 @@ void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
 				(sd) ? extended : "");
 }
 
-void mkSenseBufExtended(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
-						uint8_t *sam_stat)
-{
-	return_sense(key, asc_ascq, sd, sam_stat);
-}
-
 void mkSenseBuf(uint8_t key, uint32_t asc_ascq, uint8_t *sam_stat)
 {
 	return_sense(key, asc_ascq, NULL, sam_stat);
