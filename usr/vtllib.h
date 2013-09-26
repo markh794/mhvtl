@@ -499,11 +499,12 @@ enum MHVTL_STATE {
 	MHVTL_STATE_UNKNOWN,
 };
 
+#define mkSenseBuf(x, y, z) return_sense(x, y, NULL, z)
+
 int check_reset(uint8_t *);
 void reset_device(void);
 void return_sense(uint8_t key, uint32_t asc_ascq,
 				struct s_sd *sd, uint8_t *);
-void mkSenseBuf(uint8_t key, uint32_t asc_ascq, uint8_t *sam_stat);
 void resp_log_select(uint8_t *, uint8_t *);
 int resp_read_position_long(loff_t, uint8_t *, uint8_t *);
 int resp_read_position(loff_t, uint8_t *, uint8_t *);

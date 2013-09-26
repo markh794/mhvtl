@@ -1727,7 +1727,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			lu_ssc.pm->cleaning_media(&lu_ssc);
 		fg |= TA_CLEANING_MEDIA;
 		MHVTL_DBG(1, "Cleaning media loaded");
-		mkSenseBuf(UNIT_ATTENTION,E_CLEANING_CART_INSTALLED, sam_stat);
+		mkSenseBuf(UNIT_ATTENTION, E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	case MEDIA_TYPE_WORM:
 		current_state = MHVTL_STATE_LOADING_WORM;
