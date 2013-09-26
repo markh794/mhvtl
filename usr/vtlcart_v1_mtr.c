@@ -302,7 +302,7 @@ static int skip_prev_filemark(uint8_t *sam_stat)
 		raw_pos.hdr.blk_type = B_NOOP;
 	while (raw_pos.hdr.blk_type != B_FILEMARK) {
 		if (raw_pos.hdr.blk_type == B_BOT) {
-			mkSenseBuf(NO_SENSE, E_BOM, sam_stat);
+			sam_no_sense(NO_SENSE, E_BOM, sam_stat);
 			MHVTL_DBG(2, "Found Beginning of tape");
 			return -1;
 		}
@@ -517,8 +517,7 @@ int position_blocks(int32_t count, uint8_t *sam_stat)
 			if (skip_to_prev_header(sam_stat))
 				return -1;
 			if (raw_pos.hdr.blk_type == B_FILEMARK) {
-				mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK,
-					sam_stat);
+				sam_no_sense(SD_FILEMARK, E_MARK, sam_stat);
 				return -1;
 			}
 		}
@@ -527,8 +526,7 @@ int position_blocks(int32_t count, uint8_t *sam_stat)
 			if (skip_to_next_header(sam_stat))
 				return -1;
 			if (raw_pos.hdr.blk_type == B_FILEMARK) {
-				mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK,
-					sam_stat);
+				sam_no_sense(SD_FILEMARK, E_MARK, sam_stat);
 				return -1;
 			}
 		}

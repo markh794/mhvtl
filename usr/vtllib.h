@@ -513,6 +513,7 @@ void sam_medium_error(uint16_t ascq, uint8_t *sam_stat);
 void sam_blank_check(uint16_t ascq, uint8_t *sam_stat);
 void sam_data_protect(uint16_t ascq, uint8_t *sam_stat);
 void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat);
+void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat);
 
 void resp_log_select(uint8_t *, uint8_t *);
 int resp_read_position_long(loff_t, uint8_t *, uint8_t *);

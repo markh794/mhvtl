@@ -455,7 +455,7 @@ int position_blocks_forw(uint32_t count, uint8_t *sam_stat)
 			return -1;
 
 		MHVTL_DBG(1, "Filemark encountered: block %d", filemarks[i]);
-		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
+		sam_no_sense(SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
 	}
@@ -523,7 +523,7 @@ int position_blocks_back(uint32_t count, uint8_t *sam_stat)
 			return -1;
 
 		MHVTL_DBG(2, "Filemark encountered: block %d", filemarks[i]);
-		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
+		sam_no_sense(SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
 	}
@@ -534,7 +534,7 @@ int position_blocks_back(uint32_t count, uint8_t *sam_stat)
 			return -1;
 
 		MHVTL_DBG(1, "BOM encountered");
-		mkSenseBuf(NO_SENSE | SD_EOM, E_BOM, sam_stat);
+		sam_no_sense(SD_EOM, E_BOM, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
 	}
@@ -612,7 +612,7 @@ int position_filemarks_back(uint32_t count, uint8_t *sam_stat)
 		if (read_header(0, sam_stat))
 			return -1;
 
-		mkSenseBuf(NO_SENSE | SD_EOM, E_BOM, sam_stat);
+		sam_no_sense(SD_EOM, E_BOM, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
 	}

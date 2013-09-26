@@ -1582,8 +1582,7 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd)
 				get_unaligned_be64(&mam.max_capacity)) {
 			mam.remaining_capacity = 0L;
 			MHVTL_DBG(2, "Setting EOM flag");
-			mkSenseBuf(NO_SENSE|SD_EOM, NO_ADDITIONAL_SENSE,
-					sam_stat);
+			sam_no_sense(SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}

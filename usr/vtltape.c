@@ -261,7 +261,7 @@ mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_vali
 	int difference = (int)requested - (int)processed;
 
 	/* No sense, ILI bit set */
-	mkSenseBuf(SD_ILI, NO_ADDITIONAL_SENSE, sense_valid);
+	sam_no_sense(SD_ILI, NO_ADDITIONAL_SENSE, sense_valid);
 
 	MHVTL_DBG(2, "Short block read: Requested: %d, Read: %d,"
 			" short by %d bytes",
@@ -780,7 +780,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 		position_blocks_forw(1, sam_stat);
 		mk_sense_short_block(request_sz, 0, sam_stat);
 		save_sense = get_unaligned_be32(&sense[3]);
-		mkSenseBuf(NO_SENSE | SD_FILEMARK, E_MARK, sam_stat);
+		sam_no_sense(SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(save_sense, &sense[3]);
 		return 0;
 		break;
@@ -1039,7 +1039,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (current_position >= lu_priv->max_capacity) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
-		mkSenseBuf(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
+		sam_no_sense(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
 		return src_len;
 	}
 
@@ -1067,15 +1067,14 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	if ((lu_priv->pm->drive_supports_early_warning) &&
 			(current_position >= (uint64_t)lu_priv->early_warning_position)) {
 		MHVTL_DBG(1, "End of Medium - Early Warning");
-		mkSenseBuf(NO_SENSE | SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
+		sam_no_sense(SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	} else if ((lu_priv->pm->drive_supports_prog_early_warning) &&
 			(current_position >= (uint64_t)lu_priv->prog_early_warning_position)) {
 		/* FIXME: Need to implement REW bit in Device Configuration Mode Page
 		 *	  REW == Report Early Warning
 		 */
 		MHVTL_DBG(1, "End of Medium - Programmable Early Warning");
-		mkSenseBuf(NO_SENSE | SD_EOM,
-					E_PROGRAMMABLE_EARLY_WARNING, sam_stat);
+		sam_no_sense(SD_EOM, E_PROGRAMMABLE_EARLY_WARNING, sam_stat);
 	}
 	remaining_capacity = lu_priv->max_capacity - current_position;
 	if (remaining_capacity < 0)
