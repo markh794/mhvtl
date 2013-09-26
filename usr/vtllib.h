@@ -499,8 +499,6 @@ enum MHVTL_STATE {
 	MHVTL_STATE_UNKNOWN,
 };
 
-#define mkSenseBuf(x, y, z) return_sense(x, y, NULL, z)
-
 int check_reset(uint8_t *);
 void reset_device(void);
 
