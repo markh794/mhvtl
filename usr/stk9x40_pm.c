@@ -131,43 +131,37 @@ uint8_t valid_encryption_blk_9840(struct scsi_cmd *cmd)
 		/* compare the keys  - STK requires UKAD back to decrypt */
 		if (lu_priv->DECRYPT_MODE > 1) {
 			if (c_pos->encryption.key_length != KEY_LENGTH) {
-				mkSenseBuf(DATA_PROTECT,
-							E_INCORRECT_KEY,
-							sam_stat);
+				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
 				return correct_key;
 			}
 			for (i = 0; i < c_pos->encryption.key_length; ++i) {
 				if (c_pos->encryption.key[i] != KEY[i]) {
-					mkSenseBuf(DATA_PROTECT,
-							E_INCORRECT_KEY,
+					sam_data_protect(E_INCORRECT_KEY,
 							sam_stat);
 					correct_key = FALSE;
 					break;
 				}
 			}
 			if (c_pos->encryption.ukad_length != UKAD_LENGTH) {
-				mkSenseBuf(DATA_PROTECT,
-							E_INCORRECT_KEY,
-							sam_stat);
+				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
 				return correct_key;
 			}
 			for (i = 0; i < c_pos->encryption.ukad_length; ++i) {
 				if (c_pos->encryption.ukad[i] != UKAD[i]) {
-					mkSenseBuf(DATA_PROTECT,
-							E_INCORRECT_KEY,
+					sam_data_protect(E_INCORRECT_KEY,
 							sam_stat);
 					correct_key = FALSE;
 					break;
 				}
 			}
 		} else {
-			mkSenseBuf(DATA_PROTECT, E_UNABLE_TO_DECRYPT, sam_stat);
+			sam_data_protect(E_UNABLE_TO_DECRYPT, sam_stat);
 			correct_key = FALSE;
 		}
 	} else if (lu_priv->DECRYPT_MODE == 2) {
-		mkSenseBuf(DATA_PROTECT, E_UNENCRYPTED_DATA, sam_stat);
+		sam_data_protect(E_UNENCRYPTED_DATA, sam_stat);
 		correct_key = FALSE;
 	}
 	return correct_key;

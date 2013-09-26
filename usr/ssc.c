@@ -318,8 +318,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 
 		if (!*lu_ssc->OK_2_write) {
 			MHVTL_DBG(1, "Failed attempt to overwrite WORM data");
-			mkSenseBuf(DATA_PROTECT,
-				E_MEDIUM_OVERWRITE_ATTEMPTED, sam_stat);
+			sam_data_protect(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
 		}
 		break;
 	case MEDIA_TYPE_DATA:
@@ -333,7 +332,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 	/* over-ride the above IF the virtual write protect switch is on */
 	if (*lu_ssc->OK_2_write && lu_ssc->MediaWriteProtect) {
 		*lu_ssc->OK_2_write = 0;
-		mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
+		sam_data_protect(E_WRITE_PROTECT, sam_stat);
 	}
 
 	/* over-ride the above IF running in append_only mode and this write
@@ -349,8 +348,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 
 			lu_ssc->OK_2_write = 0;
 			lu_ssc->allow_overwrite = FALSE;
-			mkSenseBuf(DATA_PROTECT, E_MEDIUM_OVERWRITE_ATTEMPTED,
-						sam_stat);
+			sam_data_protect(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
 			/* And set TapeAlert flg 09 -> WRITE PROTECT */
 			TAflag = TA_WRITE_PROTECT;
 			update_TapeAlert(cmd->lu, TAflag);
@@ -389,24 +387,23 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd)
 		/* compare the keys */
 		if (lu_priv->DECRYPT_MODE > 1) {
 			if (c_pos->encryption.key_length != KEY_LENGTH) {
-				mkSenseBuf(DATA_PROTECT, E_INCORRECT_KEY, sam_stat);
+				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
 			}
 			for (i = 0; i < c_pos->encryption.key_length; ++i) {
 				if (c_pos->encryption.key[i] != KEY[i]) {
-					mkSenseBuf(DATA_PROTECT,
-							E_INCORRECT_KEY,
-							sam_stat);
+					sam_data_protect(E_INCORRECT_KEY,
+								sam_stat);
 					correct_key = FALSE;
 					return correct_key;
 				}
 			}
 		} else {
-			mkSenseBuf(DATA_PROTECT, E_UNABLE_TO_DECRYPT, sam_stat);
+			sam_data_protect(E_UNABLE_TO_DECRYPT, sam_stat);
 			correct_key = FALSE;
 		}
 	} else if (lu_priv->DECRYPT_MODE == 2) {
-		mkSenseBuf(DATA_PROTECT, E_UNENCRYPTED_DATA, sam_stat);
+		sam_data_protect(E_UNENCRYPTED_DATA, sam_stat);
 		correct_key = FALSE;
 	}
 	return correct_key;
@@ -429,7 +426,7 @@ uint8_t valid_encryption_media(struct scsi_cmd *cmd)
 	} else {
 		if (mam.MediumDensityCode !=
 				lu_priv->pm->native_drive_density->density) {
-			mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
+			sam_data_protect(E_WRITE_PROTECT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
@@ -1434,7 +1431,7 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 		format_tape(sam_stat);
 	else {
 		MHVTL_LOG("Attempt to erase Write-protected media");
-		sam_not_ready(E_MEDIUM_OVERWRITE_ATTEMPTED, sam_stat);
+		sam_not_ready(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 	return SAM_STAT_GOOD;

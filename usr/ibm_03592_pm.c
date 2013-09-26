@@ -121,7 +121,7 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 		if ((lu_priv->pm->drive_type == drive_3592_E06) &&
 				lu_priv->ENCRYPT_MODE &&
 				!(mam.Flags & MAM_FLAGS_ENCRYPTION_FORMAT)) {
-			mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT, sam_stat);
+			sam_data_protect(E_WRITE_PROTECT, sam_stat);
 			return 0;
 		}
 		if (mam.MediumDensityCode !=
@@ -131,21 +131,18 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 				if (mam.MediumDensityCode ==
 						medium_density_code_j1a)
 					break;
-				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT,
-						sam_stat);
+				sam_data_protect(E_WRITE_PROTECT, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
 				break;
 			case drive_3592_E06:
 				if (mam.MediumDensityCode ==
 						medium_density_code_e05)
 					break;
-				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT,
-						sam_stat);
+				sam_data_protect(E_WRITE_PROTECT, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
 				break;
 			default:
-				mkSenseBuf(DATA_PROTECT, E_WRITE_PROTECT,
-						sam_stat);
+				sam_data_protect(E_WRITE_PROTECT, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
 				break;
 			}

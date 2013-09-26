@@ -252,6 +252,11 @@ void sam_blank_check(uint16_t ascq, uint8_t *sam_stat)
 	return_sense(BLANK_CHECK, ascq, NULL, sam_stat);
 }
 
+void sam_data_protect(uint16_t ascq, uint8_t *sam_stat)
+{
+	return_sense(DATA_PROTECT, ascq, NULL, sam_stat);
+}
+
 int check_reset(uint8_t *sam_stat)
 {
 	int retval = reset;
