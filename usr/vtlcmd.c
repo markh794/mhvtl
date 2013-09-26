@@ -61,7 +61,7 @@ extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 void find_media_home_directory(char *home_directory, int lib_id);
 
-void usage(char *prog)
+static void usage(char *prog)
 {
 	fprintf(stderr, "Usage  : %s <DeviceNo> <command> [-h|-help]\n", prog);
 	fprintf(stderr, "Version: %s\n\n", MHVTL_VERSION);

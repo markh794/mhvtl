@@ -35,7 +35,7 @@ int debug = 0;
 long my_id = 0;
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
-void usage(char *progname)
+static void usage(char *progname)
 {
 	printf("Usage: %s -l lib -m PCL -s size -t type -d density\n",
 					progname);
