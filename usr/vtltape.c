@@ -1716,7 +1716,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
 		lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
-		mkSenseBuf(UNIT_ATTENTION, E_NOT_READY_TO_TRANSITION, sam_stat);
+		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
 		current_state = MHVTL_STATE_LOADING_CLEAN;
@@ -1727,7 +1727,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			lu_ssc.pm->cleaning_media(&lu_ssc);
 		fg |= TA_CLEANING_MEDIA;
 		MHVTL_DBG(1, "Cleaning media loaded");
-		mkSenseBuf(UNIT_ATTENTION, E_CLEANING_CART_INSTALLED, sam_stat);
+		sam_unit_attention(E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	case MEDIA_TYPE_WORM:
 		current_state = MHVTL_STATE_LOADING_WORM;
