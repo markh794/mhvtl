@@ -611,14 +611,14 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 	cbuf = (uint8_t *)malloc(disk_blk_size);
 	if (!cbuf) {
 		MHVTL_ERR("Out of memory: %d", __LINE__);
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
 	}
 
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
 	if (nread != disk_blk_size) {
 		MHVTL_ERR("read failed, %s", strerror(errno));
-		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 		free(cbuf);
 		return 0;
 	}
@@ -641,7 +641,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		c2buf = (uint8_t *)malloc(uncompress_sz);
 		if (c2buf == NULL) {
 			MHVTL_ERR("Out of memory: %d", __LINE__);
-			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
 		}
@@ -657,7 +657,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 				(uint32_t)nread, blk_size);
 	} else {
 		MHVTL_ERR("Decompression error");
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 	}
 
@@ -687,14 +687,14 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 	cbuf = (uint8_t *)malloc(disk_blk_size);
 	if (!cbuf) {
 		MHVTL_ERR("Out of memory: %d", __LINE__);
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
 	}
 
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
 	if (nread != disk_blk_size) {
 		MHVTL_ERR("read failed, %s", strerror(errno));
-		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 		free(cbuf);
 		return 0;
 	}
@@ -717,7 +717,7 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 		c2buf = (uint8_t *)malloc(uncompress_sz);
 		if (c2buf == NULL) {
 			MHVTL_ERR("Out of memory: %d", __LINE__);
-			mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
 		}
@@ -735,17 +735,17 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 		break;
 	case Z_MEM_ERROR:
 		MHVTL_ERR("Not enough memory to decompress");
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_DATA_ERROR:
 		MHVTL_ERR("Block corrupt or incomplete");
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_BUF_ERROR:
 		MHVTL_ERR("Not enough memory in destination buf");
-		mkSenseBuf(MEDIUM_ERROR, E_DECOMPRESSION_CRC, sam_stat);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	}
@@ -795,7 +795,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	default:
 		MHVTL_ERR("Unknown blk header at offset %u"
 				" - Abort read cmd", c_pos->blk_number);
-		mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 		return 0;
 		break;
 	}
@@ -821,7 +821,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	*/
 		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize) {
 			MHVTL_ERR("read failed, %s", strerror(errno));
-			mkSenseBuf(MEDIUM_ERROR, E_UNRECOVERED_READ, sam_stat);
+			sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
 		rc = tgtsize;
@@ -919,14 +919,14 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	if (unlikely(!dest_buf)) {
 		MHVTL_ERR("dest_buf malloc(%d) failed", (int)dest_len);
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		free(wrkmem);
 		return 0;
 	}
 
 	if (unlikely(!wrkmem)) {
 		MHVTL_ERR("wrkmem malloc(%d) failed", LZO1X_1_MEM_COMPRESS);
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		free(dest_buf);
 		return 0;
 	}
@@ -984,7 +984,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 	dest_buf = (Bytef *)malloc(dest_len);
 	if (!dest_buf) {
 		MHVTL_ERR("malloc(%d) failed", (int)dest_len);
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		return 0;
 	}
 

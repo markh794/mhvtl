@@ -242,6 +242,11 @@ void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat)
 	return_sense(ILLEGAL_REQUEST, ascq, sd, sam_stat);
 }
 
+void sam_medium_error(uint16_t ascq, uint8_t *sam_stat)
+{
+	return_sense(MEDIUM_ERROR, ascq, NULL, sam_stat);
+}
+
 int check_reset(uint8_t *sam_stat)
 {
 	int retval = reset;

@@ -158,11 +158,11 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat)
 			blk_number * sizeof(raw_pos));
 		if (nread < 0) {
 			MHVTL_ERR("Medium format corrupt");
-			mkSenseBuf(MEDIUM_ERROR,E_MEDIUM_FMT_CORRUPT, sam_stat);
+			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return -1;
 		} else if (nread != sizeof(raw_pos)) {
 			MHVTL_ERR("Failed to read next header");
-			mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
+			sam_medium_error(E_END_OF_DATA, sam_stat);
 			return -1;
 		}
 	}
@@ -251,7 +251,7 @@ static int check_for_overwrite(uint8_t *sam_stat)
 	data_offset = raw_pos.data_offset;
 
 	if (ftruncate(indxfile, blk_number * sizeof(raw_pos))) {
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Index file ftruncate failure, pos: "
 			"%" PRId64 ": %s",
 			(uint64_t)blk_number * sizeof(raw_pos),
@@ -259,7 +259,7 @@ static int check_for_overwrite(uint8_t *sam_stat)
 		return -1;
 	}
 	if (ftruncate(datafile, data_offset)) {
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Data file ftruncate failure, pos: "
 			"%" PRId64 ": %s", data_offset,
 			strerror(errno));
@@ -634,7 +634,7 @@ int rewriteMAM(uint8_t *sam_stat)
 
 	nwrite = pwrite(metafile, &mam, sizeof(mam), 0);
 	if (nwrite != sizeof(mam)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	}
 
@@ -882,7 +882,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		rc = 2;
 		goto failed;
 	}
@@ -1106,7 +1106,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat)
 		nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
 			blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
-			mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+			sam_medium_error(E_WRITE_ERROR, sam_stat);
 			MHVTL_ERR("Index file write failure,"
 					" pos: %" PRId64 ": %s",
 				(uint64_t)blk_number * sizeof(raw_pos),
@@ -1184,7 +1184,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	/* Now write out both the data and the header. */
 	nwrite = pwrite(datafile, buffer, disk_blk_size, data_offset);
 	if (nwrite != disk_blk_size) {
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
 		MHVTL_ERR("Data file write failure, pos: %" PRId64 ": %s",
 			data_offset, strerror(errno));
@@ -1204,7 +1204,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	if (nwrite != sizeof(raw_pos)) {
 		long indxsz = (blk_number - 1) * sizeof(raw_pos);
 
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
 		MHVTL_ERR("Index file write failure, pos: %" PRId64 ": %s",
 			(uint64_t)blk_number * sizeof(raw_pos),

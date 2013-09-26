@@ -73,10 +73,10 @@ static int read_header(struct raw_header *h, uint8_t *sam_stat)
 
 	nread = read(datafile, h, sizeof(*h));
 	if (nread < 0) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	} else if (nread != sizeof(*h)) {
-		mkSenseBuf(MEDIUM_ERROR, E_END_OF_DATA, sam_stat);
+		sam_medium_error(E_END_OF_DATA, sam_stat);
 		return -1;
 	}
 	return 0;
@@ -96,18 +96,18 @@ static int skip_to_next_header(uint8_t *sam_stat)
 	}
 
 	if (raw_pos.next_blk != lseek64(datafile, raw_pos.next_blk, SEEK_SET)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
+		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		MHVTL_DBG(1, "Unable to seek to next block header");
 		return -1;
 	}
 	if (read_header(&raw_pos, sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
+		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		MHVTL_DBG(1, "Unable to read next block header");
 		return -1;
 	}
 	// Position to start of header (rewind over header)
 	if (raw_pos.curr_blk != position_to_curr_header(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
+		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		MHVTL_DBG(1, "Error position in datafile. Offset: %" PRId64,
 				raw_pos.curr_blk);
 		return -1;
@@ -121,7 +121,7 @@ static int skip_to_prev_header(uint8_t *sam_stat)
 	MHVTL_DBG(3, "Positioning to raw_pos.prev_blk: %" PRId64,
 				raw_pos.prev_blk);
 	if (raw_pos.prev_blk != lseek64(datafile, raw_pos.prev_blk, SEEK_SET)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		MHVTL_DBG(1, "Error position in datafile !!");
 		return -1;
 	}
@@ -136,14 +136,14 @@ static int skip_to_prev_header(uint8_t *sam_stat)
 		MHVTL_DBG(3, "Found Beginning Of Tape, "
 				"Skipping to next header..");
 		skip_to_next_header(sam_stat);
-		mkSenseBuf(MEDIUM_ERROR, E_BOM, sam_stat);
+		sam_medium_error(E_BOM, sam_stat);
 		MHVTL_DBG(3, "Found BOT!!");
 		return -1;
 	}
 
 	// Position to start of header (rewind over header)
 	if (raw_pos.curr_blk != position_to_curr_header(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR,sam_stat);
+		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		MHVTL_DBG(1, "Error position in datafile !!");
 		return -1;
 	}
@@ -231,12 +231,12 @@ static int mkNewHeader(uint32_t type, int blk_size, int comp_size,
 		MHVTL_DBG(1, "Position error blk No: %d, Pos: %" PRId64
 			", Exp: %" PRId64,
 				h.hdr.blk_number, h.curr_blk, raw_pos.curr_blk);
-		mkSenseBuf(MEDIUM_ERROR, E_SEQUENTIAL_POSITION_ERR, sam_stat);
+		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		return -1;
 	}
 
 	if (write(datafile, &h, sizeof(h)) != sizeof(h)) {
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_DBG(1, "Write failure, pos: %" PRId64 ": %s",
 						h.curr_blk, strerror(errno));
 		return -1;
@@ -270,7 +270,7 @@ mkEODHeader(uint8_t *sam_stat)
 	 * rewind to just before it. */
 	// Position to start of header (rewind over header)
 	if (raw_pos.curr_blk != position_to_curr_header(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR,E_SEQUENTIAL_POSITION_ERR,sam_stat);
+		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		MHVTL_DBG(1, "Failed to write EOD header");
 		return -1;
 	}
@@ -397,12 +397,12 @@ int
 rewind_tape(uint8_t *sam_stat)
 {
 	if (rawRewind(sam_stat)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return 2;
 	}
 
 	if (raw_pos.hdr.blk_type != B_BOT) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return 2;
 	}
 
@@ -433,7 +433,7 @@ rewind_tape(uint8_t *sam_stat)
 		}
 		// Now we have to go thru thru the rewind again..
 		if (rawRewind(sam_stat)) {
-			mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 			return 2;
 		}
 
@@ -566,7 +566,7 @@ rewriteMAM(uint8_t *sam_stat)
 	// Rewrite MAM data
 	nwrite = pwrite(datafile, &mam, sizeof(mam), sizeof(struct blk_header));
 	if (nwrite != sizeof(mam)) {
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	}
 	MediumType = mam.MediumType;
@@ -712,7 +712,7 @@ load_tape(const char *pcl, uint8_t *sam_stat)
 
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		MHVTL_DBG(1, "Incorrect media format");
-		mkSenseBuf(MEDIUM_ERROR, E_MEDIUM_FMT_CORRUPT, sam_stat);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		close(datafile);
 		datafile = -1;
 		return 2;
@@ -765,7 +765,7 @@ int write_tape_block(const uint8_t *buf, uint32_t blk_size,
 
 	if (mkNewHeader(B_DATA, blk_size, comp_size, cp, sam_stat)) {
 		MHVTL_DBG(1, "Failed to write header");
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		return -1;
 	}
 
@@ -774,18 +774,18 @@ int write_tape_block(const uint8_t *buf, uint32_t blk_size,
 	if (nwrite <= 0) {
 		MHVTL_DBG(1, "failed to write %d bytes, %s", iosize,
 			strerror(errno));
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		return -1;
 	} else if (nwrite != iosize) {
 		MHVTL_DBG(1, "Did not write all data");
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		return -1;
 	}
 
 	/* Write END-OF-DATA marker */
 	if (mkEODHeader(sam_stat)) {
 		MHVTL_DBG(1, "Did not write EOD");
-		mkSenseBuf(MEDIUM_ERROR, E_WRITE_ERROR, sam_stat);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		return -1;
 	}
 	return 0;
