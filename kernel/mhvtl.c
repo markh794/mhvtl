@@ -302,6 +302,7 @@ static struct scsi_host_template vtl_driver_template = {
 #endif
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 	.change_queue_depth =	vtl_change_queue_depth,
+	.ordered_tag =		1,
 #endif
 	.eh_abort_handler =	vtl_abort,
 	.eh_bus_reset_handler = vtl_bus_reset,
@@ -315,7 +316,6 @@ static struct scsi_host_template vtl_driver_template = {
 	.unchecked_isa_dma =	0,
 	.use_clustering =	ENABLE_CLUSTERING,
 	.module =		THIS_MODULE,
-	.ordered_tag =		1,
 };
 
 static const struct file_operations vtl_fops = {
