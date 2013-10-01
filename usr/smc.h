@@ -37,3 +37,4 @@ uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd);
 int slotOccupied(struct s_info *s);
 void setImpExpStatus(struct s_info *s, int flg);
 void setSlotEmpty(struct s_info *s);
+void unload_drive_on_shutdown(struct s_info *src, struct s_info *dest);

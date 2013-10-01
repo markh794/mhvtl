@@ -73,6 +73,8 @@ long my_id = 0;
 
 #define SMC_BUF_SIZE 1024 * 1024 /* Default size of buffer */
 
+#define LIBCONTENTS "/library_contents."
+
 int verbose = 0;
 int debug = 0;
 static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
@@ -855,13 +857,59 @@ void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 
 static void __init_slot_info(struct lu_phy_attr *lu, int type)
 {
-	char conf[1024];
+	char conf[256];
 	FILE *ctrl;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
 	int slt;
+	struct stat configstat;
+	struct stat persiststat;
+	int filestat;
 
-	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
+	filestat = -1;	/* Default to .persist file does not exist */
+
+	/* Lets stat each (potential) file and identify the last one modified */
+	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
+					LIBCONTENTS "%ld" ".persist", my_id);
+
+	if (lu->persist)	/* If enabled - stat .persist file */
+		filestat = stat(conf, &persiststat);
+
+	if (filestat < 0) {
+		/* PERSIST is either disabled or .persist file does not exist
+		 * - Update config filename to master 'library_contents.<id>
+		*/
+		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
+					LIBCONTENTS "%ld", my_id);
+	} else {
+		/* stat original config file */
+		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
+					LIBCONTENTS "%ld", my_id);
+		filestat = stat(conf, &configstat);
+		if (filestat < 0) {	/* Does not exist !! */
+			MHVTL_ERR("Can not stat config file %s: %s",
+						conf, strerror(errno));
+			exit(1);
+		}
+		if (configstat.st_mtime > persiststat.st_mtime) {
+			/* Don't do anything - leave config filename alone */
+			MHVTL_DBG(1, "%s is newer than %s.persist file. "
+					"Using %s instead", conf, conf, conf);
+		} else {
+			/* Update the config file to
+			   library_contents.<id>.persist
+			*/
+			snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
+					LIBCONTENTS "%ld" ".persist", my_id);
+		}
+	}
+
+	/* By the time we get here -
+	 * - If PERSIST is enabled
+	 *   - We have stat'ed each file - so unless it's been removed within
+	 *     last few millisecs we should be good.
+	 * - Filename will be latest modify date
+	*/
 	ctrl = fopen(conf , "r");
 	if (!ctrl) {
 		MHVTL_ERR("Can not open config file %s : %s", conf,
@@ -996,6 +1044,140 @@ static void update_vpd_83(struct lu_phy_attr *lu, void *p)
 	d[num + 4] |= 0x50;
 }
 
+/* Return original slot location if empty
+ */
+static struct s_info *previous_storage_slot(struct s_info *s,
+						struct list_head *slot_head)
+{
+	struct s_info *sp;	/* Slot Pointer */
+
+	/* Find slot info for 'previous location' */
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (sp->element_type == STORAGE_ELEMENT)
+			if (sp->slot_location == s->last_location)
+				if (!slotOccupied(sp))
+					/* previous location is empty */
+					return sp;
+	}
+
+	return NULL;
+}
+
+/* Return first empty storage slot.
+ */
+static struct s_info *find_empty_storage_slot(struct s_info *s,
+						struct list_head *slot_head)
+{
+	struct s_info *sp;	/* Slot Pointer */
+
+	/* If previous location is no good - lets find first empty slot */
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (!slotOccupied(sp) && sp->element_type == STORAGE_ELEMENT)
+			return sp;
+	}
+
+	return NULL;
+}
+
+/* Save config on shutdown - Not to be called at other times !! */
+static void save_config(struct lu_phy_attr *lu)
+{
+	FILE *ctrl;
+	char conf[256];
+	struct smc_priv *lu_priv;
+	struct list_head *slot_head;
+	struct list_head *drive_head;
+	struct s_info *sp;	/* Slot Pointer */
+	struct d_info *dp;	/* Drive Pointer */
+	int last_element_type = 0;
+
+	if (strlen(MHVTL_CONFIG_PATH LIBCONTENTS) >=
+				ARRAY_SIZE(conf) - sizeof(".persist")) {
+		MHVTL_LOG("Filename length exceeds %" PRId64, ARRAY_SIZE(conf));
+	}
+
+	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
+					LIBCONTENTS "%ld" ".persist", my_id);
+	ctrl = fopen(conf, "w");
+	if (!ctrl) {
+		MHVTL_ERR("Can not open file %s to save state : %s", conf,
+					strerror(errno));
+		return;
+	}
+
+	lu_priv = lu->lu_private;
+
+	drive_head = &lu_priv->drive_list;
+	slot_head = &lu_priv->slot_list;
+
+	/* Walk each drive and force-unload into previous location
+	 * - if possible */
+	list_for_each_entry(dp, drive_head, siblings) {
+		if (slotOccupied(dp->slot)) {
+			/* Force a move of media from drive into
+			 * empty storage slot on shutdown
+			 */
+			sp = dp->slot;
+			MHVTL_DBG(1, "Found %s in drive %d from %d",
+					sp->media->barcode,
+					sp->slot_location - START_DRIVE + 1,
+					sp->last_location);
+			unload_drive_on_shutdown(sp,
+					previous_storage_slot(sp, slot_head));
+		}
+	}
+
+	/* Walk each drive and force-unload into first empty storage slot */
+	list_for_each_entry(dp, drive_head, siblings) {
+		if (slotOccupied(dp->slot)) {
+			/* Force a move of media from drive into
+			 * empty storage slot on shutdown
+			 */
+			sp = dp->slot;
+			MHVTL_DBG(1, "Found %s in drive %d from %d",
+					sp->media->barcode,
+					sp->slot_location - START_DRIVE + 1,
+					sp->last_location);
+			unload_drive_on_shutdown(sp,
+					find_empty_storage_slot(sp, slot_head));
+		}
+	}
+
+	/* Walk the list of all slots and write data into .persist file */
+	list_for_each_entry(sp, slot_head, siblings) {
+		/* Pretty up conf file -
+		 * Place a blank line between element types
+		 */
+		if (last_element_type != sp->element_type) {
+			last_element_type = sp->element_type;
+			fprintf(ctrl, "\n");
+		}
+
+		switch (sp->element_type) {
+		case DATA_TRANSFER:
+			fprintf(ctrl, "Drive %d:\n",
+					sp->slot_location - START_DRIVE + 1);
+			break;
+		case MEDIUM_TRANSPORT:
+			fprintf(ctrl, "Picker %d: %s\n",
+				sp->slot_location - START_PICKER + 1,
+				slotOccupied(sp) ? sp->media->barcode : "");
+			break;
+		case MAP_ELEMENT:
+			fprintf(ctrl, "MAP %d: %s\n",
+				sp->slot_location - START_MAP + 1,
+				slotOccupied(sp) ? sp->media->barcode : "");
+			break;
+		case STORAGE_ELEMENT:
+			fprintf(ctrl, "Slot %d: %s\n",
+				sp->slot_location - START_STORAGE + 1,
+				slotOccupied(sp) ? sp->media->barcode : "");
+			break;
+		}
+	}
+	fclose(ctrl);
+}
+
 static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 {
 
@@ -1014,6 +1196,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	int linecount;
 
 	backoff = DEFLT_BACKOFF_VALUE;
+	lu->persist = FALSE;
 
 	/* Configure default inquiry data */
 	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
@@ -1100,6 +1283,11 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 			}
 			if (sscanf(b, " fifo: %s", s))
 				process_fifoname(lu, s, 0);
+			if (sscanf(b, " PERSIST: %s", s)) {
+				if (!strncasecmp(s, "yes", 3) ||
+						 (!strncasecmp(s, "true", 4)))
+					lu->persist = TRUE;
+			}
 			if (sscanf(b, " movecommand: %s", s))
 				smc_slots.movecommand = strndup(s, MALLOC_SZ);
 			if (sscanf(b, " commandtimeout: %d", &d))
@@ -1717,8 +1905,10 @@ int main(int argc, char *argv[])
 		}
 	}
 exit:
-	cleanup_lu(&lunit);
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
+	if (lunit.persist)
+		save_config(&lunit);
+	cleanup_lu(&lunit);
 	close(cdev);
 	free(buf);
 	dec_fifo_count();

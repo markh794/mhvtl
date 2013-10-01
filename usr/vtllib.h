@@ -370,6 +370,7 @@ struct lu_phy_attr {
 	FILE *fifo_fd;
 	char *fifoname;
 	int fifo_flag;
+	int persist;	/* Save changes across restarts */
 };
 
 /* Drive Info */

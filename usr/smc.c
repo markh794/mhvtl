@@ -1536,3 +1536,13 @@ log_page_not_found:
 	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
+
+void unload_drive_on_shutdown(struct s_info *src, struct s_info *dest)
+{
+	if (!dest)
+		return;
+
+	MHVTL_DBG(1, "Force unload of media %s to slot %d",
+				src->media->barcode, dest->slot_location);
+	move_cart(src, dest);
+}
