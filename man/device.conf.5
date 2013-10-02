@@ -19,6 +19,7 @@ Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
  NAA: 10:22:33:44:ab:00:00:00
  Home directory: /opt/mhvtl/Spectra
  fifo: /var/tmp/mhvtl
+ PERSIST: True
 .PP
 Where descriptor
 .B Library:
@@ -82,6 +83,15 @@ If fifo: is defined, (near) real time state information will be available
 for external applications by reading from this named pipe.
 .PP
 Note: the '-f fifo' switch on daemon startup has higher precedence
+
+.PP
+.B PERSIST:
+True | False
+If PERSIST is set to 'Yes' or 'True' - enable saving state on shutdown.
+A file 'library_contents.XX.persist' will be created on shutdown to save
+persistent state. On startup - Default to read the
+library_contents.XX.persist if the file exists. Fall back to
+library_contents.XX if no .persist file exists.
 
 .SH AUTHOR
 Written by Mark Harvey
