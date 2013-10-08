@@ -3009,10 +3009,8 @@ int main(int argc, char *argv[])
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			if (processMessageQ(&r_entry.msg, &lu_ssc.sam_status)) {
-				cleanup_lu(&lunit);
+			if (processMessageQ(&r_entry.msg, &lu_ssc.sam_status))
 				goto exit;
-			}
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
 				MHVTL_ERR("Can not open message queue: %s",
@@ -3090,6 +3088,7 @@ int main(int argc, char *argv[])
 
 exit:
 	ioctl(cdev, VTL_REMOVE_LU, &ctl);
+	cleanup_lu(&lunit);
 	close(cdev);
 	free(buf);
 	dec_fifo_count();
