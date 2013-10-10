@@ -53,6 +53,25 @@ run() {
 	fi
 }
 
+media_type() {
+	type=$1
+	regex='[A-Z0-9]{6,8}([JD])([WX])$'
+# default to data type
+	TYPE=data
+
+# Match JW / JX as 'worm' media
+	if [[ $type =~ $regex ]]; then
+		matches=${#BASH_REMATCH[*]}
+		if [ ${BASH_REMATCH[1]} = 'J' ]; then
+			if [ ${BASH_REMATCH[2]} = 'W' ]; then
+				TYPE=`echo -e "worm"`;
+			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
+				TYPE=`echo -e "worm"`;
+			fi
+		fi
+	fi
+}
+
 # I'm sure there is a better method then this...
 # There is.. Thanks to Gavin Barnard.
 set_density() {
@@ -82,6 +101,17 @@ set_density() {
 				DENSITY=`echo -e "SDLT"`;
 			fi
 		fi
+		if [ ${BASH_REMATCH[1]} = 'J' ]; then
+			if [ ${BASH_REMATCH[2]} = 'A' ]; then
+				DENSITY=`echo -e "J1A"`
+			elif [ ${BASH_REMATCH[2]} = 'B' ]; then
+				DENSITY=`echo -e "E05"`
+			elif [ ${BASH_REMATCH[2]} = 'W' ]; then
+				DENSITY=`echo -e "E05"`
+			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
+				DENSITY=`echo -e "E05"`
+			fi
+		fi
 		if [ ${BASH_REMATCH[1]} = 'X' ]; then
 			DENSITY=`echo -e "AIT${BASH_REMATCH[2]}"`
 		fi
@@ -101,10 +131,6 @@ set_density() {
 			else
 				DENSITY=`echo -e "T10K${BASH_REMATCH[2]}"`
 			fi
-		fi
-		if [ ${BASH_REMATCH[1]} = 'J' ]; then
-#FIXME: please fix me when ever the J WORM TAPE are added to mktape
-			DENSITY=`echo -e "unknown tape density"`
 		fi
 	fi
 }
@@ -143,8 +169,9 @@ do
 	for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}'|grep ^W|sort -u`
 	do
 		set_density $a
+		media_type $a
 		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			run "mktape -l $LIB -s $CAPACITY -t WORM -m $a -d $DENSITY"
+			run "mktape -l $LIB -s $CAPACITY -t $TYPE -m $a -d $DENSITY"
 		fi
 	done
 
@@ -152,8 +179,9 @@ do
 	for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}'|sort -u`
 	do
 		set_density $a
+		media_type $a
 		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			run "mktape -l $LIB -s $CAPACITY -t data -m $a -d $DENSITY"
+			run "mktape -l $LIB -s $CAPACITY -t $TYPE -m $a -d $DENSITY"
 		fi
 	done
 done
