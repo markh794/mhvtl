@@ -563,8 +563,13 @@ uint8_t ssc_a3_service_action(struct scsi_cmd *cmd)
 	case REPORT_ALIASES:
 		log_opcode("REPORT ALIASES **", cmd);
 		break;
+	case REPORT_SUPPORTED_OPCODES:
+		log_opcode("REPORT SUPPORTED OPCODES **", cmd);
+		break;
+	default:
+		log_opcode("UNKNOWN SERVICE ACTION A3 **", cmd);
+		break;
 	}
-	log_opcode("UNKNOWN SERVICE ACTION A3 **", cmd);
 	return cmd->dbuf_p->sam_stat;
 }
 
@@ -580,8 +585,10 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd)
 	case FORCED_EJECT:
 		log_opcode("FORCED EJECT **", cmd);
 		break;
+	default:
+		log_opcode("UNKNOWN SERVICE ACTION A4 **", cmd);
+		break;
 	}
-	log_opcode("UNKNOWN SERVICE ACTION A4 **", cmd);
 	return cmd->dbuf_p->sam_stat;
 }
 
