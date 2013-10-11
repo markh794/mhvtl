@@ -48,14 +48,6 @@
 
 int current_state;
 
-static char *slot_type_str[] = {
-	"ANY",
-	"Picker",
-	"Storage",
-	"MAP",
-	"Drive",
-};
-
 uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 {
 	MHVTL_DBG(1, "%s MEDIUM REMOVAL (%ld) **",
@@ -375,7 +367,7 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 	while (total_count > 0) {
 		MHVTL_DBG(3, "Element Status Page");
 		MHVTL_DBG(3, "  Element Type code            : %d (%s)",
-					p[0], slot_type_str[p[0]]);
+					p[0], slot_type_str(p[0]));
 
 		voltag = (p[1] & 0x80) ? 1 : 0;
 		MHVTL_DBG(3, "  Primary Vol Tag              : %s",
@@ -668,7 +660,7 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
 	MHVTL_DBG(2, "Determing %d element%s of type %s starting at %d"
 			", returning %d",
 				max, max == 1 ? "" : "s",
-				slot_type_str[type],
+				slot_type_str(type),
 				start, counted);
 
 	return counted;
@@ -717,7 +709,7 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 				max_count,
 				(max_count == 1) ? "" : "s",
 				start,
-				type, slot_type_str[type]);
+				type, slot_type_str(type));
 
 	/* Find first valid slot. */
 	begin_element = find_first_matching_element(smc_p, start, type);
@@ -797,7 +789,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	req_number = get_unaligned_be16(&cdb[4]);
 	alloc_len = 0xffffff & get_unaligned_be32(&cdb[6]);
 
-	MHVTL_DBG(3, " Element type(%d) => %s", type, slot_type_str[type]);
+	MHVTL_DBG(3, " Element type(%d) => %s", type, slot_type_str(type));
 	MHVTL_DBG(3, "  Starting Element Address: %d", req_start_elem);
 	MHVTL_DBG(3, "  Number of Elements      : %d", req_number);
 	MHVTL_DBG(3, "  Allocation length       : %d (0x%04x)",
@@ -999,9 +991,9 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 	truncate_spaces(&barcode[0], MAX_BARCODE_LEN + 1);
 	snprintf(movecommand, cmdlen, "%s %s %d %s %d %s",
 			smc_p->movecommand,
-			slot_type_str[src->element_type],
+			slot_type_str(src->element_type),
 			slot_number(src),
-			slot_type_str[dest->element_type],
+			slot_type_str(dest->element_type),
 			slot_number(dest),
 			barcode
 	);
@@ -1067,7 +1059,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		sprintf(smc_p->state_msg,
 			"Moving %s from %s slot %d to drive %d",
 					cmd,
-					slot_type_str[src->element_type],
+					slot_type_str(src->element_type),
 					slot_number(src),
 					slot_number(dest->slot));
 	}
@@ -1102,9 +1094,9 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	dest = slot2struct(smc_p, dest_addr);
 
 	MHVTL_DBG(1, "Moving from %s slot %d to %s slot %d",
-				slot_type_str[src->element_type],
+				slot_type_str(src->element_type),
 				src->slot_location,
-				slot_type_str[dest->element_type],
+				slot_type_str(dest->element_type),
 				dest->slot_location);
 
 	if (!slotOccupied(src)) {
@@ -1140,9 +1132,9 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 		sprintf(smc_p->state_msg,
 			"Moving %s from %s slot %d to %s slot %d",
 					cmd,
-					slot_type_str[src->element_type],
+					slot_type_str(src->element_type),
 					slot_number(src),
-					slot_type_str[dest->element_type],
+					slot_type_str(dest->element_type),
 					slot_number(dest));
 	}
 
@@ -1159,7 +1151,7 @@ static int valid_slot(struct smc_priv *smc_p, int addr)
 	struct s_info *slt;
 	struct d_info *drv;
 
-	MHVTL_DBG(3, "%s slot %d", slot_type_str[slot_type(smc_p, addr)], addr);
+	MHVTL_DBG(3, "%s slot %d", slot_type_str(slot_type(smc_p, addr)), addr);
 	switch (slot_type(smc_p, addr)) {
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
@@ -1225,7 +1217,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 			"Moving %s from drive %d to %s slot %d",
 					cmd,
 					slot_number(src->slot),
-					slot_type_str[dest->element_type],
+					slot_type_str(dest->element_type),
 					slot_number(dest));
 	}
 

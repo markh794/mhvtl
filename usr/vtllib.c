@@ -94,6 +94,13 @@ static struct state_description {
 	{ "System Uninitialised", },
 };
 
+static char *slot_type_string[] = {
+	"ANY",
+	"Picker",
+	"Storage",
+	"MAP",
+	"Drive",
+};
 
 uint8_t sense[SENSE_BUF_SIZE];
 uint8_t modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
@@ -1554,4 +1561,9 @@ void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg)
 				*num, *num == 1 ? "" : "s",
 				*sz,
 				(long)cmd->dbuf_p->serialNo);
+}
+
+char *slot_type_str(int type)
+{
+	return slot_type_string[type];
 }

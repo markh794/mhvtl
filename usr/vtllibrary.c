@@ -869,6 +869,11 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 		exit(1);
 	}
 
+	/* Log which config file is being used to read in data */
+	MHVTL_DBG(2, "Reading %s configuration information from %s",
+						slot_type_str(type),
+						conf);
+
 	/* Grab a couple of generic MALLOC_SZ buffers.. */
 	s = zalloc(MALLOC_SZ);
 	if (!s) {
