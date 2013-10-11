@@ -864,7 +864,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH "/library_contents.%ld", my_id);
 	ctrl = fopen(conf , "r");
 	if (!ctrl) {
-		MHVTL_DBG(1, "Can not open config file %s : %s", conf,
+		MHVTL_ERR("Can not open config file %s : %s", conf,
 					strerror(errno));
 		exit(1);
 	}
