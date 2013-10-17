@@ -1524,14 +1524,16 @@ void rereadconfig(int sig)
 				smc_slots.num_picker +
 				smc_slots.num_map +
 				smc_slots.num_storage) * 80;
+	reset_device();	/* Force a POWER-ON/RESET sense code */
 	if (buffer_size > smc_slots.bufsize) {
 		MHVTL_LOG("Too many slots configured"
 			" - possible buffer overflow");
 		MHVTL_LOG("Please shutdown this daemon and restart so"
 			" correct buffer allocation can be performed");
+		/* Leave library offline */
+	} else {
+		lunit.online = 1;	/* Should be good to go */
 	}
-	reset_device();	/* Force a POWER-ON/RESET sense code */
-	lunit.online = 1;	/* Should be good to go */
 }
 
 static void caught_signal(int signo)
