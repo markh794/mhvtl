@@ -2300,7 +2300,7 @@ static struct device_type_template ssc_ops = {
 		{spc_illegal_op,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
-		{ssc_release,},
+		{spc_illegal_op,},
 
 		/* 0x10 -> 0x1f */
 		{ssc_write_filemarks,},
