@@ -51,7 +51,7 @@
 #define _FILE_OFFSET_BITS 64
 #define _XOPEN_SOURCE 500
 
-#define __STDC_FORMAT_MACROS	/* for PDId64 */
+#define __STDC_FORMAT_MACROS	/* for PRId64 */
 
 #include <unistd.h>
 #include <stdio.h>
