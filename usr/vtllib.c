@@ -1556,7 +1556,7 @@ void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg)
 		*num = 1;
 		*sz = get_unaligned_be24(&cdb[2]);
 	}
-	MHVTL_DBG(dbg, "%s: %d block%s of %d bytes (%" PRId64 ") **",
+	MHVTL_DBG(dbg, "%s: %d block%s of %d bytes (%ld) **",
 				cdb[0] == READ_6 ? "READ" : "WRITE",
 				*num, *num == 1 ? "" : "s",
 				*sz,

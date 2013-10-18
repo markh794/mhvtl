@@ -1093,7 +1093,7 @@ static void save_config(struct lu_phy_attr *lu)
 
 	if (strlen(MHVTL_CONFIG_PATH LIBCONTENTS) >=
 				ARRAY_SIZE(conf) - sizeof(".persist")) {
-		MHVTL_LOG("Filename length exceeds %" PRId64, ARRAY_SIZE(conf));
+		MHVTL_LOG("Filename length exceeds %d", (int)ARRAY_SIZE(conf));
 	}
 
 	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
