@@ -357,6 +357,11 @@ case "$1" in
 		echo -e "Please see http://sites.google.com/site/linuxvtl2/\n"
 		exit 1
 	fi
+	if [ $vtllsbVersion -lt 15 ]; then
+		echo "You should think updating the kernel module for these"
+		echo -e " daemons to 0.18.15."
+		echo -e "Please see https://sites.google.com/site/linuxvtl2/home?pli=1#mhvtl-kernel-module \n"
+	fi
 
 	# Load sg driver if not already loaded..
 	if [ ! -e /sys/module/sg ]; then
