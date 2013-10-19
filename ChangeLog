@@ -1,3 +1,14 @@
+* Sun Oct 20 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.4-10
+- Various cleanups due to static code check 'smatch'
+- Fix TapeAlert bit offsets
+- Return bit/byte offset for sense INVALID FIELD IN CDB/PARAMS
+- Fix returned data size when 0 data is requested (kernel module fix)
+- SSC - Fix op code 0Fh (read reverse) incorrectly set to 'reserve'
+- SMC - Ability to keep library media change persistant across restarts
+- SSC - Implement 'read media serial number' op code
+- Fix 'make_vtl_media' script to understand IBM 03592 media type
+
 * Thu Aug 29 2013 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.4-9
 - SSC -> MODE SELECT overhaul.
