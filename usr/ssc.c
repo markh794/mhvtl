@@ -673,7 +673,7 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	MHVTL_DBG(2, "%s mode", write_mode ? "Append-only" : "Write-anywhere");
+	MHVTL_DBG(2, "%s mode", write_mode ? "Append-only" : "Overwrite-allowed");
 
 	pews = get_unaligned_be16(&p[6]);
 	if (pm->drive_supports_prog_early_warning) {
