@@ -47,4 +47,5 @@ void init_scalar_smc(struct lu_phy_attr *lu);
 void init_spectra_logic_smc(struct  lu_phy_attr *lu);
 void init_ibmts3100(struct  lu_phy_attr *lu);
 void init_ibmts3500(struct  lu_phy_attr *lu);
+void init_hp_eml_smc(struct  lu_phy_attr *lu);
 void smc_personality_module_register(struct smc_personality_template *pm);

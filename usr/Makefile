@@ -102,6 +102,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		libvtlscsi.so \
 		be_byteshift.h \
 		stklxx_pm.o \
+		hp_smc_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
 		ibmts3500_pm.o \
@@ -109,6 +110,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi \
 		stklxx_pm.o \
+		hp_smc_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
 		ibmts3500_pm.o \
@@ -150,6 +152,7 @@ clean:
 		subprocess.o \
 		stk9x40_pm.o \
 		stklxx_pm.o \
+		hp_smc_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
 		ibmts3500_pm.o \
@@ -180,6 +183,7 @@ distclean:
 	hp_ultrium_pm.o \
 	stk9x40_pm.o \
 	stklxx_pm.o \
+	hp_smc_pm.o \
 	spectra_pm.o \
 	scalar_pm.o \
 	ibmts3500_pm.o \
