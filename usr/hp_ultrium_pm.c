@@ -453,7 +453,7 @@ void init_hp_ult_1(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -497,7 +497,7 @@ void init_hp_ult_2(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -547,7 +547,7 @@ void init_hp_ult_3(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -606,7 +606,7 @@ void init_hp_ult_4(struct lu_phy_attr *lu)
 	ssc_pm.clear_WORM = clear_ult_WORM;
 	ssc_pm.set_WORM = set_ult_WORM;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -672,7 +672,7 @@ void init_hp_ult_5(struct lu_phy_attr *lu)
 	ssc_pm.clear_WORM = clear_ult_WORM;
 	ssc_pm.set_WORM = set_ult_WORM;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -743,7 +743,7 @@ void init_hp_ult_6(struct lu_phy_attr *lu)
 	ssc_pm.clear_WORM = clear_ult_WORM;
 	ssc_pm.set_WORM = set_ult_WORM;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 

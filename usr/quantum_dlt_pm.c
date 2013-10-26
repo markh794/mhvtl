@@ -399,7 +399,7 @@ void init_dlt7000_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 2;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_dlt_inquiry(lu);
 
@@ -447,7 +447,7 @@ void init_dlt8000_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 2;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_dlt_inquiry(lu);
 
@@ -496,7 +496,7 @@ void init_sdlt320_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_sdlt_inquiry(lu);
 
@@ -548,7 +548,7 @@ void init_sdlt600_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_sdlt_inquiry(lu);
 

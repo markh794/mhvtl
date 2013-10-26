@@ -101,8 +101,18 @@ edit_tape:	edit_tape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		libvtlscsi.so \
 		be_byteshift.h \
+		stklxx_pm.o \
+		spectra_pm.o \
+		scalar_pm.o \
+		ibmts3500_pm.o \
+		default_smc_pm.o \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi \
+		stklxx_pm.o \
+		spectra_pm.o \
+		scalar_pm.o \
+		ibmts3500_pm.o \
+		default_smc_pm.o
 
 vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		libvtlscsi.so ssc.o default_ssc_pm.o \
@@ -139,6 +149,11 @@ clean:
 		log.o \
 		subprocess.o \
 		stk9x40_pm.o \
+		stklxx_pm.o \
+		spectra_pm.o \
+		scalar_pm.o \
+		ibmts3500_pm.o \
+		default_smc_pm.o \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		edit_tape.o \
@@ -164,6 +179,11 @@ distclean:
 	ult3580_pm.o \
 	hp_ultrium_pm.o \
 	stk9x40_pm.o \
+	stklxx_pm.o \
+	spectra_pm.o \
+	scalar_pm.o \
+	ibmts3500_pm.o \
+	default_smc_pm.o \
 	quantum_dlt_pm.o \
 	ait_pm.o t10000_pm.o ibm_03592_pm.o \
 	z.o z \

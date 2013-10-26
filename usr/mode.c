@@ -782,14 +782,14 @@ int add_mode_element_address_assignment(struct lu_phy_attr *lu)
 {
 	struct list_head *mode_pg;
 	struct mode *mp;
-	static struct smc_priv *smc_slots;
+	static struct smc_priv *smc_p;
 	uint8_t pcode;
 	uint8_t subpcode;
 	uint8_t size;
 	uint8_t *p;
 
 	mode_pg = &lu->mode_pg;
-	smc_slots = (struct smc_priv *)lu->lu_private;
+	smc_p = (struct smc_priv *)lu->lu_private;
 	pcode = MODE_ELEMENT_ADDRESS;
 	subpcode = 0;
 	size = 20;
@@ -810,20 +810,19 @@ int add_mode_element_address_assignment(struct lu_phy_attr *lu)
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
-	put_unaligned_be16(START_PICKER, &p[2]); /* First transport. */
-	put_unaligned_be16(smc_slots->num_picker, &p[4]);
-	put_unaligned_be16(START_STORAGE, &p[6]); /* First storage */
-	put_unaligned_be16(smc_slots->num_storage, &p[8]);
-	put_unaligned_be16(START_MAP, &p[10]); /* First i/e address */
-	put_unaligned_be16(smc_slots->num_map, &p[12]);
-	put_unaligned_be16(START_DRIVE, &p[14]); /* First Drives */
-	put_unaligned_be16(smc_slots->num_drives, &p[16]);
+	put_unaligned_be16(smc_p->pm->start_picker, &p[2]);
+	put_unaligned_be16(smc_p->num_picker, &p[4]);
+	put_unaligned_be16(smc_p->pm->start_storage, &p[6]);
+	put_unaligned_be16(smc_p->num_storage, &p[8]);
+	put_unaligned_be16(smc_p->pm->start_map, &p[10]);
+	put_unaligned_be16(smc_p->num_map, &p[12]);
+	put_unaligned_be16(smc_p->pm->start_drive, &p[14]);
+	put_unaligned_be16(smc_p->num_drives, &p[16]);
 
 	mp->description = mode_element_address;
 
 	return 0;
 }
-
 
 /*
  * Transport Geometry Parameters mode page

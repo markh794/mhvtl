@@ -407,7 +407,7 @@ void init_3592_j1a(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_3592_inquiry(lu);
 
@@ -441,7 +441,7 @@ void init_3592_E05(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_3592_inquiry(lu);
 
@@ -480,7 +480,7 @@ void init_3592_E06(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_3592_inquiry(lu);
 

@@ -427,10 +427,11 @@ struct smc_priv {
 	int num_map;
 	int num_storage;
 	int dvcid_len;
-	char dvcid_serial_only;
 	char cap_closed;
 	char *state_msg;	/* Custom State message */
 	char *movecommand;	/* 3rd party command to call */
+
+	struct smc_personality_template *pm;
 };
 
 struct density_info {
@@ -581,6 +582,9 @@ void find_media_home_directory(char *home_directory, int lib_id);
 unsigned int set_media_params(struct MAM *mamp, char *density);
 
 char *slot_type_str(int type);
+void init_smc_log_pages(struct lu_phy_attr *lu);
+void init_smc_mode_pages(struct lu_phy_attr *lu);
+void bubbleSort(int *array, int size);
 
 void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec);
 void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg);

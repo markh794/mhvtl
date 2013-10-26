@@ -2750,7 +2750,7 @@ static void cleanup_lu(struct lu_phy_attr *lu)
 	cart_deinit();
 }
 
-void personality_module_register(struct ssc_personality_template *pm)
+void ssc_personality_module_register(struct ssc_personality_template *pm)
 {
 	MHVTL_DBG(2, "%s", pm->name);
 	lu_ssc.pm = pm;

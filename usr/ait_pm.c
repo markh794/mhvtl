@@ -375,7 +375,7 @@ void init_ait1_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 2;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ait_inquiry(lu);
 
@@ -410,7 +410,7 @@ void init_ait2_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ait_inquiry(lu);
 
@@ -449,7 +449,7 @@ void init_ait3_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ait_inquiry(lu);
 
@@ -492,7 +492,7 @@ void init_ait4_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ait_inquiry(lu);
 

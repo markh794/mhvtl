@@ -184,7 +184,7 @@ struct priv_lu_ssc {
 	struct ssc_personality_template *pm;	/* Personality Module */
 };
 
-void personality_module_register(struct ssc_personality_template *pm);
+void ssc_personality_module_register(struct ssc_personality_template *pm);
 
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat);
 int writeBlock(struct scsi_cmd *cmd, uint32_t request_sz);

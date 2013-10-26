@@ -412,7 +412,7 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -456,7 +456,7 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -506,7 +506,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = FALSE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -565,7 +565,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -628,7 +628,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 
@@ -696,7 +696,7 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_ult_inquiry(lu);
 

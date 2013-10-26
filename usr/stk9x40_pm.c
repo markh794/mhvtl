@@ -387,7 +387,7 @@ void init_9840A_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_9840A;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_9840_inquiry(lu);
 
@@ -423,7 +423,7 @@ void init_9840B_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_9840B;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_9840_inquiry(lu);
 
@@ -461,7 +461,7 @@ void init_9840C_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_9840_inquiry(lu);
 
@@ -502,7 +502,7 @@ void init_9840D_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.native_drive_density = &density_9840D;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_9840_inquiry(lu);
 
@@ -542,7 +542,7 @@ void init_9940A_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_ANSI_VERSION = 5;
 	ssc_pm.native_drive_density = &density_9940A;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_9840_inquiry(lu);
 
@@ -581,7 +581,7 @@ void init_9940B_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
-	personality_module_register(&ssc_pm);
+	ssc_personality_module_register(&ssc_pm);
 
 	init_9840_inquiry(lu);
 

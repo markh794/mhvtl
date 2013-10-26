@@ -92,17 +92,17 @@ uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd)
 /* Return the element type of a particular element address */
 static int slot_type(struct smc_priv *smc_p, int addr)
 {
-	if ((addr >= START_DRIVE) &&
-			(addr < START_DRIVE + smc_p->num_drives))
+	if ((addr >= smc_p->pm->start_drive) &&
+			(addr < smc_p->pm->start_drive + smc_p->num_drives))
 		return DATA_TRANSFER;
-	if ((addr >= START_PICKER) &&
-			(addr < START_PICKER + smc_p->num_picker))
+	if ((addr >= smc_p->pm->start_picker) &&
+			(addr < smc_p->pm->start_picker + smc_p->num_picker))
 		return MEDIUM_TRANSPORT;
-	if ((addr >= START_MAP) &&
-			(addr < START_MAP + smc_p->num_map))
+	if ((addr >= smc_p->pm->start_map) &&
+			(addr < smc_p->pm->start_map + smc_p->num_map))
 		return MAP_ELEMENT;
-	if ((addr >= START_STORAGE) &&
-			(addr < START_STORAGE + smc_p->num_storage))
+	if ((addr >= smc_p->pm->start_storage) &&
+			(addr < smc_p->pm->start_storage + smc_p->num_storage))
 		return STORAGE_ELEMENT;
 	return 0;
 }
@@ -111,17 +111,17 @@ static int slot_type(struct smc_priv *smc_p, int addr)
  * Returns a 'human frendly' slot number
  * i.e. One with the internal offset removed (start counting at 1).
  */
-static int slot_number(struct s_info *sp)
+static int slot_number(struct smc_personality_template *pm, struct s_info *sp)
 {
 	switch (sp->element_type) {
 	case MEDIUM_TRANSPORT:
-		return sp->slot_location - START_PICKER + 1;
+		return sp->slot_location - pm->start_picker + 1;
 	case STORAGE_ELEMENT:
-		return sp->slot_location - START_STORAGE + 1;
+		return sp->slot_location - pm->start_storage + 1;
 	case MAP_ELEMENT:
-		return sp->slot_location - START_MAP + 1;
+		return sp->slot_location - pm->start_map + 1;
 	case DATA_TRANSFER:
-		return sp->slot_location - START_DRIVE + 1;
+		return sp->slot_location - pm->start_drive + 1;
 	}
 	return 0;
 }
@@ -386,7 +386,7 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 					page_elements);
 
 		i = dump_element_desc(p, voltag, page_elements, elem_len,
-					smc_p->dvcid_serial_only);
+					smc_p->pm->dvcid_serial_only);
 		p += i;
 		total_count -= i;
 	}
@@ -516,7 +516,7 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 		p[j++] = 1;	/* Identifier type */
 		p[j++] = 0;	/* Reserved */
 		p[j++] = smc_p->dvcid_len;	/* Identifier Length */
-		if (smc_p->dvcid_serial_only) {
+		if (smc_p->pm->dvcid_serial_only) {
 			blank_fill(&p[j], d->inq_product_sno,
 							smc_p->dvcid_len);
 			j += smc_p->dvcid_len;
@@ -858,7 +858,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 							DATA_TRANSFER, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
-			start_any = START_PICKER;
+			start_any = smc_p->pm->start_drive;
 			sum = byte_count /
 				sizeof_element(cmd, DATA_TRANSFER);
 		}
@@ -867,7 +867,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 							MEDIUM_TRANSPORT, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
-			start_any = START_MAP;
+			start_any = smc_p->pm->start_picker;
 			sum += byte_count /
 				sizeof_element(cmd, MEDIUM_TRANSPORT);
 		}
@@ -876,7 +876,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 							MAP_ELEMENT, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
-			start_any = START_STORAGE;
+			start_any = smc_p->pm->start_map;
 			sum += byte_count /
 				sizeof_element(cmd, MAP_ELEMENT);
 		}
@@ -992,9 +992,9 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 	snprintf(movecommand, cmdlen, "%s %s %d %s %d %s",
 			smc_p->movecommand,
 			slot_type_str(src->element_type),
-			slot_number(src),
+			slot_number(smc_p->pm, src),
 			slot_type_str(dest->element_type),
-			slot_number(dest),
+			slot_number(smc_p->pm, dest),
 			barcode
 	);
 	res = run_command(movecommand, smc_p->commandtimeout);
@@ -1045,7 +1045,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	 */
 
 	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %d",
-					cmd, slot_number(dest->slot));
+					cmd, slot_number(smc_p->pm, dest->slot));
 
 	send_msg(cmd, dest->drv_id);
 
@@ -1060,13 +1060,13 @@ static int move_slot2drive(struct smc_priv *smc_p,
 			"Moving %s from %s slot %d to drive %d",
 					cmd,
 					slot_type_str(src->element_type),
-					slot_number(src),
-					slot_number(dest->slot));
+					slot_number(smc_p->pm, src),
+					slot_number(smc_p->pm, dest->slot));
 	}
 
 	if (check_tape_load()) {
 		MHVTL_ERR("Load of %s into drive %d failed",
-					cmd, slot_number(dest->slot));
+					cmd, slot_number(smc_p->pm, dest->slot));
 		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1133,9 +1133,9 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 			"Moving %s from %s slot %d to %s slot %d",
 					cmd,
 					slot_type_str(src->element_type),
-					slot_number(src),
+					slot_number(smc_p->pm, src),
 					slot_type_str(dest->element_type),
-					slot_number(dest));
+					slot_number(smc_p->pm, dest));
 	}
 
 	retval = run_move_command(smc_p, src, dest, sam_stat);
@@ -1216,9 +1216,9 @@ static int move_drive2slot(struct smc_priv *smc_p,
 		sprintf(smc_p->state_msg,
 			"Moving %s from drive %d to %s slot %d",
 					cmd,
-					slot_number(src->slot),
+					slot_number(smc_p->pm, src->slot),
 					slot_type_str(dest->element_type),
-					slot_number(dest));
+					slot_number(smc_p->pm, dest));
 	}
 
 	retval = run_move_command(smc_p, src->slot, dest, sam_stat);
@@ -1256,7 +1256,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	/* Send 'unload' message to drive b4 the move.. */
 	MHVTL_DBG(2, "Unloading %s from drive %d",
 				src->slot->media->barcode,
-				slot_number(src->slot));
+				slot_number(smc_p->pm, src->slot));
 
 	send_msg("unload", src->drv_id);
 
@@ -1269,7 +1269,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %d",
-				cmd, slot_number(dest->slot));
+				cmd, slot_number(smc_p->pm, dest->slot));
 
 	send_msg(cmd, dest->drv_id);
 
@@ -1277,8 +1277,8 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		/* Failed, so put the tape back where it came from */
 		MHVTL_ERR("Failed to move to drive %d, "
 				"placing back into drive %d",
-				slot_number(dest->slot),
-				slot_number(src->slot));
+				slot_number(smc_p->pm, dest->slot),
+				slot_number(smc_p->pm, src->slot));
 		move_cart(dest->slot, src->slot);
 		sprintf(cmd, "lload %s", src->slot->media->barcode);
 		truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
@@ -1297,8 +1297,8 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		sprintf(smc_p->state_msg,
 			"Moving %s from drive %d to drive %d",
 					cmd,
-					slot_number(src->slot),
-					slot_number(dest->slot));
+					slot_number(smc_p->pm, src->slot),
+					slot_number(smc_p->pm, dest->slot));
 	}
 
 return retval;
@@ -1353,7 +1353,7 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 		return SAM_STAT_GOOD;
 
 	if (transport_addr == 0)
-		transport_addr = START_PICKER;
+		transport_addr = smc_p->pm->start_picker;
 	if (slot_type(smc_p, transport_addr) != MEDIUM_TRANSPORT) {
 		MHVTL_ERR("Can't move media using slot type %d",
 				slot_type(smc_p, transport_addr));

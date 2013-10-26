@@ -11,19 +11,20 @@
 #define OPERATOR	1
 #define ROBOT_ARM	0
 
-/*
- * FIXME: The following should be dynamic (read from config file)
- *
- **** Danger Will Robinson!! ****:
- *   START_DRIVE HAS TO start at slot 1
- *	The Order of Drives with lowest start, followed by Picker, followed
- *	by MAP, finally Storage slots is IMPORTANT. - You have been warned.
- *   Some of the logic in this source depends on it.
- */
-#define START_DRIVE	0x0001
-#define START_PICKER	0x02c0
-#define START_MAP	0x0300
-#define START_STORAGE	0x0400
+struct smc_personality_template {
+	char *name;
+	uint32_t library_has_map:1;
+	uint32_t library_has_barcode_reader:1;
+	uint32_t library_has_playground:1;
+	uint32_t dvcid_serial_only:1;
+
+	uint32_t start_drive;
+	uint32_t start_picker;
+	uint32_t start_map;
+	uint32_t start_storage;
+
+	struct lu_phy_attr *lu;
+};
 
 uint8_t smc_allow_removal(struct scsi_cmd *cmd);
 uint8_t smc_initialize_element_status(struct scsi_cmd *cmd);
@@ -38,3 +39,12 @@ int slotOccupied(struct s_info *s);
 void setImpExpStatus(struct s_info *s, int flg);
 void setSlotEmpty(struct s_info *s);
 void unload_drive_on_shutdown(struct s_info *src, struct s_info *dest);
+
+void init_slot_info(struct lu_phy_attr *lu);
+void init_stklxx(struct lu_phy_attr *lu);
+void init_default_smc(struct lu_phy_attr *lu);
+void init_scalar_smc(struct lu_phy_attr *lu);
+void init_spectra_logic_smc(struct  lu_phy_attr *lu);
+void init_ibmts3100(struct  lu_phy_attr *lu);
+void init_ibmts3500(struct  lu_phy_attr *lu);
+void smc_personality_module_register(struct smc_personality_template *pm);

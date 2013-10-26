@@ -563,7 +563,8 @@ static int empty_map(struct q_msg *msg)
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
 			setSlotEmpty(sp);
 			MHVTL_DBG(2, "MAP slot %d emptied",
-					sp->slot_location - START_MAP);
+					sp->slot_location -
+						smc_slots.pm->start_map);
 		}
 	}
 
@@ -628,11 +629,18 @@ static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
 {
 	struct list_head *drive_list_head;
 	struct d_info *d;
+	uint32_t slot_offset;
 
 	drive_list_head = &((struct smc_priv *)lu->lu_private)->drive_list;
+	slot_offset = ((struct smc_priv *)lu->lu_private)->pm->start_drive;
+
+	/* Drive numbering starts from 1, decrement slot_offset */
+	slot_offset--;
 
 	list_for_each_entry(d, drive_list_head, siblings) {
-		if (d->slot->slot_location == drive_no)
+		MHVTL_DBG(3, "Slot location: %d, offset + drive_no: %d",
+				d->slot->slot_location, slot_offset + drive_no);
+		if (d->slot->slot_location == slot_offset + drive_no)
 			return d;
 	}
 
@@ -648,29 +656,12 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 
 	new = zalloc(sizeof(struct s_info));
 	if (!new) {
-		MHVTL_LOG("Could not allocate memory for new slot struct");
+		MHVTL_ERR("Could not allocate memory for new slot struct");
 		exit(-ENOMEM);
 	}
 
 	list_add_tail(&new->siblings, slot_list_head);
 	return new;
-}
-
-static void init_smc_log_pages(struct lu_phy_attr *lu)
-{
-	add_log_temperature_page(lu);
-	add_log_tape_alert(lu);
-}
-
-static void init_smc_mode_pages(struct lu_phy_attr *lu)
-{
-	add_mode_disconnect_reconnect(lu);
-	add_mode_control_extension(lu);
-	add_mode_power_condition(lu);
-	add_mode_information_exception(lu);
-	add_mode_element_address_assignment(lu);
-	add_mode_transport_geometry(lu);
-	add_mode_device_capabilities(lu);
 }
 
 /* Open device config file and update device information
@@ -721,6 +712,8 @@ static void update_drive_details(struct lu_phy_attr *lu)
 					drv_id, slot);
 			dp = lookup_drive(lu, slot);
 			if (!dp) {
+				MHVTL_LOG("WARNING: Creating new entry for %ld",
+									drv_id);
 				dp = zalloc(sizeof(struct d_info));
 				if (!dp) {
 					MHVTL_DBG(1, "Couldn't malloc memory");
@@ -733,6 +726,9 @@ static void update_drive_details(struct lu_phy_attr *lu)
 				list_add_tail(&dp->siblings,
 						&smc_p->drive_list);
 			}
+			MHVTL_DBG(3, "Updating drive id in slot %d to : %ld",
+						dp->slot->slot_location,
+						drv_id);
 			dp->drv_id = drv_id;
 			continue;
 		}
@@ -780,7 +776,7 @@ void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s)
 	if (!dp) {
 		dp = zalloc(sizeof(struct d_info));
 		if (!dp) {
-			MHVTL_DBG(1, "Couldn't malloc memory");
+			MHVTL_ERR("Couldn't malloc memory");
 			exit(-ENOMEM);
 		}
 		sp = add_new_slot(lu);
@@ -789,13 +785,15 @@ void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s)
 		sp->drive = dp;
 		list_add_tail(&dp->siblings, &smc_p->drive_list);
 	}
-	dp->slot->slot_location = slt + START_DRIVE - 1;
+	dp->slot->slot_location = slt + smc_p->pm->start_drive - 1;
 	dp->slot->status = STATUS_Access;
 	smc_p->num_drives++;
 	if (strlen(s)) {
 		strncpy(dp->inq_product_sno, s, 10);
 		MHVTL_DBG(2, "Drive s/no: %s", s);
 	}
+	MHVTL_DBG(3, "Slot: %d, start_drive: %d, slot_location: %d",
+			slt, smc_p->pm->start_drive, dp->slot->slot_location);
 }
 
 void init_map_slot(struct lu_phy_attr *lu, int slt, char *barcode)
@@ -807,7 +805,7 @@ void init_map_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 	sp->element_type = MAP_ELEMENT;
 	smc_p->num_map++;
 
-	sp->slot_location = slt + START_MAP - 1;
+	sp->slot_location = slt + smc_p->pm->start_map - 1;
 	sp->status = STATUS_InEnab | STATUS_ExEnab |
 				STATUS_Access | STATUS_ImpExp;
 
@@ -826,13 +824,13 @@ void init_transport_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 	sp = add_new_slot(lu);
 	sp->element_type = MEDIUM_TRANSPORT;
 	smc_p->num_picker++;
-	sp->slot_location = slt + START_PICKER - 1;
+	sp->slot_location = slt + smc_p->pm->start_picker - 1;
 	sp->status = 0;
 
 	if (strlen(barcode)) {
 		MHVTL_DBG(2, "Barcode %s in Picker %d", barcode, slt);
 		sp->media = add_barcode(lu, barcode);
-		sp->slot_location = slt + START_PICKER - 1;
+		sp->slot_location = slt + smc_p->pm->start_picker - 1;
 		sp->status |= STATUS_Full;
 	}
 }
@@ -846,7 +844,7 @@ void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 	sp->element_type = STORAGE_ELEMENT;
 	smc_p->num_storage++;
 	sp->status = STATUS_Access;
-	sp->slot_location = slt + START_STORAGE - 1;
+	sp->slot_location = slt + smc_p->pm->start_storage - 1;
 	if (strlen(barcode)) {
 		MHVTL_DBG(2, "Barcode %s in slot %d", barcode, slt);
 		sp->media = add_barcode(lu, barcode);
@@ -967,13 +965,40 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 	free(s);
 }
 
-/* Linked list data needs to be built in slot order */
-static void init_slot_info(struct lu_phy_attr *lu)
+static void _init_slot_info(struct lu_phy_attr *lu, int order)
 {
-	__init_slot_info(lu, DATA_TRANSFER);
-	__init_slot_info(lu, MEDIUM_TRANSPORT);
-	__init_slot_info(lu, MAP_ELEMENT);
-	__init_slot_info(lu, STORAGE_ELEMENT);
+	struct smc_priv *smc_p;
+
+	smc_p = lu->lu_private;
+
+	if (smc_p->pm->start_drive == order)
+		__init_slot_info(lu, DATA_TRANSFER);
+	if (smc_p->pm->start_picker == order)
+		__init_slot_info(lu, MEDIUM_TRANSPORT);
+	if (smc_p->pm->start_map == order)
+		__init_slot_info(lu, MAP_ELEMENT);
+	if (smc_p->pm->start_storage == order)
+		__init_slot_info(lu, STORAGE_ELEMENT);
+}
+
+/* Linked list data needs to be built in slot order */
+void init_slot_info(struct lu_phy_attr *lu)
+{
+	int i;
+	struct smc_priv *smc_p;
+	int arr[4];
+
+	smc_p = lu->lu_private;
+
+	arr[0] = smc_p->pm->start_drive;
+	arr[1] = smc_p->pm->start_picker;
+	arr[2] = smc_p->pm->start_map;
+	arr[3] = smc_p->pm->start_storage;
+
+	bubbleSort(&arr[0], 4);
+
+	for (i = 0; i < 4; i++)
+		_init_slot_info(lu, arr[i]);
 }
 
 /* Set VPD data with device serial number */
@@ -1120,7 +1145,8 @@ static void save_config(struct lu_phy_attr *lu)
 			sp = dp->slot;
 			MHVTL_DBG(1, "Found %s in drive %d from %d",
 					sp->media->barcode,
-					sp->slot_location - START_DRIVE + 1,
+					sp->slot_location -
+						lu_priv->pm->start_drive + 1,
 					sp->last_location);
 			unload_drive_on_shutdown(sp,
 					previous_storage_slot(sp, slot_head));
@@ -1136,7 +1162,8 @@ static void save_config(struct lu_phy_attr *lu)
 			sp = dp->slot;
 			MHVTL_DBG(1, "Found %s in drive %d from %d",
 					sp->media->barcode,
-					sp->slot_location - START_DRIVE + 1,
+					sp->slot_location -
+						lu_priv->pm->start_drive + 1,
 					sp->last_location);
 			unload_drive_on_shutdown(sp,
 					find_empty_storage_slot(sp, slot_head));
@@ -1156,21 +1183,25 @@ static void save_config(struct lu_phy_attr *lu)
 		switch (sp->element_type) {
 		case DATA_TRANSFER:
 			fprintf(ctrl, "Drive %d:\n",
-					sp->slot_location - START_DRIVE + 1);
+					sp->slot_location -
+						lu_priv->pm->start_drive + 1);
 			break;
 		case MEDIUM_TRANSPORT:
 			fprintf(ctrl, "Picker %d: %s\n",
-				sp->slot_location - START_PICKER + 1,
+				sp->slot_location -
+						lu_priv->pm->start_picker + 1,
 				slotOccupied(sp) ? sp->media->barcode : "");
 			break;
 		case MAP_ELEMENT:
 			fprintf(ctrl, "MAP %d: %s\n",
-				sp->slot_location - START_MAP + 1,
+				sp->slot_location -
+						lu_priv->pm->start_map + 1,
 				slotOccupied(sp) ? sp->media->barcode : "");
 			break;
 		case STORAGE_ELEMENT:
 			fprintf(ctrl, "Slot %d: %s\n",
-				sp->slot_location - START_STORAGE + 1,
+				sp->slot_location -
+						lu_priv->pm->start_storage + 1,
 				slotOccupied(sp) ? sp->media->barcode : "");
 			break;
 		}
@@ -1369,6 +1400,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				VPD_83_SZ, __LINE__);
 
+#ifdef notdef
+/* with personality module - remove these */
+
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
 	pg = PCODE_OFFSET(0xB1);
 	lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
@@ -1405,6 +1439,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				(int)strlen(lu->lu_serial_no),
 				(int)__LINE__);
+#endif
 
 	lu->lu_private = &smc_slots;
 	smc_slots.cap_closed = CAP_CLOSED;
@@ -1488,6 +1523,25 @@ static void cleanup_lu(struct lu_phy_attr *lu)
 	lu_priv->state_msg = NULL;
 }
 
+static void customise_lu(struct lu_phy_attr *lu)
+{
+	if (!strncasecmp(lu->vendor_id, "stk", 3))
+		init_stklxx(lu);	/* STK L series */
+	else if (!strncasecmp(lu->vendor_id, "IBM", 3))
+		if (!strncasecmp(lu->product_id, "3573-TL", 7)) {
+			init_ibmts3100(lu);
+		} else {
+			init_ibmts3500(lu);	/* IBM TS3500 series */
+		}
+	else if (!strncasecmp(lu->product_id, "scalar", 6))
+		init_scalar_smc(lu);
+	else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7) &&
+			!strncasecmp(lu->product_id, "PYTHON", 6))
+		init_spectra_logic_smc(lu);
+	else
+		init_default_smc(lu);
+}
+
 void rereadconfig(int sig)
 {
 	struct vtl_ctl ctl;
@@ -1514,10 +1568,9 @@ void rereadconfig(int sig)
 	if (lunit.fifoname)
 		open_fifo(&lunit.fifo_fd, lunit.fifoname);
 
-	init_slot_info(&lunit);
+	customise_lu(&lunit);
+
 	update_drive_details(&lunit);
-	init_smc_mode_pages(&lunit);
-	init_smc_log_pages(&lunit);
 
 	/* malloc a big enough buffer to fit worst case read element status */
 	buffer_size = (smc_slots.num_drives +
@@ -1534,6 +1587,12 @@ void rereadconfig(int sig)
 	} else {
 		lunit.online = 1;	/* Should be good to go */
 	}
+}
+
+void smc_personality_module_register(struct smc_personality_template *pm)
+{
+	MHVTL_DBG(2, "%s", pm->name);
+	smc_slots.pm = pm;
 }
 
 static void caught_signal(int signo)
@@ -1632,10 +1691,12 @@ int main(int argc, char *argv[])
 		printf("Can not find entry for '%ld' in config file\n", my_id);
 		exit(1);
 	}
-	init_slot_info(&lunit);
+
+	/* Personality module init call */
+	customise_lu(&lunit);
+
 	update_drive_details(&lunit);
-	init_smc_mode_pages(&lunit);
-	init_smc_log_pages(&lunit);
+
 	lunit.online = 1; /* Mark unit online */
 
 	if (chrdev_create(my_id)) {
@@ -1799,39 +1860,6 @@ int main(int argc, char *argv[])
 					ctl.channel, ctl.id, ctl.lun);
 
 	oom_adjust();
-
-	/* Tweak as necessary to properly mimic the specified library type. */
-	/* FIXME: This moves into personality modules once implemented */
-
-	if (!strcmp(lunit.vendor_id, "SPECTRA ") &&
-		!strcmp(lunit.product_id, "PYTHON          ")) {
-		/* size of dvcid area in RES descriptor */
-		smc_slots.dvcid_len = 10;
-		/* dvcid area only contains a serial number */
-		smc_slots.dvcid_serial_only = TRUE;
-	} else {
-		/* size of dvcid area in RES descriptor */
-		smc_slots.dvcid_len = 34;
-		/* dvcid area contains vendor, product, serial */
-		smc_slots.dvcid_serial_only = FALSE;
-	}
-	/* Reference Quantum 6-00423013 SCSI Reference - Rev A */
-	if (!strncmp(lunit.product_id, "Scalar", 6)) {
-		int h, m, sec;
-		int day, month, year;
-
-		month = 0;
-
-		MHVTL_DBG(3, "Detected Scalar library");
-
-		ymd(&year, &month, &day, &h, &m, &sec);
-
-		/* Controller firmware build date */
-		sprintf((char *)&lunit.inquiry[36], "%04d-%02d-%02d %02d:%02d:%02d",
-				year, month, day, h, m, sec);
-
-		lunit.inquiry[55] = 0x01;	/* Contains barcode scanner : BarC */
-	}
 
 	/* If fifoname passed as switch */
 	if (fifoname)

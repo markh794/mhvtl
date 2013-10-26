@@ -51,6 +51,7 @@
 #include "logging.h"
 #include "vtllib.h"
 #include "vtltape.h"
+#include "mode.h"
 #include "ssc.h"
 #include "log.h"
 #include "q.h"
@@ -1566,4 +1567,42 @@ void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg)
 char *slot_type_str(int type)
 {
 	return slot_type_string[type];
+}
+
+void init_smc_log_pages(struct lu_phy_attr *lu)
+{
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+}
+
+void init_smc_mode_pages(struct lu_phy_attr *lu)
+{
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control_extension(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_element_address_assignment(lu);
+	add_mode_transport_geometry(lu);
+	add_mode_device_capabilities(lu);
+}
+
+void bubbleSort(int *array, int size)
+{
+	int swapped;
+	int i;
+	int j;
+
+	for (i = 0; i < size; i++) {
+		swapped = 0;
+		for (j = 0; j < size - i; j++) {
+			if (array[j] > array[j+1]) {
+				int temp = array[j];
+				array[j] = array[j+1];
+				array[j+1] = temp;
+				swapped = 1;
+			}
+		}
+		if (!swapped)
+			break; /* if it is sorted then stop */
+	}
 }
