@@ -104,19 +104,16 @@ static struct smc_personality_template smc_pm = {
 	.start_map			= 0x000a,
 	.start_drive			= 0x01f4,
 	.start_storage			= 0x03e8,
+
+	.dvcid_len			= 34,
 };
 
 void init_hp_eml_smc(struct  lu_phy_attr *lu)
 {
-	struct smc_priv *lu_priv = lu->lu_private;
-
 	smc_pm.name = "mhVTL - HP EML E-Series emulation";
 
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
-
-	/* size of dvcid area in RES descriptor */
-	lu_priv->dvcid_len = 34;
 
 	init_slot_info(lu);
 

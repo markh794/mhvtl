@@ -17,16 +17,15 @@ static struct smc_personality_template smc_pm = {
 	.library_has_map		= TRUE,
 	.library_has_barcode_reader	= TRUE,
 	.library_has_playground		= TRUE,
+
+	.dvcid_len			= 34,
 };
 
 static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
-	struct smc_priv *smc_p = lu->lu_private;
 	uint8_t *d;
 	int pg;
-
-	smc_p = lu->lu_private;
 
 	/* Unit Serial Number */
 	pg = PCODE_OFFSET(0x80);
@@ -113,8 +112,6 @@ static void update_ibm_3500_vpd_80(struct lu_phy_attr *lu)
 	uint8_t *d;
 	int pg;
 
-	smc_p = lu->lu_private;
-
 	/* Unit Serial Number */
 	pg = PCODE_OFFSET(0x80);
 	if (lu_vpd[pg])		/* Free any earlier allocation */
@@ -169,8 +166,6 @@ static void update_ibm_3500_vpd_83(struct lu_phy_attr *lu)
 
 void init_ibmts3100(struct lu_phy_attr *lu)
 {
-	struct smc_priv *lu_priv = lu->lu_private;
-
 	smc_pm.name = "mhVTL - IBM TS3100 series emulation";
 	smc_pm.library_has_map = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
@@ -185,7 +180,6 @@ void init_ibmts3100(struct lu_phy_attr *lu)
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
 
-	/* Initialise order 'Picker, Drives, MAP, Storage */
 	init_slot_info(lu);
 
 	/* Need slot info before we can fill out VPD data */
@@ -194,17 +188,12 @@ void init_ibmts3100(struct lu_phy_attr *lu)
 	update_ibm_3100_vpd_c0(lu);
 	/* IBM Doco hints at VPD page 0xd0 - but does not document it */
 
-	/* size of dvcid area in RES descriptor */
-	lu_priv->dvcid_len = 34;
-
 	init_smc_log_pages(lu);
 	init_smc_mode_pages(lu);
 }
 
 void init_ibmts3500(struct lu_phy_attr *lu)
 {
-	struct smc_priv *lu_priv = lu->lu_private;
-
 	smc_pm.name = "mhVTL - IBM TS3500 series emulation";
 	smc_pm.library_has_map = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
@@ -226,9 +215,6 @@ void init_ibmts3500(struct lu_phy_attr *lu)
 	update_ibm_3500_vpd_80(lu);
 	update_ibm_3500_vpd_83(lu);
 	/* IBM Doco hints at VPD page 0xd0 - but does not document it */
-
-	/* size of dvcid area in RES descriptor */
-	lu_priv->dvcid_len = 34;
 
 	init_smc_log_pages(lu);
 	init_smc_mode_pages(lu);

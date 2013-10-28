@@ -16,11 +16,12 @@ static struct smc_personality_template smc_pm = {
 	.library_has_map		= TRUE,
 	.library_has_barcode_reader	= TRUE,
 	.library_has_playground		= FALSE,
+
+	.dvcid_len			= 34,
 };
 
 void init_scalar_smc(struct  lu_phy_attr *lu)
 {
-	struct smc_priv *lu_priv = lu->lu_private;
 	int h, m, sec;
 	int day, month, year;
 
@@ -38,11 +39,7 @@ void init_scalar_smc(struct  lu_phy_attr *lu)
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
 
-	/* Initialise order 'Drive, Picker, MAP, Storage */
 	init_slot_info(lu);
-
-	/* size of dvcid area in RES descriptor */
-	lu_priv->dvcid_len = 34;
 
 	/* Reference Quantum 6-00423013 SCSI Reference - Rev A */
 	ymd(&year, &month, &day, &h, &m, &sec);

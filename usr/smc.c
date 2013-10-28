@@ -407,7 +407,7 @@ static int sizeof_element(struct scsi_cmd *cmd, int type)
 	dvcid = cmd->scb[6] & 0x01;	/* Device ID */
 
 	return 16 + (voltag ? VOLTAG_LEN : 0) +
-		(dvcid && (type == DATA_TRANSFER) ? smc_p->dvcid_len : 0);
+		(dvcid && (type == DATA_TRANSFER) ? smc_p->pm->dvcid_len : 0);
 }
 
 /*
@@ -515,11 +515,11 @@ static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
 		p[j++] = 2;	/* Code set 2 = ASCII */
 		p[j++] = 1;	/* Identifier type */
 		p[j++] = 0;	/* Reserved */
-		p[j++] = smc_p->dvcid_len;	/* Identifier Length */
+		p[j++] = smc_p->pm->dvcid_len;	/* Identifier Length */
 		if (smc_p->pm->dvcid_serial_only) {
 			blank_fill(&p[j], d->inq_product_sno,
-							smc_p->dvcid_len);
-			j += smc_p->dvcid_len;
+							smc_p->pm->dvcid_len);
+			j += smc_p->pm->dvcid_len;
 		} else {
 			blank_fill(&p[j], d->inq_vendor_id, 8);
 			j += 8;
@@ -848,11 +848,6 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		/* Don't modify 'start' value as it is needed later */
 		start_any = start;
 
-		/* Logic here depends on Storage slots being
-		 * higher (numerically) than MAP which is higher than
-		 * Picker, which is higher than the drive slot number..
-		 * See DWR: near top of this file !!
-		 */
 		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
 			byte_count = fill_element_page(cmd, p, start_any,
 							DATA_TRANSFER, sum);

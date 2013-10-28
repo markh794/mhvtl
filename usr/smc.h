@@ -22,6 +22,7 @@ struct smc_personality_template {
 	uint32_t start_picker;
 	uint32_t start_map;
 	uint32_t start_storage;
+	uint32_t dvcid_len;
 
 	struct lu_phy_attr *lu;
 };

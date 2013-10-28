@@ -16,12 +16,12 @@ static struct smc_personality_template smc_pm = {
 	.library_has_map		= TRUE,
 	.library_has_barcode_reader	= TRUE,
 	.library_has_playground		= TRUE,
+
+	.dvcid_len			= 32,
 };
 
 void init_default_smc(struct  lu_phy_attr *lu)
 {
-	struct smc_priv *lu_priv = lu->lu_private;
-
 	smc_pm.name = "mhVTL - Default emulation";
 	smc_pm.library_has_map = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
@@ -36,11 +36,7 @@ void init_default_smc(struct  lu_phy_attr *lu)
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
 
-	/* Initialise order 'Drive, Picker, MAP, Storage */
 	init_slot_info(lu);
-
-	/* size of dvcid area in RES descriptor */
-	lu_priv->dvcid_len = 34;
 
 	init_smc_log_pages(lu);
 	init_smc_mode_pages(lu);

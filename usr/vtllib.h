@@ -426,7 +426,6 @@ struct smc_priv {
 	int num_picker;
 	int num_map;
 	int num_storage;
-	int dvcid_len;
 	char cap_closed;
 	char *state_msg;	/* Custom State message */
 	char *movecommand;	/* 3rd party command to call */

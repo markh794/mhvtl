@@ -16,6 +16,8 @@ static struct smc_personality_template smc_pm = {
 	.library_has_map		= TRUE,
 	.library_has_barcode_reader	= TRUE,
 	.library_has_playground		= TRUE,
+
+	.dvcid_len			= 34,
 };
 
 static void update_stk_l_vpd_80(struct lu_phy_attr *lu)
@@ -60,8 +62,6 @@ static void update_stk_l_vpd_83(struct lu_phy_attr *lu)
 
 void init_stklxx(struct  lu_phy_attr *lu)
 {
-	struct smc_priv *lu_priv = lu->lu_private;
-
 	smc_pm.name = "mhVTL - STK L series emulation";
 	smc_pm.library_has_map = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
@@ -76,10 +76,6 @@ void init_stklxx(struct  lu_phy_attr *lu)
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
 
-	/* size of dvcid area in RES descriptor */
-	lu_priv->dvcid_len = 34;
-
-	/* Initialise order 'Picker, MAP, Drives, Storage */
 	init_slot_info(lu);
 
 	update_stk_l_vpd_80(lu);
