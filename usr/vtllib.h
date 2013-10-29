@@ -112,6 +112,12 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define VPD_B2_SZ 8
 #define VPD_C0_SZ 0x28
 
+struct smc_type_slot {
+	char type;
+	uint32_t start;
+	uint32_t number;
+};
+
 struct mode {
 	struct list_head siblings;
 	uint8_t pcode;		/* Page code */
@@ -584,6 +590,7 @@ char *slot_type_str(int type);
 void init_smc_log_pages(struct lu_phy_attr *lu);
 void init_smc_mode_pages(struct lu_phy_attr *lu);
 void bubbleSort(int *array, int size);
+void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type);
 
 void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec);
 void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg);

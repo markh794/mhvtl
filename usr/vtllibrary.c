@@ -965,40 +965,16 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 	free(s);
 }
 
-static void _init_slot_info(struct lu_phy_attr *lu, int order)
-{
-	struct smc_priv *smc_p;
-
-	smc_p = lu->lu_private;
-
-	if (smc_p->pm->start_drive == order)
-		__init_slot_info(lu, DATA_TRANSFER);
-	if (smc_p->pm->start_picker == order)
-		__init_slot_info(lu, MEDIUM_TRANSPORT);
-	if (smc_p->pm->start_map == order)
-		__init_slot_info(lu, MAP_ELEMENT);
-	if (smc_p->pm->start_storage == order)
-		__init_slot_info(lu, STORAGE_ELEMENT);
-}
-
 /* Linked list data needs to be built in slot order */
 void init_slot_info(struct lu_phy_attr *lu)
 {
 	int i;
-	struct smc_priv *smc_p;
-	int arr[4];
+	struct smc_type_slot arr[4];
 
-	smc_p = lu->lu_private;
-
-	arr[0] = smc_p->pm->start_drive;
-	arr[1] = smc_p->pm->start_picker;
-	arr[2] = smc_p->pm->start_map;
-	arr[3] = smc_p->pm->start_storage;
-
-	bubbleSort(&arr[0], 4);
+	sort_library_slot_type(lu, &arr[0]);
 
 	for (i = 0; i < 4; i++)
-		_init_slot_info(lu, arr[i]);
+		__init_slot_info(lu, arr[i].type);
 }
 
 /* Set VPD data with device serial number */

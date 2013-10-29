@@ -415,7 +415,7 @@ static int sizeof_element(struct scsi_cmd *cmd, int type)
  *
  * Returns number of bytes in element data.
  */
-static int fill_element_descriptor(struct scsi_cmd *cmd, uint8_t *p,
+static int fill_ed(struct scsi_cmd *cmd, uint8_t *p,
 						struct s_info *s)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
@@ -720,7 +720,8 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 
 	avail_count =  num_available_elements(smc_p, type, start, max_count);
 
-	MHVTL_DBG(3, "Available count: %d, type: %d", avail_count, type);
+	MHVTL_DBG(3, "Available count: %d, type: (%d) %s",
+				avail_count, type, slot_type_str(type));
 
 	/* Create Element Status Page Header. */
 	fill_element_status_page_hdr(cmd, p, avail_count, type);
@@ -742,7 +743,7 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 			if (sp->slot_location == start)
 				type = sp->element_type;
 		}
-		element_sz = fill_element_descriptor(cmd, p, sp);
+		element_sz = fill_ed(cmd, p, sp);
 		avail_count += element_sz;	/* inc byte count */
 		p += element_sz;		/* inc pointer into dest buf */
 		MHVTL_DBG(3, "Count: %d, max_count: %d, slot: %d",
@@ -763,6 +764,7 @@ return avail_count;
 uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
+	struct lu_phy_attr *lu = cmd->lu;
 	uint8_t *cdb = cmd->scb;
 	uint8_t *p;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
@@ -777,6 +779,11 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	uint32_t byte_count;
 	uint32_t cur_count;
 	struct s_sd sd;
+	struct smc_type_slot type_arr[4];	/* Hold sorted slot type */
+	char start_slot_type;
+	int i;
+	int found;
+
 #ifdef MHVTL_DEBUG
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
 	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
@@ -847,39 +854,43 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	case ANY:
 		/* Don't modify 'start' value as it is needed later */
 		start_any = start;
+		start_slot_type = slot_type(smc_p, start_any);
+		sort_library_slot_type(lu, &type_arr[0]);
+		found = FALSE;
 
-		if (slot_type(smc_p, start_any) == DATA_TRANSFER) {
-			byte_count = fill_element_page(cmd, p, start_any,
-							DATA_TRANSFER, sum);
-			elem_byte_count += byte_count;
-			p += byte_count;
-			start_any = smc_p->pm->start_drive;
-			sum = byte_count /
-				sizeof_element(cmd, DATA_TRANSFER);
+		/* Find out where we are up to */
+		for (i = 0; i < 4 && found == FALSE; i++) {
+			MHVTL_DBG(2, "Testing type %d with %d",
+					type_arr[i].type, start_slot_type);
+			if (type_arr[i].type == start_slot_type)
+				found = TRUE;
 		}
-		if (slot_type(smc_p, start_any) == MEDIUM_TRANSPORT) {
+		if (!found) {
+			MHVTL_ERR("Couldn't find starting slot type !!");
+			sd.byte0 = SKSV | CD;
+			sd.field_pointer = 3;
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd,
+								sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
+
+		MHVTL_DBG(3, "All element type: Starting at %d", start_any);
+		for (; i < 4; i++) {
+			MHVTL_DBG(3, "i: %d, type_arr[i].type: (%d) %s, "
+					"type_arr[i].start: %d",
+					i, type_arr[i].type,
+					slot_type_str(type_arr[i].type),
+					type_arr[i].start);
+
 			byte_count = fill_element_page(cmd, p, start_any,
-							MEDIUM_TRANSPORT, sum);
+							type_arr[i].type, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
-			start_any = smc_p->pm->start_picker;
 			sum += byte_count /
-				sizeof_element(cmd, MEDIUM_TRANSPORT);
-		}
-		if (slot_type(smc_p, start_any) == MAP_ELEMENT) {
-			byte_count = fill_element_page(cmd, p, start_any,
-							MAP_ELEMENT, sum);
-			elem_byte_count += byte_count;
-			p += byte_count;
-			start_any = smc_p->pm->start_map;
-			sum += byte_count /
-				sizeof_element(cmd, MAP_ELEMENT);
-		}
-		if (slot_type(smc_p, start_any) == STORAGE_ELEMENT) {
-			byte_count = fill_element_page(cmd, p, start_any,
-							STORAGE_ELEMENT, sum);
-			elem_byte_count += byte_count;
-			p += byte_count;
+				sizeof_element(cmd, type_arr[i].type);
+
+			if (i < 3)	/* Next slot type number */
+				start_any = type_arr[i + 1].start;
 		}
 		break;
 	default:	/* Illegal descriptor type. */

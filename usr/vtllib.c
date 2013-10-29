@@ -50,6 +50,7 @@
 #include "vtl_common.h"
 #include "logging.h"
 #include "vtllib.h"
+#include "smc.h"
 #include "vtltape.h"
 #include "mode.h"
 #include "ssc.h"
@@ -1604,5 +1605,39 @@ void bubbleSort(int *array, int size)
 		}
 		if (!swapped)
 			break; /* if it is sorted then stop */
+	}
+}
+
+void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type)
+{
+	int i;
+	struct smc_priv *smc_p = lu->lu_private;
+	int arr[4];
+
+
+	arr[0] = smc_p->pm->start_drive;
+	arr[1] = smc_p->pm->start_picker;
+	arr[2] = smc_p->pm->start_map;
+	arr[3] = smc_p->pm->start_storage;
+
+	bubbleSort(arr, 4);
+
+	for (i = 0; i < 4; i++) {
+		if (smc_p->pm->start_drive == arr[i]) {
+			type[i].type = DATA_TRANSFER;
+			type[i].start = smc_p->pm->start_drive;
+		}
+		if (smc_p->pm->start_picker == arr[i]) {
+			type[i].type = MEDIUM_TRANSPORT;
+			type[i].start = smc_p->pm->start_picker;
+		}
+		if (smc_p->pm->start_map == arr[i]) {
+			type[i].type = MAP_ELEMENT;
+			type[i].start = smc_p->pm->start_map;
+		}
+		if (smc_p->pm->start_storage == arr[i]) {
+			type[i].type = STORAGE_ELEMENT;
+			type[i].start = smc_p->pm->start_storage;
+		}
 	}
 }
