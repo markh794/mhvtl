@@ -251,9 +251,11 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 			"Fatal: bufsize %d, requested write of %d bytes",
 							lu_ssc->bufsize, sz);
 
-	/* Retrieve data from kernel */
 	dbuf_p->sz = sz * count;
-	retrieve_CDB_data(cmd->cdev, dbuf_p);
+
+	/* Retrieve data from kernel - unless media type is 'null' */
+	if (likely(mam.MediumType != MEDIA_TYPE_NULL))
+		retrieve_CDB_data(cmd->cdev, dbuf_p);
 
 	if (!lu_ssc->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
@@ -323,6 +325,11 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 		break;
 	case MEDIA_TYPE_DATA:
 		*lu_ssc->OK_2_write = 1;
+		break;
+	case MEDIA_TYPE_NULL:
+		*lu_ssc->OK_2_write = 1;
+		/* Special case - no need for more checks */
+		return *lu_ssc->OK_2_write;
 		break;
 	default:
 		*lu_ssc->OK_2_write = 0;

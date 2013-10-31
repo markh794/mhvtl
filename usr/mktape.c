@@ -40,7 +40,7 @@ static void usage(char *progname)
 	printf("Usage: %s -l lib -m PCL -s size -t type -d density\n",
 					progname);
 	printf("       Where 'size' is in Megabytes\n");
-	printf("             'type' is data | clean | WORM\n");
+	printf("             'type' is data | clean | WORM | NULL\n");
 	printf("             'PCL' is Physical Cartridge Label (barcode)\n");
 	printf("             'lib' is Library number\n");
 	printf("             'density' can be on of the following:\n");
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	if (mediaType == NULL) {
-		printf("Please supply cart type (-t data|clean|WORM)\n\n");
+		printf("Please supply cart type (-t data|clean|WORM|NULL)\n\n");
 		usage(progname);
 		exit(1);
 	}
@@ -213,6 +213,8 @@ int main(int argc, char *argv[])
 	if (!strncmp("clean", mediaType, 5)) {
 		mam.MediumType = MEDIA_TYPE_CLEAN;	/* Cleaning cart */
 		mam.MediumTypeInformation = 20;		/* Max cleaning loads */
+	} else if (!strncmp("NULL", mediaType, 4)) {
+		mam.MediumType = MEDIA_TYPE_NULL;	/* save metadata only */
 	} else if (!strncmp("WORM", mediaType, 4)) {
 		mam.MediumType = MEDIA_TYPE_WORM;	/* WORM cart */
 	} else {

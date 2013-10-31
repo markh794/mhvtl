@@ -862,7 +862,7 @@ static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
  *
  * Zero on error with sense buffer already filled in
  */
-int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz)
+int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
@@ -873,8 +873,8 @@ int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	setup_crypto(cmd, lu_priv);
 
-	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop,
-							0, sam_stat);
+	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop, 0,
+							null_wr, sam_stat);
 
 	lu_priv->bytesWritten_M += src_sz;
 	lu_priv->bytesWritten_I += src_sz;
@@ -890,7 +890,7 @@ int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz)
  *
  * Zero on error with sense buffer already filled in
  */
-int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
+int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 {
 	lzo_uint dest_len;
 	lzo_uint src_len = src_sz;
@@ -909,7 +909,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	/* No compression - use the no-compression function */
 	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
-		return writeBlock_nocomp(cmd, src_sz);
+		return writeBlock_nocomp(cmd, src_sz, null_wr);
 
 	setup_crypto(cmd, lu_priv);
 
@@ -942,7 +942,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
 					src_sz, (unsigned long)dest_len);
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
-						LZO, sam_stat);
+						LZO, null_wr, sam_stat);
 
 	free(dest_buf);
 	free(wrkmem);
@@ -960,7 +960,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz)
  *
  * Zero on error with sense buffer already filled in
  */
-int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
+int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 {
 	Bytef *dest_buf;
 	uLong dest_len;
@@ -975,7 +975,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	/* No compression - use the no-compression function */
 	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
-		return writeBlock_nocomp(cmd, src_sz);
+		return writeBlock_nocomp(cmd, src_sz, null_wr);
 
 	setup_crypto(cmd, lu_priv);
 
@@ -1011,7 +1011,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz)
 					*lu_priv->compressionFactor);
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
-							ZLIB, sam_stat);
+						ZLIB, null_wr, sam_stat);
 
 	free(dest_buf);
 	lu_priv->bytesWritten_M += dest_len;
@@ -1043,16 +1043,21 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		return src_len;
 	}
 
-	switch (lu_priv->compressionType) {
-	case LZO:
-		src_len = writeBlock_lzo(cmd, src_sz);
-		break;
-	case ZLIB:
-		src_len = writeBlock_zlib(cmd, src_sz);
-		break;
-	default:
-		src_len = writeBlock_nocomp(cmd, src_sz);
-		break;
+	if (lu_priv->mamp->MediumType == MEDIA_TYPE_NULL) {
+		/* Don't compress if null tape media */
+		src_len = writeBlock_nocomp(cmd, src_sz, TRUE);
+	} else {
+		switch (lu_priv->compressionType) {
+		case LZO:
+			src_len = writeBlock_lzo(cmd, src_sz, FALSE);
+			break;
+		case ZLIB:
+			src_len = writeBlock_zlib(cmd, src_sz, FALSE);
+			break;
+		default:
+			src_len = writeBlock_nocomp(cmd, src_sz, FALSE);
+			break;
+		}
 	}
 
 	if (!src_len) {
@@ -1755,6 +1760,12 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			lu_ssc.pm->set_WORM(&lu->mode_pg);
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
 		break;
+	case MEDIA_TYPE_NULL:	/* Special - don't save data, just metadata */
+		current_state = MHVTL_STATE_LOADING;
+		OK_to_write = 1;	/* Reset flag to OK. */
+		lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
+		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
+		break;
 	}
 
 	/* Set TapeAlert flg 32h => */
@@ -1807,7 +1818,8 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	MHVTL_DBG(2, "Load Capability: 0x%02x", m_detail->load_capability);
 
 	/* Now check for WORM support */
-	if (mam.MediumType == MEDIA_TYPE_WORM) {
+	switch (mam.MediumType) {
+	case MEDIA_TYPE_WORM:
 		/* If media is WORM, check drive will allow mount */
 		if (m_detail->load_capability & (LOAD_WORM | LOAD_RW)) {
 			/* Prev check will correctly set OK_to_write flag */
@@ -1819,7 +1831,8 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			MHVTL_ERR("Load failed: Unable to load as WORM");
 			goto mismatchmedia;
 		}
-	} else if (mam.MediumType == MEDIA_TYPE_DATA) {
+		break;
+	case MEDIA_TYPE_DATA:
 		/* Allow media to be either RO or RW */
 		if (m_detail->load_capability & LOAD_RO) {
 			MHVTL_DBG(2, "Mounting READ ONLY");
@@ -1840,8 +1853,13 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 					"read/write or read-only");
 			goto mismatchmedia;
 		}
-	} else	/* Can't write to cleaning media */
+		break;
+	case MEDIA_TYPE_NULL:
+		break;
+	default:	/* Can't write to cleaning media */
 		OK_to_write = 0;
+		break;
+	}
 
 	/* Update TapeAlert flags */
 	update_TapeAlert(lu, fg);

@@ -728,7 +728,6 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	/* Write the meta file consisting of the MAM and the meta_header
 	   structure with the filemark count initialized to zero.
 	*/
-
 	mam = *mamp;
 
 	memset(&meta, 0, sizeof(meta));
@@ -779,11 +778,11 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	size_t	io_size;
 	loff_t nread;
 	int rc = 0;
+	int null_media_type;
 
 /* KFRDEBUG - sam_stat needs updates in lots of places here. */
 
 	/* If some other PCL is already open, return. */
-
 	if (datafile >= 0)
 		return 1;
 
@@ -880,6 +879,8 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 		goto failed;
 	}
 
+	null_media_type = mam.MediumType == MEDIA_TYPE_NULL ? 1 : 0;
+
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
 		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
@@ -957,12 +958,13 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	/* Make sure that the filemark map is consistent with the size of the
 	   indx file.
 	*/
-
-	if (meta.filemark_count > 0 &&
+	if (meta.filemark_count && eod_blk_number &&
 		filemarks[meta.filemark_count - 1] >= eod_blk_number) {
 		MHVTL_ERR("pcl %s indx file has improper length as compared "
 			"to the meta file, indicating possible file corruption",
 			pcl);
+		MHVTL_ERR("Filemark count: %d eod_blk_number: %d",
+				meta.filemark_count, eod_blk_number);
 		rc = 2;
 		goto failed;
 	}
@@ -982,7 +984,9 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 			raw_pos.hdr.disk_blk_size;
 	}
 
-	if ((uint64_t)data_stat.st_size != eod_data_offset) {
+	if (null_media_type) {
+		MHVTL_LOG("Loaded NULL media type");	/* Skip check */
+	} else if ((uint64_t)data_stat.st_size != eod_data_offset) {
 		MHVTL_ERR("pcl %s file %s is not the correct length, "
 			"expected %" PRId64 ", actual %" PRId64, pcl,
 			pcl_data, eod_data_offset, data_stat.st_size);
@@ -1127,7 +1131,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat)
 
 int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 		uint32_t comp_size, const struct encryption *encryptp,
-		uint8_t comp_type, uint8_t *sam_stat)
+		uint8_t comp_type, uint8_t null_media_type, uint8_t *sam_stat)
 {
 	uint32_t blk_number, disk_blk_size;
 	uint64_t data_offset;
@@ -1182,7 +1186,10 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	}
 
 	/* Now write out both the data and the header. */
-	nwrite = pwrite(datafile, buffer, disk_blk_size, data_offset);
+	if (null_media_type) {
+		nwrite = disk_blk_size;
+	} else
+		nwrite = pwrite(datafile, buffer, disk_blk_size, data_offset);
 	if (nwrite != disk_blk_size) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
@@ -1200,7 +1207,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	}
 
 	nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
-		blk_number * sizeof(raw_pos));
+						blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
 		long indxsz = (blk_number - 1) * sizeof(raw_pos);
 
@@ -1215,9 +1222,13 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 			MHVTL_ERR("Error truncating indx: %s", strerror(errno));
 		}
 
-		MHVTL_DBG(1, "Truncating data file size: %"PRId64, data_offset);
-		if (ftruncate(datafile, data_offset) < 0) {
-			MHVTL_ERR("Error truncating data: %s", strerror(errno));
+		if (!null_media_type) {
+			MHVTL_DBG(1, "Truncating data file size: %"PRId64,
+							data_offset);
+			if (ftruncate(datafile, data_offset) < 0) {
+				MHVTL_ERR("Error truncating data: %s",
+							strerror(errno));
+			}
 		}
 
 		mkEODHeader(blk_number, data_offset);

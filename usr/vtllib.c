@@ -68,6 +68,7 @@ static struct state_description {
 	{ "Loading", },
 	{ "Loading Cleaning Tape", },
 	{ "Loading WORM media", },
+	{ "Loading NULL media", },
 	{ "Loaded", },
 	{ "Loaded - Idle", },
 	{ "Load failed", },
