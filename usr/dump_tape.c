@@ -50,16 +50,42 @@ struct blk_header *c_pos;
 
 static void print_mam_info(void)
 {
+	uint64_t size;
+	uint64_t remaining;
+	char size_mul;		/* K/M/G/T/P multiplier */
+	char remain_mul;	/* K/M/G/T/P multiplier */
+	int a;
+	static const char mul[] = " KMGT";
+
+	size = get_unaligned_be64(&mam.max_capacity);
+	remaining = get_unaligned_be64(&mam.remaining_capacity);
+
+	size_mul = remain_mul = ' ';
+	for (a = 0; a < 4; a++) {
+		if (size > 5121) {
+			size >>= 10;	/* divide by 1024 */
+			size_mul = mul[a+1];
+		}
+	}
+	for (a = 0; a < 4; a++) {
+		if (remaining > 5121) {
+			remaining >>= 10;	/* divide by 1024 */
+			remain_mul = mul[a+1];
+		}
+	}
+
 	printf("Media density code: 0x%02x\n", mam.MediumDensityCode);
 	printf("Media type code   : 0x%02x\n", mam.MediaType);
 	printf("Media description : %s\n", mam.media_info.description);
-	printf("Tape Capacity     : %" PRId64 "\n",
-					get_unaligned_be64(&mam.max_capacity));
+	printf("Tape Capacity     : %" PRId64 " (%" PRId64 " %cBytes)\n",
+					get_unaligned_be64(&mam.max_capacity),
+					size, size_mul);
 	printf("Media             : %s\n",
 				(mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) ?
 					"Write-protected" : "read-write");
-	printf("Remaining Tape Capacity : %" PRId64 "\n",
-				get_unaligned_be64(&mam.remaining_capacity));
+	printf("Remaining Tape Capacity : %" PRId64 " (%" PRId64 " %cBytes)\n",
+				get_unaligned_be64(&mam.remaining_capacity),
+				remaining, remain_mul);
 }
 
 void find_media_home_directory(char *home_directory, int lib_id);
