@@ -80,6 +80,24 @@ static void print_mam_info(void)
 	printf("Tape Capacity     : %" PRId64 " (%" PRId64 " %cBytes)\n",
 					get_unaligned_be64(&mam.max_capacity),
 					size, size_mul);
+	switch (mam.MediumType) {
+	case MEDIA_TYPE_CLEAN:
+		printf("Media type        : Cleaning media\n");
+		break;
+	case MEDIA_TYPE_DATA:
+		printf("Media type        : Normal data\n");
+		break;
+	case MEDIA_TYPE_NULL:
+		printf("Media type        : NULL - Use with caution !!\n");
+		break;
+	case MEDIA_TYPE_WORM:
+		printf("Media type        : Write Once Read Many (WORM)\n");
+		break;
+	default:
+		printf("Media type        : Unknown - please report !!\n");
+		break;
+	}
+
 	printf("Media             : %s\n",
 				(mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) ?
 					"Write-protected" : "read-write");
