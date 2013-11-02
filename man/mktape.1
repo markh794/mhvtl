@@ -33,8 +33,12 @@ where PCL is the Physical Cartridge Label (barcode).
 where size is the capacity of the virtual media - Size is defined in 'megabytes'.
 .TP
 \fB\-t type\fR
-The media 'type' which can be: "data" , "WORM" (Write Once Read Many) or
-"clean" (cleaning cartridge)
+The media 'type' which can be: "data", "WORM" (Write Once Read Many),
+"clean" (cleaning cartridge) or "NULL" for media which does not save data.
+
+The NULL is a special media type used primarily to test performance with disk
+writes kept to a minimum. Note: Metadata (512bytes per data block) is still
+written.
 .TP
 \fB\-d density\fR
 Media density. Can be one of LTO1, LTO2, LTO3, LTO4, SDLT1, SDLT2, SDLT3, SDLT4, AIT1, AIT2, AIT3,
