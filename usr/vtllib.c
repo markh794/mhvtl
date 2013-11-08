@@ -111,9 +111,11 @@ uint8_t modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
 void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
 {
 	int groupCode;
-	uint64_t sn = cmd->dbuf_p->serialNo;
 	uint8_t *cdb = cmd->scb;
+#ifdef MHVTL_DEBUG
+	uint64_t sn = cmd->dbuf_p->serialNo;
 	uint64_t delay = (uint64_t)cmd->pollInterval;
+#endif
 
 	groupCode = (cdb[0] & 0xe0) >> 5;
 	switch (groupCode) {

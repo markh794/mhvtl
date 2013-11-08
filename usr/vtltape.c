@@ -284,6 +284,7 @@ static int lookup_media_int(struct name_to_media_info *media_info, char *s)
 	return Media_undefined;
 }
 
+#ifdef MHVTL_DEBUG
 static const char *lookup_density_name(
 				struct name_to_media_info *media_info,
 				int den)
@@ -298,6 +299,7 @@ static const char *lookup_density_name(
 
 	return "(UNKNOWN density)";
 }
+#endif
 
 static const char *lookup_media_type(struct name_to_media_info *media_info,
 						int med)

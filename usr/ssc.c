@@ -51,6 +51,7 @@
 uint8_t last_cmd;
 int current_state;
 
+#ifdef MHVTL_DEBUG
 static struct allow_overwrite_state {
 	char *desc;
 } allow_overwrite_desc[] = {
@@ -59,6 +60,7 @@ static struct allow_overwrite_state {
 	{ "Format", },
 	{ "Opps, Invalid field in CDB", },
 };
+#endif
 
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd)
 {

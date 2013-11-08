@@ -47,6 +47,7 @@
 #include "subprocess.h"
 
 int current_state;
+extern int verbose;
 
 uint8_t smc_allow_removal(struct scsi_cmd *cmd)
 {
