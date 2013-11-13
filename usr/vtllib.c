@@ -471,11 +471,19 @@ pid_t add_lu(unsigned minor, struct vtl_ctl *ctl)
 	pid_t pid;
 	ssize_t retval;
 	int pseudo;
-	char *pseudo_filename = "/sys/bus/pseudo/drivers/mhvtl/add_lu";
+	char pseudo_filename[256];
 	char errmsg[512];
+	struct stat km;
 
 	sprintf(str, "add %u %d %d %d\n",
 			minor, ctl->channel, ctl->id, ctl->lun);
+
+	snprintf(pseudo_filename, ARRAY_SIZE(pseudo_filename),
+				"/sys/bus/pseudo9/drivers/mhvtl/add_lu");
+	pseudo = stat(pseudo_filename, &km);
+	if (pseudo < 0)
+		snprintf(pseudo_filename, ARRAY_SIZE(pseudo_filename),
+				"/sys/bus/pseudo/drivers/mhvtl/add_lu");
 
 	switch (pid = fork()) {
 	case 0:         /* Child */
@@ -512,10 +520,19 @@ pid_t add_lu(unsigned minor, struct vtl_ctl *ctl)
 static int chrdev_get_major(void)
 {
 	FILE *f;
-	char *filename = "/sys/bus/pseudo/drivers/mhvtl/major";
+	char filename[256];
+	int pseudo;
 	int rc = 0;
 	int x;
 	int majno;
+	struct stat km;
+
+	snprintf(filename, ARRAY_SIZE(filename),
+				"/sys/bus/pseudo9/drivers/mhvtl/major");
+	pseudo = stat(filename, &km);
+	if (pseudo < 0)
+		snprintf(filename, ARRAY_SIZE(filename),
+				"/sys/bus/pseudo/drivers/mhvtl/major");
 
 	f = fopen(filename, "r");
 	if (!f) {
