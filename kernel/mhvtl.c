@@ -1233,29 +1233,29 @@ static void __exit vtl_exit(void)
 device_initcall(mhvtl_init);
 module_exit(vtl_exit);
 
-static void pseudo_0_release(struct device *dev)
+static void pseudo_9_release(struct device *dev)
 {
-	MHVTL_DBG(1, "pseudo_0_release() called\n");
+	MHVTL_DBG(1, "%s() called\n", __func__);
 }
 
 static struct device pseudo_primary = {
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
-	.init_name	= "pseudo_0",
+	.init_name	= "pseudo_9",
 #else
-	.bus_id		= "pseudo_0",
+	.bus_id		= "pseudo_9",
 #endif
-	.release	= pseudo_0_release,
+	.release	= pseudo_9_release,
 };
 
-static int pseudo_lld_bus_match(struct device *dev,
-				struct device_driver *dev_driver)
+static int pseudo9_lld_bus_match(struct device *dev,
+				 struct device_driver *dev_driver)
 {
 	return 1;
 }
 
 static struct bus_type pseudo_lld_bus = {
-	.name = "pseudo",
-	.match = pseudo_lld_bus_match,
+	.name = "pseudo9",
+	.match = pseudo9_lld_bus_match,
 };
 
 static void vtl_release_adapter(struct device *dev)
