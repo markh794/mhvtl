@@ -122,3 +122,23 @@ void init_hp_eml_smc(struct  lu_phy_attr *lu)
 	init_smc_log_pages(lu);
 	init_smc_mode_pages(lu);
 }
+
+void init_hp_msl_smc(struct lu_phy_attr *lu)
+{
+	smc_pm.name = "mhVTL - HP MSL Series emulation";
+
+	smc_pm.lu = lu;
+	smc_pm.start_picker	= 0x0001;
+	smc_pm.start_storage	= 0x0020;
+	smc_pm.start_drive	= 0x01e0;
+	smc_pm.start_map	= 0x01c0;
+
+	smc_personality_module_register(&smc_pm);
+
+	init_slot_info(lu);
+
+	update_eml_vpd_80(lu);
+	update_eml_vpd_83(lu);
+	init_smc_log_pages(lu);
+	init_smc_mode_pages(lu);
+}

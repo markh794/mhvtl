@@ -1510,7 +1510,11 @@ static void customise_lu(struct lu_phy_attr *lu)
 			init_ibmts3500(lu);	/* IBM TS3500 series */
 		}
 	else if (!strncasecmp(lu->vendor_id, "HP", 2))
-		init_hp_eml_smc(lu);
+		if (!strncasecmp(lu->product_id, "MSL", 3)) {
+			init_hp_msl_smc(lu);
+		} else {
+			init_hp_eml_smc(lu);
+		}
 	else if (!strncasecmp(lu->product_id, "OVERLAND", 8))
 		init_overland_smc(lu);
 	else if (!strncasecmp(lu->product_id, "scalar", 6))
