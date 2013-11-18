@@ -103,6 +103,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		be_byteshift.h \
 		stklxx_pm.o \
 		hp_smc_pm.o \
+		overland_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
 		ibmts3500_pm.o \
@@ -111,6 +112,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi \
 		stklxx_pm.o \
 		hp_smc_pm.o \
+		overland_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
 		ibmts3500_pm.o \
@@ -153,6 +155,7 @@ clean:
 		stk9x40_pm.o \
 		stklxx_pm.o \
 		hp_smc_pm.o \
+		overland_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
 		ibmts3500_pm.o \
@@ -184,6 +187,7 @@ distclean:
 	stk9x40_pm.o \
 	stklxx_pm.o \
 	hp_smc_pm.o \
+	overland_pm.o \
 	spectra_pm.o \
 	scalar_pm.o \
 	ibmts3500_pm.o \
