@@ -1,4 +1,4 @@
-.TH library_contents "5" "January 2013" "mhvtl 1.4" "User Commands"
+.TH library_contents "5" "December 2013" "mhvtl 1.5" "User Commands"
 .SH NAME
 library_contents \- Configuration file for
 .BR vtllibrary(1)
@@ -7,9 +7,11 @@ library_contents \- Configuration file for
 .PP
 Configuration file for vtllibrary daemon (part of Virtual Tape Library)
 One line per entry.
-Contains the following sections, Only the 'Slot' section should be populated. The other
-sections are used as place holders. e.g. If the number of MAP slots are to be changed
-within the VTL, change the number of entries in this configuration file.
+Contains the following sections, Only the 'Slot' section should be populated
+with additional information (barcodes).
+The other sections are used as place holders. e.g. If the number of MAP
+slots are to be changed within the VTL, change the number of entries in
+this configuration file.
 .IP "Drive #: "
 Note: Set the serial number of the drive in device.conf
 .IP "Picker #:"
