@@ -677,6 +677,7 @@ static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t 
 
 	write_mode = (p[5] & 0xf0) >> 4;
 	if (write_mode > 1) {
+		MHVTL_LOG("Unsupported write mode: 0x%x", write_mode);
 		sd.byte0 = SKSV | BPV | 7;	/* bit 7 */
 		sd.field_pointer = 5;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
