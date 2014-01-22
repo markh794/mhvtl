@@ -1,4 +1,3 @@
-
 mh virtual tape & library system.
 
 
@@ -40,6 +39,7 @@ Pre-req for a running mhvtl
 
 Pre-req to build/compile userspace:
 - zlib-devel
+- lzo-devel
 
 * To build an RPM
   ===============
