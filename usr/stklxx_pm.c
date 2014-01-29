@@ -83,3 +83,27 @@ void init_stklxx(struct  lu_phy_attr *lu)
 	init_smc_log_pages(lu);
 	init_smc_mode_pages(lu);
 }
+
+void init_stkslxx(struct  lu_phy_attr *lu)
+{
+	smc_pm.name = "mhVTL - STK SL series emulation";
+	smc_pm.library_has_map = TRUE;
+	smc_pm.library_has_barcode_reader = TRUE;
+	smc_pm.library_has_playground = TRUE;
+
+	/* Follow L700e/L180 SCSI Reference Manual - 8th Edition */
+	smc_pm.start_picker	= 0x0001;
+	smc_pm.start_map	= 0x000a;	/*   10d */
+	smc_pm.start_drive	= 0x01f4;	/*  500d */
+	smc_pm.start_storage	= 0x03e8;	/* 1000d */
+
+	smc_pm.lu = lu;
+	smc_personality_module_register(&smc_pm);
+
+	init_slot_info(lu);
+
+	update_stk_l_vpd_80(lu);
+	update_stk_l_vpd_83(lu);
+	init_smc_log_pages(lu);
+	init_smc_mode_pages(lu);
+}

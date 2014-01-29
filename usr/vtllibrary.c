@@ -1501,29 +1501,31 @@ static void cleanup_lu(struct lu_phy_attr *lu)
 
 static void customise_lu(struct lu_phy_attr *lu)
 {
-	if (!strncasecmp(lu->vendor_id, "stk", 3))
-		init_stklxx(lu);	/* STK L series */
-	else if (!strncasecmp(lu->vendor_id, "IBM", 3))
-		if (!strncasecmp(lu->product_id, "3573-TL", 7)) {
+	if (!strncasecmp(lu->vendor_id, "stk", 3)) {
+		if (!strncasecmp(lu->product_id, "SL500", 5))
+			init_stkslxx(lu);	/* STK SL series */
+		else
+			init_stklxx(lu);	/* STK L series */
+	} else if (!strncasecmp(lu->vendor_id, "IBM", 3)) {
+		if (!strncasecmp(lu->product_id, "3573-TL", 7))
 			init_ibmts3100(lu);
-		} else {
+		else
 			init_ibmts3500(lu);	/* IBM TS3500 series */
-		}
-	else if (!strncasecmp(lu->vendor_id, "HP", 2))
-		if (!strncasecmp(lu->product_id, "MSL", 3)) {
+	} else if (!strncasecmp(lu->vendor_id, "HP", 2)) {
+		if (!strncasecmp(lu->product_id, "MSL", 3))
 			init_hp_msl_smc(lu);
-		} else {
+		else
 			init_hp_eml_smc(lu);
-		}
-	else if (!strncasecmp(lu->product_id, "OVERLAND", 8))
+	} else if (!strncasecmp(lu->product_id, "OVERLAND", 8)) {
 		init_overland_smc(lu);
-	else if (!strncasecmp(lu->product_id, "scalar", 6))
+	} else if (!strncasecmp(lu->product_id, "scalar", 6)) {
 		init_scalar_smc(lu);
-	else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7) &&
-			!strncasecmp(lu->product_id, "PYTHON", 6))
+	} else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7) &&
+			!strncasecmp(lu->product_id, "PYTHON", 6)) {
 		init_spectra_logic_smc(lu);
-	else
+	} else {
 		init_default_smc(lu);
+	}
 }
 
 void rereadconfig(int sig)

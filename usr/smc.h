@@ -43,6 +43,7 @@ void unload_drive_on_shutdown(struct s_info *src, struct s_info *dest);
 
 void init_slot_info(struct lu_phy_attr *lu);
 void init_stklxx(struct lu_phy_attr *lu);
+void init_stkslxx(struct lu_phy_attr *lu);
 void init_default_smc(struct lu_phy_attr *lu);
 void init_scalar_smc(struct lu_phy_attr *lu);
 void init_spectra_logic_smc(struct  lu_phy_attr *lu);
