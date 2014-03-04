@@ -12,6 +12,24 @@
 #include "log.h"
 #include "mode.h"
 
+static void update_spectra_t_series_device_capabilities(struct lu_phy_attr *lu)
+{
+	struct mode *mp;
+
+	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
+	if (!mp) {	/* Can't find page ??? */
+		MHVTL_ERR("Can't find MODE_DEVICE_CAPABILITIES page");
+		return;
+	}
+
+	mp->pcodePointer[2] = 0x07;
+	mp->pcodePointer[3] = 0x00;
+	mp->pcodePointer[4] = 0x07;
+	mp->pcodePointer[5] = 0x07;
+	mp->pcodePointer[6] = 0x07;
+	mp->pcodePointer[7] = 0x07;
+}
+
 static struct smc_personality_template smc_pm = {
 	.library_has_map		= TRUE,
 	.library_has_barcode_reader	= TRUE,
@@ -20,9 +38,9 @@ static struct smc_personality_template smc_pm = {
 	.dvcid_len			= 10,
 };
 
-void init_spectra_logic_smc(struct  lu_phy_attr *lu)
+void init_spectra_logic_smc(struct lu_phy_attr *lu)
 {
-	smc_pm.name = "mhVTL - Spectra Python emulation";
+	smc_pm.name = "mhVTL - Spectra T-Series emulation";
 	smc_pm.library_has_map = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
 	smc_pm.dvcid_serial_only = TRUE;
@@ -40,4 +58,8 @@ void init_spectra_logic_smc(struct  lu_phy_attr *lu)
 
 	init_smc_log_pages(lu);
 	init_smc_mode_pages(lu);
+	/* Now that 'init_smc_mode_pages()' has allocated device capabilities
+	 * page, update to valid default values for Spectra-Logic T Series
+	 */
+	update_spectra_t_series_device_capabilities(lu);
 }
