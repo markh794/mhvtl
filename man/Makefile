@@ -32,6 +32,9 @@ ifeq ($(shell grep lib64 /etc/ld.so.conf.d/* | wc -l),0)
 LIBDIR=lib
 endif
 
+MONTH = $(shell date +%B)
+YEAR = $(shell date +%Y)
+
 PREFIX ?= /usr
 USR ?= vtl
 SUSER = root
@@ -49,6 +52,15 @@ CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
+objects = $(patsubst %.in,%,$(wildcard *.in))
+
+all: $(objects)
+
+$(objects) :
+	sed -e s'/@VERSION@/$(VERSION)/' $@.in > $@
+	@sed -i s'/@MONTH@/$(MONTH)/' $@
+	@sed -i s'/@YEAR@/$(YEAR)/' $@
+
 install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man1
 	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man5
@@ -63,3 +75,6 @@ install:
 	install -o $(USER) mhvtl.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 	install -o $(USER) device.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 	install -o $(USER) library_contents.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
+
+clean:
+	rm *.1 *.5

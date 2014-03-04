@@ -1,4 +1,4 @@
-.TH mktape "1" "December 2013" "mhvtl 1.5" "User Commands"
+.TH mktape "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
 .SH NAME
 mktape \- Utility to create new/blank virtual media for the VTL.
 .SH SYNOPSIS

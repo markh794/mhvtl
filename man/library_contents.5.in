@@ -1,4 +1,4 @@
-.TH library_contents "5" "December 2013" "mhvtl 1.5" "User Commands"
+.TH library_contents "5" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
 .SH NAME
 library_contents \- Configuration file for
 .BR vtllibrary(1)

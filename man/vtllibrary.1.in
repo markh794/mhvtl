@@ -1,4 +1,4 @@
-.TH vtllibrary "1" "December 2013" "mhvtl 1.5" "User Commands"
+.TH vtllibrary "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
 .SH NAME
 vtllibrary \- user space daemon to handle SCSI SMC commands for Virtual Tape Library.
 .SH SYNOPSIS

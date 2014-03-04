@@ -1,4 +1,4 @@
-.TH vtltape "1" "December 2013" "mhvtl 1.5" "User Commands"
+.TH vtltape "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
 .SH NAME
 vtltape \- user space daemon to handle SCSI SSC commands for Virtual Tape Library.
 .SH SYNOPSIS

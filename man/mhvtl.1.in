@@ -1,4 +1,4 @@
-.TH mhvtl "1" "December 2013" "mhvtl 1.5" "User Commands"
+.TH mhvtl "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
 .SH NAME
 mhvtl \- Virtual Tape Library
 
