@@ -11,6 +11,7 @@
 #include "be_byteshift.h"
 #include "log.h"
 #include "mode.h"
+#include "scsi.h"
 
 static void update_spectra_t_series_device_capabilities(struct lu_phy_attr *lu)
 {
