@@ -686,7 +686,7 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 	struct s_info *sp;
 
 	uint16_t max_count;	/* Max element count */
-	uint16_t avail_count;
+	uint32_t avail_count;
 	uint32_t element_sz;
 	uint16_t begin_element;
 	int slot_count;
