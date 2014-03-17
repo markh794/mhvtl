@@ -138,7 +138,7 @@ static int read_block(int fd, int size)
 
 	buf = malloc(size);
 	if (!buf)
-		return 0;
+		return -ENOMEM;
 
 	printf("%s(%d)", __func__, size);
 	err = read(fd, buf, size);
@@ -156,7 +156,7 @@ static int write_block(int fd, int size)
 
 	buf = malloc(size);
 	if (!buf)
-		return 0;
+		return -ENOMEM;
 
 	memset(buf, 0x45, size);
 
