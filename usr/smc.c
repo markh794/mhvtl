@@ -416,8 +416,7 @@ static int sizeof_element(struct scsi_cmd *cmd, int type)
  *
  * Returns number of bytes in element data.
  */
-static int fill_ed(struct scsi_cmd *cmd, uint8_t *p,
-						struct s_info *s)
+static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	struct d_info *d = NULL;
@@ -496,8 +495,8 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p,
 	put_unaligned_be16(s->last_location, &p[j]);
 	j += 2;
 
-	MHVTL_DBG(2, "Slot location: %d, DVCID: %d, VOLTAG: %d",
-			s->slot_location, dvcid, voltag);
+	MHVTL_DBG(2, "Slot location: %d, DVCID: %d, VOLTAG: %d, status: 0x%02x",
+			s->slot_location, dvcid, voltag, s->status);
 
 	if (voltag) {
 		/* Barcode with trailing space(s) */
@@ -658,7 +657,7 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
 		}
 	}
 
-	MHVTL_DBG(2, "Determing %d element%s of type %s starting at %d"
+	MHVTL_DBG(2, "Determining %d element%s of type %s starting at %d"
 			", returning %d",
 				max, max == 1 ? "" : "s",
 				slot_type_str(type),
@@ -746,9 +745,13 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 		}
 		element_sz = fill_ed(cmd, p, sp);
 		avail_count += element_sz;	/* inc byte count */
+		MHVTL_DBG(3, "Count: %d, max_count: %d, slot: %d, "
+				"byte_count: 0x%04x (%d)",
+				j, max_count, sp->slot_location,
+				avail_count, avail_count);
+		if (debug)
+			hex_dump(p, element_sz);
 		p += element_sz;		/* inc pointer into dest buf */
-		MHVTL_DBG(3, "Count: %d, max_count: %d, slot: %d",
-				j, max_count, sp->slot_location);
 		j++;
 		if (j > max_count)
 			break;
