@@ -832,6 +832,33 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	lu_ssc.bytesRead_I += blk_size;
 	lu_ssc.bytesRead_M += disk_blk_size;
 
+	/*
+	 * What SSC4-r01e says about incorrect length reads
+
+	If the SILI bit is zero and an incorrect-length logical block is read,
+	CHECK CONDITION status shall be returned.
+
+	The ILI and VALID bits shall be set to one in the sense data and the
+	additional sense code shall be set to NO ADDITIONAL SENSE INFORMATION.
+
+	Upon termination, the logical position shall be after the
+	incorrect-length logical block (i.e., end-of-partition side).
+
+	If the FIXED bit is one, the INFORMATION field shall be set to the
+	requested transfer length minus the actual number of logical blocks
+	read, not including the incorrect-length logical block.
+	If the FIXED bit is zero, the INFORMATION field shall be set to the
+	requested transfer length minus the actual logical block length.
+	Logical units that do not support negative values shall set the
+	INFORMATION field to zero if the overlength condition exists.
+
+		NOTE 35 - In the above case with the FIXED bit of one, only
+		the position of the incorrect-length logical block may be
+		determined from the sense data. The actual length of the
+		incorrect logical block is not reported. Other means may
+		be used to determine its actual length (e.g., read it again
+		with the fixed bit set to zero).
+	*/
 	if (rc != request_sz)
 		mk_sense_short_block(request_sz, rc, sam_stat);
 	else if (!sili) {

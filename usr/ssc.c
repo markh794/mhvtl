@@ -213,12 +213,25 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 		retval = readBlock(buf, sz, cdb[1] & SILI, sam_stat);
 		if (!retval && fixed) {
 			/* Fixed block read hack:
+			 *
 			 * Overwrite INFORMATION field with:
+			 *
+			 * SSC4r01e states:
 			 * The INFORMATION field shall be set to the requested
 			 * transfer length minus the actual number of logical
 			 * blocks read (not including the incorrect-length
 			 * logical block).
+
+			 * NOTE 35 - In the above case with the FIXED bit of
+			 * one, only the position of the incorrect-length
+			 * logical block may be determined from the sense
+			 * data. The actual length of the incorrect logical
+			 * block is not reported. Other means may be used to
+			 * determine its actual length (e.g., read it again
+			 * with the fixed bit set to zero).
 			 */
+			MHVTL_DBG(2, "Fixed block read short by %d blocks",
+						count - k);
 			put_unaligned_be32(count - k, &sense[3]);
 			break;
 		}
