@@ -106,7 +106,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		overland_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
-		ibmts3500_pm.o \
+		ibm_smc_pm.o \
 		default_smc_pm.o \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi \
@@ -115,7 +115,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		overland_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
-		ibmts3500_pm.o \
+		ibm_smc_pm.o \
 		default_smc_pm.o
 
 vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
@@ -158,7 +158,7 @@ clean:
 		overland_pm.o \
 		spectra_pm.o \
 		scalar_pm.o \
-		ibmts3500_pm.o \
+		ibm_smc_pm.o \
 		default_smc_pm.o \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
@@ -190,7 +190,7 @@ distclean:
 	overland_pm.o \
 	spectra_pm.o \
 	scalar_pm.o \
-	ibmts3500_pm.o \
+	ibm_smc_pm.o \
 	default_smc_pm.o \
 	quantum_dlt_pm.o \
 	ait_pm.o t10000_pm.o ibm_03592_pm.o \

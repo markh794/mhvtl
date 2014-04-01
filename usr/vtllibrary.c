@@ -1499,6 +1499,16 @@ static void cleanup_lu(struct lu_phy_attr *lu)
 	lu_priv->state_msg = NULL;
 }
 
+static void customise_ibm_lu(struct lu_phy_attr *lu)
+{
+	if (!strncasecmp(lu->product_id, "3573-TL", 7))
+		init_ibmts3100(lu);
+	else if (!strncasecmp(lu->product_id, "03584", 5))
+		init_ibm3584(lu);
+	else
+		init_default_smc(lu);
+}
+
 static void customise_lu(struct lu_phy_attr *lu)
 {
 	if (!strncasecmp(lu->vendor_id, "stk", 3)) {
@@ -1507,10 +1517,7 @@ static void customise_lu(struct lu_phy_attr *lu)
 		else
 			init_stklxx(lu);	/* STK L series */
 	} else if (!strncasecmp(lu->vendor_id, "IBM", 3)) {
-		if (!strncasecmp(lu->product_id, "3573-TL", 7))
-			init_ibmts3100(lu);
-		else
-			init_ibmts3500(lu);	/* IBM TS3500 series */
+		customise_ibm_lu(lu);
 	} else if (!strncasecmp(lu->vendor_id, "HP", 2)) {
 		if (!strncasecmp(lu->product_id, "MSL", 3))
 			init_hp_msl_smc(lu);
