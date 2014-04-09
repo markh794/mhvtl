@@ -1297,8 +1297,6 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 
 	struct vpd **lu_vpd = lu->lu_vpd;
 	int pg;
-	uint8_t local_TapeAlert[8] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	char *config = MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
