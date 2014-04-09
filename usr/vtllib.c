@@ -1634,7 +1634,6 @@ void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type)
 	struct smc_priv *smc_p = lu->lu_private;
 	int arr[4];
 
-
 	arr[0] = smc_p->pm->start_drive;
 	arr[1] = smc_p->pm->start_picker;
 	arr[2] = smc_p->pm->start_map;

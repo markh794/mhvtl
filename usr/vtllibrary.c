@@ -766,11 +766,109 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	fclose(conf);
 }
 
+/*
+ * Return 0 - no address space conflict
+ * Return 1 - overlap address with another slot type
+ */
+static int check_overflow(struct lu_phy_attr *lu, int slot, char type)
+{
+	struct smc_priv *smc_p;
+	int co;
+
+	smc_p = lu->lu_private;
+	co = 0;
+
+	switch (type) {
+	case MAP_ELEMENT:
+		co = slot + smc_p->pm->start_map;
+		if (smc_p->pm->start_map < smc_p->pm->start_storage &&
+					co > smc_p->pm->start_storage) {
+			MHVTL_LOG("MAP: %d, overlaps with storage slot", slot);
+			return 1;
+		}
+		if (smc_p->pm->start_map < smc_p->pm->start_picker &&
+					co > smc_p->pm->start_picker) {
+			MHVTL_LOG("MAP: %d, overlaps with Picker slot", slot);
+			return 1;
+		}
+		if (smc_p->pm->start_map < smc_p->pm->start_drive &&
+					co > smc_p->pm->start_drive) {
+			MHVTL_LOG("MAP: %d, overlaps with Drives", slot);
+			return 1;
+		}
+		break;
+	case DATA_TRANSFER:
+		co = slot + smc_p->pm->start_drive;
+		if (smc_p->pm->start_drive < smc_p->pm->start_storage &&
+					co > smc_p->pm->start_storage) {
+			MHVTL_LOG("Drive: %d, overlaps with storage slot",
+					slot);
+			return 1;
+		}
+		if (smc_p->pm->start_drive < smc_p->pm->start_picker &&
+					co > smc_p->pm->start_picker) {
+			MHVTL_LOG("Drive: %d, overlaps with picker slot",
+					slot);
+			return 1;
+		}
+		if (smc_p->pm->start_drive < smc_p->pm->start_map &&
+					co > smc_p->pm->start_map) {
+			MHVTL_LOG("Drive: %d, overlaps with MAP slot",
+					slot);
+			return 1;
+		}
+		break;
+	case MEDIUM_TRANSPORT:
+		co = slot + smc_p->pm->start_picker;
+		if (smc_p->pm->start_picker < smc_p->pm->start_map &&
+					co > smc_p->pm->start_map) {
+			MHVTL_LOG("Picker slot: %d overlaps with MAP", slot);
+			return 1;
+		}
+		if (smc_p->pm->start_picker < smc_p->pm->start_drive &&
+					co > smc_p->pm->start_drive) {
+			MHVTL_LOG("Picker slot: %d overlaps with drives", slot);
+			return 1;
+		}
+		if (smc_p->pm->start_picker < smc_p->pm->start_storage &&
+					co > smc_p->pm->start_storage) {
+			MHVTL_LOG("Picker slot: %d overlaps with Storage",
+					slot);
+			return 1;
+		}
+		break;
+	case STORAGE_ELEMENT:
+		co = slot + smc_p->pm->start_storage;
+		if (smc_p->pm->start_storage < smc_p->pm->start_map &&
+					co > smc_p->pm->start_map) {
+			MHVTL_LOG("Storage slot: %d, overlaps with MAP", slot);
+			return 1;
+		}
+		if (smc_p->pm->start_storage < smc_p->pm->start_picker &&
+					co > smc_p->pm->start_picker) {
+			MHVTL_LOG("Storage slot: %d, overlaps with picker",
+					slot);
+			return 1;
+		}
+		if (smc_p->pm->start_storage < smc_p->pm->start_drive &&
+					co > smc_p->pm->start_drive) {
+			MHVTL_LOG("Storage slot: %d, overlaps with drives",
+					slot);
+			return 1;
+		}
+		break;
+	}
+	return 0;
+}
+
 void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s)
 {
 	struct s_info *sp = NULL;
 	struct d_info *dp = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
+
+	if (check_overflow(lu, slt, DATA_TRANSFER))
+		return;
 
 	dp = lookup_drive(lu, slt);
 	if (!dp) {
@@ -801,6 +899,9 @@ void init_map_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 	struct s_info *sp = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
 
+	if (check_overflow(lu, slt, MAP_ELEMENT))
+		return;
+
 	sp = add_new_slot(lu);
 	sp->element_type = MAP_ELEMENT;
 	smc_p->num_map++;
@@ -821,6 +922,9 @@ void init_transport_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 	struct s_info *sp = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
 
+	if (check_overflow(lu, slt, MEDIUM_TRANSPORT))
+		return;
+
 	sp = add_new_slot(lu);
 	sp->element_type = MEDIUM_TRANSPORT;
 	smc_p->num_picker++;
@@ -839,6 +943,9 @@ void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 {
 	struct s_info *sp = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
+
+	if (check_overflow(lu, slt, STORAGE_ELEMENT))
+		return;
 
 	sp = add_new_slot(lu);
 	sp->element_type = STORAGE_ELEMENT;
