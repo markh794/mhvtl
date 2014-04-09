@@ -1376,47 +1376,6 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 		MHVTL_DBG(1, "Could not malloc(%d) line %d",
 				VPD_83_SZ, __LINE__);
 
-#ifdef notdef
-/* with personality module - remove these */
-
-	/* Manufacture-assigned serial number - Ref: 8.4.3 */
-	pg = PCODE_OFFSET(0xB1);
-	lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
-	if (lu_vpd[pg])
-		update_vpd_b1(lu, lu->lu_serial_no);
-	else
-		MHVTL_DBG(1, "Could not malloc(%d) line %d",
-				VPD_B1_SZ, __LINE__);
-
-	/* TapeAlert supported flags - Ref: 8.4.4 */
-	pg = PCODE_OFFSET(0xB2);
-	lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
-	if (lu_vpd[pg])
-		update_vpd_b2(lu, &local_TapeAlert);
-	else
-		MHVTL_DBG(1, "Could not malloc(%d) line %d",
-				VPD_B2_SZ, __LINE__);
-
-	/* VPD page 0xC0 */
-	pg = PCODE_OFFSET(0xC0);
-	lu_vpd[pg] = alloc_vpd(VPD_C0_SZ);
-	if (lu_vpd[pg])
-		update_vpd_c0(lu, "10-03-2008 19:38:00");
-	else
-		MHVTL_DBG(1, "Could not malloc(%d) line %d",
-				VPD_C0_SZ, __LINE__);
-
-	/* VPD page 0xC1 */
-	pg = PCODE_OFFSET(0xC1);
-	lu_vpd[pg] = alloc_vpd(strlen("Security"));
-	if (lu_vpd[pg])
-		update_vpd_c1(lu, "Security");
-	else
-		MHVTL_DBG(1, "Could not malloc(%d) line %d",
-				(int)strlen(lu->lu_serial_no),
-				(int)__LINE__);
-#endif
-
 	lu->lu_private = &smc_slots;
 	smc_slots.cap_closed = CAP_CLOSED;
 	return found;
@@ -1509,30 +1468,38 @@ static void customise_ibm_lu(struct lu_phy_attr *lu)
 		init_default_smc(lu);
 }
 
+static void customise_stk_lu(struct lu_phy_attr *lu)
+{
+	if (!strncasecmp(lu->product_id, "SL500", 5))
+		init_stkslxx(lu);	/* STK SL series */
+	else
+		init_stklxx(lu);	/* STK L series */
+}
+
+static void customise_hp_lu(struct lu_phy_attr *lu)
+{
+	if (!strncasecmp(lu->product_id, "MSL", 3))
+		init_hp_msl_smc(lu);
+	else
+		init_hp_eml_smc(lu);
+}
+
 static void customise_lu(struct lu_phy_attr *lu)
 {
-	if (!strncasecmp(lu->vendor_id, "stk", 3)) {
-		if (!strncasecmp(lu->product_id, "SL500", 5))
-			init_stkslxx(lu);	/* STK SL series */
-		else
-			init_stklxx(lu);	/* STK L series */
-	} else if (!strncasecmp(lu->vendor_id, "IBM", 3)) {
+	if (!strncasecmp(lu->vendor_id, "stk", 3))
+		customise_stk_lu(lu);
+	else if (!strncasecmp(lu->vendor_id, "IBM", 3))
 		customise_ibm_lu(lu);
-	} else if (!strncasecmp(lu->vendor_id, "HP", 2)) {
-		if (!strncasecmp(lu->product_id, "MSL", 3))
-			init_hp_msl_smc(lu);
-		else
-			init_hp_eml_smc(lu);
-	} else if (!strncasecmp(lu->product_id, "OVERLAND", 8)) {
+	else if (!strncasecmp(lu->vendor_id, "HP", 2))
+		customise_hp_lu(lu);
+	else if (!strncasecmp(lu->product_id, "OVERLAND", 8))
 		init_overland_smc(lu);
-	} else if (!strncasecmp(lu->product_id, "scalar", 6)) {
+	else if (!strncasecmp(lu->product_id, "scalar", 6))
 		init_scalar_smc(lu);
-	} else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7) &&
-			!strncasecmp(lu->product_id, "PYTHON", 6)) {
+	else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7))
 		init_spectra_logic_smc(lu);
-	} else {
+	else
 		init_default_smc(lu);
-	}
 }
 
 void rereadconfig(int sig)
