@@ -85,7 +85,7 @@ static void update_ibm_3584_vpd_80(struct lu_phy_attr *lu)
 	if (lu_vpd[pg])		/* Free any earlier allocation */
 		dealloc_vpd(lu_vpd[pg]);
 	lu_vpd[pg] = alloc_vpd(0x16);
-	if (lu_vpd[pg]) {
+	if (!lu_vpd[pg]) {
 		MHVTL_ERR("Could not malloc(0x16) bytes, line %d", __LINE__);
 		return;
 	}
@@ -174,7 +174,7 @@ static void update_ibm_3100_vpd_83(struct lu_phy_attr *lu)
 	if (lu_vpd[pg])		/* Free any earlier allocation */
 		dealloc_vpd(lu_vpd[pg]);
 	lu_vpd[pg] = alloc_vpd(0x32);	/* Allocate 2 more bytes than needed */
-	if (lu_vpd[pg]) {
+	if (!lu_vpd[pg]) {
 		MHVTL_ERR("Could not malloc(0x32) bytes, line %d", __LINE__);
 		return;
 	}
@@ -210,7 +210,7 @@ static void update_ibm_3100_vpd_c0(struct lu_phy_attr *lu)
 	if (lu_vpd[pg])		/* Free any earlier allocation */
 		dealloc_vpd(lu_vpd[pg]);
 	lu_vpd[pg] = alloc_vpd(0x40);
-	if (lu_vpd[pg]) {
+	if (!lu_vpd[pg]) {
 		MHVTL_DBG(1, "Could not malloc(0x40) bytes, line %d", __LINE__);
 		return;
 	}
