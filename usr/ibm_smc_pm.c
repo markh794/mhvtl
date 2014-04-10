@@ -22,6 +22,92 @@ static struct smc_personality_template smc_pm = {
 	.dvcid_len			= 34,
 };
 
+/*
+ * Undocumented page - raw dump from a real library..
+ */
+static void update_ibm_3100_vpd_d0(struct lu_phy_attr *lu)
+{
+	struct vpd **lu_vpd;
+	struct smc_priv *smc_p;
+	uint8_t *d;
+	int pg;
+	uint8_t pg_d0[] = {
+		0x08, 0xd0, 0x00, 0xc0, 0x04, 0x53, 0x43, 0x44,
+		0x44, 0x00, 0x04, 0x04, 0xc0, 0x00, 0x00, 0x00,
+		0x00, 0x06, 0x04, 0x22, 0x80, 0x00, 0x00, 0x00,
+		0x08, 0x07, 0x80, 0x00, 0x00, 0x05, 0x00, 0x00,
+		0x0a, 0x00, 0x0b, 0x08, 0x80, 0x00, 0x00, 0x00,
+		0x35, 0x73, 0x00, 0x40, 0x00, 0x0e, 0x02, 0x00,
+		0xff, 0x00, 0x0f, 0x01, 0xff, 0x00, 0x10, 0x02,
+		0x00, 0xff, 0x00, 0x11, 0x10, 0x04, 0x8e, 0x82,
+		0x72, 0x04, 0x83, 0x82, 0x75, 0x3b, 0x12, 0x82,
+		0x75, 0x04, 0x12, 0x82, 0x76, 0x00, 0x14, 0x3a,
+		0x00, 0x01, 0x03, 0x01, 0x07, 0x0b, 0x12, 0x01,
+		0x15, 0x01, 0x16, 0x01, 0x17, 0x01, 0x1a, 0x01,
+		0x1b, 0x0a, 0x1d, 0x01, 0x1e, 0x01, 0x2b, 0x0a,
+		0x37, 0x0b, 0x3b, 0x03, 0x3c, 0x01, 0x4c, 0x01,
+		0x4d, 0x01, 0x55, 0x01, 0x56, 0x01, 0x57, 0x01,
+		0x5a, 0x01, 0x5e, 0x01, 0x5f, 0x01, 0xa3, 0x01,
+		0xa4, 0x01, 0xa5, 0x19, 0xb5, 0x01, 0xb6, 0x01,
+		0xb8, 0x01, 0x00, 0x16, 0x03, 0x80, 0x24, 0x02,
+		0x00, 0x17, 0x11, 0x00, 0x00, 0x10, 0x20, 0x06,
+		0x01, 0x00, 0x10, 0x20, 0x06, 0x01, 0x01, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x1b, 0x01, 0x60,
+		0x00, 0x1c, 0x05, 0x00, 0x00, 0x06, 0x06, 0x02,
+		0x00, 0x24, 0x0c, 0x83, 0x00, 0x83, 0x03, 0x83,
+		0x30, 0x83, 0x11, 0x3b, 0x12, 0x83, 0x02, 0x00,
+		0x26, 0x02, 0x00, 0x05
+	};
+
+	lu_vpd = lu->lu_vpd;
+	smc_p = lu->lu_private;
+
+	pg = PCODE_OFFSET(0xd0);
+	if (lu_vpd[pg])		/* Free any earlier allocation */
+		dealloc_vpd(lu_vpd[pg]);
+	lu_vpd[pg] = alloc_vpd(0xc8);
+	if (!lu_vpd[pg]) {
+		MHVTL_ERR("Could not malloc(0xc8) bytes, line %d", __LINE__);
+		return;
+	}
+
+	d = lu_vpd[pg]->data;
+	memcpy(d, &pg_d0[0], sizeof(pg_d0));
+}
+
+/*
+ * Undocumented page - raw dump from a real library..
+ */
+static void update_ibm_3100_vpd_ff(struct lu_phy_attr *lu)
+{
+	struct vpd **lu_vpd;
+	struct smc_priv *smc_p;
+	uint8_t *d;
+	int pg;
+	uint8_t pg_ff[] = {
+		0x08, 0xff, 0x00, 0x20, 0xb5, 0x8e, 0xb0, 0x0e,
+		0x1c, 0x0e, 0x98, 0x0e, 0x30, 0x0b, 0x90, 0x35,
+		0x1c, 0x0b, 0x35, 0x0b, 0x98, 0x40, 0x78, 0xc0,
+		0x07, 0x71, 0xd4, 0x0b, 0x98, 0x80, 0x78, 0x00,
+		0x28, 0x0f, 0xd0, 0x34
+	};
+
+	lu_vpd = lu->lu_vpd;
+	smc_p = lu->lu_private;
+
+	pg = PCODE_OFFSET(0xff);
+	if (lu_vpd[pg])		/* Free any earlier allocation */
+		dealloc_vpd(lu_vpd[pg]);
+	lu_vpd[pg] = alloc_vpd(0x26);
+	if (!lu_vpd[pg]) {
+		MHVTL_ERR("Could not malloc(0x26) bytes, line %d", __LINE__);
+		return;
+	}
+
+	d = lu_vpd[pg]->data;
+	memcpy(d, &pg_ff[0], sizeof(pg_ff));
+}
+
 static void update_3573_device_capabilities(struct lu_phy_attr *lu)
 {
 	struct mode *mp;
@@ -246,8 +332,61 @@ void init_ibmts3100(struct lu_phy_attr *lu)
 	/* Need slot info before we can fill out VPD data */
 	update_ibm_3100_vpd_80(lu);
 	update_ibm_3100_vpd_83(lu);
+	/* IBM Doco hints at VPD page 0xd0 & 0xff - but does not document it */
+/*
+ * lsscsi -g
+ * [2:0:1:0]    tape    IBM      ULT3580-TD4      8192  /dev/st0  /dev/sg2
+ * [2:0:1:1]    mediumx IBM      3573-TL          6.50  -         /dev/sg3
+ *
+ * # sg_inq -p 0 /dev/sg3
+ * Only hex output supported
+ * VPD INQUIRY, page code=0x00:
+ *   [PQual=0  Peripheral device type: medium changer]
+ *    Supported VPD pages:
+ *        0x0        Supported VPD pages
+ *        0x80       Unit serial number
+ *        0x83       Device identification
+ *        0xc0       vendor: Firmware numbers (seagate); Unit path report (EMC)
+ *        0xd0
+ *        0xff
+
+ * # sg_inq -H -p 0xc0 /dev/sg3
+ * VPD INQUIRY, page code=0xc0:
+ *  00     08 c0 00 3c 00 00 00 00  34 38 34 37 30 34 2d 30    ...<....484704-0
+ *  10     33 2d 32 30 30 38 20 20  20 20 20 20 20 20 20 20    3-2008
+ *  20     20 20 20 20 00 00 00 00  00 00 00 00 00 00 00 00        ............
+ *  30     00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00    ................
+ */
 	update_ibm_3100_vpd_c0(lu);
-	/* IBM Doco hints at VPD page 0xd0 - but does not document it */
+
+/*
+ * # sg_inq -p 0xd0 /dev/sg3
+ * VPD INQUIRY, page code=0xd0:
+ *  00     08 d0 00 c0 04 53 43 44  44 00 04 04 c0 00 00 00    .....SCDD.......
+ *  10     00 06 04 22 80 00 00 00  08 07 80 00 00 05 00 00    ..."............
+ *  20     0a 00 0b 08 80 00 00 00  35 73 00 40 00 0e 02 00    ........5s.@....
+ *  30     ff 00 0f 01 ff 00 10 02  00 ff 00 11 10 04 8e 82    ................
+ *  40     72 04 83 82 75 3b 12 82  75 04 12 82 76 00 14 3a    r...u;..u...v..:
+ *  50     00 01 03 01 07 0b 12 01  15 01 16 01 17 01 1a 01    ................
+ *  60     1b 0a 1d 01 1e 01 2b 0a  37 0b 3b 03 3c 01 4c 01    ......+.7.;.<.L.
+ *  70     4d 01 55 01 56 01 57 01  5a 01 5e 01 5f 01 a3 01    M.U.V.W.Z.^._...
+ *  80     a4 01 a5 19 b5 01 b6 01  b8 01 00 16 03 80 24 02    ..............$.
+ *  90     00 17 11 00 00 10 20 06  01 00 10 20 06 01 01 00    ...... .... ....
+ *  a0     00 00 00 00 00 1b 01 60  00 1c 05 00 00 06 06 02    .......`........
+ *  b0     00 24 0c 83 00 83 03 83  30 83 11 3b 12 83 02 00    .$......0..;....
+ *  c0     26 02 00 05                                         &...
+ */
+	update_ibm_3100_vpd_d0(lu);
+
+/*
+ * # sg_inq -p 0xff /dev/sg3
+ * VPD INQUIRY, page code=0xff:
+ *  00     08 ff 00 20 b5 8e b0 0e  1c 0e 98 0e 30 0b 90 35    ... ........0..5
+ *  10     1c 0b 35 0b 98 40 78 c0  07 71 d4 0b 98 80 78 00    ..5..@x..q....x.
+ *  20     28 0f d0 34                                         (..4
+ *
+ */
+	update_ibm_3100_vpd_ff(lu);
 
 	init_smc_log_pages(lu);
 	init_smc_mode_pages(lu);
