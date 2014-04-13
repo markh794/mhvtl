@@ -61,12 +61,14 @@ clean:
 	$(MAKE) -C usr clean
 	$(MAKE) -C etc clean
 	$(MAKE) -C scripts clean
+	$(MAKE) -C man clean
 
 distclean:
 	$(MAKE) -C usr distclean
 	$(MAKE) -C etc distclean
 	$(MAKE) -C scripts distclean
 	$(MAKE) -C kernel distclean
+	$(MAKE) -C man clean
 
 install:
 	$(MAKE) usr
@@ -75,6 +77,7 @@ install:
 	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
 	$(MAKE) etc
 	$(MAKE) -i -C etc install $(DESTDIR) USR=$(USR)
+	$(MAKE) -C man man
 	$(MAKE) -C man install $(PREFIX) $(DESTDIR) USR=$(USR)
 	test -d $(DESTDIR)/opt/mhvtl || mkdir -p $(DESTDIR)/opt/mhvtl
 

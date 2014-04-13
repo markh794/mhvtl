@@ -54,6 +54,8 @@ CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
 objects = $(patsubst %.in,%,$(wildcard *.in))
 
+man: $(objects)
+
 all: $(objects)
 
 $(objects) :
@@ -77,4 +79,4 @@ install:
 	install -o $(USER) library_contents.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 
 clean:
-	rm *.1 *.5
+	rm -f *.1 *.5
