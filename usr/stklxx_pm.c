@@ -22,25 +22,22 @@ static struct smc_personality_template smc_pm = {
 
 static void update_stk_l_vpd_80(struct lu_phy_attr *lu)
 {
-	struct vpd **lu_vpd = lu->lu_vpd;
-	struct smc_priv *smc_p = lu->lu_private;
+	struct vpd *lu_vpd;
+	struct smc_priv *smc_p;
 	uint8_t *d;
-	int pg;
 
+	lu_vpd = lu->lu_vpd[PCODE_OFFSET(0x80)];
 	smc_p = lu->lu_private;
 
 	/* Unit Serial Number */
-	pg = PCODE_OFFSET(0x80);
-	if (lu_vpd[pg])		/* Free any earlier allocation */
-		dealloc_vpd(lu_vpd[pg]);
-	lu_vpd[pg] = alloc_vpd(0x12);
-	if (lu_vpd[pg]) {
-		d = lu_vpd[pg]->data;
-		d[0] = lu->ptype;
-		d[1] = 0x80;	/* Page code */
-		d[3] = 0x0b;	/* Page length */
+	if (lu_vpd)	/* Free any earlier allocation */
+		dealloc_vpd(lu_vpd);
+
+	lu_vpd = alloc_vpd(0x12);
+	if (lu_vpd) {
+		d = lu_vpd->data;
 		/* d[4 - 15] Serial number of device */
-		snprintf((char *)&d[4], 10, "%-10s", lu->lu_serial_no);
+		snprintf((char *)&d[0], 10, "%-10s", lu->lu_serial_no);
 		/* Unique Logical Library Identifier */
 	} else {
 		MHVTL_DBG(1, "Could not malloc(0x12) bytes, line %d", __LINE__);
@@ -49,14 +46,14 @@ static void update_stk_l_vpd_80(struct lu_phy_attr *lu)
 
 static void update_stk_l_vpd_83(struct lu_phy_attr *lu)
 {
-	struct vpd **lu_vpd = lu->lu_vpd;
-	int pg;
+	struct vpd *lu_vpd;
+
+	lu_vpd = lu->lu_vpd[PCODE_OFFSET(0x83)];
 
 	/* STK L series do not have this VPD page - remove */
-	pg = PCODE_OFFSET(0x83);
-	if (lu_vpd[pg]) {	/* Free any earlier allocation */
-		dealloc_vpd(lu_vpd[pg]);
-		lu_vpd[pg] = NULL;
+	if (lu_vpd) {	/* Free any earlier allocation */
+		dealloc_vpd(lu_vpd);
+		lu->lu_vpd[PCODE_OFFSET(0x83)] = NULL;
 	}
 }
 

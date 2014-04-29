@@ -28,14 +28,11 @@ static void update_eml_vpd_80(struct lu_phy_attr *lu)
 	lu_vpd[pg] = alloc_vpd(0x12);
 	if (lu_vpd[pg]) {
 		d = lu_vpd[pg]->data;
-		d[0] = lu->ptype;
-		d[1] = 0x80;	/* Page code */
-		d[3] = 0x0b;	/* Page length */
 		/* d[4 - 15] Serial number of device */
-		snprintf((char *)&d[4], 10, "%-10s", lu->lu_serial_no);
+		snprintf((char *)&d[0], 10, "%-10s", lu->lu_serial_no);
 		/* Unique Logical Library Identifier */
 	} else {
-		MHVTL_DBG(1, "Could not malloc(0x16) bytes, line %d", __LINE__);
+		MHVTL_DBG(1, "Could not malloc(0x12) bytes, line %d", __LINE__);
 	}
 }
 

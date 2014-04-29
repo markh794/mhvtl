@@ -177,13 +177,10 @@ static void update_ibm_3584_vpd_80(struct lu_phy_attr *lu)
 	}
 
 	d = lu_vpd[pg]->data;
-	d[0] = lu->ptype;
-	d[1] = 0x80;	/* Page code */
-	d[3] = 0x10;	/* Page length */
 	/* d[4 - 15] Serial number of device */
-	snprintf((char *)&d[4], 10, "%-10s", lu->lu_serial_no);
+	snprintf((char *)&d[0], 10, "%-10s", lu->lu_serial_no);
 	/* First Storage Element Address */
-	snprintf((char *)&d[16], 4, "%04x", smc_p->pm->start_storage);
+	snprintf((char *)&d[12], 4, "%04x", smc_p->pm->start_storage);
 }
 
 static void update_ibm_3584_vpd_83(struct lu_phy_attr *lu)
@@ -200,27 +197,24 @@ static void update_ibm_3584_vpd_83(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0x83);
 	if (lu_vpd[pg])		/* Free any earlier allocation */
 		dealloc_vpd(lu_vpd[pg]);
-	lu_vpd[pg] = alloc_vpd(0x32);	/* Allocate 2 more bytes than needed */
+	lu_vpd[pg] = alloc_vpd(0x2c);
 	if (!lu_vpd[pg]) {
-		MHVTL_ERR("Could not malloc(0x32) bytes, line %d", __LINE__);
+		MHVTL_ERR("Could not malloc(0x2c) bytes, line %d", __LINE__);
 		return;
 	}
 
 	d = lu_vpd[pg]->data;
-	d[0] = lu->ptype;
-	d[1] = 0x83;	/* Page Code */
-	d[3] = 0x2c;	/* Page length */
-	d[4] = 2;	/* Code set */
-	d[5] = 1;	/* Identifier Type */
-	d[7] = 0x28;	/* Identifier length */
+	d[0] = 2;	/* Code set */
+	d[1] = 1;	/* Identifier Type */
+	d[3] = 0x28;	/* Identifier length */
 	/* Vendor ID */
-	memcpy(&d[8], &lu->inquiry[8], 8);
+	memcpy(&d[4], &lu->inquiry[8], 8);
 	/* Device type and Model Number */
-	memcpy(&d[16], &lu->inquiry[16], 16);
+	memcpy(&d[12], &lu->inquiry[16], 16);
 	/* Serial Number of device */
-	memcpy(&d[32], &lu->inquiry[38], 12);
+	memcpy(&d[28], &lu->inquiry[38], 12);
 	/* First Storage Element Address */
-	snprintf((char *)&d[44], 4, "%04x", smc_p->pm->start_storage);
+	snprintf((char *)&d[40], 4, "%04x", smc_p->pm->start_storage);
 }
 
 static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
@@ -240,13 +234,10 @@ static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
 	}
 
 	d = lu_vpd[pg]->data;
-	d[0] = lu->ptype;
-	d[1] = 0x80;	/* Page code */
-	d[3] = 0x10;	/* Page length */
 	/* d[4 - 15] Serial number of device */
-	snprintf((char *)&d[4], 10, "%-10s", lu->lu_serial_no);
+	snprintf((char *)&d[0], 10, "%-10s", lu->lu_serial_no);
 	/* Unique Logical Library Identifier */
-	memset(&d[16], 0x20, 4);	/* Space chars */
+	memset(&d[12], 0x20, 4);	/* Space chars */
 }
 
 static void update_ibm_3100_vpd_83(struct lu_phy_attr *lu)
@@ -266,20 +257,17 @@ static void update_ibm_3100_vpd_83(struct lu_phy_attr *lu)
 	}
 
 	d = lu_vpd[pg]->data;
-	d[0] = lu->ptype;
-	d[1] = 0x83;	/* Page Code */
-	d[3] = 0x2c;	/* Page length */
-	d[4] = 2;	/* Code set */
-	d[5] = 1;	/* Identifier Type */
-	d[7] = 0x28;	/* Identifier length */
+	d[0] = 2;	/* Code set */
+	d[1] = 1;	/* Identifier Type */
+	d[3] = 0x28;	/* Identifier length */
 	/* Vendor ID */
-	memcpy(&d[8], &lu->inquiry[8], 8);
+	memcpy(&d[4], &lu->inquiry[8], 8);
 	/* Device type and Model Number */
-	memcpy(&d[16], &lu->inquiry[16], 16);
+	memcpy(&d[12], &lu->inquiry[16], 16);
 	/* Serial Number of device */
-	memcpy(&d[32], &lu->inquiry[38], 12);
+	memcpy(&d[28], &lu->inquiry[38], 12);
 	/* Unique Logical Library Identifier */
-	memset(&d[44], 0x20, 4);	/* Space chars */
+	memset(&d[40], 0x20, 4);	/* Space chars */
 }
 
 static void update_ibm_3100_vpd_c0(struct lu_phy_attr *lu)
@@ -302,12 +290,9 @@ static void update_ibm_3100_vpd_c0(struct lu_phy_attr *lu)
 	}
 
 	d = lu_vpd[pg]->data;
-	d[0] = lu->ptype;
-	d[1] = 0xc0;	/* Page Code */
-	d[3] = 0x3c;	/* Page length */
-	sprintf((char *)&d[8], "%s", "DEAD");	/* Media f/w checksum */
+	sprintf((char *)&d[4], "%s", "DEAD");	/* Media f/w checksum */
 	/* Media changer firmware build date (mm-dd-yyyy) */
-	snprintf((char *)&d[12], 22, "%02d-%02d-%04d", m, dd, y);
+	snprintf((char *)&d[8], 22, "%02d-%02d-%04d", m, dd, y);
 }
 
 /* 3573TL */
