@@ -217,6 +217,32 @@ static void update_ibm_3584_vpd_83(struct lu_phy_attr *lu)
 	snprintf((char *)&d[40], 4, "%04x", smc_p->pm->start_storage);
 }
 
+static void update_ibm_3584_inquiry(struct lu_phy_attr *lu)
+{
+	struct smc_priv *smc_p;
+	smc_p = lu->lu_private;
+
+	memcpy(&lu->inquiry[38], &lu->lu_serial_no, 12);
+	lu->inquiry[55] |= smc_p->pm->library_has_barcode_reader ? 1 : 0;
+}
+
+static void update_ibm_3100_inquiry(struct lu_phy_attr *lu)
+{
+	struct smc_priv *smc_p;
+	smc_p = lu->lu_private;
+
+	lu->inquiry[2] = 5;	/* SNSI Approved Version */
+	lu->inquiry[3] = 2;	/* Response data format */
+	lu->inquiry[4] = 0x43;	/* Additional length */
+
+	memcpy(&lu->inquiry[38], &lu->lu_serial_no, 12);
+	lu->inquiry[55] |= smc_p->pm->library_has_barcode_reader ? 1 : 0;
+	put_unaligned_be16(0x005c, &lu->inquiry[58]); /* SAM-2 */
+	put_unaligned_be16(0x0b56, &lu->inquiry[60]); /* SPI-4 */
+	put_unaligned_be16(0x02fe, &lu->inquiry[62]); /* SMC-2 */
+	put_unaligned_be16(0x030f, &lu->inquiry[64]); /* SPC-3 */
+}
+
 static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
@@ -235,7 +261,7 @@ static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
 
 	d = lu_vpd[pg]->data;
 	/* d[4 - 15] Serial number of device */
-	snprintf((char *)&d[0], 10, "%-10s", lu->lu_serial_no);
+	snprintf((char *)&d[0], 13, "%-12s", lu->lu_serial_no);
 	/* Unique Logical Library Identifier */
 	memset(&d[12], 0x20, 4);	/* Space chars */
 }
@@ -313,6 +339,9 @@ void init_ibmts3100(struct lu_phy_attr *lu)
 	smc_personality_module_register(&smc_pm);
 
 	init_slot_info(lu);
+
+	/* Update vendor specific info in main INQUIRY page */
+	update_ibm_3100_inquiry(lu);
 
 	/* Need slot info before we can fill out VPD data */
 	update_ibm_3100_vpd_80(lu);
@@ -403,6 +432,9 @@ void init_ibm3584(struct lu_phy_attr *lu)
 
 	/* Initialise order 'Picker, Drives, MAP, Storage */
 	init_slot_info(lu);
+
+	/* Update vendor specific info in main INQUIRY page */
+	update_ibm_3584_inquiry(lu);
 
 	/* Need slot info before we can fill out VPD data */
 	update_ibm_3584_vpd_80(lu);
