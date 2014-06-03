@@ -222,8 +222,13 @@ static void update_ibm_3584_inquiry(struct lu_phy_attr *lu)
 	struct smc_priv *smc_p;
 	smc_p = lu->lu_private;
 
+	lu->inquiry[2] = 3;	/* SNSI Approved Version */
+	lu->inquiry[3] = 2;	/* Response data format */
+	lu->inquiry[4] = 0x35;	/* Additional length */
+
 	memcpy(&lu->inquiry[38], &lu->lu_serial_no, 12);
-	lu->inquiry[55] |= smc_p->pm->library_has_barcode_reader ? 1 : 0;
+	lu->inquiry[50] = 0x30;
+	lu->inquiry[51] = 0x30;
 }
 
 static void update_ibm_3100_inquiry(struct lu_phy_attr *lu)
