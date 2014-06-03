@@ -1375,7 +1375,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 
 			if (sscanf(b, " Unit serial number: %s", s)) {
 				checkstrlen(s, SCSI_SN_LEN, linecount);
-				sprintf(lu->lu_serial_no, "%-10s", s);
+				snprintf(lu->lu_serial_no, SCSI_SN_LEN, "%-14s", s);
 			}
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
 				/* sscanf does not NULL terminate */
