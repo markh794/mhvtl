@@ -1,4 +1,13 @@
-* Thur May 1 2014 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+* Thu Sep 7 2014 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
+- Bumped version to 1.5-2
+- Fix vtllibrary segfault using 'default' emulation
+- Correct slot mappings for L180/L700 emulation
+- Correct slot mappings for SL500 emulation
+- Increase max serial number length to 15 chars
+- More accurate emulation of IBM TS3100/3200 inquiry page bits
+- Fix bug with 'edit_tape' not understanding the 'null' media type
+
+* Thu May 1 2014 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.5-1
 - Fix bug with vpd pages 0x80 & 0x83 in library personality modules.
 
