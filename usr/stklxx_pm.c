@@ -88,11 +88,11 @@ void init_stkslxx(struct  lu_phy_attr *lu)
 	smc_pm.library_has_barcode_reader = TRUE;
 	smc_pm.library_has_playground = TRUE;
 
-	/* Follow L700e/L180 SCSI Reference Manual - 8th Edition */
+	/* Follow Streamline SL500 Interface Reference Manual - 2th Edition */
 	smc_pm.start_picker	= 0x0001;
-	smc_pm.start_map	= 0x000a;	/*   10d */
-	smc_pm.start_drive	= 0x01f4;	/*  500d */
-	smc_pm.start_storage	= 0x03e8;	/* 1000d */
+	smc_pm.start_map	= 0x000a;	/*   10d -   55d */
+	smc_pm.start_drive	= 0x01f4;	/*  500d -  518d */
+	smc_pm.start_storage	= 0x03e8;	/* 1000d - 1628d */
 
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
