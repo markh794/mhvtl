@@ -66,9 +66,9 @@ void init_stklxx(struct  lu_phy_attr *lu)
 
 	/* Follow L700e/L180 SCSI Reference Manual - 8th Edition */
 	smc_pm.start_picker	= 0x0001;
-	smc_pm.start_map	= 0x0010;
-	smc_pm.start_drive	= 0x01f0;
-	smc_pm.start_storage	= 0x0400;
+	smc_pm.start_map	= 0x000a;	/*   10d -   55d */
+	smc_pm.start_drive	= 0x01f4;	/*  500d -  519d */
+	smc_pm.start_storage	= 0x03e8;	/* 1000d - 1677d */
 
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
