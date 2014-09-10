@@ -59,8 +59,12 @@ media_type() {
 # default to data type
 	TYPE=data
 
-# Match JW / JX as 'worm' media
-	if [[ $type =~ $regex ]]; then
+	if [[ $type =~ ^"W" ]]; then
+		TYPE=`echo -e "worm"`;
+	elif [[ $type =~ ^"CLN" ]]; then
+		TYPE=`echo -e "clean"`;
+	# Match JW / JX as 'worm' media
+	elif [[ $type =~ $regex ]]; then
 		matches=${#BASH_REMATCH[*]}
 		if [ ${BASH_REMATCH[1]} = 'J' ]; then
 			if [ ${BASH_REMATCH[2]} = 'W' ]; then
@@ -156,27 +160,7 @@ for LIB in `awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/device.conf`
 do
 	LIBCONTENTS="$MHVTL_CONFIG_PATH/library_contents.$LIB"
 
-	# Cleaning carts
-	for a in `cat $LIBCONTENTS|awk '/^Slot.*CLN.+/ {print $3}'|sort -u`
-	do
-		set_density $a
-		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			run "mktape -l $LIB -s $CAPACITY -t clean -m $a -d $DENSITY"
-		fi
-	done
-
-	# WORM media
-	for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}'|grep ^W|sort -u`
-	do
-		set_density $a
-		media_type $a
-		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			run "mktape -l $LIB -s $CAPACITY -t $TYPE -m $a -d $DENSITY"
-		fi
-	done
-
-	# Rest must be Data
-	for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}'|sort -u`
+	for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}' | sort -u`
 	do
 		set_density $a
 		media_type $a
