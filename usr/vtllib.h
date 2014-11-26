@@ -216,6 +216,7 @@ enum drive_type_list {
 	drive_3592_J1A,
 	drive_3592_E05,
 	drive_3592_E06,
+	drive_3592_E07,
 	drive_DDS1,
 	drive_DDS2,
 	drive_DDS3,
@@ -270,6 +271,8 @@ enum Media_Type_list {
 	Media_3592_JB_CLEAN,
 	Media_3592_JX,
 	Media_3592_JX_CLEAN,
+	Media_3592_JK,		/* E07 */
+	Media_3592_JK_CLEAN,	/* E07 */
 	Media_AIT1,
 	Media_AIT1_CLEAN,
 	Media_AIT2,

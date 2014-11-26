@@ -53,7 +53,7 @@ static void usage(char *progname)
 	printf("           T10KA    T10KB    T10KC\n");
 	printf("           9840A    9840B    9840C    9840D\n");
 	printf("           9940A    9940B\n");
-	printf("           J1A      E05      E06\n\n");
+	printf("           J1A      E05      E06      E07\n\n");
 }
 
 int main(int argc, char *argv[])

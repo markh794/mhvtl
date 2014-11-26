@@ -1526,6 +1526,12 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->media_info.description, "3592 E06 media", 14);
 		memcpy(&mamp->media_info.density_name, "3592E06", 7);
 		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
+	} else if (!(strncmp(density, "E07", 3))) {
+		mamp->MediumDensityCode = medium_density_code_e07;
+		mamp->MediaType = Media_3592_JK;
+		memcpy(&mamp->media_info.description, "3592 E07 media", 14);
+		memcpy(&mamp->media_info.density_name, "3592E07", 7);
+		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
 	} else
 		printf("'%s' is an invalid density\n", density);
 

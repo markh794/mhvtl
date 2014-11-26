@@ -250,6 +250,7 @@ void init_hp_ult_6(struct lu_phy_attr *lu);
 void init_3592_j1a(struct lu_phy_attr *lu);
 void init_3592_E05(struct lu_phy_attr *lu);
 void init_3592_E06(struct lu_phy_attr *lu);
+void init_3592_E07(struct lu_phy_attr *lu);
 void init_dlt7000_ssc(struct lu_phy_attr *lu);
 void init_dlt8000_ssc(struct lu_phy_attr *lu);
 void init_sdlt320_ssc(struct lu_phy_attr *lu);

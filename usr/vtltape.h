@@ -96,9 +96,11 @@ struct blk_header {
 #define medium_density_code_j1a		0x51
 #define medium_density_code_e05		0x52
 #define medium_density_code_e06		0x53
+#define medium_density_code_e07		0x54
 #define medium_density_code_j1a_ENCR	0x71
 #define medium_density_code_e05_ENCR	0x72
 #define medium_density_code_e06_ENCR	0x73
+#define medium_density_code_e07_ENCR	0x74
 #define medium_density_code_ait1	0x30
 #define medium_density_code_ait2	0x31
 #define medium_density_code_ait3	0x32

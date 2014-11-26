@@ -61,6 +61,10 @@ static struct density_info density_e06 = {
 	0x348c, 0x0d, 0x480, 0x7a120, medium_density_code_e06,
 			"IBM", "3592A3", "" };
 
+static struct density_info density_e07 = {
+	0x348c, 0x0d, 0x480, 0x7a120, medium_density_code_e07,
+			"IBM", "3592A4", "" };
+
 static struct name_to_media_info media_info[] = {
 	{"03592 JA", Media_3592_JA,
 			media_type_unknown, medium_density_code_j1a},
@@ -82,6 +86,13 @@ static struct name_to_media_info media_info[] = {
 			media_type_unknown, medium_density_code_e06},
 	{"03592 JC ENCR", Media_3592_JX,
 			media_type_unknown, medium_density_code_e06_ENCR},
+
+	{"03592 JK", Media_3592_JK,
+			media_type_unknown, medium_density_code_e07},
+	{"03592 JK Clean", Media_3592_JK_CLEAN,
+			media_type_unknown, medium_density_code_e07},
+	{"03592 JK ENCR", Media_3592_JK,
+			media_type_unknown, medium_density_code_e07_ENCR},
 	{"", 0, 0, 0},
 };
 
@@ -137,6 +148,13 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 			case drive_3592_E06:
 				if (mam.MediumDensityCode ==
 						medium_density_code_e05)
+					break;
+				sam_data_protect(E_WRITE_PROTECT, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+				break;
+			case drive_3592_E07:
+				if (mam.MediumDensityCode ==
+						medium_density_code_e06)
 					break;
 				sam_data_protect(E_WRITE_PROTECT, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
@@ -377,6 +395,7 @@ static void init_03592_mode_pages(struct lu_phy_attr *lu)
 static char *pm_name_j1a = "03592J1A";
 static char *pm_name_e05 = "03592E05";
 static char *pm_name_e06 = "03592E06";
+static char *pm_name_e07 = "03592E07";
 
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk,
@@ -508,5 +527,49 @@ void init_3592_E06(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "03592 JC");
 	add_drive_media_list(lu, LOAD_RO, "03592 JC Clean");
 	add_drive_media_list(lu, LOAD_RW, "03592 JC WORM");
+}
+
+void init_3592_E07(struct lu_phy_attr *lu)
+{
+	ssc_pm.name = pm_name_e07;
+	ssc_pm.lu = lu;
+	ssc_pm.native_drive_density = &density_e07;
+	ssc_pm.encryption_capabilities = encr_capabilities_3592;
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	ssc_personality_module_register(&ssc_pm);
+
+	init_3592_inquiry(lu);
+
+	init_03592_mode_pages(lu);
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+	ssc_pm.drive_type = drive_3592_E07;
+	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin, NULL, NULL);
+	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout, NULL, NULL);
+	add_density_support(&lu->den_list, &density_e05, 0);
+	add_density_support(&lu->den_list, &density_e06, 1);
+	add_density_support(&lu->den_list, &density_e07, 1);
+	add_drive_media_list(lu, LOAD_RW, "03592 JB");
+	add_drive_media_list(lu, LOAD_RO, "03592 JB Clean");
+	add_drive_media_list(lu, LOAD_RW, "03592 JB WORM");
+	add_drive_media_list(lu, LOAD_RW, "03592 JC");
+	add_drive_media_list(lu, LOAD_RO, "03592 JC Clean");
+	add_drive_media_list(lu, LOAD_RW, "03592 JC WORM");
+	add_drive_media_list(lu, LOAD_RW, "03592 JK");
+	add_drive_media_list(lu, LOAD_RO, "03592 JK Clean");
+	add_drive_media_list(lu, LOAD_RW, "03592 JK WORM");
 }
 
