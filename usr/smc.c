@@ -765,6 +765,9 @@ return avail_count;
  *
  * Returns number of bytes to xfer back to host.
  */
+
+#define NUM_SLOT	4	/* 4 Element types */
+
 uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
@@ -783,7 +786,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	uint32_t byte_count;
 	uint32_t cur_count;
 	struct s_sd sd;
-	struct smc_type_slot type_arr[4];	/* Hold sorted slot type */
+	struct smc_type_slot type_arr[NUM_SLOT]; /* Hold sorted slot type */
 	char start_slot_type;
 	int i;
 
@@ -861,13 +864,13 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		sort_library_slot_type(lu, &type_arr[0]);
 
 		/* Find out where we are up to */
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < NUM_SLOT; i++) {
 			MHVTL_DBG(2, "Testing type %d with %d",
 					type_arr[i].type, start_slot_type);
 			if (type_arr[i].type == start_slot_type)
 				break;
 		}
-		if (i >= 4) { /* Not found in above for loop */
+		if (i >= NUM_SLOT) { /* Not found in above for loop */
 			MHVTL_ERR("Couldn't find starting slot type !!");
 			sd.byte0 = SKSV | CD;
 			sd.field_pointer = 3;
@@ -877,7 +880,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		}
 
 		MHVTL_DBG(3, "All element type: Starting at %d", start_any);
-		for (; i < 4; i++) {
+		for (; i < NUM_SLOT; i++) {
 			MHVTL_DBG(3, "i: %d, type_arr[i].type: (%d) %s, "
 					"type_arr[i].start: %d",
 					i, type_arr[i].type,
@@ -891,7 +894,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 			sum += byte_count /
 				sizeof_element(cmd, type_arr[i].type);
 
-			if (i < 3)	/* Next slot type number */
+			if (i < NUM_SLOT - 1)	/* Next slot type number */
 				start_any = type_arr[i + 1].start;
 		}
 		break;
