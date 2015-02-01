@@ -55,7 +55,7 @@ run() {
 
 media_type() {
 	type=$1
-	regex='[A-Z0-9]{6,8}([JD])([WX])$'
+	regex='[A-Z0-9]{6,8}([JD])([WXY])$'
 # default to data type
 	TYPE=data
 
@@ -71,6 +71,8 @@ media_type() {
 				TYPE=`echo -e "worm"`;
 			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
 				TYPE=`echo -e "worm"`;
+			elif [ ${BASH_REMATCH[2]} = 'Y' ]; then
+				TYPE=`echo -e "worm"`;
 			fi
 		fi
 	fi
@@ -80,7 +82,7 @@ media_type() {
 # There is.. Thanks to Gavin Barnard.
 set_density() {
 	density=$1
-	regex='[A-Z0-9]{6,8}([SLXTJD])([1234567ABUVWXYZ])$'
+	regex='[A-Z0-9]{6,8}([SLXTJD])([1234567ABKUVWXYZ])$'
 	#regex='[A-Z0-9]{4,6}([SLXTJ])([123456ABWX])[0-9]*$' # for bacula
 	DENSITY=UNKNOWN
 
@@ -114,6 +116,10 @@ set_density() {
 				DENSITY=`echo -e "E05"`
 			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
 				DENSITY=`echo -e "E05"`
+			elif [ ${BASH_REMATCH[2]} = 'Y' ]; then
+				DENSITY=`echo -e "E07"`
+			elif [ ${BASH_REMATCH[2]} = 'K' ]; then
+				DENSITY=`echo -e "E07"`
 			fi
 		fi
 		if [ ${BASH_REMATCH[1]} = 'X' ]; then

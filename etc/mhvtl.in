@@ -279,8 +279,11 @@ MAP 4:
 # Trailing "TV" - 9940A, "TU" - 9940B
 # Trailing "JA" - 3592+
 # Trailing "JB" - 3592E05+
+# Trailing "JC" - 3592E06+
+# Trailing "JK" - 3592E07+
 # Trailing "JW" - WORM 3592+
-# Trailing "JX" - WORM 3592E05+
+# Trailing "JX" - WORM 3592E05+ & 3592E06
+# Trailing "JY" - WORM 3592E07+
 # Trailing "D7" - DLT7000 media (DLT IV)
 #
 CONF_SAMPLE
