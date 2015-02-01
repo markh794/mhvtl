@@ -786,7 +786,6 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	struct smc_type_slot type_arr[4];	/* Hold sorted slot type */
 	char start_slot_type;
 	int i;
-	int found;
 
 #ifdef MHVTL_DEBUG
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
@@ -860,16 +859,15 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		start_any = start;
 		start_slot_type = slot_type(smc_p, start_any);
 		sort_library_slot_type(lu, &type_arr[0]);
-		found = FALSE;
 
 		/* Find out where we are up to */
-		for (i = 0; i < 4 && found == FALSE; i++) {
+		for (i = 0; i < 4; i++) {
 			MHVTL_DBG(2, "Testing type %d with %d",
 					type_arr[i].type, start_slot_type);
 			if (type_arr[i].type == start_slot_type)
-				found = TRUE;
+				break;
 		}
-		if (!found) {
+		if (i >= 4) { /* Not found in above for loop */
 			MHVTL_ERR("Couldn't find starting slot type !!");
 			sd.byte0 = SKSV | CD;
 			sd.field_pointer = 3;
