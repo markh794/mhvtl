@@ -264,7 +264,7 @@ int main(int argc, char *argv[])
 			MHVTL_DBG(1, "Setting media type to NULL");
 			new_mam.MediumType = MEDIA_TYPE_NULL;
 		} else if (!strncasecmp("WORM", mediaType, 4)) {
-			MHVTL_DBG(1, "Setting media type to NULL");
+			MHVTL_DBG(1, "Setting media type to WORM");
 			new_mam.MediumType = MEDIA_TYPE_WORM;
 		} else {
 			printf("Unknown media type: %s\n", mediaType);
