@@ -4,3 +4,6 @@
 # Could it be simpler? 
 tcopy: tcopy.c
 	cc -Wall -o tcopy tcopy.c
+
+clean:
+	rm -f tcopy tcopy.o
