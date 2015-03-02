@@ -62,7 +62,7 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-#define	MAXREC	(64 * 1024)
+#define	MAXREC	(640 * 1024)
 #define	NOCOUNT	(-2)
 
 int	filen, guesslen, maxblk = MAXREC;
