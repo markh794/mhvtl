@@ -40,7 +40,7 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
+static const char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #endif
 static const char rcsid[] =
   "$FreeBSD: src/usr.bin/tcopy/tcopy.c,v 1.2.2.4 1999/09/05 11:33:13 peter Exp $";
@@ -83,11 +83,11 @@ int main(int argc, char *argv[])
 	sig_t oldsig;
 	int ch, needeof;
 	char *buff, *inf;
-	
+
 	msg = stdout;
 	guesslen = 1;
 	while ((ch = getopt(argc, argv, "cs:vx")) != -1)
-		switch((char)ch) {
+		switch ((char)ch) {
 		case 'c':
 			op = COPYVERIFY;
 			break;
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	switch(argc) {
+	switch (argc) {
 	case 0:
 		if (op != READ)
 			usage();
@@ -127,15 +127,17 @@ int main(int argc, char *argv[])
 		if (op == READ)
 			op = COPY;
 		inf = argv[0];
-		if ((outp = open(argv[1], op == VERIFY ? O_RDONLY :
-		    op == COPY ? O_WRONLY : O_RDWR, DEFFILEMODE)) < 0)
+		outp = open(argv[1], op == VERIFY ? O_RDONLY :
+			    op == COPY ? O_WRONLY : O_RDWR, DEFFILEMODE);
+		if (outp < 0)
 			err(3, "%s", argv[1]);
 		break;
 	default:
 		usage();
 	}
 
-	if ((inp = open(inf, O_RDONLY, 0)) < 0)
+	inp = open(inf, O_RDONLY, 0);
+	if (inp < 0)
 		err(1, "%s", inf);
 
 	buff = getspace(maxblk);
@@ -145,18 +147,20 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 
-	if ((oldsig = signal(SIGINT, SIG_IGN)) != SIG_IGN)
+	oldsig = signal(SIGINT, SIG_IGN);
+	if (oldsig != SIG_IGN)
 		(void) signal(SIGINT, intr);
 
 	needeof = 0;
 	for (lastnread = NOCOUNT;;) {
-		if ((nread = read(inp, buff, maxblk)) == -1) {
+		nread = read(inp, buff, maxblk);
+		if (nread == -1) {
 			while (errno == EINVAL && (maxblk -= 1024)) {
 				nread = read(inp, buff, maxblk);
 				if (nread >= 0)
 					goto r1;
 			}
-			err(1, "read error, file %d, record %ld", filen, record);
+			err(1, "read err, File %d, Record %ld", filen, record);
 		} else if (nread != lastnread) {
 			if (lastnread != 0 && lastnread != NOCOUNT) {
 				if (lastrec == 0 && nread == 0)
@@ -183,10 +187,14 @@ r1:		guesslen = 0;
 				nw = write(outp, buff, nread);
 				if (nw != nread) {
 					if (nw == -1) {
-					warn("write error, file %d, record %ld", filen, record);
+						warn("write err, File %d, "
+							"Record %ld",
+							filen, record);
 					} else {
-					warnx("write error, file %d, record %ld", filen, record);
-					warnx("write (%d) != read (%d)", nw, nread);
+					warnx("write err, File %d, Record %ld",
+							filen, record);
+					warnx("write (%d) != read (%d)",
+							nw, nread);
 					}
 					errx(5, "copy aborted");
 				}
@@ -231,7 +239,8 @@ void verify(register int inp, register int outp, register char *outb)
 	inb = getspace(maxblk);
 	inmaxblk = outmaxblk = maxblk;
 	for (eot = 0;; guesslen = 0) {
-		if ((inn = read(inp, inb, inmaxblk)) == -1) {
+		inn = read(inp, inb, inmaxblk);
+		if (inn == -1) {
 			if (guesslen)
 				while (errno == EINVAL && (inmaxblk -= 1024)) {
 					inn = read(inp, inb, inmaxblk);
@@ -241,7 +250,8 @@ void verify(register int inp, register int outp, register char *outb)
 			warn("read error");
 			break;
 		}
-r1:		if ((outn = read(outp, outb, outmaxblk)) == -1) {
+r1:		outn = read(outp, outb, outmaxblk);
+		if (outn == -1) {
 			if (guesslen)
 				while (errno == EINVAL && (outmaxblk -= 1024)) {
 					outn = read(outp, outb, outmaxblk);
@@ -286,13 +296,14 @@ void intr(int signo)
 	exit(1);
 }
 
-void * getspace(int blk)
+void *getspace(int blk)
 {
 	void *bp;
 
-	if ((bp = malloc((size_t)blk)) == NULL)
+	bp = malloc((size_t)blk);
+	if (bp == NULL)
 		errx(11, "no memory");
-	return (bp);
+	return bp;
 }
 
 void writeop(int fd, int type)
