@@ -47,6 +47,8 @@ distclean:
 	.event.o.d \
 	Module.markers \
 	modules.order \
+	mhvtl.ko.unsigned \
+	.mhvtl.ko.unsigned.cmd \
 	TAGS
 	rm -rf .tmp_versions
 
