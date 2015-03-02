@@ -76,10 +76,7 @@ static void	 usage __P((void));
 void	 verify __P((int, int, char *));
 void	 writeop __P((int, int));
 
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
+int main(int argc, char *argv[])
 {
 	register int lastnread, nread, nw, inp, outp;
 	enum {READ, VERIFY, COPY, COPYVERIFY} op = READ;
@@ -226,10 +223,7 @@ r1:		guesslen = 0;
 	exit(0);
 }
 
-void
-verify(inp, outp, outb)
-	register int inp, outp;
-	register char *outb;
+void verify(register int inp, register int outp, register char *outb)
 {
 	register int eot, inmaxblk, inn, outmaxblk, outn;
 	register char *inb;
@@ -280,9 +274,7 @@ r2:		if (inn != outn) {
 	exit(1);
 }
 
-void
-intr(signo)
-	int signo;
+void intr(int signo)
 {
 	if (record)
 		if (record - lastrec > 1)
@@ -294,9 +286,7 @@ intr(signo)
 	exit(1);
 }
 
-void *
-getspace(blk)
-	int blk;
+void * getspace(int blk)
 {
 	void *bp;
 
@@ -305,9 +295,7 @@ getspace(blk)
 	return (bp);
 }
 
-void
-writeop(fd, type)
-	int fd, type;
+void writeop(int fd, int type)
 {
 	struct mtop op;
 
@@ -317,30 +305,8 @@ writeop(fd, type)
 		err(6, "tape op");
 }
 
-static void
-usage()
+static void usage(void)
 {
 	fprintf(stderr, "usage: tcopy [-cvx] [-s maxblk] [src [dest]]\n");
 	exit(1);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
