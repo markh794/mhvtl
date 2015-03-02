@@ -27,5 +27,13 @@ all connected via SCSI interfaces, using the linux st device driver.
 
 So, use at your own risk.  I would appreciate some feedback though.
 Especially, any difficulties/bugs.
+  ================
+Sourceforge: http://sourceforge.net/p/tcopy/news/
 
+ Orphaned Project - See tcopy-linux
+
+This project was developed from scratch...
+And as such has behavior that is not identical, or even close to the origional tcopy command.
+
+The origional has now been posted at tcopy-linux project on sourceforge - I suggest using that project
  
