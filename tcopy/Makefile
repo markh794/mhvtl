@@ -19,5 +19,5 @@ install:	tcopy
 	cp $(MANPAGE) $(MAN_PATH)
 
 clean:
-	rm -f $(OBJS)
+	rm -f $(OBJS) tcopy
 
