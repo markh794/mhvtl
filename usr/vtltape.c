@@ -1731,7 +1731,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 							mam.MediaType),
 			mam.MediumSerialNumber);
 
-	lu_ssc.max_capacity = 0L;
+	lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
 
 	switch (mam.MediumType) {
 	case MEDIA_TYPE_DATA:
@@ -1739,7 +1739,6 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		OK_to_write = 1;	/* Reset flag to OK. */
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
-		lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
 		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
@@ -1793,7 +1792,6 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	case MEDIA_TYPE_NULL:	/* Special - don't save data, just metadata */
 		current_state = MHVTL_STATE_LOADING;
 		OK_to_write = 1;	/* Reset flag to OK. */
-		lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
 		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	}
