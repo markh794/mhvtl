@@ -36,6 +36,9 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd);
 uint8_t smc_rezero(struct scsi_cmd *cmd);
 uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd);
 
+int get_cart_type(char *barcode);
+void update_home_dir(long my_id);	/* for the 'get_cart_type()' function only */
+
 int slotOccupied(struct s_info *s);
 void setImpExpStatus(struct s_info *s, int flg);
 void setSlotEmpty(struct s_info *s);

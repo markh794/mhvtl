@@ -342,25 +342,6 @@ static void list_map(struct q_msg *msg)
 	send_msg(buf, msg->snd_id);
 }
 
-/*
- * If barcode starts with string 'CLN' define it as a cleaning cart.
- * else its a data cartridge
- *
- * Return 1 = Data cartridge
- *        2 = Cleaning cartridge
- */
-static uint8_t cart_type(char *barcode)
-{
-	uint8_t retval = 0;
-
-	retval = (strncmp(barcode, "CLN", 3)) ? 1 : 2;
-	MHVTL_DBG(2, "%s cart found: %s",
-				(retval == 1) ? "Data" : "Cleaning", barcode);
-
-return retval;
-}
-
-
 /* Check existing MAP & Storage slots for existing barcode */
 int already_in_slot(char *barcode)
 {
@@ -446,7 +427,7 @@ static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode)
 	snprintf((char *)m->barcode, MAX_BARCODE_LEN + 1, LEFT_JUST_16_STR,
 					barcode);
 	m->barcode[MAX_BARCODE_LEN] = '\0';
-	m->cart_type = cart_type((char *)barcode);
+	m->cart_type = get_cart_type(barcode);
 	if (!strncmp((char *)m->barcode, "NOBAR", 5))
 		m->internal_status = INSTATUS_NO_BARCODE;
 	else
@@ -509,7 +490,7 @@ static int load_map(struct q_msg *msg)
 		mp->barcode[MAX_BARCODE_LEN] = '\0';
 
 		/* 1 = data, 2 = Clean */
-		mp->cart_type = cart_type(barcode);
+		mp->cart_type = get_cart_type(barcode);
 		sp->status = STATUS_InEnab | STATUS_ExEnab |
 					STATUS_Access | STATUS_ImpExp |
 					STATUS_Full;
@@ -1309,6 +1290,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 
 	backoff = DEFLT_BACKOFF_VALUE;
 	lu->persist = FALSE;
+
+	/* Set static 'home_directory' var - used for get_cart_type() function */
+	update_home_dir(my_id);
 
 	/* Configure default inquiry data */
 	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);

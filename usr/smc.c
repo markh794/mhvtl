@@ -487,7 +487,7 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 	 * 5 - Microcode image medium
 	 */
 	if (s->media)
-		p[j] |= (s->media->cart_type & 0x0f);
+		p[j] |= s->media->cart_type & 0x0f;
 
 	j++;
 

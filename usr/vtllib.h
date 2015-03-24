@@ -88,6 +88,8 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define MEDIA_TYPE_DATA 0
 #define MEDIA_TYPE_WORM 1
 #define MEDIA_TYPE_NULL 2
+#define MEDIA_TYPE_DIAGNOSTIC 3
+#define MEDIA_TYPE_FIRMWARE 4
 #define MEDIA_TYPE_CLEAN 6
 
 #define MHVTL_NO_COMPRESSION 0

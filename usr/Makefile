@@ -100,6 +100,7 @@ edit_tape:	edit_tape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 
 vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		libvtlscsi.so \
+		vtl_cart_type.o \
 		be_byteshift.h \
 		stklxx_pm.o \
 		hp_smc_pm.o \
@@ -110,6 +111,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		default_smc_pm.o \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi \
+		vtl_cart_type.o \
 		stklxx_pm.o \
 		hp_smc_pm.o \
 		overland_pm.o \
@@ -146,6 +148,7 @@ clean:
 		vtlcmd.o dump_messageQ.o core mktape.o vtllib.o \
 		libvtlscsi.o libvtlscsi.so libvtlcart.o libvtlcart.so \
 		z.o vtllibrary.o \
+		vtl_cart_type.o \
 		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
 		default_ssc_pm.o \
 		ult3580_pm.o \
@@ -181,6 +184,7 @@ distclean:
 	core mktape mktape.o \
 	vtllib.o libvtlscsi.so \
 	libvtlcart.so vtlcart.o spc.o \
+	vtl_cart_type.o \
 	smc.o ssc.o \
 	default_ssc_pm.o \
 	ult3580_pm.o \
