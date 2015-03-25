@@ -1175,13 +1175,13 @@ int get_fifo_count(void)
 	return mhvtl_fifo_count(QUERYSHM);
 }
 
-void find_media_home_directory(char *home_directory, int lib_id)
+void find_media_home_directory(char *home_directory, long lib_id)
 {
 	char *config = MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
-	int i;
+	long i;
 	int found;
 
 	found = 0;
@@ -1209,8 +1209,8 @@ void find_media_home_directory(char *home_directory, int lib_id)
 			continue;
 		if (strlen(b) < 3)	/* Reset drive number of blank line */
 			i = 0xff;
-		if (sscanf(b, "Library: %d ", &i)) {
-			MHVTL_DBG(2, "Found Library %d, looking for %d",
+		if (sscanf(b, "Library: %ld ", &i)) {
+			MHVTL_DBG(2, "Found Library %ld, looking for %ld",
 							i, lib_id);
 			if (i == lib_id)
 				found = 1;
@@ -1228,9 +1228,9 @@ void find_media_home_directory(char *home_directory, int lib_id)
 	}
 
 	/* Not found, then append the library id to default path */
-	snprintf(home_directory, HOME_DIR_PATH_SZ, "%s/%d",
+	snprintf(home_directory, HOME_DIR_PATH_SZ, "%s/%ld",
 						MHVTL_HOME_PATH, lib_id);
-	MHVTL_DBG(1, "Append library id %d to default path %s: %s",
+	MHVTL_DBG(1, "Append library id %ld to default path %s: %s",
 						lib_id, MHVTL_HOME_PATH,
 						home_directory);
 

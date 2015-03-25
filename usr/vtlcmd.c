@@ -59,7 +59,7 @@ int debug = 0;
 
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
-void find_media_home_directory(char *home_directory, int lib_id);
+void find_media_home_directory(char *home_directory, long lib_id);
 
 static void usage(char *prog)
 {

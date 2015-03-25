@@ -106,7 +106,7 @@ static void print_mam_info(void)
 				remaining, remain_mul);
 }
 
-void find_media_home_directory(char *home_directory, int lib_id);
+void find_media_home_directory(char *home_directory, long lib_id);
 
 int main(int argc, char *argv[])
 {
