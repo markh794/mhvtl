@@ -39,14 +39,14 @@ USER=${1:-vtl}	# Default user 'vtl'
 #dry='echo'
 
 # Test for 'runuser' used on Scientific Linux, else default with 'su'
-if [ -x "$(which runuser >/dev/null 2>&1)" ]; then
+if [ -x "$(which runuser 2>&1)" ]; then
 	RUNAS=runuser
 else
 	RUNAS=su
 fi
 
 run() {
-	if [ -x "$(which setuidgid >/dev/null 2>&1)" ]; then
+	if [ -x "$(which setuidgid 2>&1)" ]; then
 		$dry setuidgid $USER $*
 	else
 		$dry $RUNAS $USER -c "$*"
