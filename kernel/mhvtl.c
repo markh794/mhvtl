@@ -262,7 +262,8 @@ static int vtl_slave_alloc(struct scsi_device *);
 static int vtl_slave_configure(struct scsi_device *);
 static void vtl_slave_destroy(struct scsi_device *);
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 					int reason);
 #else
@@ -302,7 +303,9 @@ static struct scsi_host_template vtl_driver_template = {
 #endif
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
 	.change_queue_depth =	vtl_change_queue_depth,
-	.ordered_tag =		1,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
+        .ordered_tag =          1,
+#endif
 #endif
 	.eh_abort_handler =	vtl_abort,
 	.eh_bus_reset_handler = vtl_bus_reset,
@@ -622,7 +625,8 @@ static inline int scsi_get_tag_type(struct scsi_device *sdev)
  * Disabling for kernel 2.6.9 (RedHat AS 4)
  */
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33) && \
+    LINUX_VERSION_CODE < KERNEL_VERSION(3,6,19)
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 					int reason)
 #else
@@ -636,7 +640,11 @@ static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	else if (qdepth > sdev->host->cmd_per_lun)
 		qdepth = sdev->host->cmd_per_lun;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+#else
+	scsi_change_queue_depth(sdev, qdepth);
+#endif
 	return sdev->queue_depth;
 }
 #endif
@@ -792,8 +800,12 @@ static int vtl_slave_configure(struct scsi_device *sdp)
 	lu = devInfoReg(sdp);
 	sdp->hostdata = lu;
 	if (sdp->host->cmd_per_lun)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
 		scsi_adjust_queue_depth(sdp, VTL_TAGGED_QUEUING,
 					sdp->host->cmd_per_lun);
+#else
+		scsi_change_queue_depth(sdp, sdp->host->cmd_per_lun);
+#endif
 	return 0;
 }
 
@@ -1558,8 +1570,13 @@ static DEFINE_MUTEX(ioctl_mutex);
 
 static long vtl_c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_dentry->d_inode;
 	long ret;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
+	struct inode *inode = file->f_dentry->d_inode;
+#else
+	struct inode *inode = file_inode(file);
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 	mutex_lock(&ioctl_mutex);
