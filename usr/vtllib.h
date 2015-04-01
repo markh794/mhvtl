@@ -377,12 +377,15 @@ struct lu_phy_attr {
 
 	uint8_t *naa;
 	struct vpd *lu_vpd[1 << (PCODE_SHIFT + 1)];
-	void *lu_private;	/* Private data struct per lu */
 
 	FILE *fifo_fd;
 	char *fifoname;
 	int fifo_flag;
 	int persist;	/* Save changes across restarts */
+
+	uint8_t	*sense_p;	/* Pointer to sense buffer */
+
+	void *lu_private;	/* Private data struct per lu */
 };
 
 /* Drive Info */

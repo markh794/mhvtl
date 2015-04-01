@@ -1785,8 +1785,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 				OK_to_write = 0;
 			rewind_tape(sam_stat);
 		}
-		if (lu_ssc.pm->set_WORM)
-			lu_ssc.pm->set_WORM(&lu->mode_pg);
+		lu_ssc.pm->set_WORM(&lu->mode_pg);
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
 		break;
 	case MEDIA_TYPE_NULL:	/* Special - don't save data, just metadata */
@@ -2545,6 +2544,8 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	lu->ptype = TYPE_TAPE;
 
 	backoff = DEFLT_BACKOFF_VALUE;
+
+	lu->sense_p = &sense[0];
 
 	/* Default inquiry bits */
 	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);

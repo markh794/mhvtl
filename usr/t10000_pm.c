@@ -279,7 +279,37 @@ static void inc_cleaning_state(int sig)
 
 static uint8_t t10k_media_load(struct lu_phy_attr *lu, int load)
 {
+	uint8_t *sense_p = lu->sense_p;
+	struct priv_lu_ssc *ssc;
+	ssc = lu->lu_private;
+
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
+
+	if (load) {
+		switch (ssc->mamp->MediumType) {
+		case MEDIA_TYPE_WORM:
+			sense_p[24] |= 0x02;	/* Data + Append-only */
+			/* Now fall thru to 'Data' */
+		case MEDIA_TYPE_DATA:
+			sense_p[24] |= 0x10;
+			break;
+		case MEDIA_TYPE_CLEAN:
+			sense_p[24] |= 0x80;	/* Cleaning cart */
+			break;
+		case MEDIA_TYPE_FIRMWARE:
+			sense_p[24] |= 0x20;
+			break;
+		default:
+			sense_p[24] &= 0x0d;	/* Unknown type */
+			break;
+		}
+	} else {
+		sense_p[24] &= 0x0d;	/* Unknown type & mask out Volsafe */
+	}
+
+	if (ssc->append_only_mode)
+		sense_p[24] |= 0x02;
+
 	return 0;
 }
 
@@ -310,6 +340,59 @@ static void init_t10k_mode_pages(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
+}
+
+/* T10K return tape type in request sense information
+ *
+ * Reference: T10000 Interface Reference Manual * August 2009 * Revision M
+ *
+ * sense[24] 7 6 5 4 3 2 1 0
+ *                   | | | +- TapeEOL - Tape loaded is End-Of-Life
+ *                   | | +--- Volsafe - Current tape is append-only
+ *                   | +----- MIRBad  - Metadata on tape is defective
+ *           | | | | +------- DAvail  - Diagnostic info available
+ * Tape Type +-+-+-+
+ * 1000b = Cleaning tape
+ * 0100b = Dump tape
+ * 0010b = Code load tape
+ * 0001b = Data Tape
+ * 0000b = Unknown type
+ */
+static void t10k_init_sense(struct scsi_cmd *cmd)
+{
+	uint8_t *sense_buf = (uint8_t *)cmd->dbuf_p->sense_buf;
+	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
+
+	if (lu_priv->tapeLoaded) {
+		if (lu_priv->append_only_mode)
+			sense_buf[24] |= 0x02;
+
+		switch (lu_priv->mamp->MediumType) {
+		case MEDIA_TYPE_WORM:
+			sense_buf[24] |= 0x02;	/* Append-only */
+			/* Fall thru to MEDIA_TYPE_DATA */
+		case MEDIA_TYPE_DATA:
+			sense_buf[24] |= 0x10;
+			break;
+		case MEDIA_TYPE_CLEAN:
+			sense_buf[24] |= 0x80;	/* Cleaning cart */
+			break;
+		case MEDIA_TYPE_FIRMWARE:
+			sense_buf[24] |= 0x20;
+			break;
+		default:
+			sense_buf[24] &= 0x0d;	/* Unknown type */
+			break;
+		}
+	}
+	if (lu_priv->inLibrary)
+		sense_buf[25] = 0x02;	/* LibAtt */
+}
+
+uint8_t t10k_sense(struct scsi_cmd *cmd)
+{
+	t10k_init_sense(cmd);
+	return spc_request_sense(cmd);
 }
 
 static char *pm_name_t10kA = "T10000A";
@@ -343,8 +426,26 @@ static void init_t10k_inquiry(struct lu_phy_attr *lu)
 
 	lu->inquiry[3] = 0x42;
 	lu->inquiry[4] = INQUIRY_LEN - 5;	/* Additional Length */
-	lu->inquiry[54] = 0x04;	/* Key Management */
-	lu->inquiry[55] = 0x12;	/* Support Encryption & Compression */
+
+	if (ssc_pm.drive_supports_SP) {	/* Security Protocols */
+		lu->inquiry[54] |= 0x04; /* Key management - DPKM SPIN/SPOUT */
+		lu->inquiry[55] |= 0x10; /* Encrypt */
+	}
+
+	/* FIXME: Need to add 'LibAtt' too */
+
+	/* WORM... */
+	if (ssc_pm.drive_supports_WORM)
+		lu->inquiry[55] |= 0x04; /* VolSafe set */
+
+	/* Set Data Compression enabled */
+	lu->inquiry[55] |= 0x02;	/* DCMP bit enabled */
+
+	/* Version Descriptor */
+	put_unaligned_be16(0x0077, &lu->inquiry[58]);
+	put_unaligned_be16(0x0314, &lu->inquiry[60]);
+	put_unaligned_be16(0x0403, &lu->inquiry[62]);
+	put_unaligned_be16(0x0a11, &lu->inquiry[64]);
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
@@ -385,6 +486,7 @@ void init_t10kA_ssc(struct lu_phy_attr *lu)
 	add_log_data_compression(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
+	register_ops(lu, REQUEST_SENSE, t10k_sense, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_t10kA, 1);
 
@@ -400,7 +502,7 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
-	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
@@ -421,6 +523,7 @@ void init_t10kB_ssc(struct lu_phy_attr *lu)
 	add_log_data_compression(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
+	register_ops(lu, REQUEST_SENSE, t10k_sense, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_t10kA, 1);
 	add_density_support(&lu->den_list, &density_t10kB, 1);
@@ -441,7 +544,7 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_append_only_mode = FALSE;
 	ssc_pm.drive_supports_early_warning = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
-	ssc_pm.drive_supports_WORM = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
@@ -462,6 +565,7 @@ void init_t10kC_ssc(struct lu_phy_attr *lu)
 	add_log_data_compression(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
+	register_ops(lu, REQUEST_SENSE, t10k_sense, NULL, NULL);
 
 	add_density_support(&lu->den_list, &density_t10kA, 0);
 	add_density_support(&lu->den_list, &density_t10kB, 1);

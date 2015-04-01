@@ -1310,6 +1310,8 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 
 	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
 
+	lu->sense_p = &sense[0];	/* Save pointer to sense buffer */
+
 	conf = fopen(config , "r");
 	if (!conf) {
 		MHVTL_ERR("Can not open config file %s : %s", config,
