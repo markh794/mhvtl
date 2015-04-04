@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 	put_unaligned_be64(sizeof(mam.pad), &mam.MAMSpaceRemaining);
 
 	memcpy(&mam.MediumManufacturer, "linuxVTL", 8);
-	memcpy(&mam.ApplicationVendor, "vtl-1.4 ", 8);
+	memcpy(&mam.ApplicationVendor, "vtl-1.5 ", 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (!strncmp("clean", mediaType, 5)) {
