@@ -55,26 +55,20 @@ run() {
 
 media_type() {
 	type=$1
-	regex='[A-Z0-9]{6,8}([JD])([WXY])$'
+	e0_regex='[A-Z0-9]{6,8}([J])([WXY])$'
+	lto_regex='[A-Z0-9]{6,8}([L])([TUVW])$'
 # default to data type
 	TYPE=data
 
 	if [[ $type =~ ^"W" ]]; then
-		TYPE=`echo -e "worm"`;
+		TYPE=`echo -e "WORM"`;
 	elif [[ $type =~ ^"CLN" ]]; then
 		TYPE=`echo -e "clean"`;
 	# Match JW / JX as 'worm' media
-	elif [[ $type =~ $regex ]]; then
-		matches=${#BASH_REMATCH[*]}
-		if [ ${BASH_REMATCH[1]} = 'J' ]; then
-			if [ ${BASH_REMATCH[2]} = 'W' ]; then
-				TYPE=`echo -e "worm"`;
-			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
-				TYPE=`echo -e "worm"`;
-			elif [ ${BASH_REMATCH[2]} = 'Y' ]; then
-				TYPE=`echo -e "worm"`;
-			fi
-		fi
+	elif [[ $type =~ $e0_regex ]]; then
+		TYPE=`echo -e "WORM"`;
+	elif [[ $type =~ $lto_regex ]]; then
+		TYPE=`echo -e "WORM"`;
 	fi
 }
 
@@ -89,7 +83,17 @@ set_density() {
 	if [[ $density =~ $regex ]]; then
 		matches=${#BASH_REMATCH[*]}
 		if [ ${BASH_REMATCH[1]} = 'L' ]; then
-			DENSITY=`echo -e "LTO${BASH_REMATCH[2]}"`
+			if [ ${BASH_REMATCH[2]} = 'T' ]; then
+				DENSITY=`echo -e "LTO3"`
+			elif [ ${BASH_REMATCH[2]} = 'U' ]; then
+				DENSITY=`echo -e "LTO4"`
+			elif [ ${BASH_REMATCH[2]} = 'V' ]; then
+				DENSITY=`echo -e "LTO5"`
+			elif [ ${BASH_REMATCH[2]} = 'W' ]; then
+				DENSITY=`echo -e "LTO6"`
+			else
+				DENSITY=`echo -e "LTO${BASH_REMATCH[2]}"`
+			fi
 		fi
 		if [ ${BASH_REMATCH[1]} = 'D' ]; then
 			if [ ${BASH_REMATCH[2]} = '7' ]; then
