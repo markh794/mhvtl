@@ -427,7 +427,6 @@ uint8_t spc_illegal_op(struct scsi_cmd *cmd)
 
 uint8_t spc_request_sense(struct scsi_cmd *cmd)
 {
-	int sz;
 	uint8_t *sense_buf = (uint8_t *)cmd->dbuf_p->sense_buf;
 	uint8_t *cdb = cmd->scb;
 
@@ -442,12 +441,12 @@ uint8_t spc_request_sense(struct scsi_cmd *cmd)
 				(sense_buf[2] & SD_EOM) ? "yes" : "no",
 				(sense_buf[2] & SD_ILI) ? "yes" : "no");
 
-	sz = cdb[4] < SENSE_BUF_SIZE ?  cdb[4] : SENSE_BUF_SIZE;
 	assert(cmd->dbuf_p->data);
 	/* Clear out the request sense flag */
 	cmd->dbuf_p->sam_stat = 0;
+
 	/* set buf size */
-	cmd->dbuf_p->sz = sz;
+	cmd->dbuf_p->sz = min(cdb[4], (uint8_t)SENSE_BUF_SIZE);
 	memcpy(cmd->dbuf_p->data, sense_buf, cmd->dbuf_p->sz);
 	memset(sense_buf, 0, cmd->dbuf_p->sz);
 	sense_buf[0] = SD_CURRENT_INFORMATION_FIXED;
