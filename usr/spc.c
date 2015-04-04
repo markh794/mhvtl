@@ -448,7 +448,7 @@ uint8_t spc_request_sense(struct scsi_cmd *cmd)
 	/* set buf size */
 	cmd->dbuf_p->sz = min(cdb[4], (uint8_t)SENSE_BUF_SIZE);
 	memcpy(cmd->dbuf_p->data, sense_buf, cmd->dbuf_p->sz);
-	memset(sense_buf, 0, cmd->dbuf_p->sz);
+	memset(sense_buf, 0, 18); /* First 18bytes contain usual suspect */
 	sense_buf[0] = SD_CURRENT_INFORMATION_FIXED;
 	return SAM_STAT_GOOD;
 }
