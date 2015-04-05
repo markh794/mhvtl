@@ -1271,10 +1271,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(7398, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO3", 4))) {
-		if (mamp->MediumType == MEDIA_TYPE_WORM)
-			mamp->MediumDensityCode = medium_density_code_lto3_WORM;
-		else
-			mamp->MediumDensityCode = medium_density_code_lto3;
+		mamp->MediumDensityCode = medium_density_code_lto3;
 		mamp->MediaType = Media_LTO3;
 		put_unaligned_be32(704, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
@@ -1283,10 +1280,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(9638, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO4", 4))) {
-		if (mamp->MediumType == MEDIA_TYPE_WORM)
-			mamp->MediumDensityCode = medium_density_code_lto4_WORM;
-		else
-			mamp->MediumDensityCode = medium_density_code_lto4;
+		mamp->MediumDensityCode = medium_density_code_lto4;
 		mamp->MediaType = Media_LTO4;
 		put_unaligned_be32(896, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
@@ -1295,10 +1289,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(12725, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO5", 4))) {
-		if (mamp->MediumType == MEDIA_TYPE_WORM)
-			mamp->MediumDensityCode = medium_density_code_lto5_WORM;
-		else
-			mamp->MediumDensityCode = medium_density_code_lto5;
+		mamp->MediumDensityCode = medium_density_code_lto5;
 		mamp->MediaType = Media_LTO5;
 		put_unaligned_be32(1280, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);

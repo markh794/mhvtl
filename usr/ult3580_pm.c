@@ -81,25 +81,25 @@ static struct name_to_media_info media_info[] = {
 	{"LTO3 Clean", Media_LTO3_CLEAN,
 			media_type_lto3_data, medium_density_code_lto3},
 	{"LTO3 WORM", Media_LTO3_WORM,
-			media_type_lto3_worm, medium_density_code_lto3_WORM},
+			media_type_lto3_worm, medium_density_code_lto3},
 	{"LTO4", Media_LTO4,
 			media_type_lto4_data, medium_density_code_lto4},
 	{"LTO4 Clean", Media_LTO4_CLEAN,
 			media_type_lto4_data, medium_density_code_lto4},
 	{"LTO4 WORM", Media_LTO4_WORM,
-			media_type_lto4_worm, medium_density_code_lto4_WORM},
+			media_type_lto4_worm, medium_density_code_lto4},
 	{"LTO5", Media_LTO5,
 			media_type_lto5_data, medium_density_code_lto5},
 	{"LTO5 Clean", Media_LTO5_CLEAN,
 			media_type_lto5_data, medium_density_code_lto5},
 	{"LTO5 WORM", Media_LTO5_WORM,
-			media_type_lto5_worm, medium_density_code_lto5_WORM},
+			media_type_lto5_worm, medium_density_code_lto5},
 	{"LTO6", Media_LTO6,
 			media_type_lto6_data, medium_density_code_lto6},
 	{"LTO6 Clean", Media_LTO6_CLEAN,
 			media_type_lto6_data, medium_density_code_lto6},
 	{"LTO6 WORM", Media_LTO6_WORM,
-			media_type_lto6_worm, medium_density_code_lto6_WORM},
+			media_type_lto6_worm, medium_density_code_lto6},
 	{"", 0, 0, 0},
 };
 
@@ -360,7 +360,38 @@ static void inc_cleaning_state(int sig)
 
 static uint8_t ult_media_load(struct lu_phy_attr *lu, int load)
 {
+	struct priv_lu_ssc *lu_priv = lu->lu_private;
+
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
+
+	if (load) {
+		switch (lu_priv->mamp->MediaType) {
+		case Media_LTO1:
+			lu->mode_media_type = media_type_lto1_data;
+			break;
+		case Media_LTO2:
+			lu->mode_media_type = media_type_lto2_data;
+			break;
+		case Media_LTO3:
+			lu->mode_media_type = media_type_lto3_data;
+			break;
+		case Media_LTO4:
+			lu->mode_media_type = media_type_lto4_data;
+			break;
+		case Media_LTO5:
+			lu->mode_media_type = media_type_lto5_data;
+			break;
+		case Media_LTO6:
+			lu->mode_media_type = media_type_lto6_data;
+			break;
+		default:
+			lu->mode_media_type = 0;
+		}
+		if (lu_priv->mamp->MediumType == MEDIA_TYPE_WORM)
+			lu->mode_media_type |= 0x04;
+	} else {
+		lu->mode_media_type = 0;
+	}
 	return 0;
 }
 

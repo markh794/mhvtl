@@ -86,13 +86,10 @@ struct blk_header {
 #define medium_density_code_lto1	0x40
 #define medium_density_code_lto2	0x42
 #define medium_density_code_lto3	0x44
-#define medium_density_code_lto3_WORM	0x3C
 #define medium_density_code_lto4	0x46
-#define medium_density_code_lto4_WORM	0x4C
 #define medium_density_code_lto5	0x58
-#define medium_density_code_lto5_WORM	0x5C
 #define medium_density_code_lto6	0x5a
-#define medium_density_code_lto6_WORM	0x5e
+
 #define medium_density_code_j1a		0x51
 #define medium_density_code_e05		0x52
 #define medium_density_code_e06		0x53
@@ -101,10 +98,12 @@ struct blk_header {
 #define medium_density_code_e05_ENCR	0x72
 #define medium_density_code_e06_ENCR	0x73
 #define medium_density_code_e07_ENCR	0x74
+
 #define medium_density_code_ait1	0x30
 #define medium_density_code_ait2	0x31
 #define medium_density_code_ait3	0x32
 #define medium_density_code_ait4	0x33
+
 #define medium_density_code_10kA	0x4a
 #define medium_density_code_10kB	0x4b
 #define medium_density_code_10kC	0x4c
