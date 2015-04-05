@@ -403,7 +403,18 @@ static void inc_cleaning_state(int sig)
 
 static uint8_t hp_media_load(struct lu_phy_attr *lu, int load)
 {
+	struct priv_lu_ssc *lu_priv = lu->lu_private;
+
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
+
+	if (load) {
+		lu->mode_media_type = 0;	/* Data */
+
+		if (lu_priv->mamp->MediumType == MEDIA_TYPE_WORM)
+			lu->mode_media_type = 0x01;	/* WORM media */
+	} else {
+		lu->mode_media_type = 0;
+	}
 	return 0;
 }
 
