@@ -383,9 +383,10 @@ static int schedule_resp(struct scsi_cmnd *SCpnt,
 			struct scsi_device *sdp = SCpnt->device;
 #endif
 
-			MHVTL_DBG(1, " <%u %u %u %u> non-zero result=0x%x\n",
+			MHVTL_DBG(1, " <%u %u %u %llu> non-zero result=0x%x\n",
 				sdp->host->host_no,
-				sdp->channel, sdp->id, sdp->lun, scsi_result);
+				sdp->channel, sdp->id,
+				(unsigned long long int)sdp->lun, scsi_result);
 		}
 	}
 	if (SCpnt && lu) {
@@ -764,8 +765,9 @@ static int vtl_slave_alloc(struct scsi_device *sdp)
 	struct vtl_hba_info *vtl_hba;
 	struct vtl_lu_info *lu = (struct vtl_lu_info *)sdp->hostdata;
 
-	MHVTL_DBG(2, "slave_alloc <%u %u %u %u>\n",
-			sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+	MHVTL_DBG(2, "slave_alloc <%u %u %u %llu>\n",
+			sdp->host->host_no, sdp->channel, sdp->id,
+			(unsigned long long int)sdp->lun);
 
 	if (lu)
 		return 0;
@@ -791,8 +793,9 @@ static int vtl_slave_configure(struct scsi_device *sdp)
 {
 	struct vtl_lu_info *lu;
 
-	MHVTL_DBG(2, "slave_configure <%u %u %u %u>\n",
-			sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+	MHVTL_DBG(2, "slave_configure <%u %u %u %llu>\n",
+			sdp->host->host_no, sdp->channel, sdp->id,
+			(unsigned long long int)sdp->lun);
 	if (sdp->host->max_cmd_len != VTL_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = VTL_MAX_CMD_LEN;
 	lu = devInfoReg(sdp);
@@ -811,8 +814,9 @@ static void vtl_slave_destroy(struct scsi_device *sdp)
 {
 	struct vtl_lu_info *lu = (struct vtl_lu_info *)sdp->hostdata;
 
-	MHVTL_DBG(2, "slave_destroy <%u %u %u %u>\n",
-			sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+	MHVTL_DBG(2, "slave_destroy <%u %u %u %llu>\n",
+			sdp->host->host_no, sdp->channel, sdp->id,
+			(unsigned long long int)sdp->lun);
 	if (lu) {
 		MHVTL_DBG(2, "Removing lu structure, minor %d\n", lu->minor);
 		/* make this slot avaliable for re-use */
