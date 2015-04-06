@@ -1089,7 +1089,11 @@ static ssize_t vtl_opts_store(struct device_driver *ddp,
 	char work[20];
 
 	if (1 == sscanf(buf, "%10s", work)) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
+		if (0 == strncasecmp(work, "0x", 2)) {
+#else
 		if (0 == strnicmp(work, "0x", 2)) {
+#endif
 			if (1 == sscanf(&work[2], "%x", &opts))
 				goto opts_done;
 		} else {
