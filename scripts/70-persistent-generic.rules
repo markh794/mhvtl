@@ -1,0 +1,8 @@
+
+# Media changer
+ACTION=="add|change", KERNEL=="sg[0-9]*", SUBSYSTEM=="scsi_generic", PROGRAM=="/lib/udev/scsi_id --page=0x83 --whitelisted -u --device=$tempnode", RESULT=="?IBM_03584L32_XYZZY_A00*", NAME="sg9"
+
+# Persistent name starting from 'sg6'
+ACTION=="add|change", KERNEL=="sg[0-9]*", SUBSYSTEM=="scsi_generic", PROGRAM=="/lib/udev/scsi_id --page=0x83 --whitelisted --device=$tempnode", RESULT=="350223344ff000100", NAME="sg6"
+ACTION=="add|change", KERNEL=="sg[0-9]*", SUBSYSTEM=="scsi_generic", PROGRAM=="/lib/udev/scsi_id --page=0x83 --whitelisted --device=$tempnode", RESULT=="350223344ff000200", NAME="sg7"
+ACTION=="add|change", KERNEL=="sg[0-9]*", SUBSYSTEM=="scsi_generic", PROGRAM=="/lib/udev/scsi_id --page=0x83 --whitelisted --device=$tempnode", RESULT=="350223344ff000300", NAME="sg8"

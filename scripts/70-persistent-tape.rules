@@ -1,0 +1,8 @@
+ACTION=="add|change", KERNEL=="st[0-9]*", SUBSYSTEM=="scsi_tape", ENV{ID_SERIAL}=="350223344ff000100", NAME="st0"
+ACTION=="add|change", KERNEL=="nst[0-9]*", SUBSYSTEM=="scsi_tape", ENV{ID_SERIAL}=="350223344ff000100", NAME="nst0"
+#
+ACTION=="add|change", KERNEL=="st[0-9]*", SUBSYSTEM=="scsi_tape", ENV{ID_SERIAL}=="350223344ff000200", NAME="st1"
+ACTION=="add|change", KERNEL=="nst[0-9]*", SUBSYSTEM=="scsi_tape", ENV{ID_SERIAL}=="350223344ff000200", NAME="nst1"
+#
+ACTION=="add|change", KERNEL=="st[0-9]*", SUBSYSTEM=="scsi_tape", ENV{ID_SERIAL}=="350223344ff000300", NAME="st2"
+ACTION=="add|change", KERNEL=="nst[0-9]*", SUBSYSTEM=="scsi_tape", ENV{ID_SERIAL}=="350223344ff000300", NAME="nst2"
