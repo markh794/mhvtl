@@ -492,22 +492,14 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd)
 uint8_t ssc_locate(struct scsi_cmd *cmd)
 {
 	uint32_t blk_no;
-	int locate_16;
 
 	current_state = MHVTL_STATE_LOCATE;
 
-	locate_16 = (cmd->scb[0] == LOCATE_16) ? 1 : 0;
+	MHVTL_DBG(1, "LOCATE %d (%ld) **", (cmd->scb[0] == LOCATE_16) ? 16 : 10,
+			(long)cmd->dbuf_p->serialNo);
 
-	MHVTL_DBG(1, "LOCATE %d (%ld) **", (locate_16) ? 16 : 10, (long)cmd->dbuf_p->serialNo);
-
-	switch (locate_16) {
-	case 0:
-		blk_no = get_unaligned_be32(&cmd->scb[3]);
-		break;
-	case 1:
-		blk_no = get_unaligned_be64(&cmd->scb[4]);
-		break;
-	}
+	blk_no = (cmd->scb[0] == LOCATE_16) ?
+		get_unaligned_be64(&cmd->scb[4]) : get_unaligned_be32(&cmd->scb[3]);
 
 	/* If we want to seek closer to beginning of file than
 	 * we currently are, rewind and seek from there
