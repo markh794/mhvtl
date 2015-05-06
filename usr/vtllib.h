@@ -577,6 +577,8 @@ void rmnl(char *s, unsigned char c, int len);
 void truncate_spaces(char *s, int maxlen);
 char *get_version(void);
 
+void update_vpd_80(struct lu_phy_attr *lu, void *p);
+void update_vpd_83(struct lu_phy_attr *lu, void *p);
 void update_vpd_86(struct lu_phy_attr *lu, void *p);
 void update_vpd_b0(struct lu_phy_attr *lu, void *p);
 void update_vpd_b1(struct lu_phy_attr *lu, void *p);

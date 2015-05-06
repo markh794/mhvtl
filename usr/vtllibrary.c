@@ -1065,74 +1065,6 @@ void init_slot_info(struct lu_phy_attr *lu)
 		__init_slot_info(lu, arr[i].type);
 }
 
-/* Set VPD data with device serial number */
-static void update_vpd_80(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x80)];
-
-	memcpy(vpd_pg->data, p, strlen(p));
-}
-
-static void update_vpd_83(struct lu_phy_attr *lu, void *p)
-{
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x83)];
-	uint8_t *d;
-	int num;
-	char *ptr;
-	int len, j;
-
-	d = vpd_pg->data;
-
-	d[0] = 2;
-	d[1] = 1;
-	d[2] = 0;
-	num = VENDOR_ID_LEN + PRODUCT_ID_LEN + 10;
-	d[3] = num;
-
-	memcpy(&d[4], &lu->vendor_id, VENDOR_ID_LEN);
-	memcpy(&d[12], &lu->product_id, PRODUCT_ID_LEN);
-	memcpy(&d[28], &lu->lu_serial_no, 10);
-	len = (int)strlen(lu->lu_serial_no);
-	ptr = &lu->lu_serial_no[len];
-
-	num += 4;
-	/* NAA IEEE registered identifier (faked) */
-	d[num] = 0x1;	/* Binary */
-	d[num + 1] = 0x3;
-	d[num + 2] = 0x0;
-	d[num + 3] = 0x8;
-	d[num + 4] = 0x51;
-	d[num + 5] = 0x23;
-	d[num + 6] = 0x45;
-	d[num + 7] = 0x60;
-	d[num + 8] = 0x3;
-	d[num + 9] = 0x3;
-	d[num + 10] = 0x3;
-	d[num + 11] = 0x3;
-
-	if (lu->naa) { /* If defined in config file */
-		sscanf((const char *)lu->naa,
-			"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			&d[num + 4],
-			&d[num + 5],
-			&d[num + 6],
-			&d[num + 7],
-			&d[num + 8],
-			&d[num + 9],
-			&d[num + 10],
-			&d[num + 11]);
-	} else { /* Else munge the serial number */
-		ptr--;
-		for (j = 11; j > 3; ptr--, j--)
-			d[num + j] = *ptr;
-	}
-	/* Bug reported by Stefan Hauser.
-	 * [num +4] is always 0x5x
-	 */
-	d[num + 4] &= 0x0f;
-	d[num + 4] |= 0x50;
-}
-
 /* Return original slot location if empty
  */
 static struct s_info *previous_storage_slot(struct s_info *s,
@@ -1277,7 +1209,6 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 {
 
 	struct vpd **lu_vpd = lu->lu_vpd;
-	int pg;
 
 	char *config = MHVTL_CONFIG_PATH"/device.conf";
 	FILE *conf;
@@ -1449,23 +1380,12 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	smc_slots.state_msg = NULL;
 
 	/* Unit Serial Number */
-	pg = PCODE_OFFSET(0x80);
-	lu_vpd[pg] = alloc_vpd(strlen(lu->lu_serial_no));
-	if (lu_vpd[pg])
-		update_vpd_80(lu, lu->lu_serial_no);
-	else
-		MHVTL_DBG(1, "Could not malloc(%d) line %d",
-				(int)strlen(lu->lu_serial_no),
-				__LINE__);
+	lu_vpd[PCODE_OFFSET(0x80)] = alloc_vpd(strlen(lu->lu_serial_no));
+	update_vpd_80(lu, lu->lu_serial_no);
 
 	/* Device Identification */
-	pg = PCODE_OFFSET(0x83);
-	lu_vpd[pg] = alloc_vpd(VPD_83_SZ);
-	if (lu_vpd[pg])
-		update_vpd_83(lu, NULL);
-	else
-		MHVTL_DBG(1, "Could not malloc(%d) line %d",
-				VPD_83_SZ, __LINE__);
+	lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(VPD_83_SZ);
+	update_vpd_83(lu, NULL);
 
 	lu->lu_private = &smc_slots;
 	smc_slots.cap_closed = CAP_CLOSED;

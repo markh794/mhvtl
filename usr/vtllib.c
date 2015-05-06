@@ -44,6 +44,7 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 #include <time.h>
+#include <assert.h>
 #include "be_byteshift.h"
 #include "list.h"
 #include "scsi.h"
@@ -1656,4 +1657,76 @@ void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type)
 			type[i].start = smc_p->pm->start_storage;
 		}
 	}
+}
+
+/* Set VPD data with device serial number */
+void update_vpd_80(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x80)];
+
+	assert(vpd_pg);		/* space should have been pre-allocated */
+
+	memcpy(vpd_pg->data, p, strlen((const char *)p));
+}
+
+void update_vpd_83(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x83)];
+	uint8_t *d;
+	char *ptr;
+	int num;
+	int len, j;
+
+	assert(vpd_pg);		/* space should have been pre-allocated */
+
+	d = vpd_pg->data;
+
+	d[0] = 2;
+	d[1] = 1;
+	d[2] = 0;
+	num = VENDOR_ID_LEN + PRODUCT_ID_LEN + 10;
+	d[3] = num;
+
+	memcpy(&d[4], &lu->vendor_id, VENDOR_ID_LEN);
+	memcpy(&d[12], &lu->product_id, PRODUCT_ID_LEN);
+	memcpy(&d[28], &lu->lu_serial_no, 10);
+	len = (int)strlen(lu->lu_serial_no);
+	ptr = &lu->lu_serial_no[len];
+
+	num += 4;
+	/* NAA IEEE registered identifier (faked) */
+	d[num] = 0x1;	/* Binary */
+	d[num + 1] = 0x3;
+	d[num + 2] = 0x0;
+	d[num + 3] = 0x8;
+	d[num + 4] = 0x51;
+	d[num + 5] = 0x23;
+	d[num + 6] = 0x45;
+	d[num + 7] = 0x60;
+	d[num + 8] = 0x3;
+	d[num + 9] = 0x3;
+	d[num + 10] = 0x3;
+	d[num + 11] = 0x3;
+
+	if (lu->naa) { /* If defined in config file */
+		sscanf((const char *)lu->naa,
+			"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+			&d[num + 4],
+			&d[num + 5],
+			&d[num + 6],
+			&d[num + 7],
+			&d[num + 8],
+			&d[num + 9],
+			&d[num + 10],
+			&d[num + 11]);
+	} else { /* Else munge the serial number */
+		ptr--;
+		for (j = 11; j > 3; ptr--, j--)
+			d[num + j] = *ptr;
+	}
+	/* Bug reported by Stefan Hauser.
+	 * [num +4] is always 0x5x
+	 */
+	d[num + 4] &= 0x0f;
+	d[num + 4] |= 0x50;
 }
