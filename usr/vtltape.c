@@ -2243,7 +2243,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 		MHVTL_DBG(2, "Adding new entry for %s", s);
 		m_detail = zalloc(sizeof(struct media_details));
 		if (!m_detail) {
-			MHVTL_DBG(1, "Failed to allocate %d bytes",
+			MHVTL_ERR("Failed to allocate %d bytes",
 						(int)sizeof(m_detail));
 			return -ENOMEM;
 		}

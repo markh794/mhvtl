@@ -56,7 +56,7 @@ static void update_scalar_vpd_80(struct  lu_phy_attr *lu)
 		/* d[4 - 27] Serial number prefixed by Vendor ID */
 		snprintf((char *)&d[0], 25, "%-s%-17s", lu->vendor_id, lu->lu_serial_no);
 	} else {
-		MHVTL_DBG(1, "Could not malloc(24) bytes, line %d", __LINE__);
+		MHVTL_ERR("Could not malloc(24) bytes, line %d", __LINE__);
 	}
 }
 
@@ -83,7 +83,7 @@ static void update_scalar_vpd_83(struct  lu_phy_attr *lu)
 		snprintf((char *)&d[12], 25, "%-24s", lu->lu_serial_no);
 
 	} else {
-		MHVTL_DBG(1, "Could not malloc(36) bytes, line %d", __LINE__);
+		MHVTL_ERR("Could not malloc(36) bytes, line %d", __LINE__);
 	}
 }
 

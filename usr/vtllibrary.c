@@ -415,7 +415,7 @@ static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode)
 
 	m = zalloc(sizeof(struct m_info));
 	if (!m) {
-		MHVTL_DBG(1, "Out of memory allocating memory for barcode %s",
+		MHVTL_ERR("Out of memory allocating memory for barcode %s",
 			barcode);
 		exit(-ENOMEM);
 	}
@@ -697,7 +697,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 									drv_id);
 				dp = zalloc(sizeof(struct d_info));
 				if (!dp) {
-					MHVTL_DBG(1, "Couldn't malloc memory");
+					MHVTL_ERR("Couldn't malloc memory");
 					exit(-ENOMEM);
 				}
 				sp = add_new_slot(lu);

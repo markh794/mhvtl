@@ -55,13 +55,13 @@ struct vpd *alloc_vpd(uint16_t sz)
 
 	vpd_pg = zalloc(sizeof(struct vpd));
 	if (!vpd_pg) {
-		MHVTL_LOG("Could not malloc %d bytes of mem",
+		MHVTL_ERR("Could not malloc %d bytes of mem",
 					(int)sizeof(struct vpd));
 		return NULL;
 	}
 	vpd_pg->data = zalloc(sz);
 	if (!vpd_pg->data) {
-		MHVTL_LOG("Could not malloc %d bytes of mem", sz);
+		MHVTL_ERR("Could not malloc %d bytes of mem", sz);
 		free(vpd_pg);
 		return NULL;
 	}

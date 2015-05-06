@@ -368,7 +368,7 @@ static void init_9840_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xb0);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_b0(lu, &worm);

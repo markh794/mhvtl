@@ -316,7 +316,7 @@ static void update_ibm_3100_vpd_c0(struct lu_phy_attr *lu)
 		dealloc_vpd(lu_vpd[pg]);
 	lu_vpd[pg] = alloc_vpd(0x40);
 	if (!lu_vpd[pg]) {
-		MHVTL_DBG(1, "Could not malloc(0x40) bytes, line %d", __LINE__);
+		MHVTL_ERR("Could not malloc(0x40) bytes, line %d", __LINE__);
 		return;
 	}
 

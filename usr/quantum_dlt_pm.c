@@ -216,7 +216,7 @@ static void init_dlt_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xc0);
 	lu->lu_vpd[pg] = alloc_vpd(44);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_dlt_c0(lu);
@@ -225,7 +225,7 @@ static void init_dlt_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xc1);
 	lu->lu_vpd[pg] = alloc_vpd(44);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_dlt_c1(lu, lu->lu_serial_no);
@@ -261,7 +261,7 @@ static void init_sdlt_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xb0);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_b0(lu, &worm);
@@ -270,7 +270,7 @@ static void init_sdlt_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xb1);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_b1(lu, lu->lu_serial_no);
@@ -279,7 +279,7 @@ static void init_sdlt_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xb2);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_b2(lu, &ta);
@@ -288,7 +288,7 @@ static void init_sdlt_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xc0);
 	lu->lu_vpd[pg] = alloc_vpd(44);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_dlt_c0(lu);
@@ -297,7 +297,7 @@ static void init_sdlt_inquiry(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0xc1);
 	lu->lu_vpd[pg] = alloc_vpd(44);
 	if (!lu->lu_vpd[pg]) {
-		MHVTL_LOG("Failed to malloc(): Line %d", __LINE__);
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
 	update_vpd_dlt_c1(lu, lu->lu_serial_no);
