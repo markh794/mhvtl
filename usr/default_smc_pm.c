@@ -23,6 +23,7 @@ static struct smc_personality_template smc_pm = {
 static void update_default_inquiry(struct lu_phy_attr *lu)
 {
 	struct smc_priv *smc_p;
+
 	smc_p = lu->lu_private;
 
 	lu->inquiry[2] = 5;	/* SNSI Approved Version */
@@ -35,6 +36,12 @@ static void update_default_inquiry(struct lu_phy_attr *lu)
 	put_unaligned_be16(0x0b56, &lu->inquiry[60]); /* SPI-4 */
 	put_unaligned_be16(0x02fe, &lu->inquiry[62]); /* SMC-2 */
 	put_unaligned_be16(0x030f, &lu->inquiry[64]); /* SPC-3 */
+
+	/* Device Identification */
+	lu->lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(VPD_83_SZ);
+	if (lu->lu_vpd[PCODE_OFFSET(0x83)])
+		update_vpd_83(lu, NULL);
+
 }
 
 void init_default_smc(struct  lu_phy_attr *lu)

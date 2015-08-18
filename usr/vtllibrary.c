@@ -1383,10 +1383,6 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	lu_vpd[PCODE_OFFSET(0x80)] = alloc_vpd(strlen(lu->lu_serial_no));
 	update_vpd_80(lu, lu->lu_serial_no);
 
-	/* Device Identification */
-	lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(VPD_83_SZ);
-	update_vpd_83(lu, NULL);
-
 	lu->lu_private = &smc_slots;
 	smc_slots.cap_closed = CAP_CLOSED;
 	return found;
