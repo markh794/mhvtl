@@ -779,6 +779,16 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	loff_t nread;
 	int rc = 0;
 	int null_media_type;
+	char touch_file[128];
+
+	uint8_t error_check;
+
+	snprintf(touch_file, 127, "%s/bypass_error_check", MHVTL_HOME_PATH);
+	error_check = (stat(touch_file, &data_stat) == -1) ? TRUE : FALSE;
+
+	if (error_check) {
+		MHVTL_LOG("WARNING - touch file %s found - bypassing sanity checks on open", touch_file);
+	}
 
 /* KFRDEBUG - sam_stat needs updates in lots of places here. */
 
@@ -858,11 +868,14 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 
 	exp_size = sizeof(mam) + sizeof(meta);
 	if ((uint32_t)meta_stat.st_size < exp_size) {
-		MHVTL_ERR("pcl %s file %s is not the correct length, "
+		MHVTL_ERR("sizeof(mam) + sizeof(meta) - "
+			"pcl %s file %s is not the correct length, "
 			"expected at least %" PRId64 ", actual %" PRId64,
 			pcl, pcl_meta, exp_size, meta_stat.st_size);
-		rc = 2;
-		goto failed;
+		if (error_check) {
+			rc = 2;
+			goto failed;
+		}
 	}
 
 	/* Read in the MAM and sanity-check it. */
@@ -870,13 +883,17 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	if (nread < 0) {
 		MHVTL_ERR("Error reading pcl %s MAM from metafile: %s",
 			pcl, strerror(errno));
-		rc = 2;
-		goto failed;
+		if (error_check) {
+			rc = 2;
+			goto failed;
+		}
 	} else if (nread != sizeof(mam)) {
 		MHVTL_ERR("Error reading pcl %s MAM from metafile: "
 			"unexpected read length", pcl);
-		rc = 2;
-		goto failed;
+		if (error_check) {
+			rc = 2;
+			goto failed;
+		}
 	}
 
 	null_media_type = mam.MediumType == MEDIA_TYPE_NULL ? 1 : 0;
@@ -884,8 +901,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
 		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
 		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		rc = 2;
-		goto failed;
+		if (error_check) {
+			rc = 2;
+			goto failed;
+		}
 	}
 
 	/* Read in the meta_header structure and sanity-check it. */
@@ -909,11 +928,14 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 		(meta.filemark_count * sizeof(*filemarks));
 
 	if ((uint32_t)meta_stat.st_size != exp_size) {
-		MHVTL_ERR("pcl %s file %s is not the correct length, "
+		MHVTL_ERR("sizeof(mam) + sizeof(meta) + sizeof(*filemarks) - "
+			"pcl %s file %s is not the correct length, "
 			"expected %" PRId64 ", actual %" PRId64, pcl,
 			pcl_meta, exp_size, meta_stat.st_size);
-		rc = 2;
-		goto failed;
+		if (error_check) {
+			rc = 2;
+			goto failed;
+		}
 	}
 
 	/* See if we have allocated enough space for the actual number of
@@ -921,8 +943,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	*/
 
 	if (check_filemarks_alloc(meta.filemark_count)) {
-		rc = 3;
-		goto failed;
+		if (error_check) {
+			rc = 3;
+			goto failed;
+		}
 	}
 
 	/* Now read in the filemark map. */
@@ -938,8 +962,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 		} else if ((size_t)nread != io_size) {
 			MHVTL_ERR("Error reading pcl %s filemark map from "
 				"metafile: unexpected read length", pcl);
-			rc = 2;
-			goto failed;
+			if (error_check) {
+				rc = 2;
+				goto failed;
+			}
 		}
 	}
 
@@ -987,11 +1013,14 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	if (null_media_type) {
 		MHVTL_LOG("Loaded NULL media type");	/* Skip check */
 	} else if ((uint64_t)data_stat.st_size != eod_data_offset) {
-		MHVTL_ERR("pcl %s file %s is not the correct length, "
+		MHVTL_ERR("st_size != eod_data_offset - "
+			"pcl %s file %s is not the correct length, "
 			"expected %" PRId64 ", actual %" PRId64, pcl,
 			pcl_data, eod_data_offset, data_stat.st_size);
-		rc = 2;
-		goto failed;
+		if (error_check) {
+			rc = 2;
+			goto failed;
+		}
 	}
 
 	/* Give a hint to the kernel that data, once written, tends not to be
