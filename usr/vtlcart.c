@@ -420,7 +420,7 @@ int position_to_block(uint32_t blk_number, uint8_t *sam_stat)
  * != 0, failure
 */
 
-int position_blocks_forw(uint32_t count, uint8_t *sam_stat)
+int position_blocks_forw(uint64_t count, uint8_t *sam_stat)
 {
 	uint32_t residual;
 	uint32_t blk_target;
@@ -480,7 +480,7 @@ int position_blocks_forw(uint32_t count, uint8_t *sam_stat)
  * != 0, failure
 */
 
-int position_blocks_back(uint32_t count, uint8_t *sam_stat)
+int position_blocks_back(uint64_t count, uint8_t *sam_stat)
 {
 	uint32_t residual;
 	uint32_t blk_target;
@@ -548,7 +548,7 @@ int position_blocks_back(uint32_t count, uint8_t *sam_stat)
  * != 0, failure
 */
 
-int position_filemarks_forw(uint32_t count, uint8_t *sam_stat)
+int position_filemarks_forw(uint64_t count, uint8_t *sam_stat)
 {
 	uint32_t residual;
 	unsigned int i;
@@ -586,7 +586,7 @@ int position_filemarks_forw(uint32_t count, uint8_t *sam_stat)
  * != 0, failure
 */
 
-int position_filemarks_back(uint32_t count, uint8_t *sam_stat)
+int position_filemarks_back(uint64_t count, uint8_t *sam_stat)
 {
 	uint32_t residual;
 	int i;

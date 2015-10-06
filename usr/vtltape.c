@@ -1123,7 +1123,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 /*
  * Space over (to) x filemarks. Setmarks not supported as yet.
  */
-void resp_space(int32_t count, int code, uint8_t *sam_stat)
+void resp_space(int64_t count, int code, uint8_t *sam_stat)
 {
 	struct s_sd sd;
 
@@ -2279,7 +2279,7 @@ static struct device_type_template ssc_ops = {
 
 		/* 0x10 -> 0x1f */
 		{ssc_write_filemarks,},
-		{ssc_space,},
+		{ssc_space_6,},
 		{spc_inquiry,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},
@@ -2395,7 +2395,7 @@ static struct device_type_template ssc_ops = {
 
 		/* 0x90 -> 0x9f */
 		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{ssc_space_16,},
 		{ssc_locate,},
 		{spc_illegal_op,},
 		{spc_illegal_op,},

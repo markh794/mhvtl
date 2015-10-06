@@ -183,10 +183,10 @@ void unload_tape(uint8_t *sam_stat);
 int rewind_tape(uint8_t *sam_stat);
 int position_to_eod(uint8_t *sam_stat);
 int position_to_block(uint32_t blk_no, uint8_t *sam_stat);
-int position_blocks_forw(uint32_t count, uint8_t *sam_stat);
-int position_blocks_back(uint32_t count, uint8_t *sam_stat);
-int position_filemarks_forw(uint32_t count, uint8_t *sam_stat);
-int position_filemarks_back(uint32_t count, uint8_t *sam_stat);
+int position_blocks_forw(uint64_t count, uint8_t *sam_stat);
+int position_blocks_back(uint64_t count, uint8_t *sam_stat);
+int position_filemarks_forw(uint64_t count, uint8_t *sam_stat);
+int position_filemarks_back(uint64_t count, uint8_t *sam_stat);
 
 uint32_t read_tape_block(uint8_t *buf, uint32_t size, uint8_t *sam_stat);
 

@@ -212,7 +212,8 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd);
 uint8_t ssc_reserve(struct scsi_cmd *cmd);
 uint8_t ssc_rewind(struct scsi_cmd *cmd);
 uint8_t ssc_locate(struct scsi_cmd *cmd);
-uint8_t ssc_space(struct scsi_cmd *cmd);
+uint8_t ssc_space_6(struct scsi_cmd *cmd);
+uint8_t ssc_space_16(struct scsi_cmd *cmd);
 uint8_t ssc_spin(struct scsi_cmd *cmd);
 uint8_t ssc_spout(struct scsi_cmd *cmd);
 uint8_t ssc_load_unload(struct scsi_cmd *cmd);
@@ -267,6 +268,6 @@ int resp_write_attribute(struct scsi_cmd *cmd);
 int resp_read_attribute(struct scsi_cmd *cmd);
 int resp_report_density(struct priv_lu_ssc *lu_ssc, uint8_t media,
 						struct vtl_ds *dbuf_p);
-void resp_space(int32_t count, int code, uint8_t *sam_stat);
+void resp_space(int64_t count, int code, uint8_t *sam_stat);
 void unloadTape(uint8_t *sam_stat);
 void delay_opcode(int what, int value);

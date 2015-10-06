@@ -1459,12 +1459,12 @@ uint8_t ssc_erase(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t ssc_space(struct scsi_cmd *cmd)
+uint8_t ssc_space_6(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat;
-	int count;
-	int icount;
-	int code;
+	uint32_t count;
+	int32_t icount;
+	uint8_t code;
 	struct s_sd sd;
 
 	sam_stat = &cmd->dbuf_p->sam_stat;
@@ -1480,10 +1480,68 @@ uint8_t ssc_space(struct scsi_cmd *cmd)
 	   should be treated as a twos-complement negative number.
 	*/
 
-	if (count >= 0x800000)
+	if (cmd->scb[2] >= 0x80) /* MSB of the count field */
 		icount = -(0xffffff - count + 1);
 	else
 		icount = (int32_t)count;
+
+	switch (code) {
+	case 0:	/* Logical blocks - supported */
+		MHVTL_DBG(1, "SPACE (%ld) ** %s %d block%s",
+			(long)cmd->dbuf_p->serialNo,
+			(icount >= 0) ? "forward" : "back",
+			abs(icount),
+			(1 == abs(icount)) ? "" : "s");
+		break;
+	case 1:	/* Filemarks - supported */
+		MHVTL_DBG(1, "SPACE (%ld) ** %s %d filemark%s",
+			(long)cmd->dbuf_p->serialNo,
+			(icount >= 0) ? "forward" : "back",
+			abs(icount),
+			(1 == abs(icount)) ? "" : "s");
+		break;
+	case 3:	/* End of Data - supported */
+		MHVTL_DBG(1, "SPACE (%ld) ** %s ",
+			(long)cmd->dbuf_p->serialNo,
+			"to End-of-data");
+		break;
+	case 2:	/* Sequential filemarks currently not supported */
+	default: /* obsolete / reserved values */
+		MHVTL_DBG(1, "SPACE (%ld) ** - Unsupported option %d",
+			(long)cmd->dbuf_p->serialNo,
+			code);
+
+		sd.byte0 = SKSV | CD | BPV | code;
+		sd.field_pointer = 1;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+		break;
+	}
+
+	if (icount != 0 || code == 3)
+		resp_space(icount, code, sam_stat);
+
+	return *sam_stat;
+}
+
+uint8_t ssc_space_16(struct scsi_cmd *cmd)
+{
+	uint8_t *sam_stat;
+	int64_t icount;
+	uint8_t code;
+	struct s_sd sd;
+
+	sam_stat = &cmd->dbuf_p->sam_stat;
+
+	*sam_stat = SAM_STAT_GOOD;
+
+	current_state = MHVTL_STATE_POSITIONING;
+
+	icount = get_unaligned_be64(&cmd->scb[4]);
+	code = cmd->scb[1] & 0x0f;
+
+	if (icount < 0)
+		icount++;	/* 2s complement */
 
 	switch (code) {
 	case 0:	/* Logical blocks - supported */
