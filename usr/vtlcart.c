@@ -1163,8 +1163,12 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 		uint8_t comp_type, uint8_t null_media_type, uint8_t *sam_stat)
 {
 	uint32_t blk_number, disk_blk_size;
+	uint32_t max_blk_number;
 	uint64_t data_offset;
 	ssize_t nwrite;
+
+	/* Medium format limits to unsigned 32bit blks */
+	max_blk_number = 0xfffffff0;
 
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -1178,6 +1182,11 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 
 	blk_number = raw_pos.hdr.blk_number;
 	data_offset = raw_pos.data_offset;
+
+	if (blk_number > max_blk_number) {
+		MHVTL_ERR("Too many tape blocks - 32byte overflow");
+		return -1;
+	}
 
 	memset(&raw_pos, 0, sizeof(raw_pos));
 
