@@ -784,7 +784,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	uint8_t error_check;
 
 	snprintf(touch_file, 127, "%s/bypass_error_check", MHVTL_HOME_PATH);
-	error_check = (stat(touch_file, &data_stat) == -1) ? TRUE : FALSE;
+	error_check = (stat(touch_file, &data_stat) == -1) ? FALSE : TRUE;
 
 	if (error_check) {
 		MHVTL_LOG("WARNING - touch file %s found - bypassing sanity checks on open", touch_file);
