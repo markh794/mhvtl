@@ -1479,6 +1479,12 @@ static void customise_stk_lu(struct lu_phy_attr *lu)
 {
 	if (!strncasecmp(lu->product_id, "SL500", 5))
 		init_stkslxx(lu);	/* STK SL series */
+	else if (!strncasecmp(lu->product_id, "L20", 3))
+		init_stkl20(lu);	/* L20/40/80 */
+	else if (!strncasecmp(lu->product_id, "L40", 3))
+		init_stkl20(lu);	/* L20/40/80 */
+	else if (!strncasecmp(lu->product_id, "L80", 3))
+		init_stkl20(lu);	/* L20/40/80 */
 	else
 		init_stklxx(lu);	/* STK L series */
 }

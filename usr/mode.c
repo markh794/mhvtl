@@ -59,6 +59,7 @@ static char *mode_ait_device_configuration = "AIT Device Configuration";
 static char *mode_element_address = "Element Address";
 static char *mode_transport_geometry = "Transport Geometry";
 static char *mode_device_capabilities = "Device Capabilities";
+static char *drive_configuration_page = "STK Vendor-Unique Drive Configuration";
 
 struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
 {
@@ -976,3 +977,42 @@ int update_prog_early_warning(struct lu_phy_attr *lu)
 	}
 	return SAM_STAT_GOOD;
 }
+
+int add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu)
+{
+	struct list_head *mode_pg;
+	struct mode *mp;
+	uint8_t pcode;
+	uint8_t subpcode;
+	uint8_t size;
+
+	mode_pg = &lu->mode_pg;
+	/* A Vendor-specific page for the StorageTek L20, L40 and L80 libraries */
+	pcode = 0x2d;
+	subpcode = 0;
+	size = 0x26;
+/*
+ * FIXME: Need to fill in details from Table 4-21 L20 SCSI Reference Manual
+ */
+
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				drive_configuration_page, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
+	if (!mp)
+		return -ENOMEM;
+
+	mp->pcodePointer[0] = pcode;
+	mp->pcodePointer[1] = size
+				 - sizeof(mp->pcodePointer[0])
+				 - sizeof(mp->pcodePointer[1]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+
+	mp->description = drive_configuration_page;
+
+	return 0;
+}
+

@@ -45,6 +45,7 @@ void setSlotEmpty(struct s_info *s);
 void unload_drive_on_shutdown(struct s_info *src, struct s_info *dest);
 
 void init_slot_info(struct lu_phy_attr *lu);
+void init_stkl20(struct lu_phy_attr *lu);
 void init_stklxx(struct lu_phy_attr *lu);
 void init_stkslxx(struct lu_phy_attr *lu);
 void init_default_smc(struct lu_phy_attr *lu);

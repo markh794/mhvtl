@@ -44,3 +44,4 @@ int add_mode_transport_geometry(struct lu_phy_attr *lu);
 int add_mode_element_address_assignment(struct lu_phy_attr *lu);
 int update_prog_early_warning(struct lu_phy_attr *lu);
 void dealloc_all_mode_pages(struct lu_phy_attr *lu);
+int add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu);
