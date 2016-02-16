@@ -1540,9 +1540,6 @@ uint8_t ssc_space_16(struct scsi_cmd *cmd)
 	icount = get_unaligned_be64(&cmd->scb[4]);
 	code = cmd->scb[1] & 0x0f;
 
-	if (icount < 0)
-		icount++;	/* 2s complement */
-
 	switch (code) {
 	case 0:	/* Logical blocks - supported */
 		MHVTL_DBG(1, "SPACE (%ld) ** %s %d block%s",
