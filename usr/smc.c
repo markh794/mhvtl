@@ -405,7 +405,10 @@ static int sizeof_element(struct scsi_cmd *cmd, int type)
 	int voltag;
 
 	voltag = (cmd->scb[1] & 0x10) >> 4;
-	dvcid = cmd->scb[6] & 0x01;	/* Device ID */
+	if (smc_p->pm->no_dvcid_flag)
+		dvcid = 1;
+	else
+		dvcid = cmd->scb[6] & 0x01;	/* Device ID */
 
 	return 16 + (voltag ? VOLTAG_LEN : 0) +
 		(dvcid && (type == DATA_TRANSFER) ? smc_p->pm->dvcid_len : 0);
@@ -425,7 +428,10 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 	uint8_t dvcid;
 
 	voltag = (cmd->scb[1] & 0x10) >> 4;
-	dvcid = cmd->scb[6] & 0x01;	/* Device ID */
+	if (smc_p->pm->no_dvcid_flag)
+		dvcid = 1;
+	else
+		dvcid = cmd->scb[6] & 0x01;	/* Device ID */
 
 	/* Should never occur, but better to trap then core */
 	if (!s) {
@@ -513,7 +519,8 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 
 	if (dvcid && s->element_type == DATA_TRANSFER) {
 		p[j++] = 2;	/* Code set 2 = ASCII */
-		p[j++] = 1;	/* Identifier type */
+		/* Identifier type - If serial number only - 0, otherwise 1 */
+		p[j++] = smc_p->pm->dvcid_serial_only ? 0 : 1;
 		p[j++] = 0;	/* Reserved */
 		p[j++] = smc_p->pm->dvcid_len;	/* Identifier Length */
 		if (smc_p->pm->dvcid_serial_only) {
@@ -534,7 +541,7 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 		p[j++] = 0;	/* Reserved */
 		p[j++] = 0;	/* Reserved */
 	}
-	MHVTL_DBG(3, "Returning %d (0x%02x) bytes", j, j);
+	MHVTL_DBG(3, "Element Descriptor - Returning %d (0x%02x) bytes", j, j);
 
 return j;
 }
@@ -546,10 +553,12 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 					uint16_t element_count,
 					uint8_t type)
 {
+	struct smc_priv *smc_p;
 	int element_sz;
 	uint32_t element_len;
 	uint8_t voltag;
 
+	smc_p = (struct smc_priv *)cmd->lu->lu_private;
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 
 	element_sz = sizeof_element(cmd, type);
@@ -558,6 +567,8 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 
 	/* Primary Volume Tag set - Returning Barcode info */
 	p[1] = (voltag == 0) ? 0 : 0x80;
+	if (smc_p->pm->dvcid_serial_only && type == DATA_TRANSFER)
+		p[1] |= 0x40;	/* Set AVolTag */
 
 	/* Number of bytes per element */
 	put_unaligned_be16(element_sz, &p[2]);
@@ -792,7 +803,11 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
 #ifdef MHVTL_DEBUG
 	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
-	uint8_t	dvcid = cdb[6] & 0x01;	/* Device ID */
+	uint8_t dvcid;	/* Device ID */
+	if (smc_p->pm->no_dvcid_flag)
+		dvcid = 1;
+	else
+		dvcid = cmd->scb[6] & 0x01;	/* Device ID */
 #endif
 
 	MHVTL_DBG(1, "READ ELEMENT STATUS (%ld) **",
@@ -822,7 +837,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	memset(p, 0, alloc_len);
 
 	if (cdb[11] != 0x0) {	/* Reserved byte.. */
-		MHVTL_DBG(3, "cdb[11] : Illegal value");
+		MHVTL_DBG(2, "cdb[11] : Illegal value of %02x", cdb[11]);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 11;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);

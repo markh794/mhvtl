@@ -17,6 +17,7 @@ struct smc_personality_template {
 	uint32_t library_has_barcode_reader:1;
 	uint32_t library_has_playground:1;
 	uint32_t dvcid_serial_only:1;
+	uint32_t no_dvcid_flag:1;
 
 	uint32_t start_drive;
 	uint32_t start_picker;

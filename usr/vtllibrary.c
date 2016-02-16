@@ -1564,7 +1564,7 @@ void rereadconfig(int sig)
 
 void smc_personality_module_register(struct smc_personality_template *pm)
 {
-	MHVTL_DBG(2, "%s", pm->name);
+	MHVTL_LOG("%s", pm->name);
 	smc_slots.pm = pm;
 }
 
