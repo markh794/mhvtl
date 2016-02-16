@@ -7,7 +7,7 @@
  *   SCSI target daemons for both SMC and SSC devices.
  *
  * Copyright (C) 2005 - 2009 Mark Harvey       markh794@gmail.com
- *                                          mark_harvey@symantec.com
+ *                                          mark.harvey at veritas.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

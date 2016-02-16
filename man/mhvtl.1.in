@@ -84,7 +84,7 @@ Kernel module only written for Linux 2.6.x kernel series.
 Data is copied from kernel buffers to/from user-space buffers. Should
 use pointers to buffers, not copy each block.
 .SH "REPORTING BUGS"
-Report bugs to <markh794@gmail.com> <mark_harvey@symantec.com>.
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
 .SH COPYRIGHT
 Copyright \(co 2005 Free Software Foundation, Inc.
 .br

@@ -22,7 +22,7 @@
  *
  *	markh794@gmail.com
  *	  or
- *	Current employ address: mark_harvey@symantec.com
+ *	Current employ address: mark.harvey@veritas.com
  *
  *	Pinched wholesale from scsi_debug.[ch]
  *

@@ -2,7 +2,7 @@
  * q.h -- Message queue for vtltape/vtllibrary
  *
  * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
- *                                mark_harvey at symantec dot com
+ *                                mark.harvey at veritas dot com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

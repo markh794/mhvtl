@@ -2,7 +2,7 @@
  * dump_messageQ - A utility to empty & examine a message queue
  *
  * Copyright (C) 2005 - 2009 Mark Harvey markh794 at gmail dot com
- *                                mark_harvey at symantec dot com
+ *                                mark.harvey at veritas dot com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
