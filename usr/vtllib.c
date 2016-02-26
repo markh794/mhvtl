@@ -906,9 +906,12 @@ uint8_t clear_WORM(struct list_head *l)
 	struct mode *m;
 
 	m = lookup_pcode(l, MODE_MEDIUM_CONFIGURATION, 0);
-	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+	if (!m) {
+		MHVTL_DBG(3, "Did not find MODE_MEDIUM_CONFIGURATION page");
+	} else {
+		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			l, m, m->pcodePointer);
-	if (m) {
+
 		smp_dp = m->pcodePointer;
 		if (!smp_dp)
 			return SAM_STAT_GOOD;
@@ -926,9 +929,12 @@ uint8_t set_WORM(struct list_head *l)
 	MHVTL_DBG(3, "*** Trace ***");
 
 	m = lookup_pcode(l, MODE_MEDIUM_CONFIGURATION, 0);
-	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+	if (!m) {
+		MHVTL_DBG(3, "Did not find MODE_MEDIUM_CONFIGURATION page");
+	} else {
+		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			l, m, m->pcodePointer);
-	if (m) {
+
 		smp_dp = m->pcodePointer;
 		if (!smp_dp)
 			return SAM_STAT_GOOD;
