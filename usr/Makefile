@@ -88,7 +88,8 @@ vtlcmd:	vtlcmd.o
 
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
 		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o dump_tape dump_tape.o -L. -lvtlcart -lvtlscsi
+	$(CC) $(CFLAGS) -o dump_tape dump_tape.o -L. \
+		-lz -llzo2 -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 		../kernel/vtl_common.h
