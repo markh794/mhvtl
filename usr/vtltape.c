@@ -618,6 +618,9 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		return 0;
 	}
 
+	/* Can't reference c_pos after this point
+	 * read_tape_block increments c_pos to next block header
+	 */
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
 	if (nread != disk_blk_size) {
 		MHVTL_ERR("read failed, %s", strerror(errno));
@@ -638,7 +641,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 
 	if (tgtsize >= blk_size) {
 		/* block sizes match, uncompress directly into buf */
-		z = lzo1x_decompress(cbuf, disk_blk_size, buf, &uncompress_sz, NULL);
+		z = lzo1x_decompress_safe(cbuf, disk_blk_size, buf, &uncompress_sz, NULL);
 	} else {
 		/* Initiator hasn't requested same size as data block */
 		c2buf = (uint8_t *)malloc(uncompress_sz);
@@ -648,22 +651,44 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 			free(cbuf);
 			return 0;
 		}
-		z = lzo1x_decompress(cbuf, disk_blk_size, c2buf, &uncompress_sz, NULL);
+		z = lzo1x_decompress_safe(cbuf, disk_blk_size, c2buf, &uncompress_sz, NULL);
 		/* Now copy 'requested size' of data into buffer */
 		memcpy(buf, c2buf, tgtsize);
 		free(c2buf);
 	}
 
-	if (z == LZO_E_OK) {
+	switch (z) {
+	case LZO_E_OK:
 		MHVTL_DBG(2, "Read %u bytes of lzo compressed"
 				" data, have %u bytes for result",
 				(uint32_t)nread, blk_size);
-	} else {
-		MHVTL_ERR("Decompression error");
-		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
-		rc = 0;
+		goto complete;
+		break;
+	case LZO_E_INPUT_NOT_CONSUMED:
+		MHVTL_DBG(1, "The end of compressed block has been detected before all %d bytes",
+				blk_size);
+		break;
+	case LZO_E_INPUT_OVERRUN:
+		MHVTL_ERR("The decompressor requested more bytes from the compressed block");
+		break;
+	case LZO_E_OUTPUT_OVERRUN:
+		MHVTL_ERR("The decompressor requested to write more bytes than the uncompressed block can hold");
+		break;
+	case LZO_E_LOOKBEHIND_OVERRUN:
+		MHVTL_ERR("Look behind overrun - data is corrupted");
+		break;
+	case LZO_E_EOF_NOT_FOUND:
+		MHVTL_ERR("No EOF code was found in the compressed block");
+		break;
+	case LZO_E_ERROR:
+		MHVTL_ERR("Data is corrupt - generic lzo error received");
+		break;
 	}
 
+	sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+	rc = 0;
+
+complete:
 	free(cbuf);
 
 	return rc;
