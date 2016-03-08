@@ -89,6 +89,12 @@ static struct name_to_media_info media_info[] = {
 			media_type_lto6_data, medium_density_code_lto6},
 	{"LTO6 WORM", Media_LTO6_WORM,
 			media_type_lto6_worm, medium_density_code_lto6},
+	{"LTO7", Media_LTO7,
+			media_type_lto7_data, medium_density_code_lto7},
+	{"LTO7 Clean", Media_LTO7_CLEAN,
+			media_type_lto7_data, medium_density_code_lto7},
+	{"LTO7 WORM", Media_LTO7_WORM,
+			media_type_lto7_worm, medium_density_code_lto7},
 
 	/* IBM 03592 media */
 	{"03592 JA", Media_3592_JA,
