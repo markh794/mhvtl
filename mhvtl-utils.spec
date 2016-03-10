@@ -14,7 +14,6 @@ URL: http://sites.google.com/site/linuxvtl2/
 Source: mhvtl-%{real_version}.tgz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 
-BuildRequires: lzo-devel
 BuildRequires: zlib-devel
 
 Obsoletes: mhvtl <= %{version}-%{release}

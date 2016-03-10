@@ -51,6 +51,10 @@ CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 
 CLFLAGS=-shared ${RPM_OPT_FLAGS}
 
+# Enable LZODEBUG
+#LZODEBUG = -DLZO_DEBUG
+LZODEBUG =
+
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
 	mktape edit_tape vtllibrary make_vtl_media tapeexerciser
 
@@ -86,10 +90,13 @@ dump_messageQ:	libvtlscsi.so dump_messageQ.o
 vtlcmd:	vtlcmd.o
 	$(CC) $(CFLAGS) -o vtlcmd vtlcmd.o -L. -lvtlcart -lvtlscsi
 
+minilzo.o:	minilzo.c lzoconf.h lzodefs.h
+	$(CC) $(CFLAGS) $(LZODEBUG) -o minilzo.o -c minilzo.c
+
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
-		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o dump_tape dump_tape.o -L. \
-		-lz -llzo2 -L. -lvtlcart -lvtlscsi
+		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o
+	$(CC) $(CFLAGS) -o dump_tape dump_tape.o minilzo.o -L. \
+		-lz -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 		../kernel/vtl_common.h
@@ -128,6 +135,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		stk9x40_pm.o \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
+		minilzo.o \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o ssc.o \
@@ -137,7 +145,8 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		stk9x40_pm.o \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		-lz -llzo2 -L. -lvtlcart -lvtlscsi
+		minilzo.o \
+		-lz -L. -lvtlcart -lvtlscsi
 
 make_vtl_media:	make_vtl_media.in
 	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1
@@ -167,6 +176,7 @@ clean:
 		default_smc_pm.o \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
+		minilzo.o \
 		edit_tape.o \
 		dump_messageQ make_vtl_media \
 		dump_tape edit_tape \
@@ -200,6 +210,7 @@ distclean:
 	default_smc_pm.o \
 	quantum_dlt_pm.o \
 	ait_pm.o t10000_pm.o ibm_03592_pm.o \
+	minilzo.o \
 	z.o z \
 	mode.o \
 	log.o \

@@ -134,7 +134,9 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		return 0;
 	}
 
+	/* c_buf is now invalid for this current block */
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
+//	printf("Reading - disk_blk_size: %d\n", disk_blk_size);
 	if (nread != disk_blk_size) {
 		printf("read failed, %s\n", strerror(errno));
 		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
@@ -508,6 +510,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (lzo_init() != LZO_E_OK) {
+		printf("internal error - lzo_init() failed !!!\n");
+		printf("(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable '-DLZO_DEBUG' for diagnostics)\n");
+		exit(3);
+	}
 	print_mam_info();
 
 	print_filemark_count();
