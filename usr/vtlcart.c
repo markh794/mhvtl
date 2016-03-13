@@ -1358,6 +1358,7 @@ uint64_t current_tape_block(void)
 
 void print_raw_header(void)
 {
+	int i;
 	printf("Hdr:");
 	switch (raw_pos.hdr.blk_type) {
 	case B_DATA:
@@ -1384,12 +1385,27 @@ void print_raw_header(void)
 			raw_pos.hdr.blk_size,
 			raw_pos.hdr.blk_number,
 			raw_pos.data_offset);
-		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)
+		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED) {
 			printf("   => Encr key length %d, ukad length %d, "
 				"akad length %d\n",
 				raw_pos.hdr.encryption.key_length,
 				raw_pos.hdr.encryption.ukad_length,
 				raw_pos.hdr.encryption.akad_length);
+			printf("       Key  : ");
+			for (i = 0; i < raw_pos.hdr.encryption.key_length; i++)
+				printf("%02x", raw_pos.hdr.encryption.key[i]);
+			if (raw_pos.hdr.encryption.ukad_length > 0) {
+				printf("\n       Ukad : ");
+				for (i = 0; i < raw_pos.hdr.encryption.ukad_length; i++)
+					printf("%02x", raw_pos.hdr.encryption.ukad[i]);
+			}
+			if (raw_pos.hdr.encryption.akad_length > 0) {
+				printf("\n       Akad : ");
+				for (i = 0; i < raw_pos.hdr.encryption.akad_length; i++)
+					printf("%02x", raw_pos.hdr.encryption.akad[i]);
+			}
+			puts("");
+		}
 		break;
 	case B_FILEMARK:
 		printf("         Filemark");
