@@ -198,7 +198,7 @@ int add_mode_disconnect_reconnect(struct lu_phy_attr *lu)
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_DISCONNECT_RECONNECT;
 	subpcode = 0;
-	size = 12;
+	size = 0x0e + 2;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
 				mode_disconnect_reconnect, pcode, subpcode);
