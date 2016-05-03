@@ -487,9 +487,24 @@ int add_mode_medium_partition(struct lu_phy_attr *lu)
 				 - sizeof(mp->pcodePointer[0])
 				 - sizeof(mp->pcodePointer[1]);
 
+	/* FDP (Fixed Data Partitions) |
+	 *	PSUM (partition size unit of measure) |
+	 *	POFM (partition on Format Medium) */
+	mp->pcodePointerBitMap[4] = 0x9c;
+	/* Medium Format Recognition */
+	mp->pcodePointerBitMap[5] = 0x03;
+	mp->pcodePointerBitMap[6] = 0x09;
+	mp->pcodePointerBitMap[8] = 0x03;
+	mp->pcodePointerBitMap[9] = 0x5a;
+
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+	mp->pcodePointerBitMap[4] = mp->pcodePointer[4];
+	mp->pcodePointerBitMap[5] = mp->pcodePointer[5];
+	mp->pcodePointerBitMap[6] = mp->pcodePointer[6];
+	mp->pcodePointerBitMap[8] = mp->pcodePointer[8];
+	mp->pcodePointerBitMap[9] = mp->pcodePointer[9];
 
 	mp->description = mode_medium_partition;
 
