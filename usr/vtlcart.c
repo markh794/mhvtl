@@ -689,6 +689,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 					newMedia, strerror(errno));
 			return 2;
 		}
+		rc = 0;
 	}
 
 	/* Don't really care if chown() fails or not..
