@@ -94,8 +94,7 @@ static struct encryption encryption;
 #define	KEY		encryption.key
 
 #include <zlib.h>
-#include <lzo/lzoconf.h>
-#include <lzo/lzo1x.h>
+#include "minilzo.h"
 
 extern uint8_t last_cmd;
 
@@ -416,11 +415,18 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 		ds[0] = mam.MediumDensityCode;
 		ds[1] = mam.MediumDensityCode;
 		ds[2] = (OK_to_write) ? 0xa0 : 0x20; /* Set write OK flg */
-		put_unaligned_be16(REPORT_DENSITY_LEN, &ds[3]);
-		memcpy(&ds[5], &mam.media_info.bits_per_mm, 3);
-		memcpy(&ds[8], &mam.MediumWidth, 2);
-		memcpy(&ds[10], &mam.MediumLength, 2);
-		memcpy(&ds[12], &mam.max_capacity, 4);
+
+		a = get_unaligned_be32(&mam.media_info.bits_per_mm);
+		put_unaligned_be24(a, &ds[5]);
+
+		a = get_unaligned_be32(&mam.MediumWidth);
+		put_unaligned_be16(a, &ds[8]);
+
+		a = get_unaligned_be16(&mam.media_info.tracks);
+		put_unaligned_be16(a, &ds[10]);
+
+		a = get_unaligned_be32(&mam.max_capacity);
+		put_unaligned_be32(a, &ds[12]);
 
 		snprintf((char *)&ds[16], 9, "%-8s",
 					mam.AssigningOrganization_1);
@@ -459,7 +465,7 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 			ds += REPORT_DENSITY_LEN;
 		}
 	}
-	put_unaligned_be16(REPORT_DENSITY_LEN * count, &buf[0]);
+	put_unaligned_be16((REPORT_DENSITY_LEN * count) + 2, &buf[0]);
 	return REPORT_DENSITY_LEN * count + 4;
 }
 
