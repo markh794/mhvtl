@@ -57,7 +57,7 @@
 
 /* get OS and architecture defines */
 #ifndef __LZODEFS_H_INCLUDED
-#include "lzodefs.h"
+#include <lzo/lzodefs.h>
 #endif
 
 
