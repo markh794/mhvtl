@@ -32,7 +32,8 @@
 #include <string.h>
 #include <inttypes.h>
 #include <zlib.h>
-#include "minilzo.h"
+#include <lzo/lzoconf.h>
+#include <lzo/lzo1x.h>
 #include "be_byteshift.h"
 #include "scsi.h"
 #include "list.h"

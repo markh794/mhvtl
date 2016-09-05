@@ -94,7 +94,8 @@ static struct encryption encryption;
 #define	KEY		encryption.key
 
 #include <zlib.h>
-#include "minilzo.h"
+#include <lzo/lzoconf.h>
+#include <lzo/lzo1x.h>
 
 extern uint8_t last_cmd;
 
