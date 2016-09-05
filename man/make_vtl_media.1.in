@@ -1,0 +1,41 @@
+.TH make_vtl_media "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+make_vtl_media \- Part of helper scripts to start VTL subsystem.
+.SH SYNOPSIS
+.B make_vtl_media userName
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Invoked from /etc/init.d/mhvtl. Should not need to be run manually.
+Responsible for creating any new media files. Currently hard-coded rules:
+.IP "If barcode starts with W"
+Create as Write Once Read Many (WORM) media type.
+.IP "if barcode starts with CLN"
+Create media type as cleaning cartridge.
+.IP "Otherwise"
+Create the media as a data cartridge.
+.IP
+Attempts to use the chars 7 and 8 to work out the media type (LTO1/2/3/4/5,
+ T10K, AIT etc) See
+.B mktape(1)
+for more details on media density.
+.IP
+Feel free to replace this script with one that better suits your needs.
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Not documented.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR mktape(1),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

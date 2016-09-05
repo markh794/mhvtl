@@ -1,0 +1,46 @@
+.TH vtltape "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+vtltape \- user space daemon to handle SCSI SSC commands for Virtual Tape Library.
+.SH SYNOPSIS
+.B vtltape \fI-q <number>\fR
+[\fI-v|-d|-f fifo\fR]...
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Where '<number> is the message Q number used for this daemon.
+This number is derived from the device.conf and is unique within the device.conf
+Media files can be created using
+.BR mktape(1)
+.TP
+\fB\-h\fR
+display this help and exit
+.TP
+\fB\-d\fR
+Enable debug logging (to stdout). Do not backgound the process.
+.TP
+\fB\-v\fR
+Enable verbose logging (to syslog)
+.TP
+\fB\-f fifo\fR
+Near real time device state information will be available for external utilities by reading from this fifo. This switch has a higher precedence than the 'fifo:' entry in
+.B
+device.conf
+
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Does not implement the complete SCSI SSC-3 command set.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR make_vtl_media(1),
+.BR mktape(1),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),

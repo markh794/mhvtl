@@ -1,0 +1,6 @@
+ - Review return values from functions and make consistent.
+   Some functions return SAM_STAT_XXX, some return *sam_status
+
+ - Major -> Add personality modules to library
+  ================================
+

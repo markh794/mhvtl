@@ -1,0 +1,144 @@
+mh virtual tape & library system.
+
+
+Instructions assume reader is familiar with the kernel build process.
+
+There are two sections of code to build.
+- The kernel module
+- The user-space daemons.
+
+Kernel module mhvtl:
+==================
+1) Make sure the kernel-devel package to match your running kernel is installed.
+e.g.
+RedHat AS 4 & 5:
+# rpm -qa|grep kernel
+kernel-2.6.9-34.0.1.EL
+kernel-devel-2.6.9-34.0.1.EL
+kernel-2.6.9-5.EL
+kernel-devel-2.6.9-5.EL
+kernel-utils-2.4-13.1.80
+
+SLES 9 & 10:
+# rpm -qa|grep kernel
+
+
+2) Extract the mhvtl source code.
+# tar xvfz mhvtl-2012-06-15.tgz
+
+3) Change directory into the kernel driver source.
+# cd mhvtl-1.3/kernel/
+# make
+# make install
+
+
+User space daemons:
+===================
+Pre-req for a running mhvtl
+- sg3_utils (http://sg.danny.cz/sg/sg3_utils.html)
+
+Pre-req to build/compile userspace:
+- zlib-devel
+- lzo-devel
+
+* To build an RPM
+  ===============
+ cp mhvtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
+ cd /usr/src/packages/SOURCE
+ rpmbuild -tb mhvtl-YYYY-MM-DD.tar.gz
+ <wait for rpm build to complete>
+ rpm -Uvh /usr/src/packages/RPMS/<cpu type>/mhvtl-1.3-z.<cpu type>.rpm
+ (The rpm install will create system group & accounts vtl)
+- Note: For RedHat, replace 'packages' with 'redhat'
+
+* To build from tar archive (Debian / Ubuntu):
+  ============================================
+ apt-get install lsscsi
+ apt-get install sg3_utils
+
+To limit damage that may occur by wayward daemons, I highly recommend creating
+a group and user called 'vtl'
+# /usr/sbin/groupadd --system vtl
+# /usr/sbin/useradd --system -c "Vitrual Tape Library" -d /opt/vtl -g vtl -m vtl
+
+Now build user space daemons:
+From the parent directory where you extracted the source.
+# cd mhvtl-1.3
+
+Build the binaries
+# make
+
+Install the rc script into /etc/init.d/ and binaries to /usr/local/bin/
+# make install
+
+Start daemons:
+/etc/init.d/mhvtl start
+
+Test:
+Note: Make sure the 'mtx' & 'lsscsi' utilities are installed
+The virtual devices are attached to HBA #5 in this example.
+e.g.
+# lsscsi -g
+[0:0:0:0]    disk    ATA      WDC WD1200BEVS-0 02.0  /dev/sda  /dev/sg0
+[3:0:0:0]    cd/dvd  Optiarc  DVD RW AD-7910A  1.D1  /dev/sr0  /dev/sg1
+[5:0:0:0]    mediumx SPECTRA  PYTHON           5500  /dev/sch0  /dev/sg6
+[5:0:1:0]    tape    QUANTUM  SDLT600          5500  /dev/st0  /dev/sg2
+[5:0:2:0]    tape    QUANTUM  SDLT600          5500  /dev/st1  /dev/sg3
+[5:0:3:0]    tape    IBM      ULT3580-TD4      5500  /dev/st2  /dev/sg4
+[5:0:4:0]    tape    IBM      ULT3580-TD4      5500  /dev/st3  /dev/sg5
+
+
+# mtx -f /dev/sg6 status
+  Storage Changer /dev/sg6:4 Drives, 37 Slots ( 4 Import/Export )
+Data Transfer Element 0:Empty
+Data Transfer Element 1:Empty
+Data Transfer Element 2:Empty
+Data Transfer Element 3:Empty
+      Storage Element 1:Full :VolumeTag=SDLT01S3
+      Storage Element 2:Full :VolumeTag=SDLT02S3
+      Storage Element 3:Full :VolumeTag=SDLT03S3
+      Storage Element 4:Full :VolumeTag=SDLT04S3
+      Storage Element 5:Full :VolumeTag=SDLT05S3
+      Storage Element 6:Full :VolumeTag=SDLT06S3
+      Storage Element 7:Full :VolumeTag=SDLT07S3
+      Storage Element 8:Full :VolumeTag=SDLT08S3
+      Storage Element 9:Full :VolumeTag=SDLT09S3
+      Storage Element 10:Empty
+      Storage Element 11:Full :VolumeTag=ULT001L1
+      Storage Element 12:Full :VolumeTag=ULT002L2
+      Storage Element 13:Full :VolumeTag=ULT003L3
+      Storage Element 14:Full :VolumeTag=ULT004L4
+      Storage Element 15:Full :VolumeTag=ULT005L1
+      Storage Element 16:Full :VolumeTag=ULT006L2
+      Storage Element 17:Full :VolumeTag=ULT007L3
+      Storage Element 18:Full :VolumeTag=ULT008L4
+      Storage Element 19:Full :VolumeTag=ULT009L1
+      Storage Element 20:Empty
+      Storage Element 21:Full :VolumeTag=8MM001X4
+      Storage Element 22:Full :VolumeTag=8MM002X4
+      Storage Element 23:Full :VolumeTag=8MM003X4
+      Storage Element 24:Full :VolumeTag=8MM004X4
+      Storage Element 25:Empty
+      Storage Element 26:Empty
+      Storage Element 27:Empty
+      Storage Element 28:Empty
+      Storage Element 29:Empty
+      Storage Element 30:Empty
+      Storage Element 31:Full :VolumeTag=CLN001L1
+      Storage Element 32:Full :VolumeTag=CLN002L1
+      Storage Element 33:Full :VolumeTag=CLN003L1
+      Storage Element 34 IMPORT/EXPORT:Empty
+      Storage Element 35 IMPORT/EXPORT:Empty
+      Storage Element 36 IMPORT/EXPORT:Empty
+      Storage Element 37 IMPORT/EXPORT:Empty
+
+
+Enjoy.
+
+Please feel free in letting me know if this works for you.
+
+Bug fixes and suggestions always welcome.
+
+markh794@gmail.com
+mark.harvey@veritas.com
+

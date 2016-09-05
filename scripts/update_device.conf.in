@@ -1,0 +1,91 @@
+#!/usr/bin/perl -w
+#
+# Copyright (C) 2005 - 2010 Mark Harvey       markh794@gmail.com
+#                                          mark.harvey@veritas.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+use strict;
+
+my $if;
+my $lib;
+my $slt = 1;
+my $num_drives = 0;
+my $old_device_conf = "@CONF_PATH@/device.conf";
+my $new_device_conf = "@CONF_PATH@/device.conf_$$";
+
+if (! -e $old_device_conf ) {
+	die "Can not find $old_device_conf";
+}
+
+# Confirm device.conf not current version..
+# Also count number of drives.
+open(IF, " < $old_device_conf") || die "Can't open $old_device_conf";
+while($if = <IF>) {
+	if ($if =~ /VERSION:\s+(\d+)/) {
+		if ($1 == 4) {
+			print "Nothing to upgrade.. Exiting\n";
+			exit 0;
+		}
+	}
+	if ($if =~ /Library\sID:.*Slot:/) { # Found V4 type entry.. Exit
+		exit 0;
+	}
+	if ($if =~ /^Drive/) {
+		$num_drives++;
+	}
+}
+close IF;
+
+# Now create new temporary device.conf
+$lib = $num_drives + 1;
+open(IF, " < $old_device_conf") || die "Can't open $old_device_conf for reading";
+open(OF, " > $new_device_conf") || die "Can't open $new_device_conf for writing";
+while($if = <IF>) {
+	# Update library 'index' with max drives + 1
+	$if =~ s/^Library:\s(\d+)/Library: $lib/g;
+	if ($if =~ /VERSION:/) {
+		print OF "VERSION: 4\n";
+	} else {
+		print OF $if;
+	}
+	if ($if =~ /^Drive:\s(\d+)/) {
+		print OF " Library ID: $lib Slot: $slt\n";
+		$slt++;
+	}
+}
+close IF;
+close OF;
+
+# Now remove original config file and replace with new one
+unlink($old_device_conf);
+system("mv $new_device_conf $old_device_conf");
+
+# Now 'move' library_contents to library_contents.$lib
+$new_device_conf = "@CONF_PATH@/library_contents.$lib";
+$old_device_conf = "@CONF_PATH@/library_contents";
+open(IF, " < $old_device_conf") || die "Can't open $old_device_conf for reading";
+open(OF, " > $new_device_conf") || die "Can't open $new_device_conf for writing";
+while($if = <IF>) {
+	print OF $if;
+}
+close IF;
+close OF;
+
+# Now remove original file(s)
+unlink($old_device_conf);
+
+exit 0;
+

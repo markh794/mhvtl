@@ -1,0 +1,129 @@
+.TH device.conf "5" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+device.conf \- Configuration file for
+.BR vtllibrary(1)
+and
+.BR vtltape(1)
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Each configured device contains a unique entry in device.conf
+
+Each section starts at column 1 and is terminated by a blank line.
+.IP e.g.
+Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
+ Vendor identification: SPECTRA
+ Product identification: PYTHON
+ Product revision level: 550V
+ Unit serial number: XYZZY_A
+ NAA: 10:22:33:44:ab:00:00:00
+ Home directory: /opt/mhvtl/Spectra
+ fifo: /var/tmp/mhvtl
+ PERSIST: True
+.PP
+Where descriptor
+.B Library:
+or
+.B Drive:
+starts each section The descriptor is followed by a unique ID (a decimal number)
+
+On the same line following the descriptor is the SCSI corrordinates for the
+device described.
+
+.B Vendor identification,
+.B Product identification,
+.B Product revision level
+and
+.B Unit serial number
+are common fields across all device types.
+
+.B NAA
+field is used by some backup software (e.g. Legato) as means to uniquely identify devices. It is used by INQUIRY VPD page 0x83. Most software uses the
+.B Unit serial number
+as the unique identifier.
+
+.B Compression:
+factor
+.B X
+enabled
+.B Y
+
+Where
+.PP
+.B X
+is 1 through 9.
+.IP
+1 is fastest compression, 9 is best compression.
+.PP
+.B Y
+.IP
+1: compression is enabled, 0: compression is disabled.
+
+.PP
+.B Compression type:
+zlib or lzo
+
+.PP
+.B Backoff:
+Value between 10 and 10000. Default is 1000.
+This value is added to existing 'usleep' time in between ioctl polls. If there is work to do, the usleep time is reset to 10.
+
+.PP
+.B Home directory:
+/some/where/with/space
+.PP
+Specify a parent directory for the virtual media associated with this library.
+Only in valid ^Library: entries (not for ^Tape: entries)
+
+.PP
+.B fifo:
+/some/where/for/named/pipe
+.PP
+If fifo: is defined, (near) real time state information will be available
+for external applications by reading from this named pipe.
+.PP
+Note: the '-f fifo' switch on daemon startup has higher precedence
+
+.PP
+.B PERSIST:
+True | False
+If PERSIST is set to 'Yes' or 'True' - enable saving state on shutdown.
+A file 'library_contents.XX.persist' will be created on shutdown to save
+persistent state. On startup - Default to read the
+library_contents.XX.persist if the file exists. Fall back to
+library_contents.XX if no .persist file exists.
+
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+.RS
+This man page.
+.RE
+.RS
+No version information.
+.RE
+.RS
+Config file not xml.
+.RE
+.RS
+.BR vtllibrary(1)
+and
+.BR vtltape(1)
+needs to be restarted to read any changes made.
+.RE
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5)
+.BR build_library_config(1),
+.BR make_vtl_media(1),
+.BR mktape(1),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

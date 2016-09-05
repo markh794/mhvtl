@@ -1,0 +1,126 @@
+.TH vtlcmd "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+vtlcmd \- user space utility to send commands to
+.BR vtltape(1),
+.BR vtllibrary(1),
+daemons.
+.SH SYNOPSIS
+.B vtlcmd 'Q number'
+.B [ \-h ]
+.B [ \fIcommand \fR]
+.B ...
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Where 'Q number' is the message queue number for the drive (see
+.BR vtltape(1)
+)
+
+.TP
+\fB\-h\fR
+display this help and exit
+.SH COMMAND
+.IP verbose
+Toggle verbose flag. This will cycle verbose flag thru verbose settings 3 2 1 off
+.IP "load <ID>"
+Load media ID (barcode) - Used for stand-alone tape drive daemon.
+.IP "unload <ID>"
+Unload media ID (barcode)
+.IP "compression <ZLIB|LZO>"
+Changes compression libraries used to compress each block of data. Valid for
+.B tape
+only.
+.IP "delay load x"
+Sets a delay for loading media to
+.B x
+seconds. Valid values 0 - 20. ssc target returns <02/04/01> 'NOT READY/BECOMMING READY' status in response to any 'Test Unit Ready' requested until timer expires.
+Valid for
+.B tape
+only.
+.IP "delay unload x"
+Sets a delay for unloading media to
+.B x
+seconds. Valid values 0 - 20. Valid for
+.B tape
+only.
+.IP "delay rewind x"
+Sets a delay for rewinding media to
+.B x
+seconds. Valid values 0 - 30. Valid for
+.B tape
+only.
+.IP "delay position x"
+Sets a delay for positioning media to
+.B x
+seconds. Valid values 0 - 20. Valid for
+.B tape
+only.
+.IP "delay thread x"
+Sets a delay for \'threading\' media to
+.B x
+seconds. Valid values 0 - 20. Valid for
+.B tape
+only.
+
+.IP "TapeAlert <alert flag>"
+Send a 64bit hex number, each bit corresponds to one TapeAlert flag as defined by t10.org. Where bit 0 is TapeAlert flag 1, and bit 63 is TapeAlert flag 64.
+.IP exit
+Send a terminate message to daemon.
+.IP online
+Valid for
+.B library
+only.
+Place library in 'online' mode.
+.IP offline
+Valid for
+.B library
+only.
+Take library 'offline'.
+.IP "list map"
+Valid for
+.B library
+only.
+Returns a list of media IDs in Media Access Port (MAP).
+.IP "open map"
+Valid for
+.B library
+only.
+Logically 'opens' the Media Access Port (MAP).
+.IP "close map"
+Valid for
+.B library
+only.
+Logically 'closes' the Media Access Port (MAP). MAP needs to be 'closed'
+before the Medium Transport Element can move media to/from MAP.
+.IP "empty map"
+Valid for
+.B library
+only.
+Clears media from Media Access Port (MAP). Only valid when MAP is
+in 'open' state
+.IP "load map <media>"
+Valid for
+.B library
+only.
+Places <media> logically into the Media Access Port (MAP). Note: <media> needs
+to exist first, otherwise the command fails with suggestion to create media
+first. see
+.BR mktape(1)
+for creating media.
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Needs to be made user friendly.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR mhvtl(1),
+.BR mktape(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

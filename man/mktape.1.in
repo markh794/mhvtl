@@ -1,0 +1,68 @@
+.TH mktape "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+mktape \- Utility to create new/blank virtual media for the VTL.
+.SH SYNOPSIS
+.B mktape
+.B [ \-h ]
+.B [ \fIoptions \fR]
+.B ...
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Create and initialise new media for the Virtual Tape Library. Media is
+created in the /opt/mhvtl/ directory by default. This can be over-ridden
+using the 'Home directory: ' setting in device.conf.
+.SH OPTIONS
+.TP
+\fB\-h\fR
+display this help and exit
+.TP
+\fB\-l n\fR
+Where n is the library index number (default library index numbers 10 & 30).
+The 'Home directory: ' entry for the library specified is used as parent
+directory for media created.
+If the library index number does not exist, then a subdir under /opt/mhvtl/<n>
+is created and virtual media created in this directory.
+e.g. "vtlcmd -l 20 -m ABC123 -s 1024 -t data -d LTO3" will create a virtual
+media 'ABC123' in /opt/mhvtl/20/ (if no library index 20 defined in device.conf)
+.TP
+\fB\-m PCL\fR
+where PCL is the Physical Cartridge Label (barcode).
+.TP
+\fB\-s size\fR
+where size is the capacity of the virtual media - Size is defined in 'megabytes'.
+.TP
+\fB\-t type\fR
+The media 'type' which can be: "data", "WORM" (Write Once Read Many),
+"clean" (cleaning cartridge) or "NULL" for media which does not save data.
+
+The NULL is a special media type used primarily to test performance with disk
+writes kept to a minimum. Note: Metadata (512bytes per data block) is still
+written.
+.TP
+\fB\-d density\fR
+Media density. Can be one of LTO1, LTO2, LTO3, LTO4, SDLT1, SDLT2, SDLT3, SDLT4, AIT1, AIT2, AIT3,
+AIT4, T10KA, T10Kb, T10KC, 9840A, 9840B, 9840C, 9840D, 9940A, 9940B, J1A, E05 and E06
+
+The 'J1A, E05 and E06' media densities refer to the IBM 03592 media types.
+
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Needs to be made user friendly.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR build_library_config(1),
+.BR make_vtl_media(1),
+.BR library_contents(5),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)
+.BR edit_tape(1)

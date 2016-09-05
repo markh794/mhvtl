@@ -1,0 +1,57 @@
+# Define how many tape drives you want in the vtl..
+
+Drive 1:
+Drive 2:
+Drive 3:
+Drive 4:
+Drive 5:
+Drive 6:
+Drive 7:
+Drive 8:
+
+# Place holder for the robotic arm. Not really used.
+Picker 1:
+
+# Media Access Port
+# (mailslots, Cartridge Access Port, <insert your favourate name here>)
+# Again, define how many MAPs this vtl will contain.
+MAP 1:
+MAP 2:
+MAP 3:
+MAP 4:
+
+# And the 'big' on, define your media and in which slot contains media.
+# When the rc script is started, all media listed here will be created
+# using the default media capacity.
+Slot 1:	ULT001L1
+Slot 2: ULT002L1
+Slot 3: ULT003L1
+Slot 4: ULT004L1
+Slot 5: ULT005L1
+Slot 6: ULT006L1
+Slot 7: ULT007L1
+Slot 8: ULT008L1
+Slot 9: ULT009L1
+Slot 10: ULT010L1
+Slot 11: SDLT01L1
+Slot 12: SDLT02L1
+Slot 13: SDLT03L1
+Slot 14: SDLT04L1
+Slot 15: SDLT05L1
+Slot 16: SDLT06L1
+Slot 17: SDLT07L1
+Slot 18: SDLT08L1
+Slot 19: SDLT09L1
+Slot 20: SDLT10L1
+Slot 21:
+Slot 22:
+Slot 23:
+Slot 24:
+Slot 25:
+Slot 26:
+Slot 27:
+Slot 28:
+Slot 29:
+Slot 30:
+Slot 31: CLN001L1
+Slot 32: CLN002L1

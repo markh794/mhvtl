@@ -1,0 +1,30 @@
+.TH build_library_config "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+build_library_config \- Part of helper scripts to start VTL subsystem.
+.SH SYNOPSIS
+.B build_library_config userName
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Invoked from /etc/init.d/mhvtl. Should not need to be run manually.
+.IP
+Feel free to replace this script with one that better suits your needs.
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Not documented.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR make_vtl_media(1),
+.BR mktape(1),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)

@@ -1,0 +1,19 @@
+
+mhvtl: A Virtual Tape & Library system.
+
+This package is composed of a kernel module (mhvtl) which is a pseudo HBA
+
+The vtl is basically a stripped down scsi_debug kernel module + a char dev
+'back end' to pass the SCSI commands thru to user space daemons. It is the
+user space daemons responsibility to respond and process the SCSI commands.
+
+See the INSTALL file for compile and install instructions.
+
+This has been my first attempt at kernel level programming. Suggestions and
+comments always welcome. It has also been many years since I have done any c
+programming. Please be gentle..
+
+Mark Harvey
+markh794@gmail.com
+mark.harvey@veritas.com
+

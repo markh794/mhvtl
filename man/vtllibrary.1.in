@@ -1,0 +1,55 @@
+.TH vtllibrary "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+vtllibrary \- user space daemon to handle SCSI SMC commands for Virtual Tape Library.
+.SH SYNOPSIS
+.B vtllibrary
+[\fI-v|-d|-f fifo\fR]
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+The vtllibrary daemon should (needs) to be started AFTER
+.BR vtltape(1)
+daemons. The vtllibrary registers each
+.BR vtltape(1)
+via message queue. The vtllibrary reads /opt/mhvtl/library.contents
+and dynamically buils an internal structure of Storage slots and Media Access slots.
+All media movement is performed on internal structures only. The configuration file
+is never changed. i.e. A re-start of the daemon will result in the loss of any
+previous media movements.
+When media is moved to/from a "Data transfer element" (tape drive), a (un)load message is sent
+via the drive 'slot number' message Q number to load/unload the barcode.
+.TP
+\fB\-h\fR
+display this help and exit
+.TP
+\fB\-d\fR
+Enable debug logging (to stdout). Do not backgound the process.
+.TP
+\fB\-v\fR
+Enable verbose logging (to syslog)
+.TP
+\fB\-f fifo\fR
+Near real time device state information will be available for external utilities by reading from this fifo. This switch has a higher precedence than the 'fifo:' entry in
+.B
+device.conf
+
+.SH FILES
+/etc/mhvtl/library_config
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Does not implement the complete SCSI SMC-2/SMC-3 command set.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5),
+.BR mktape(1),
+.BR make_vtl_media(1),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtltape(1)
