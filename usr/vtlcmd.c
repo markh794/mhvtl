@@ -87,6 +87,7 @@ static void usage(char *prog)
 	fprintf(stderr, "   delay position n -> Set position delay to n seconds\n");
 	fprintf(stderr, "   delay thread n -> Set thread delay to n seconds\n");
 	fprintf(stderr, "\nLibrary specific commands:\n");
+	fprintf(stderr, "   add slot     -> Add a slot to library\n");
 	fprintf(stderr, "   online       -> To enable library\n");
 	fprintf(stderr, "   offline      -> To take library offline\n");
 	fprintf(stderr, "   list map     -> To list map contents\n");
@@ -331,6 +332,11 @@ void Check_Params(int argc, char **argv)
 			}
 
 			/* Library commands */
+			if (!strcmp(argv[2], "add")) {
+				if (argc == 4)
+					return;
+				PrintErrorExit(argv[0], "add slot");
+			}
 			if (!strcmp(argv[2], "online")) {
 				if (argc == 3)
 					return;
@@ -498,6 +504,7 @@ int main(int argc, char **argv)
 	/* check if command to the specific device is allowed */
 	if (device_type == TYPE_LIBRARY) {
 		if (!strncmp(buf, "online", 6)) {
+		} else if (!strncmp(buf, "add slot", 8)) {
 		} else if (!strncmp(buf, "offline", 7)) {
 		} else if (!strncmp(buf, "open map", 8)) {
 		} else if (!strncmp(buf, "close map", 9)) {
@@ -559,6 +566,8 @@ int main(int argc, char **argv)
 	}
 
 	if (device_type == TYPE_LIBRARY) {
+		if (!strcmp(argv[2], "add") && !strcmp(argv[3], "slot"))
+			DisplayResponse(ReceiverQid, "");
 		if (!strcmp(argv[2], "open") && !strcmp(argv[3], "map"))
 			DisplayResponse(ReceiverQid, "");
 		if (!strcmp(argv[2], "close") && !strcmp(argv[3], "map"))
