@@ -28,7 +28,7 @@
 ### END INIT INFO
 #
 # This is needed for RedHat ??
-# chkconfig: - 30 30
+# chkconfig: - 30 88
 #
 
 USER=@USR@
@@ -390,7 +390,7 @@ case "$1" in
 
 	# Build Library config - No. of drives & serial Nos etc..
 	# This also loads each tape daemon.
-	build_library_config $USER
+	build_library_config $USER </dev/null >/var/log/mhvtl.out 2>&1
 	if [ $? != 0 ]; then
 		echo "build_library_config failed.. Could not start daemons"
 		exit 1
@@ -399,6 +399,14 @@ case "$1" in
 	if [ -f /etc/rc.status ]; then
 		rc_status -v
 	fi
+	;;
+
+    reload)
+	for a in `ps -o pid -C vtllibrary --no-headers`
+	do
+		echo "   Sending reload to $a"
+		kill -SIGHUP $a
+	done
 	;;
 
     stop)
@@ -457,7 +465,7 @@ case "$1" in
 	fi
 	;;
     *)
-	echo "Usage: $0 {start|stop|shutdown}"
+	echo "Usage: $0 {start|reload|stop|shutdown}"
 	exit 1
 esac
 if [ -f /etc/rc.status ]; then
