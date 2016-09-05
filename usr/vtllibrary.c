@@ -530,6 +530,8 @@ static void close_map(struct q_msg *msg)
 /* add new slot && assignment && initialization memory */
 static void add_storage_slot(struct q_msg *msg) {
 	int buffer_size;
+	int slt_no;
+	char message[20];
 	struct s_info *sp1 = NULL;
 	struct list_head *slot_head = &smc_slots.slot_list;
 	struct smc_priv *smc_p = lunit.lu_private;
@@ -537,17 +539,18 @@ static void add_storage_slot(struct q_msg *msg) {
 
 	sp1 = add_new_slot(&lunit);
 
-	sp1->element_type = STORAGE_ELEMENT;
 	smc_p->num_storage++;
+	slt_no = smc_p->num_storage;
+	sp1->element_type = STORAGE_ELEMENT;
 	sp1->status = STATUS_Access;
-	sp1->slot_location = smc_p->num_storage + smc_p->pm->start_storage - 1;
+	sp1->slot_location = slt_no + smc_p->pm->start_storage - 1;
 
 	/* Slot status to Empty */
 	setSlotEmpty(sp1);
 
 	init_smc_log_pages(&lunit);
 	init_smc_mode_pages(&lunit);
-	MHVTL_LOG("add slot && init smc");
+	MHVTL_DBG(1, "add slot && init smc");
 
 	/* malloc a big enough buffer to fit worst case read element status */
 	buffer_size = (smc_slots.num_drives + smc_slots.num_picker
@@ -556,7 +559,8 @@ static void add_storage_slot(struct q_msg *msg) {
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
 
-	send_msg("append a storage slot to library", msg->snd_id);
+	sprintf(message, "slot=%d", slt_no);
+	send_msg(message, msg->snd_id);
 	return;
 }
 
