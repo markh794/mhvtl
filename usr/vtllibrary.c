@@ -86,6 +86,8 @@ struct lu_phy_attr lunit;
 
 static struct smc_priv smc_slots;
 
+struct s_info *add_new_slot(struct lu_phy_attr *lu);
+
 static void usage(char *progname)
 {
 	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
@@ -525,6 +527,39 @@ static void close_map(struct q_msg *msg)
 	send_msg("OK", msg->snd_id);
 }
 
+/* add new slot && assignment && initialization memory */
+static void add_storage_slot(struct q_msg *msg) {
+	int buffer_size;
+	struct s_info *sp1 = NULL;
+	struct list_head *slot_head = &smc_slots.slot_list;
+	struct smc_priv *smc_p = lunit.lu_private;
+	struct list_head *p = slot_head;
+
+	sp1 = add_new_slot(&lunit);
+
+	sp1->element_type = STORAGE_ELEMENT;
+	smc_p->num_storage++;
+	sp1->status = STATUS_Access;
+	sp1->slot_location = smc_p->num_storage + smc_p->pm->start_storage - 1;
+
+	/* Slot status to Empty */
+	setSlotEmpty(sp1);
+
+	init_smc_log_pages(&lunit);
+	init_smc_mode_pages(&lunit);
+	MHVTL_LOG("add slot && init smc");
+
+	/* malloc a big enough buffer to fit worst case read element status */
+	buffer_size = (smc_slots.num_drives + smc_slots.num_picker
+			+ smc_slots.num_map + smc_slots.num_storage) * 80;
+	buffer_size = max(SMC_BUF_SIZE, buffer_size);
+	smc_slots.bufsize = buffer_size;
+	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
+
+	send_msg("append a storage slot to library", msg->snd_id);
+	return;
+}
+
 /*
  * Respond to messageQ 'empty map' by clearing 'ocuplied' status in map slots.
  * Return 0 on failure, non-zero - success.
@@ -569,6 +604,8 @@ static int processMessageQ(struct q_msg *msg)
 			verbose = 2;
 		}
 	}
+	if (!strncmp(msg->text, "add slot", 8))
+		add_storage_slot(msg);
 	if (!strncmp(msg->text, "empty map", 9))
 		empty_map(msg);
 	if (!strncmp(msg->text, "exit", 4))
@@ -1878,6 +1915,14 @@ int main(int argc, char *argv[])
 			fflush(NULL);	/* So I can pipe debug o/p thru tee */
 			switch (ret) {
 			case VTL_QUEUE_CMD:
+				if (smc_slots.bufsize != buffer_size) {
+					buffer_size = smc_slots.bufsize;
+					buf = realloc(buf, buffer_size);
+					if (!buf) {
+						perror("Problems allocating memory");
+						exit(1);
+					}
+				}
 				process_cmd(cdev, buf, &vtl_cmd, pollInterval);
 				pollInterval = MIN_SLEEP_TIME;
 				break;
