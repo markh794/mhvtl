@@ -79,7 +79,7 @@ Written by Mark Harvey
 .SH TODO
 Does not implement the complete SCSI command set.
 .PP
-Kernel module only written for Linux 2.6.x kernel series.
+Kernel module compatible with Linux 2.6.x and 3.x kernel series.
 .PP
 Data is copied from kernel buffers to/from user-space buffers. Should
 use pointers to buffers, not copy each block.
