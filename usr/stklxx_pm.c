@@ -24,11 +24,9 @@ static struct smc_personality_template smc_pm = {
 static void update_stk_l_vpd_80(struct lu_phy_attr *lu)
 {
 	struct vpd *lu_vpd;
-	struct smc_priv *smc_p;
 	uint8_t *d;
 
 	lu_vpd = lu->lu_vpd[PCODE_OFFSET(0x80)];
-	smc_p = lu->lu_private;
 
 	/* Unit Serial Number */
 	if (lu_vpd)	/* Free any earlier allocation */

@@ -28,7 +28,6 @@ static struct smc_personality_template smc_pm = {
 static void update_ibm_3100_vpd_d0(struct lu_phy_attr *lu)
 {
 	struct vpd **lu_vpd;
-	struct smc_priv *smc_p;
 	uint8_t *d;
 	int pg;
 	uint8_t pg_d0[] = {
@@ -60,7 +59,6 @@ static void update_ibm_3100_vpd_d0(struct lu_phy_attr *lu)
 	};
 
 	lu_vpd = lu->lu_vpd;
-	smc_p = lu->lu_private;
 
 	pg = PCODE_OFFSET(0xd0);
 	if (lu_vpd[pg])		/* Free any earlier allocation */
@@ -81,7 +79,6 @@ static void update_ibm_3100_vpd_d0(struct lu_phy_attr *lu)
 static void update_ibm_3100_vpd_ff(struct lu_phy_attr *lu)
 {
 	struct vpd **lu_vpd;
-	struct smc_priv *smc_p;
 	uint8_t *d;
 	int pg;
 	uint8_t pg_ff[] = {
@@ -93,7 +90,6 @@ static void update_ibm_3100_vpd_ff(struct lu_phy_attr *lu)
 	};
 
 	lu_vpd = lu->lu_vpd;
-	smc_p = lu->lu_private;
 
 	pg = PCODE_OFFSET(0xff);
 	if (lu_vpd[pg])		/* Free any earlier allocation */
@@ -219,9 +215,6 @@ static void update_ibm_3584_vpd_83(struct lu_phy_attr *lu)
 
 static void update_ibm_3584_inquiry(struct lu_phy_attr *lu)
 {
-	struct smc_priv *smc_p;
-	smc_p = lu->lu_private;
-
 	lu->inquiry[2] = 3;	/* SNSI Approved Version */
 	lu->inquiry[3] = 2;	/* Response data format */
 	lu->inquiry[4] = 0x35;	/* Additional length */

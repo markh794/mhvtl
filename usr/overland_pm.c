@@ -15,11 +15,8 @@
 static void update_eml_vpd_80(struct lu_phy_attr *lu)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
-	struct smc_priv *smc_p = lu->lu_private;
 	uint8_t *d;
 	int pg;
-
-	smc_p = lu->lu_private;
 
 	/* Unit Serial Number */
 	pg = PCODE_OFFSET(0x80);

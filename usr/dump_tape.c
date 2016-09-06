@@ -283,7 +283,7 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
  */
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 {
-	uint32_t disk_blk_size, blk_size;
+	uint32_t blk_size;
 	uint32_t tgtsize, rc;
 
 	printf("Request to read: %d bytes, SILI: %d\n", request_sz, sili);
@@ -317,7 +317,6 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	   the read causes the tape block to advance.
 	*/
 	blk_size = c_pos->blk_size;
-	disk_blk_size = c_pos->disk_blk_size;
 
 	/* We have a data block to read.
 	   Only read upto size of allocated buffer by initiator

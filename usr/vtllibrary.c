@@ -534,9 +534,7 @@ static void add_storage_slot(struct q_msg *msg)
 	int slt_no;
 	char message[20];
 	struct s_info *sp1 = NULL;
-	struct list_head *slot_head = &smc_slots.slot_list;
 	struct smc_priv *smc_p = lunit.lu_private;
-	struct list_head *p = slot_head;
 
 	sp1 = add_new_slot(&lunit);
 
