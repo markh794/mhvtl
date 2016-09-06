@@ -528,7 +528,8 @@ static void close_map(struct q_msg *msg)
 }
 
 /* add new slot && assignment && initialization memory */
-static void add_storage_slot(struct q_msg *msg) {
+static void add_storage_slot(struct q_msg *msg)
+{
 	int buffer_size;
 	int slt_no;
 	char message[20];
