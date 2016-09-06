@@ -3095,7 +3095,6 @@ int main(int argc, char *argv[])
 				else
 					current_state = MHVTL_STATE_IDLE;
 			}
-
 		}
 	}
 
