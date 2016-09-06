@@ -76,6 +76,11 @@ Valid for
 .B library
 only.
 Take library 'offline'.
+.IP "add slot"
+Valid for
+.B library
+only.
+This will dynamically add an additional storage slot to the library. This is not persistent.
 .IP "list map"
 Valid for
 .B library
