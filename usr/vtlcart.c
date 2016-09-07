@@ -1005,7 +1005,8 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	if (eod_blk_number == 0)
 		eod_data_offset = 0;
 	else {
-		MHVTL_DBG(3, "Reading block before EOD: %d", eod_blk_number - 1);
+		MHVTL_DBG(3, "Media format sanity check - Reading block before EOD: %d",
+					eod_blk_number - 1);
 		if (read_header(eod_blk_number - 1, sam_stat)) {
 			rc = 3;
 			goto failed;
@@ -1034,9 +1035,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	posix_fadvise(indxfile, 0, 0, POSIX_FADV_DONTNEED);
 	posix_fadvise(datafile, 0, 0, POSIX_FADV_DONTNEED);
 
-	/* Now initialize raw_pos by reading in the first header, if any. */
+	/* Initialise SAM STATUS */
+	*sam_stat = SAM_STAT_GOOD;
 
-	*sam_stat = SAM_STAT_GOOD; /* Clear out any SAM STATUS that may be left over */
+	/* Now initialize raw_pos by reading in the first header, if any. */
 	if (read_header(0, sam_stat)) {
 		rc = 3;
 		goto failed;
