@@ -1036,6 +1036,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 
 	/* Now initialize raw_pos by reading in the first header, if any. */
 
+	*sam_stat = SAM_STAT_GOOD; /* Clear out any SAM STATUS that may be left over */
 	if (read_header(0, sam_stat)) {
 		rc = 3;
 		goto failed;
