@@ -1397,21 +1397,21 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 				slot_type(smc_p, transport_addr));
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 2;
-		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		sam_illegal_request(E_INVALID_ELEMENT_ADDR, &sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, src_addr)) {
 		MHVTL_ERR("Invalid source slot: %d", src_addr);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 4;
-		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		sam_illegal_request(E_INVALID_ELEMENT_ADDR, &sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, dest_addr)) {
 		MHVTL_ERR("Invalid dest slot: %d", dest_addr);
 		sd.byte0 = SKSV | CD;
 		sd.field_pointer = 6;
-		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		sam_illegal_request(E_INVALID_ELEMENT_ADDR, &sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 
