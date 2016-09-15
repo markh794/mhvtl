@@ -1996,7 +1996,7 @@ static char *strip_PCL(char *p, int start)
 return p;
 }
 
-void unloadTape(uint8_t *sam_stat)
+void unloadTape(struct q_msg *msg, uint8_t *sam_stat)
 {
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
 
@@ -2012,6 +2012,7 @@ void unloadTape(uint8_t *sam_stat)
 			lu_ssc.cleaning_media_state = NULL;
 		lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 		delay_opcode(DELAY_UNLOAD, lu_ssc.delay_unload);
+		send_msg("ejected", msg->snd_id);
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");
@@ -2069,7 +2070,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 
 	if (!strncmp(msg->text, "unload", 6)) {
 		MHVTL_DBG(1, "Library requested tape unload");
-		unloadTape(sam_stat);
+		unloadTape(msg, sam_stat);
 	}
 
 	if (!strncmp(msg->text, "exit", 4))
@@ -2814,7 +2815,6 @@ int main(int argc, char *argv[])
 
 	/* Message Q */
 	int	mlen, r_qid;
-	struct q_entry r_entry;
 
 	memset(&vtl_cmd, 0, sizeof(struct vtl_header));
 	memset(&ctl, 0, sizeof(struct vtl_ctl));
@@ -3020,9 +3020,9 @@ int main(int argc, char *argv[])
 
 	for (;;) {
 		/* Check for anything in the messages Q */
-		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
+		mlen = msgrcv(r_qid, &lu_ssc.r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			if (processMessageQ(&r_entry.msg, &lu_ssc.sam_status))
+			if (processMessageQ(&lu_ssc.r_entry.msg, &lu_ssc.sam_status))
 				goto exit;
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {

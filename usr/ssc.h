@@ -180,6 +180,7 @@ struct priv_lu_ssc {
 	volatile sig_atomic_t *cleaning_media_state;
 
 	char *state_msg;	/* Custom State message */
+	struct q_entry r_entry;	/* IPC message queue */
 
 	struct ssc_personality_template *pm;	/* Personality Module */
 };
@@ -271,5 +272,5 @@ int resp_read_attribute(struct scsi_cmd *cmd);
 int resp_report_density(struct priv_lu_ssc *lu_ssc, uint8_t media,
 						struct vtl_ds *dbuf_p);
 void resp_space(int64_t count, int code, uint8_t *sam_stat);
-void unloadTape(uint8_t *sam_stat);
+void unloadTape(struct q_msg *msg, uint8_t *sam_stat);
 void delay_opcode(int what, int value);

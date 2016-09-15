@@ -161,6 +161,12 @@ static struct d_info *drive2struct(struct smc_priv *smc_p, int addr)
 	return NULL;
 }
 
+/* returns true if medium transport access to slot is OK */
+int slotAccess(struct s_info *s)
+{
+	return s->status & STATUS_Access;
+}
+
 /* Returns true if slot has media in it */
 int slotOccupied(struct s_info *s)
 {
@@ -203,18 +209,16 @@ static void setExEnableStatus(struct s_info *s, int flg)
 */
 
 /*
- * A value of 1 indicates that a cartridge may be moved to/from
- * the drive (but not both).
+ * 1 / 0 Set/Clear the Access bit.
+ * Access bit when set, indicates the medium transport can access media
  */
-/*
-static void setAccessStatus(struct s_info *s, int flg)
+void setAccessStatus(struct s_info *s, int flg)
 {
 	if (flg)
 		s->status |= STATUS_Access;
 	else
 		s->status &= ~STATUS_Access;
 }
-*/
 
 /*
  * Reset to 0 indicates it is in normal state, set to 1 indicates an Exception
@@ -262,6 +266,8 @@ void setSlotEmpty(struct s_info *s)
 static void setDriveEmpty(struct d_info *d)
 {
 	setFullStatus(d->slot, 0);
+	/* If empty, the picker arm can't access media */
+	setAccessStatus(d->slot, 0);
 }
 
 void setSlotFull(struct s_info *s)
@@ -1102,6 +1108,8 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		return retval;
 	move_cart(src, dest->slot);
 	setDriveFull(dest);
+	/* Set the 'Access bit' to zero - i.e. the picker arm can't access it */
+	setAccessStatus(dest->slot, 0);
 
 	return retval;
 }
@@ -1232,7 +1240,8 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	}
 
 	/* Send 'unload' message to drive b4 the move.. */
-	send_msg("unload", src->drv_id);
+	if (!slotAccess(src->slot))
+		send_msg("unload", src->drv_id);
 
 	if (!smc_p->state_msg)
 		smc_p->state_msg = zalloc(64);
@@ -1326,6 +1335,9 @@ static int move_drive2drive(struct smc_priv *smc_p,
 					slot_number(smc_p->pm, src->slot),
 					slot_number(smc_p->pm, dest->slot));
 	}
+
+	/* Set the 'Access bit' to zero - i.e. the picker arm can't access it */
+	setAccessStatus(dest->slot, 0);
 
 return retval;
 }

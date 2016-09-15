@@ -42,9 +42,9 @@
 #include "logging.h"
 #include "vtllib.h"
 #include "spc.h"
+#include "q.h"
 #include "ssc.h"
 #include "vtltape.h"
-#include "q.h"
 #include "log.h"
 #include "mode.h"
 
@@ -1616,7 +1616,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 
 	case TAPE_LOADED:
 		if (!load)
-			unloadTape(sam_stat);
+			unloadTape(&lu_priv->r_entry.msg, sam_stat);
 		break;
 
 	default:

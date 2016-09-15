@@ -42,10 +42,10 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 #include "logging.h"
+#include "q.h"
 #include "ssc.h"
 #include "spc.h"
 #include "vtltape.h"
-#include "q.h"
 #include "mode.h"
 #include "log.h"
 

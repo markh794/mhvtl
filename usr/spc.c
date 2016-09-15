@@ -41,6 +41,7 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 #include "logging.h"
+#include "q.h"
 #include "ssc.h"
 
 extern unsigned char sense[];

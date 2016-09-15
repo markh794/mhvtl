@@ -591,6 +591,25 @@ static int empty_map(struct q_msg *msg)
 	return 1;
 }
 
+/* Extract the id of the tape sending notification a tape was ejected
+ * Set the 'access' bit in the READ_ELEMENT_STATUS page
+ */
+static int set_access_bit(struct q_msg *msg)
+{
+	struct s_info *sp;
+	struct list_head *slot_head = &smc_slots.slot_list;
+
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (slotOccupied(sp) && sp->element_type == DATA_TRANSFER) {
+			if (sp->drive->drv_id == msg->snd_id) {
+				setAccessStatus(sp, 1);
+				MHVTL_DBG(2, "Resetting access bit for drive id %ld", sp->drive->drv_id);
+			}
+		}
+	}
+	return 0;
+}
+
 /*
  * Return 1, exit program
  */
@@ -611,6 +630,8 @@ static int processMessageQ(struct q_msg *msg)
 		add_storage_slot(msg);
 	if (!strncmp(msg->text, "empty map", 9))
 		empty_map(msg);
+	if (!strncmp(msg->text, "ejected", 7))
+		set_access_bit(msg);
 	if (!strncmp(msg->text, "exit", 4))
 		return 1;
 	if (!strncmp(msg->text, "open map", 8))

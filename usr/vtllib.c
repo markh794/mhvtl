@@ -54,6 +54,7 @@
 #include "smc.h"
 #include "vtltape.h"
 #include "mode.h"
+#include "q.h"
 #include "ssc.h"
 #include "log.h"
 #include "q.h"

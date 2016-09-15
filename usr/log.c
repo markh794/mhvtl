@@ -33,6 +33,7 @@
 #include "list.h"
 #include "logging.h"
 #include "vtllib.h"
+#include "q.h"
 #include "ssc.h"
 #include "smc.h"
 #include "be_byteshift.h"
