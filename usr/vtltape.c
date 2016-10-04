@@ -1767,6 +1767,8 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 							mam.MediaType),
 			mam.MediumSerialNumber);
 
+	rewind_tape(sam_stat);
+
 	lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
 
 	switch (mam.MediumType) {
