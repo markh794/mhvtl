@@ -1681,6 +1681,26 @@ uint8_t ssc_pr_in(struct scsi_cmd *cmd)
 		return resp_spc_pri(cmd->scb, cmd->dbuf_p);
 }
 
+static void update_tape_usage(struct TapeUsage *b,
+				struct priv_lu_ssc *lu_ssc)
+{
+	uint64_t datasets = filemark_count();
+	uint64_t load_count;
+
+	/* if we have more than 1 filemark,
+	 * most apps write 2 filemarks to flag EOD
+	 * So, lets subtract one from the filemark count to
+	 * present a more accurate 'Data Set' count
+	 */
+	if (datasets > 1)
+		datasets--;
+
+	load_count = get_unaligned_be64(&lu_ssc->mamp->LoadCount);
+	put_unaligned_be32(load_count, &b->volumeMounts);
+
+	put_unaligned_be64(datasets, &b->volumeDatasetsWritten);
+}
+
 static void update_seq_access_counters(struct seqAccessDevice *sa,
 				struct priv_lu_ssc *lu_ssc)
 {
@@ -1813,6 +1833,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 			goto log_page_not_found;
 
 		b = memcpy(b, l->p, l->size);
+		update_tape_usage((struct TapeUsage *)b, lu_ssc);
 		retval = l->size;
 		break;
 	case TAPE_CAPACITY: {	/* Tape Capacity page */

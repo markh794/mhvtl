@@ -1364,6 +1364,11 @@ uint64_t current_tape_block(void)
 	return 0;
 }
 
+uint64_t filemark_count(void)
+{
+	return (uint64_t)meta.filemark_count;
+}
+
 void print_raw_header(void)
 {
 	int i;
