@@ -1753,6 +1753,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			fg = TA_MEDIA_NOT_SUPPORTED;
 			update_TapeAlert(lu, fg);
 		}
+		MHVTL_LOG("Tape Load (%s) failed with status: %d", PCL, rc);
 		return rc;
 	}
 
