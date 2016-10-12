@@ -1615,6 +1615,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 		break;
 
 	case TAPE_LOADED:
+		rewind_tape(sam_stat);
 		if (!load)
 			unloadTape(&lu_priv->r_entry.msg, sam_stat);
 		break;
