@@ -350,7 +350,7 @@ void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len)
 
 static void finish_mount(int sig)
 {
-	MHVTL_DBG(3, "+++ Trace +++");
+	MHVTL_DBG(3, "+++ Trace - Received signal %d +++", sig);
 	if (lu_ssc.tapeLoaded == TAPE_LOADING)
 		lu_ssc.tapeLoaded = TAPE_LOADED;
 
