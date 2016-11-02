@@ -1029,6 +1029,7 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 			slot_number(smc_p->pm, dest),
 			barcode
 	);
+	MHVTL_DBG(3, "Calling external script: %s", movecommand);
 	res = run_command(movecommand, smc_p->commandtimeout);
 	if (res) {
 		MHVTL_ERR("move command returned %d", res);
@@ -1067,6 +1068,11 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		}
 	}
 
+	/* Call any external cmd first before changing state */
+	retval = run_move_command(smc_p, src, dest->slot, sam_stat);
+	if (retval)
+		return retval;
+
 	sprintf(cmd, "lload %s", src->media->barcode);
 	/* Remove traling spaces */
 	truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
@@ -1103,9 +1109,6 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	retval = run_move_command(smc_p, src, dest->slot, sam_stat);
-	if (retval)
-		return retval;
 	move_cart(src, dest->slot);
 	setDriveFull(dest);
 	/* Set the 'Access bit' to zero - i.e. the picker arm can't access it */
@@ -1239,6 +1242,11 @@ static int move_drive2slot(struct smc_priv *smc_p,
 		}
 	}
 
+	/* Send any external command before any changes here */
+	retval = run_move_command(smc_p, src->slot, dest, sam_stat);
+	if (retval)
+		return retval;
+
 	/* Send 'unload' message to drive b4 the move.. */
 	if (!slotAccess(src->slot))
 		send_msg("unload", src->drv_id);
@@ -1256,9 +1264,6 @@ static int move_drive2slot(struct smc_priv *smc_p,
 					slot_number(smc_p->pm, dest));
 	}
 
-	retval = run_move_command(smc_p, src->slot, dest, sam_stat);
-	if (retval)
-		return retval;
 	move_cart(src->slot, dest);
 	setDriveEmpty(src);
 
@@ -1288,6 +1293,11 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
+	/* Execute any external commands before changing state */
+	retval = run_move_command(smc_p, src->slot, dest->slot, sam_stat);
+	if (retval)
+		return retval;
+
 	/* Send 'unload' message to drive b4 the move.. */
 	MHVTL_DBG(2, "Unloading %s from drive %d",
 				src->slot->media->barcode,
@@ -1295,9 +1305,6 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	send_msg("unload", src->drv_id);
 
-	retval = run_move_command(smc_p, src->slot, dest->slot, sam_stat);
-	if (retval)
-		return retval;
 	move_cart(src->slot, dest->slot);
 
 	sprintf(cmd, "lload %s", dest->slot->media->barcode);
