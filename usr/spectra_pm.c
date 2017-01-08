@@ -1,6 +1,5 @@
 /*
- * Personality module for STK L series of robots
- * e.g. L180, L700, L20/40/80
+ * Personality module for Spectra Logic
  */
 
 #include <stdio.h>
