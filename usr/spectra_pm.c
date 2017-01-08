@@ -36,7 +36,16 @@ static struct smc_personality_template smc_pm = {
 	.library_has_barcode_reader	= TRUE,
 	.library_has_playground		= FALSE,
 
-	.dvcid_len			= 10,
+	/* Rev G of SpectraLogic Tseries states this is now 1Eh
+	 * Yet...
+	 * DVCID=1 'Identifier Length (1Eh) but goes on to describe
+	 * fields 52 through 83 are for the Device Identifier -> and that
+	 * adds up to 32 by my calculations. And in table 10-5 specifies
+	 * Identifier Length as 1Gh... (hmmm forgot to carry the one in
+	 * base 16 addition when they got to 1Fh) - which is of course
+	 * 20h (32 decimal).
+	 */
+	.dvcid_len			= 0x20,
 };
 
 void init_spectra_logic_smc(struct lu_phy_attr *lu)
