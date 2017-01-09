@@ -1558,6 +1558,18 @@ static void customise_hp_lu(struct lu_phy_attr *lu)
 		init_hp_eml_smc(lu);
 }
 
+static void customise_spectra_lu(struct lu_phy_attr *lu)
+{
+	if (!strncasecmp(lu->product_id, "PYTHON", 6))
+		init_spectra_logic_smc(lu);
+	else if (!strncasecmp(lu->product_id, "GATOR", 5))
+		init_spectra_gator_smc(lu);
+	else if (!strncasecmp(lu->product_id, "215", 3))
+		init_spectra_215_smc(lu);
+	else
+		init_spectra_logic_smc(lu);
+}
+
 static void customise_lu(struct lu_phy_attr *lu)
 {
 	if (!strncasecmp(lu->vendor_id, "stk", 3))
@@ -1571,7 +1583,7 @@ static void customise_lu(struct lu_phy_attr *lu)
 	else if (!strncasecmp(lu->product_id, "scalar", 6))
 		init_scalar_smc(lu);
 	else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7))
-		init_spectra_logic_smc(lu);
+		customise_spectra_lu(lu);
 	else
 		init_default_smc(lu);
 }
