@@ -223,8 +223,8 @@ distclean:
 
 install:
 	install -d -m 755 $(DESTDIR)$(LIBDIR)
-	install -o $(SUSER) -g bin -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
-	install -o $(SUSER) -g bin -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
+	install -o $(SUSER) -g $(BINGROUP) -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
+	install -o $(SUSER) -g $(BINGROUP) -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
 	install -o $(SUSER) -g $(GROUP) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
