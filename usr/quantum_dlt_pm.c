@@ -171,14 +171,16 @@ static uint8_t set_dlt_WORM(struct list_head *lst)
 	/* Now for the Ultrium unique stuff */
 
 	m = lookup_pcode(lst, MODE_BEHAVIOR_CONFIGURATION, 0);
-	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			lst, m, m->pcodePointer);
 	if (m) {
+		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			lst, m, m->pcodePointer);
 		mp = m->pcodePointer;
 		if (!mp)
 			return SAM_STAT_GOOD;
 
 		mp[4] = 0x01; /* WORM Behavior */
+	} else {
+		MHVTL_DBG(2, "MODE BEHAVIOUR CONFIGURATION page not found");
 	}
 
 	return SAM_STAT_GOOD;

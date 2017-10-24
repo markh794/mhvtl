@@ -173,14 +173,17 @@ static uint8_t set_ult_WORM(struct list_head *lst)
 	/* Now for the Ultrium unique stuff */
 
 	m = lookup_pcode(lst, MODE_BEHAVIOR_CONFIGURATION, 0);
-	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			lst, m, m->pcodePointer);
 	if (m) {
+		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+				lst, m, m->pcodePointer);
+
 		mp = m->pcodePointer;
 		if (!mp)
 			return SAM_STAT_GOOD;
 
 		mp[4] = 0x01; /* WORM Behavior */
+	} else {
+		MHVTL_DBG(2, "MODE BEHAVIOUR CONFIGURATION page not found");
 	}
 
 	return SAM_STAT_GOOD;
@@ -626,6 +629,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	add_mode_medium_configuration(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-4 */
 	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
 
 	add_log_write_err_counter(lu);
@@ -689,6 +693,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	add_mode_medium_configuration(lu);
 	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
 	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
 
 	/* Supports non-zero programable early warning */
@@ -755,8 +760,9 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-6 */
 	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
 
 	/* Supports non-zero programable early warning */
@@ -824,8 +830,9 @@ void init_ult3580_td7(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-7 */
 	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
 
 	/* Supports non-zero programable early warning */
