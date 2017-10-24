@@ -58,12 +58,12 @@ static void update_spectra_t_series_device_capabilities(struct lu_phy_attr *lu)
 		return;
 	}
 
-	mp->pcodePointer[2] = 0x07;
+	mp->pcodePointer[2] = 0x0e;
 	mp->pcodePointer[3] = 0x00;
-	mp->pcodePointer[4] = 0x07;
-	mp->pcodePointer[5] = 0x07;
-	mp->pcodePointer[6] = 0x07;
-	mp->pcodePointer[7] = 0x07;
+	mp->pcodePointer[4] = 0x0e;
+	mp->pcodePointer[5] = 0x0e;
+	mp->pcodePointer[6] = 0x0e;
+	mp->pcodePointer[7] = 0x0e;
 }
 
 static struct smc_personality_template smc_pm = {
