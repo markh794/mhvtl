@@ -1,5 +1,6 @@
 # Disable the building of the debug package(s).
 %define debug_package %{nil}
+%define current_kernel %(uname -r)
 
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
@@ -37,6 +38,7 @@ The SSC/SMC target daemons have been written from scratch.
 %setup -n %{real_name}-%{version}
 
 %build
+%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" -C kernel
 %{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" usr
 %{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" INITD="%{_initrddir}" etc
 %{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" scripts
@@ -44,6 +46,7 @@ The SSC/SMC target daemons have been written from scratch.
 %install
 %{__rm} -rf %{buildroot}
 %{__make} install DESTDIR="%{buildroot}" INITD="%{_initrddir}" LIBDIR="%{_libdir}"
+%{__make} -C kernel install DESTDIR="%{buildroot}" INITD="%{_initrddir}" LIBDIR="%{_libdir}"
 
 %pre
 if ! getent group vtl &>/dev/null; then
@@ -56,6 +59,7 @@ fi
 %post
 /sbin/ldconfig
 /sbin/chkconfig --add mhvtl
+/sbin/depmod -a
 
 %preun
 if (( $1 == 0 )); then
@@ -93,6 +97,7 @@ fi
 %{_bindir}/update_device.conf
 %{_libdir}/libvtlscsi.so
 %{_libdir}/libvtlcart.so
+/lib/modules/%{current_kernel}/kernel/drivers/scsi/mhvtl.ko
 
 %defattr(4750, root, vtl, 0755)
 %{_bindir}/vtltape
