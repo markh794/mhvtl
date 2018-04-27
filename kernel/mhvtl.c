@@ -742,7 +742,8 @@ static void timer_intr_handler(struct timer_list *t)
 	unsigned long indx = sqcp->a_cmnd->serial_number;
 #else
 static void timer_intr_handler(unsigned long indx)
-  struct vtl_queued_cmd *sqcp = NULL;
+{
+	struct vtl_queued_cmd *sqcp = NULL;
 #endif
 	struct vtl_lu_info *lu;
 
