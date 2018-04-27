@@ -1140,7 +1140,7 @@ static ssize_t add_lu_store(struct device_driver *ddp,
 }
 
 #ifdef DRIVER_ATTR
-static DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, vtl_opts_show, vtl_opts_store);
+static DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, opts_show, opts_store);
 static DRIVER_ATTR(major, S_IRUGO, major_show, NULL);
 static DRIVER_ATTR(add_lu, S_IWUSR|S_IWGRP, NULL, add_lu_store);
 #else
