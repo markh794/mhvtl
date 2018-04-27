@@ -248,7 +248,11 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 				int arr_len);
 static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 				int arr_len);
-static void timer_intr_handler(struct timer_list *indx);;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+static void timer_intr_handler(struct timer_list *indx);
+#else
+static void timer_intr_handler(unsigned long);
+#endif
 static struct vtl_lu_info *devInfoReg(struct scsi_device *sdp);
 static void mk_sense_buffer(struct vtl_lu_info *lu, int key, int asc, int asq);
 static void stop_all_queued(void);
@@ -510,8 +514,13 @@ static int q_cmd(struct scsi_cmnd *scp,
 	}
 
 	spin_lock_irqsave(&lu->cmd_list_lock, iflags);
-	//init_timer(&sqcp->cmnd_timer);
+	#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	timer_setup(&sqcp->cmnd_timer, timer_intr_handler, 0);
+	#else
+	init_timer(&sqcp->cmnd_timer);
+	sqcp->cmnd_timer.function = timer_intr_handler;
+	sqcp->cmnd_timer.data = scp->serial_number;
+	#endif
 	list_add_tail(&sqcp->queued_sibling, &lu->cmd_list);
 	sqcp->a_cmnd = scp;
 	sqcp->scsi_result = 0;
@@ -726,11 +735,15 @@ static void remove_sqcp(struct vtl_lu_info *lu, struct vtl_queued_cmd *sqcp)
 }
 
 /* When timer goes off this function is called. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 static void timer_intr_handler(struct timer_list *t)
 {
 	struct vtl_queued_cmd *sqcp = from_timer(sqcp, t, cmnd_timer);
 	unsigned long indx = sqcp->a_cmnd->serial_number;
-
+#else
+static void timer_intr_handler(unsigned long indx)
+  struct vtl_queued_cmd *sqcp = NULL;
+#endif
 	struct vtl_lu_info *lu;
 
 	struct vtl_hba_info *vtl_hba;
@@ -1674,4 +1687,3 @@ static int vtl_open(struct inode *inode, struct file *filp)
 	MHVTL_DBG(1, "mhvtl%u: opened\n", minor);
 	return 0;
 }
-
