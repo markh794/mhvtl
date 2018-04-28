@@ -1077,12 +1077,12 @@ static const char *vtl_info(struct Scsi_Host *shp)
 	return vtl_parm_info;
 }
 
-static ssize_t vtl_opts_show(struct device_driver *ddp, char *buf)
+static ssize_t opts_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", vtl_opts);
 }
 
-static ssize_t vtl_opts_store(struct device_driver *ddp,
+static ssize_t opts_store(struct device_driver *ddp,
 				 const char *buf, size_t count)
 {
 	int opts;
@@ -1107,16 +1107,14 @@ opts_done:
 	vtl_cmnd_count = 0;
 	return count;
 }
-static DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, vtl_opts_show, vtl_opts_store);
 
-static ssize_t vtl_major_show(struct device_driver *ddp, char *buf)
+static ssize_t major_show(struct device_driver *ddp, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%d\n", vtl_major);
 }
-static DRIVER_ATTR(major, S_IRUGO, vtl_major_show, NULL);
 
-static ssize_t vtl_add_lu_action(struct device_driver *ddp,
-					const char *buf, size_t count)
+static ssize_t add_lu_store(struct device_driver *ddp,
+			    const char *buf, size_t count)
 {
 	int retval;
 	unsigned int minor;
@@ -1140,7 +1138,16 @@ static ssize_t vtl_add_lu_action(struct device_driver *ddp,
 
 	return count;
 }
-static DRIVER_ATTR(add_lu, S_IWUSR|S_IWGRP, NULL, vtl_add_lu_action);
+
+#ifdef DRIVER_ATTR
+static DRIVER_ATTR(opts, S_IRUGO|S_IWUSR, vtl_opts_show, vtl_opts_store);
+static DRIVER_ATTR(major, S_IRUGO, major_show, NULL);
+static DRIVER_ATTR(add_lu, S_IWUSR|S_IWGRP, NULL, add_lu_store);
+#else
+static DRIVER_ATTR_RW(opts);
+static DRIVER_ATTR_RO(major);
+static DRIVER_ATTR_WO(add_lu);
+#endif
 
 static int do_create_driverfs_files(void)
 {

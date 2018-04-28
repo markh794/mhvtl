@@ -23,18 +23,20 @@ static struct smc_personality_template smc_pm = {
 
 static void update_stk_l_vpd_80(struct lu_phy_attr *lu)
 {
-	struct vpd *lu_vpd;
+	struct vpd **lu_vpd;
 	uint8_t *d;
 
-	lu_vpd = lu->lu_vpd[PCODE_OFFSET(0x80)];
+	lu_vpd = &lu->lu_vpd[PCODE_OFFSET(0x80)];
 
 	/* Unit Serial Number */
-	if (lu_vpd)	/* Free any earlier allocation */
-		dealloc_vpd(lu_vpd);
+	if (*lu_vpd) {	/* Free any earlier allocation */
+		dealloc_vpd(*lu_vpd);
+		*lu_vpd = NULL;
+	}
 
-	lu_vpd = alloc_vpd(0x12);
-	if (lu_vpd) {
-		d = lu_vpd->data;
+	*lu_vpd = alloc_vpd(0x12);
+	if (*lu_vpd) {
+		d = (*lu_vpd)->data;
 		/* d[4 - 15] Serial number of device */
 		snprintf((char *)&d[0], 13, "%-12s", lu->lu_serial_no);
 		/* Unique Logical Library Identifier */

@@ -1,5 +1,7 @@
 *.ko
 *.o
+*~
+/cscope.*
 /etc/mhvtl
 /kernel/.*.ko.cmd
 /kernel/.*.o.cmd
@@ -19,3 +21,5 @@
 /usr/vtlcmd
 /usr/vtllibrary
 /usr/vtltape
+/man/*.1
+/man/*.5
