@@ -25,6 +25,7 @@ PREFIX ?= /usr
 USR ?= vtl
 SUSER = root
 GROUP ?= vtl
+BINGROUP ?= bin
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
