@@ -71,6 +71,9 @@ Build the binaries
 Install the rc script into /etc/init.d/ and binaries to /usr/local/bin/
 # make install
 
+Set ownership of /opt/mhvtl to vtl user
+# chown -R vtl /opt/mhvtl
+
 Start daemons:
 /etc/init.d/mhvtl start
 
