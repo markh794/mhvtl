@@ -354,16 +354,45 @@ static const struct file_operations vtl_fops = {
 #ifdef MHVTL_DEBUG
 static void mhvtl_prt_cdb(char *f, uint64_t sn, uint8_t *s, int l)
 {
-	int i;
-
 	if (sn)
 		printk(KERN_DEBUG "mhvtl: %s (%llu) %d bytes\n",
 				f, (long long unsigned)sn, l);
 	else
 		printk(KERN_DEBUG "mhvtl: %s (%d bytes)\n", f, l);
 
-	for (i = 0; i < l; i += 2)
-		printk(KERN_DEBUG " %02x %02x", s[i], s[i + 1]);
+	switch (l) {
+	case 6:
+		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x",
+					s[0], s[1], s[2], s[3],
+					s[4], s[5]);
+		break;
+	case 8:
+		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x",
+					s[0], s[1], s[2], s[3],
+					s[4], s[5], s[6], s[7]);
+		break;
+	case 10:
+		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+					s[0], s[1], s[2], s[3],
+					s[4], s[5], s[6], s[7],
+					s[8], s[9]);
+		break;
+	case 12:
+		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+					s[0], s[1], s[2], s[3],
+					s[4], s[5], s[6], s[7],
+					s[8], s[9], s[10], s[11]);
+		break;
+	case 16:
+	default:
+		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+					s[0], s[1], s[2], s[3],
+					s[4], s[5], s[6], s[7],
+					s[8], s[9], s[10], s[11],
+					s[12], s[13], s[14], s[15]);
+		break;
+
+	}
 
 	printk(KERN_DEBUG "\n");
 }
@@ -529,8 +558,6 @@ static int q_cmd(struct scsi_cmnd *scp,
 	sqcp->a_cmnd = scp;
 	sqcp->scsi_result = 0;
 	sqcp->done_funct = done;
-	//sqcp->cmnd_timer.function = timer_intr_handler;
-	//sqcp->cmnd_timer.data = scp->serial_number;
 	sqcp->cmnd_timer.expires = jiffies + TIMEOUT_FOR_USER_DAEMON;
 	add_timer(&sqcp->cmnd_timer);
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
