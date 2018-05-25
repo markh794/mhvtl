@@ -326,7 +326,7 @@ int main(int argc, char *argv[])
 	struct mtpos mtpos;
 	char *dev = NULL;
 	int tape_fd;
-	int err, rc;
+	int err;
 	int count;
 
 	if (argc != 3) {
@@ -365,11 +365,11 @@ int main(int argc, char *argv[])
 	write_tape_pattern_1(tape_fd);
 	write_tape_pattern_2(tape_fd);
 
-	rc = read_test_1(tape_fd);
-	rc = read_test_2(tape_fd);
-	rc = read_test_3(tape_fd);
-	rc = read_test_4(tape_fd);
-	rc = read_test_5(tape_fd);
+	read_test_1(tape_fd);
+	read_test_2(tape_fd);
+	read_test_3(tape_fd);
+	read_test_4(tape_fd);
+	read_test_5(tape_fd);
 
 	err = ioctl(tape_fd, MTIOCGET, &mtstat); /* Query device status */
 	if (err) {
