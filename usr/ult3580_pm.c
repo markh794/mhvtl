@@ -159,8 +159,8 @@ static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn)
 
 	data[1] = 0xc1;
 	data[3] = 0x18;
-	snprintf((char *)&data[4], 12, "%-12s", sn);
-	snprintf((char *)&data[16], 12, "%-12s", sn);
+	snprintf((char *)&data[4], 13, "%-12.12s", sn);
+	snprintf((char *)&data[16], 13, "%-12.12s", sn);
 }
 
 static uint8_t set_ult_WORM(struct list_head *lst)

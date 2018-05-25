@@ -241,10 +241,10 @@ static void update_hp_vpd_cx(struct lu_phy_attr *lu, uint8_t pg, char *comp,
 	data = (char *)vpd_p->data;
 
 	data[3] = 0x5c;
-	snprintf(&data[4], 24, "%-24s", comp);
-	snprintf(&data[30], 18, "%-18s", vers);
-	snprintf(&data[49], 24, "%-24s", date);
-	snprintf(&data[73], 22, "%-22s", variant);
+	snprintf(&data[4], 25, "%-24.24s", comp);
+	snprintf(&data[30], 19, "%-18.18s", vers);
+	snprintf(&data[49], 25, "%-24.24s", date);
+	snprintf(&data[73], 23, "%-22.22s", variant);
 }
 
 static void init_ult_inquiry(struct lu_phy_attr *lu)

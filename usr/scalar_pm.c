@@ -52,7 +52,7 @@ static void update_scalar_vpd_80(struct  lu_phy_attr *lu)
 	if (lu_vpd) {
 		d = lu_vpd->data;
 		/* d[4 - 27] Serial number prefixed by Vendor ID */
-		snprintf((char *)&d[0], 25, "%-s%-17s", lu->vendor_id, lu->lu_serial_no);
+		snprintf((char *)&d[0], 26, "%-s%-17s", lu->vendor_id, lu->lu_serial_no);
 	} else {
 		MHVTL_ERR("Could not malloc(24) bytes, line %d", __LINE__);
 	}

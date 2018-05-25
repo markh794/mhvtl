@@ -25,7 +25,7 @@ static void update_eml_vpd_80(struct lu_phy_attr *lu)
 	lu_vpd[pg] = alloc_vpd(0x12);
 	if (lu_vpd[pg]) {
 		d = lu_vpd[pg]->data;
-		snprintf((char *)&d[0], 10, "%-10s", lu->lu_serial_no);
+		snprintf((char *)&d[0], 11, "%-10.10s", lu->lu_serial_no);
 		/* Unique Logical Library Identifier */
 	} else {
 		MHVTL_ERR("Could not malloc(0x12) bytes, line %d", __LINE__);

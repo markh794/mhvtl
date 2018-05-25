@@ -69,7 +69,7 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define SCSI_SN_LEN 16
 
 #define MAX_BARCODE_LEN	16
-#define LEFT_JUST_16_STR "%-16s"
+#define LEFT_JUST_16_STR "%-16.16s"
 
 #define MAX_INQ_ARR_SZ 64
 #define MALLOC_SZ 512
