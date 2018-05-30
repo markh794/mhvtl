@@ -21,9 +21,10 @@
 ### BEGIN INIT INFO
 # Provides:       mhvtl
 # Required-Start: $syslog
-# Required-Stop:
+# Required-Stop: $null
 # Default-Start:  2 3 5
 # Default-Stop: 0 1 6
+# Short-Description: Virtual Tape & Robot Library
 # Description:    Script to start/stop mhvtl kernel modules & vtltape userspace daemons
 ### END INIT INFO
 #
