@@ -44,6 +44,7 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 #include <time.h>
+#include <sys/sysmacros.h>
 #include <assert.h>
 #include "be_byteshift.h"
 #include "list.h"
