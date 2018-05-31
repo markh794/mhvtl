@@ -1,0 +1,54 @@
+.TH dump_tape "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+dump_tape \- Utility to dump tape contents for virtual media in VTL.
+.SH SYNOPSIS
+.B dump_tape
+.B [ \-h ]
+.br
+.B dump_tape
+.B [ \fIOPTIONS\fR]
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+Dump the contents of the specified PCL. If a library is specified, look
+there, else look through all of the libraries.
+.SH OPTIONS
+.TP
+.B \-h
+display usage information and exit
+.TP
+.B \-v
+be verbose
+.TP
+.B \-d
+print debugging information
+.TP
+.BR \-l lib_no
+\fB\-l n\fR
+Where lib_no is the library index number (default library index numbers 10 & 30).
+.TP
+\fB\-f PCL\fR
+where PCL is the Physical Cartridge Label (barcode). This is required.
+.TP
+.B \-D
+dump data
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Needs to be made user friendly.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR build_library_config(1),
+.BR make_vtl_media(1),
+.BR library_contents(5),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)
+.BR edit_tape(1)

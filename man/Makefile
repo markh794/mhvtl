@@ -74,6 +74,9 @@ install:
 	install -o $(USER) vtllibrary.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install -o $(USER) make_vtl_media.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install -o $(USER) build_library_config.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install -o $(USER) dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install -o $(USER) tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install -o $(USER) update_device.conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install -o $(USER) mhvtl.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 	install -o $(USER) device.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 	install -o $(USER) library_contents.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/

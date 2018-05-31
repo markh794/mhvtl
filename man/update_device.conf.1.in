@@ -1,0 +1,31 @@
+.TH update_device.conf "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+update_device.conf \- Utility to update device.conf to version 4
+.SH SYNOPSIS
+.B update_device.conf
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+This script updates the device.conf file to version 4, and sets
+the library index to one more than the number of drives found.
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Needs to be made user friendly and more verbose.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2005 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR device.conf(5)
+.BR build_library_config(1),
+.BR make_vtl_media(1),
+.BR library_contents(5),
+.BR mhvtl(1),
+.BR vtlcmd(1),
+.BR vtllibrary(1),
+.BR vtltape(1)
+.BR edit_tape(1)
