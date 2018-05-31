@@ -50,6 +50,8 @@ extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 struct blk_header *c_pos;
 
+static char *progname;
+
 static void print_mam_info(void)
 {
 	uint64_t size;
@@ -128,7 +130,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 	*/
 	cbuf = (uint8_t *)malloc(disk_blk_size);
 	if (!cbuf) {
-		printf("Out of memory: %d\n", __LINE__);
+		fprintf(stderr, "Out of memory: %d\n", __LINE__);
 		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
 	}
@@ -137,7 +139,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
 //	printf("Reading - disk_blk_size: %d\n", disk_blk_size);
 	if (nread != disk_blk_size) {
-		printf("read failed, %s\n", strerror(errno));
+		fprintf(stderr, "read failed, %s\n", strerror(errno));
 		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 		free(cbuf);
 		return 0;
@@ -162,7 +164,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		/* Initiator hasn't requested same size as data block */
 		c2buf = (uint8_t *)malloc(uncompress_sz);
 		if (c2buf == NULL) {
-			printf("Out of memory: %d\n", __LINE__);
+			fprintf(stderr, "Out of memory: %d\n", __LINE__);
 			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
@@ -178,7 +180,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 				" data, have %u bytes for result\n",
 				(uint32_t)nread, blk_size);
 	} else {
-		printf("Decompression error\n");
+		fprintf(stderr, "Decompression error\n");
 		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 	}
@@ -208,14 +210,14 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 	*/
 	cbuf = (uint8_t *)malloc(disk_blk_size);
 	if (!cbuf) {
-		printf("Out of memory: %d\n", __LINE__);
+		fprintf(stderr, "Out of memory: %d\n", __LINE__);
 		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		return 0;
 	}
 
 	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
 	if (nread != disk_blk_size) {
-		printf("read failed, %s\n", strerror(errno));
+		fprintf(stderr, "read failed, %s\n", strerror(errno));
 		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 		free(cbuf);
 		return 0;
@@ -238,7 +240,7 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 		/* Initiator hasn't requested same size as data block */
 		c2buf = (uint8_t *)malloc(uncompress_sz);
 		if (c2buf == NULL) {
-			printf("Out of memory: %d\n", __LINE__);
+			fprintf(stderr, "Out of memory: %d\n", __LINE__);
 			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 			free(cbuf);
 			return 0;
@@ -256,17 +258,17 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 			(uint32_t)nread, blk_size);
 		break;
 	case Z_MEM_ERROR:
-		printf("Not enough memory to decompress\n");
+		fprintf(stderr, "Not enough memory to decompress\n");
 		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_DATA_ERROR:
-		printf("Block corrupt or incomplete\n");
+		fprintf(stderr, "Block corrupt or incomplete\n");
 		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
 	case Z_BUF_ERROR:
-		printf("Not enough memory in destination buf\n");
+		fprintf(stderr, "Not enough memory in destination buf\n");
 		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
 		rc = 0;
 		break;
@@ -297,20 +299,18 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	case B_DATA:
 		break;
 	case B_FILEMARK:
-		printf("Expected to find DATA header, found: FILEMARK\n");
+		fprintf(stderr,
+			"Expected to find DATA header, found: FILEMARK\n");
 		position_blocks_forw(1, sam_stat);
 		return 0;
-		break;
 	case B_EOD:
-		printf("Expected to find DATA header, found: EOD\n");
+		fprintf(stderr, "Expected to find DATA header, found: EOD\n");
 		return 0;
-		break;
 	default:
-		printf("Unknown blk header at offset %u"
+		fprintf(stderr, "Unknown blk header at offset %u"
 				" - Abort read cmd\n", c_pos->blk_number);
 		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 		return 0;
-		break;
 	}
 
 	/* The tape block is compressed.  Save field values we will need after
@@ -332,7 +332,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	   we need directly into the scsi read buffer and we are done.
 	*/
 		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize) {
-			printf("read failed, %s\n", strerror(errno));
+			fprintf(stderr, "read failed, %s\n", strerror(errno));
 			sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
@@ -382,7 +382,7 @@ static int read_data(uint8_t *sam_stat)
 	}
 	p = malloc(c_pos->blk_size);
 	if (!p) {
-		printf("Unable to allocate %d bytes\n", c_pos->blk_size);
+		fprintf(stderr, "Unable to allocate %d bytes\n", c_pos->blk_size);
 		return -ENOMEM;
 	}
 	ret = readBlock(p, c_pos->blk_size, 1, sam_stat);
@@ -397,6 +397,21 @@ static int read_data(uint8_t *sam_stat)
 
 void find_media_home_directory(char *home_directory, long lib_id);
 
+static void usage(char *errmsg)
+{
+	if (errmsg)
+		printf("%s\n", errmsg);
+	printf("Usage: %s OPTIONS\n", progname);
+	printf("Where OPTIONS are from:\n");
+	printf("  -h               Print this message and exit\n");
+	printf("  -d               Enable debugging\n");
+	printf("  -v               Be verbose\n");
+	printf("  -D               Dump data\n");
+	printf("  -l lib_no        Look in specified library\n");
+	printf("  -f pcl           Look for specified PCL\n");
+	exit(errmsg ? 1 : 0);
+}
+
 int main(int argc, char *argv[])
 {
 	uint8_t sam_stat;
@@ -410,41 +425,41 @@ int main(int argc, char *argv[])
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
 
-	if (argc < 2) {
-		printf("Usage: %s [-l lib_no] -f <pcl>\n", argv[0]);
-		exit(1);
-	}
+	progname = argv[0];
 
-	while (argc > 0) {
-		if (argv[0][0] == '-') {
-			switch (argv[0][1]) {
+	if (argc < 2)
+		usage("Not enough arguments");
+
+	while (argc > 1) {
+		if (argv[1][0] == '-') {
+			switch (argv[1][1]) {
+			case 'h':
+				usage(NULL);
+				break;
 			case 'd':
 				debug++;
 				verbose = 9;	/* If debug, make verbose... */
 				break;
 			case 'f':
-				if (argc > 1) {
+				if (argc > 1)
 					pcl = argv[1];
-				} else {
-					puts("    More args needed for -f\n");
-					exit(1);
-				}
+				else
+					usage("More args needed for -f");
 				break;
 			case 'l':
-				if (argc > 1) {
+				if (argc > 1)
 					libno = atoi(argv[1]);
-				} else {
-					puts("    More args needed for -l\n");
-					exit(1);
-				}
+				else
+					usage("More args needed for -l");
 				break;
-
 			case 'D':
 				dump_data = TRUE;
 				break;
-
 			case 'v':
 				verbose++;
+				break;
+			default:
+				usage("Unknown option");
 				break;
 			}
 		}
@@ -452,16 +467,13 @@ int main(int argc, char *argv[])
 		argc--;
 	}
 
-	if (pcl == NULL) {
-		printf("Usage: %s -f <pcl>\n", argv[0]);
-		exit(1);
-	}
+	if (pcl == NULL)
+		usage("No PCL number supplied");
 
 	conf = fopen(config , "r");
 	if (!conf) {
-		printf("Can not open config file %s : %s", config,
+		fprintf(stderr, "Cannot open config file %s: %s\n", config,
 					strerror(errno));
-		perror("Can not open config file");
 		exit(1);
 	}
 	s = malloc(MALLOC_SZ);
@@ -509,8 +521,9 @@ int main(int argc, char *argv[])
 	}
 
 	if (lzo_init() != LZO_E_OK) {
-		printf("internal error - lzo_init() failed !!!\n");
-		printf("(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable '-DLZO_DEBUG' for diagnostics)\n");
+		fprintf(stderr, "internal error - lzo_init() failed !!!\n");
+		fprintf(stderr,
+		      	"(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable '-DLZO_DEBUG' for diagnostics)\n");
 		exit(3);
 	}
 	print_mam_info();
