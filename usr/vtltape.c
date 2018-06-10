@@ -432,7 +432,7 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 					mam.AssigningOrganization_1);
 		snprintf((char *)&ds[24], 9, "%-8s",
 					mam.media_info.density_name);
-		snprintf((char *)&ds[32], 20, "%-20s",
+		snprintf((char *)&ds[32], 21, "%-20.20s",
 					mam.media_info.description);
 		/* Fudge.. Now 'fix' up the spaces. */
 		for (a = 16; a < REPORT_DENSITY_LEN; a++)
@@ -456,7 +456,7 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 			put_unaligned_be32(di->capacity, &ds[12]);
 			snprintf((char *)&ds[16], 9, "%-8s", di->assigning_org);
 			snprintf((char *)&ds[24], 9, "%-8s", di->density_name);
-			snprintf((char *)&ds[32], 20, "%-20s",
+			snprintf((char *)&ds[32], 21, "%-20s",
 					di->description);
 			/* Fudge.. Now 'fix' up the spaces. */
 			for (a = 16; a < REPORT_DENSITY_LEN; a++)

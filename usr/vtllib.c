@@ -383,7 +383,7 @@ uint32_t resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
 {
 	uint32_t size = 38;
 
-	snprintf((char *)&buf[4], size - 5, "%-34s", sno);
+	snprintf((char *)&buf[4], size - 3, "%-34.34s", sno);
 	put_unaligned_be16(size, &buf[2]);
 
 	return size;

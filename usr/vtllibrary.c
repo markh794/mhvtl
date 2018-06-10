@@ -487,7 +487,7 @@ static int load_map(struct q_msg *msg)
 		if (!mp)
 			mp = add_barcode(&lunit, barcode);
 
-		snprintf((char *)mp->barcode, MAX_BARCODE_LEN, LEFT_JUST_16_STR,
+		snprintf((char *)mp->barcode, MAX_BARCODE_LEN+1, LEFT_JUST_16_STR,
 						barcode);
 		mp->barcode[MAX_BARCODE_LEN] = '\0';
 

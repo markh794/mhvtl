@@ -174,9 +174,9 @@ static void update_ibm_3584_vpd_80(struct lu_phy_attr *lu)
 
 	d = lu_vpd[pg]->data;
 	/* d[4 - 15] Serial number of device */
-	snprintf((char *)&d[0], 10, "%-10s", lu->lu_serial_no);
+	snprintf((char *)&d[0], 11, "%-10.10s", lu->lu_serial_no);
 	/* First Storage Element Address */
-	snprintf((char *)&d[12], 4, "%04x", smc_p->pm->start_storage);
+	snprintf((char *)&d[12], 5, "%04x", smc_p->pm->start_storage);
 }
 
 static void update_ibm_3584_vpd_83(struct lu_phy_attr *lu)
@@ -210,7 +210,7 @@ static void update_ibm_3584_vpd_83(struct lu_phy_attr *lu)
 	/* Serial Number of device */
 	memcpy(&d[28], &lu->inquiry[38], 12);
 	/* First Storage Element Address */
-	snprintf((char *)&d[40], 4, "%04x", smc_p->pm->start_storage);
+	snprintf((char *)&d[40], 5, "%04x", smc_p->pm->start_storage);
 }
 
 static void update_ibm_3584_inquiry(struct lu_phy_attr *lu)
@@ -259,7 +259,7 @@ static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
 
 	d = lu_vpd[pg]->data;
 	/* d[4 - 15] Serial number of device */
-	snprintf((char *)&d[0], 13, "%-12s", lu->lu_serial_no);
+	snprintf((char *)&d[0], 13, "%-12.12s", lu->lu_serial_no);
 	/* Unique Logical Library Identifier */
 	memset(&d[12], 0x20, 4);	/* Space chars */
 }

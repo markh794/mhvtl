@@ -157,8 +157,8 @@ static void update_vpd_dlt_c1(struct lu_phy_attr *lu, char *sn)
 	data[1] = 0xc1;
 	data[3] = 0x39;
 	data[4] = get_product_family(lu);
-	snprintf((char *)&data[4], 12, "%-12s", sn);
-	snprintf((char *)&data[24], 12, "%-12s", sn);
+	snprintf((char *)&data[4], 13, "%-12s", sn);
+	snprintf((char *)&data[24], 13, "%-12s", sn);
 }
 
 static uint8_t set_dlt_WORM(struct list_head *lst)
