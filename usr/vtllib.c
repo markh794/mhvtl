@@ -561,7 +561,7 @@ int chrdev_chown(unsigned minor, uid_t uid, uid_t gid)
 	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%u", minor);
 
 	MHVTL_DBG(3, "chown(%s, %d, %d)", pathname, (int)uid, (int)gid);
-	x = chown(pathname, uid, uid);
+	x = chown(pathname, uid, gid);
 	if (x == -1) {
 		MHVTL_DBG(1, "Can't change ownership for device node mhvtl: %s",
 			strerror(errno));
