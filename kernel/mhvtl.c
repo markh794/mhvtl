@@ -22,7 +22,7 @@
  *
  *	markh794@gmail.com
  *	  or
- *	Current employ address: mark.harvey@veritas.com
+ *	Current employ address: mark.harvey@nutanix.com
  *
  *	Pinched wholesale from scsi_debug.[ch]
  *
