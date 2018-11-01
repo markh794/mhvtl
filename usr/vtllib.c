@@ -1308,7 +1308,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(15142, &mamp->media_info.bits_per_mm);
 		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
-	} else if (!(strncmp(density, "LTO6", 4))) { /* FIXME */
+	} else if (!(strncmp(density, "LTO6", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto6;
 		mamp->MediaType = Media_LTO6;
 		put_unaligned_be32(2176, &mamp->MediumLength);
@@ -1319,13 +1319,24 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(18441, &mamp->media_info.bits_per_mm);
 		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
-	} else if (!(strncmp(density, "LTO7", 4))) { /* FIXME */
+	} else if (!(strncmp(density, "LTO7", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto7;
 		mamp->MediaType = Media_LTO7;
 		put_unaligned_be32(960, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 7/32T", 13);
 		memcpy(&mamp->media_info.density_name, "U-732  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
+		mamp->max_partitions = 2;
+		mamp->num_partitions = 2;
+	} else if (!(strncmp(density, "LTO8", 4))) {
+		mamp->MediumDensityCode = medium_density_code_lto8;
+		mamp->MediaType = Media_LTO8;
+		put_unaligned_be32(960, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		memcpy(&mamp->media_info.description, "Ultrium 8/32T", 13);
+		memcpy(&mamp->media_info.density_name, "U-832  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
 		mamp->max_partitions = 2;

@@ -69,6 +69,9 @@ static struct density_info density_lto6 = {
 static struct density_info density_lto7 = {
 	19107, 127, 3584, 6000000, medium_density_code_lto7,
 			"LTO-CVE", "U-732", "Ultrium 7/32T" };
+static struct density_info density_lto8 = {
+	19107, 127, 3584, 6000000, medium_density_code_lto8,
+			"LTO-CVE", "U-832", "Ultrium 8/32T" };
 
 static struct name_to_media_info media_info[] = {
 	{"LTO1", Media_LTO1,
@@ -109,6 +112,12 @@ static struct name_to_media_info media_info[] = {
 			media_type_hp_lto_data, medium_density_code_lto7},
 	{"LTO7 WORM", Media_LTO7_WORM,
 			media_type_hp_lto_worm, medium_density_code_lto7},
+	{"LTO8", Media_LTO8,
+			media_type_hp_lto_data, medium_density_code_lto8},
+	{"LTO8 Clean", Media_LTO8_CLEAN,
+			media_type_hp_lto_data, medium_density_code_lto8},
+	{"LTO8 WORM", Media_LTO8_WORM,
+			media_type_hp_lto_worm, medium_density_code_lto8},
 	{"", 0, 0, 0},
 };
 
@@ -452,6 +461,7 @@ static char *pm_name_lto4 = "HP LTO-4";
 static char *pm_name_lto5 = "HP LTO-5";
 static char *pm_name_lto6 = "HP LTO-6";
 static char *pm_name_lto7 = "HP LTO-7";
+static char *pm_name_lto8 = "HP LTO-8";
 
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk, /* default in ssc.c */
@@ -890,4 +900,76 @@ void init_hp_ult_7(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RO, "LTO7 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 ENCR");
+}
+void init_hp_ult_8(struct lu_phy_attr *lu)
+{
+	ssc_pm.name = pm_name_lto8;
+	ssc_pm.lu = lu;
+	ssc_pm.drive_supports_append_only_mode = FALSE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = FALSE;
+	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.native_drive_density = &density_lto8;
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities = encr_capabilities_ult;
+	ssc_pm.kad_validation = hp_lto_kad_validation;
+	ssc_pm.clear_WORM = clear_ult_WORM;
+	ssc_pm.set_WORM = set_ult_WORM;
+
+	ssc_personality_module_register(&ssc_pm);
+
+	init_ult_inquiry(lu);
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_encryption_mode_attribute(lu);
+
+	/* Supports non-zero programable early warning */
+	update_prog_early_warning(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
+	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin, NULL, NULL);
+	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout, NULL, NULL);
+
+	add_density_support(&lu->den_list, &density_lto6, 0);
+	add_density_support(&lu->den_list, &density_lto7, 1);
+	add_density_support(&lu->den_list, &density_lto8, 1);
+
+	add_drive_media_list(lu, LOAD_RO, "LTO6");
+	add_drive_media_list(lu, LOAD_RO, "LTO6 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO6 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO6 ENCR");
+	add_drive_media_list(lu, LOAD_RW, "LTO7");
+	add_drive_media_list(lu, LOAD_RO, "LTO7 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO7 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO7 ENCR");
+	add_drive_media_list(lu, LOAD_RW, "LTO8");
+	add_drive_media_list(lu, LOAD_RO, "LTO8 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO8 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO8 ENCR");
 }

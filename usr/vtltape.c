@@ -203,6 +203,8 @@ static struct tape_drives_table {
 	{ "ULT3580-TD6     ", init_ult3580_td6 },
 	{ "ULT3580-TD7     ", init_ult3580_td7 },
 	{ "ULT3580-HH7     ", init_ult3580_td7 },
+	{ "ULT3580-TD8     ", init_ult3580_td8 },
+	{ "ULT3580-HH8     ", init_ult3580_td8 },
 	{ "ULTRIUM-TD1     ", init_ult3580_td1 },
 	{ "ULTRIUM-TD2     ", init_ult3580_td2 },
 	{ "ULTRIUM-HH2     ", init_ult3580_td2 },
@@ -216,6 +218,8 @@ static struct tape_drives_table {
 	{ "ULTRIUM-HH6     ", init_ult3580_td6 },
 	{ "ULTRIUM-TD7     ", init_ult3580_td7 },
 	{ "ULTRIUM-HH7     ", init_ult3580_td7 },
+	{ "ULTRIUM-TD8     ", init_ult3580_td8 },
+	{ "ULTRIUM-HH8     ", init_ult3580_td8 },
 	{ "Ultrium 1-SCSI  ", init_hp_ult_1 },
 	{ "Ultrium 2-SCSI  ", init_hp_ult_2 },
 	{ "Ultrium 3-SCSI  ", init_hp_ult_3 },
@@ -223,6 +227,7 @@ static struct tape_drives_table {
 	{ "Ultrium 5-SCSI  ", init_hp_ult_5 },
 	{ "Ultrium 6-SCSI  ", init_hp_ult_6 },
 	{ "Ultrium 7-SCSI  ", init_hp_ult_7 },
+	{ "Ultrium 8-SCSI  ", init_hp_ult_8 },
 	{ "SDX-300C        ", init_ait1_ssc },
 	{ "SDX-500C        ", init_ait2_ssc },
 	{ "SDX-500V        ", init_ait2_ssc },
@@ -1939,7 +1944,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 			lookup_density_name(lu_ssc.pm->media_handling,
 						mam.MediumDensityCode),
 			mam.MediumDensityCode,
-			lu->mode_media_type);
+			(uint8_t)lu->mode_media_type);
 
 	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
 	current_state = MHVTL_STATE_LOADED;
