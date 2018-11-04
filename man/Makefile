@@ -32,8 +32,8 @@ ifeq ($(shell grep lib64 /etc/ld.so.conf.d/* | wc -l),0)
 LIBDIR=lib
 endif
 
-MONTH = $(shell date +%B)
-YEAR = $(shell date +%Y)
+MONTH = $(shell date -r ../ChangeLog +%B)
+YEAR = $(shell date -r ../ChangeLog +%Y)
 
 PREFIX ?= /usr
 USR ?= vtl
