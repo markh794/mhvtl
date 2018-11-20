@@ -334,7 +334,7 @@ static void list_map(struct q_msg *msg)
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
-			strncat(c, (char *)sp->media->barcode, MAX_BARCODE_LEN);
+			strncat(c, (char *)sp->media->barcode, MAX_BARCODE_LEN+1);
 			MHVTL_DBG(2, "MAP slot %d full", sp->slot_location);
 		} else {
 			MHVTL_DBG(2, "MAP slot %d empty", sp->slot_location);
@@ -1843,22 +1843,22 @@ int main(int argc, char *argv[])
 
 				MHVTL_DBG(3, "\nDrive %d", sp->slot_location);
 
-				strncpy(s, dp->inq_vendor_id, 8);
+				strncpy(s, dp->inq_vendor_id, 8+2);
 				rmnl(s, ' ', 8);
 				s[8] = '\0';
 				MHVTL_DBG(3, "Vendor ID     : \"%s\"", s);
 
-				strncpy(s, dp->inq_product_id, 16);
+				strncpy(s, dp->inq_product_id, 16+2);
 				rmnl(s, ' ', 16);
 				s[16] = '\0';
 				MHVTL_DBG(3, "Product ID    : \"%s\"", s);
 
-				strncpy(s, dp->inq_product_rev, 4);
+				strncpy(s, dp->inq_product_rev, 4+2);
 				rmnl(s, ' ', 4);
 				s[4] = '\0';
 				MHVTL_DBG(3, "Revision Level: \"%s\"", s);
 
-				strncpy(s, dp->inq_product_sno, 10);
+				strncpy(s, dp->inq_product_sno, 10+2);
 				rmnl(s, ' ', 10);
 				s[10] = '\0';
 				MHVTL_DBG(3, "Product S/No  : \"%s\"", s);

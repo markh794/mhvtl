@@ -73,7 +73,6 @@ struct	meta_header {
 	char pad[512 - sizeof(uint32_t)];
 };
 
-static char currentPCL[1024];
 static int datafile = -1;
 static int indxfile = -1;
 static int metafile = -1;
@@ -653,7 +652,7 @@ int rewriteMAM(uint8_t *sam_stat)
 int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 {
 	struct stat data_stat;
-	char newMedia[1024];
+	char *newMedia = NULL;
 	char newMedia_data[1024];
 	char newMedia_indx[1024];
 	char newMedia_meta[1024];
@@ -672,7 +671,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		return 1;
 	}
 
-	snprintf(newMedia, ARRAY_SIZE(newMedia), "%s/%s", home_directory, pcl);
+	asprintf(&newMedia, "%s/%s", home_directory, pcl);
 
 	snprintf(newMedia_data, ARRAY_SIZE(newMedia_data), "%s/data", newMedia);
 	snprintf(newMedia_indx, ARRAY_SIZE(newMedia_indx), "%s/indx", newMedia);
@@ -680,7 +679,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	/* Check if data file already exists, nothing to create */
 	if (stat(newMedia_data, &data_stat) != -1)
-		return 0;
+		goto free_strings;
 
 	umask(0007);
 	rc = mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_ISGID);
@@ -689,7 +688,8 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		if (errno != EEXIST) {
 			MHVTL_ERR("Failed to create directory %s: %s",
 					newMedia, strerror(errno));
-			return 2;
+			rc = 2;
+			goto free_strings;
 		}
 		rc = 0;
 	}
@@ -703,7 +703,8 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	if (datafile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_data,
 			strerror(errno));
-		return 2;
+		rc = 2;
+		goto free_strings;
 	}
 	indxfile = creat(newMedia_indx, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (indxfile == -1) {
@@ -760,6 +761,9 @@ cleanup:
 		metafile = -1;
 	}
 
+free_strings:
+	if (newMedia)
+		free(newMedia);
 	return rc;
 }
 
@@ -776,6 +780,7 @@ cleanup:
 int load_tape(const char *pcl, uint8_t *sam_stat)
 {
 	char pcl_data[1024], pcl_indx[1024], pcl_meta[1024];
+	char *currentPCL = NULL;
 	struct stat data_stat, indx_stat, meta_stat;
 	uint64_t exp_size;
 	size_t	io_size;
@@ -802,11 +807,9 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	/* Open all three files and stat them to get their current sizes. */
 
 	if (strlen(home_directory))
-		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
-						home_directory, pcl);
+		asprintf(&currentPCL, "%s/%s", home_directory, pcl);
 	else
-		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
-						MHVTL_HOME_PATH, pcl);
+		asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl);
 
 	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
 	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
@@ -817,12 +820,14 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	if (stat(pcl_data, &data_stat) == -1) {
 		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
 				pcl_data, MHVTL_HOME_PATH, pcl);
-		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
-						MHVTL_HOME_PATH, pcl);
+		free(currentPCL);
+		asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl);
 		snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
 		snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
 		snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
 	}
+
+	free(currentPCL);
 
 	datafile = open(pcl_data, O_RDWR|O_LARGEFILE);
 	if (datafile == -1) {
