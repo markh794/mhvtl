@@ -1765,8 +1765,9 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	lu_ssc.tapeLoaded = TAPE_LOADING;
 	lu_ssc.pm->media_load(lu, TAPE_LOADED);
 
-	strncpy((char *)lu_ssc.mediaSerialNo, (char *)mam.MediumSerialNumber,
-				sizeof(mam.MediumSerialNumber) - 1);
+	snprintf((char *)lu_ssc.mediaSerialNo,
+		 sizeof(mam.MediumSerialNumber) - 1,
+		 (char *)mam.MediumSerialNumber);
 
 	MHVTL_DBG(1, "Media type '%s' loaded with S/No. : %s",
 			lookup_media_type(lu_ssc.pm->media_handling,

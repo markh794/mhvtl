@@ -90,7 +90,7 @@ void update_home_dir(long lib_id)
 
 int get_cart_type(const char *barcode)
 {
-	char pcl_meta[1024];
+	char *pcl_meta = NULL;
 	char pcl[MAX_BARCODE_LEN + 1];
 	struct stat meta_stat;
 	uint64_t exp_size;
@@ -116,14 +116,15 @@ int get_cart_type(const char *barcode)
 		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
 						MHVTL_HOME_PATH, pcl);
 
-	snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
+	asprintf(&pcl_meta, "%s/meta", currentPCL);
 
 	if (stat(pcl_meta, &meta_stat) == -1) {
 		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
 				pcl_meta, MHVTL_HOME_PATH, pcl);
 		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
 						MHVTL_HOME_PATH, pcl);
-		snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
+		free(pcl_meta);
+		asprintf(&pcl_meta, "%s/meta", currentPCL);
 	}
 
 	metafile = open(pcl_meta, O_RDONLY);
@@ -191,5 +192,7 @@ failed:
 	close(metafile);
 	MHVTL_DBG(3, "Opening media: %s (barcode %s), returning type %d",
 			currentPCL, barcode, rc);
+	if (pcl_meta)
+		free(pcl_meta);
 	return rc;
 }
