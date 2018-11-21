@@ -2816,7 +2816,6 @@ int main(int argc, char *argv[])
 	char *fifoname = NULL;
 	char *name = "mhvtl";
 	unsigned minor = 0;
-	struct passwd *pw;
 
 	struct vtl_header vtl_cmd;
 	struct vtl_header *cmd;
@@ -2907,13 +2906,6 @@ int main(int argc, char *argv[])
 	 */
 	config_lu(&lunit);
 
-	/* Check for user account before creating lu */
-	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
-	if (!pw) {
-		MHVTL_DBG(1, "Unable to find user: %s", USR);
-		exit(1);
-	}
-
 	if (chrdev_create(minor)) {
 		MHVTL_DBG(1, "Unable to create device node mhvtl%u", minor);
 		exit(1);
@@ -2922,17 +2914,6 @@ int main(int argc, char *argv[])
 	child_cleanup = add_lu(my_id, &ctl);
 	if (!child_cleanup) {
 		MHVTL_DBG(1, "Could not create logical unit");
-		exit(1);
-	}
-
-	chrdev_chown(minor, pw->pw_uid, pw->pw_gid);
-
-	if (setgid(pw->pw_gid)) {
-		perror("Unable to change gid");
-		exit(1);
-	}
-	if (setuid(pw->pw_uid)) {
-		perror("Unable to change uid");
 		exit(1);
 	}
 
@@ -2946,8 +2927,6 @@ int main(int argc, char *argv[])
 		MHVTL_LOG("%s: version %s, found another running daemon... exiting", progname, MHVTL_VERSION);
 		exit(2);
 	}
-
-	MHVTL_DBG(2, "Running as %s, uid: %d", pw->pw_name, getuid());
 
 	cdev = chrdev_open(name, minor);
 	if (cdev == -1) {

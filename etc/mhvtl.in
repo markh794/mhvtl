@@ -32,7 +32,6 @@
 # chkconfig: - 30 88
 #
 
-USER=@USR@
 MHVTL_CONFIG_PATH=@CONF_PATH@
 MHVTL_HOME_PATH=@HOME_PATH@
 
@@ -380,10 +379,8 @@ case "$1" in
 		exit 1
 	fi
 
-	chown -R $USER:$USER $MHVTL_CONFIG_PATH
-
 	# Build Library media
-	make_vtl_media $USER
+	make_vtl_media
 	if [ $? != 0 ]; then
 		echo "make_vtl_media failed.."
 		exit 1
@@ -391,7 +388,7 @@ case "$1" in
 
 	# Build Library config - No. of drives & serial Nos etc..
 	# This also loads each tape daemon.
-	build_library_config $USER </dev/null >/var/log/mhvtl.out 2>&1
+	build_library_config </dev/null >/var/log/mhvtl.out 2>&1
 	if [ $? != 0 ]; then
 		echo "build_library_config failed.. Could not start daemons"
 		exit 1
@@ -413,7 +410,7 @@ case "$1" in
     stop)
         echo "shutdown of mhvtl"
 
-	if [ -z "`ps --user $USER|grep -v TIME`" ]; then
+	if [ -z "`ps -ax|fgrep -v grep|grep mhvtl`" ]; then
 		echo "mhvtl not running..."
 		exit 0
 	fi

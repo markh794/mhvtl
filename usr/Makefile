@@ -22,10 +22,6 @@ VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
 PREFIX ?= /usr
-USR ?= vtl
-SUSER = root
-GROUP ?= vtl
-BINGROUP ?= bin
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
@@ -46,7 +42,6 @@ CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
 CFLAGS += -D_GNU_SOURCE
 CFLAGS += -DMHVTL_DEBUG
-CFLAGS += -DUSR=\"$(USR)\"
 CFLAGS += -DMHVTL_HOME_PATH=\"$(MHVTL_HOME_PATH)\"
 CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 
@@ -224,16 +219,16 @@ distclean:
 
 install:
 	install -d -m 755 $(DESTDIR)$(LIBDIR)
-	install -o $(SUSER) -g $(BINGROUP) -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
-	install -o $(SUSER) -g $(BINGROUP) -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
+	install -g bin -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
+	install -g bin -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
 	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
-	install -o $(SUSER) -g $(GROUP) -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
-	install -o $(SUSER) -g $(GROUP) -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
-	install -o $(USR) -g $(GROUP) -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
-	install -o $(USR) -g $(GROUP) -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
-	install -o $(USR) -g $(GROUP) -m 750 dump_tape $(DESTDIR)$(PREFIX)/bin/
-	install -o $(USR) -g $(GROUP) -m 750 edit_tape $(DESTDIR)$(PREFIX)/bin/
-	install -o $(USR) -g $(GROUP) -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
+	install -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
+	install -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
+	install -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
+	install -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
+	install -m 750 dump_tape $(DESTDIR)$(PREFIX)/bin/
+	install -m 750 edit_tape $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
 

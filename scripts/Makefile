@@ -1,7 +1,6 @@
 
 RCFILE = update_device.conf
 PREFIX ?= /usr
-USR ?= vtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')

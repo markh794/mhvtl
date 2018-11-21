@@ -1679,7 +1679,6 @@ int main(int argc, char *argv[])
 	char *progname = argv[0];
 	char *name = "mhvtl";
 	char *fifoname = NULL;
-	struct passwd *pw;
 
 	memset(&vtl_cmd, 0, sizeof(struct vtl_header));
 	memset(&ctl, 0, sizeof(struct vtl_ctl));
@@ -1750,13 +1749,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* Check for correct user-account before creating lu */
-	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
-	if (!pw) {
-		printf("Unable to find user: %s\n", USR);
-		exit(1);
-	}
-
 	new_action.sa_handler = caught_signal;
 	new_action.sa_flags = 0;
 	sigemptyset(&new_action.sa_mask);
@@ -1775,20 +1767,6 @@ int main(int argc, char *argv[])
 		printf("Could not create logical unit\n");
 		exit(1);
 	}
-
-	chrdev_chown(my_id, pw->pw_uid, pw->pw_gid);
-
-	/* Now that we have created the lu, drop root uid/gid */
-	if (setgid(pw->pw_gid)) {
-		perror("Unable to change gid");
-		exit(1);
-	}
-	if (setuid(pw->pw_uid)) {
-		perror("Unable to change uid");
-		exit(1);
-	}
-
-	MHVTL_DBG(2, "Running as %s, uid: %d", pw->pw_name, getuid());
 
 	/* Initialise message queue as necessary */
 	r_qid = init_queue();

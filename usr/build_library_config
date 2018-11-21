@@ -21,8 +21,8 @@
 
 export PATH=/usr/bin:$PATH
 
-if [ $# != 1 ]; then
-	echo "Usage: $0 username"
+if [ $# != 0 ]; then
+	echo "Usage: $0"
 	exit 1
 fi
 
@@ -32,7 +32,6 @@ else
 	. $MHVTL_CONFIG_PATH/mhvtl.conf
 fi
 
-USER=$1
 TMP=/var/tmp/_build.$$
 DEVICE_CONF=$MHVTL_CONFIG_PATH/device.conf
 OPTIONS=""

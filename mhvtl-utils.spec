@@ -45,14 +45,6 @@ The SSC/SMC target daemons have been written from scratch.
 %{__rm} -rf %{buildroot}
 %{__make} install DESTDIR="%{buildroot}" INITD="%{_initrddir}" LIBDIR="%{_libdir}"
 
-%pre
-if ! getent group vtl &>/dev/null; then
-   groupadd -r vtl
-fi
-if ! getent passwd vtl &>/dev/null; then
-   useradd -r -g vtl -c "VTL daemon" -d /opt/mhvtl -s /bin/bash vtl
-fi
-
 %post
 /sbin/ldconfig
 /sbin/chkconfig --add mhvtl
@@ -69,7 +61,7 @@ fi
 %{__rm} -rf %{buildroot}
 
 %files
-%defattr(-, vtl, vtl, 0755)
+%defattr(-, root, root, 0755)
 %doc INSTALL README etc/library_contents.sample
 %doc %{_mandir}/man1/build_library_config.1*
 %doc %{_mandir}/man1/mhvtl.1*
@@ -94,11 +86,11 @@ fi
 %{_libdir}/libvtlscsi.so
 %{_libdir}/libvtlcart.so
 
-%defattr(4750, root, vtl, 0755)
+%defattr(4750, root, root, 0755)
 %{_bindir}/vtltape
 %{_bindir}/vtllibrary
 
-%defattr(-, vtl, vtl, 2770)
+%defattr(-, root, root, 2770)
 /opt/mhvtl/
 
 %changelog
