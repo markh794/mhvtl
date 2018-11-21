@@ -48,7 +48,6 @@ Pre-req to build/compile userspace:
  rpmbuild -tb mhvtl-YYYY-MM-DD.tar.gz
  <wait for rpm build to complete>
  rpm -Uvh /usr/src/packages/RPMS/<cpu type>/mhvtl-1.3-z.<cpu type>.rpm
- (The rpm install will create system group & accounts vtl)
 - Note: For RedHat, replace 'packages' with 'redhat'
 
 * To build from tar archive (Debian / Ubuntu):
@@ -56,10 +55,9 @@ Pre-req to build/compile userspace:
  apt-get install lsscsi
  apt-get install sg3_utils
 
-To limit damage that may occur by wayward daemons, I highly recommend creating
-a group and user called 'vtl'
-# /usr/sbin/groupadd --system vtl
-# /usr/sbin/useradd --system -c "Vitrual Tape Library" -d /opt/vtl -g vtl -m vtl
+Note: we used to create a user and group called "vtl" to try to limit
+the possible system hazards of having root access. But we now feel
+that normal Linux permissions and security controls are sufficient.
 
 Now build user space daemons:
 From the parent directory where you extracted the source.
@@ -70,9 +68,6 @@ Build the binaries
 
 Install the rc script into /etc/init.d/ and binaries to /usr/local/bin/
 # make install
-
-Set ownership of /opt/mhvtl to vtl user
-# chown -R vtl /opt/mhvtl
 
 Start daemons:
 /etc/init.d/mhvtl start

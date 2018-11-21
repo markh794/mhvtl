@@ -36,9 +36,6 @@ MONTH = $(shell date -r ../ChangeLog +%B)
 YEAR = $(shell date -r ../ChangeLog +%Y)
 
 PREFIX ?= /usr
-USR ?= vtl
-SUSER = root
-GROUP ?= vtl
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 MANDIR ?= /share/man
@@ -46,7 +43,6 @@ MANDIR ?= /share/man
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
 CFLAGS += -DMHVTL_DEBUG
-CFLAGS += -DUSR=\"$(USR)\"
 CFLAGS += -DMHVTL_HOME_PATH=\"$(MHVTL_HOME_PATH)\"
 CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 
@@ -66,20 +62,20 @@ $(objects) :
 install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man1
 	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man5
-	install -o $(USER) mhvtl.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) mktape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) vtlcmd.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) vtltape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) edit_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) vtllibrary.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) make_vtl_media.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) build_library_config.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) update_device.conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install -o $(USER) mhvtl.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
-	install -o $(USER) device.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
-	install -o $(USER) library_contents.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
+	install mhvtl.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install mktape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install vtlcmd.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install vtltape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install edit_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install vtllibrary.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install make_vtl_media.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install build_library_config.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install update_device.conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install mhvtl.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
+	install device.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
+	install library_contents.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 
 clean:
 	rm -f *.1 *.5

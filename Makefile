@@ -18,10 +18,6 @@ EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git branch |
 
 PARENTDIR = mhvtl-$(VER)
 PREFIX ?= /usr
-USR ?= vtl
-SUSER ?=root
-GROUP ?= vtl
-BINGROUP ?= bin
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 LIBDIR ?= /usr/lib
@@ -39,10 +35,10 @@ scripts:	patch
 	$(MAKE) -C scripts MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
 
 etc:	patch
-	$(MAKE) -C etc USR=$(USR) GROUP=$(GROUP) MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
+	$(MAKE) -C etc MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
 
 usr:	patch
-	$(MAKE) -C usr USR=$(USR) GROUP=$(GROUP) MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
+	$(MAKE) -C usr MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
 
 kernel: patch
 	$(MAKE) -C kernel
@@ -77,9 +73,9 @@ install:
 	$(MAKE) scripts
 	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
 	$(MAKE) etc
-	$(MAKE) -i -C etc install $(DESTDIR) USR=$(USR)
+	$(MAKE) -i -C etc install $(DESTDIR)
 	$(MAKE) -C man man
-	$(MAKE) -C man install $(PREFIX) $(DESTDIR) USR=$(USR)
+	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
 	test -d $(DESTDIR)/opt/mhvtl || mkdir -p $(DESTDIR)/opt/mhvtl
 
 tar:

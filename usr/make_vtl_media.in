@@ -20,8 +20,8 @@
 # * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 export PATH=/usr/bin:$PATH
 
-if [ $# -ne 1 ]; then
-	echo "Usage: $0 username"
+if [ $# -ne 0 ]; then
+	echo "Usage: $0"
 	exit 1
 fi
 
@@ -34,8 +34,6 @@ else
 	. $MHVTL_CONFIG_PATH/mhvtl.conf
 fi
 
-USER=${1:-vtl}	# Default user 'vtl'
-
 #dry='echo'
 
 # Test for 'runuser' used on Scientific Linux, else default with 'su'
@@ -44,14 +42,6 @@ if [ -x "$(which runuser 2>&1)" ]; then
 else
 	RUNAS=su
 fi
-
-run() {
-	if [ -x "$(which setuidgid 2>&1)" ]; then
-		$dry setuidgid $USER $*
-	else
-		$dry $RUNAS $USER -c "$*"
-	fi
-}
 
 media_type() {
 	type=$1
@@ -159,7 +149,6 @@ CAPACITY=${CAPACITY:=500}
 if [ ! -d $MHVTL_HOME_PATH ]; then
 	mkdir -p $MHVTL_HOME_PATH
 	chmod 750 $MHVTL_HOME_PATH
-	chown $USER:$USER $MHVTL_HOME_PATH
 fi
 
 # Create any media specified in library config.
@@ -175,7 +164,7 @@ do
 		set_density $a
 		media_type $a
 		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			run "mktape -l $LIB -s $CAPACITY -t $TYPE -m $a -d $DENSITY"
+			mktape -l $LIB -s $CAPACITY -t $TYPE -m $a -d $DENSITY
 		fi
 	done
 done

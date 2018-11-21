@@ -67,8 +67,6 @@ int main(int argc, char *argv[])
 	char *lib = NULL;
 	uint64_t size;
 	int libno;
-	struct stat statb;
-	struct passwd *pw;
 
 	if (sizeof(struct MAM) != 1024) {
 		printf("Structure of MAM incorrect size: %d\n",
@@ -177,25 +175,6 @@ int main(int argc, char *argv[])
 		usage(progname);
 		exit(1);
 	}
-
-	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
-
-	/* Verify that the MHVTL home directory exists. */
-	if (stat(home_directory, &statb) < 0 && errno == ENOENT) {
-		umask(0007);
-		if (mkdir(home_directory, 02770) < 0) {
-			printf("Cannot create PCL %s, directory %s:"
-				"Doesn't exist and cannot be created\n",
-						pcl, home_directory);
-			exit(1);
-		}
-	}
-
-	/* Don't really care if this fails or not..
-	 * But lets try anyway
-	 */
-	if (chown(home_directory, pw->pw_uid, pw->pw_gid))
-		;
 
 	/* Initialize the contents of the MAM to be used for the new PCL. */
 	memset((uint8_t *)&mam, 0, sizeof(mam));

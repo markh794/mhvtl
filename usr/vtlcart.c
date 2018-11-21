@@ -656,20 +656,12 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	char newMedia_data[1024];
 	char newMedia_indx[1024];
 	char newMedia_meta[1024];
-	struct passwd *pw;
 	int rc = 0;
 
 	/* Attempt to create the new PCL.  This will fail if the PCL's directory
 	   or any of the PCL's three files already exist, leaving any existing
 	   files as they were.
 	*/
-
-	pw = getpwnam(USR);	/* Find UID for user 'vtl' */
-	if (!pw) {
-		MHVTL_ERR("Failed to get UID for user '%s': %s", USR,
-			strerror(errno));
-		return 1;
-	}
 
 	asprintf(&newMedia, "%s/%s", home_directory, pcl);
 
@@ -693,11 +685,6 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		}
 		rc = 0;
 	}
-
-	/* Don't really care if chown() fails or not..
-	 * But lets try anyway
-	 */
-	chown(newMedia, pw->pw_uid, pw->pw_gid);
 
 	datafile = creat(newMedia_data, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (datafile == -1) {
@@ -723,9 +710,6 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		rc = 2;
 		goto cleanup;
 	}
-	chown(newMedia_data, pw->pw_uid, pw->pw_gid);
-	chown(newMedia_indx, pw->pw_uid, pw->pw_gid);
-	chown(newMedia_meta, pw->pw_uid, pw->pw_gid);
 
 	MHVTL_LOG("%s files created", newMedia);
 
