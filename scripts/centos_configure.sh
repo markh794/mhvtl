@@ -23,13 +23,9 @@ yum install -y git
 # install supported Rpms
 yum install -y mc ntp gcc gcc-c++ make kernel-devel zlib-devel sg3_utils lsscsi mt-st mtx lzo lzo-devel perl-Config-General
 
-# create user, group and folders
-/usr/sbin/groupadd -r vtl
-/usr/sbin/useradd -r -c "Virtual Tape Library" -d /opt/mhvtl -g vtl vtl
+# Create required directories
 mkdir -p /opt/mhvtl
 mkdir -p /etc/mhvtl
-chown -Rf vtl:vtl /opt/mhvtl
-chown -Rf vtl:vtl /etc/mhvtl
 
 # install mhvtl
 mkdir -p /usr/src/mhvtl
