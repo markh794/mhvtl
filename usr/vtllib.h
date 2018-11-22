@@ -547,7 +547,6 @@ void hex_dump(uint8_t *, int);
 void *zalloc(int sz);
 int chrdev_open(const char *name, unsigned minor);
 int chrdev_create(unsigned minor);
-int chrdev_chown(unsigned minor, uid_t uid, gid_t gid);
 int oom_adjust(void);
 int open_fifo(FILE **fifo_fd, char *fifoname);
 void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);
