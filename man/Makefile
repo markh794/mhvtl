@@ -40,14 +40,6 @@ MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 MANDIR ?= /share/man
 
-CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
-CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
-CFLAGS += -DMHVTL_DEBUG
-CFLAGS += -DMHVTL_HOME_PATH=\"$(MHVTL_HOME_PATH)\"
-CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
-
-CLFLAGS=-shared ${RPM_OPT_FLAGS}
-
 objects = $(patsubst %.in,%,$(wildcard *.in))
 
 man: $(objects)
