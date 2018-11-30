@@ -1,0 +1,295 @@
+#!/bin/bash
+#
+# generate_device_conf -- generate device.conf output to stdout
+#
+#	This script generates the device.conf file,
+#	and is used at installation time. This is done so that
+#	administrators/users can modify or copy this script and
+#	change their tape device configuration.
+#
+
+DEVICE_CONF='device.conf'
+PROG_NAME="$0"
+MHVTL_HOME_PATH=''
+DEST_DIR='.'
+FORCE=''
+
+usage()
+{
+	echo "Usage: $PROG_NAME: [OPTIONS] -- generate a $DEVICE_CONF file"
+	echo "where OPTIONS are from:"
+	echo "  [-h|--help]               -- print this message and exit"
+	echo "  [-H|--home-dir HOME_DIR]  -- specificy home dir [REQUIRED]"
+	echo "  [-D|--dest-dir DIRECTORY] -- specificy destination dir [$DEST_DIR]"
+	echo "  [-f|--force]                  -- overwrite files if present"
+}
+
+#
+# generate the static comments at the start of the file
+#
+generate_static_comments()
+{
+	if (( $# != 0 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+	cat << CONF_START
+
+VERSION: 5
+
+# VPD page format:
+# <page #> <Length> <x> <x+1>... <x+n>
+# NAA format is an 8 hex byte value seperated by ':'
+# Note: NAA is part of inquiry VPD 0x83
+#
+# Each 'record' is separated by one (or more) blank lines.
+# Each 'record' starts at column 1
+# Serial num max len is 10.
+# Compression: factor X enabled 0|1
+#     Where X is zlib compression factor	1 = Fastest compression
+#						9 = Best compression
+#     enabled 0 == off, 1 == on
+#
+# fifo: /var/tmp/mhvtl
+# If enabled, data must be read from fifo, otherwise daemon will block
+# trying to write.
+# e.g. cat /var/tmp/mhvtl (in another terminal)
+
+CONF_START
+}
+
+# add_library(DevID, Channel, Target, Lun, Vend, Prod, ProdRev, S/No)
+add_library()
+{
+	if (( $# != 8 )) ; then
+		echo "internal error: expected 8 arguments, got $#" 1>&2
+		exit 1
+	fi
+	ID=$1
+	CH=$2
+	TARGET=$3
+	LUN=$4
+	VENDOR_ID="$5"
+	PROD_ID="$6"
+	UNIT_SN="$8"
+
+	printf "Library: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
+			$ID $CH $TARGET $LUN
+	echo " Vendor identification: $VENDOR_ID"
+	echo " Product identification: $PROD_ID"
+	echo " Unit serial number: $UNIT_SN"
+	printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
+			$ID $CH $TARGET $LUN
+	echo " Home directory: $MHVTL_HOME_PATH"
+	echo " PERSIST: False"
+	echo " Backoff: 400"
+	echo "# fifo: /var/tmp/mhvtl"
+	echo ""
+}
+
+# add_drive(DevID, Channel, Target, Lun, Vend, Prod, ProdRev, S/No, LibID, Slot)
+add_drive()
+{
+	if (( $# != 11 )) ; then
+		echo "internal error: expected 11 arguments, got $#" 1>&2
+		exit 1
+	fi
+	ID=$1
+	CH=$2
+	TARGET=$3
+	LUN=$4
+	VENDORID=$5
+	PRODUCTID=$6
+	PRODUCTREV=$7
+	UNITSERNO=$8
+	LIB=$9
+
+	# get arg 10 & 11
+	shift 9
+	SLOT=$1
+	DENSITY=$2
+
+	printf "Drive: %02d CHANNEL: %02d TARGET: %02d LUN: %02d\n" \
+			$ID $CH $TARGET $LUN
+	printf " Library ID: %02d Slot: %02d\n" \
+			$LIB $SLOT
+	echo " Vendor identification: $VENDORID"
+	echo " Product identification: $PRODUCTID"
+	echo " Unit serial number: $UNITSERNO"
+	printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
+			$LIB $CH $TARGET $LUN
+	echo " Compression: factor 1 enabled 1"
+	echo " Compression type: lzo"
+	echo " Backoff: 400"
+	echo "# fifo: /var/tmp/mhvtl"
+	echo ""
+}
+
+add_ibm_ultrium_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+	add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD1" "550V" $5 $6 $7 42
+}
+
+add_ibm_ultrium_2_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+	add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD2" "550V" $5 $6 $7 44
+}
+
+add_ibm_ultrium_3_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+	add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD3" "550V" $5 $6 $7 46
+}
+
+add_ibm_ultrium_4_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+	add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD4" "550V" $5 $6 $7 48
+}
+
+add_ibm_ultrium_5_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+	add_drive $1 $2 $3 $4 "IBM" "ULT3580-TD5" "550V" $5 $6 $7 50
+}
+
+add_stk_t10kb_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	# ID=$1 CH=$2 TARGET=$3 LUN=$4 UNITSERNO=$5 LIB=$6 SLOT=$7
+	add_drive $1 $2 $3 $4 "STK" "T10000B" "550V" $5 $6 $7 50
+}
+
+add_library_contents_10()
+{
+	if (( $# != 0 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	#         index channel target LUN Vendor ProdID ProdRev S/No
+	add_library 10 0 0 0 "STK" "L700"  "550V"  "XYZZY_A"
+	#         index channel target LUN Vendor ProdID ProdRev S/No Lib# Slot
+	add_ibm_ultrium_5_drive 11 0 1 0 "XYZZY_A1" 10 1
+	add_ibm_ultrium_5_drive 12 0 2 0 "XYZZY_A2" 10 2
+	add_ibm_ultrium_4_drive 13 0 3 0 "XYZZY_A3" 10 3
+	add_ibm_ultrium_4_drive 14 0 4 0 "XYZZY_A4" 10 4
+}
+
+add_library_contents_30()
+{
+	if (( $# != 0 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+
+	add_library 30 0 8 0 "STK" "L80"  "550V"  "XYZZY_B"
+	add_stk_t10kb_drive 31 0 9 0 "XYZZY_B1" 30 1
+	add_stk_t10kb_drive 32 0 10 0 "XYZZY_B2" 30 2
+	add_stk_t10kb_drive 33 0 11 0 "XYZZY_B3" 30 3
+	add_stk_t10kb_drive 34 0 12 0 "XYZZY_B4" 30 4
+}
+
+#
+# start of script
+#
+
+TEMP=$(getopt -o 'hH:D:f' --long 'help,home-dir:,dest-dir:,force' -n "$PROG_NAME" -- "$@")
+if [[ $? -ne 0 ]] ; then
+	usage
+	exit 1
+fi
+eval set - "$TEMP"
+unset TEMP
+
+while true; do
+	case "$1" in
+	'-h'|'--help')
+		usage
+		exit 0
+		;;
+	'-H'|'--home-dir')
+		MHVTL_HOME_PATH="$2"
+		shift 2
+		continue
+		;;
+	'-D'|'--dest-dir')
+		DEST_DIR="$2"
+		shift 2
+		continue
+		;;
+	'-f'|'--force')
+		FORCE='1'
+		shift
+		continue
+		;;
+	'--')
+		shift
+		break
+		;;
+	*)
+		echo "internal error: unknown arg: $1" 1>&2
+		exit 1
+	esac
+done
+
+# should be no more arguments
+if [[ $# -gt 0 ]] ; then
+	echo "error: too many carguments"
+	usage
+	exit 1
+fi
+
+# verify a home dir was supplied
+if [ -z "$MHVTL_HOME_PATH" ] ; then
+	echo "error: MUST supply home directory" 1>&2
+	usage
+	exit 1
+fi
+
+if [[ -r $DEST_DIR/$DEVICE_CONF ]] ; then
+	if [[ -z "$FORCE" ]] ; then
+		echo "error: already exists: $DEST_DIR/$DEVICE_CONF" 1>&2
+		exit 1
+	fi
+fi
+
+echo '===>' "Generating: $DEST_DIR/$DEVICE_CONF ..."
+(
+	generate_static_comments
+	add_library_contents_10
+	add_library_contents_30
+) > $DEST_DIR/$DEVICE_CONF
+
+exit 0

@@ -54,14 +54,12 @@ $(objects) :
 install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man1
 	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man5
-	install mhvtl.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install mktape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install vtlcmd.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install vtltape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install edit_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install vtllibrary.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install make_vtl_media.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install build_library_config.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install update_device.conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/

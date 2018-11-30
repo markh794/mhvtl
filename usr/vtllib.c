@@ -607,7 +607,7 @@ err:
 	return ret;
 }
 
-int chrdev_open(char *name, unsigned minor)
+int chrdev_open(const char *name, unsigned minor)
 {
 	FILE *f;
 	char devname[256];

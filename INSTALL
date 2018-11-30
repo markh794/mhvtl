@@ -12,24 +12,28 @@ Kernel module mhvtl:
 1) Make sure the kernel-devel package to match your running kernel is installed.
 e.g.
 RedHat AS 4 & 5:
-# rpm -qa|grep kernel
-kernel-2.6.9-34.0.1.EL
-kernel-devel-2.6.9-34.0.1.EL
-kernel-2.6.9-5.EL
-kernel-devel-2.6.9-5.EL
-kernel-utils-2.4-13.1.80
+
+	sh> rpm -qa|grep kernel
+	kernel-2.6.9-34.0.1.EL
+	kernel-devel-2.6.9-34.0.1.EL
+	kernel-2.6.9-5.EL
+	kernel-devel-2.6.9-5.EL
+	kernel-utils-2.4-13.1.80
 
 SLES 9 & 10:
-# rpm -qa|grep kernel
+
+	sh> rpm -qa|grep kernel
 
 
 2) Extract the mhvtl source code.
-# tar xvfz mhvtl-2012-06-15.tgz
+
+	sh> tar xvfz mhvtl-2012-06-15.tgz
 
 3) Change directory into the kernel driver source.
-# cd mhvtl-1.3/kernel/
-# make
-# make install
+
+	sh> cd mhvtl-1.3/kernel/
+	sh> make
+	sh> sudo make install
 
 
 User space daemons:
@@ -43,11 +47,14 @@ Pre-req to build/compile userspace:
 
 * To build an RPM
   ===============
- cp mhvtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
- cd /usr/src/packages/SOURCE
- rpmbuild -tb mhvtl-YYYY-MM-DD.tar.gz
- <wait for rpm build to complete>
- rpm -Uvh /usr/src/packages/RPMS/<cpu type>/mhvtl-1.3-z.<cpu type>.rpm
+
+	sh> sudo cp mhvtl-YYYY-MM-DD.tar.gz /usr/src/packages/SOURCE/
+	sh> cd /usr/src/packages/SOURCE
+	sh> sudo rpmbuild -tb mhvtl-YYYY-MM-DD.tar.gz
+	...  <wait for rpm build to complete>
+	sh> sudo rpm -Uvh /usr/src/packages/RPMS/<cpu type>/mhvtl-1.3-z.<cpu type>.rpm
+	...
+
 - Note: For RedHat, replace 'packages' with 'redhat'
 
 * To build from tar archive (Debian / Ubuntu):
@@ -61,16 +68,30 @@ that normal Linux permissions and security controls are sufficient.
 
 Now build user space daemons:
 From the parent directory where you extracted the source.
-# cd mhvtl-1.3
+
+	sh> cd mhvtl-1.3
 
 Build the binaries
-# make
 
-Install the rc script into /etc/init.d/ and binaries to /usr/local/bin/
-# make install
+	sh> make
 
-Start daemons:
-/etc/init.d/mhvtl start
+Install the systemd scripts and binaries and tell systemd:
+
+	sh> sudo make install
+	sh> sudo systemdctl daemon-reload
+
+Enable and start the mhvtl service:
+
+	sh> sudo systemctl enable mhvtl.service
+	sh> sudo systemctl start mhvtl.service
+
+And make sure it worked:
+
+	sh> sudo systemctl status mhvtl.service
+
+You can test that your vtl* daemons are running with:
+
+	sh> ps -ax | frep vtl
 
 Test:
 Note: Make sure the 'mtx' & 'lsscsi' utilities are installed

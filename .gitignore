@@ -2,7 +2,6 @@
 *.o
 *~
 /cscope.*
-/etc/mhvtl
 /kernel/.*.ko.cmd
 /kernel/.*.o.cmd
 /kernel/.tmp_versions/
@@ -10,16 +9,5 @@
 /kernel/Module.symvers
 /kernel/modules.order
 /scripts/update_device.conf
-/usr/dump_messageQ
-/usr/dump_tape
-/usr/edit_tape
-/usr/libvtlcart.so
-/usr/libvtlscsi.so
-/usr/make_vtl_media
-/usr/mktape
-/usr/tapeexerciser
-/usr/vtlcmd
-/usr/vtllibrary
-/usr/vtltape
 /man/*.1
 /man/*.5

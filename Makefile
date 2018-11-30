@@ -13,6 +13,8 @@
 VER = $(shell awk '/Version/ {print $$2}'  mhvtl-utils.spec)
 REL = $(shell awk '/Release/ {print $$2}'  mhvtl-utils.spec | sed s/%{?dist}//g)
 
+TOPDIR = $(shell basename $$PWD)
+
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git branch |awk '/\*/ {print $$2}'))
 
@@ -23,6 +25,10 @@ MHVTL_CONFIG_PATH ?= /etc/mhvtl
 LIBDIR ?= /usr/lib
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
+
+TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION)$(EXTRAVERSION).tgz
+
+MAKE_VTL_MEDIA = usr/make_vtl_media
 
 export PREFIX DESTDIR
 
@@ -60,28 +66,28 @@ clean:
 	$(MAKE) -C scripts clean
 	$(MAKE) -C man clean
 
+.PHONY: distclean
 distclean:
 	$(MAKE) -C usr distclean
 	$(MAKE) -C etc distclean
 	$(MAKE) -C scripts distclean
 	$(MAKE) -C kernel distclean
 	$(MAKE) -C man clean
+	$(RM) ../$(TAR_FILE)
 
-install:
-	$(MAKE) usr
+install: all
 	$(MAKE) -C usr install $(LIBDIR) $(PREFIX) $(DESTDIR)
-	$(MAKE) scripts
 	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
-	$(MAKE) etc
 	$(MAKE) -i -C etc install $(DESTDIR)
 	$(MAKE) -C man man
 	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
-	test -d $(DESTDIR)/opt/mhvtl || mkdir -p $(DESTDIR)/opt/mhvtl
+	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
+	# now ensure VTL media is setup
+	$(MAKE_VTL_MEDIA)
 
-tar:
-	$(MAKE) distclean
-	test -d ../$(PARENTDIR) || ln -s mhvtl ../$(PARENTDIR)
-	(cd ..;  tar cvfz /home/markh/mhvtl-`date +%F`-$(VERSION)$(EXTRAVERSION).tgz  --exclude=.git \
+tar: distclean
+	test -d ../$(PARENTDIR) || ln -s $(TOPDIR) ../$(PARENTDIR)
+	(cd ..;  tar cvzf $(TAR_FILE) --exclude='.git*' \
 		 $(PARENTDIR)/man \
 		 $(PARENTDIR)/doc \
 		 $(PARENTDIR)/kernel \
@@ -93,4 +99,4 @@ tar:
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
 		 $(PARENTDIR)/mhvtl-utils.spec)
-
+	$(RM) ../$(PARENTDIR)

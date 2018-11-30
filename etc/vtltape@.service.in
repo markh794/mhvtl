@@ -1,0 +1,18 @@
+[Unit]
+Documentation=man:vtltape(1) man:vtlcmd(1)
+Description=Tape Daemon for Virtual Tape & Robot Library
+Before=multi-user.target graphical.target
+Requires=mhvtl-load-modules.service
+After=mhvtl-load-modules.service
+PartOf=mhvtl.service
+
+[Service]
+Type=simple
+Environment=VERBOSE=0
+Environment=DAEMON_DEBUG=""
+EnvironmentFile=-@CONF_PATH@/mhvtl.conf
+ExecStart=/usr/bin/vtltape -F -q%i -v${VERBOSE} ${DAEMON_DEBUG}
+ExecStop=/usr/bin/vtlcmd %i exit
+
+[Install]
+WantedBy=multi-user.target graphical.target mhvtl.service

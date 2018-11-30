@@ -18,122 +18,130 @@
 # * You should have received a copy of the GNU General Public License
 # * along with this program; if not, write to the Free Software
 # * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-export PATH=/usr/bin:$PATH
+#
+# TODO:
+#	- ensure we are root?
+#
 
 if [ $# -ne 0 ]; then
-	echo "Usage: $0"
+	echo "Usage: $0" 1>&2
 	exit 1
 fi
 
-MHVTL_HOME_PATH=@HOME_PATH@
+CONFIG_FILE='@CONF_PATH@/mhvtl.conf'
 
-# Source default config file if not already set
-if [ "X$MHVTL_CONFIG_PATH" == "X" ]; then
-	. @CONF_PATH@/mhvtl.conf
-else
-	. $MHVTL_CONFIG_PATH/mhvtl.conf
+if [[ ! -r $CONFIG_FILE ]] ; then
+	echo "error: config file not found: $CONFIG_FILE" 1>&2
+	exit 1
 fi
 
-#dry='echo'
+. $CONFIG_FILE
 
-# Test for 'runuser' used on Scientific Linux, else default with 'su'
-if [ -x "$(which runuser 2>&1)" ]; then
-	RUNAS=runuser
-else
-	RUNAS=su
-fi
-
-media_type() {
+#
+# set_media_type -- set global variable MEDIA_MEDIA_TYPE
+#
+set_media_type()
+{
+	if (( $# != 1 )) ; then
+		echo "internal error: wrong number of arguments" 1>&1
+		exit 1
+	fi
 	type=$1
+
 	e0_regex='[A-Z0-9]{6,8}([J])([WXY])$'
 	lto_regex='[A-Z0-9]{6,8}([L])([TUVW])$'
-# default to data type
-	TYPE=data
+
+	# default to data type
+	MEDIA_TYPE=data
 
 	if [[ $type =~ ^"W" ]]; then
-		TYPE=`echo -e "WORM"`;
+		MEDIA_TYPE="work"
 	elif [[ $type =~ ^"CLN" ]]; then
-		TYPE=`echo -e "clean"`;
+		MEDIA_TYPE="clean"
 	# Match JW / JX as 'worm' media
 	elif [[ $type =~ $e0_regex ]]; then
-		TYPE=`echo -e "WORM"`;
+		MEDIA_TYPE="WORM"
 	elif [[ $type =~ $lto_regex ]]; then
-		TYPE=`echo -e "WORM"`;
+		MEDIA_TYPE="WORM"
 	fi
 }
 
-# I'm sure there is a better method then this...
-# There is.. Thanks to Gavin Barnard.
-set_density() {
+#
+# set_density -- set global variable DENSITY
+#
+set_density()
+{
+	if (( $# != 1 )) ; then
+		echo "internal error: wrong number of arguments" 1>&1
+		exit 1
+	fi
 	density=$1
+
+	# I'm sure there is a better method then this...
+	# There is.. Thanks to Gavin Barnard.
 	regex='[A-Z0-9]{6,8}([SLXTJD])([12345678ABKUVWXYZ])$'
 	#regex='[A-Z0-9]{4,6}([SLXTJ])([123456ABWX])[0-9]*$' # for bacula
 	DENSITY=UNKNOWN
 
 	if [[ $density =~ $regex ]]; then
-		matches=${#BASH_REMATCH[*]}
+		#matches=${#BASH_REMATCH[*]}
 		if [ ${BASH_REMATCH[1]} = 'L' ]; then
 			if [ ${BASH_REMATCH[2]} = 'T' ]; then
-				DENSITY=`echo -e "LTO3"`
+				DENSITY="LTO3"
 			elif [ ${BASH_REMATCH[2]} = 'U' ]; then
-				DENSITY=`echo -e "LTO4"`
+				DENSITY="LTO4"
 			elif [ ${BASH_REMATCH[2]} = 'V' ]; then
-				DENSITY=`echo -e "LTO5"`
+				DENSITY="LTO5"
 			elif [ ${BASH_REMATCH[2]} = 'W' ]; then
-				DENSITY=`echo -e "LTO6"`
+				DENSITY="LTO6"
 			else
-				DENSITY=`echo -e "LTO${BASH_REMATCH[2]}"`
+				DENSITY="LTO${BASH_REMATCH[2]}"
 			fi
-		fi
-		if [ ${BASH_REMATCH[1]} = 'D' ]; then
+		elif [ ${BASH_REMATCH[1]} = 'D' ]; then
 			if [ ${BASH_REMATCH[2]} = '7' ]; then
-				DENSITY=`echo -e "DLT4"`;
+				DENSITY="DLT4"
 			fi
-		fi
-		if [ ${BASH_REMATCH[1]} = 'S' ]; then
+		elif [ ${BASH_REMATCH[1]} = 'S' ]; then
 			if [ ${BASH_REMATCH[2]} = '3' ]; then
-				DENSITY=`echo -e "SDLT600"`;
+				DENSITY="SDLT600"
 			elif [ ${BASH_REMATCH[2]} = '2' ]; then
-				DENSITY=`echo -e "SDLT320"`;
+				DENSITY="SDLT320"
 			elif [ ${BASH_REMATCH[2]} = '1' ]; then
-				DENSITY=`echo -e "SDLT220"`;
+				DENSITY="SDLT220"
 			else
-				DENSITY=`echo -e "SDLT"`;
+				DENSITY="SDLT"
 			fi
-		fi
-		if [ ${BASH_REMATCH[1]} = 'J' ]; then
+		elif [ ${BASH_REMATCH[1]} = 'J' ]; then
 			if [ ${BASH_REMATCH[2]} = 'A' ]; then
-				DENSITY=`echo -e "J1A"`
+				DENSITY="J1A"
 			elif [ ${BASH_REMATCH[2]} = 'B' ]; then
-				DENSITY=`echo -e "E05"`
+				DENSITY="E05"
 			elif [ ${BASH_REMATCH[2]} = 'W' ]; then
-				DENSITY=`echo -e "E05"`
+				DENSITY="E05"
 			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
-				DENSITY=`echo -e "E05"`
+				DENSITY="E05"
 			elif [ ${BASH_REMATCH[2]} = 'Y' ]; then
-				DENSITY=`echo -e "E07"`
+				DENSITY="E07"
 			elif [ ${BASH_REMATCH[2]} = 'K' ]; then
-				DENSITY=`echo -e "E07"`
+				DENSITY="E07"
 			fi
-		fi
-		if [ ${BASH_REMATCH[1]} = 'X' ]; then
-			DENSITY=`echo -e "AIT${BASH_REMATCH[2]}"`
-		fi
-		if [ ${BASH_REMATCH[1]} = 'T' ]; then
+		elif [ ${BASH_REMATCH[1]} = 'X' ]; then
+			DENSITY="AIT${BASH_REMATCH[2]}"
+		elif [ ${BASH_REMATCH[1]} = 'T' ]; then
 			if [ ${BASH_REMATCH[2]} = 'Z' ]; then
-				DENSITY=`echo -e "9840A"`;
+				DENSITY="9840A"
 			elif [ ${BASH_REMATCH[2]} = 'Y' ]; then
-				DENSITY=`echo -e "9840B"`;
+				DENSITY="9840B"
 			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
-				DENSITY=`echo -e "9840C"`;
+				DENSITY="9840C"
 			elif [ ${BASH_REMATCH[2]} = 'W' ]; then
-				DENSITY=`echo -e "9840D"`;
+				DENSITY="9840D"
 			elif [ ${BASH_REMATCH[2]} = 'V' ]; then
-				DENSITY=`echo -e "9940A"`;
+				DENSITY="9940A"
 			elif [ ${BASH_REMATCH[2]} = 'U' ]; then
-				DENSITY=`echo -e "9940B"`;
+				DENSITY="9940B"
 			else
-				DENSITY=`echo -e "T10K${BASH_REMATCH[2]}"`
+				DENSITY="T10K${BASH_REMATCH[2]}"
 			fi
 		fi
 	fi
@@ -146,7 +154,8 @@ set_density() {
 # Set default capacity to 500M if not defined.
 CAPACITY=${CAPACITY:=500}
 
-if [ ! -d $MHVTL_HOME_PATH ]; then
+if [[ ! -d $MHVTL_HOME_PATH ]] ; then
+	echo "warning: creating directory: $MHVTL_HOME_PATH" 1>&2
 	mkdir -p $MHVTL_HOME_PATH
 	chmod 750 $MHVTL_HOME_PATH
 fi
@@ -154,17 +163,24 @@ fi
 # Create any media specified in library config.
 umask 002
 
-# for LIBCONTENTS in $MHVTL_CONFIG_PATH/library_contents.*
-for LIB in `awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/device.conf`
-do
-	LIBCONTENTS="$MHVTL_CONFIG_PATH/library_contents.$LIB"
+if [[ ! -r $MHVTL_CONFIG_PATH/device.conf ]] ; then
+	echo "error: not found: $MHVTL_CONFIG_PATH/device.conf" 1>&2
+	exit 1
+fi
 
-	for a in `cat $LIBCONTENTS|awk '/^Slot/ {print $3}' | sort -u`
-	do
+# for LIBCONTENTS in $MHVTL_CONFIG_PATH/library_contents.*
+for LIBID in $(awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/device.conf) ; do
+	LIBCONTENTS="$MHVTL_CONFIG_PATH/library_contents.$LIBID"
+
+	if [[ ! -r $LIBCONTENTS ]] ; then
+		echo "error: not found: $LIBCONTENTS" 1>&2
+		exit 1
+	fi
+	for a in $(awk '/^Slot/ {print $3}' <$LIBCONTENTS|sort -u) ; do
 		set_density $a
-		media_type $a
+		set_media_type $a
 		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			mktape -l $LIB -s $CAPACITY -t $TYPE -m $a -d $DENSITY
+			mktape -l $LIBID -s $CAPACITY -t $MEDIA_TYPE -m $a -d $DENSITY
 		fi
 	done
 done

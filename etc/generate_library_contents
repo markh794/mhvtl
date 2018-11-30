@@ -1,0 +1,187 @@
+#!/bin/bash
+#
+# generate_library_contents -- generate library_contents.* files
+#
+#	This script generates the library_contents.<NUMBER> (where
+#	number defaults to 10 and 30) files in our configuration
+#	directory. This is normally only done at installation time,
+#	but having this script makes it possible for administrators/
+#	users to customize the configuration if desired.
+#
+
+DEVICE_CONF='device.conf'
+PROG_NAME="$0"
+FORCE=''
+MHVTL_CONFIG_PATH='.'
+DEST_DIR='.'
+
+usage()
+{
+	echo "Usage: $PROG_NAME: [OPTIONS] -- generate" 'library_contents.* files from device.conf'
+	echo "where OPTIONS are from:"
+	echo "  [-h|--help]                   -- print this message and exit"
+	echo "  [-C|--config-dir CONFIG_DIR]  -- specificy config dir [$MHVTL_CONFIG_PATH]"
+	echo "  [-D|--dest-dir DIRECTORY]     -- specificy destination dir [$DEST_DIR]"
+	echo "  [-f|--force]                  -- overwrite files if present"
+}
+
+create_library_file()
+{
+	if (( $# != 1 )) ; then
+		echo "create_library_file internal error: expected 1 argument, got $#" 1>&2
+		exit 1
+	fi
+
+	LIBID=$1
+
+	echo "VERSION: 2"
+	echo ""
+
+	# Count number of drives in this library
+	DRV_COUNT=$(grep -c "Library ID: $LIBID" $MHVTL_CONFIG_PATH/$DEVICE_CONF)
+
+	# Add a 'Drive X:' for each drive
+	for a in $(seq 1 $DRV_COUNT) ; do
+		printf "Drive %d:\n" $a
+	done
+
+	# create the static (non-changing, comment) part of the file
+	cat <<CONF_SAMPLE
+
+Picker 1:
+
+MAP 1:
+MAP 2:
+MAP 3:
+MAP 4:
+
+# Slot 1 - ?, no gaps
+# Slot N: [barcode]
+# [barcode]
+# a barcode is comprised of three fields: [Leading] [identifier] [Trailing]
+# Leading "CLN" -- cleaning tape
+# Leading "W" -- WORM tape
+# Leading "NOBAR" -- will appear to have no barcode
+# If the barcode is at least 8 character long, then the last two characters are Trailing
+# Trailing "S3" - SDLT600
+# Trailing "X4" - AIT-4
+# Trailing "L1" - LTO 1, "L2" - LTO 2, "L3" - LTO 3, "L4" - LTO 4, "L5" - LTO 5
+# Trailing "LT" - LTO 3 WORM, "LU" -  LTO 4 WORM, "LV" - LTO 5 WORM
+# Trailing "L6" - LTO 6, "LW" - LTO 6 WORM
+# Trailing "TA" - T10000+
+# Trailing "TZ" - 9840A, "TY" - 9840B, "TX" - 9840C, "TW" - 9840D
+# Trailing "TV" - 9940A, "TU" - 9940B
+# Trailing "JA" - 3592+
+# Trailing "JB" - 3592E05+
+# Trailing "JC" - 3592E06+
+# Trailing "JK" - 3592E07+
+# Trailing "JW" - WORM 3592+
+# Trailing "JX" - WORM 3592E05+ & 3592E06
+# Trailing "JY" - WORM 3592E07+
+# Trailing "D7" - DLT7000 media (DLT IV)
+#
+CONF_SAMPLE
+
+	# create the data in the file
+	case $LIBID in
+	'10')
+		# LTO-4 Media
+		for a in {1..20} ; do
+			printf "Slot $a: E0%02d%02dL4\n" $LIBID $a
+		done
+		printf "Slot 21: \n"
+		printf "Slot 22: CLN%02d1L4\n" $LIBID
+		printf "Slot 23: CLN%02d2L5\n" $LIBID
+		for a in {24..29} ; do
+			printf "Slot $a:\n"
+		done
+
+		# LTO-5 Media
+		for a in {30..39} ; do
+			printf "Slot $a: F0%02d%02dL5\n" $LIBID $a
+		done
+		;;
+
+	'30')
+		for a in {1..39} ; do
+			printf "Slot $a: G0%02d%02dTA\n" $LIBID $a
+		done
+		printf "Slot 40: CLN%02d3TA\n" $LIBID
+		;;
+
+	*)
+		# Not a library this script created, but create some slots anyway
+		for a in {1..39} ; do
+			printf "Slot $a: M0%02d%02d\n" $LIBID $a
+		done
+		;;
+	esac
+}
+
+#
+# start of script
+#
+
+TEMP=$(getopt -o 'hC:D:f' --long 'help,config-dir:,dest-dir:,force' -n "$PROG_NAME" -- "$@")
+if [[ $? -ne 0 ]] ; then
+	usage
+	exit 1
+fi
+eval set - "$TEMP"
+unset TEMP
+
+while true; do
+	case "$1" in
+	'-h'|'--help')
+		usage
+		exit 0
+		;;
+	'-C'|'--config-dir')
+		MHVTL_CONFIG_PATH="$2"
+		shift 2
+		continue
+		;;
+	'-D'|'--dest-dir')
+		DEST_DIR="$2"
+		shift 2
+		continue
+		;;
+	'-f'|'--force')
+		FORCE='1'
+		shift
+		continue
+		;;
+	'--')
+		shift
+		break
+		;;
+	*)
+		echo "internal error: unknown arg: $1" 1>&2
+		exit 1
+	esac
+done
+
+# should be no more arguments
+if [[ $# -gt 0 ]] ; then
+	echo "error: too many carguments"
+	usage
+	exit 1
+fi
+
+# get a list of our libraries
+LIB_ID_LIST=$(awk '/^Library:/ {print $2}' $MHVTL_CONFIG_PATH/$DEVICE_CONF)
+
+for id in $LIB_ID_LIST ; do
+	ID_FILE="$MHVTL_CONFIG_PATH/library_contents.$id"
+
+	if [[ -r $ID_FILE ]] ; then
+		if [[ -z "$FORCE" ]] ; then
+			echo "error: already exists: $ID_FILE" 1>&2
+			exit 1
+		fi
+	fi
+	echo '===>' "Generating: $ID_FILE ..."
+	create_library_file $id > $ID_FILE
+done
+
+exit 0

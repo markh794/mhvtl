@@ -1,0 +1,20 @@
+[Unit]
+Description=Load mhvtl modules
+Documentation=man:man:vtltape(1) man:man:vtllibrary(1)
+Before=multi-user.target
+Before=graphical.target
+PartOf=mhvtl.service
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=VTL_DEBUG="0"
+EnvironmentFile=-@CONF_PATH@/mhvtl.conf
+ExecStart=/usr/sbin/modprobe mhvtl opts=${VTL_DEBUG}
+ExecStart=/usr/sbin/modprobe sg
+ExecStop=/usr/sbin/modprobe -ar mhvtl sg
+
+[Install]
+WantedBy=multi-user.target graphical.target mhvtl.service

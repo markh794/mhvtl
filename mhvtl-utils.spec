@@ -6,7 +6,7 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 Name: mhvtl-utils
 %define real_version 2016-03-10
 Version: 1.5
-Release: 4%{?dist}
+Release: 5%{?dist}
 License: GPL
 Group: System/Kernel
 URL: http://sites.google.com/site/linuxvtl2/
@@ -14,7 +14,10 @@ URL: http://sites.google.com/site/linuxvtl2/
 Source: mhvtl-%{real_version}.tgz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 
+BuildRequires: systemd
+BuildRequires: systemd-devel
 BuildRequires: zlib-devel
+%{?systemd_requires}
 
 Obsoletes: mhvtl <= %{version}-%{release}
 Provides: mhvtl = %{version}-%{release}
@@ -38,24 +41,26 @@ The SSC/SMC target daemons have been written from scratch.
 
 %build
 %{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" usr
-%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" INITD="%{_initrddir}" etc
+%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" etc
 %{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" scripts
 
 %install
 %{__rm} -rf %{buildroot}
-%{__make} install DESTDIR="%{buildroot}" INITD="%{_initrddir}" LIBDIR="%{_libdir}"
+%{__make} install DESTDIR="%{buildroot}" LIBDIR="%{_libdir}"
 
 %post
 /sbin/ldconfig
-/sbin/chkconfig --add mhvtl
+%{service_add_post mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+
+%postun
+/sbin/ldconfig
+%{service_del_postun mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+
+%pre
+%{service_add_pre mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %preun
-if (( $1 == 0 )); then
-    /sbin/service mhvtl shutdown &>/dev/null || :
-    /sbin/chkconfig --del mhvtl
-fi
-
-%postun -p /sbin/ldconfig
+%{service_del_preun mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %clean
 %{__rm} -rf %{buildroot}
@@ -63,35 +68,44 @@ fi
 %files
 %defattr(-, root, root, 0755)
 %doc INSTALL README etc/library_contents.sample
-%doc %{_mandir}/man1/build_library_config.1*
-%doc %{_mandir}/man1/mhvtl.1*
 %doc %{_mandir}/man1/mktape.1*
 %doc %{_mandir}/man1/edit_tape.1*
 %doc %{_mandir}/man1/vtlcmd.1*
 %doc %{_mandir}/man1/vtllibrary.1*
 %doc %{_mandir}/man1/vtltape.1*
+%doc %{_mandir}/man1/dump_tape.1*
 %doc %{_mandir}/man1/make_vtl_media.1*
+%doc %{_mandir}/man1/tapeexerciser.1*
+%doc %{_mandir}/man1/update_device.conf.1*
 %doc %{_mandir}/man5/device.conf.5*
 %doc %{_mandir}/man5/mhvtl.conf.5*
 %doc %{_mandir}/man5/library_contents.5*
-%config %{_initrddir}/mhvtl
 %{_bindir}/vtlcmd
 %{_bindir}/mktape
 %{_bindir}/edit_tape
 %{_bindir}/dump_tape
 %{_bindir}/tapeexerciser
-%{_bindir}/build_library_config
 %{_bindir}/make_vtl_media
 %{_bindir}/update_device.conf
 %{_libdir}/libvtlscsi.so
 %{_libdir}/libvtlcart.so
+%dir %{_sysconfdir}/mhvtl
+%config %{_sysconfdir}/mhvtl/mhvtl.conf
+%config %{_sysconfdir}/mhvtl/device.conf
+%config %{_sysconfdir}/mhvtl/library_contents.10
+%config %{_sysconfdir}/mhvtl/library_contents.30
+%{_libexecdir}/systemd/system-generators/mhvtl-device-conf-generator
+%{_unitdir}/mhvtl-load-modules.service
+%{_unitdir}/vtllibrary@.service
+%{_unitdir}/vtltape@.service
+%{_unitdir}/mhvtl.service
 
 %defattr(4750, root, root, 0755)
 %{_bindir}/vtltape
 %{_bindir}/vtllibrary
 
 %defattr(-, root, root, 2770)
-/opt/mhvtl/
+%dir /opt/mhvtl/
 
 %changelog
 * Thu Mar 10 2016 Mark Harvey <markh794@gmail.com> - 1.5-4

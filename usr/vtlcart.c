@@ -663,7 +663,10 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	   files as they were.
 	*/
 
-	asprintf(&newMedia, "%s/%s", home_directory, pcl);
+	if (asprintf(&newMedia, "%s/%s", home_directory, pcl) < 0) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
 
 	snprintf(newMedia_data, ARRAY_SIZE(newMedia_data), "%s/data", newMedia);
 	snprintf(newMedia_indx, ARRAY_SIZE(newMedia_indx), "%s/indx", newMedia);
@@ -772,6 +775,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	int rc = 0;
 	int null_media_type;
 	char touch_file[128];
+	int ret;
 
 	uint8_t error_check;
 
@@ -791,9 +795,13 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	/* Open all three files and stat them to get their current sizes. */
 
 	if (strlen(home_directory))
-		asprintf(&currentPCL, "%s/%s", home_directory, pcl);
+		ret = asprintf(&currentPCL, "%s/%s", home_directory, pcl);
 	else
-		asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl);
+		ret = asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl);
+	if (ret < 0) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
 
 	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
 	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
@@ -805,7 +813,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
 				pcl_data, MHVTL_HOME_PATH, pcl);
 		free(currentPCL);
-		asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl);
+		if (asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl) < 0) {
+			perror("Could not allocate memory");
+			exit(1);
+		}
 		snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
 		snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
 		snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);

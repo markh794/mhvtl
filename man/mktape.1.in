@@ -58,10 +58,8 @@ Copyright \(co 2005 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"
-.BR build_library_config(1),
 .BR make_vtl_media(1),
 .BR library_contents(5),
-.BR mhvtl(1),
 .BR vtlcmd(1),
 .BR vtllibrary(1),
 .BR vtltape(1)

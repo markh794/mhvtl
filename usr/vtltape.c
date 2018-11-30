@@ -67,6 +67,7 @@
 #include <inttypes.h>
 #include <pwd.h>
 #include <signal.h>
+#include <ctype.h>
 #include "list.h"
 #include "be_byteshift.h"
 #include "vtl_common.h"
@@ -257,11 +258,15 @@ static struct tape_drives_table {
 static void (*drive_init)(struct lu_phy_attr *) = init_default_ssc;
 
 static void usage(char *progname) {
-	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
-	printf("       Where:\n");
-	printf("              'q number' is the queue priority number\n");
-	printf("              'd' == debug\n");
-	printf("              'v' == verbose\n");
+	printf("Usage: %s -q <Q number> [-d] [-v[N]] [-f FIFONAME] [-F]\n",
+		progname);
+	printf("Where:\n");
+	printf("     'q number' is the queue priority number [REQUIRED]\n");
+	printf("     'd' == debug\n");
+	printf("     'v[N]' == verbose -> Extra info logged via syslog\n");
+	printf("        e.g. '-v -v' == '-v2'\n");
+	printf("     'f FIFONAME' == use FIFO named FIFONAME\n");
+	printf("     'F' == run in the foreground, i.e. don't fork\n");
 }
 
 
@@ -2811,10 +2816,12 @@ int main(int argc, char *argv[])
 	pid_t child_cleanup, pid, sid;
 	struct sigaction new_action, old_action;
 	int fifo_retval;
+	int opt;
+	int foreground = 0;
 
 	char *progname = argv[0];
 	char *fifoname = NULL;
-	char *name = "mhvtl";
+	const char *name = "mhvtl";
 	unsigned minor = 0;
 
 	struct vtl_header vtl_cmd;
@@ -2829,50 +2836,53 @@ int main(int argc, char *argv[])
 
 	current_state = MHVTL_STATE_INIT;
 
-	if (argc < 2) {
-		usage(argv[0]);
-		printf("  -- Not enough parameters --\n");
-		exit(1);
-	}
-
-	while (argc > 0) {
-		if (argv[0][0] == '-') {
-			switch (argv[0][1]) {
-			case 'd':
-				debug = 4;
-				verbose = 9;	/* If debug, make verbose... */
-				break;
-			case 'v':
+	while ((opt = getopt(argc, argv, "dv::q::f::F")) != -1) {
+		switch (opt) {
+		case 'd':
+			/* If debug, make verbose... */
+			debug = 4;
+			verbose = 9;
+			foreground = 1;
+			break;
+		case 'v':
+			if (optarg)
+				verbose = atoi(optarg);
+			else
 				verbose++;
-				break;
-			case 'q':
-				if (argc > 1)
-					my_id = atoi(argv[1]);
-				break;
-			case 'f':
-				if (argc > 1)
-					fifoname = argv[1];
-				break;
-			default:
-				usage(progname);
-				printf("    Unknown option %c\n", argv[0][1]);
-				exit(1);
-				break;
+			/* limit verbosity to single digit */
+			if (verbose > 9)
+				verbose = 9;
+			break;
+		case 'q':
+			if (optarg) {
+				my_id = atoi(optarg);
+				if ((my_id < 0) || (my_id > MAXPRIOR)) {
+					fprintf(stderr, "error: queue ID out of range [1..%u]\n",
+							MAXPRIOR);
+					usage(progname);
+					exit(1);
+				}
 			}
+			break;
+		case 'f':
+			if (optarg)
+				fifoname = strdup(optarg);
+			break;
+		case 'F':
+			foreground = 1;
+			break;
+		default:
+			usage(progname);
+			exit(1);
 		}
-		argv++;
-		argc--;
 	}
 
-	if (my_id <= 0 || my_id > MAXPRIOR) {
+	if (my_id < 0) {
+		fprintf(stderr, "error: must supply queue ID\n");
 		usage(progname);
-		if (my_id == 0)
-			puts("    -q must be specified\n");
-		else
-			printf("    -q value out of range [1 - %d]\n",
-				MAXPRIOR);
 		exit(1);
 	}
+
 	minor = my_id;	/* Minor == Message Queue priority */
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
@@ -2895,7 +2905,8 @@ int main(int argc, char *argv[])
 
 	/* Parse config file and build up each device */
 	if (!init_lu(&lunit, minor, &ctl)) {
-		printf("Can not find entry for '%u' in config file\n", minor);
+		fprintf(stderr, "error: Can not find entry for '%u' in config file\n",
+			       	minor);
 		exit(1);
 	}
 
@@ -2919,7 +2930,7 @@ int main(int argc, char *argv[])
 
 	/* Initialise message queue as necessary */
 	if ((r_qid = init_queue()) == -1) {
-		printf("Could not initialise message queue\n");
+		fprintf(stderr, "error: Could not initialise message queue\n");
 		exit(1);
 	}
 
@@ -2942,8 +2953,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* If debug, don't fork/run in background */
-	if (!debug) {
+	/* If debug or 'F' specified don't fork/run in background */
+	if (!foreground) {
 		switch (pid = fork()) {
 		case 0:         /* Child */
 			break;

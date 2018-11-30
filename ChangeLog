@@ -1,3 +1,23 @@
+* Thu Nov 29 15:42:24 PST 2018 Lee Duncan <lduncan@suse.com>
+- Many changes to support systemd:
+  - Removed /etc/init.d/mhvtl script
+  - Config files are now generated at install time, not the first
+    time the service is run
+  - Created service files and templates, and a generator
+  - Updated INSTALL file with sytemd info
+  - removed build_library_config and mhvtl init script
+  - Updated man pages and doc/index.html
+  - Updated make files
+  - created generate_device_conf and generate_library_contents, called at
+    'make install' time, to take the place of what the init file used to do
+  - updated SPEC file for systemd
+  - updated example scripts
+  - fixed asprintf calls to check return values (to make compiler happy)
+  - added some arguments and better arg parsing to vtltape and vtllibray
+- moved some .gitignore entries around, to be more local
+- Bumped version to 1.5-5
+- Fixed config file error in library_contents.* where VERSION was missing
+
 * Thu Sep 7 2014 Mark Harvey <markh794@gmail.com> <mark_harvey@symantec.com>
 - Bumped version to 1.5-2
 - Fix vtllibrary segfault using 'default' emulation

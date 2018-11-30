@@ -39,7 +39,7 @@ chown vtl:vtl /mnt/mhvtl-data
 ln -s /mnt/mhvtl-data /opt/mhvtl
 make_vtl_media vtl
 
-/etc/init.d/mhvtl start
+systemctl start mhvtl
 
 sleep 5
 

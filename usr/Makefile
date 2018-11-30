@@ -22,6 +22,7 @@ VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
 PREFIX ?= /usr
+SYSTEMD_GENERATOR_DIR ?= /usr/lib/systemd/system-generators
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
@@ -51,8 +52,13 @@ CLFLAGS=-shared ${RPM_OPT_FLAGS}
 #LZODEBUG = -DLZO_DEBUG
 LZODEBUG =
 
+# files that need to be generated
+GENERATOR_FILES=make_vtl_media.in
+GENERATED_FILES=$(GENERATOR_FILES:.in=)
+
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
-	mktape edit_tape vtllibrary make_vtl_media tapeexerciser
+	mktape edit_tape vtllibrary tapeexerciser $(GENERATED_FILES) \
+	mhvtl-device-conf-generator
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 		subprocess.c subprocess.h \
@@ -144,16 +150,22 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		minilzo.o \
 		-lz -L. -lvtlcart -lvtlscsi
 
-make_vtl_media:	make_vtl_media.in
-	sed -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@.1
-	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' $@.1 > $@
-	rm -f $@.1
+mhvtl-device-conf-generator: mhvtl-device-conf-generator.c
+
+%: %.in
+	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
+	    -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
+
+make_vtl_media: make_vtl_media.in
+	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
+	    -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
+	chmod 755 $@
 
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o dump_messageQ.o core mktape.o vtllib.o \
 		libvtlscsi.o libvtlscsi.so libvtlcart.o libvtlcart.so \
-		z.o vtllibrary.o \
+		vtllibrary.o \
 		vtl_cart_type.o \
 		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
 		default_ssc_pm.o \
@@ -174,54 +186,21 @@ clean:
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
 		edit_tape.o \
-		dump_messageQ make_vtl_media \
+		dump_messageQ \
 		dump_tape edit_tape \
-		mktape vtlcmd vtllibrary vtltape tapeexerciser
+		mktape vtlcmd vtllibrary vtltape tapeexerciser \
+		$(GENERATED_FILES)
 
 tags:
 	etags -R *.[ch] ../kernel/*.h
 
-distclean:
-	rm -f vtltape.o vtltape \
-	dump_tape.o dump_tape \
-	edit_tape.o edit_tape \
-	q.o q \
-	vtlcmd.o vtlcmd \
-	dump_messageQ.o dump_messageQ \
-	core mktape mktape.o \
-	vtllib.o libvtlscsi.so \
-	libvtlcart.so vtlcart.o spc.o \
-	vtl_cart_type.o \
-	smc.o ssc.o \
-	default_ssc_pm.o \
-	ult3580_pm.o \
-	hp_ultrium_pm.o \
-	stk9x40_pm.o \
-	stklxx_pm.o \
-	hp_smc_pm.o \
-	overland_pm.o \
-	spectra_pm.o \
-	scalar_pm.o \
-	ibm_smc_pm.o \
-	default_smc_pm.o \
-	quantum_dlt_pm.o \
-	ait_pm.o t10000_pm.o ibm_03592_pm.o \
-	minilzo.o \
-	z.o z \
-	mode.o \
-	log.o \
-	subprocess.o \
-	TAGS \
-	make_vtl_media \
-	make_vtl_media.1 \
-	tapeexerciser tapeexerciser.o \
-	vtllibrary vtllibrary.o
+distclean: clean
 
-install:
-	install -d -m 755 $(DESTDIR)$(LIBDIR)
+install: all
+	[ -d $(DESTDIR)$(LIBDIR) ] || install -d -m 755 $(DESTDIR)$(LIBDIR)
 	install -g bin -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
 	install -g bin -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
-	install -d -m 755 $(DESTDIR)$(PREFIX)/bin
+	[ -d $(DESTDIR)$(PREFIX)/bin ] || install -d -m 755 $(DESTDIR)$(PREFIX)/bin
 	install -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
 	install -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
 	install -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
@@ -229,8 +208,9 @@ install:
 	install -m 750 dump_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 750 edit_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
-	install -m 700 build_library_config $(DESTDIR)$(PREFIX)/bin/
 	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
+	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
+	install -m 755 mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
 
 tar:
 	make -C ../ tar

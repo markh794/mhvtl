@@ -91,10 +91,11 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu);
 static void usage(char *progname)
 {
 	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
-	printf("      Where\n");
+	printf("       Where:\n");
 	printf("             'q number' is the queue priority number\n");
 	printf("             'd' == debug -> Don't run as daemon\n");
-	printf("             'v' == verbose -> Extra info logged via syslog\n");
+	printf("             'v[N]' == verbose -> Extra info logged via syslog\n");
+	printf("                e.g. '-v -v' == '-v2'\n");
 }
 
 #ifndef Solaris
@@ -1607,7 +1608,8 @@ void rereadconfig(int sig)
 	}
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
-		printf("Can not find entry for '%ld' in config file\n", my_id);
+		fprintf(stderr, "error: Cannot find entry for '%ld' in config file\n",
+			       	my_id);
 		exit(1);
 	}
 
@@ -1662,6 +1664,8 @@ int main(int argc, char *argv[])
 	uint8_t *buf;
 	int buffer_size;
 	int fifo_retval;
+	int opt;
+	int foreground = 0;
 
 	int last_state = MHVTL_STATE_UNKNOWN;
 
@@ -1687,42 +1691,49 @@ int main(int argc, char *argv[])
 	int mlen, r_qid;
 	struct q_entry r_entry;
 
-	while (argc > 0) {
-		if (argv[0][0] == '-') {
-			switch (argv[0][1]) {
-			case 'd':
-				debug++;
-				verbose = 9;	/* If debug, make verbose... */
-				break;
-			case 'v':
+	while ((opt = getopt(argc, argv, "dv::q::f::F")) != -1) {
+		switch (opt) {
+		case 'd':
+			debug++;
+			verbose = 9;	/* If debug, make verbose... */
+			foreground = 1;
+			break;
+		case 'v':
+			if (optarg)
+				verbose = atoi(optarg);
+			else
 				verbose++;
-				break;
-			case 'q':
-				if (argc > 1)
-					my_id = atoi(argv[1]);
-				break;
-			case 'f':
-				if (argc > 1)
-					fifoname = argv[1];
-				break;
-			default:
-				usage(progname);
-				printf("    Unknown option %c\n", argv[0][1]);
-				exit(1);
-				break;
+			/* limit verbosity to single digit */
+			if (verbose > 9)
+				verbose = 9;
+			break;
+		case 'q':
+			if (optarg) {
+				my_id = atoi(optarg);
+				if ((my_id < 0) || (my_id > MAXPRIOR)) {
+					fprintf(stderr, "error: queue ID out of range [1..%u]\n",
+							MAXPRIOR);
+					usage(progname);
+					exit(1);
+				}
 			}
+			break;
+		case 'f':
+			if (optarg)
+				fifoname = strdup(optarg);
+			break;
+		case 'F':
+			foreground = 1;
+			break;
+		default:
+			usage(progname);
+			exit(1);
 		}
-		argv++;
-		argc--;
 	}
 
-	if (my_id <= 0 || my_id > MAXPRIOR) {
+	if (my_id < 0) {
+		fprintf(stderr, "error: must supply queue ID\n");
 		usage(progname);
-		if (my_id == 0)
-			printf("    -q must be specified\n");
-		else
-			printf("    -q value out of range [1 - %d]\n",
-				MAXPRIOR);
 		exit(1);
 	}
 
@@ -1733,7 +1744,8 @@ int main(int argc, char *argv[])
 	reset_device();	/* power-on reset */
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
-		printf("Can not find entry for '%ld' in config file\n", my_id);
+		fprintf(stderr, "error: Can not find entry for '%ld' in config file\n",
+			       	my_id);
 		exit(1);
 	}
 
@@ -1764,14 +1776,14 @@ int main(int argc, char *argv[])
 
 	child_cleanup = add_lu(my_id, &ctl);
 	if (!child_cleanup) {
-		printf("Could not create logical unit\n");
+		fprintf(stderr, "error: Could not create logical unit\n");
 		exit(1);
 	}
 
 	/* Initialise message queue as necessary */
 	r_qid = init_queue();
 	if (r_qid == -1) {
-		printf("Could not initialise message queue\n");
+		fprintf(stderr, "error: Could not initialise message queue\n");
 		exit(1);
 	}
 
@@ -1849,19 +1861,18 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* If debug, don't fork/run in background */
-	if (!debug) {
+	/* If debug or 'F' specified don't fork/run in background */
+	if (!foreground) {
 		switch (pid = fork()) {
 		case 0:         /* Child */
 			break;
 		case -1:
-			printf("Failed to fork daemon\n");
+			fprintf(stderr, "error: Failed to fork daemon\n");
 			exit(-1);
 			break;
 		default:
 			printf("%s process PID is %d\n", progname, (int)pid);
 			exit(0);
-			break;
 		}
 
 		umask(0);	/* Change the file mode mask */

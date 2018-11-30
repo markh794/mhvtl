@@ -116,7 +116,10 @@ int get_cart_type(const char *barcode)
 		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
 						MHVTL_HOME_PATH, pcl);
 
-	asprintf(&pcl_meta, "%s/meta", currentPCL);
+	if (asprintf(&pcl_meta, "%s/meta", currentPCL) < 0) {
+		perror("Could not allocate memory");
+		exit(1);
+	}
 
 	if (stat(pcl_meta, &meta_stat) == -1) {
 		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
@@ -124,7 +127,10 @@ int get_cart_type(const char *barcode)
 		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
 						MHVTL_HOME_PATH, pcl);
 		free(pcl_meta);
-		asprintf(&pcl_meta, "%s/meta", currentPCL);
+		if (asprintf(&pcl_meta, "%s/meta", currentPCL) < 0) {
+			perror("Could not allocate memory");
+			exit(1);
+		}
 	}
 
 	metafile = open(pcl_meta, O_RDONLY);

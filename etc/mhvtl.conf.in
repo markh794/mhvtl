@@ -1,0 +1,21 @@
+#
+# mhvtl.conf
+#
+
+# Home directory for config file(s) (including this file)
+MHVTL_CONFIG_PATH=@CONF_PATH@
+
+# Home directory for tape emulation files
+MHVTL_HOME_PATH=@HOME_PATH@
+
+# Default media capacity (500 M)
+CAPACITY=500
+
+# Set default verbosity [0|1|2|3]
+VERBOSE=1
+
+# Set kernel module debuging [0|1]
+VTL_DEBUG=0
+
+# vtltape and vtllibrary debugging [Blank or -d]
+#DAEMON_DEBUG=-d

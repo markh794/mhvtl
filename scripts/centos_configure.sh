@@ -41,9 +41,8 @@ cd kernel/
 make && make install
 cd ..
 make && make install
-chkconfig --add mhvtl
-chkconfig mhvtl on
-/etc/init.d/mhvtl start
+systemctl enable mhvtl
+systemctl start mhvtl
 
 # install tgt
 mkdir /etc/tgt
