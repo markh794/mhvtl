@@ -16,4 +16,4 @@ ExecStop=/usr/bin/vtlcmd %i exit
 ExecReload=/usr/bin/kill -HUP $MAINPID
 
 [Install]
-WantedBy=multi-user.target graphical.target mhvtl.service
+WantedBy=mhvtl.service
