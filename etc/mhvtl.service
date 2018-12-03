@@ -3,4 +3,4 @@ Description=mhvtl service allowing to start/stop all vtltape@.service and vtllib
 Documentation=man:man:vtltape(1) man:man:vtllibrary(1)
 
 [Install]
-WantedBy=multi-user.target graphical.target
+WantedBy=multi-user.target
