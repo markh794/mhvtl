@@ -207,8 +207,7 @@ int main(int argc, char **argv)
 	struct vtl_info	*ip;
 	char		*dirs_to_create[] = {
 				"multi-user.target.wants",
-				"garphical.target.wants",
-				"mhvtl.service.wants",
+				"mhvtl.target.wants",
 				NULL
 			};
 	char		**dirnamep;

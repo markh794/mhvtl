@@ -24,8 +24,8 @@ for more details on media density.
 Feel free to replace this script with one that better suits your needs.
 .PP
 If the configuration is regenerated then the
-.B mhvtl.service
-should be restarted.
+.B mhvtl.target
+service should be restarted.
 .SH AUTHOR
 Written by Mark Harvey
 .SH BUGS

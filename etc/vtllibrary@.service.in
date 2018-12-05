@@ -1,10 +1,10 @@
 [Unit]
 Documentation=man:vtllibrary(1) man:vtlcmd(1)
 Description=Robot Library Daemon for Virtual Tape & Robot Library
-Before=multi-user.target graphical.target
+Before=multi-user.target
 Requires=mhvtl-load-modules.service
 After=mhvtl-load-modules.service
-PartOf=mhvtl.service
+PartOf=mhvtl.target
 
 [Service]
 Type=simple
@@ -16,4 +16,4 @@ ExecStop=/usr/bin/vtlcmd %i exit
 ExecReload=/usr/bin/kill -HUP $MAINPID
 
 [Install]
-WantedBy=mhvtl.service
+WantedBy=mhvtl.target

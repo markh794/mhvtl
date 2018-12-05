@@ -50,17 +50,17 @@ The SSC/SMC target daemons have been written from scratch.
 
 %post
 /sbin/ldconfig
-%{service_add_post mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %postun
 /sbin/ldconfig
-%{service_del_postun mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+%{service_del_postun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %pre
-%{service_add_pre mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+%{service_add_pre mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %preun
-%{service_del_preun mhvtl.service mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %clean
 %{__rm} -rf %{buildroot}
@@ -98,7 +98,7 @@ The SSC/SMC target daemons have been written from scratch.
 %{_unitdir}/mhvtl-load-modules.service
 %{_unitdir}/vtllibrary@.service
 %{_unitdir}/vtltape@.service
-%{_unitdir}/mhvtl.service
+%{_unitdir}/mhvtl.target
 
 %defattr(4750, root, root, 0755)
 %{_bindir}/vtltape

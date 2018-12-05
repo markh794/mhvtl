@@ -80,14 +80,14 @@ Install the systemd scripts and binaries and tell systemd:
 	sh> sudo make install
 	sh> sudo systemdctl daemon-reload
 
-Enable and start the mhvtl service:
+Enable and start the mhvtl target service:
 
-	sh> sudo systemctl enable mhvtl.service
-	sh> sudo systemctl start mhvtl.service
+	sh> sudo systemctl enable mhvtl.target
+	sh> sudo systemctl start mhvtl.target
 
 And make sure it worked:
 
-	sh> sudo systemctl status mhvtl.service
+	sh> sudo systemctl status mhvtl.target
 
 You can test that your vtl* daemons are running with:
 

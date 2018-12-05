@@ -8,7 +8,7 @@ USR_DIR = $(TOP_DIR)/usr
 
 TAPE_SERVICE_FILE = vtltape@.service
 LIB_SERVICE_FILE = vtllibrary@.service
-MHVTL_TARGET_FILE = mhvtl.service
+MHVTL_TARGET_FILE = mhvtl.target
 MHVTL_LOAD_MODULES_SERVICE_FILE = mhvtl-load-modules.service
 MHVTL_CONF_FILE = mhvtl.conf
 DEVICE_CONF_FILE = device.conf
