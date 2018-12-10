@@ -241,8 +241,8 @@ int main(int argc, char **argv)
 	}
 
 	for (dirnamep = dirs_to_create; *dirnamep != NULL; dirnamep++) {
-		if (asprintf(&path, "%s/%s", working_dir, *dirnamep)) {
-			perror("Could not allocate memory");
+		if (asprintf(&path, "%s/%s", working_dir, *dirnamep) < 0) {
+			perror("Could not allocate memory (for directory path)");
 			exit(1);
 		}
 		if (debug_mode)
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 		for (ip = our_libraries.next; ip != NULL; ip = ip->next) {
 			const char *to_path = "/usr/lib/systemd/system/vtllibrary@.service";
 			if (asprintf(&path, "%s/%s/vtllibrary@%d.service", working_dir, *dirnamep, ip->num) < 0) {
-				perror("Could not allocate memory");
+				perror("Could not allocate memory (for vtllibrary template symlink)");
 				exit(1);
 			}
 			if (debug_mode)
@@ -280,7 +280,7 @@ int main(int argc, char **argv)
 		for (ip = our_tapes.next; ip != NULL; ip = ip->next) {
 			const char *to_path = "/usr/lib/systemd/system/vtltape@.service";
 			if (asprintf(&path, "%s/%s/vtltape@%d.service", working_dir, *dirnamep, ip->num) < 0) {
-				perror("Could not allocate memory");
+				perror("Could not allocate memory (for vtltape template symlink)");
 				exit(1);
 			}
 			if (debug_mode)
