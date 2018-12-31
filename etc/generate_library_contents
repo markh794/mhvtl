@@ -17,11 +17,11 @@ DEST_DIR='.'
 
 usage()
 {
-	echo "Usage: $PROG_NAME: [OPTIONS] -- generate" 'library_contents.* files from device.conf'
+	echo "Usage: $PROG_NAME: [OPTIONS] -- generate" 'library_contents.*' "files from $DEVICE_CONF"
 	echo "where OPTIONS are from:"
 	echo "  [-h|--help]                   -- print this message and exit"
-	echo "  [-C|--config-dir CONFIG_DIR]  -- specificy config dir [$MHVTL_CONFIG_PATH]"
-	echo "  [-D|--dest-dir DIRECTORY]     -- specificy destination dir [$DEST_DIR]"
+	echo "  [-C|--config-dir CONFIG_DIR]  -- specificy config dir [default $MHVTL_CONFIG_PATH]"
+	echo "  [-D|--dest-dir DIRECTORY]     -- specificy destination dir [default $DEST_DIR]"
 	echo "  [-f|--force]                  -- overwrite files if present"
 }
 
@@ -163,7 +163,18 @@ done
 
 # should be no more arguments
 if [[ $# -gt 0 ]] ; then
-	echo "error: too many carguments"
+	echo "error: too many arguments" 1>&2
+	usage
+	exit 1
+fi
+
+if [[ ! -d $MHVTL_CONFIG_PATH ]] ; then
+	echo "error: mhvtl config path not present: $MHVTL_CONFIG_PATH" 1>&2
+	usage
+	exit 1
+fi
+if [[ ! -r $MHVTL_CONFIG_PATH/$DEVICE_CONF ]] ; then
+	echo "error: need device config file: $MHVTL_CONFIG_PATH/$DEVICE_CONF" 1>&2
 	usage
 	exit 1
 fi
@@ -172,7 +183,7 @@ fi
 LIB_ID_LIST=$(awk '/^Library:/ {print $2}' $MHVTL_CONFIG_PATH/$DEVICE_CONF)
 
 for id in $LIB_ID_LIST ; do
-	ID_FILE="$MHVTL_CONFIG_PATH/library_contents.$id"
+	ID_FILE="$DEST_DIR/library_contents.$id"
 
 	if [[ -r $ID_FILE ]] ; then
 		if [[ -z "$FORCE" ]] ; then
