@@ -673,10 +673,15 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	snprintf(newMedia_meta, ARRAY_SIZE(newMedia_meta), "%s/meta", newMedia);
 
 	/* Check if data file already exists, nothing to create */
-	if (stat(newMedia_data, &data_stat) != -1)
+	if (stat(newMedia_data, &data_stat) != -1) {
+		if (verbose)
+			printf("error: Data file already exists for new media\n");
 		goto free_strings;
+	}
 
-	umask(0007);
+	if (verbose)
+		printf("Creating new media directory: %s\n", newMedia);
+
 	rc = mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_ISGID);
 	if (rc) {
 		/* No need to fail just because the parent dir exists */
@@ -689,6 +694,8 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		rc = 0;
 	}
 
+	if (verbose)
+		printf("Creating new media data file: %s\n", newMedia_data);
 	datafile = creat(newMedia_data, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (datafile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_data,
@@ -696,6 +703,8 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		rc = 2;
 		goto free_strings;
 	}
+	if (verbose)
+		printf("Creating new media index file: %s\n", newMedia_indx);
 	indxfile = creat(newMedia_indx, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (indxfile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_indx,
@@ -704,6 +713,8 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 		rc = 2;
 		goto cleanup;
 	}
+	if (verbose)
+		printf("Creating new media meta file: %s\n", newMedia_meta);
 	metafile = creat(newMedia_meta, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (metafile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_meta,
