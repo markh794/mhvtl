@@ -40,16 +40,21 @@ MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 MANDIR ?= /share/man
 
+CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
+HOME_PATH = $(shell echo $(MHVTL_HOME_PATH) | sed -e s'/\//\\\//g')
+
 objects = $(patsubst %.in,%,$(wildcard *.in))
 
 man: $(objects)
 
 all: $(objects)
 
-$(objects) :
-	sed -e s'/@VERSION@/$(VERSION)/' $@.in > $@
-	@sed -i s'/@MONTH@/$(MONTH)/' $@
-	@sed -i s'/@YEAR@/$(YEAR)/' $@
+%: %.in
+	sed -e s'/@VERSION@/$(VERSION)/' \
+		-e s'/@MONTH@/$(MONTH)/' \
+		-e s'/@YEAR@/$(YEAR)/' \
+		-e s'/@CONFIG_PATH@/$(CONFIG_PATH)/' \
+		-e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
 
 install:
 	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man1
@@ -63,6 +68,8 @@ install:
 	install dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install update_device.conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install generate_device_conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install generate_library_contents.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install mhvtl.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 	install device.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
 	install library_contents.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/

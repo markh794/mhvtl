@@ -1,0 +1,55 @@
+.TH generate_device_conf "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+generate_device_conf \- Utility to generate the device.conf file
+.SH SYNOPSIS
+.B generate_device_conf -h|--help -- print help message and exit
+.br
+.B generate_device_conf [-H|--home-dir HOME_DIR] [-D|--dest-dir DIR] [-f|--force]
+.SH DESCRIPTION
+.PP
+This script creates the device.conf file, from scratch. Edit this
+script and run it to generate a non-default configuration.
+.PP
+This script is normally run at software installation time, but can be
+edited then run again to regenerate the
+.B device.conf
+file again.
+.PP
+Options are from
+.TP
+\fB\-H\fR, \fB\-\-home-dir\fR \fIHOME_DIR\fR
+Set the
+.I mhvtl
+home directory [default
+.BR @HOME_PATH@ .
+.TP
+\fB\-D\fR, \fB\-\-dest-dir\fR \fIDIR\fR
+Set the destination directory [default
+.BR . ]
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Overwrite existing
+.B device.conf
+if needed.
+.SH AUTHOR
+Written by Mark Harvey.
+.SH BUGS
+Needs to be made user friendly and more verbose.
+And it would be nice to be able to change the device configuration
+file without editing this script.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> <mark.harvey@veritas.com>.
+.SH COPYRIGHT
+Copyright \(co 2018 Free Software Foundation, Inc.
+.br
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR device.conf(5) ,
+.BR make_vtl_media(1) ,
+.BR library_contents(5) ,
+.BR vtlcmd(1) ,
+.BR vtllibrary(1) ,
+.BR vtltape(1) ,
+.BR edit_tape(1) ,
+.BR generate_library_contents(1)

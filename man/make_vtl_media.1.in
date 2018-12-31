@@ -1,17 +1,41 @@
 .TH make_vtl_media "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
 .SH NAME
-make_vtl_media \- Part of helper scripts to start VTL subsystem.
+make_vtl_media \- create the library database from lib_contents.* file(s)
 .SH SYNOPSIS
-.B make_vtl_media userName
+.B make_vtl_media \-h|\-\-help -- print help message and exit
+.br
+.B make_vtl_media [\-H|\-\-home-dir DIR] [\-C|\-\-config-dir DIR] [\-f|\-\-force] [\-c|\-\-create-dir]
 .SH DESCRIPTION
-.\" Add any additional description here
 .PP
-Invoked initialy when the software is installed, this program should
-not need to be run manually.
-Responsible for creating any new media files. Currently hard-coded rules:
-.IP "If barcode starts with W"
+Options are from:
+.TP
+\fB\-H\fR, \fB\-\-home-dir\fR \fIDIR\fR
+Set the
+.I mhvtl
+home directory [default
+.BR @HOME_PATH@ ]
+.TP
+\fB\-C\fR, \fB\-\-config-dir\fR \fIDIR\fR
+Set the config directory [default
+.BR @CONFIG_PATH@ ]
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Overwrite existing database files, if needed.
+.TP
+\fB\-c\fR, \fB\-\-create-dir\fR
+Create the home directory, if needed.
+.PP
+This program is invoked initialy when the software is installed, but
+can also be ran later to recreate the tape libraray database. It does so by reading
+the library_contents.* files in our configuration directory, and finding the
+.B Slot
+entries in those files, extracting the
+.I barcode
+found for each slot.
+.PP
+.IP "If \fIbarcode\fR starts with W"
 Create as Write Once Read Many (WORM) media type.
-.IP "if barcode starts with CLN"
+.IP "If \fIbarcode\fR starts with CLN"
 Create media type as cleaning cartridge.
 .IP "Otherwise"
 Create the media as a data cartridge.
@@ -33,13 +57,15 @@ Not documented.
 .SH "REPORTING BUGS"
 Report bugs to <markh794@gmail.com> <mark.harvey@nutanix.com>.
 .SH COPYRIGHT
-Copyright \(co 2005 Free Software Foundation, Inc.
+Copyright \(co 2018 Free Software Foundation, Inc.
 .br
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"
-.BR library_contents(5),
-.BR mktape(1),
-.BR vtlcmd(1),
-.BR vtllibrary(1),
-.BR vtltape(1)
+.BR library_contents(5) ,
+.BR mktape(1) ,
+.BR vtlcmd(1) ,
+.BR vtllibrary(1) ,
+.BR vtltape(1) ,
+.BR generate_device_conf(1) ,
+.BR generate_library_contents(1)
