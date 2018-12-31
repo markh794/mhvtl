@@ -171,6 +171,9 @@ static void parse_config_file(char *path)
 	int			tape_num = -1;
 	int			library_num = -1;
 
+	if (debug_mode)
+		(void) fprintf(stderr, "DEBUG: parsing config file: %s\n",
+				path);
 	if ((fp = fopen(path, "r")) == NULL) {
 		if (debug_mode)
 			(void) fprintf(stderr, "DEBUG: error: can't open: %s\n",
