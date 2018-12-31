@@ -10,7 +10,7 @@
 
 DEVICE_CONF='device.conf'
 PROG_NAME="$0"
-MHVTL_HOME_PATH=/opt/mhvtl
+MHVTL_HOME_PATH=@HOME_PATH@
 DEST_DIR='.'
 FORCE=''
 
