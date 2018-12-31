@@ -59,7 +59,7 @@ int debug = 0;
 
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
-void find_media_home_directory(char *home_directory, long lib_id);
+void find_media_home_directory(char *config_directory, char *home_directory, long lib_id);
 
 static void usage(char *prog)
 {
@@ -103,7 +103,7 @@ int check_media(int libno, char *barcode)
 	char currentMedia[1024];
 	int datafile;
 
-	find_media_home_directory(home_directory, libno);
+	find_media_home_directory(NULL, home_directory, libno);
 	snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", home_directory, barcode);
 	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
 	if (datafile < 0) {

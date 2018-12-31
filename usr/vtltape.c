@@ -2093,7 +2093,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	if (!strncmp(msg->text, "Register", 8)) {
 		lu_ssc.inLibrary = 1;
 		MHVTL_DBG(1, "Notice from Library controller : %s", msg->text);
-		find_media_home_directory(home_directory, library_id);
+		find_media_home_directory(NULL, home_directory, library_id);
 	}
 
 	if (!strncmp(msg->text, "verbose", 7)) {

@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 	if (lib) {
 		sscanf(lib, "%d", &libno);
 		printf("Looking for PCL: %s in library %d\n", pcl, libno);
-		find_media_home_directory(home_directory, libno);
+		find_media_home_directory(NULL, home_directory, libno);
 		rc = load_tape(pcl, &sam_stat);
 	} else { /* Walk thru all defined libraries looking for media */
 		while (readline(b, MALLOC_SZ, conf) != NULL) {
@@ -223,7 +223,7 @@ int main(int argc, char *argv[])
 			 * Break out of loop if found. Otherwise try next lib.
 			 */
 			if (sscanf(b, "Library: %d CHANNEL:", &indx)) {
-				find_media_home_directory(home_directory, indx);
+				find_media_home_directory(NULL, home_directory, indx);
 				rc = load_tape(pcl, &sam_stat);
 				if (!rc)
 					break;

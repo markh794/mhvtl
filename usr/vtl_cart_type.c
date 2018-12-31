@@ -83,7 +83,7 @@ static char home_directory[HOME_DIR_PATH_SZ + 1];
 void update_home_dir(long lib_id)
 {
 	if (strlen(home_directory) < 2) {
-		find_media_home_directory(home_directory, lib_id);
+		find_media_home_directory(NULL, home_directory, lib_id);
 		MHVTL_DBG(3, "Setting home dir to %s", home_directory);
 	}
 }
