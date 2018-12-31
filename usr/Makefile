@@ -189,6 +189,7 @@ clean:
 		dump_messageQ \
 		dump_tape edit_tape \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser \
+		mhvtl-device-conf-generator \
 		$(GENERATED_FILES)
 
 tags:
