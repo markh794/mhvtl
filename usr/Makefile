@@ -53,7 +53,7 @@ CLFLAGS=-shared ${RPM_OPT_FLAGS}
 LZODEBUG =
 
 # files that need to be generated
-GENERATOR_FILES=make_vtl_media.in
+GENERATOR_FILES=make_vtl_media.in mktape.c.in
 GENERATED_FILES=$(GENERATOR_FILES:.in=)
 
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
@@ -100,7 +100,7 @@ dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
 	$(CC) $(CFLAGS) -o dump_tape dump_tape.o minilzo.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
-mktape:		mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
+mktape:		mktape.c mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o mktape mktape.o -L. -lvtlcart -lvtlscsi
 
@@ -152,7 +152,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 
 mhvtl-device-conf-generator: mhvtl-device-conf-generator.c
 
-%: %.in
+mktape.c: mktape.c.in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
 	    -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
 
@@ -201,14 +201,14 @@ install: all
 	install -g bin -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
 	install -g bin -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
 	[ -d $(DESTDIR)$(PREFIX)/bin ] || install -d -m 755 $(DESTDIR)$(PREFIX)/bin
-	install -m 4750 vtltape $(DESTDIR)$(PREFIX)/bin/
-	install -m 4750 vtllibrary $(DESTDIR)$(PREFIX)/bin/
-	install -m 750 vtlcmd $(DESTDIR)$(PREFIX)/bin/
-	install -m 750 mktape $(DESTDIR)$(PREFIX)/bin/
-	install -m 750 dump_tape $(DESTDIR)$(PREFIX)/bin/
-	install -m 750 edit_tape $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 vtltape $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 vtllibrary $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 vtlcmd $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 mktape $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 dump_tape $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 edit_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
-	install -m 700 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
 	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
 	install -m 755 mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
 
