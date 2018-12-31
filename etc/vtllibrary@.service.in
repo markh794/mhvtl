@@ -13,6 +13,7 @@ Environment=DAEMON_DEBUG=""
 EnvironmentFile=-@CONF_PATH@/mhvtl.conf
 ExecStart=/usr/bin/vtllibrary -F -q%i -v${VERBOSE} ${DAEMON_DEBUG}
 ExecStop=/usr/bin/vtlcmd %i exit
+KillMode=none
 ExecReload=/usr/bin/kill -HUP $MAINPID
 
 [Install]
