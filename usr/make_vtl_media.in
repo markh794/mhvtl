@@ -23,22 +23,27 @@
 #	- ensure we are root?
 #
 
-if [ $# -ne 0 ]; then
-	echo "Usage: $0" 1>&2
-	exit 1
-fi
-
+DEVICE_CONF="device.conf"
+PROG_NAME="$0"
 CONFIG_FILE='@CONF_PATH@/mhvtl.conf'
+FORCE=''
+CREATE_DIR=''
 
-if [[ ! -r $CONFIG_FILE ]] ; then
-	echo "error: config file not found: $CONFIG_FILE" 1>&2
-	exit 1
-fi
-
-. $CONFIG_FILE
+# print usage info
+usage()
+{
+	echo "Usage: $PROG_NAME: [OPTIONS] -- generate the tape device database"
+	echo "where OPTIONS are from:"
+	echo "  [-h|--help]            -- print this message and exit"
+	echo "  [-H|--home-dir MHVTL_HOME_PATH]"
+	echo "                         -- home path [default $MHVTL_HOME_PATH]"
+	echo "  [-C|--config-dir DIR]  -- configuration dir [default @CONF_PATH@]"
+	echo "  [-f|--force]           -- overwrite files if present"
+	echo "  [-c|--create-dir]      -- mkdir MHVTL_HOME_PATH if needed"
+}
 
 #
-# set_media_type -- set global variable MEDIA_MEDIA_TYPE
+# set_media_type -- set global variable MEDIA_TYPE
 #
 set_media_type()
 {
@@ -52,7 +57,7 @@ set_media_type()
 	lto_regex='[A-Z0-9]{6,8}([L])([TUVW])$'
 
 	# default to data type
-	MEDIA_TYPE=data
+	MEDIA_TYPE="data"
 
 	if [[ $type =~ ^"W" ]]; then
 		MEDIA_TYPE="work"
@@ -151,36 +156,118 @@ set_density()
 ## Main starts here...
 ##################################################################
 
+TEMP=$(getopt -o 'hH:C:fc' --long 'help,home-dir:,config-dir:,force,create-dir' -n "$PROG_NAME" -- "$@")
+if [[ $? -ne 0 ]] ; then
+	usage
+	exit 1
+fi
+eval set - "$TEMP"
+unset TEMP
+
+while true; do
+	case "$1" in
+	'-h'|'--help')
+		usage
+		exit 0
+		;;
+	'-H'|'--home-dir')
+		PARAM_MHVTL_HOME_PATH="$2"
+		shift 2
+		continue
+		;;
+	'-C'|'--config-dir')
+		MHVTL_CONFIG_PATH="$2"
+		shift 2
+		continue
+		;;
+	'-f'|'--force')
+		FORCE='1'
+		shift
+		continue
+		;;
+	'-c'|'--create-dir')
+		CREATE_DIR='1'
+		shift
+		continue
+		;;
+	'--')
+		shift
+		break
+		;;
+	*)
+		echo "internal error: unknown arg: $1" 1>&2
+		exit 1
+	esac
+done
+
+# should be no more arguments
+if [[ $# -gt 0 ]] ; then
+	echo "error: too many arguments"
+	usage
+	exit 1
+fi
+
+if [[ ! -z "$MHVTL_CONFIG_PATH" ]] ; then
+	CONFIG_FILE="$MHVTL_CONFIG_PATH/mhvtl.conf"
+fi
+if [[ ! -r $CONFIG_FILE ]] ; then
+	echo "error: config file not found: $CONFIG_FILE" 1>&2
+	exit 1
+fi
+
+. $CONFIG_FILE
+
 # Set default capacity to 500M if not defined.
 CAPACITY=${CAPACITY:=500}
 
+# override home dir if passed in by user
+if [[ ! -z "$PARAM_MHVTL_HOME_PATH" ]] ; then
+	MHVTL_HOME_PATH=$PARAM_MHVTL_HOME_PATH
+fi
+
 if [[ ! -d $MHVTL_HOME_PATH ]] ; then
+	if [[ -z "$CREATE_DIR" ]] ; then
+		echo "error: no such directory: $MHVTL_HOME_PATH" 1>&2
+		usage
+		exit 1
+	fi
 	echo "warning: creating directory: $MHVTL_HOME_PATH" 1>&2
 	mkdir -p $MHVTL_HOME_PATH
-	chmod 750 $MHVTL_HOME_PATH
+	chmod 755 $MHVTL_HOME_PATH
 fi
 
 # Create any media specified in library config.
-umask 002
+umask 022
 
-if [[ ! -r $MHVTL_CONFIG_PATH/device.conf ]] ; then
-	echo "error: not found: $MHVTL_CONFIG_PATH/device.conf" 1>&2
+if [[ ! -r $MHVTL_CONFIG_PATH/$DEVICE_CONF ]] ; then
+	echo "error: not found: $MHVTL_CONFIG_PATH/$DEVICE_CONF" 1>&2
 	exit 1
 fi
 
 # for LIBCONTENTS in $MHVTL_CONFIG_PATH/library_contents.*
-for LIBID in $(awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/device.conf) ; do
+echo '===>' "Reading from $MHVTL_CONFIG_PATH/$DEVICE_CONF file to find Tape Libraries and Drives ..."
+for LIBID in $(awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/$DEVICE_CONF) ; do
 	LIBCONTENTS="$MHVTL_CONFIG_PATH/library_contents.$LIBID"
 
 	if [[ ! -r $LIBCONTENTS ]] ; then
 		echo "error: not found: $LIBCONTENTS" 1>&2
+		echo "have you ran 'generate_library_contents'?" 1>&2
 		exit 1
 	fi
+	echo '===>' "Scanning for 'Slot' entries in $LIBCONTENTS ..."
 	for a in $(awk '/^Slot/ {print $3}' <$LIBCONTENTS|sort -u) ; do
+		if [[ -d $MHVTL_HOME_PATH/$a ]] ; then
+			if [[ -z "$FORCE" ]] ; then
+				echo "Directory already exists: $MHVTL_HOME_PATH/$a: skipping"
+				continue
+			fi
+			echo "warning: removing entry: $MHVTL_HOME_PATH/$a"
+			rm -rf $MHVTL_HOME_PATH/$a
+		fi
+		echo '===>' "Creating entry: $MHVTL_HOME_PATH/$a ..."
 		set_density $a
 		set_media_type $a
-		if [ ! -d $MHVTL_HOME_PATH/$a ]; then
-			mktape -l $LIBID -s $CAPACITY -t $MEDIA_TYPE -m $a -d $DENSITY
-		fi
+		# pass in "-D" for debugging
+		mktape -v -l $LIBID -s $CAPACITY -t $MEDIA_TYPE -m $a -d $DENSITY -C $MHVTL_CONFIG_PATH
 	done
 done
