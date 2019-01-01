@@ -77,6 +77,8 @@ The SSC/SMC target daemons have been written from scratch.
 %doc %{_mandir}/man1/make_vtl_media.1*
 %doc %{_mandir}/man1/tapeexerciser.1*
 %doc %{_mandir}/man1/update_device.conf.1*
+%doc %{_mandir}/man1/generate_device_conf.1*
+%doc %{_mandir}/man1/generate_library_contents.1*
 %doc %{_mandir}/man5/device.conf.5*
 %doc %{_mandir}/man5/mhvtl.conf.5*
 %doc %{_mandir}/man5/library_contents.5*
@@ -87,6 +89,8 @@ The SSC/SMC target daemons have been written from scratch.
 %{_bindir}/tapeexerciser
 %{_bindir}/make_vtl_media
 %{_bindir}/update_device.conf
+%{_bindir}/generate_device_conf
+%{_bindir}/generate_library_contents
 %{_libdir}/libvtlscsi.so
 %{_libdir}/libvtlcart.so
 %dir %{_sysconfdir}/mhvtl
@@ -100,11 +104,11 @@ The SSC/SMC target daemons have been written from scratch.
 %{_unitdir}/vtltape@.service
 %{_unitdir}/mhvtl.target
 
-%defattr(4750, root, root, 0755)
+%defattr(755, root, root, 0755)
 %{_bindir}/vtltape
 %{_bindir}/vtllibrary
 
-%defattr(-, root, root, 2770)
+%defattr(-, root, root, 755)
 %dir /opt/mhvtl/
 
 %changelog
