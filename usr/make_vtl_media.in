@@ -28,6 +28,7 @@ PROG_NAME="$0"
 CONFIG_FILE='@CONF_PATH@/mhvtl.conf'
 FORCE=''
 CREATE_DIR=''
+MKTAPE_PATH=''
 
 # print usage info
 usage()
@@ -40,6 +41,7 @@ usage()
 	echo "  [-C|--config-dir DIR]  -- configuration dir [default @CONF_PATH@]"
 	echo "  [-f|--force]           -- overwrite files if present"
 	echo "  [-c|--create-dir]      -- mkdir MHVTL_HOME_PATH if needed"
+	echo "  [-m|--mktape-path MKTAPE] -- pass in dir where mktape lives [default uses PATH]"
 }
 
 #
@@ -47,7 +49,7 @@ usage()
 #
 set_media_type()
 {
-	if (( $# != 1 )) ; then
+	if [[ $# -ne 1 ]] ; then
 		echo "internal error: wrong number of arguments" 1>&1
 		exit 1
 	fi
@@ -76,7 +78,7 @@ set_media_type()
 #
 set_density()
 {
-	if (( $# != 1 )) ; then
+	if [[ $# -ne 1 ]] ; then
 		echo "internal error: wrong number of arguments" 1>&1
 		exit 1
 	fi
@@ -152,11 +154,42 @@ set_density()
 	fi
 }
 
+#
+# find_mktape -- set MKTAPE_PATH to path to 'mktape' or exit if not found
+#
+find_mktape_path()
+{
+	if [[ $# -gt 0 ]] ; then
+		echo "internal error: $0: no argument expected" 1>&2
+		exit 1
+	fi
+	if [[ -s "$MKTAPE_PATH" ]] ; then
+		# make sure supplied path works
+		if [[ ! -x $MKTAPE_PATH/mktape ]] ; then
+			echo "error: no 'mktape' at specified path: $MKTAPE_PATh" 1>&2
+			exit 1
+		fi
+	else
+		# we must find mktape in our PATH
+		OIFS="$IFS"
+		IFS=':'
+		for d in $PATH; do
+			if [[ -x $d/mkape ]] ; then
+				MKTAPE_PATH="$d"
+				IFS="$OIFS"
+				return
+			fi
+		done
+		echo "error: no 'mktape' found in PATH" 1>&2
+		exit 1
+	fi
+}
+
 ##################################################################
 ## Main starts here...
 ##################################################################
 
-TEMP=$(getopt -o 'hH:C:fc' --long 'help,home-dir:,config-dir:,force,create-dir' -n "$PROG_NAME" -- "$@")
+TEMP=$(getopt -o 'hH:C:fcm:' --long 'help,home-dir:,config-dir:,force,create-dir,mktape-path:' -n "$PROG_NAME" -- "$@")
 if [[ $? -ne 0 ]] ; then
 	usage
 	exit 1
@@ -190,6 +223,11 @@ while true; do
 		shift
 		continue
 		;;
+	'-m'|'--mktape-path')
+		MKTAPE_PATH="$2"
+		shift 2
+		continue
+		;;
 	'--')
 		shift
 		break
@@ -215,6 +253,7 @@ if [[ ! -r $CONFIG_FILE ]] ; then
 	exit 1
 fi
 
+# get default capacity
 . $CONFIG_FILE
 
 # Set default capacity to 500M if not defined.
@@ -244,6 +283,9 @@ if [[ ! -r $MHVTL_CONFIG_PATH/$DEVICE_CONF ]] ; then
 	exit 1
 fi
 
+# make sure we can find mktape
+find_mktape_path
+
 # for LIBCONTENTS in $MHVTL_CONFIG_PATH/library_contents.*
 echo '===>' "Reading from $MHVTL_CONFIG_PATH/$DEVICE_CONF file to find Tape Libraries and Drives ..."
 for LIBID in $(awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/$DEVICE_CONF) ; do
@@ -267,7 +309,10 @@ for LIBID in $(awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/$DEVICE_CONF) ; do
 		echo '===>' "Creating entry: $MHVTL_HOME_PATH/$a ..."
 		set_density $a
 		set_media_type $a
-		# pass in "-D" for debugging
-		mktape -v -l $LIBID -s $CAPACITY -t $MEDIA_TYPE -m $a -d $DENSITY -C $MHVTL_CONFIG_PATH
+		# pass in "-D[0-9]" for debugging, "-v" for verbosity
+		$MKTAPE_PATH/mktape -v -D5 -l $LIBID -s $CAPACITY -t $MEDIA_TYPE -m $a -d $DENSITY \
+			-C $MHVTL_CONFIG_PATH -H $MHVTL_HOME_PATH
+		res=$?
+		[[ $res -eq 0 ]] || exit 1
 	done
 done
