@@ -645,10 +645,9 @@ int rewriteMAM(uint8_t *sam_stat)
 /*
  * Returns:
  * == 0, the new PCL was successfully created.
- * == 2, the PCL (probably) already existed.
+ * == 2, could not create the directory or some file(s)
  * == 1, an error occurred.
 */
-
 int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 {
 	struct stat data_stat;
