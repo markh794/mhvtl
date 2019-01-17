@@ -199,8 +199,8 @@ distclean: clean
 
 install: all
 	[ -d $(DESTDIR)$(LIBDIR) ] || install -d -m 755 $(DESTDIR)$(LIBDIR)
-	install -g bin -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
-	install -g bin -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
+	install -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
+	install -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
 	[ -d $(DESTDIR)$(PREFIX)/bin ] || install -d -m 755 $(DESTDIR)$(PREFIX)/bin
 	install -m 755 vtltape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 vtllibrary $(DESTDIR)$(PREFIX)/bin/
