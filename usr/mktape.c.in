@@ -123,6 +123,10 @@ int main(int argc, char *argv[])
 		case 'v':
 			verbose++;
 			break;
+		default:
+			fprintf(stderr, "error: unknown option: %c\n", opt);
+			usage(progname);
+			exit(1);
 		}
 	}
 
