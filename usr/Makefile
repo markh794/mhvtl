@@ -191,6 +191,7 @@ clean:
 		mktape vtlcmd vtllibrary vtltape tapeexerciser \
 		mhvtl-device-conf-generator \
 		$(GENERATED_FILES)
+	$(RM) TAGS
 
 tags:
 	etags -R *.[ch] ../kernel/*.h

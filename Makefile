@@ -65,6 +65,7 @@ clean:
 	$(MAKE) -C etc clean
 	$(MAKE) -C scripts clean
 	$(MAKE) -C man clean
+	$(MAKE) -C kernel clean
 
 .PHONY: distclean
 distclean:
