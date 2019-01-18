@@ -62,7 +62,7 @@ struct	meta_header {
 	char pad[512 - sizeof(uint32_t)];
 };
 
-static char currentPCL[1024];
+static char currentPCL[HOME_DIR_PATH_SZ * 2];	/* make room for home_dir plus some */
 static struct meta_header meta;
 
 static char home_directory[HOME_DIR_PATH_SZ + 1];
