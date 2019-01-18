@@ -732,10 +732,11 @@ char *readline(char *buf, int len, FILE *s)
 	if (!ret)
 		return ret;
 
-	/* Skip blank line */
-	for (i = 1; i < len; i++)
-		if (buf[i] == '\n')
-			buf[i] = 0;
+	for (i = 0; i < len; i++)
+		if (buf[i] == '\n') {
+			buf[i] = '\0';
+			break;
+		}
 
 	MHVTL_DBG(3, "%s", buf);
 	return ret;
