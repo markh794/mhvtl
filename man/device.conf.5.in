@@ -17,7 +17,7 @@ Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
  Product revision level: 550V
  Unit serial number: XYZZY_A
  NAA: 10:22:33:44:ab:00:00:00
- Home directory: /opt/mhvtl/Spectra
+ Home directory: @HOME_PATH@/Spectra
  fifo: /var/tmp/mhvtl
  PERSIST: True
 .PP

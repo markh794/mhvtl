@@ -2,20 +2,23 @@
 .SH NAME
 make_vtl_media \- create the library database from lib_contents.* file(s)
 .SH SYNOPSIS
-.B make_vtl_media \-h|\-\-help -- print help message and exit
+\fBmake_vtl_media \-h|\-\-help\fR -- print help message and exit, or
 .br
-.B make_vtl_media [\-H|\-\-home-dir DIR] [\-C|\-\-config-dir DIR] [\-f|\-\-force] [\-c|\-\-create-dir]
+.B make_vtl_media
+.I [OPTIONS]
 .SH DESCRIPTION
 .PP
-Options are from:
+Where
+.I OPTIONS
+are from:
 .TP
-\fB\-H\fR, \fB\-\-home-dir\fR \fIDIR\fR
+\fB\-H\fR, \fB\-\-home-dir\fR=\fIDIR\fR
 Set the
 .I mhvtl
 home directory [default
 .BR @HOME_PATH@ ]
 .TP
-\fB\-C\fR, \fB\-\-config-dir\fR \fIDIR\fR
+\fB\-C\fR, \fB\-\-config-dir\fR=\fIDIR\fR
 Set the config directory [default
 .BR @CONFIG_PATH@ ]
 .TP
@@ -27,7 +30,11 @@ Create the home directory, if needed.
 .PP
 This program is invoked initialy when the software is installed, but
 can also be ran later to recreate the tape libraray database. It does so by reading
-the library_contents.* files in our configuration directory, and finding the
+the
+.I device.conf
+and
+.I library_contents.*
+files in our configuration directory, and finding the
 .B Slot
 entries in those files, extracting the
 .I barcode
@@ -41,7 +48,7 @@ Create media type as cleaning cartridge.
 Create the media as a data cartridge.
 .IP
 Attempts to use the chars 7 and 8 to work out the media type (LTO1/2/3/4/5,
- T10K, AIT etc) See
+T10K, AIT etc) See
 .B mktape(1)
 for more details on media density.
 .IP
@@ -57,8 +64,8 @@ Not documented.
 .SH "REPORTING BUGS"
 Report bugs to <markh794@gmail.com> <mark.harvey@nutanix.com>.
 .SH COPYRIGHT
-Copyright \(co 2018 Free Software Foundation, Inc.
-.br
+Copyright \(co 2019 Free Software Foundation, Inc.
+.P
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"

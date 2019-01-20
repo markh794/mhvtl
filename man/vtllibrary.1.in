@@ -2,39 +2,58 @@
 .SH NAME
 vtllibrary \- user space daemon to handle SCSI SMC commands for Virtual Tape Library.
 .SH SYNOPSIS
+\fBvtllibrary \-h\fR -- print a help message and exit, or
+.br
 .B vtllibrary
-[\fI-v|-d|-f fifo\fR]
+.I [OPTIONS]
+\fB\-q\fR \fIQUEUE_ID\fR -- Emulate a tape library for queue \fIQUEUE_ID\fR.
 .SH DESCRIPTION
 .\" Add any additional description here
+This command emulates a tape library device, using queue
+.IR QUEUE_ID ,
+which represent the message queue number used for this daemon.
+This number is derived from the
+.I device.conf
+where it must be unique. Media files can be created using
+.I OPTIONS
+are from:
+.TP
+.B \-d
+Enable debug logging (to stdout). Do not background the process,
+and set verbosity to level 9.
+.TP
+.BI \-v[ N ]
+Enable verbose logging (to syslog) at level \fIN\fR (default 1).
+.TP
+.B -F
+Run in the foreground, not as a daemon.
+.TP
+.BI \-f FIFO
+Near real time device state information will be available for external utilities by reading from this fifo. This switch has a higher precedence than the 'fifo:' entry in
+.BR device.conf .
 .PP
-The vtllibrary daemon should (needs) to be started AFTER
-.BR vtltape(1)
-daemons. The vtllibrary registers each
-.BR vtltape(1)
-via message queue. The vtllibrary reads /opt/mhvtl/library.contents
-and dynamically buils an internal structure of Storage slots and Media Access slots.
+The
+.B vtllibrary
+daemon simulates a tape library device, and is started by
+.BR systemd(1) ,
+as needed, one invocation per Tape Library being simulated. The
+.B vtllibrary
+daemon registers each
+.B vtltape(1)
+via message queue. The
+.B vtllibrary
+reads @HOME_PATH@/library_contents.*
+and dynamically builds an internal structure of Storage slots and Media Access slots.
 All media movement is performed on internal structures only. The configuration file
-is never changed. i.e. A re-start of the daemon will result in the loss of any
+is never changed, i.e. a re-start of the daemon will result in the loss of any
 previous media movements.
+.P
 When media is moved to/from a "Data transfer element" (tape drive), a (un)load message is sent
 via the drive 'slot number' message Q number to load/unload the barcode.
-.TP
-\fB\-h\fR
-display this help and exit
-.TP
-\fB\-d\fR
-Enable debug logging (to stdout). Do not backgound the process.
-.TP
-\fB\-v\fR
-Enable verbose logging (to syslog)
-.TP
-\fB\-f fifo\fR
-Near real time device state information will be available for external utilities by reading from this fifo. This switch has a higher precedence than the 'fifo:' entry in
-.B
-device.conf
-
 .SH FILES
-/etc/mhvtl/library_config
+@CONFIG_PATH@/device.conf -- to find which \fIlibrary_contents.*\fR files to examine
+.br
+@CONFIG_PATH@/library_contents.*
 .SH AUTHOR
 Written by Mark Harvey
 .SH BUGS
@@ -42,13 +61,13 @@ Does not implement the complete SCSI SMC-2/SMC-3 command set.
 .SH "REPORTING BUGS"
 Report bugs to <markh794@gmail.com> <mark.harvey@nutanix.com>.
 .SH COPYRIGHT
-Copyright \(co 2005 Free Software Foundation, Inc.
+Copyright \(co 2019 Free Software Foundation, Inc.
 .br
-This is free software; see the source for copying conditions.  There is NO
+This is free software; see the source for copying conditions. There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"
-.BR library_contents(5),
-.BR mktape(1),
-.BR make_vtl_media(1),
-.BR vtlcmd(1),
+.BR library_contents(5) ,
+.BR mktape(1) ,
+.BR make_vtl_media(1) ,
+.BR vtlcmd(1) ,
 .BR vtltape(1)
