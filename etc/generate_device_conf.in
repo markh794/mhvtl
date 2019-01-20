@@ -13,6 +13,7 @@ PROG_NAME="$0"
 MHVTL_HOME_PATH=@HOME_PATH@
 DEST_DIR='.'
 FORCE=''
+OVERRIDE=''
 
 usage()
 {
@@ -23,6 +24,7 @@ usage()
 	echo "                      -- home path [default $MHVTL_HOME_PATH]"
 	echo "  [-D|--dest-dir DIR] -- destination dir [default $DEST_DIR]"
 	echo "  [-f|--force]        -- overwrite files if present"
+	echo "  [-o|--override-home] -- override requirement that home dir exists"
 	echo ""
 	echo "To create a new $DEVICE_CONF file, edit this script and run it again"
 }
@@ -298,7 +300,7 @@ add_library_contents_30()
 # start of script
 #
 
-TEMP=$(getopt -o 'hH:D:f' --long 'help,home-dir:,dest-dir:,force' -n "$PROG_NAME" -- "$@")
+TEMP=$(getopt -o 'hH:D:fo' --long 'help,home-dir:,dest-dir:,force,override-home' -n "$PROG_NAME" -- "$@")
 if [[ $? -ne 0 ]] ; then
 	usage
 	exit 1
@@ -327,6 +329,11 @@ while true; do
 		shift
 		continue
 		;;
+	'-o'|'--override-home')
+		OVERRIDE='1'
+		shift
+		continue
+		;;
 	'--')
 		shift
 		break
@@ -347,9 +354,11 @@ fi
 # verify a home path make sense
 # (for use in the device.conf we generate)
 if [[ ! -d "$MHVTL_HOME_PATH" ]] ; then
-	echo "error: MHVTL_HOME_PATH not a directory" 1>&2
-	usage
-	exit 1
+	if [[ -z "$OVERRIDE" ]] ; then
+		echo "error: MHVTL_HOME_PATH not a directory" 1>&2
+		usage
+		exit 1
+	fi
 fi
 
 # ensure we do not step on earlier config file

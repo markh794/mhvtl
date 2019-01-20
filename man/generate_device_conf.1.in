@@ -4,7 +4,7 @@ generate_device_conf \- Utility to generate the device.conf file
 .SH SYNOPSIS
 .B generate_device_conf -h|--help -- print help message and exit
 .br
-.B generate_device_conf [-H|--home-dir HOME_DIR] [-D|--dest-dir DIR] [-f|--force]
+.BI generate_device_conf OPTIONS
 .SH DESCRIPTION
 .PP
 This script creates the device.conf file, from scratch. Edit this
@@ -15,7 +15,8 @@ edited then run again to regenerate the
 .B device.conf
 file again.
 .PP
-Options are from
+.I OPTIONS
+are from:
 .TP
 \fB\-H\fR, \fB\-\-home-dir\fR \fIHOME_DIR\fR
 Set the
@@ -31,6 +32,9 @@ Set the destination directory [default
 Overwrite existing
 .B device.conf
 if needed.
+.TP
+\fB\-o\fR, \fB\-\-override-home\fR
+Allow script to continue even if home directory is not present.
 .SH AUTHOR
 Written by Mark Harvey.
 .SH BUGS
