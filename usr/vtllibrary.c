@@ -90,12 +90,14 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu);
 
 static void usage(char *progname)
 {
-	printf("Usage: %s -q <Q number> [-d] [-v]\n", progname);
-	printf("       Where:\n");
-	printf("             'q number' is the queue priority number\n");
-	printf("             'd' == debug -> Don't run as daemon\n");
-	printf("             'v[N]' == verbose -> Extra info logged via syslog\n");
-	printf("                e.g. '-v -v' == '-v2'\n");
+	printf("Usage: %s [OPTIONS] -q <Q-number>\n", progname);
+	printf("Where:\n");
+	printf("       '-q <Q-number>' is the queue priority number\n");
+	printf("and where OPTIONS are from:\n");
+	printf("       '-d'       enable debug mode -> Don't run as daemon\n");
+	printf("       'v[N]'     enable verbose syslog messages level N [1]\n");
+	printf("       '-f FIFO'  use FIFO to report real-time data\n");
+	printf("       '-F'       run in the foreground\n");
 }
 
 #ifndef Solaris

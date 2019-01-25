@@ -22,7 +22,6 @@ PARENTDIR = mhvtl-$(VER)
 PREFIX ?= /usr
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
-LIBDIR ?= /usr/lib
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 
@@ -31,6 +30,17 @@ TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION)$(EXTRAVERSION).tgz
 MAKE_VTL_MEDIA = usr/make_vtl_media
 
 export PREFIX DESTDIR
+
+# set LIBDIR for installation
+ifeq ($(shell uname -m),x86_64)
+LIBDIR ?= $(PREFIX)/lib64
+else
+LIBDIR ?= $(PREFIX)/lib
+endif
+# Ubuntu / mint seem to have stopped using /lib64/
+ifeq ($(shell grep lib64 /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
+LIBDIR = $(PREFIX)/lib
+endif
 
 CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
 CLFLAGS=-shared
@@ -65,6 +75,7 @@ clean:
 	$(MAKE) -C etc clean
 	$(MAKE) -C scripts clean
 	$(MAKE) -C man clean
+	$(MAKE) -C kernel clean
 
 .PHONY: distclean
 distclean:
@@ -83,7 +94,11 @@ install: all
 	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
 	# now ensure VTL media is setup
-	$(MAKE_VTL_MEDIA)
+	env LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR) \
+		$(MAKE_VTL_MEDIA) --force \
+			--config-dir=$(DESTDIR)$(MHVTL_CONFIG_PATH) \
+			--home-dir=$(DESTDIR)$(MHVTL_HOME_PATH) \
+			--mktape-path=usr
 
 tar: distclean
 	test -d ../$(PARENTDIR) || ln -s $(TOPDIR) ../$(PARENTDIR)

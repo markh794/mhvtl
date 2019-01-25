@@ -1,57 +1,64 @@
 .TH mhvtl.conf "5" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
 .SH NAME
 mhvtl.conf \- Configuration file for
-.BR vtllibrary(1)
+.B vtllibrary(1)
 and
-.BR vtltape(1)
+.B vtltape(1)
 .SH DESCRIPTION
 .\" Add any additional description here
 .PP
-Configuration file to define startup behaviour of the vtl.
-
-.IP
-CAPACITY = XXX
-
+Configuration file to define startup behaviour of the virtual tape library.
+.TP
+MHVTL_HOME_PATH=@HOME_PATH@
+The location where
+.I mhvtl
+stores its tape
+.IR database .
+.TP
+CAPACITY=500
 Defines default capacity any new media will be created (in Megabytes).
-
-make_vtl_media(1) uses this value and passes to 'mktape'
-
-.IP
-VERBOSE = [0|1|2|3] Define daemon logging level at startup.
-Refer
-.BR vtlcmd(1)
+.B make_vtl_media(1)
+uses this value and passes to
+.IR mktape .
+.TP
+VERBOSE=1
+Set verbosity to level [0|1|2|3] for daemon logging level at startup.
+Refer to
+.B vtlcmd(1)
 to adjust logging level at runtime.
-
-.IP
-DEBUG = [0|1] Disable/Enable kernel module logging. Can be enabled/disabled
-at runtime via
+.TP
+VTL_DEBUG=0
+Set to [0|1]. to disable/enable kernel module logging. Can be enabled/disabled
+at runtime via:
 .IP
 "echo 0 > /sys/bus/pseduo/drivers/mhvtl/opts" to disable, or
 .IP
 "echo 1 > /sys/bus/pseudo/drivers/mhvtl/opts" to enable logging.
-
+.TP
+DAEMON_DEBUG=''
+Set to
+.I ''
+to disable daemon debugging, or
+.I '-d'
+to enable it.
 .SH AUTHOR
 Written by Mark Harvey
-
 .SH BUGS
 This man page.
 .PP
 Config file not xml.
 .PP
-.BR vtllibrary(1)
+.B vtllibrary(1)
 needs to be restarted to read any changes made. (By design).
-.PP
-
 .SH "REPORTING BUGS"
 Report bugs to <markh794@gmail.com> <mark.harvey@nutanix.com>.
-
 .SH COPYRIGHT
-Copyright \(co 2005 Free Software Foundation, Inc.
+Copyright \(co 2019 Free Software Foundation, Inc.
 .br
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"
-.BR mktape(1),
-.BR vtlcmd(1),
-.BR vtllibrary(1),
+.BR mktape(1) ,
+.BR vtlcmd(1) ,
+.BR vtllibrary(1) ,
 .BR vtltape(1)

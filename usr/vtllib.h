@@ -81,7 +81,7 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define MIN_SLEEP_TIME 5
 #define DEFLT_BACKOFF_VALUE 400
 
-#define HOME_DIR_PATH_SZ 64
+#define HOME_DIR_PATH_SZ 1024
 /*
  * Medium Type Definations
  */

@@ -39,11 +39,12 @@ static void usage(char *progname)
 {
 	printf("Usage: %s [OPTIONS] [REQUIRED-PARAMS]", progname);
 	printf("Where OPTIONS are from:\n");
-	printf("      -h   -- print this message and exit\n");
-	printf("      -v   -- verbose\n");
-	printf("      -D   -- debug\n");
-	printf("      -V   -- print Version and exit\n");
+	printf("      -h    -- print this message and exit\n");
+	printf("      -v    -- verbose\n");
+	printf("      -D[N] -- set debug level to N [1]\n");
+	printf("      -V    -- print Version and exit\n");
 	printf("      -C config-dir -- override default config dir [@CONF_PATH@]\n");
+	printf("      -H home-dir   -- override default home dir [default from config]\n");
 	printf("And REQUIRED-PARAMS are:\n");
 	printf("      -l lib      -- set Library number\n");
 	printf("      -m PCL      -- set Physical Cartrige Label (barcode)\n");
@@ -77,6 +78,7 @@ int main(int argc, char *argv[])
 	int opt;
 	int res;
 	char *param_config_dir = NULL;
+	char *param_home_dir = NULL;
 
 	if (sizeof(struct MAM) != 1024) {
 		fprintf(stderr, "error: Structure of MAM incorrect size: %d\n",
@@ -90,7 +92,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while ((opt = getopt(argc, argv, "d:l:m:s:t:VvDhC:")) != -1) {
+	while ((opt = getopt(argc, argv, "d:l:m:s:t:VvD::hC:H:")) != -1) {
 		switch (opt) {
 		case 'h':
 			usage(progname);
@@ -113,16 +115,26 @@ int main(int argc, char *argv[])
 		case 'C':
 			param_config_dir = strdup(optarg);
 			break;
+		case 'H':
+			param_home_dir = strdup(optarg);
+			break;
 		case 'V':
 			printf("%s: version %s\n", progname, MHVTL_VERSION);
 			printf("%s\n", (char *)largefile_support);
 			exit(0);
 		case 'D':
-			debug++;
+			if (optarg)
+				debug = strtol(optarg, NULL, 0);
+			else
+				debug++;
 			break;
 		case 'v':
 			verbose++;
 			break;
+		default:
+			fprintf(stderr, "error: unknown option: %c\n", opt);
+			usage(progname);
+			exit(1);
 		}
 	}
 
@@ -162,7 +174,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	find_media_home_directory(param_config_dir, home_directory, libno);
+	if (param_home_dir)
+		strncpy(home_directory, param_home_dir, HOME_DIR_PATH_SZ);
+	else
+		find_media_home_directory(param_config_dir, home_directory, libno);
 
 	if (strlen(pcl) > MAX_BARCODE_LEN) {
 		fprintf(stderr, "error: Max barcode length (%d) exceeded\n\n", MAX_BARCODE_LEN);

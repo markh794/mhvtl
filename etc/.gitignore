@@ -6,3 +6,4 @@ vtllibrary@.service
 vtltape@.service
 mhvtl-load-modules.service
 generate_device_conf
+generate_library_contents

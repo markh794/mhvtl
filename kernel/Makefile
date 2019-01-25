@@ -32,6 +32,7 @@ default:
 
 clean:
 	rm -f mhvtl.ko
+	$(RM) TAGS
 
 distclean:
 	rm -f mhvtl.o mhvtl.ko \

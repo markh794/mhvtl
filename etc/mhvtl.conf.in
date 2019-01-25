@@ -2,9 +2,6 @@
 # mhvtl.conf
 #
 
-# Home directory for config file(s) (including this file)
-MHVTL_CONFIG_PATH=@CONF_PATH@
-
 # Home directory for tape emulation files
 MHVTL_HOME_PATH=@HOME_PATH@
 

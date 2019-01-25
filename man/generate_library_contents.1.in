@@ -2,10 +2,25 @@
 .SH NAME
 generate_library_contents \- Utility to generate the lib_contents.* files from device.conf
 .SH SYNOPSIS
-.B generate_library_contents -h|--help -- print help usage and exit
+\fBgenerate_library_contents -h|--help\fR -- print help usage and exit, or
 .br
-.B generate_library_contents [-C|--config-dir DIR] [-D|--dest-dir DIR] [-f|--force]
+.B generate_library_contents
+.I [OPTIONS]
 .SH DESCRIPTION
+Where
+.I OPTIONS
+are from:
+.TP
+\fB\-C\fR, \fB\-\-config-dir\fR=\fIDIR\fR
+Set config directory [defaults to
+.BR @CONF_PATH@ ]
+.TP
+\fB\-D\fR, \fB\-\-dest-dir\fR=\fIDIR\fR
+Set the destination directory [defaults to
+.BR . ]
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Write over existing library_contents.* files, if needed.
 .PP
 This script creates the library_contents.* files from the
 .B device.conf
@@ -15,18 +30,6 @@ these files if
 .B device.conf
 has changed.
 .PP
-Options are from:
-.TP
-\fB\-C\fR, \fB\-\-config-dir\fR \fIDIR\fR
-Set config directory [defaults to
-.BR . ]
-.TP
-\fB\-D\fR, \fB\-\-dest-dir\fR \fIDIR\fR
-Set the destination directory [defaults to
-.BR . ]
-.TP
-\fB\-f\fR, \fB\-\-force\fR
-Write over existing library_contents.* files, if needed.
 .SH AUTHOR
 Written by Mark Harvey.
 Updated by Lee Duncan.

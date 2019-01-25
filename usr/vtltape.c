@@ -257,18 +257,17 @@ static struct tape_drives_table {
 
 static void (*drive_init)(struct lu_phy_attr *) = init_default_ssc;
 
-static void usage(char *progname) {
-	printf("Usage: %s -q <Q number> [-d] [-v[N]] [-f FIFONAME] [-F]\n",
-		progname);
+static void usage(char *progname)
+{
+	printf("Usage: %s [OPTIONS] -q <Q-number>\n", progname);
 	printf("Where:\n");
-	printf("     'q number' is the queue priority number [REQUIRED]\n");
-	printf("     'd' == debug\n");
-	printf("     'v[N]' == verbose -> Extra info logged via syslog\n");
-	printf("        e.g. '-v -v' == '-v2'\n");
-	printf("     'f FIFONAME' == use FIFO named FIFONAME\n");
-	printf("     'F' == run in the foreground, i.e. don't fork\n");
+	printf("       '-q <Q-number>' is the queue priority number\n");
+	printf("and where OPTIONS are from:\n");
+	printf("       '-d'       enable debug mode -> Don't run as daemon\n");
+	printf("       'v[N]'     enable verbose syslog messages level N [1]\n");
+	printf("       '-f FIFO'  use FIFO to report real-time data\n");
+	printf("       '-F'       run in the foreground\n");
 }
-
 
 static void
 mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_valid)

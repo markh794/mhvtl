@@ -12,7 +12,7 @@
 DEVICE_CONF='device.conf'
 PROG_NAME="$0"
 FORCE=''
-MHVTL_CONFIG_PATH='.'
+MHVTL_CONFIG_PATH='@CONF_PATH@'
 DEST_DIR='.'
 
 usage()
