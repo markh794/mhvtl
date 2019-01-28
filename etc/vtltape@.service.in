@@ -1,7 +1,7 @@
 [Unit]
 Documentation=man:vtltape(1) man:vtlcmd(1)
 Description=Tape Daemon for Virtual Tape & Robot Library
-Before=multi-user.target
+Before=mhvtl.target
 Requires=mhvtl-load-modules.service
 After=mhvtl-load-modules.service
 PartOf=mhvtl.target
