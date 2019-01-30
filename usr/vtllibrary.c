@@ -1693,7 +1693,7 @@ int main(int argc, char *argv[])
 	int mlen, r_qid;
 	struct q_entry r_entry;
 
-	while ((opt = getopt(argc, argv, "dv::q::f::F")) != -1) {
+	while ((opt = getopt(argc, argv, "dv::q:f::F")) != -1) {
 		switch (opt) {
 		case 'd':
 			debug++;

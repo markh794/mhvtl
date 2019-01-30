@@ -2835,7 +2835,7 @@ int main(int argc, char *argv[])
 
 	current_state = MHVTL_STATE_INIT;
 
-	while ((opt = getopt(argc, argv, "dv::q::f::F")) != -1) {
+	while ((opt = getopt(argc, argv, "dv::q:f::F")) != -1) {
 		switch (opt) {
 		case 'd':
 			/* If debug, make verbose... */
