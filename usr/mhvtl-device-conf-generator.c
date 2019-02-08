@@ -208,12 +208,7 @@ int main(int argc, char **argv)
 {
 	char		*working_dir;
 	struct vtl_info	*ip;
-	char		*dirs_to_create[] = {
-				"multi-user.target.wants",
-				"mhvtl.target.wants",
-				NULL
-			};
-	char		**dirnamep;
+	const char	dirname[] = "mhvtl.target.wants";
 	char		*path;
 
 
@@ -243,62 +238,60 @@ int main(int argc, char **argv)
 			(void) printf("DEBUG:  %d\n", ip->num);
 	}
 
-	for (dirnamep = dirs_to_create; *dirnamep != NULL; dirnamep++) {
-		if (asprintf(&path, "%s/%s", working_dir, *dirnamep) < 0) {
-			perror("Could not allocate memory (for directory path)");
+	if (asprintf(&path, "%s/%s", working_dir, dirname) < 0) {
+		perror("Could not allocate memory (for directory path)");
+		exit(1);
+	}
+	if (debug_mode)
+		printf("DEBUG: creating dir: %s\n", path);
+	if (mkdir(path, 0755) < 0) {
+		if (debug_mode)
+			(void) fprintf(stderr, "DEBUG: error: can't mkdir: %s\n",
+					path);
+		// clean up?
+		exit(1);
+	}
+	free(path);
+
+	if (debug_mode)
+		printf("DEBUG: scanning libraries ...\n");
+	for (ip = our_libraries.next; ip != NULL; ip = ip->next) {
+		const char to_path[] = "/usr/lib/systemd/system/vtllibrary@.service";
+		if (asprintf(&path, "%s/%s/vtllibrary@%d.service", working_dir, dirname, ip->num) < 0) {
+			perror("Could not allocate memory (for vtllibrary template symlink)");
 			exit(1);
 		}
 		if (debug_mode)
-			printf("DEBUG: creating dir: %s\n", path);
-		if (mkdir(path, 0755) < 0) {
+			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", path, to_path);
+		if (symlink(to_path, path) < 0) {
 			if (debug_mode)
-				(void) fprintf(stderr, "DEBUG: error: can't mkdir: %s\n",
-						path);
+				(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
+						errno, path, to_path);
 			// clean up?
 			exit(1);
 		}
 		free(path);
-
-		if (debug_mode)
-			printf("DEBUG: scanning libraries ...\n");
-		for (ip = our_libraries.next; ip != NULL; ip = ip->next) {
-			const char *to_path = "/usr/lib/systemd/system/vtllibrary@.service";
-			if (asprintf(&path, "%s/%s/vtllibrary@%d.service", working_dir, *dirnamep, ip->num) < 0) {
-				perror("Could not allocate memory (for vtllibrary template symlink)");
-				exit(1);
-			}
-			if (debug_mode)
-				(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", path, to_path);
-			if (symlink(to_path, path) < 0) {
-				if (debug_mode)
-					(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
-							errno, path, to_path);
-				// clean up?
-				exit(1);
-			}
-			free(path);
-		}
-		if (debug_mode)
-			printf("DEBUG: scanning tapes ...\n");
-		for (ip = our_tapes.next; ip != NULL; ip = ip->next) {
-			const char *to_path = "/usr/lib/systemd/system/vtltape@.service";
-			if (asprintf(&path, "%s/%s/vtltape@%d.service", working_dir, *dirnamep, ip->num) < 0) {
-				perror("Could not allocate memory (for vtltape template symlink)");
-				exit(1);
-			}
-			if (debug_mode)
-				(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", path, to_path);
-			if (symlink(to_path, path) < 0) {
-				if (debug_mode)
-					(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
-							errno, path, to_path);
-				// clean up?
-				exit(1);
-			}
-			free(path);
-		}
-
 	}
+	if (debug_mode)
+		printf("DEBUG: scanning tapes ...\n");
+	for (ip = our_tapes.next; ip != NULL; ip = ip->next) {
+		const char *to_path = "/usr/lib/systemd/system/vtltape@.service";
+		if (asprintf(&path, "%s/%s/vtltape@%d.service", working_dir, dirname, ip->num) < 0) {
+			perror("Could not allocate memory (for vtltape template symlink)");
+			exit(1);
+		}
+		if (debug_mode)
+			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", path, to_path);
+		if (symlink(to_path, path) < 0) {
+			if (debug_mode)
+				(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
+						errno, path, to_path);
+			// clean up?
+			exit(1);
+		}
+		free(path);
+	}
+
 
 	exit(0);
 }
