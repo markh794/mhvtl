@@ -65,7 +65,7 @@ static char *get_working_dir(int argc, char **argv)
 	/* skip program name */
 	argc--; argc++;
 
-	if ((argc > 0) && !strcmp(argv[1], "-d")) {
+	if ((argc > 1) && !strcmp(argv[1], "-d")) {
 		debug_mode++;
 		argc--; argv++;
 	}
