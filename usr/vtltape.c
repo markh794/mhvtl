@@ -2853,14 +2853,12 @@ int main(int argc, char *argv[])
 				verbose = 9;
 			break;
 		case 'q':
-			if (optarg) {
-				my_id = atoi(optarg);
-				if ((my_id < 0) || (my_id > MAXPRIOR)) {
-					fprintf(stderr, "error: queue ID out of range [1..%u]\n",
-							MAXPRIOR);
-					usage(progname);
-					exit(1);
-				}
+			my_id = atoi(optarg);
+			if ((my_id < 0) || (my_id > MAXPRIOR)) {
+				fprintf(stderr, "error: queue ID out of range [1..%u]\n",
+						MAXPRIOR);
+				usage(progname);
+				exit(1);
 			}
 			break;
 		case 'f':
