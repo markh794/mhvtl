@@ -21,17 +21,6 @@ REL = $(shell awk '/Release/ {print $$2}' ../mhvtl-utils.spec)
 VERSION ?= $(VER)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
-ifeq ($(shell uname -m),x86_64)
-LIBDIR=lib64
-else
-LIBDIR=lib
-endif
-
-# Ubuntu / mint seem to have stopped using /lib64/
-ifeq ($(shell grep lib64 /etc/ld.so.conf.d/* | wc -l),0)
-LIBDIR=lib
-endif
-
 MONTH = $(shell date -r ../ChangeLog +%B)
 YEAR = $(shell date -r ../ChangeLog +%Y)
 

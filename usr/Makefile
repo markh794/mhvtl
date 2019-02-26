@@ -28,15 +28,10 @@ MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
 HOME_PATH = $(shell echo $(MHVTL_HOME_PATH) | sed -e s'/\//\\\//g')
 
-ifeq ($(shell uname -m),x86_64)
-LIBDIR ?= $(PREFIX)/lib64
-else
+ifeq ($(shell grep lib64$ /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
 LIBDIR ?= $(PREFIX)/lib
-endif
-
-# Ubuntu / mint seem to have stopped using /lib64/
-ifeq ($(shell grep lib64 /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
-LIBDIR = $(PREFIX)/lib
+else
+LIBDIR ?= $(PREFIX)/lib64
 endif
 
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel

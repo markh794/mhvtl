@@ -31,15 +31,10 @@ MAKE_VTL_MEDIA = usr/make_vtl_media
 
 export PREFIX DESTDIR
 
-# set LIBDIR for installation
-ifeq ($(shell uname -m),x86_64)
-LIBDIR ?= $(PREFIX)/lib64
-else
+ifeq ($(shell grep lib64$ /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
 LIBDIR ?= $(PREFIX)/lib
-endif
-# Ubuntu / mint seem to have stopped using /lib64/
-ifeq ($(shell grep lib64 /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
-LIBDIR = $(PREFIX)/lib
+else
+LIBDIR ?= $(PREFIX)/lib64
 endif
 
 CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
