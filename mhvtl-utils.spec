@@ -142,7 +142,7 @@ The SSC/SMC target daemons have been written from scratch.
 * Sat Jan 12 2013 Mark Harvey <markh794@gmail.com> - 1.4-5
 - Updated to release 1.4-5 (2013-01-12).
 
-* Thu Aug 13 2012 Mark Harvey <markh794@gmail.com> - 1.4-4
+* Mon Aug 13 2012 Mark Harvey <markh794@gmail.com> - 1.4-4
 - Updated to release 1.4-4 (2012-09-13).
 
 * Wed Aug  8 2012 Mark Harvey <markh794@gmail.com> - 1.4-1
