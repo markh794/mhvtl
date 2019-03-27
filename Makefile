@@ -24,6 +24,7 @@ MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
+SYSTEMD_GENERATOR_DIR ?= $(PREFIX)/lib/systemd/system-generators
 
 TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION)$(EXTRAVERSION).tgz
 
@@ -49,7 +50,7 @@ etc:	patch
 	$(MAKE) -C etc MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
 
 usr:	patch
-	$(MAKE) -C usr MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
+	$(MAKE) -C usr MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH) SYSTEMD_GENERATOR_DIR=$(SYSTEMD_GENERATOR_DIR)
 
 kernel: patch
 	$(MAKE) -C kernel

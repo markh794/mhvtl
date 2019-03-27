@@ -1,6 +1,13 @@
 # Disable the building of the debug package(s).
 %define debug_package %{nil}
 
+# Compat path macros
+# pilfered from https://src.fedoraproject.org/rpms/snapd/blob/master/f/snapd.spec
+%{!?_systemdgeneratordir: %global _systemdgeneratordir %{_prefix}/lib/systemd/system-generators}
+
+%define _unpackaged_files_terminate_build 0
+
+
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
 Name: mhvtl-utils
@@ -98,7 +105,7 @@ The SSC/SMC target daemons have been written from scratch.
 %config %{_sysconfdir}/mhvtl/device.conf
 %config %{_sysconfdir}/mhvtl/library_contents.10
 %config %{_sysconfdir}/mhvtl/library_contents.30
-%{_libexecdir}/systemd/system-generators/mhvtl-device-conf-generator
+%{_systemdgeneratordir}/mhvtl-device-conf-generator
 %{_unitdir}/mhvtl-load-modules.service
 %{_unitdir}/vtllibrary@.service
 %{_unitdir}/vtltape@.service
