@@ -108,5 +108,6 @@ tar: distclean
 		 $(PARENTDIR)/Makefile \
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
+		 $(PARENTDIR)/ChangeLog \
 		 $(PARENTDIR)/mhvtl-utils.spec)
 	$(RM) ../$(PARENTDIR)
