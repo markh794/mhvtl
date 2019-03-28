@@ -57,17 +57,24 @@ The SSC/SMC target daemons have been written from scratch.
 
 %post
 /sbin/ldconfig
-%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+/bin/systemctl daemon-reload
+/bin/systemctl start mhvtl.target
+/bin/systemctl enable  mhvtl.target
+#%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %postun
 /sbin/ldconfig
-%{service_del_postun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+/bin/systemctl daemon-reload
+
+#%{service_del_postun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %pre
-%{service_add_pre mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+#%{service_add_pre mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %preun
-%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+/bin/systemctl stop  mhvtl.target
+/bin/systemctl disable  mhvtl.target
+#%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %clean
 %{__rm} -rf %{buildroot}
