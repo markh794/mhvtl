@@ -1,3 +1,11 @@
+* Thu Mar 28 14:30:30 AEST 2019 Mark Marvey <markh794@gmail.com> <mark.harvey@nutanix.com>
+- Create virtual media on rpm install
+- Fixed a couple typos in spec file (one from several years ago)
+- Don’t overwrite /etc/mhvtl/* but install as ‘rpmnew’
+- Replace SUSE specific rpm macros with hand crafted ’systemctl’ commands.
+- systems-generators dir needed munging for CentOS7
+- Include ‘ChangeLog’ as part of the tar ball - the time/date build on man pages is dependant
+
 * Thu Nov 29 15:42:24 PST 2018 Lee Duncan <lduncan@suse.com>
 - Many changes to support systemd:
   - Removed /etc/init.d/mhvtl script
