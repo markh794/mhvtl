@@ -108,10 +108,10 @@ The SSC/SMC target daemons have been written from scratch.
 %{_libdir}/libvtlscsi.so
 %{_libdir}/libvtlcart.so
 %dir %{_sysconfdir}/mhvtl
-%config %{_sysconfdir}/mhvtl/mhvtl.conf
-%config %{_sysconfdir}/mhvtl/device.conf
-%config %{_sysconfdir}/mhvtl/library_contents.10
-%config %{_sysconfdir}/mhvtl/library_contents.30
+%config(noreplace) %{_sysconfdir}/mhvtl/mhvtl.conf
+%config(noreplace) %{_sysconfdir}/mhvtl/device.conf
+%config(noreplace) %{_sysconfdir}/mhvtl/library_contents.10
+%config(noreplace) %{_sysconfdir}/mhvtl/library_contents.30
 %{_systemdgeneratordir}/mhvtl-device-conf-generator
 %{_unitdir}/mhvtl-load-modules.service
 %{_unitdir}/vtllibrary@.service
