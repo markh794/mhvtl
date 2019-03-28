@@ -61,6 +61,7 @@ The SSC/SMC target daemons have been written from scratch.
 /bin/systemctl start mhvtl.target
 /bin/systemctl enable  mhvtl.target
 #%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-path=%{_bindir}
 
 %postun
 /sbin/ldconfig
