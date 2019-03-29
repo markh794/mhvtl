@@ -320,7 +320,11 @@ static struct scsi_host_template vtl_driver_template = {
 	.cmd_per_lun =		32,
 	.max_sectors =		4096,
 	.unchecked_isa_dma =	0,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
 	.use_clustering =	ENABLE_CLUSTERING,
+#else
+	.dma_boundary =		PAGE_SIZE - 1,
+#endif
 	.module =		THIS_MODULE,
 };
 
