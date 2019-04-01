@@ -89,6 +89,8 @@ install: all
 	$(MAKE) -C man man
 	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
+	ldconfig
+	systemctl daemon-reload
 	# now ensure VTL media is setup
 	env LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR) \
 		$(MAKE_VTL_MEDIA) --force \
