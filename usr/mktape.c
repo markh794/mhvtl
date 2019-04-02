@@ -66,6 +66,15 @@ static void usage(char *progname)
 	printf("\n");
 }
 
+int gettime()
+{
+	const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
+	time_t t;
+	if ( source_date_epoch == NULL || (t = (time_t)strtoll(source_date_epoch, NULL, 10)) <= 0)
+		t = time(NULL);
+	return t;
+}
+
 int main(int argc, char *argv[])
 {
 	unsigned char sam_stat;
@@ -212,8 +221,8 @@ int main(int argc, char *argv[])
 	}
 	set_media_params(&mam, density);
 
-	sprintf((char *)mam.MediumSerialNumber, "%s_%d", pcl, (int)time(NULL));
-	sprintf((char *)mam.MediumManufactureDate, "%d", (int)time(NULL));
+	sprintf((char *)mam.MediumSerialNumber, "%s_%d", pcl, (int)gettime());
+	sprintf((char *)mam.MediumManufactureDate, "%d", (int)gettime());
 	sprintf((char *)mam.Barcode, "%-31s", pcl);
 
 	/* Create the PCL using the initialized MAM. */
