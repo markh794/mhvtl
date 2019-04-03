@@ -972,9 +972,28 @@ static int check_tape_load(void)
 
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
-		MHVTL_DBG(2, "Received \"%s\" from message Q", q.msg.text);
+		MHVTL_DBG(1, "Received \"%s\" from message Q", q.msg.text);
 
 	return strncmp("Loaded OK", q.msg.text, 9);
+}
+
+static int check_tape_unload(void)
+{
+	int mlen, r_qid;
+	struct q_entry q;
+
+	/* Initialise message queue as necessary */
+	r_qid = init_queue();
+	if (r_qid == -1) {
+		printf("Could not initialise message queue\n");
+		exit(1);
+	}
+
+	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
+	if (mlen > 0)
+		MHVTL_DBG(1, "Received \"%s\" from message Q", q.msg.text);
+
+	return strncmp("Unloaded OK", q.msg.text, 11);
 }
 
 /*
@@ -1248,8 +1267,17 @@ static int move_drive2slot(struct smc_priv *smc_p,
 		return retval;
 
 	/* Send 'unload' message to drive b4 the move.. */
-	if (!slotAccess(src->slot))
-		send_msg("unload", src->drv_id);
+	if (!slotAccess(src->slot)) {
+		sprintf(cmd, "unload %s", src->slot->media->barcode);
+		send_msg(cmd, src->drv_id);
+		/* Now we wait for the tape device to respond with status of unload */
+		if (check_tape_unload()) {
+			MHVTL_ERR("Unload of %s from drive %d failed",
+					cmd, slot_number(smc_p->pm, src->slot));
+			sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
+	}
 
 	if (!smc_p->state_msg)
 		smc_p->state_msg = zalloc(64);
@@ -1303,7 +1331,15 @@ static int move_drive2drive(struct smc_priv *smc_p,
 				src->slot->media->barcode,
 				slot_number(smc_p->pm, src->slot));
 
-	send_msg("unload", src->drv_id);
+	sprintf(cmd, "unload %s", src->slot->media->barcode);
+	send_msg(cmd, src->drv_id);
+	/* Now we wait for the tape device to respond with status of unload */
+	if (check_tape_unload()) {
+		MHVTL_ERR("Failed to unload tape from drive %d",
+				slot_number(smc_p->pm, src->slot));
+		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	move_cart(src->slot, dest->slot);
 

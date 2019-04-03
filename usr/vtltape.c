@@ -2012,6 +2012,9 @@ return p;
 void unloadTape(struct q_msg *msg, uint8_t *sam_stat)
 {
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
+	char s[128];
+
+	sprintf(s, "Not mounted");
 
 	switch (lu_ssc.tapeLoaded) {
 	case TAPE_LOADING:
@@ -2025,12 +2028,13 @@ void unloadTape(struct q_msg *msg, uint8_t *sam_stat)
 			lu_ssc.cleaning_media_state = NULL;
 		lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 		delay_opcode(DELAY_UNLOAD, lu_ssc.delay_unload);
-		send_msg("ejected", msg->snd_id);
+		sprintf(s, "Unloaded OK %s", lu_ssc.mediaSerialNo);
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");
 		break;
 	}
+	send_msg(s, msg->snd_id);
 	OK_to_write = 0;
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 }
