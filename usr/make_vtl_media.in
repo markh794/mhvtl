@@ -174,7 +174,7 @@ find_mktape_path()
 		OIFS="$IFS"
 		IFS=':'
 		for d in $PATH; do
-			if [[ -x $d/mkape ]] ; then
+			if [[ -x $d/mktape ]] ; then
 				MKTAPE_PATH="$d"
 				IFS="$OIFS"
 				return
