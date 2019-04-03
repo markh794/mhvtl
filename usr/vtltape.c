@@ -1240,7 +1240,7 @@ static char *lookup_sp_specific(uint16_t field)
 /* FIXME:
  * Took this certificate from my Ubuntu install
  *          /usr/share/doc/libssl-dev/demos/tunala/CA.pem
- * 		I wonder if RIAA is in NZ ?
+ *		I wonder if RIAA is in NZ ?
  *
  * Need to insert a valid certificate of my own here...
  */
@@ -2907,7 +2907,7 @@ int main(int argc, char *argv[])
 	/* Parse config file and build up each device */
 	if (!init_lu(&lunit, minor, &ctl)) {
 		fprintf(stderr, "error: Can not find entry for '%u' in config file\n",
-			       	minor);
+				minor);
 		exit(1);
 	}
 

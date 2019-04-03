@@ -220,9 +220,9 @@ int main(int argc, char **argv)
 	 * parse the config file /etc/mhvtl/device.conf 
 	 *
 	 * for each library found:
-	 * 	- set up vtllibrary unit
-	 * 	- for each tape that uses that library
-	 * 		- set up vtltape for that tape unit
+	 *	- set up vtllibrary unit
+	 *	- for each tape that uses that library
+	 *		- set up vtltape for that tape unit
 	 */
 
 	/* put config in our_tape_library */

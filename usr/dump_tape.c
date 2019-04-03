@@ -523,7 +523,7 @@ int main(int argc, char *argv[])
 	if (lzo_init() != LZO_E_OK) {
 		fprintf(stderr, "internal error - lzo_init() failed !!!\n");
 		fprintf(stderr,
-		      	"(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable '-DLZO_DEBUG' for diagnostics)\n");
+			"(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable '-DLZO_DEBUG' for diagnostics)\n");
 		exit(3);
 	}
 	print_mam_info();

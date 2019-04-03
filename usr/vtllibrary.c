@@ -1611,7 +1611,7 @@ void rereadconfig(int sig)
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
 		fprintf(stderr, "error: Cannot find entry for '%ld' in config file\n",
-			       	my_id);
+				my_id);
 		exit(1);
 	}
 
@@ -1745,7 +1745,7 @@ int main(int argc, char *argv[])
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
 		fprintf(stderr, "error: Can not find entry for '%ld' in config file\n",
-			       	my_id);
+				my_id);
 		exit(1);
 	}
 
