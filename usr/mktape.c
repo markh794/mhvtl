@@ -43,8 +43,10 @@ static void usage(char *progname)
 	printf("      -v    -- verbose\n");
 	printf("      -D[N] -- set debug level to N [1]\n");
 	printf("      -V    -- print Version and exit\n");
-	printf("      -C config-dir -- override default config dir [@CONF_PATH@]\n");
-	printf("      -H home-dir   -- override default home dir [default from config]\n");
+	printf("      -C config-dir -- override default config dir [ %s ]\n",
+					MHVTL_CONFIG_PATH);
+	printf("      -H home-dir   -- override default home dir [ %s ]\n",
+					MHVTL_HOME_PATH);
 	printf("And REQUIRED-PARAMS are:\n");
 	printf("      -l lib      -- set Library number\n");
 	printf("      -m PCL      -- set Physical Cartrige Label (barcode)\n");

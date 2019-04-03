@@ -48,7 +48,7 @@ CLFLAGS=-shared ${RPM_OPT_FLAGS}
 LZODEBUG =
 
 # files that need to be generated
-GENERATOR_FILES=make_vtl_media.in mktape.c.in
+GENERATOR_FILES=make_vtl_media.in
 GENERATED_FILES=$(GENERATOR_FILES:.in=)
 
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
@@ -146,10 +146,6 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mhvtl-device-conf-generator: mhvtl-device-conf-generator.c
-
-mktape.c: mktape.c.in
-	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
-	    -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
 
 make_vtl_media: make_vtl_media.in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
