@@ -442,7 +442,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'f':
 				if (argc > 1)
-					pcl = argv[1];
+					pcl = argv[2];
 				else
 					usage("More args needed for -f");
 				break;
