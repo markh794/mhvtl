@@ -110,19 +110,17 @@ struct media_details {
 };
 
 struct priv_lu_ssc {
-/* Variables for simple, single initiator, SCSI Reservation system */
-	int I_am_SPC_2_Reserved;
 
 	int bufsize;
-	int tapeLoaded;
-	int inLibrary;
+	int tapeLoaded;			/* Tape load state: Unloaded, loading, loaded */
+
+	uint32_t inLibrary:1;		/* This tape drive is 'assigned' as part of a library */
+	uint32_t I_am_SPC_2_Reserved:1;	/* Variables for simple, single initiator, SCSI Reservation system */
+	uint32_t append_only_mode:1;
+	uint32_t MediaWriteProtect:1;
+
 	uint8_t sam_status;
 
-	/* True if virtual "write protect" switch is set */
-	uint8_t MediaWriteProtect;
-
-	/* Append only mode */
-	uint8_t append_only_mode;
 	uint8_t allow_overwrite;
 
 	/* Default value read from config file */
