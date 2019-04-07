@@ -1617,7 +1617,8 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 	case TAPE_LOADED:
 		rewind_tape(sam_stat);
 		if (!load)
-			unloadTape(&lu_priv->r_entry.msg, sam_stat);
+			/* Send library an update status 'true' */
+			unloadTape(TRUE, sam_stat);
 		break;
 
 	default:

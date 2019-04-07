@@ -2009,12 +2009,15 @@ static char *strip_PCL(char *p, int start)
 return p;
 }
 
-void unloadTape(struct q_msg *msg, uint8_t *sam_stat)
+static void send_msg_and_log(char *s, uint64_t id)
+{
+	send_msg(s, id);
+	MHVTL_DBG(1, "%ld: Replying to snd_id %ld with \"%s\"", my_id, id, s);
+}
+
+void unloadTape(int update_library, uint8_t *sam_stat)
 {
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
-	char s[128];
-
-	sprintf(s, "Not mounted");
 
 	switch (lu_ssc.tapeLoaded) {
 	case TAPE_LOADING:
@@ -2028,13 +2031,13 @@ void unloadTape(struct q_msg *msg, uint8_t *sam_stat)
 			lu_ssc.cleaning_media_state = NULL;
 		lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 		delay_opcode(DELAY_UNLOAD, lu_ssc.delay_unload);
-		sprintf(s, "Unloaded OK %s", lu_ssc.mediaSerialNo);
 		break;
 	default:
 		MHVTL_DBG(2, "Tape not mounted");
 		break;
 	}
-	send_msg(s, msg->snd_id);
+	if (update_library && lu_ssc.inLibrary && library_id > 0)
+		send_msg_and_log(msg_eject, (uint64_t)library_id);
 	OK_to_write = 0;
 	lu_ssc.tapeLoaded = TAPE_UNLOADED;
 }
@@ -2048,7 +2051,8 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 
 	lu = lu_ssc.pm->lu;
 
-	MHVTL_DBG(1, "Sender id: %ld, msg : %s", msg->snd_id, msg->text);
+	MHVTL_DBG(1, "%ld: Received message \"%s\" from snd_id %ld",
+					my_id, msg->text, msg->snd_id);
 
 	/* Tape Load message from Library */
 	if (!strncmp(msg->text, "lload", 5)) {
@@ -2057,37 +2061,59 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			return 0;
 		}
 
-		if (lu_ssc.tapeLoaded != TAPE_UNLOADED) {
-			MHVTL_DBG(2, "Tape already mounted");
-			send_msg("Load failed", msg->snd_id);
+		if (lu_ssc.tape_in_mouth_of_drive) {
+			MHVTL_ERR("%ld: snd_id %ld: Tape already mounted", my_id, msg->snd_id);
+			send_msg("Load failed - already occupied by another piece of media",
+					msg->snd_id);
 		} else {
 			/* 'lload ' => offset of 6 */
 			pcl = strip_PCL(msg->text, 6);
 
 			loadTape(pcl, sam_stat);
-			if (lu_ssc.tapeLoaded == TAPE_UNLOADED)
-				sprintf(s, "Load failed: %s", pcl);
-			else
-				sprintf(s, "Loaded OK: %s", pcl);
-			send_msg(s, msg->snd_id);
+			if (lu_ssc.tapeLoaded == TAPE_UNLOADED) {
+				sprintf(s, "%s: %s", msg_load_failed, pcl);
+			} else {
+				sprintf(s, "%s: %s", msg_load_ok, pcl);
+				lu_ssc.tape_in_mouth_of_drive = TRUE;
+			}
+			send_msg_and_log(s, msg->snd_id);
 		}
 	}
 
 	/* Tape Load message from User space */
 	if (!strncmp(msg->text, "load", 4)) {
 		if (lu_ssc.inLibrary)
-			MHVTL_DBG(2, "Warn: Tape assigned to library");
+			MHVTL_ERR("Warn: Tape assigned to library - The library can't remove this tape !");
 		if (lu_ssc.tapeLoaded == TAPE_LOADED) {
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
 			pcl = strip_PCL(msg->text, 4);
 			loadTape(pcl, sam_stat);
 		}
+		/* Prevent a manual load, and the library moving another in it's place
+		 * Feature: There is no logic to remove the tape from 'mouth' of drive
+		 *          A restart of the daemon will be required..
+		 */
+		lu_ssc.tape_in_mouth_of_drive = TRUE;
+	}
+
+	/* This needs to be called if an 'mt -f /dev/st* offline' rather than an 'unload' from library daemon */
+	if (!strncmp(msg->text, msg_set_empty, strlen(msg_set_empty))) {
+		/* string define in q.h */
+		lu_ssc.tape_in_mouth_of_drive = FALSE;
+		send_msg_and_log(msg_unload_ok, msg->snd_id);
+	}
+
+	if (!strncmp(msg->text, msg_mount_state, strlen(msg_mount_state))) {
+		/* string define in q.h */
+		sprintf(s, "%s", (lu_ssc.tape_in_mouth_of_drive) ? msg_occupied : msg_not_occupied);
+		send_msg_and_log(s, msg->snd_id);
 	}
 
 	if (!strncmp(msg->text, "unload", 6)) {
-		MHVTL_DBG(1, "Library requested tape unload");
-		unloadTape(msg, sam_stat);
+		unloadTape(FALSE, sam_stat);
+		send_msg_and_log(msg_unload_ok, msg->snd_id);
+		lu_ssc.tape_in_mouth_of_drive = FALSE;
 	}
 
 	if (!strncmp(msg->text, "exit", 4))

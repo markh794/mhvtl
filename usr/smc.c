@@ -161,6 +161,34 @@ static struct d_info *drive2struct(struct smc_priv *smc_p, int addr)
 	return NULL;
 }
 
+/* Query the drive to check if it thinks it is empty */
+static int is_drive_empty(struct d_info *drv)
+{
+	int mlen, r_qid;
+	struct q_entry q;
+
+	/* Initialise message queue as necessary */
+	r_qid = init_queue();
+	if (r_qid == -1) {
+		printf("Could not initialise message queue\n");
+		exit(1);
+	}
+
+	MHVTL_DBG(1, "%ld: Sending \"%s\" to snd_id %ld",
+				my_id, msg_mount_state, drv->drv_id);
+	send_msg(msg_mount_state, drv->drv_id);
+
+	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
+	if (mlen > 0)
+		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
+					my_id,
+					q.msg.text,
+					q.msg.snd_id);
+
+	/* string defined in q.h */
+	return strncmp(msg_not_occupied, q.msg.text, 12);
+}
+
 /* returns true if medium transport access to slot is OK */
 int slotAccess(struct s_info *s)
 {
@@ -176,7 +204,35 @@ int slotOccupied(struct s_info *s)
 /* Returns true if drive has media in it */
 static int driveOccupied(struct d_info *d)
 {
-	return slotOccupied(d->slot);
+	int ret;
+
+	ret = slotOccupied(d->slot);
+	ret |= is_drive_empty(d);
+
+	return ret;
+}
+
+static int check_tape_unload(void)
+{
+	int mlen, r_qid;
+	struct q_entry q;
+
+	/* Initialise message queue as necessary */
+	r_qid = init_queue();
+	if (r_qid == -1) {
+		printf("Could not initialise message queue\n");
+		exit(1);
+	}
+
+	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
+	if (mlen > 0)
+		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
+					my_id,
+					q.msg.text,
+					q.msg.snd_id);
+
+	/* msg defined in q.h */
+	return strncmp(msg_unload_ok, q.msg.text, 11);
 }
 
 /*
@@ -266,8 +322,9 @@ void setSlotEmpty(struct s_info *s)
 static void setDriveEmpty(struct d_info *d)
 {
 	setFullStatus(d->slot, 0);
-	/* If empty, the picker arm can't access media */
-	setAccessStatus(d->slot, 0);
+	send_msg(msg_set_empty, d->drv_id);
+	/* Wait for ack from drive */
+	check_tape_unload();
 }
 
 void setSlotFull(struct s_info *s)
@@ -972,28 +1029,13 @@ static int check_tape_load(void)
 
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
-		MHVTL_DBG(1, "Received \"%s\" from message Q", q.msg.text);
+		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
+					my_id,
+					q.msg.text,
+					q.msg.snd_id);
 
-	return strncmp("Loaded OK", q.msg.text, 9);
-}
-
-static int check_tape_unload(void)
-{
-	int mlen, r_qid;
-	struct q_entry q;
-
-	/* Initialise message queue as necessary */
-	r_qid = init_queue();
-	if (r_qid == -1) {
-		printf("Could not initialise message queue\n");
-		exit(1);
-	}
-
-	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
-	if (mlen > 0)
-		MHVTL_DBG(1, "Received \"%s\" from message Q", q.msg.text);
-
-	return strncmp("Unloaded OK", q.msg.text, 11);
+	/* msg defined in q.h */
+	return strncmp(msg_load_ok, q.msg.text, strlen(msg_load_ok));
 }
 
 /*
@@ -1014,6 +1056,8 @@ static void move_cart(struct s_info *src, struct s_info *dest)
 	src->media = NULL;
 	src->last_location = 0;		/* Forget where the old media was */
 	setSlotEmpty(src);		/* Clear Full bit */
+	MHVTL_DBG(1, "Setting src slot access true");
+	setAccessStatus(src, 1);	/* Set the access bit now it's empty */
 }
 
 static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
@@ -1266,7 +1310,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	if (retval)
 		return retval;
 
-	/* Send 'unload' message to drive b4 the move.. */
+	/* Send 'unload' message to drive b4 the move.. If not already unloaded */
 	if (!slotAccess(src->slot)) {
 		sprintf(cmd, "unload %s", src->slot->media->barcode);
 		send_msg(cmd, src->drv_id);
@@ -1342,6 +1386,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	}
 
 	move_cart(src->slot, dest->slot);
+	setDriveEmpty(src);
 
 	sprintf(cmd, "lload %s", dest->slot->media->barcode);
 

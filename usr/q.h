@@ -56,4 +56,14 @@ int init_queue(void);
 
 extern long my_id;
 
+/* Message strings passed between vtllibrary & vtltape */
+#define msg_not_occupied	"Not occupied"
+#define msg_occupied		"occupied"
+#define msg_unload_ok		"Unloaded OK"
+#define msg_load_failed		"Load failed"
+#define msg_load_ok		"Loaded OK"
+#define msg_mount_state		"mount_state"
+#define msg_eject		"eject"
+#define msg_set_empty		"set_empty"
+
 #endif /* _Q_H_ */

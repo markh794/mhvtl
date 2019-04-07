@@ -606,7 +606,7 @@ static int set_access_bit(struct q_msg *msg)
 		if (slotOccupied(sp) && sp->element_type == DATA_TRANSFER) {
 			if (sp->drive->drv_id == msg->snd_id) {
 				setAccessStatus(sp, 1);
-				MHVTL_DBG(2, "Resetting access bit for drive id %ld", sp->drive->drv_id);
+				MHVTL_DBG(2, "Enabling access bit for drive id %ld", sp->drive->drv_id);
 			}
 		}
 	}
@@ -619,7 +619,7 @@ static int set_access_bit(struct q_msg *msg)
 static int processMessageQ(struct q_msg *msg)
 {
 
-	MHVTL_DBG(1, "Sender id: %ld, msg : %s", msg->snd_id, msg->text);
+	MHVTL_DBG(1, "%ld: Received from sender id: %ld, msg : %s", my_id, msg->snd_id, msg->text);
 
 	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug) {
@@ -633,7 +633,7 @@ static int processMessageQ(struct q_msg *msg)
 		add_storage_slot(msg);
 	if (!strncmp(msg->text, "empty map", 9))
 		empty_map(msg);
-	if (!strncmp(msg->text, "ejected", 7))
+	if (!strncmp(msg->text, msg_eject, strlen(msg_eject)))
 		set_access_bit(msg);
 	if (!strncmp(msg->text, "exit", 4))
 		return 1;
