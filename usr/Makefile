@@ -133,6 +133,9 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
+		libcrc32c.o \
+		libcrc32c.c \
+		crc32c.h \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o ssc.o \
@@ -143,6 +146,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
+		libcrc32c.o \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mhvtl-device-conf-generator: mhvtl-device-conf-generator.c
@@ -181,6 +185,7 @@ clean:
 		dump_tape edit_tape \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser \
 		mhvtl-device-conf-generator \
+		libcrc32c libcrc32c.o \
 		$(GENERATED_FILES)
 	$(RM) TAGS
 

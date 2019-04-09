@@ -1177,7 +1177,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat)
 
 int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 		uint32_t comp_size, const struct encryption *encryptp,
-		uint8_t comp_type, uint8_t null_media_type, uint8_t *sam_stat)
+		uint8_t comp_type, uint8_t null_media_type, uint32_t crc, uint8_t *sam_stat)
 {
 	uint32_t blk_number, disk_blk_size;
 	uint32_t max_blk_number;
@@ -1201,7 +1201,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	data_offset = raw_pos.data_offset;
 
 	if (blk_number > max_blk_number) {
-		MHVTL_ERR("Too many tape blocks - 32byte overflow");
+		MHVTL_ERR("Too many tape blocks - 32bit overflow");
 		return -1;
 	}
 
@@ -1213,6 +1213,11 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	raw_pos.hdr.blk_flags = 0;
 	raw_pos.hdr.blk_number = blk_number;
 	raw_pos.hdr.blk_size = blk_size; /* Size of uncompressed data */
+
+	raw_pos.hdr.uncomp_crc = crc;
+	raw_pos.hdr.blk_flags |= BLKHDR_FLG_UNCOMPRESSED_CRC;
+
+	MHVTL_DBG(2, "CRC is 0x%08x", crc);
 
 	if (comp_size) {
 		if (comp_type == LZO)
@@ -1401,13 +1406,15 @@ void print_raw_header(void)
 			printf(" lzoCompressed data");
 			else
 		printf("              data");
+		printf("%s", (raw_pos.hdr.blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC) ? " with crc " : " no crc  ");
 
-		printf("(%02x), sz %6d/%-6d, Blk No.: %u, data %" PRId64 "\n",
+		printf("(%02x), sz %6d/%-6d, Blk No.: %u, data %" PRId64 ", CRC: %08x\n",
 			raw_pos.hdr.blk_type,
 			raw_pos.hdr.disk_blk_size,
 			raw_pos.hdr.blk_size,
 			raw_pos.hdr.blk_number,
-			raw_pos.data_offset);
+			raw_pos.data_offset,
+			raw_pos.hdr.uncomp_crc);
 		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED) {
 			printf("   => Encr key length %d, ukad length %d, "
 				"akad length %d\n",

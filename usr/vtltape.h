@@ -35,6 +35,7 @@
 #define BLKHDR_FLG_ZLIB_COMPRESSED 0x01
 #define BLKHDR_FLG_ENCRYPTED  0x02
 #define BLKHDR_FLG_LZO_COMPRESSED 0x04
+#define BLKHDR_FLG_UNCOMPRESSED_CRC 0x08
 
 #define TAPE_FMT_VERSION	3
 
@@ -55,6 +56,7 @@ struct	encryption {
  *	blk_size	-> Uncompressed size of data block
  *		   (Specifies capacity of tape (used in BOT header) in Mbytes.
  *	disk_blk_size	-> Amount of space block takes up in 'file'
+ *	uncomp_crc	-> CRC of the uncompressed data
  * encryption.key_length   -> what length was the key used to 'encrypt' this block
  * encryption.ukad_length  -> what length was the ukad used to 'encrypt' this block
  * encryption.akad_length  -> what length was the akad used to 'encrypt' this block
@@ -69,7 +71,7 @@ struct blk_header {
 	uint32_t	blk_number;
 	uint32_t	blk_size;
 	uint32_t	disk_blk_size;
-	uint32_t	pad;
+	uint32_t	uncomp_crc;
 	struct encryption encryption;
 
 	/*
@@ -201,7 +203,7 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t size, uint8_t *sam_stat);
 int write_filemarks(uint32_t count, uint8_t *sam_stat);
 int write_tape_block(const uint8_t *buf, uint32_t uncomp_size,
 	uint32_t comp_size, const struct encryption *cp,
-	uint8_t comp_type, uint8_t null_type, uint8_t *sam_stat);
+	uint8_t comp_type, uint8_t null_type, uint32_t crc, uint8_t *sam_stat);
 int format_tape(uint8_t *sam_stat);
 
 int rewriteMAM(uint8_t *sam_stat);

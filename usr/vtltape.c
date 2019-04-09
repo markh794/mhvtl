@@ -80,6 +80,7 @@
 #include "ssc.h"
 #include "log.h"
 #include "mode.h"
+#include "crc32c.h"
 
 char vtl_driver_name[] = "vtltape";
 
@@ -942,14 +943,16 @@ int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
 	struct priv_lu_ssc *lu_priv;
+	uint32_t crc;
 	int rc;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
+	crc = crc32c(0, (unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
 
 	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop, 0,
-							null_wr, sam_stat);
+							null_wr, crc, sam_stat);
 
 	lu_priv->bytesWritten_M += src_sz;
 	lu_priv->bytesWritten_I += src_sz;
@@ -971,6 +974,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 	lzo_uint src_len = src_sz;
 	lzo_bytep dest_buf;
 	lzo_bytep wrkmem = NULL;
+	uint32_t crc;
 
 	lzo_bytep src_buf = (lzo_bytep)cmd->dbuf_p->data;
 
@@ -986,6 +990,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
 		return writeBlock_nocomp(cmd, src_sz, null_wr);
 
+	crc = crc32c(0, (unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
 
 	dest_len = mhvtl_compressBound(src_sz);
@@ -1017,7 +1022,7 @@ int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 					src_sz, (unsigned long)dest_len);
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
-						LZO, null_wr, sam_stat);
+						LZO, null_wr, crc, sam_stat);
 
 	free(dest_buf);
 	free(wrkmem);
@@ -1043,6 +1048,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
 	struct priv_lu_ssc *lu_priv;
+	uint32_t crc;
 	int rc;
 	int z;
 
@@ -1052,6 +1058,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
 		return writeBlock_nocomp(cmd, src_sz, null_wr);
 
+	crc = crc32c(0, (unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
 
 	dest_len = compressBound(src_sz);
@@ -1086,7 +1093,7 @@ int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
 					*lu_priv->compressionFactor);
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
-						ZLIB, null_wr, sam_stat);
+						ZLIB, null_wr, crc, sam_stat);
 
 	free(dest_buf);
 	lu_priv->bytesWritten_M += dest_len;
