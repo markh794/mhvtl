@@ -39,6 +39,7 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 #include "vtltape.h"
+#include "crc32c.h"
 
 char vtl_driver_name[] = "dump_tape";
 int verbose = 0;
@@ -287,6 +288,9 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 {
 	uint32_t blk_size;
 	uint32_t tgtsize, rc;
+	uint32_t pre_crc;
+	uint32_t post_crc;
+	uint32_t crc_used;
 
 	printf("Request to read: %d bytes, SILI: %d\n", request_sz, sili);
 
@@ -317,6 +321,8 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	   the read causes the tape block to advance.
 	*/
 	blk_size = c_pos->blk_size;
+	pre_crc = c_pos->uncomp_crc;
+	crc_used = c_pos->blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC;
 
 	/* We have a data block to read.
 	   Only read upto size of allocated buffer by initiator
@@ -337,6 +343,13 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 			return 0;
 		}
 		rc = tgtsize;
+	}
+
+	post_crc = crc32c(0, buf, tgtsize);
+	if (crc_used) {
+		printf("BLK CRC: 0x%08x, calculated CRC: 0x%08x%s\n", pre_crc, post_crc, (pre_crc != post_crc) ? ", check failed" : "");
+	} else {
+		printf("CRC not on disk: Calculated CRC on data: 0x%08x\n", post_crc);
 	}
 
 	/*
@@ -369,6 +382,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 
 	return rc;
 }
+
 static int read_data(uint8_t *sam_stat)
 {
 	uint8_t *p;

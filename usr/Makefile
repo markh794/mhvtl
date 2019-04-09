@@ -91,8 +91,9 @@ minilzo.o:	minilzo.c lzoconf.h lzodefs.h
 	$(CC) $(CFLAGS) $(LZODEBUG) -o minilzo.o -c minilzo.c
 
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
-		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o
-	$(CC) $(CFLAGS) -o dump_tape dump_tape.o minilzo.o -L. \
+		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
+		crc32c.h libcrc32c.o libcrc32c.c
+	$(CC) $(CFLAGS) -o dump_tape libcrc32c.o dump_tape.o minilzo.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.c mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
