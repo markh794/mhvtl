@@ -813,6 +813,8 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	uint32_t disk_blk_size, blk_size;
 	uint32_t tgtsize, rc;
 	uint32_t save_sense;
+	uint32_t pre_crc;
+	uint32_t post_crc;
 
 	MHVTL_DBG(3, "Request to read: %d bytes, SILI: %d", request_sz, sili);
 
@@ -854,6 +856,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	*/
 	blk_size = c_pos->blk_size;
 	disk_blk_size = c_pos->disk_blk_size;
+	pre_crc = c_pos->uncomp_crc;
 
 	/* We have a data block to read.
 	   Only read upto size of allocated buffer by initiator
@@ -874,6 +877,16 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 			return 0;
 		}
 		rc = tgtsize;
+	}
+
+	if (c_pos->blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC) {
+		post_crc = crc32c(0, buf, blk_size);
+		if (pre_crc != post_crc) {
+			MHVTL_ERR("BLK CRC: 0x%08x, Calculated CRC after read: 0x%08x", pre_crc, post_crc);
+			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+			return 0;
+		}
+		MHVTL_DBG(3, "BLK_CRC: 0x%08x, calculated CRC: 0x%08x", pre_crc, post_crc);
 	}
 
 	lu_ssc.bytesRead_I += blk_size;
