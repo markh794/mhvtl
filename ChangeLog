@@ -1,3 +1,11 @@
+
+* Wed Apr 10 10:30:30 AEST 2019 Mark Marvey <markh794@gmail.com> <mark.harvey@nutanix.com>
+- Fix long standing bug on media unload
+- Added CRC32 checks for each block written/read
+- allow kernel module to compile on 5.0 kernels
+- Add example on how to configure LIO pscsi (passthru) driver with mhVTL
+- Fix parsing args in dump_tape
+
 * Thu Mar 28 14:30:30 AEST 2019 Mark Marvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - Create virtual media on rpm install
 - Fixed a couple typos in spec file (one from several years ago)
