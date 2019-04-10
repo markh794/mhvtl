@@ -25,6 +25,9 @@ MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 SYSTEMD_GENERATOR_DIR ?= $(PREFIX)/lib/systemd/system-generators
+ifeq ($(shell whoami),root)
+ROOTUID = "YES"
+endif
 
 TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION)$(EXTRAVERSION).tgz
 
@@ -89,8 +92,10 @@ install: all
 	$(MAKE) -C man man
 	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
+ifdef ROOTUID
 	ldconfig
 	systemctl daemon-reload
+endif
 	# now ensure VTL media is setup
 	env LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR) \
 		$(MAKE_VTL_MEDIA) --force \
