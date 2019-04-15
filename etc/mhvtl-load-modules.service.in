@@ -11,8 +11,8 @@ Type=oneshot
 RemainAfterExit=yes
 Environment=VTL_DEBUG="0"
 EnvironmentFile=-@CONF_PATH@/mhvtl.conf
-ExecStart=/usr/sbin/modprobe mhvtl opts=${VTL_DEBUG}
-ExecStart=/usr/sbin/modprobe sg
+ExecStart=/sbin/modprobe mhvtl opts=${VTL_DEBUG}
+ExecStart=/sbin/modprobe sg
 
 [Install]
 WantedBy=mhvtl.target
