@@ -17,7 +17,7 @@ LIB_CONTENTS_FILES = library_contents.10 library_contents.30
 GENERATE_DEVICE_CONF = generate_device_conf
 GENERATE_LIB_CONTENTS = generate_library_contents
 
-SYSTEMD_DIR ?= /lib/systemd/system
+SYSTEMD_DIR ?= /usr/lib/systemd/system
 
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 MHVTL_HOME_PATH ?= /opt/mhvtl
