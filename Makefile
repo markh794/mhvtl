@@ -24,7 +24,7 @@ MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
-SYSTEMD_GENERATOR_DIR ?= $(PREFIX)/lib/systemd/system-generators
+SYSTEMD_GENERATOR_DIR ?= /lib/systemd/system-generators
 ifeq ($(shell whoami),root)
 ROOTUID = "YES"
 endif
