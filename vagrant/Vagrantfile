@@ -9,7 +9,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.define "centos" do |instance|
-    instance.vm.box = "centos7"
+    instance.vm.box = "geerlingguy/centos7"
   end
 
   config.vm.define "opensuse" do |instance|
