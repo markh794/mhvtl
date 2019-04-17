@@ -1,0 +1,29 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box_check_update = false
+
+  config.vm.define "ubuntu" do |instance|
+    instance.vm.box = "ubuntu/xenial64"
+  end
+
+  config.vm.define "centos" do |instance|
+    instance.vm.box = "centos7"
+  end
+
+  config.vm.define "opensuse" do |instance|
+    instance.vm.box = "toni03/opensuse-leap15"
+  end
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+  end
+
+  config.vm.synced_folder "../", "/vagrant_data"
+
+  config.vm.provision "shell", inline: <<-SHELL
+    cd /vagrant_data/vagrant
+    sudo ./install.sh
+  SHELL
+end
