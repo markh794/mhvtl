@@ -30,10 +30,10 @@ get_os_name
 set -e
 
 install_ubuntu_pre_req(){
-    sudo apt-get update && sudo apt-get install sysstat lzop liblzo2-dev liblzo2-2 mtx mt-st sg3-utils zlib1g-dev git lsscsi build-essential gawk alien fakeroot linux-headers-$(uname -r) -y
+    sudo apt-get update && sudo apt-get install sysstat mtx mt-st sg3-utils zlib1g-dev git lsscsi build-essential gawk alien fakeroot linux-headers-$(uname -r) -y
 }
 install_centos_pre_req(){
-    sudo yum update -y && sudo yum install -y git mc ntp gcc gcc-c++ make kernel-devel zlib-devel sg3_utils lsscsi mt-st mtx lzo lzo-devel perl-Config-General
+    sudo yum update -y && sudo yum install -y git mc ntp gcc gcc-c++ make kernel-devel zlib-devel sg3_utils lsscsi mt-st mtx perl-Config-General
 }
 install_sles_pre_req(){
     echo "SLES/OpenSuse IS NOT YET SUPPORTED! Use it at your own risk!"
@@ -44,7 +44,7 @@ install_sles_pre_req(){
     sudo zypper install -y --oldpackage kernel-devel-${PATCHED_KERNEL_VERSION}
     sudo zypper install -y --oldpackage kernel-syms-${PATCHED_KERNEL_VERSION}
 
-    sudo zypper install -y git mc ntp gcc gcc-c++ make zlib-devel sg3_utils lsscsi mtx lzo lzo-devel perl-Config-General
+    sudo zypper install -y git mc ntp gcc gcc-c++ make zlib-devel sg3_utils lsscsi mtx perl-Config-General
 }
 
 install_pre_req(){
@@ -77,4 +77,5 @@ sudo systemctl start mhvtl.target
 
 sleep 3
 echo "Show your tape libraries now!"
-lsscsi
+lsscsi -g
+
