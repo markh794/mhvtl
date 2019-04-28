@@ -1279,7 +1279,7 @@ static int valid_slot(struct smc_priv *smc_p, int addr)
 static int move_drive2slot(struct smc_priv *smc_p,
 			int src_addr, int dest_addr, uint8_t *sam_stat)
 {
-	char cmd[MAX_BARCODE_LEN + 1];
+	char cmd[MAX_BARCODE_LEN + 1 + 12];	/* 12 being the longest msg string */
 	struct d_info *src;
 	struct s_info *dest;
 	int retval;
