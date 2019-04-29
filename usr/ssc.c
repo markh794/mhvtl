@@ -181,7 +181,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	switch (lu_ssc->tapeLoaded) {
+	switch (lu_ssc->load_status) {
 	case TAPE_LOADING:
 		sam_not_ready(E_BECOMING_READY, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -298,7 +298,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd)
 	struct priv_lu_ssc *lu_ssc = cmd->lu->lu_private;
 
 	/* Check that there is a piece of media loaded.. */
-	switch (lu_ssc->tapeLoaded) {
+	switch (lu_ssc->load_status) {
 	case TAPE_LOADING:
 		sam_not_ready(E_BECOMING_READY, sam_stat);
 		*lu_ssc->OK_2_write = 0;
@@ -1068,7 +1068,7 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd)
 
 	MHVTL_DBG(1, "WRITE ATTRIBUTES (%ld) **", (long)cmd->dbuf_p->serialNo);
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_UNLOADED:
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -1102,7 +1102,7 @@ uint8_t ssc_tur(struct scsi_cmd *cmd)
 	sprintf(str, "Test Unit Ready (%ld) ** : ",
 				(long)cmd->dbuf_p->serialNo);
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_UNLOADED:
 		strcat(str, "No, No tape loaded");
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
@@ -1173,7 +1173,7 @@ uint8_t ssc_rewind(struct scsi_cmd *cmd)
 
 	current_state = MHVTL_STATE_REWIND;
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_UNLOADED:
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -1207,7 +1207,7 @@ uint8_t ssc_read_attributes(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "READ ATTRIBUTE (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_UNLOADED:
 		MHVTL_DBG(1, "Failed due to \"no media loaded\"");
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
@@ -1246,7 +1246,7 @@ uint8_t ssc_read_block_limits(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "READ BLOCK LIMITS (%ld) **",
 						(long)cmd->dbuf_p->serialNo);
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_LOADED:
 	case TAPE_UNLOADED:
 		cmd->dbuf_p->sz = resp_read_block_limits(cmd->dbuf_p,
@@ -1289,7 +1289,7 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd)
 
 	memset_ssc_buf(cmd, alloc_len);
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_LOADED:
 		cmd->dbuf_p->sz = resp_read_media_serial(lu_priv->mediaSerialNo,
 							cmd->dbuf_p->data,
@@ -1326,7 +1326,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 
 	*sam_stat = SAM_STAT_GOOD;
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_LOADED:
 		switch (service_action) {
 		case 0:
@@ -1401,7 +1401,7 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	if (media == 1 && lu_priv->tapeLoaded != TAPE_LOADED) {
+	if (media == 1 && lu_priv->load_status != TAPE_LOADED) {
 		MHVTL_DBG(1, "Media has to be mounted to return media density");
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -1604,7 +1604,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 	MHVTL_DBG(1, "%s TAPE (%ld) **", (load) ? "LOADING" : "UNLOADING",
 						(long)cmd->dbuf_p->serialNo);
 
-	switch (lu_priv->tapeLoaded) {
+	switch (lu_priv->load_status) {
 	case TAPE_UNLOADED:
 		if (load)
 			rewind_tape(sam_stat);
@@ -1716,7 +1716,7 @@ static void update_seq_access_counters(struct seqAccessDevice *sa,
 				&sa->readDataAfCompression);
 
 	/* Values in MBytes */
-	if (lu_ssc->tapeLoaded == TAPE_LOADED) {
+	if (lu_ssc->load_status == TAPE_LOADED) {
 		put_unaligned_be32(lu_ssc->max_capacity >> 20,
 					&sa->capacity_bop_eod);
 		put_unaligned_be32(lu_ssc->early_warning_position >> 20,
@@ -1852,7 +1852,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 		/* Point the data structure to return data */
 		tp = (struct TapeCapacity *)b;
 
-		if (lu_ssc->tapeLoaded == TAPE_LOADED) {
+		if (lu_ssc->load_status == TAPE_LOADED) {
 			uint64_t cap;
 
 			cap = get_unaligned_be64(&mam.remaining_capacity);

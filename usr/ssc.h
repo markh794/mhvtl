@@ -112,7 +112,7 @@ struct media_details {
 struct priv_lu_ssc {
 
 	int bufsize;
-	int tapeLoaded;			/* Tape load state: Unloaded, loading, loaded */
+	int load_status;			/* Tape load state: Unloaded, loading, loaded */
 
 	uint32_t inLibrary:1;		/* This tape drive is 'assigned' as part of a library */
 	uint32_t I_am_SPC_2_Reserved:1;	/* Variables for simple, single initiator, SCSI Reservation system */

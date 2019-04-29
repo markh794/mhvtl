@@ -408,7 +408,7 @@ struct d_info {
 	int SCSI_BUS;
 	int SCSI_ID;
 	int SCSI_LUN;
-	char tapeLoaded;	/* Tape is 'loaded' by drive */
+	char load_status;	/* Tape is 'loaded' by drive */
 	struct s_info *slot;
 };
 

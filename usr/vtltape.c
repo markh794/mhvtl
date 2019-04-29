@@ -361,8 +361,8 @@ void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len)
 static void finish_mount(int sig)
 {
 	MHVTL_DBG(3, "+++ Trace - Received signal %d +++", sig);
-	if (lu_ssc.tapeLoaded == TAPE_LOADING)
-		lu_ssc.tapeLoaded = TAPE_LOADED;
+	if (lu_ssc.load_status == TAPE_LOADING)
+		lu_ssc.load_status = TAPE_LOADED;
 
 }
 
@@ -1400,7 +1400,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 		break;
 
 	case ENCR_NEXT_BLK_ENCR_STATUS:
-		if (lu_priv->tapeLoaded != TAPE_LOADED) {
+		if (lu_priv->load_status != TAPE_LOADED) {
 			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		}
@@ -1787,7 +1787,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 		return rc;
 	}
 
-	lu_ssc.tapeLoaded = TAPE_LOADING;
+	lu_ssc.load_status = TAPE_LOADING;
 	lu_ssc.pm->media_load(lu, TAPE_LOADED);
 
 	overflow = snprintf((char *)lu_ssc.mediaSerialNo,
@@ -1989,7 +1989,7 @@ mismatchmedia:
 			lookup_media_type(lu_ssc.pm->media_handling,
 							mam.MediaType),
 			lu_ssc.pm->name);
-	lu_ssc.tapeLoaded = TAPE_UNLOADED;
+	lu_ssc.load_status = TAPE_UNLOADED;
 	lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
 	current_state = MHVTL_STATE_LOAD_FAILED;
@@ -2044,7 +2044,7 @@ void unloadTape(int update_library, uint8_t *sam_stat)
 {
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
 
-	switch (lu_ssc.tapeLoaded) {
+	switch (lu_ssc.load_status) {
 	case TAPE_LOADING:
 	case TAPE_LOADED:
 		/* Don't update load count on unload -done at load time */
@@ -2064,7 +2064,7 @@ void unloadTape(int update_library, uint8_t *sam_stat)
 	if (update_library && lu_ssc.inLibrary && library_id > 0)
 		send_msg_and_log(msg_eject, (uint64_t)library_id);
 	OK_to_write = 0;
-	lu_ssc.tapeLoaded = TAPE_UNLOADED;
+	lu_ssc.load_status = TAPE_UNLOADED;
 }
 
 static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
@@ -2095,7 +2095,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			pcl = strip_PCL(msg->text, 6);
 
 			loadTape(pcl, sam_stat);
-			if (lu_ssc.tapeLoaded == TAPE_UNLOADED) {
+			if (lu_ssc.load_status == TAPE_UNLOADED) {
 				sprintf(s, "%s: %s", msg_load_failed, pcl);
 			} else {
 				sprintf(s, "%s: %s", msg_load_ok, pcl);
@@ -2109,7 +2109,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	if (!strncmp(msg->text, "load", 4)) {
 		if (lu_ssc.inLibrary)
 			MHVTL_ERR("Warn: Tape assigned to library - The library can't remove this tape !");
-		if (lu_ssc.tapeLoaded == TAPE_LOADED) {
+		if (lu_ssc.load_status == TAPE_LOADED) {
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
 			pcl = strip_PCL(msg->text, 4);
@@ -2776,7 +2776,7 @@ static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd,
 static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 {
 	lu_priv->bufsize = 2 * 1024 * 1024;
-	lu_priv->tapeLoaded = TAPE_UNLOADED;
+	lu_priv->load_status = TAPE_UNLOADED;
 	lu_priv->inLibrary = 0;
 	lu_priv->sam_status = SAM_STAT_GOOD;
 	lu_priv->MediaWriteProtect = MEDIA_WRITABLE;
@@ -3147,7 +3147,7 @@ int main(int argc, char *argv[])
 				last_state = current_state;
 			}
 			if (sleep_time > 0xf000) {
-				if (lu_ssc.tapeLoaded == TAPE_LOADED)
+				if (lu_ssc.load_status == TAPE_LOADED)
 					current_state = MHVTL_STATE_LOADED_IDLE;
 				else
 					current_state = MHVTL_STATE_IDLE;

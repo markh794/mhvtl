@@ -172,7 +172,7 @@ static int encr_capabilities_ait(struct scsi_cmd *cmd)
 
 	/* adjustments for each emulated drive type */
 	buf[4] = 0x1; /* CFG_P == 01b */
-	if (lu_priv->tapeLoaded == TAPE_LOADED) {
+	if (lu_priv->load_status == TAPE_LOADED) {
 		switch (mam.MediaType) {
 		case Media_AIT4:
 			MHVTL_DBG(1, "AIT4 Medium");

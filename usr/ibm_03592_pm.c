@@ -235,7 +235,7 @@ static int encr_capabilities_3592(struct scsi_cmd *cmd)
 				lookup_media_type(mam.MediaType));
 */
 
-	if (lu_priv->tapeLoaded == TAPE_LOADED) {
+	if (lu_priv->load_status == TAPE_LOADED) {
 		buf[24] |= 0x80; /* AVFMV */
 		buf[27] = 0x00; /* Max unauthenticated key data */
 		buf[32] |= 0x0e; /* RDMC_C == 7 */

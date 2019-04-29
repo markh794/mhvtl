@@ -230,7 +230,7 @@ static int encr_capabilities_9840(struct scsi_cmd *cmd)
 	buf[43] = 0x14;	/* Encryption Algorithm Id */
 
 	buf[4] = 0x1; /* CFG_P == 01b */
-	if (lu_priv->tapeLoaded == TAPE_LOADED) {
+	if (lu_priv->load_status == TAPE_LOADED) {
 		buf[24] |= 0x80; /* AVFMV */
 		buf[27] = 0x1e; /* Max unauthenticated key data */
 		buf[29] = 0x00; /* Max authenticated key data */
