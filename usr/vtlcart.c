@@ -91,7 +91,7 @@ static uint32_t *filemarks = NULL;
 struct MAM mam;
 struct blk_header *c_pos = &raw_pos.hdr;
 int OK_to_write = 0;
-char home_directory[HOME_DIR_PATH_SZ + 1];
+char home_directory[HOME_DIR_PATH_SZ + 1 + MAX_BARCODE_LEN];
 
 #ifdef MHVTL_DEBUG
 static char *mhvtl_block_type_desc(int blk_type)
