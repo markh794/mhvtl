@@ -1764,6 +1764,7 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 {
 	int rc;
 	uint64_t fg = TA_NONE;	/* TapeAlert flags */
+	int overflow;
 	struct media_details *m_detail;
 	struct lu_phy_attr *lu;
 
@@ -1789,9 +1790,13 @@ static int loadTape(char *PCL, uint8_t *sam_stat)
 	lu_ssc.tapeLoaded = TAPE_LOADING;
 	lu_ssc.pm->media_load(lu, TAPE_LOADED);
 
-	snprintf((char *)lu_ssc.mediaSerialNo,
-		 sizeof(mam.MediumSerialNumber) - 1,
-		 (char *)mam.MediumSerialNumber);
+	overflow = snprintf((char *)lu_ssc.mediaSerialNo,
+			sizeof(mam.MediumSerialNumber) - 1,
+			"%s",
+			(char *)mam.MediumSerialNumber);
+	if (overflow >= sizeof(mam.MediumSerialNumber) - 1) {
+		MHVTL_ERR("MAM medium serial number truncated to %s", mam.MediumSerialNumber);
+	}
 
 	MHVTL_DBG(1, "Media type '%s' loaded with S/No. : %s",
 			lookup_media_type(lu_ssc.pm->media_handling,
