@@ -30,7 +30,7 @@
 #
 # Anything beginning with 'E' are environmental and can be used by/for 'ENV{}'
 
-for SN in `awk '/NAA:/ {print $2}' /etc/mhvtl/device.conf | sed -e "s/://g" -e "s/^[13]0/50/g"`
+for SN in `grep ^Drive -A6 /etc/mhvtl/device.conf | awk '/NAA:/ {print $2}' | sed -e "s/://g" -e "s/^[13]0/50/g"`
 do
 	echo "ACTION==\"add|change\", KERNEL==\"nst*\", ENV{SUBSYSTEM}==\"scsi_tape\", ENV{ID_SERIAL_SHORT}==\"$SN\", SYMLINK+=\"tape/by-path/%E{ID_VENDOR}-%E{ID_MODEL}-%E{ID_SCSI_SERIAL}-nst\", MODE=\"0666\""
 done
