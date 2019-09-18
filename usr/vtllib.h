@@ -565,7 +565,6 @@ pid_t add_lu(unsigned minor, struct vtl_ctl *ctl);
 void completeSCSICommand(int, struct vtl_ds *ds);
 void getCommand(int, struct vtl_header *);
 int retrieve_CDB_data(int cdev, struct vtl_ds *dbuf_p);
-void get_sn_inquiry(int, struct vtl_sn_inquiry *);
 int check_for_running_daemons(unsigned minor);
 
 void mhvtl_prt_cdb(int l, struct scsi_cmd *cmd);

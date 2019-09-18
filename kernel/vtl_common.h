@@ -34,12 +34,6 @@ struct vtl_ds {
 	unsigned char sam_stat;
 };
 
-struct vtl_sn_inquiry {
-	char sn[32];
-	char vendor_id[VENDOR_ID_LEN + 2];
-	char product_id[PRODUCT_ID_LEN + 2];
-};
-
 struct vtl_ctl {
 	unsigned int channel;
 	unsigned int id;
