@@ -102,7 +102,7 @@ struct scatterlist;
 #ifndef MHVTL_VERSION
 #define MHVTL_VERSION "0.18.19"
 #endif
-static const char *vtl_version_date = "20190401-0";
+static const char *vtl_version_date = "20190919-3";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -166,7 +166,7 @@ static int vtl_opts = DEF_OPTS;
 
 static int vtl_cmnd_count = 0;
 
-static atomic_t serial_number;
+static unsigned long long serial_number;
 
 struct vtl_lu_info {
 	struct list_head lu_sibling;
@@ -221,6 +221,7 @@ struct vtl_queued_cmd {
 	struct vtl_header op_header;
 
 	struct list_head queued_sibling;
+	unsigned long long serial_number;
 };
 
 static int num_aborts = 0;
@@ -471,10 +472,10 @@ static void debug_queued_list(struct vtl_lu_info *lu)
 			if (sqcp->a_cmnd) {
 				MHVTL_DBG(2, "%d entry in use "
 					"SCpnt: %p, SCSI result: %d, done: %p, "
-					"Serial No: %ld\n",
+					"Serial No: %lld\n",
 					k, sqcp->a_cmnd, sqcp->scsi_result,
 					sqcp->done_funct,
-					sqcp->a_cmnd->serial_number);
+					sqcp->serial_number);
 			} else {
 				MHVTL_DBG(2, "%d entry in use "
 					"SCpnt: %p, SCSI result: %d, done: %p\n",
@@ -536,7 +537,7 @@ static int q_cmd(struct scsi_cmnd *scp,
 				done_funct_t done,
 				struct vtl_lu_info *lu)
 {
-	unsigned long iflags;
+	unsigned long iflags = 0;
 	struct vtl_header *vheadp;
 	struct vtl_queued_cmd *sqcp;
 
@@ -552,7 +553,6 @@ static int q_cmd(struct scsi_cmnd *scp,
 	#else
 	init_timer(&sqcp->cmnd_timer);
 	sqcp->cmnd_timer.function = timer_intr_handler;
-	sqcp->cmnd_timer.data = scp->serial_number;
 	#endif
 	list_add_tail(&sqcp->queued_sibling, &lu->cmd_list);
 	sqcp->a_cmnd = scp;
@@ -567,7 +567,12 @@ static int q_cmd(struct scsi_cmnd *scp,
 	spin_lock_irqsave(&lu->cmd_list_lock, iflags);
 
 	vheadp = &sqcp->op_header;
-	vheadp->serialNo = scp->serial_number;
+	vheadp->serialNo = serial_number;
+	sqcp->serial_number = serial_number;
+	/* Make sure serial_number can't wrap to '0' */
+	if (unlikely(serial_number < 2))
+		serial_number = 2;
+	serial_number++;
 	memcpy(vheadp->cdb, scp->cmnd, scp->cmd_len);
 
 	/* Set flag.
@@ -593,7 +598,7 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 		return 0;	/* assume mid level reprocessing command */
 
 	if (cmd)
-		MHVTL_DBG_PRT_CDB(1, SCpnt->serial_number, cmd, SCpnt->cmd_len);
+		MHVTL_DBG_PRT_CDB(1, serial_number, cmd, SCpnt->cmd_len);
 
 	if (SCpnt->device->id == vtl_driver_template.this_id) {
 		printk(KERN_INFO "mhvtl: initiator's id used as target!\n");
@@ -604,9 +609,6 @@ static int vtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 		printk(KERN_INFO "mhvtl: %s max luns exceeded\n", __func__);
 		return schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
-
-	atomic_inc(&serial_number);
-	/* atomic_read(&serial_number); */
 
 	lu = devInfoReg(SCpnt->device);
 	if (NULL == lu) {
@@ -697,7 +699,7 @@ static struct vtl_queued_cmd *lookup_sqcp(struct vtl_lu_info *lu,
 
 	spin_lock_irqsave(&lu->cmd_list_lock, iflags);
 	list_for_each_entry(sqcp, &lu->cmd_list, queued_sibling) {
-		if (sqcp->state && (sqcp->a_cmnd->serial_number == serialNo)) {
+		if (sqcp->state && (sqcp->serial_number == serialNo)) {
 			spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 			return sqcp;
 		}
@@ -770,7 +772,7 @@ static void remove_sqcp(struct vtl_lu_info *lu, struct vtl_queued_cmd *sqcp)
 static void timer_intr_handler(struct timer_list *t)
 {
 	struct vtl_queued_cmd *sqcp = from_timer(sqcp, t, cmnd_timer);
-	unsigned long indx = sqcp->a_cmnd->serial_number;
+	unsigned long long indx = sqcp->serial_number;
 #else
 static void timer_intr_handler(unsigned long indx)
 {
@@ -1218,6 +1220,8 @@ static int __init mhvtl_init(void)
 	int ret;
 
 	memset(&devp, 0, sizeof(devp));
+
+	serial_number = 2;	/* Start at something other than 0 */
 
 	vtl_major = register_chrdev(vtl_major, "mhvtl", &vtl_fops);
 	if (vtl_major < 0) {
