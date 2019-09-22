@@ -102,7 +102,7 @@ struct scatterlist;
 #ifndef MHVTL_VERSION
 #define MHVTL_VERSION "0.18.20"
 #endif
-static const char *vtl_version_date = "20190919-3";
+static const char *vtl_version_date = "20190923-1";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -252,7 +252,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 static void timer_intr_handler(struct timer_list *indx);
 #else
-static void timer_intr_handler(unsigned long);
+static void timer_intr_handler(unsigned long indx);
 #endif
 static struct vtl_lu_info *devInfoReg(struct scsi_device *sdp);
 static void mk_sense_buffer(struct vtl_lu_info *lu, int key, int asc, int asq);
@@ -341,7 +341,9 @@ static const struct file_operations vtl_fops = {
 };
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4,20,0)
+ #include "fetch50.c"
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
  #include "fetch27.c"
 #elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,26)
  #include "fetch26.c"
@@ -797,7 +799,7 @@ static void timer_intr_handler(unsigned long indx)
 
 	if (!sqcp) {
 		printk(KERN_ERR "mhvtl: %s: Unexpected interrupt, indx %ld\n",
-					 __func__, indx);
+					 __func__, (unsigned long)indx);
 		return;
 	}
 
