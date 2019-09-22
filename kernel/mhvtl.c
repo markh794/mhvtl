@@ -396,8 +396,6 @@ static void mhvtl_prt_cdb(char *f, uint64_t sn, uint8_t *s, int l)
 		break;
 
 	}
-
-	printk(KERN_DEBUG "\n");
 }
 #endif /* MHVTL_DEBUG */
 
