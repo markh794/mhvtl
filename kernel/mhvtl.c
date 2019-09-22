@@ -197,7 +197,7 @@ struct vtl_hba_info {
 	container_of(d, struct vtl_hba_info, dev)
 
 static LIST_HEAD(vtl_hba_list);	/* dll of adapters */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 static spinlock_t vtl_hba_list_lock = __SPIN_LOCK_UNLOCKED(vtl_hba_list_lock);
 #else
 static spinlock_t vtl_hba_list_lock = SPIN_LOCK_UNLOCKED;
@@ -266,8 +266,8 @@ static void vtl_remove_adapter(void);
 static int vtl_slave_alloc(struct scsi_device *);
 static int vtl_slave_configure(struct scsi_device *);
 static void vtl_slave_destroy(struct scsi_device *);
-#if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3,19,0) || LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33))
+#if LINUX_VERSION_CODE != KERNEL_VERSION(2, 6, 9)
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) || LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
 #else
 static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
@@ -287,7 +287,7 @@ static const char * vtl_info(struct Scsi_Host *);
 static int vtl_open(struct inode *, struct file *);
 static int vtl_release(struct inode *, struct file *);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 static DEF_SCSI_QCMD(vtl_queuecommand)
 #endif
 
@@ -300,14 +300,14 @@ static struct scsi_host_template vtl_driver_template = {
 	.slave_configure =	vtl_slave_configure,
 	.slave_destroy =	vtl_slave_destroy,
 	.ioctl =		vtl_b_ioctl,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 	.queuecommand =		vtl_queuecommand,
 #else
 	.queuecommand =		vtl_queuecommand_lck,
 #endif
-#if LINUX_VERSION_CODE != KERNEL_VERSION(2,6,9)
+#if LINUX_VERSION_CODE != KERNEL_VERSION(2, 6, 9)
 	.change_queue_depth =	vtl_change_queue_depth,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
         .ordered_tag =          1,
 #endif
 #endif
@@ -321,7 +321,7 @@ static struct scsi_host_template vtl_driver_template = {
 	.cmd_per_lun =		32,
 	.max_sectors =		4096,
 	.unchecked_isa_dma =	0,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
 	.use_clustering =	ENABLE_CLUSTERING,
 #else
 	.dma_boundary =		PAGE_SIZE - 1,
@@ -341,13 +341,13 @@ static const struct file_operations vtl_fops = {
 };
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4,20,0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 20, 0)
  #include "fetch50.c"
-#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,26)
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 26)
  #include "fetch27.c"
-#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,26)
+#elif LINUX_VERSION_CODE == KERNEL_VERSION(2, 6, 26)
  #include "fetch26.c"
-#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+#elif LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 23)
  #include "fetch24.c"
 #else
  #include "fetch.c"
