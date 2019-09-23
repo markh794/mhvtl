@@ -276,7 +276,11 @@ static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 #endif
 static int vtl_queuecommand_lck(struct scsi_cmnd *,
 					 void (*done) (struct scsi_cmnd *));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+static int vtl_b_ioctl(struct scsi_device *, unsigned int, void __user *);
+#else
 static int vtl_b_ioctl(struct scsi_device *, int, void __user *);
+#endif
 static long vtl_c_ioctl(struct file *, unsigned int, unsigned long);
 static int vtl_c_ioctl_bkl(struct inode *, struct file *, unsigned int, unsigned long);
 static int vtl_abort(struct scsi_cmnd *);
@@ -711,7 +715,11 @@ static struct vtl_queued_cmd *lookup_sqcp(struct vtl_lu_info *lu,
 /*
  * Block device ioctl
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+static int vtl_b_ioctl(struct scsi_device *sdp, unsigned int cmd, void __user *arg)
+#else
 static int vtl_b_ioctl(struct scsi_device *sdp, int cmd, void __user *arg)
+#endif
 {
 	MHVTL_DBG(3, "ioctl: cmd=0x%x\n", cmd);
 
