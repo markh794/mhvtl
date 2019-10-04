@@ -92,6 +92,7 @@ struct scatterlist;
 #endif /* _SCSI_H */
 
 #include "vtl_common.h"
+#include "backport.h"
 
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_ioctl.h>
@@ -158,6 +159,9 @@ static int vtl_major = 0;
 
 #define VTL_CANQUEUE	255	/* needs to be >= 1 */
 #define VTL_MAX_CMD_LEN 16
+
+static struct kmem_cache *dsp;
+static struct kmem_cache *sgp;
 
 static int vtl_add_host = DEF_NUM_HOST;
 static int vtl_max_luns = DEF_MAX_LUNS;
@@ -312,7 +316,7 @@ static struct scsi_host_template vtl_driver_template = {
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2, 6, 9)
 	.change_queue_depth =	vtl_change_queue_depth,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0)
-        .ordered_tag =          1,
+	.ordered_tag =          1,
 #endif
 #endif
 	.eh_abort_handler =	vtl_abort,
@@ -416,8 +420,8 @@ static void mhvtl_prt_cdb(char *f, uint64_t sn, uint8_t *s, int l)
  *                   will use this.
  */
 static int schedule_resp(struct scsi_cmnd *SCpnt,
-			 struct vtl_lu_info *lu,
-			 done_funct_t done, int scsi_result)
+			struct vtl_lu_info *lu,
+			done_funct_t done, int scsi_result)
 {
 	if ((VTL_OPT_NOISE & vtl_opts) && SCpnt) {
 		if (scsi_result) {
@@ -805,7 +809,7 @@ static void timer_intr_handler(unsigned long indx)
 
 	if (!sqcp) {
 		printk(KERN_ERR "mhvtl: %s: Unexpected interrupt, indx %ld\n",
-					 __func__, (unsigned long)indx);
+					__func__, (unsigned long)indx);
 		return;
 	}
 
@@ -1141,7 +1145,7 @@ static ssize_t opts_show(struct device_driver *ddp, char *buf)
 }
 
 static ssize_t opts_store(struct device_driver *ddp,
-				 const char *buf, size_t count)
+				const char *buf, size_t count)
 {
 	int opts;
 	char work[20];
@@ -1172,7 +1176,7 @@ static ssize_t major_show(struct device_driver *ddp, char *buf)
 }
 
 static ssize_t add_lu_store(struct device_driver *ddp,
-			    const char *buf, size_t count)
+			const char *buf, size_t count)
 {
 	int retval;
 	unsigned int minor;
@@ -1273,7 +1277,30 @@ static int __init mhvtl_init(void)
 	MHVTL_DBG(1, "Built %d host%s\n",
 			vtl_add_host, (vtl_add_host == 1) ? "" : "s");
 
+	dsp = (struct kmem_cache *)kmem_cache_create_usercopy("mhvtl_ds_cache",
+				sizeof(struct vtl_ds), 0, SLAB_HWCACHE_ALIGN,
+				0, sizeof(struct vtl_ds), NULL);
+	if (!dsp) {
+		printk(KERN_ERR "mhvtl: %s unable to create ds cache", __func__);
+		goto vtl_kmem_cache_error;
+	}
+
+	sgp = (struct kmem_cache *)kmem_cache_create_usercopy("mhvtl_sg_cache",
+				SG_SEGMENT_SZ, 0, SLAB_HWCACHE_ALIGN,
+				0, SG_SEGMENT_SZ, NULL);
+	if (!sgp) {
+		printk(KERN_ERR "mhvtl: %s unable to create sg cache (size %d)",
+				__func__, (int)SG_SEGMENT_SZ);
+		goto vtl_kmem_cache_error;
+	} else {
+		MHVTL_DBG(1, "kmem_cache_user_copy: page size: %d", (int)SG_SEGMENT_SZ);
+	}
+	MHVTL_DBG(1, "Starting serial_number: %lld", (unsigned long long)serial_number);
+
 	return 0;
+
+vtl_kmem_cache_error:
+	vtl_remove_adapter();
 
 vtl_add_adapter_error:
 	do_remove_driverfs_files();
@@ -1313,6 +1340,8 @@ static void __exit vtl_exit(void)
 	bus_unregister(&pseudo_lld_bus);
 	device_unregister(&pseudo_primary);
 	unregister_chrdev(vtl_major, "mhvtl");
+	kmem_cache_destroy(dsp);
+	kmem_cache_destroy(sgp);
 }
 
 device_initcall(mhvtl_init);
@@ -1333,7 +1362,7 @@ static struct device pseudo_primary = {
 };
 
 static int pseudo9_lld_bus_match(struct device *dev,
-				 struct device_driver *dev_driver)
+				struct device_driver *dev_driver)
 {
 	return 1;
 }
@@ -1483,59 +1512,75 @@ static int vtl_driver_remove(struct device *dev)
 static int get_user_data(unsigned int minor, char __user *arg)
 {
 	struct vtl_queued_cmd *sqcp = NULL;
-	struct vtl_ds ds;
+	struct vtl_ds *ds;
 	int ret = 0;
 	unsigned char __user *up;
 	size_t sz;
 
-	if (copy_from_user((u8 *)&ds, (u8 *)arg, sizeof(struct vtl_ds)))
+	ds = kmem_cache_alloc(dsp, 0);
+	if (!ds)
 		return -EFAULT;
 
-	MHVTL_DBG(2, " data Cmd S/No : %ld\n", (long)ds.serialNo);
-	MHVTL_DBG(2, " data pointer     : %p\n", ds.data);
-	MHVTL_DBG(2, " data sz          : %d\n", ds.sz);
-	MHVTL_DBG(2, " SAM status       : %d (0x%02x)\n",
-					ds.sam_stat, ds.sam_stat);
-	up = ds.data;
-	sz = ds.sz;
-	sqcp = lookup_sqcp(devp[minor], ds.serialNo);
-	if (!sqcp)
-		return -ENOTTY;
+	if (copy_from_user((u8 *)ds, (u8 *)arg, sizeof(struct vtl_ds))) {
+		ret = -EFAULT;
+		goto ret_err;
+	}
+
+	MHVTL_DBG(2, " data Cmd S/No  : %lld\n", (unsigned long long)ds->serialNo);
+	MHVTL_DBG(2, " data pointer   : %p\n", ds->data);
+	MHVTL_DBG(2, " data sz        : %d\n", ds->sz);
+	MHVTL_DBG(2, " SAM status     : %d (0x%02x)\n",
+					ds->sam_stat, ds->sam_stat);
+	up = ds->data;
+	sz = ds->sz;
+	sqcp = lookup_sqcp(devp[minor], ds->serialNo);
+	if (!sqcp) {
+		ret = -ENOTTY;
+		goto ret_err;
+	}
 
 	ret = resp_write_to_user(sqcp->a_cmnd, up, sz);
 
+ret_err:
+	kmem_cache_free(dsp, ds);
 	return ret;
 }
 
 static int put_user_data(unsigned int minor, char __user *arg)
 {
 	struct vtl_queued_cmd *sqcp = NULL;
-	struct vtl_ds ds;
+	struct vtl_ds *ds;
 	int ret = 0;
 	uint8_t *s;
 
-	if (copy_from_user((u8 *)&ds, (u8 *)arg, sizeof(struct vtl_ds))) {
+	ds = kmem_cache_alloc(dsp, 0);
+	if (!ds) {
 		ret = -EFAULT;
 		goto give_up;
 	}
-	MHVTL_DBG(2, " data Cmd S/No : %ld\n", (long)ds.serialNo);
-	MHVTL_DBG(2, " data pointer     : %p\n", ds.data);
-	MHVTL_DBG(2, " data sz          : %d\n", ds.sz);
-	MHVTL_DBG(2, " SAM status       : %d (0x%02x)\n",
-						ds.sam_stat, ds.sam_stat);
-	sqcp = lookup_sqcp(devp[minor], ds.serialNo);
+
+	if (copy_from_user((u8 *)ds, (u8 *)arg, sizeof(struct vtl_ds))) {
+		ret = -EFAULT;
+		goto give_up;
+	}
+	MHVTL_DBG(2, " data Cmd S/No  : %lld\n", (unsigned long long)ds->serialNo);
+	MHVTL_DBG(2, " data pointer   : %p\n", ds->data);
+	MHVTL_DBG(2, " data sz        : %d\n", ds->sz);
+	MHVTL_DBG(2, " SAM status     : %d (0x%02x)\n",
+						ds->sam_stat, ds->sam_stat);
+	sqcp = lookup_sqcp(devp[minor], ds->serialNo);
 	if (!sqcp) {
 		printk(KERN_ERR "%s: callback function not found for "
-				"SCSI cmd s/no. %ld\n",
-				__func__, (long)ds.serialNo);
+				"SCSI cmd s/no. %lld\n",
+				__func__, (unsigned long long)ds->serialNo);
 		ret = 1;	/* report busy to mid level */
 		goto give_up;
 	}
-	ret = fill_from_user_buffer(sqcp->a_cmnd, ds.data, ds.sz);
-	if (ds.sam_stat) { /* Auto-sense */
-		sqcp->a_cmnd->result = ds.sam_stat;
+	ret = fill_from_user_buffer(sqcp->a_cmnd, ds->data, ds->sz);
+	if (ds->sam_stat) { /* Auto-sense */
+		sqcp->a_cmnd->result = ds->sam_stat;
 		if (copy_from_user(sqcp->a_cmnd->sense_buffer,
-						ds.sense_buf, SENSE_BUF_SIZE))
+						ds->sense_buf, SENSE_BUF_SIZE))
 			printk(KERN_ERR "Failed to retrieve autosense data\n");
 		sqcp->a_cmnd->sense_buffer[0] |= 0x70; /* force valid sense */
 		s = sqcp->a_cmnd->sense_buffer;
@@ -1558,6 +1603,7 @@ static int put_user_data(unsigned int minor, char __user *arg)
 	ret = 0;
 
 give_up:
+	kmem_cache_free(dsp, ds);
 	return ret;
 }
 

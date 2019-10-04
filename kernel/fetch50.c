@@ -1,4 +1,5 @@
 
+
 /**
  * vtl_sg_copy_user - Copy data between user-space linear buffer and an SG list
  * @sgl:	The SG list
@@ -21,6 +22,7 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 	/* Do not use SG_MITER_ATOMIC flag on the sg_miter_start() call */
 	unsigned int sg_flags = 0;
 	unsigned int rem;
+	void *kmem_user;
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
 	if (to_buffer)
@@ -29,17 +31,29 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		sg_flags |= SG_MITER_TO_SG;
 #endif
 
+	kmem_user = kmem_cache_alloc(sgp, 0);
+	if (!kmem_user)
+		return offset;
+
 	sg_miter_start(&miter, sgl, nents, sg_flags);
 
 	while (sg_miter_next(&miter) && offset < buflen) {
 		unsigned int len;
 
 		len = min(miter.length, buflen - offset);
+		if (unlikely(len > SG_SEGMENT_SZ)) {
+			printk(KERN_INFO "scatter-gather segment size larger than SG_SEGMENT_SZ (%d > %d)",
+						len, SG_SEGMENT_SZ);
+			goto abort_early;
+		}
 
-		if (to_buffer)
-			rem = copy_to_user(buf + offset, miter.addr, len);
-		else {
-			rem = copy_from_user(miter.addr, buf + offset, len);
+		/* Since user copy 'white list' - need to copy into 'kmem_buffer' first */
+		if (to_buffer) {
+			memcpy(kmem_user, miter.addr, len);
+			rem = copy_to_user(buf + offset, kmem_user, len);
+		} else {
+			rem = copy_from_user(kmem_user, buf + offset, len);
+			memcpy(miter.addr, kmem_user, len);
 			flush_kernel_dcache_page(miter.page);
 		}
 		if (rem)
@@ -54,7 +68,9 @@ static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		offset += len;
 	}
 
+abort_early:
 	sg_miter_stop(&miter);
+	kmem_cache_free(sgp, kmem_user);
 
 	return offset;
 }
