@@ -11,7 +11,7 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
 Name: mhvtl-utils
-%define real_version 2019-04-10
+%define real_version 2019-10-06
 Version: 1.6
 Release: 2%{?dist}
 License: GPL
