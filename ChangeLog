@@ -1,3 +1,6 @@
+* Sun Oct 06 12:20:00 AEST 2019 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
+- Fix kernel copy_to_user()/copy_from_user() to use white-listed buffer
+- Fix kernel compile for 5.0+ kernels
 
 * Wed Apr 10 10:30:30 AEST 2019 Mark Marvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - Fix long standing bug on media unload
