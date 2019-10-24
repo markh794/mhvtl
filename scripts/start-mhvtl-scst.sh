@@ -37,7 +37,7 @@ mount $DEVICE /mnt
 mkdir -p /mnt/mhvtl-data
 chown vtl:vtl /mnt/mhvtl-data
 ln -s /mnt/mhvtl-data /opt/mhvtl
-make_vtl_media vtl
+make_vtl_media
 
 systemctl start mhvtl
 
