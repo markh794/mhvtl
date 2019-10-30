@@ -45,7 +45,7 @@
 
 #include "logging.h"
 #include "scsi.h"
-#include "list.h"
+#include "mhvtl_list.h"
 #include "vtltape.h"
 #include "be_byteshift.h"
 

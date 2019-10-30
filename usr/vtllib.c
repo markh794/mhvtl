@@ -47,7 +47,7 @@
 #include <sys/sysmacros.h>
 #include <assert.h>
 #include "be_byteshift.h"
-#include "list.h"
+#include "mhvtl_list.h"
 #include "scsi.h"
 #include "vtl_common.h"
 #include "logging.h"

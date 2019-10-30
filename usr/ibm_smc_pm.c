@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "list.h"
+#include "mhvtl_list.h"
 #include "vtllib.h"
 #include "scsi.h"
 #include "smc.h"

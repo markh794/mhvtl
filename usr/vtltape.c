@@ -68,7 +68,7 @@
 #include <pwd.h>
 #include <signal.h>
 #include <ctype.h>
-#include "list.h"
+#include "mhvtl_list.h"
 #include "be_byteshift.h"
 #include "vtl_common.h"
 #include "scsi.h"

@@ -48,7 +48,7 @@
 #include <unistd.h>
 
 #include "logging.h"
-#include "list.h"
+#include "mhvtl_list.h"
 #include "vtltape.h"
 
 /* The .meta file consists of a MAM structure followed by a meta_header

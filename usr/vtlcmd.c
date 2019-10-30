@@ -43,7 +43,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <inttypes.h>
-#include "list.h"
+#include "mhvtl_list.h"
 #include "q.h"
 #include "vtl_common.h"
 #include "vtllib.h"

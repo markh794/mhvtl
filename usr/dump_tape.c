@@ -35,7 +35,7 @@
 #include "minilzo.h"
 #include "be_byteshift.h"
 #include "scsi.h"
-#include "list.h"
+#include "mhvtl_list.h"
 #include "vtl_common.h"
 #include "vtllib.h"
 #include "vtltape.h"

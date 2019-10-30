@@ -30,7 +30,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include "scsi.h"
-#include "list.h"
+#include "mhvtl_list.h"
 #include "logging.h"
 #include "vtllib.h"
 #include "q.h"

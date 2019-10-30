@@ -3,7 +3,7 @@
  */
 
 #include <stdio.h>
-#include "list.h"
+#include "mhvtl_list.h"
 #include "vtllib.h"
 #include "smc.h"
 #include "logging.h"

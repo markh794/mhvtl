@@ -36,7 +36,7 @@
 #include <time.h>
 #include <inttypes.h>
 #include "be_byteshift.h"
-#include "list.h"
+#include "mhvtl_list.h"
 #include "vtl_common.h"
 #include "vtltape.h"
 #include "vtllib.h"
