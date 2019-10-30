@@ -112,6 +112,8 @@ tar: distclean
 		 $(PARENTDIR)/usr \
 		 $(PARENTDIR)/etc/ \
 		 $(PARENTDIR)/scripts/ \
+		 $(PARENTDIR)/ccan/ \
+		 $(PARENTDIR)/tcopy/ \
 		 $(PARENTDIR)/include \
 		 $(PARENTDIR)/Makefile \
 		 $(PARENTDIR)/README \

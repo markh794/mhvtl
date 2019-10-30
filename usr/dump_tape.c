@@ -39,7 +39,7 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 #include "vtltape.h"
-#include "crc32c.h"
+#include "ccan/crc32c/crc32c.h"
 
 char vtl_driver_name[] = "dump_tape";
 int verbose = 0;
@@ -443,6 +443,12 @@ int main(int argc, char *argv[])
 
 	if (argc < 2)
 		usage("Not enough arguments");
+
+	if (__builtin_cpu_supports("sse4.2")) {
+		printf("crc32c using Intel sse4.2 hardware optimization\n");
+	} else {
+		printf("crc32c not using Intel sse4.2 optimization\n");
+	}
 
 	while (argc > 1) {
 		if (argv[1][0] == '-') {

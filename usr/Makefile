@@ -34,7 +34,7 @@ else
 LIBDIR ?= $(PREFIX)/lib64
 endif
 
-CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel
+CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel -I../ccan
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
 CFLAGS += -D_GNU_SOURCE
 CFLAGS += -DMHVTL_DEBUG
@@ -90,10 +90,13 @@ vtlcmd:	vtlcmd.o
 minilzo.o:	minilzo.c lzoconf.h lzodefs.h
 	$(CC) $(CFLAGS) $(LZODEBUG) -o minilzo.o -c minilzo.c
 
+crc32c.o:	crc32c.c
+	$(CC) $(CFLAGS) -std=gnu99 -o crc32c.o -c crc32c.c
+
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
-		crc32c.h libcrc32c.o libcrc32c.c
-	$(CC) $(CFLAGS) -o dump_tape libcrc32c.o dump_tape.o minilzo.o -L. \
+		crc32c.o crc32c.c
+	$(CC) $(CFLAGS) -o dump_tape crc32c.o dump_tape.o minilzo.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.c mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
@@ -134,9 +137,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
-		libcrc32c.o \
-		libcrc32c.c \
-		crc32c.h \
+		crc32c.o \
 		be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o ssc.o \
@@ -147,7 +148,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
 		quantum_dlt_pm.o \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
-		libcrc32c.o \
+		crc32c.o \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mhvtl-device-conf-generator: mhvtl-device-conf-generator.c
@@ -186,7 +187,7 @@ clean:
 		dump_tape edit_tape \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser \
 		mhvtl-device-conf-generator \
-		libcrc32c libcrc32c.o \
+		crc32c.o \
 		$(GENERATED_FILES)
 	$(RM) TAGS
 

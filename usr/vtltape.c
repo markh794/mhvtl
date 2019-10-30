@@ -80,7 +80,7 @@
 #include "ssc.h"
 #include "log.h"
 #include "mode.h"
-#include "crc32c.h"
+#include "ccan/crc32c/crc32c.h"
 
 char vtl_driver_name[] = "vtltape";
 
@@ -3040,6 +3040,12 @@ int main(int argc, char *argv[])
 					progname, MHVTL_VERSION, verbose,
 					ctl.channel, ctl.id, ctl.lun);
 	MHVTL_DBG(1, "Size of buffer is %d", lu_ssc.bufsize);
+
+	if (__builtin_cpu_supports("sse4.2")) {
+		MHVTL_DBG(1, "crc32c using Intel sse4.2 hardware optimization");
+	} else {
+		MHVTL_DBG(1, "crc32c not using Intel sse4.2 optimization");
+	}
 
 	oom_adjust();
 
