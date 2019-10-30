@@ -55,7 +55,7 @@ all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
 	mktape edit_tape vtllibrary tapeexerciser $(GENERATED_FILES) \
 	mhvtl-device-conf-generator
 
-libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
+libvtlscsi.so:	vtllib.c spc.c vtllib.h mhvtl_scsi.h smc.c spc.c q.c \
 		subprocess.c subprocess.h \
 		mode.c log.c be_byteshift.h \
 		../kernel/vtl_common.h
@@ -69,7 +69,7 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h scsi.h smc.c spc.c q.c \
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o \
 		mode.o log.o subprocess.o -lpthread
 
-libvtlcart.so: vtlcart.c vtllib.h vtllib.c scsi.h log.c q.c \
+libvtlcart.so: vtlcart.c vtllib.h vtllib.c mhvtl_scsi.h log.c q.c \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic log.c
 	$(CC) $(CFLAGS) -c -fpic q.c
@@ -93,7 +93,7 @@ minilzo.o:	minilzo.c lzoconf.h lzodefs.h
 crc32c.o:	crc32c.c
 	$(CC) $(CFLAGS) -std=gnu99 -o crc32c.o -c crc32c.c
 
-dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h scsi.h \
+dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
 		crc32c.o crc32c.c
 	$(CC) $(CFLAGS) -o dump_tape crc32c.o dump_tape.o minilzo.o -L. \
@@ -107,7 +107,7 @@ edit_tape:	edit_tape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o edit_tape edit_tape.o -L. -lvtlcart -lvtlscsi
 
-vtllibrary:	vtllibrary.o vtllib.h scsi.h \
+vtllibrary:	vtllibrary.o vtllib.h mhvtl_scsi.h \
 		libvtlscsi.so \
 		vtl_cart_type.o \
 		be_byteshift.h \
@@ -129,7 +129,7 @@ vtllibrary:	vtllibrary.o vtllib.h scsi.h \
 		ibm_smc_pm.o \
 		default_smc_pm.o
 
-vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h scsi.h \
+vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h mhvtl_scsi.h \
 		libvtlscsi.so ssc.o default_ssc_pm.o \
 		ult3580_pm.o \
 		hp_ultrium_pm.o \

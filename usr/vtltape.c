@@ -71,7 +71,7 @@
 #include "mhvtl_list.h"
 #include "be_byteshift.h"
 #include "vtl_common.h"
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 #include "q.h"
 #include "logging.h"
 #include "vtllib.h"

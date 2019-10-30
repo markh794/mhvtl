@@ -48,7 +48,7 @@
 #include <assert.h>
 #include "be_byteshift.h"
 #include "mhvtl_list.h"
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 #include "vtl_common.h"
 #include "logging.h"
 #include "vtllib.h"

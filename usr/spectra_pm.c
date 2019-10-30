@@ -10,7 +10,7 @@
 #include "be_byteshift.h"
 #include "log.h"
 #include "mode.h"
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 
 static void update_spectra_215_device_capabilities(struct lu_phy_attr *lu)
 {

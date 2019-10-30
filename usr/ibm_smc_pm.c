@@ -7,7 +7,7 @@
 #include <string.h>
 #include "mhvtl_list.h"
 #include "vtllib.h"
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 #include "smc.h"
 #include "logging.h"
 #include "be_byteshift.h"

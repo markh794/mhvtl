@@ -29,7 +29,7 @@
 #include <syslog.h>
 #include <inttypes.h>
 #include <errno.h>
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
 #include "logging.h"
 #include "vtllib.h"

@@ -37,7 +37,7 @@
 #include <assert.h>
 #include <signal.h>
 #include "be_byteshift.h"
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
 #include "vtl_common.h"
 #include "vtllib.h"

@@ -37,7 +37,7 @@
 #include <unistd.h>
 #include <zlib.h>
 
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
 #include "vtltape.h"
 #include "be_byteshift.h"

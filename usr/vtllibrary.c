@@ -52,7 +52,7 @@
 #include <signal.h>
 #include <pwd.h>
 #include "vtl_common.h"
-#include "scsi.h"
+#include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
 #include "q.h"
 #include "logging.h"
