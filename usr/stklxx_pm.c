@@ -10,7 +10,7 @@
 #include "smc.h"
 #include "logging.h"
 #include "be_byteshift.h"
-#include "log.h"
+#include "mhvtl_log.h"
 #include "mode.h"
 
 static struct smc_personality_template smc_pm = {

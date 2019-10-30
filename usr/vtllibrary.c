@@ -61,7 +61,7 @@
 #include "smc.h"
 #include "mode.h"
 #include "be_byteshift.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 char vtl_driver_name[] = "vtllibrary";
 long my_id = 0;

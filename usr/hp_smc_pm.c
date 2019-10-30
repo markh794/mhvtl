@@ -9,7 +9,7 @@
 #include "smc.h"
 #include "logging.h"
 #include "be_byteshift.h"
-#include "log.h"
+#include "mhvtl_log.h"
 #include "mode.h"
 
 static void update_eml_vpd_80(struct lu_phy_attr *lu)

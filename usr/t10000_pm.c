@@ -47,7 +47,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "mode.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 static struct density_info density_t10kA = {
 	0, 127, 0x300, 0x7a120, medium_density_code_10kA,

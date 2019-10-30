@@ -37,7 +37,7 @@
 #include "ssc.h"
 #include "smc.h"
 #include "be_byteshift.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 static char *write_error_counter = "WRITE ERROR Counter";
 static char *read_error_counter = "READ ERROR Counter";

@@ -46,7 +46,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "mode.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 static struct density_info density_lto1 = {
 	4880, 127, 384, 10000, medium_density_code_lto1,

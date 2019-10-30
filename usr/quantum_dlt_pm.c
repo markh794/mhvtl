@@ -46,7 +46,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "mode.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 /* FIXME: This data needs to be updated to suit SDLT range of media */
 static struct density_info density_dlt2 = {

@@ -45,7 +45,7 @@
 #include "q.h"
 #include "ssc.h"
 #include "vtltape.h"
-#include "log.h"
+#include "mhvtl_log.h"
 #include "mode.h"
 
 uint8_t last_cmd;

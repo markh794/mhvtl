@@ -78,7 +78,7 @@
 #include "vtltape.h"
 #include "spc.h"
 #include "ssc.h"
-#include "log.h"
+#include "mhvtl_log.h"
 #include "mode.h"
 #include "ccan/crc32c/crc32c.h"
 

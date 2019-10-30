@@ -47,7 +47,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "mode.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 static struct density_info density_9840A = {
 	0, 127, 288, 0x4e20, medium_density_code_9840A,

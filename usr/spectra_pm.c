@@ -8,7 +8,7 @@
 #include "smc.h"
 #include "logging.h"
 #include "be_byteshift.h"
-#include "log.h"
+#include "mhvtl_log.h"
 #include "mode.h"
 #include "mhvtl_scsi.h"
 

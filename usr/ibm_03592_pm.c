@@ -46,7 +46,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "mode.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 /* Note need to change 'medium density' if encryption is enabled / disabled */
 static struct density_info density_j1a = {

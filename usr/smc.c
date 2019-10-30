@@ -43,7 +43,7 @@
 #include "logging.h"
 #include "smc.h"
 #include "q.h"
-#include "log.h"
+#include "mhvtl_log.h"
 #include "subprocess.h"
 
 int current_state;

@@ -47,7 +47,7 @@
 #include "vtltape.h"
 #include "q.h"
 #include "mode.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 static struct density_info density_ait1 = {
 	0x17d6, 0x50, 1, 100, medium_density_code_ait1,

@@ -46,7 +46,7 @@
 #include "spc.h"
 #include "vtltape.h"
 #include "mode.h"
-#include "log.h"
+#include "mhvtl_log.h"
 
 static struct density_info density_default = {
 	1024, 127, 1, 500, medium_density_code_unknown,

@@ -57,7 +57,7 @@
 #include "mode.h"
 #include "q.h"
 #include "ssc.h"
-#include "log.h"
+#include "mhvtl_log.h"
 #include "q.h"
 
 static int reset = 0;
