@@ -444,11 +444,13 @@ int main(int argc, char *argv[])
 	if (argc < 2)
 		usage("Not enough arguments");
 
+#ifdef __x86_64__
 	if (__builtin_cpu_supports("sse4.2")) {
 		printf("crc32c using Intel sse4.2 hardware optimization\n");
 	} else {
 		printf("crc32c not using Intel sse4.2 optimization\n");
 	}
+#endif
 
 	while (argc > 1) {
 		if (argv[1][0] == '-') {
