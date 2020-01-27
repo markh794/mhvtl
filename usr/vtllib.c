@@ -411,7 +411,7 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
 	MHVTL_DBG(3, "retrieving %d bytes from kernel", ds->sz);
 	ioctl_err = ioctl(cdev, VTL_GET_DATA, ds);
 	if (ioctl_err < 0) {
-		MHVTL_ERR("Failed retriving data via ioctl(): %s",
+		MHVTL_ERR("Failed retrieving data via ioctl(): %s",
 				strerror(errno));
 		return 0;
 	}
