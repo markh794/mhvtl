@@ -2,7 +2,9 @@
  * Include wrappers for older kernels as interfaces change
  */
 
+#ifndef SG_SEGMENT_SZ
 #define SG_SEGMENT_SZ	8192
+#endif
 
 #ifndef slab_flags_t
 typedef unsigned __bitwise slab_flags_t;
