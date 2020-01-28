@@ -3,7 +3,7 @@
  */
 
 #ifndef SG_SEGMENT_SZ
-#define SG_SEGMENT_SZ	8192
+#define SG_SEGMENT_SZ	65536
 #endif
 
 #ifndef slab_flags_t
