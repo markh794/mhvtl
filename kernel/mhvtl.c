@@ -1555,11 +1555,15 @@ static int put_user_data(unsigned int minor, char __user *arg)
 
 	ds = kmem_cache_alloc(dsp, 0);
 	if (!ds) {
+		printk(KERN_ERR "%s(): Failed to allocate kmem_cache",
+						__func__);
 		ret = -EFAULT;
 		goto give_up;
 	}
 
 	if (copy_from_user((u8 *)ds, (u8 *)arg, sizeof(struct vtl_ds))) {
+		printk(KERN_ERR "%s(): Failed to copy from user %d bytes",
+						__func__, sizeof(struct vtl_ds));
 		ret = -EFAULT;
 		goto give_up;
 	}
@@ -1571,8 +1575,9 @@ static int put_user_data(unsigned int minor, char __user *arg)
 	sqcp = lookup_sqcp(devp[minor], ds->serialNo);
 	if (!sqcp) {
 		printk(KERN_ERR "%s: callback function not found for "
-				"SCSI cmd s/no. %lld\n",
-				__func__, (unsigned long long)ds->serialNo);
+				"SCSI cmd s/no. %lld, minor: %d\n",
+				__func__, (unsigned long long)ds->serialNo,
+				minor);
 		ret = 1;	/* report busy to mid level */
 		goto give_up;
 	}
