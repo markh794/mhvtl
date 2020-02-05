@@ -1562,7 +1562,7 @@ static int put_user_data(unsigned int minor, char __user *arg)
 	}
 
 	if (copy_from_user((u8 *)ds, (u8 *)arg, sizeof(struct vtl_ds))) {
-		printk(KERN_ERR "%s(): Failed to copy from user %d bytes",
+		printk(KERN_ERR "%s(): Failed to copy from user %ld bytes",
 						__func__, sizeof(struct vtl_ds));
 		ret = -EFAULT;
 		goto give_up;
