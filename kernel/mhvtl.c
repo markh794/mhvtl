@@ -1696,11 +1696,7 @@ static long vtl_c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,19,0)
-	struct inode *inode = file->f_dentry->d_inode;
-#else
 	struct inode *inode = file_inode(file);
-#endif
 	if (!inode) {
 		printk(KERN_ERR "%s() : Unable to obtain inode - inode is null", __func__);
 		return -ENODEV;
