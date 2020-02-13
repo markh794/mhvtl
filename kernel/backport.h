@@ -34,6 +34,10 @@ static inline struct kmem_cache *kmem_cache_create_usercopy(const char *name,
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+/*
+ * See also patch "new helper: file_inode(file)" (commit ID
+ * 496ad9aa8ef448058e36ca7a787c61f2e63f0f54).
+ */
 static inline struct inode *file_inode(struct file *f)
 {
 	return f->f_path.dentry->d_inode;
