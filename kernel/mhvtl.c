@@ -1615,10 +1615,10 @@ give_up:
 static int send_vtl_header(unsigned int minor, char __user *arg)
 {
 	struct vtl_header *vheadp;
-	struct vtl_queued_cmd *sqcp;
+	struct vtl_queued_cmd *sqcp, *n;
 	int ret = 0;
 
-	list_for_each_entry(sqcp, &devp[minor]->cmd_list, queued_sibling) {
+	list_for_each_entry_safe(sqcp, n, &devp[minor]->cmd_list, queued_sibling) {
 		if (sqcp->state == CMD_STATE_QUEUED) {
 			vheadp = &sqcp->op_header;
 			if (copy_to_user((u8 *)arg, (u8 *)vheadp,
