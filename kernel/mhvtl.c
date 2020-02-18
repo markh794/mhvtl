@@ -157,7 +157,7 @@ static int vtl_major = 0;
 
 #define DEF_MAX_MINOR_NO 1024	/* Max number of minor nos. this driver will handle */
 
-#define VTL_CANQUEUE	255	/* needs to be >= 1 */
+#define VTL_CANQUEUE	1	/* needs to be >= 1 */
 #define VTL_MAX_CMD_LEN 16
 
 static struct kmem_cache *dsp;
@@ -326,7 +326,7 @@ static struct scsi_host_template vtl_driver_template = {
 	.can_queue =		VTL_CANQUEUE,
 	.this_id =		15,
 	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
-	.cmd_per_lun =		32,
+	.cmd_per_lun =		1,
 	.max_sectors =		4096,
 	.unchecked_isa_dma =	0,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
@@ -514,7 +514,7 @@ static struct vtl_hba_info *vtl_get_hba_entry(void)
 
 static void dump_queued_list(void)
 {
-	struct vtl_lu_info *lu;
+	struct vtl_lu_info *lu, *__lu;
 
 	struct vtl_hba_info *vtl_hba;
 
@@ -525,7 +525,7 @@ static void dump_queued_list(void)
 	/* Now that the work list is split per lu, we have to check each
 	 * lu to see if we can find the serial number in question
 	 */
-	list_for_each_entry(lu, &vtl_hba->lu_list, lu_sibling) {
+	list_for_each_entry_safe(lu, __lu, &vtl_hba->lu_list, lu_sibling) {
 		MHVTL_DBG(2, "Channel %d, ID %d, LUN %d\n",
 				lu->channel, lu->target, lu->lun);
 		debug_queued_list(lu);
@@ -568,11 +568,6 @@ static int q_cmd(struct scsi_cmnd *scp,
 	sqcp->done_funct = done;
 	sqcp->cmnd_timer.expires = jiffies + TIMEOUT_FOR_USER_DAEMON;
 	add_timer(&sqcp->cmnd_timer);
-	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
-	if (VTL_OPT_NOISE & vtl_opts)
-		dump_queued_list();
-
-	spin_lock_irqsave(&lu->cmd_list_lock, iflags);
 
 	vheadp = &sqcp->op_header;
 	vheadp->serialNo = serial_number;
@@ -589,6 +584,8 @@ static int q_cmd(struct scsi_cmnd *scp,
 	sqcp->state = CMD_STATE_QUEUED;
 
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
+	if (VTL_OPT_NOISE & vtl_opts)
+		dump_queued_list();
 
 	return 0;
 }
