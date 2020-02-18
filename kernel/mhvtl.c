@@ -101,9 +101,9 @@ struct scatterlist;
  #define VTL_VERSION "1.75"
 */
 #ifndef MHVTL_VERSION
-#define MHVTL_VERSION "0.18.26"
+#define MHVTL_VERSION "0.18.27"
 #endif
-static const char *vtl_version_date = "20200213-0";
+static const char *vtl_version_date = "20200218-0";
 static const char vtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -279,7 +279,7 @@ static int vtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 #endif
 #endif
 static int vtl_queuecommand_lck(struct scsi_cmnd *,
-					 void (*done) (struct scsi_cmnd *));
+					void (*done) (struct scsi_cmnd *));
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int vtl_b_ioctl(struct scsi_device *, unsigned int, void __user *);
 #else
