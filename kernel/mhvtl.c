@@ -555,14 +555,12 @@ static int q_cmd(struct scsi_cmnd *scp,
 		return 1;
 	}
 
-	spin_lock_irqsave(&lu->cmd_list_lock, iflags);
 	#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 	timer_setup(&sqcp->cmnd_timer, timer_intr_handler, 0);
 	#else
 	init_timer(&sqcp->cmnd_timer);
 	sqcp->cmnd_timer.function = timer_intr_handler;
 	#endif
-	list_add_tail(&sqcp->queued_sibling, &lu->cmd_list);
 	sqcp->a_cmnd = scp;
 	sqcp->scsi_result = 0;
 	sqcp->done_funct = done;
@@ -583,7 +581,10 @@ static int q_cmd(struct scsi_cmnd *scp,
 	 */
 	sqcp->state = CMD_STATE_QUEUED;
 
+	spin_lock_irqsave(&lu->cmd_list_lock, iflags);
+	list_add_tail(&sqcp->queued_sibling, &lu->cmd_list);
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
+
 	if (VTL_OPT_NOISE & vtl_opts)
 		dump_queued_list();
 
