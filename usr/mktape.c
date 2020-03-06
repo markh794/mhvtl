@@ -90,6 +90,9 @@ int main(int argc, char *argv[])
 	int res;
 	char *param_config_dir = NULL;
 	char *param_home_dir = NULL;
+	char ver[64];
+	int major, minor;
+	int ret;
 
 	if (sizeof(struct MAM) != 1024) {
 		fprintf(stderr, "error: Structure of MAM incorrect size: %d\n",
@@ -185,6 +188,12 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	ret = sscanf(MHVTL_VERSION, "%d.%d", &major, &minor);
+	sprintf(ver, "vtl-%d.%d      ", major, minor);
+	if (ret != 2) {
+		printf("Warning: Attempting to retrieve version string from %s failed\n", MHVTL_VERSION);
+	}
+
 	if (param_home_dir)
 		strncpy(home_directory, param_home_dir, HOME_DIR_PATH_SZ);
 	else
@@ -206,7 +215,7 @@ int main(int argc, char *argv[])
 	put_unaligned_be64(sizeof(mam.pad), &mam.MAMSpaceRemaining);
 
 	memcpy(&mam.MediumManufacturer, "linuxVTL", 8);
-	memcpy(&mam.ApplicationVendor, "vtl-1.5 ", 8);
+	memcpy(&mam.ApplicationVendor, &ver, 8);
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (!strncmp("clean", mediaType, 5)) {
