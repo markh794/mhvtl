@@ -11,9 +11,9 @@
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
 Name: mhvtl-utils
-%define real_version 2019-10-06
+%define real_version 2020-03-10
 Version: 1.6
-Release: 2%{?dist}
+Release: 3%{?dist}
 License: GPL
 Group: System/Kernel
 URL: http://sites.google.com/site/linuxvtl2/
@@ -127,6 +127,9 @@ make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-
 %dir /opt/mhvtl/
 
 %changelog
+* Tue Mar 03 2020 Mark Harvey <markh794@gmail.com> - 1.6-3
+- Updated to release 1.6-3 (2020-03-10).
+
 * Thu Oct 06 2019 Mark Harvey <markh794@gmail.com> - 1.6-2
 - Updated to release 1.6-2 (2019-10-06).
 

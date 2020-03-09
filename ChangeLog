@@ -1,3 +1,7 @@
+* Tue Mar 10 09:00:00 AEST 2020 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
+- Fix kernel module oops/panic due to race between placing OP ready for user space before all variable were initialised
+- Add ccan version of crc32c routine which includes CPU optimisations for sse4.2 capabile CPUs
+
 * Sun Oct 06 12:20:00 AEST 2019 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - Fix kernel copy_to_user()/copy_from_user() to use white-listed buffer
 - Fix kernel compile for 5.0+ kernels
