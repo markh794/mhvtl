@@ -251,9 +251,9 @@ static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0x80);
 	if (lu_vpd[pg])		/* Free any earlier allocation */
 		dealloc_vpd(lu_vpd[pg]);
-	lu_vpd[pg] = alloc_vpd(0x16);
+	lu_vpd[pg] = alloc_vpd(0x10);
 	if (!lu_vpd[pg]) {
-		MHVTL_ERR("Could not malloc(0x16) bytes, line %d", __LINE__);
+		MHVTL_ERR("Could not malloc(0x10) bytes, line %d", __LINE__);
 		return;
 	}
 
@@ -261,7 +261,7 @@ static void update_ibm_3100_vpd_80(struct lu_phy_attr *lu)
 	/* d[4 - 15] Serial number of device */
 	snprintf((char *)&d[0], 13, "%-12.12s", lu->lu_serial_no);
 	/* Unique Logical Library Identifier */
-	memset(&d[12], 0x20, 4);	/* Space chars */
+	memcpy(&d[12], "_LL0" , 4);
 }
 
 static void update_ibm_3100_vpd_83(struct lu_phy_attr *lu)
@@ -274,9 +274,9 @@ static void update_ibm_3100_vpd_83(struct lu_phy_attr *lu)
 	pg = PCODE_OFFSET(0x83);
 	if (lu_vpd[pg])		/* Free any earlier allocation */
 		dealloc_vpd(lu_vpd[pg]);
-	lu_vpd[pg] = alloc_vpd(0x32);	/* Allocate 2 more bytes than needed */
+	lu_vpd[pg] = alloc_vpd(0x2c);
 	if (!lu_vpd[pg]) {
-		MHVTL_ERR("Could not malloc(0x32) bytes, line %d", __LINE__);
+		MHVTL_ERR("Could not malloc(0x2c) bytes, line %d", __LINE__);
 		return;
 	}
 
@@ -291,7 +291,7 @@ static void update_ibm_3100_vpd_83(struct lu_phy_attr *lu)
 	/* Serial Number of device */
 	memcpy(&d[28], &lu->inquiry[38], 12);
 	/* Unique Logical Library Identifier */
-	memset(&d[40], 0x20, 4);	/* Space chars */
+	memcpy(&d[40], "_LL0" , 4);
 }
 
 static void update_ibm_3100_vpd_c0(struct lu_phy_attr *lu)
