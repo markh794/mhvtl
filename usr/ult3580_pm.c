@@ -67,7 +67,7 @@ static struct density_info density_lto6 = {
 	15142, 127, 2176, 2500000, medium_density_code_lto6,
 			"LTO-CVE", "U-616", "Ultrium 6/16T" };
 static struct density_info density_lto7 = {
-	19107, 127, 5376, 9000000, medium_density_code_lto7,
+	19107, 127, 5376, 6000000, medium_density_code_lto7,
 			"LTO-CVE", "U-732", "Ultrium 7/32T" };
 static struct density_info density_lto8 = {
 	20669, 127, 6656, 12000000, medium_density_code_lto8,
