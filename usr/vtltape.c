@@ -1608,7 +1608,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	if (!lu_priv->pm->update_encryption_mode)
+	if (lu_priv->pm->update_encryption_mode)
 		lu_priv->pm->update_encryption_mode(&lu->mode_pg, NULL, lu_ssc.ENCRYPT_MODE);
 
 	return SAM_STAT_GOOD;
