@@ -2015,22 +2015,24 @@ static void dump_linked_list(void)
 /* Strip (recover) the 'Physical Cartridge Label'
  *   Well at least the data filename which relates to the same thing
  */
-static char *strip_PCL(char *p, int start)
+static char *strip_PCL(char *str, int start)
 {
 	char *q;
+	char *p;
+	int a;
 
-	/* p += 4 (skip over 'load' string)
+	p = str + start;
+
+	/* p += 'start' (skip over 'load' string)
 	 * Then keep going until '*p' is a space or NULL
 	 */
-	for (p += start; *p == ' '; p++)
-		if ('\0' == *p)
+	for (a = 0, q = p; a < strlen(str) - start; a++, q++) {
+		if (isspace(*q) || *q == '\0') {
+			*q = '\0';
 			break;
-	q = p;	/* Set end-of-word marker to start of word. */
-	for (q = p; *q != '\0'; q++)
-		if (*q == ' ' || *q == '\t')
-			break;
-	*q = '\0';	/* Set null terminated string */
-
+		}
+	}
+	MHVTL_DBG(3, "Returning: \"%s\"", p);
 return p;
 }
 
@@ -2112,7 +2114,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		if (lu_ssc.load_status == TAPE_LOADED) {
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
-			pcl = strip_PCL(msg->text, 4);
+			pcl = strip_PCL(msg->text, 5);
 			loadTape(pcl, sam_stat);
 		}
 		/* Prevent a manual load, and the library moving another in it's place
