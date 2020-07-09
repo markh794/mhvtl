@@ -78,7 +78,7 @@ Build the binaries
 Install the systemd scripts and binaries and tell systemd:
 
 	sh> sudo make install
-	sh> sudo systemdctl daemon-reload
+	sh> sudo systemctl daemon-reload
 
 Enable and start the mhvtl target service:
 
@@ -91,7 +91,7 @@ And make sure it worked:
 
 You can test that your vtl* daemons are running with:
 
-	sh> ps -ax | frep vtl
+	sh> ps -ax | fgrep vtl
 
 Test:
 Note: Make sure the 'mtx' & 'lsscsi' utilities are installed
