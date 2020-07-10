@@ -4,7 +4,7 @@ mktape \- Utility to create new/blank virtual media for the VTL.
 .SH SYNOPSIS
 .B mktape \-h
 .br
-.B mkdir REQUIRED_PARAMS
+.B mktape REQUIRED_PARAMS
 .BI [ OPTIONS ]
 .B ...
 .SH DESCRIPTION
@@ -47,7 +47,7 @@ directory for media created.
 If the library index number does not exist, then a subdir under
 @HOME_PATH@/<n>
 is created and virtual media created in this directory.
-For example "vtlcmd -l 20 -m ABC123 -s 1024 -t data -d LTO3" will create a virtual
+For example "mktape -l 20 -m ABC123 -s 1024 -t data -d LTO3" will create a virtual
 media
 .I ABC123
 in @HOME_PATH@/20/
