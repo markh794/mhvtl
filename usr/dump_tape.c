@@ -49,8 +49,6 @@ int lib_id;
 
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
-struct blk_header *c_pos;
-
 static char *progname;
 
 static void print_mam_info(void)
