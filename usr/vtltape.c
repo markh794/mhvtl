@@ -811,10 +811,11 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 {
 	uint32_t disk_blk_size, blk_size;
-	uint32_t tgtsize, rc;
+	uint32_t rc;
 	uint32_t save_sense;
 	uint32_t pre_crc;
 	uint32_t post_crc;
+	uint8_t *bounce_buffer;
 
 	MHVTL_DBG(3, "Request to read: %d bytes, SILI: %d", request_sz, sili);
 
@@ -858,35 +859,51 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	disk_blk_size = c_pos->disk_blk_size;
 	pre_crc = c_pos->uncomp_crc;
 
-	/* We have a data block to read.
-	   Only read upto size of allocated buffer by initiator
-	*/
-	tgtsize = min(request_sz, blk_size);
+	if (blk_size > request_sz) {
+		bounce_buffer = malloc(blk_size);
+		if (!bounce_buffer) {
+			MHVTL_ERR("Unable to allocate %d bytes for bounce buffer",
+					blk_size);
+			sam_medium_error(E_UNRECOVERED_READ, sam_stat);
+			return 0;
+		}
+	} else {
+		bounce_buffer = buf;
+	}
 
 	if (c_pos->blk_flags & BLKHDR_FLG_LZO_COMPRESSED)
-		rc = uncompress_lzo_block(buf, tgtsize, sam_stat);
+		rc = uncompress_lzo_block(bounce_buffer, blk_size, sam_stat);
 	else if (c_pos->blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED)
-		rc = uncompress_zlib_block(buf, tgtsize, sam_stat);
+		rc = uncompress_zlib_block(bounce_buffer, blk_size, sam_stat);
 	else {
 	/* If the tape block is uncompressed, we can read the number of bytes
 	   we need directly into the scsi read buffer and we are done.
 	*/
-		if (read_tape_block(buf, tgtsize, sam_stat) != tgtsize) {
+		if (read_tape_block(bounce_buffer, blk_size, sam_stat) != blk_size) {
 			MHVTL_ERR("read failed, %s", strerror(errno));
 			sam_medium_error(E_UNRECOVERED_READ, sam_stat);
-			return 0;
+			goto free_bounce_buf;
 		}
-		rc = tgtsize;
+		rc = blk_size;
 	}
 
 	if (c_pos->blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC) {
-		post_crc = crc32c(0, buf, blk_size);
+		post_crc = crc32c(0, bounce_buffer, blk_size);
 		if (pre_crc != post_crc) {
 			MHVTL_ERR("BLK CRC: 0x%08x, Calculated CRC after read: 0x%08x", pre_crc, post_crc);
 			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
-			return 0;
+			goto free_bounce_buf;
 		}
 		MHVTL_DBG(3, "BLK_CRC: 0x%08x, calculated CRC: 0x%08x", pre_crc, post_crc);
+	}
+
+	/* If bounce_buffer != buf then we're reading a large block and need to copy
+	 * data back into buf
+	*/
+	if (bounce_buffer != buf) {
+		memcpy(buf, bounce_buffer, request_sz);
+		free(bounce_buffer);
+		rc = request_sz;
 	}
 
 	lu_ssc.bytesRead_I += blk_size;
@@ -927,6 +944,12 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat)
 	}
 
 	return rc;
+
+free_bounce_buf:
+	if (bounce_buffer != buf)
+		free(bounce_buffer);
+
+	return 0;
 }
 
 static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
