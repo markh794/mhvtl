@@ -60,7 +60,7 @@ Pre-req to build/compile userspace:
 * To build from tar archive (Debian / Ubuntu):
   ============================================
  apt-get install lsscsi
- apt-get install sg3_utils
+ apt-get install sg3-utils
 
 Note: we used to create a user and group called "vtl" to try to limit
 the possible system hazards of having root access. But we now feel
