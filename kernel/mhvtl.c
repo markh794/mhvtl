@@ -328,7 +328,9 @@ static struct scsi_host_template vtl_driver_template = {
 	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
 	.cmd_per_lun =		1,
 	.max_sectors =		4096,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 	.unchecked_isa_dma =	0,
+#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
 	.use_clustering =	ENABLE_CLUSTERING,
 #else
