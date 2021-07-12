@@ -351,7 +351,7 @@ static const struct file_operations vtl_fops = {
 };
 
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 20, 0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4, 17, 0)
  #include "fetch50.c"
 #elif LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 26)
  #include "fetch27.c"
