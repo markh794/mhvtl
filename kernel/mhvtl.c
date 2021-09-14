@@ -244,9 +244,6 @@ static struct device_driver vtl_driverfs_driver = {
 	.remove		= vtl_driver_remove,
 };
 
-static const int check_condition_result =
-		(DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
-
 /* function declarations */
 static int resp_report_luns(struct scsi_cmnd *SCpnt, struct vtl_lu_info *lu);
 static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
@@ -744,7 +741,7 @@ static int resp_report_luns(struct scsi_cmnd *scp, struct vtl_lu_info *lu)
 	alloc_len = cmd[9] + (cmd[8] << 8) + (cmd[7] << 16) + (cmd[6] << 24);
 	if ((alloc_len < 16) || (select_report > 2)) {
 		mk_sense_buffer(lu, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB,0);
-		return check_condition_result;
+		return SAM_STAT_CHECK_CONDITION;
 	}
 	/* can produce response with up to 16k luns (lun 0 to lun 16383) */
 	memset(arr, 0, MHVTL_RLUN_ARR_SZ);
