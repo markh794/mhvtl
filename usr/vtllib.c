@@ -461,6 +461,40 @@ void hex_dump(uint8_t *p, int count)
 	printf("\n");
 }
 
+
+static int mhvtl_access(char *p, int len, char *entry)
+{
+	int fstat;
+	struct stat km;
+	char filename[256];
+
+	snprintf(filename, ARRAY_SIZE(filename),
+			"/sys/bus/mhvtl/drivers/mhvtl/%s", entry);
+	MHVTL_DBG(1, "Testing %s", filename);
+	fstat = stat(filename, &km);
+	if (fstat >= 0) {
+		strncpy(p, filename, len);
+		return 0;
+	}
+	snprintf(filename, ARRAY_SIZE(filename),
+			"/sys/bus/pseudo9/drivers/mhvtl/%s", entry);
+	MHVTL_DBG(1, "Testing %s", filename);
+	fstat = stat(filename, &km);
+	if (fstat >= 0) {
+		strncpy(p, filename, len);
+		return 0;
+	}
+	snprintf(filename, ARRAY_SIZE(filename),
+			"/sys/bus/pseudo/drivers/mhvtl/%s", entry);
+	MHVTL_DBG(1, "Testing %s", filename);
+	fstat = stat(filename, &km);
+	if (fstat >= 0) {
+		strncpy(p, filename, len);
+		return 0;
+	}
+	return -1;
+}
+
 /* Writing to the kernel module will block until the device is created.
  * Unfortunately, we need to be polling the device and process the
  * SCSI op code before the lu can be created.
@@ -476,17 +510,16 @@ pid_t add_lu(unsigned minor, struct vtl_ctl *ctl)
 	int pseudo;
 	char pseudo_filename[256];
 	char errmsg[512];
-	struct stat km;
 
 	sprintf(str, "add %u %d %d %d\n",
 			minor, ctl->channel, ctl->id, ctl->lun);
 
-	snprintf(pseudo_filename, ARRAY_SIZE(pseudo_filename),
-				"/sys/bus/pseudo9/drivers/mhvtl/add_lu");
-	pseudo = stat(pseudo_filename, &km);
-	if (pseudo < 0)
-		snprintf(pseudo_filename, ARRAY_SIZE(pseudo_filename),
-				"/sys/bus/pseudo/drivers/mhvtl/add_lu");
+	if (mhvtl_access(pseudo_filename, ARRAY_SIZE(pseudo_filename), "add_lu") < 0) {
+		sprintf(str, "Could not find mhvtl kernel module");
+		MHVTL_ERR("%s: %s", mhvtl_driver_name, str);
+		printf("%s: %s\n", mhvtl_driver_name, str);
+		exit(EIO);
+	}
 
 	switch (pid = fork()) {
 	case 0:         /* Child */
@@ -524,18 +557,16 @@ static int chrdev_get_major(void)
 {
 	FILE *f;
 	char filename[256];
-	int pseudo;
+	const char str[] = "Could not locate mhvtl kernel module";
 	int rc = 0;
 	int x;
 	int majno;
-	struct stat km;
 
-	snprintf(filename, ARRAY_SIZE(filename),
-				"/sys/bus/pseudo9/drivers/mhvtl/major");
-	pseudo = stat(filename, &km);
-	if (pseudo < 0)
-		snprintf(filename, ARRAY_SIZE(filename),
-				"/sys/bus/pseudo/drivers/mhvtl/major");
+	if (mhvtl_access(filename, ARRAY_SIZE(filename), "major") < 0) {
+		MHVTL_ERR("%s: %s", mhvtl_driver_name, str);
+		printf("%s: %s\n", mhvtl_driver_name, str);
+		exit(EIO);
+	}
 
 	f = fopen(filename, "r");
 	if (!f) {
