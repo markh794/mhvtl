@@ -737,7 +737,7 @@ int oom_adjust(void)
 	char path[64];
 
 	/* Avoid oom-killer */
-	sprintf(path, "/proc/%d/oom_adj", getpid());
+	sprintf(path, "/proc/%d/oom_score_adj", getpid());
 	fd = open(path, O_WRONLY);
 	if (fd < 0) {
 		MHVTL_DBG(3, "Can't open oom-killer's pardon %s, %s",
