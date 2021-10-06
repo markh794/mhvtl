@@ -7,13 +7,14 @@
 
 %define _unpackaged_files_terminate_build 0
 
+%define mhvtl_home_dir /opt/mhvtl
 
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
 Name: mhvtl-utils
-%define real_version 2020-03-10
+%define real_version 2021-10-07
 Version: 1.6
-Release: 3%{?dist}
+Release: 4%{?dist}
 License: GPL
 Group: System/Kernel
 URL: http://sites.google.com/site/linuxvtl2/
@@ -21,10 +22,15 @@ URL: http://sites.google.com/site/linuxvtl2/
 Source: mhvtl-%{real_version}.tgz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 
+Requires:	sg3_utils
 BuildRequires: systemd
-BuildRequires: systemd-devel
+BuildRequires: systemd-rpm-macros
 BuildRequires: zlib-devel
 %{?systemd_requires}
+%{?systemd_ordering}
+
+%{?!_systemdgeneratordir:%define _systemdgeneratordir /usr/lib/systemd/system-generators}
+
 
 Obsoletes: mhvtl <= %{version}-%{release}
 Provides: mhvtl = %{version}-%{release}
@@ -46,21 +52,11 @@ The SSC/SMC target daemons have been written from scratch.
 %prep
 %setup -n %{real_name}-%{version}
 
-%build
-%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" usr
-%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" etc
-%{__make} RPM_OPT_FLAGS="%{optflags}" VERSION="%{version}.%{release}" scripts
-
-%install
-%{__rm} -rf %{buildroot}
-%{__make} install DESTDIR="%{buildroot}" LIBDIR="%{_libdir}"
-
 %post
-/sbin/ldconfig
 /bin/systemctl daemon-reload
+%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 /bin/systemctl start mhvtl.target
 /bin/systemctl enable  mhvtl.target
-#%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-path=%{_bindir}
 
 %postun
@@ -76,6 +72,19 @@ make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-
 /bin/systemctl stop  mhvtl.target
 /bin/systemctl disable  mhvtl.target
 #%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+
+%build
+make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} \
+	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir}
+
+%install
+%make_install \
+	MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version}_release LIBDIR=%{_libdir} \
+	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
+	SYSTEMD_SERVICE_DIR=%{_unitdir}
+install -d -m 755 %{buildroot}%{_sbindir}
+ln -s %{_sbindir}/service %{buildroot}/%{_sbindir}/rc%{name}
+install -d -m 755 %{buildroot}/var/lib/%{name}
 
 %clean
 %{__rm} -rf %{buildroot}
@@ -127,10 +136,13 @@ make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-
 %dir /opt/mhvtl/
 
 %changelog
+* Thu Oct 07 2021 Mark Harvey <markh794@gmail.com> - 1.6-4
+- Updated to release 1.6-4 (2021-10-07).
+
 * Tue Mar 03 2020 Mark Harvey <markh794@gmail.com> - 1.6-3
 - Updated to release 1.6-3 (2020-03-10).
 
-* Thu Oct 06 2019 Mark Harvey <markh794@gmail.com> - 1.6-2
+* Sun Oct 06 2019 Mark Harvey <markh794@gmail.com> - 1.6-2
 - Updated to release 1.6-2 (2019-10-06).
 
 * Thu Mar 10 2016 Mark Harvey <markh794@gmail.com> - 1.5-4
