@@ -17,7 +17,7 @@ LIB_CONTENTS_FILES = library_contents.10 library_contents.30
 GENERATE_DEVICE_CONF = generate_device_conf
 GENERATE_LIB_CONTENTS = generate_library_contents
 
-SYSTEMD_DIR ?= /usr/lib/systemd/system
+SYSTEMD_SERVICE_DIR ?= /lib/systemd/system
 
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 MHVTL_HOME_PATH ?= /opt/mhvtl
@@ -68,11 +68,11 @@ clean:
 
 .PHONY: install
 install: all
-	[ -d $(DESTDIR)$(SYSTEMD_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_DIR)
-	install -m 644 $(LIB_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_DIR)
-	install -m 644 $(TAPE_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_DIR)
-	install -m 644 $(MHVTL_TARGET_FILE) $(DESTDIR)$(SYSTEMD_DIR)
-	install -m 644 $(MHVTL_LOAD_MODULES_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_DIR)
+	[ -d $(DESTDIR)$(SYSTEMD_SERVICE_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	install -m 644 $(LIB_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	install -m 644 $(TAPE_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	install -m 644 $(MHVTL_TARGET_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	install -m 644 $(MHVTL_LOAD_MODULES_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
 	[ -d $(DESTDIR)$(MHVTL_CONFIG_PATH) ] || install -d -m 755 $(DESTDIR)$(MHVTL_CONFIG_PATH)
 	install -m 755 $(GENERATE_DEVICE_CONF) $(DESTDIR)/usr/bin
 	install -m 755 $(GENERATE_LIB_CONTENTS) $(DESTDIR)/usr/bin

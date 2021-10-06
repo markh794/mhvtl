@@ -22,7 +22,7 @@ VERSION ?= $(VER).$(REL)
 EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
 
 PREFIX ?= /usr
-SYSTEMD_GENERATOR_DIR ?= $(shell systemd-path system-library-private)/systemd/system-generators
+SYSTEMD_GENERATOR_DIR ?= /lib/systemd/system-generators
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')

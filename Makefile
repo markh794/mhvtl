@@ -88,7 +88,7 @@ distclean:
 install: all
 	$(MAKE) -C usr install $(LIBDIR) $(PREFIX) $(DESTDIR)
 	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
-	$(MAKE) -i -C etc install $(DESTDIR)
+	$(MAKE) -i -C etc install $(DESTDIR) $(SYSTEMD_SERVICE_DIR)
 	$(MAKE) -C man man
 	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
