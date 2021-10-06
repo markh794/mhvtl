@@ -1,3 +1,37 @@
+* Thu Oct 07 10:40:00 AEST 2021 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
+- rename list.h to avoid generic name conflict
+- rename scsi.h to avoid generic name conflict
+- rename log.h to avoid generic name conflict
+- Exclude __builtin_cpu_supports() on non x86_64 CPU types
+- Fix spelling of retrieving
+- mhvtl.ko: Define SG_SEGMENT_SZ only if not defined
+- Increase default kmem_cache bounce buffer size to 64k
+- mhvtl.ko: kernel module oops on PPC
+- mhvtl.ko: Log errors if they occur
+- mhvtl.ko: Correct compiler warning about printf var sizes
+- mhvtl.ko: Simplify file_inode()
+- mhvtl.ko: Use _safe version of list_for_each_entry
+- mhvtl.ko: Limit number of outstanding queued commands
+- mhvtl.ko: Log minor number with other ioctl info
+- mhvtl.ko: clean up noisy logging at level 2
+- mhvtl.ko: Initialise outstanding op struct before adding to list
+- mktape: Set default version string based from MHVTL_VERSION
+- Update LTO-8 media denisty codes
+- Security Protocol OUT: Fix null pointer check
+- Fix routine to extract barcode from string
+- Fix typos in mktape man page
+- dump_tape: Fix segfault due to local variable conflict
+- Use bounce buffer if tape block size is larger than request buffer
+- Remove unused scsi_host_template field
+- mhvtl.ko: Compile on RedHat 8.x kernel
+- mhvtl.ko: reinstate HAVE_UNLOCKED_IOCTL
+- mhvtl.ko: Remove reference to DRIVER_SENSE
+- Update function names with 'mhvtl_' prefix
+- Update kernel /sys/ location to suit new pseudo name space
+- OOM: /proc/<pid>/oom_adj is deprecated. Using oom_score_adj.
+- systemd: Update Makefile to include systemd install path
+- mhvtl.spec: Update to build a package on CentOS8
+
 * Tue Mar 10 09:00:00 AEST 2020 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - Fix kernel module oops/panic due to race between placing OP ready for user space before all variable were initialised
 - Add ccan version of crc32c routine which includes CPU optimisations for sse4.2 capabile CPUs
