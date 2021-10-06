@@ -33,7 +33,7 @@
 long my_id;
 int verbose = 0;
 int debug = 0;
-char *vtl_driver_name = "dump_messageQ";
+char *mhvtl_driver_name = "dump_messageQ";
 
 static void usage(char *prog)
 {

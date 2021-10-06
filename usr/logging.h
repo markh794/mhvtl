@@ -18,14 +18,14 @@
 #define MHVTL_OPT_NOISE 3
 
 #ifdef MHVTL_DEBUG
-extern char vtl_driver_name[];
+extern char mhvtl_driver_name[];
 extern int debug;
 extern int verbose;
 
 #define MHVTL_DBG_NO_FUNC(lvl, format, arg...) {		\
 	if (debug)						\
 		printf("%s: " format "\n",			\
-			vtl_driver_name, ## arg);		\
+			mhvtl_driver_name, ## arg);		\
 	else if ((verbose & MHVTL_OPT_NOISE) >= (lvl))		\
 		syslog(LOG_DAEMON|LOG_INFO, format, ## arg);	\
 }
@@ -33,7 +33,7 @@ extern int verbose;
 #define MHVTL_ERR(format, arg...) {				\
 	if (debug) {						\
 		printf("%s: ERROR: %s(): " format "\n",		\
-			vtl_driver_name, __func__, ## arg);	\
+			mhvtl_driver_name, __func__, ## arg);	\
 		fflush(NULL);					\
 	} else {						\
 		syslog(LOG_DAEMON|LOG_ERR, "ERROR: %s(): " format,	\
@@ -44,7 +44,7 @@ extern int verbose;
 #define MHVTL_LOG(format, arg...) {				\
 	if (debug) {						\
 		printf("%s: %s(): " format "\n",		\
-			vtl_driver_name, __func__, ## arg);	\
+			mhvtl_driver_name, __func__, ## arg);	\
 		fflush(NULL);					\
 	} else {						\
 		syslog(LOG_DAEMON|LOG_ERR, "%s(): " format,	\
@@ -55,7 +55,7 @@ extern int verbose;
 #define MHVTL_DBG(lvl, format, arg...) {			\
 	if (debug)						\
 		printf("%s: %s(): " format "\n",		\
-			vtl_driver_name, __func__, ## arg);	\
+			mhvtl_driver_name, __func__, ## arg);	\
 	else if ((verbose & MHVTL_OPT_NOISE) >= (lvl))		\
 		syslog(LOG_DAEMON|LOG_INFO, "%s(): " format,	\
 			__func__, ## arg);			\

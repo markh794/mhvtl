@@ -196,7 +196,7 @@ static char *lookup_sa(uint8_t sa)
 #endif
 
 #define SPR_EXCLUSIVE_ACCESS 3
-uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
+uint8_t resp_spc_pro(uint8_t *cdb, struct mhvtl_ds *dbuf_p)
 {
 	uint64_t RK;
 	uint64_t SARK;
@@ -340,7 +340,7 @@ uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p)
 /*
  * Process PERSITENT RESERVE IN scsi command
  */
-uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p)
+uint8_t resp_spc_pri(uint8_t *cdb, struct mhvtl_ds *dbuf_p)
 {
 	uint16_t alloc_len;
 	uint16_t SA;

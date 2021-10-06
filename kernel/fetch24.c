@@ -5,7 +5,7 @@
  *
  * Returns number of bytes fetched into 'arr'/FIFO or -1 if error.
  */
-static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
+static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 				int max_arr_len)
 {
 	int k, req_len, act_len, len, active;
@@ -72,7 +72,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 
  Returns 0 if ok else (DID_ERROR << 16). Sets scp->resid .
  */
-static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
+static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 				int arr_len)
 {
 	int k, req_len, act_len, len, active;
@@ -132,7 +132,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 }
 
 /* Returns 0 if ok else (DID_ERROR << 16). Sets scp->resid . */
-static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
+static int mhvtl_fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 				int arr_len)
 {
 	int k, req_len, act_len, len, active;

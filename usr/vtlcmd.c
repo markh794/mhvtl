@@ -49,7 +49,7 @@
 #include "vtllib.h"
 
 long my_id = VTLCMD_Q;
-char vtl_driver_name[] = "vtlcmd";
+char mhvtl_driver_name[] = "vtlcmd";
 int verbose = 0;
 int debug = 0;
 

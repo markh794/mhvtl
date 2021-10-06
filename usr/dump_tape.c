@@ -41,7 +41,7 @@
 #include "vtltape.h"
 #include "ccan/crc32c/crc32c.h"
 
-char vtl_driver_name[] = "dump_tape";
+char mhvtl_driver_name[] = "dump_tape";
 int verbose = 0;
 int debug = 0;
 long my_id = 0;

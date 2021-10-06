@@ -154,7 +154,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 {
 	uint8_t *cdb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	struct vtl_ds *dbuf_p;
+	struct mhvtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
 	uint8_t *buf;
 	int count;
@@ -246,7 +246,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 
 uint8_t ssc_write_6(struct scsi_cmd *cmd)
 {
-	struct vtl_ds *dbuf_p;
+	struct mhvtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
 	int count;
 	int sz;

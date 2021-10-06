@@ -50,7 +50,7 @@ static void *largefile_support = "No largefile support";
 
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
 
-char vtl_driver_name[] = "edit_tape";
+char mhvtl_driver_name[] = "edit_tape";
 int verbose;
 int debug;
 int wp;	/* Write protect flag */

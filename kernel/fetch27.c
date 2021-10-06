@@ -1,6 +1,6 @@
 
 /**
- * vtl_sg_copy_user - Copy data between user-space linear buffer and an SG list
+ * mhvtl_sg_copy_user - Copy data between user-space linear buffer and an SG list
  * @sgl:	The SG list
  * @nents:	Number of SG entries
  * @buf:	Where to copy from
@@ -13,7 +13,7 @@
  * Taken in whole from scatterlist.c
  */
 
-static size_t vtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
+static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 				__user void *buf, size_t buflen, int to_buffer)
 {
 	unsigned int offset = 0;
@@ -73,16 +73,16 @@ abort_early:
 	return offset;
 }
 
-static size_t vtl_copy_from_user(struct scatterlist *sgl, unsigned int nents,
+static size_t mhvtl_copy_from_user(struct scatterlist *sgl, unsigned int nents,
 			char __user *buf, size_t buflen)
 {
-	return vtl_sg_copy_user(sgl, nents, buf, buflen, 0);
+	return mhvtl_sg_copy_user(sgl, nents, buf, buflen, 0);
 }
 
-static size_t vtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
+static size_t mhvtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
 			char __user *buf, size_t buflen)
 {
-	return vtl_sg_copy_user(sgl, nents, buf, buflen, 1);
+	return mhvtl_sg_copy_user(sgl, nents, buf, buflen, 1);
 }
 
 /*
@@ -91,7 +91,7 @@ static size_t vtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
  *
  * Returns number of bytes fetched into 'arr' or -1 if error.
  */
-static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len)
+static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len)
 {
 	struct scsi_data_buffer *sdb = scsi_out(scp);
 
@@ -100,7 +100,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len)
 	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_TO_DEVICE))
 		return -1;
 
-	return vtl_copy_to_user(sdb->table.sgl, sdb->table.nents, arr, len);
+	return mhvtl_copy_to_user(sdb->table.sgl, sdb->table.nents, arr, len);
 }
 
 /*
@@ -109,7 +109,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len)
 
  Returns 0 if ok else (DID_ERROR << 16). Sets scp->resid .
  */
-static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
+static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 				int arr_len)
 {
 	int act_len;
@@ -120,7 +120,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
 		return DID_ERROR << 16;
 
-	act_len = vtl_copy_from_user(sdb->table.sgl, sdb->table.nents,
+	act_len = mhvtl_copy_from_user(sdb->table.sgl, sdb->table.nents,
 					arr, arr_len);
 	if (sdb->resid)
 		sdb->resid -= act_len;
@@ -132,7 +132,7 @@ static int fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 }
 
 /* Returns 0 if ok else (DID_ERROR << 16). Sets scp->resid . */
-static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
+static int mhvtl_fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 				int arr_len)
 {
 	int act_len;

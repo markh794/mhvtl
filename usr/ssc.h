@@ -271,7 +271,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd);
 int resp_write_attribute(struct scsi_cmd *cmd);
 int resp_read_attribute(struct scsi_cmd *cmd);
 int resp_report_density(struct priv_lu_ssc *lu_ssc, uint8_t media,
-						struct vtl_ds *dbuf_p);
+						struct mhvtl_ds *dbuf_p);
 void resp_space(int64_t count, int code, uint8_t *sam_stat);
 void unloadTape(int update_library, uint8_t *sam_stat);
 void delay_opcode(int what, int value);

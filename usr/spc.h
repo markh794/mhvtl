@@ -9,8 +9,8 @@ extern uint32_t SPR_Reservation_Generation;
 extern uint8_t SPR_Reservation_Type;
 
 
-uint8_t resp_spc_pro(uint8_t *cdb, struct vtl_ds *dbuf_p);
-uint8_t resp_spc_pri(uint8_t *cdb, struct vtl_ds *dbuf_p);
+uint8_t resp_spc_pro(uint8_t *cdb, struct mhvtl_ds *dbuf_p);
+uint8_t resp_spc_pri(uint8_t *cdb, struct mhvtl_ds *dbuf_p);
 
 uint8_t spc_illegal_op(struct scsi_cmd *cmd);
 uint8_t spc_inquiry(struct scsi_cmd *cmd);

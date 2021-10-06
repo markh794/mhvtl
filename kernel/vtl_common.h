@@ -20,13 +20,13 @@
 #define PRODUCT_ID_LEN	16
 #define PRODUCT_REV_LEN	4
 
-struct	vtl_header {
+struct	mhvtl_header {
 	unsigned long long serialNo;
 	unsigned char cdb[MAX_COMMAND_SIZE];
 	unsigned char *buf;
 };
 
-struct vtl_ds {
+struct mhvtl_ds {
 	void *data;
 	unsigned int sz;
 	unsigned long long serialNo;
@@ -34,7 +34,7 @@ struct vtl_ds {
 	unsigned char sam_stat;
 };
 
-struct vtl_ctl {
+struct mhvtl_ctl {
 	unsigned int channel;
 	unsigned int id;
 	unsigned int lun;

@@ -63,7 +63,7 @@
 #include "be_byteshift.h"
 #include "mhvtl_log.h"
 
-char vtl_driver_name[] = "vtllibrary";
+char mhvtl_driver_name[] = "vtllibrary";
 long my_id = 0;
 
 #define CAP_CLOSED	1
@@ -272,12 +272,12 @@ void register_ops(struct lu_phy_attr *lu, int op,
  * Called with:
  *	cdev          -> Char dev file handle,
  *	cdb           -> SCSI Command buffer pointer,
- *	struct vtl_ds -> general purpose data structure... Need better name
+ *	struct mhvtl_ds -> general purpose data structure... Need better name
  *
  * Return:
- *	SAM status returned in struct vtl_ds.sam_stat
+ *	SAM status returned in struct mhvtl_ds.sam_stat
  */
-static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
+static void processCommand(int cdev, uint8_t *cdb, struct mhvtl_ds *dbuf_p,
 			useconds_t pollInterval)
 {
 	int err = 0;
@@ -1269,7 +1269,7 @@ static void save_config(struct lu_phy_attr *lu)
 	fclose(ctrl);
 }
 
-static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
+static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl)
 {
 
 	struct vpd **lu_vpd = lu->lu_vpd;
@@ -1279,7 +1279,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
 	int indx;
-	struct vtl_ctl tmpctl;
+	struct mhvtl_ctl tmpctl;
 	int found = 0;
 	int linecount;
 
@@ -1452,22 +1452,22 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	return found;
 }
 
-static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd,
+static void process_cmd(int cdev, uint8_t *buf, struct mhvtl_header *mhvtl_cmd,
 			useconds_t pollInterval)
 {
-	struct vtl_ds dbuf;
+	struct mhvtl_ds dbuf;
 	uint8_t *cdb;
 
 	/* Get the SCSI cdb from vtl driver
 	 * - Returns SCSI command S/No. */
 
-	cdb = (uint8_t *)&vtl_cmd->cdb;
+	cdb = (uint8_t *)&mhvtl_cmd->cdb;
 
 	/* Interpret the SCSI command & process
 	-> Returns no. of bytes to send back to kernel
 	 */
 	dbuf.sz = 0;
-	dbuf.serialNo = vtl_cmd->serialNo;
+	dbuf.serialNo = mhvtl_cmd->serialNo;
 	dbuf.data = buf;
 	dbuf.sam_stat = sam_status;
 	dbuf.sense_buf = &sense;
@@ -1593,7 +1593,7 @@ static void customise_lu(struct lu_phy_attr *lu)
 
 void rereadconfig(int sig)
 {
-	struct vtl_ctl ctl;
+	struct mhvtl_ctl ctl;
 	int buffer_size;
 
 	lunit.online = 0;	/* Report library offline until finished */
@@ -1675,8 +1675,8 @@ int main(int argc, char *argv[])
 	struct s_info *sp;
 	struct d_info *dp;
 
-	struct vtl_header vtl_cmd;
-	struct vtl_ctl ctl;
+	struct mhvtl_header mhvtl_cmd;
+	struct mhvtl_ctl ctl;
 	char s[100];
 
 	pid_t pid, sid, child_cleanup;
@@ -1686,8 +1686,8 @@ int main(int argc, char *argv[])
 	char *name = "mhvtl";
 	char *fifoname = NULL;
 
-	memset(&vtl_cmd, 0, sizeof(struct vtl_header));
-	memset(&ctl, 0, sizeof(struct vtl_ctl));
+	memset(&mhvtl_cmd, 0, sizeof(struct mhvtl_header));
+	memset(&ctl, 0, sizeof(struct mhvtl_ctl));
 
 	/* Message Q */
 	int mlen, r_qid;
@@ -1924,7 +1924,7 @@ int main(int argc, char *argv[])
 					strerror(errno));
 		}
 
-		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
+		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &mhvtl_cmd);
 		if (ret < 0) {
 			MHVTL_LOG("ret: %d : %s", ret, strerror(errno));
 		} else {
@@ -1948,7 +1948,7 @@ int main(int argc, char *argv[])
 						exit(1);
 					}
 				}
-				process_cmd(cdev, buf, &vtl_cmd, pollInterval);
+				process_cmd(cdev, buf, &mhvtl_cmd, pollInterval);
 				pollInterval = MIN_SLEEP_TIME;
 				break;
 

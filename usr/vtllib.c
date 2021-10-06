@@ -364,7 +364,7 @@ int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
 }
 
 #define READBLOCKLIMITS_ARR_SZ 6
-int resp_read_block_limits(struct vtl_ds *dbuf_p, int sz)
+int resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz)
 {
 	uint8_t *arr = (uint8_t *)dbuf_p->data;
 
@@ -404,7 +404,7 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 /*
  * Simple function to read 'count' bytes from the chardev into 'buf'.
  */
-int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
+int retrieve_CDB_data(int cdev, struct mhvtl_ds *ds)
 {
 	int ioctl_err;
 
@@ -420,12 +420,12 @@ int retrieve_CDB_data(int cdev, struct vtl_ds *ds)
 
 
 /*
- * Passes struct vtl_ds to kernel module.
+ * Passes struct mhvtl_ds to kernel module.
  *   struct contains amount of data, status and pointer to data struct.
  *
  * Returns nothing.
  */
-void completeSCSICommand(int cdev, struct vtl_ds *ds)
+void completeSCSICommand(int cdev, struct mhvtl_ds *ds)
 {
 	uint8_t *s;
 
@@ -502,7 +502,7 @@ static int mhvtl_access(char *p, int len, char *entry)
  * So spawn child process and don't wait for return.
  * Let the child process write to the kernel module
  */
-pid_t add_lu(unsigned minor, struct vtl_ctl *ctl)
+pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 {
 	char str[1024];
 	pid_t pid;

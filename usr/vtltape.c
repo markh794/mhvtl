@@ -82,7 +82,7 @@
 #include "mode.h"
 #include "ccan/crc32c/crc32c.h"
 
-char vtl_driver_name[] = "vtltape";
+char mhvtl_driver_name[] = "vtltape";
 
 /* Variables for simple, logical only SCSI Encryption system */
 
@@ -399,7 +399,7 @@ void delay_opcode(int what, int value)
 
 #define REPORT_DENSITY_LEN 52
 int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
-						struct vtl_ds *dbuf_p)
+						struct mhvtl_ds *dbuf_p)
 {
 	uint8_t *buf = (uint8_t *)dbuf_p->data;
 	struct list_head *l_head;
@@ -1694,9 +1694,9 @@ static void updateMAM(uint8_t *sam_stat, int load)
  * Called with:
  *	cdev     -> Char dev file handle,
  *	cdb      -> SCSI Command buffer pointer,
- *	dbuf     -> struct vtl_ds *
+ *	dbuf     -> struct mhvtl_ds *
  */
-static void processCommand(int cdev, uint8_t *cdb, struct vtl_ds *dbuf_p,
+static void processCommand(int cdev, uint8_t *cdb, struct mhvtl_ds *dbuf_p,
 			useconds_t pollInterval)
 {
 	static int last_count;
@@ -2577,7 +2577,7 @@ void register_ops(struct lu_phy_attr *lu, int op,
 }
 
 #define MALLOC_SZ 512
-static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
+static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl)
 {
 	struct vpd **lu_vpd = lu->lu_vpd;
 
@@ -2586,7 +2586,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
 	int indx;
-	struct vtl_ctl tmpctl;
+	struct mhvtl_ctl tmpctl;
 	int found = 0;
 	int linecount;
 
@@ -2769,22 +2769,22 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct vtl_ctl *ctl)
 	return found;
 }
 
-static void process_cmd(int cdev, uint8_t *buf, struct vtl_header *vtl_cmd,
+static void process_cmd(int cdev, uint8_t *buf, struct mhvtl_header *mhvtl_cmd,
 			useconds_t pollInterval)
 {
-	struct vtl_ds dbuf;
+	struct mhvtl_ds dbuf;
 	uint8_t *cdb;
 
 	/* Get the SCSI cdb from vtl driver
 	 * - Returns SCSI command S/No. */
 
-	cdb = (uint8_t *)&vtl_cmd->cdb;
+	cdb = (uint8_t *)&mhvtl_cmd->cdb;
 
 	/* Interpret the SCSI command & process
 	-> Returns no. of bytes to send back to kernel
 	 */
 	dbuf.sz = 0;
-	dbuf.serialNo = vtl_cmd->serialNo;
+	dbuf.serialNo = mhvtl_cmd->serialNo;
 	dbuf.data = buf;
 	dbuf.sam_stat = lu_ssc.sam_status;
 	dbuf.sense_buf = &sense;
@@ -2903,15 +2903,15 @@ int main(int argc, char *argv[])
 	const char *name = "mhvtl";
 	unsigned minor = 0;
 
-	struct vtl_header vtl_cmd;
-	struct vtl_header *cmd;
-	struct vtl_ctl ctl;
+	struct mhvtl_header mhvtl_cmd;
+	struct mhvtl_header *cmd;
+	struct mhvtl_ctl ctl;
 
 	/* Message Q */
 	int	mlen, r_qid;
 
-	memset(&vtl_cmd, 0, sizeof(struct vtl_header));
-	memset(&ctl, 0, sizeof(struct vtl_ctl));
+	memset(&mhvtl_cmd, 0, sizeof(struct mhvtl_header));
+	memset(&ctl, 0, sizeof(struct mhvtl_ctl));
 
 	current_state = MHVTL_STATE_INIT;
 
@@ -3114,7 +3114,7 @@ int main(int argc, char *argv[])
 							strerror(errno));
 			}
 		}
-		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &vtl_cmd);
+		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &mhvtl_cmd);
 		if (ret < 0) {
 			MHVTL_DBG(2,
 				"ioctl(VTL_POLL_AND_GET_HEADER: %d : %s",
@@ -3136,12 +3136,12 @@ int main(int argc, char *argv[])
 			fflush(NULL);
 			switch (ret) {
 			case VTL_QUEUE_CMD:	/* A cdb to process */
-				cmd = malloc(sizeof(struct vtl_header));
+				cmd = malloc(sizeof(struct mhvtl_header));
 				if (!cmd) {
 					MHVTL_ERR("Out of memory");
 					sleep_time = 1000000;
 				} else {
-					memcpy(cmd, &vtl_cmd, sizeof(vtl_cmd));
+					memcpy(cmd, &mhvtl_cmd, sizeof(mhvtl_cmd));
 					process_cmd(cdev, buf, cmd, sleep_time);
 					/* Something to do, reduce poll time */
 					sleep_time = MIN_SLEEP_TIME;

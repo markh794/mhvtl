@@ -29,7 +29,7 @@ static void *largefile_support = "No largefile support";
 
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
 
-char vtl_driver_name[] = "mktape";
+char mhvtl_driver_name[] = "mktape";
 int verbose = 0;
 int debug = 0;
 long my_id = 0;
