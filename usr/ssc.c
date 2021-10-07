@@ -1584,14 +1584,15 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 	struct priv_lu_ssc *lu_priv;
 	uint8_t *sam_stat;
 	struct s_sd sd;
-	int load;
+	int load_request;
+	int media_state;
 
 	lu_priv = cmd->lu->lu_private;
 	sam_stat = &cmd->dbuf_p->sam_stat;
 
-	load = cmd->scb[4] & 0x01;
+	load_request = cmd->scb[4] & 0x01;
 
-	current_state = (load) ? MHVTL_STATE_LOADING : MHVTL_STATE_UNLOADING;
+	current_state = (load_request) ? MHVTL_STATE_LOADING : MHVTL_STATE_UNLOADING;
 
 	if (cmd->scb[4] & 0x04) { /* EOT bit */
 		MHVTL_ERR("EOT bit set on load. Not supported");
@@ -1601,22 +1602,53 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	MHVTL_DBG(1, "%s TAPE (%ld) **", (load) ? "LOADING" : "UNLOADING",
+	MHVTL_DBG(1, "%s TAPE (%ld) **", (load_request) ? "LOADING" : "UNLOADING",
 						(long)cmd->dbuf_p->serialNo);
 
+	media_state = rewind_tape(sam_stat);
 	switch (lu_priv->load_status) {
 	case TAPE_UNLOADED:
-		if (load)
-			rewind_tape(sam_stat);
-		else {
+		if (load_request) {
+			int load_state;
+			switch(media_state) {
+			case 0:
+				/*
+				 * lu_priv->barcode indicates there is a tape in mouth
+				 * media not mounted, and receive a mount request - attempt
+				 * to load media
+				 */
+				if (!lu_priv->barcode) {
+					sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
+					return SAM_STAT_CHECK_CONDITION;
+				}
+				/*
+				 * media_state = 0 - Load OK -> Nothing to do
+				 * media_state = 1 - Already loaded -> Nothing to do
+				 */
+				load_state = loadTape(lu_priv->barcode, sam_stat);
+				if (load_state == 2) {
+					sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
+					return SAM_STAT_CHECK_CONDITION;
+				} else if (load_state == 3) {
+					sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
+					return SAM_STAT_CHECK_CONDITION;
+				}
+				break;
+			case 1:
+				break;
+			default:
+				sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+				break;
+			}
+		} else {
 			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
 
 	case TAPE_LOADED:
-		rewind_tape(sam_stat);
-		if (!load)
+		if (!load_request)
 			/* Send library an update status 'true' */
 			unloadTape(TRUE, sam_stat);
 		break;

@@ -1783,7 +1783,7 @@ static struct media_details *check_media_can_load(struct list_head *mdl, int mt)
  * == 3 -> cartridge does not exist or cannot be opened.
  */
 
-static int loadTape(char *PCL, uint8_t *sam_stat)
+int loadTape(char *PCL, uint8_t *sam_stat)
 {
 	int rc;
 	uint64_t fg = TA_NONE;	/* TapeAlert flags */
@@ -2111,59 +2111,75 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			return 0;
 		}
 
-		if (lu_ssc.tape_in_mouth_of_drive) {
-			MHVTL_ERR("%ld: snd_id %ld: Tape already mounted", my_id, msg->snd_id);
-			send_msg("Load failed - already occupied by another piece of media",
-					msg->snd_id);
+		if (lu_ssc.barcode) {
+			MHVTL_ERR("%ld: snd_id %ld: Tape \"%s\" already in mouth of drive",
+					my_id, msg->snd_id, lu_ssc.barcode);
+			sprintf(s, "Load failed - %s is already in mouth of drive", lu_ssc.barcode);
 		} else {
 			/* 'lload ' => offset of 6 */
 			pcl = strip_PCL(msg->text, 6);
 
-			loadTape(pcl, sam_stat);
-			if (lu_ssc.load_status == TAPE_UNLOADED) {
+			lu_ssc.barcode = malloc(strlen(pcl) + 1);
+			if (!lu_ssc.barcode) {
+				MHVTL_ERR("Ugghhh... out of memory allocating buffer for barcode: %s", pcl);
 				sprintf(s, "%s: %s", msg_load_failed, pcl);
 			} else {
-				sprintf(s, "%s: %s", msg_load_ok, pcl);
-				lu_ssc.tape_in_mouth_of_drive = TRUE;
+				loadTape(pcl, sam_stat);
+				sprintf(s, "%s: %s",
+					(lu_ssc.load_status == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok,
+					pcl);
+				strncpy(lu_ssc.barcode, pcl, strlen(pcl) + 1);	/* Include null terminator */
+				MHVTL_DBG(1, "pcl: \"%s\", barcode: \"%s\"", pcl, lu_ssc.barcode);
 			}
-			send_msg_and_log(s, msg->snd_id);
 		}
+		send_msg_and_log(s, msg->snd_id);
 	}
 
 	/* Tape Load message from User space */
 	if (!strncmp(msg->text, "load", 4)) {
+		pcl = strip_PCL(msg->text, 5);
 		if (lu_ssc.inLibrary)
 			MHVTL_ERR("Warn: Tape assigned to library - The library can't remove this tape !");
 		if (lu_ssc.load_status == TAPE_LOADED) {
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
-			pcl = strip_PCL(msg->text, 5);
 			loadTape(pcl, sam_stat);
 		}
 		/* Prevent a manual load, and the library moving another in it's place
 		 * Feature: There is no logic to remove the tape from 'mouth' of drive
 		 *          A restart of the daemon will be required..
 		 */
-		lu_ssc.tape_in_mouth_of_drive = TRUE;
+		if (lu_ssc.barcode) {
+			free(lu_ssc.barcode);
+		}
+		lu_ssc.barcode = malloc(strlen(pcl) + 1);
+		if (lu_ssc.barcode) {
+			strncpy(lu_ssc.barcode, pcl, strlen(pcl));
+		} else {
+			MHVTL_ERR("Ugghhh... out of memory allocating buffer for barcode: %s", pcl);
+		}
 	}
 
 	/* This needs to be called if an 'mt -f /dev/st* offline' rather than an 'unload' from library daemon */
 	if (!strncmp(msg->text, msg_set_empty, strlen(msg_set_empty))) {
 		/* string define in q.h */
-		lu_ssc.tape_in_mouth_of_drive = FALSE;
+		unloadTape(FALSE, sam_stat);	/* Unload - in case something is loaded */
+		free(lu_ssc.barcode);
+		lu_ssc.barcode = NULL;
 		send_msg_and_log(msg_unload_ok, msg->snd_id);
 	}
 
 	if (!strncmp(msg->text, msg_mount_state, strlen(msg_mount_state))) {
 		/* string define in q.h */
-		sprintf(s, "%s", (lu_ssc.tape_in_mouth_of_drive) ? msg_occupied : msg_not_occupied);
+		sprintf(s, "%s", (lu_ssc.barcode) ? msg_occupied : msg_not_occupied);
 		send_msg_and_log(s, msg->snd_id);
 	}
 
 	if (!strncmp(msg->text, "unload", 6)) {
 		unloadTape(FALSE, sam_stat);
 		send_msg_and_log(msg_unload_ok, msg->snd_id);
-		lu_ssc.tape_in_mouth_of_drive = FALSE;
+		free(lu_ssc.barcode);
+		lu_ssc.barcode = NULL;
 	}
 
 	if (!strncmp(msg->text, "exit", 4))

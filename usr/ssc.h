@@ -118,7 +118,8 @@ struct priv_lu_ssc {
 	uint32_t I_am_SPC_2_Reserved:1;	/* Variables for simple, single initiator, SCSI Reservation system */
 	uint32_t append_only_mode:1;
 	uint32_t MediaWriteProtect:1;
-	uint32_t tape_in_mouth_of_drive:1; /* So, we have a tape moved here */
+
+	char *barcode;	/* Barcode of tape in the drive - NULL if nothing is in mouth of drive */
 
 	uint8_t sam_status;
 
@@ -273,5 +274,6 @@ int resp_read_attribute(struct scsi_cmd *cmd);
 int resp_report_density(struct priv_lu_ssc *lu_ssc, uint8_t media,
 						struct mhvtl_ds *dbuf_p);
 void resp_space(int64_t count, int code, uint8_t *sam_stat);
+int loadTape(char *barcode, uint8_t *sam_stat);
 void unloadTape(int update_library, uint8_t *sam_stat);
 void delay_opcode(int what, int value);
