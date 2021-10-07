@@ -532,7 +532,8 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 			exit(-1);
 		}
 		retval = write(pseudo, str, strlen(str));
-		MHVTL_DBG(2, "Wrote %s (%d bytes)", str, (int)retval);
+		MHVTL_DBG(2, "Wrote '%s' (%d bytes) to %s",
+					str, (int)retval, pseudo_filename);
 		close(pseudo);
 		MHVTL_DBG(1, "Child anounces 'lu [%d:%d:%d] created'.",
 					ctl->channel, ctl->id, ctl->lun);
