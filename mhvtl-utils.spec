@@ -127,6 +127,8 @@ install -d -m 755 %{buildroot}/var/lib/%{name}
 %{_unitdir}/vtllibrary@.service
 %{_unitdir}/vtltape@.service
 %{_unitdir}/mhvtl.target
+%dir %{mhvtl_home_dir}
+%ghost %{mhvtl_home_dir}/*
 
 %defattr(755, root, root, 0755)
 %{_bindir}/vtltape
