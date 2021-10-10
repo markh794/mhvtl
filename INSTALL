@@ -66,6 +66,10 @@ Note: we used to create a user and group called "vtl" to try to limit
 the possible system hazards of having root access. But we now feel
 that normal Linux permissions and security controls are sufficient.
 
+Also note: The package sg3-utils has a different name based on the distribution 
+used. Most distributions (Red Hat/Suse/Centos) use an underscore (sg3_utils).
+Debian based distributions (Debian/Ubuntu/Mint use a hyphen (sg3-utils). 
+
 Now build user space daemons:
 From the parent directory where you extracted the source.
 
