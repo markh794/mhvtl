@@ -99,7 +99,7 @@ Can be one of
 .BR AIT3 ,
 .BR AIT4 ,
 .BR T10KA ,
-.BR T10Kb ,
+.BR T10KB ,
 .BR T10KC ,
 .BR 9840A ,
 .BR 9840B ,

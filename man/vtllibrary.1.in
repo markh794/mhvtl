@@ -42,7 +42,7 @@ daemon registers each
 .B vtltape(1)
 via message queue. The
 .B vtllibrary
-reads @HOME_PATH@/library_contents.*
+reads @CONFIG_PATH@/library_contents.*
 and dynamically builds an internal structure of Storage slots and Media Access slots.
 All media movement is performed on internal structures only. The configuration file
 is never changed, i.e. a re-start of the daemon will result in the loss of any
