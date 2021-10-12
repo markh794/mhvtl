@@ -83,6 +83,11 @@ struct blk_header {
 /* Default tape size specified in Mbytes */
 #define DEFAULT_TAPE_SZ 8000
 
+/*
+ * Medium Density Code
+ *
+ * This value is returned in the first byte [0] of the Mode Sense 'Block Descriptor'
+ */
 #define medium_density_code_unknown	0x20
 
 #define medium_density_code_lto1	0x40
@@ -147,7 +152,7 @@ struct blk_header {
 #define medium_density_code_DDS4	0x26
 #define medium_density_code_DDS5	0x47
 
-/* Used by MODE SENSE 'media type' field */
+/* Used by MODE SENSE 'media type' in Mode Parameter Header */
 #define media_type_unknown	0x00
 #define media_type_dlt_clean	0x81
 #define media_type_dlt1		0x82
