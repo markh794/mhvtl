@@ -934,14 +934,15 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 
-	add_density_support(&lu->den_list, &density_lto6, 0);
+    /* LTO 8 drives cannot read LTO6 cartridges.
+    https://www.lto.org/lto-generation-compatibility/
+    "LTO drive generations 1-7 are able to read tapes from two generations prior 
+    and are able to write to tapes from the prior generation.
+
+    LTO-8 drives can read and write to LTO-7 and LTO-8 media*/
 	add_density_support(&lu->den_list, &density_lto7, 1);
 	add_density_support(&lu->den_list, &density_lto8, 1);
 
-	add_drive_media_list(lu, LOAD_RW, "LTO6");
-	add_drive_media_list(lu, LOAD_RO, "LTO6 Clean");
-	add_drive_media_list(lu, LOAD_RW, "LTO6 WORM");
-	add_drive_media_list(lu, LOAD_RW, "LTO6 ENCR");
 	add_drive_media_list(lu, LOAD_RW, "LTO7");
 	add_drive_media_list(lu, LOAD_RO, "LTO7 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 WORM");
