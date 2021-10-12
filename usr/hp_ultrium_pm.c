@@ -956,14 +956,9 @@ void init_hp_ult_8(struct lu_phy_attr *lu)
 	register_ops(lu, SECURITY_PROTOCOL_IN, ssc_spin, NULL, NULL);
 	register_ops(lu, SECURITY_PROTOCOL_OUT, ssc_spout, NULL, NULL);
 
-	add_density_support(&lu->den_list, &density_lto6, 0);
 	add_density_support(&lu->den_list, &density_lto7, 1);
 	add_density_support(&lu->den_list, &density_lto8, 1);
 
-	add_drive_media_list(lu, LOAD_RO, "LTO6");
-	add_drive_media_list(lu, LOAD_RO, "LTO6 Clean");
-	add_drive_media_list(lu, LOAD_RW, "LTO6 WORM");
-	add_drive_media_list(lu, LOAD_RW, "LTO6 ENCR");
 	add_drive_media_list(lu, LOAD_RW, "LTO7");
 	add_drive_media_list(lu, LOAD_RO, "LTO7 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 WORM");
