@@ -3,7 +3,7 @@
  *
  * This program read device.conf and creates the appropriate systemd
  * unit files and dependencies
- * 
+ *
  * NOTE: This program assumes the existance of systemd template
  * files for vtllibrary and vtltape
  */
@@ -159,7 +159,7 @@ static int add_to_tapes(int tape_num)
 
 /*
  * parse the device.conf configuration file into our_tape_library
- * 
+ *
  * This file has "Library" entries, and it has "Drive" entries. The
  * default configuration file has two library entries, and each
  * of those is followed by a number of drive entriess that go with
@@ -221,7 +221,7 @@ int main(int argc, char **argv)
 		exit(1);
 
 	/*
-	 * parse the config file /etc/mhvtl/device.conf 
+	 * parse the config file /etc/mhvtl/device.conf
 	 *
 	 * for each library found:
 	 *	- set up vtllibrary unit

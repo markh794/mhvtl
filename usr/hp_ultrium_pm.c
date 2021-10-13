@@ -960,7 +960,7 @@ void init_hp_ult_8(struct lu_phy_attr *lu)
     https://www.lto.org/lto-generation-compatibility/
     "LTO drive generations 1-7 are able to read tapes from two generations prior
     and are able to write to tapes from the prior generation.
-    
+
     LTO-8 drives can read and write to LTO-7 and LTO-8 media*/
 
 	add_density_support(&lu->den_list, &density_lto7, 1);
