@@ -20,8 +20,12 @@
 
 #define		MAX_LINE_WIDTH		1024
 
+#ifndef		MHVTL_CONFIG_PATH
+#define		MHVTL_CONFIG_PATH "/etc/mhvtl"
+#endif
+
 static int	debug_mode = 0;
-static char	*device_conf = "/etc/mhvtl/device.conf";
+static char	*device_conf = MHVTL_CONFIG_PATH "/device.conf";
 
 struct vtl_info {
 	int		num;
