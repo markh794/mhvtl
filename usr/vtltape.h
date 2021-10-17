@@ -92,7 +92,6 @@ struct blk_header {
 #define medium_density_code_lto5	0x58
 #define medium_density_code_lto6	0x5a
 #define medium_density_code_lto7	0x5c
-#define medium_density_code_lto7	0x5c
 #define medium_density_code_lto7m8	0x5d
 #define medium_density_code_lto8	0x5e
 
@@ -166,8 +165,7 @@ struct blk_header {
 #define media_type_lto6_worm	0x6c
 #define media_type_lto7_data	0x78
 #define media_type_lto7_worm	0x7c
-/* I have no idea what this is supposed to be?!?!? */
-#define media_type_lto7m8_data	0x85
+#define media_type_lto7m8_data	0x78
 #define media_type_lto8_data	0x88
 #define media_type_lto8_worm	0x8c
 #define media_type_hp_lto_data	0x00
