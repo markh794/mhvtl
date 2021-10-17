@@ -88,6 +88,10 @@ struct blk_header {
  *
  * This value is returned in the first byte [0] of the Mode Sense 'Block Descriptor'
  */
+
+/* A good list can be found her:
+https://github.com/iustin/mt-st/blob/fbfd923faad0d6f613415f4de747833fb6b4a465/mt.c#L136
+*/
 #define medium_density_code_unknown	0x20
 
 #define medium_density_code_lto1	0x40
@@ -136,8 +140,7 @@ struct blk_header {
 #define medium_density_code_dlt4_35G	0x1b
 #define medium_density_code_dlt4	0x1b	/* Default to 35G density */
 
-/* FIXME: Find density code for these media types */
-#define medium_density_code_sdlt	0x20
+#define medium_density_code_sdlt	0x90
 
 #define medium_density_code_220		0x48
 #define medium_density_code_320		0x49
