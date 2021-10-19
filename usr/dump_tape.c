@@ -50,6 +50,7 @@ long my_id = 0;
 int lib_id;
 struct priv_lu_ssc lu_ssc;
 struct lu_phy_attr lunit;
+struct encryption encryption;
 
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
