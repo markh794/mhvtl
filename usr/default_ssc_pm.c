@@ -452,6 +452,9 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO3");
 	add_drive_media_list(lu, LOAD_RW, "LTO4");
 	add_drive_media_list(lu, LOAD_RW, "LTO5");
+	add_drive_media_list(lu, LOAD_RW, "LTO6");
+	add_drive_media_list(lu, LOAD_RW, "LTO7");
+	add_drive_media_list(lu, LOAD_RW, "LTO8");
 
 	/* DDS media */
 	add_drive_media_list(lu, LOAD_RW, "DDS1");
@@ -473,6 +476,7 @@ void init_default_ssc(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "T10KA");
 	add_drive_media_list(lu, LOAD_RW, "T10KB");
 	add_drive_media_list(lu, LOAD_RW, "T10KC");
+	add_drive_media_list(lu, LOAD_RW, "T10KD");
 
 	/* STK 9x40 */
 	add_drive_media_list(lu, LOAD_RW, "9840A");
