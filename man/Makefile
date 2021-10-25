@@ -55,6 +55,7 @@ install:
 	install vtllibrary.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install make_vtl_media.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install preload_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install update_device.conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install generate_device_conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
