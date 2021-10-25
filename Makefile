@@ -98,7 +98,7 @@ ifdef ROOTUID
 endif
 	# now ensure VTL media is setup
 	env LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR) \
-		$(MAKE_VTL_MEDIA) --force \
+		$(MAKE_VTL_MEDIA) \
 			--config-dir=$(DESTDIR)$(MHVTL_CONFIG_PATH) \
 			--home-dir=$(DESTDIR)$(MHVTL_HOME_PATH) \
 			--mktape-path=usr

@@ -1404,8 +1404,8 @@ void print_raw_header(void)
 			printf("zlibCompressed data");
 		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_LZO_COMPRESSED)
 			printf(" lzoCompressed data");
-			else
-		printf("              data");
+		else
+			printf("   non-compressed data");
 		printf("%s", (raw_pos.hdr.blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC) ? " with crc " : " no crc  ");
 
 		printf("(%02x), sz %6d/%-6d, Blk No.: %u, data %" PRId64 ", CRC: %08x\n",

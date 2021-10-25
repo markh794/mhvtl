@@ -53,6 +53,7 @@ GENERATED_FILES=$(GENERATOR_FILES:.in=)
 
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
 	mktape edit_tape vtllibrary tapeexerciser $(GENERATED_FILES) \
+	preload_tape \
 	mhvtl-device-conf-generator
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h mhvtl_scsi.h smc.c spc.c q.c \
@@ -96,10 +97,16 @@ mhvtl_io.o:	mhvtl_io.c
 crc32c.o:	crc32c.c
 	$(CC) $(CFLAGS) -std=gnu99 -o crc32c.o -c crc32c.c
 
-dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
+preload_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
 		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c
-	$(CC) $(CFLAGS) -o dump_tape crc32c.o mhvtl_io.o dump_tape.o minilzo.o -L. \
+	$(CC) $(CFLAGS) -o preload_tape crc32c.o mhvtl_io.o tape_util.o minilzo.o default_ssc_pm.o -L. \
+		-lz -L. -lvtlcart -lvtlscsi
+
+dump_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
+		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
+		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c
+	$(CC) $(CFLAGS) -o dump_tape crc32c.o mhvtl_io.o tape_util.o minilzo.o default_ssc_pm.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.c mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
@@ -193,6 +200,7 @@ clean:
 		mktape vtlcmd vtllibrary vtltape tapeexerciser \
 		mhvtl-device-conf-generator \
 		mhvtl_io.o \
+		preload_tape preload_tape.o \
 		crc32c.o \
 		$(GENERATED_FILES)
 	$(RM) TAGS
@@ -212,6 +220,7 @@ install: all
 	install -m 755 vtlcmd $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 mktape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 dump_tape $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 preload_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 edit_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
