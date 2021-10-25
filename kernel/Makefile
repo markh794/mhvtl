@@ -46,6 +46,10 @@ distclean:
 	.mhvtl.mod.o.cmd \
 	.event.o.cmd \
 	.event.o.d \
+	.Module.symvers.cmd \
+	.mhvtl.mod.cmd \
+	.modules.order.cmd \
+	mhvtl.mod \
 	Module.markers \
 	modules.order \
 	mhvtl.ko.unsigned \
