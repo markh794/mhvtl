@@ -359,6 +359,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 			}
 		}
 	}
+	write_filemarks(1, sam_stat);
 
 abort:
 	close(fd);
