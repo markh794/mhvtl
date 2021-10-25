@@ -90,13 +90,16 @@ vtlcmd:	vtlcmd.o
 minilzo.o:	minilzo.c lzoconf.h lzodefs.h
 	$(CC) $(CFLAGS) $(LZODEBUG) -o minilzo.o -c minilzo.c
 
+mhvtl_io.o:	mhvtl_io.c
+	$(CC) $(CFLAGS) -std=gnu99 -o mhvtl_io.o -c mhvtl_io.c
+
 crc32c.o:	crc32c.c
 	$(CC) $(CFLAGS) -std=gnu99 -o crc32c.o -c crc32c.c
 
 dump_tape:	dump_tape.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
-		crc32c.o crc32c.c
-	$(CC) $(CFLAGS) -o dump_tape crc32c.o dump_tape.o minilzo.o -L. \
+		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c
+	$(CC) $(CFLAGS) -o dump_tape crc32c.o mhvtl_io.o dump_tape.o minilzo.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.c mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
@@ -139,6 +142,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h mhvtl_scsi.h \
 		minilzo.o \
 		crc32c.o \
 		be_byteshift.h \
+		mhvtl_io.o \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -o vtltape vtltape.o ssc.o \
 		default_ssc_pm.o \
@@ -149,6 +153,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h mhvtl_scsi.h \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
 		crc32c.o \
+		mhvtl_io.o \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mhvtl-device-conf-generator: mhvtl-device-conf-generator.c
@@ -187,6 +192,7 @@ clean:
 		dump_tape edit_tape \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser \
 		mhvtl-device-conf-generator \
+		mhvtl_io.o \
 		crc32c.o \
 		$(GENERATED_FILES)
 	$(RM) TAGS
