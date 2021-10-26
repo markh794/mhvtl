@@ -55,7 +55,6 @@ int lib_id;
 struct priv_lu_ssc lu_ssc;
 struct lu_phy_attr lunit;
 struct encryption encryption;
-uint8_t sense_buf[128];
 
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
@@ -126,7 +125,7 @@ static void init_lunit(struct lu_phy_attr *lu, struct priv_lu_ssc *priv_lu)
 	memset(lu, 0, sizeof(struct lu_phy_attr));
 
 	lu->lu_private = priv_lu;
-	lu->sense_p = sense_buf;
+	lu->sense_p = sense;
 	strncpy(lu->lu_serial_no, "ABC123", 7);
 	strncpy(lu->vendor_id, "TAPE_UTIL", 10);
 	strncpy(lu->product_id, "xyzz", 5);
@@ -314,7 +313,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 
 	cmd.lu = &lunit;
 	cmd.dbuf_p = &ds;
-	ds.sense_buf = sense_buf;
+	ds.sense_buf = sense;
 
 	lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
 
@@ -355,7 +354,9 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 			}
 			retval = writeBlock(&cmd, count);
 			if (retval < count) {
-				printf("Tried to write %d, only succeeded in writing %d\n", block_size, retval);
+				printf("Tried to write %d, only succeeded in writing %d, SAM status: 0x%02x 0x%02x 0x%02x\n",
+							block_size, retval, sense[2], sense[12], sense[13]);
+				break;
 			}
 		}
 	}
