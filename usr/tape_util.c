@@ -354,8 +354,12 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 			}
 			retval = writeBlock(&cmd, count);
 			if (retval < count) {
-				printf("Tried to write %d, only succeeded in writing %d, SAM status: 0x%02x 0x%02x 0x%02x\n",
+				if (sense[2] == (VOLUME_OVERFLOW | SD_EOM) && sense[13] == E_EOM) {
+					printf("No space left on media, hit EOM while writing\n");
+				} else {
+					printf("Tried to write %d, only succeeded in writing %d, SAM status: 0x%02x 0x%02x 0x%02x\n",
 							block_size, retval, sense[2], sense[12], sense[13]);
+				}
 				break;
 			}
 		}
