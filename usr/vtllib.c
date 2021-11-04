@@ -1625,7 +1625,7 @@ void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg)
 {
 	uint8_t *cdb = cmd->scb;
 
-	if (cdb[1] & FIXED) {	/* If Fixed block writes */
+	if (cdb[1] & FIXED_BLOCK) {	/* If Fixed block writes */
 		*num = get_unaligned_be24(&cdb[2]);
 		*sz = get_unaligned_be24(&modeBlockDescriptor[5]);
 	} else {		/* else - Variable Block writes */

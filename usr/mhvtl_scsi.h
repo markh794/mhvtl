@@ -230,7 +230,7 @@
 /* Suppress Incorrect Length Indicator */
 #define SILI		0x2
 /* Fixed block format */
-#define FIXED		0x1
+#define FIXED_BLOCK		0x1
 
 /* Sense Data format bits & pieces */
 /* Incorrect Length Indicator */

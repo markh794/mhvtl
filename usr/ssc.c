@@ -161,7 +161,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	int sz;
 	int k;
 	int retval = 0;
-	int fixed = cdb[1] & FIXED;
+	int fixed = cdb[1] & FIXED_BLOCK;
 	struct s_sd sd;
 
 	lu_ssc = cmd->lu->lu_private;
@@ -172,7 +172,7 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	rw_6(cmd, &count, &sz, last_cmd == READ_6 ? 2 : 1);
 
 	/* If both FIXED & SILI bits set, invalid combo.. */
-	if ((cdb[1] & (SILI | FIXED)) == (SILI | FIXED)) {
+	if ((cdb[1] & (SILI | FIXED_BLOCK)) == (SILI | FIXED_BLOCK)) {
 		MHVTL_DBG(1, "Suppress ILI and Fixed block "
 					"read not allowed by SSC3");
 		sd.byte0 = SKSV | CD;
