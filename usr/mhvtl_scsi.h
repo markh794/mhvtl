@@ -240,7 +240,7 @@
 #define SD_EOM		0x40
 #define SD_ILI		0x20
 
-/* Sense - field pointer sense key specific data - SPC4 - 4.5.4.2 */
+/* Sense - field pointer sense key specific data - SPC4 - 4.5.2.4 */
 #define SKSV		0x80
 #define CD		0x40
 #define BPV		0x08

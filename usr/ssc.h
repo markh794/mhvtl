@@ -185,6 +185,16 @@ struct priv_lu_ssc {
 	struct ssc_personality_template *pm;	/* Personality Module */
 };
 
+/* cdb[1] bits for verify_6 op code */
+struct verify_6_bits {
+	uint8_t FIXED:1;        /* FIXED block */
+	uint8_t BYTCMP:1;       /* Byte Compare */
+	uint8_t IMMED:1;        /* Immediate */
+	uint8_t VBF:1;          /* Verify by Filemarks */
+	uint8_t VLBPM:1;        /* Verify Logical Block Protection Method */
+	uint8_t VTE:1;          /* Verify To End-of-data */
+};
+
 void ssc_personality_module_register(struct ssc_personality_template *pm);
 
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, uint8_t *sam_stat);
@@ -219,6 +229,7 @@ uint8_t ssc_spin(struct scsi_cmd *cmd);
 uint8_t ssc_spout(struct scsi_cmd *cmd);
 uint8_t ssc_load_unload(struct scsi_cmd *cmd);
 uint8_t ssc_tur(struct scsi_cmd *cmd);
+uint8_t ssc_verify_6(struct scsi_cmd *cmd);
 uint8_t ssc_write_6(struct scsi_cmd *cmd);
 uint8_t ssc_write_attributes(struct scsi_cmd *cmd);
 uint8_t ssc_write_filemarks(struct scsi_cmd *cmd);

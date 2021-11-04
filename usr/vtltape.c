@@ -1820,7 +1820,7 @@ static struct device_type_template ssc_ops = {
 		{ssc_write_filemarks,},
 		{ssc_space_6,},
 		{spc_inquiry,},
-		{spc_illegal_op,},
+		{ssc_verify_6,},
 		{spc_illegal_op,},
 		{ssc_mode_select,},
 		{ssc_reserve,},

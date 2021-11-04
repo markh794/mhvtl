@@ -504,6 +504,7 @@ enum MHVTL_STATE {
 	MHVTL_STATE_WRITING,
 	MHVTL_STATE_UNLOADING,
 	MHVTL_STATE_ERASE,
+	MHVTL_STATE_VERIFY,
 
 /* Library operation states */
 	MHVTL_STATE_MOVING_DRIVE_2_SLOT,
@@ -610,5 +611,5 @@ void bubbleSort(int *array, int size);
 void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type);
 
 void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec);
-void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg);
+void opcode_6_params(struct scsi_cmd *cmd, int *num, int *sz);
 #endif /*  _VTLLIB_H_ */

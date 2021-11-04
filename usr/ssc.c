@@ -150,36 +150,19 @@ uint8_t ssc_log_select(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t ssc_read_6(struct scsi_cmd *cmd)
+uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count)
 {
 	uint8_t *cdb = cmd->scb;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	struct mhvtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
 	uint8_t *buf;
-	int count;
-	int sz;
 	int k;
 	int retval = 0;
 	int fixed = cdb[1] & FIXED_BLOCK;
-	struct s_sd sd;
 
 	lu_ssc = cmd->lu->lu_private;
 	dbuf_p = cmd->dbuf_p;
-
-	current_state = MHVTL_STATE_READING;
-
-	rw_6(cmd, &count, &sz, last_cmd == READ_6 ? 2 : 1);
-
-	/* If both FIXED & SILI bits set, invalid combo.. */
-	if ((cdb[1] & (SILI | FIXED_BLOCK)) == (SILI | FIXED_BLOCK)) {
-		MHVTL_DBG(1, "Suppress ILI and Fixed block "
-					"read not allowed by SSC3");
-		sd.byte0 = SKSV | CD;
-		sd.field_pointer = 1;
-		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
 
 	switch (lu_ssc->load_status) {
 	case TAPE_LOADING:
@@ -244,6 +227,154 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd)
 	return *sam_stat;
 }
 
+/* VERIFY_6:
+ *
+ * Here is what the IBM_LTO SCSI Reference (18Aug2021) says about the op code.
+ * GA32-0928-04 18 August 2021
+ *
+ * The following parameters apply:
+ *
+ * • VTE (verify to end-of-data): If the VTE bit is set to zero, then a verify to EOD is not requested.
+ *  If the VTE bit is set to one, then the expected verification sequence termination condition is met
+ *  when EOD is encountered. If a filemark is encountered during the sequence, processing continues.
+ *  If the verify command fails, then the VALID bit and the INFORMATION field of sense data are set
+ *  to zero. The VBF bit shall be set to zero. The VERIFICATION LENGTH field is ignored.
+ *
+ * • VLBPM (verify logical block protection method): This bit has no effect. The result is the same for either setting.
+ *
+ * • VBF (verify by filemarks): If the VBF bit is set to zero, then a verify of n filemarks is not requested.
+ *  If the VBF bit is set to one, then the expected verification sequence termination condition is met
+ *  if the number of filemarks specified by the VERIFICATION LENGTH field have been traversed. If a
+ *  filemark is encountered during the sequence, processing continues. If EOD is encountered, the
+ *  sense key is set to BLANK CHECK, the EOM bit is set to one if the logical position is at or
+ *  after early warning, and the additional sense code is set to END-OF-DATA DETECTED. If a verify
+ *  operation fails, then the verification sequence terminates and the VALID bit is set to one and
+ *  the INFORMATION FIELD is set to the requested verification length minus the actual number of
+ *  filemarks successfully traversed. The VTE bit shall be set to zero.
+ *  NOTE 30 - Following the completion of a verify with the VBF bit set to one, the application
+ *  client should issue a READ POSITION command to determine the logical object identifier associated
+ *  with the current logical position.
+ *
+ * • IMMED (immediate) : An IMMED bit set to zero specifies the command shall not return status until
+ *  the verify sequence has completed.
+ *  An IMMED bit set to one specifies status shall be returned as soon as the command descriptor block
+ *  has been validated. Verification sequences that complete unsuccessfully generate deferred sense data
+ *  indicating the reason for termination (e.g., .an incorrect length logical block is encountered and
+ *  the sense data is set to indicate an incorrect length block was encountered).
+ *  NOTE 31 - In order to ensure that no errors are lost, the application client should set the IMMED
+ *  bit to zero on the last VERIFY (6) command of a series of VERIFY (6) commands.
+ *
+ * • BYTCMP (byte compare): Byte compare is not supported by this device. The BYTCMP bit shall be set to
+ *  zero to specify the verification shall be a verification of logical blocks on the medium (e.g., CRC, ECC).
+ *   No data shall be transferred from the application client to the device server.
+ *
+ * • FIXED: If the VTE bit and the VBF bit are set to zero and the FIXED bit is set to one, then the
+ *  expected verification sequence termination condition is met when the number of logical blocks
+ *  specified in the VERIFICATION LENGTH field have been traversed. If the VERIFICATION LENGTH field
+ *  is set to zero, then no logical objects are verified and the current logical position is not changed.
+ *  This condition is not an error. If a file-mark is encountered during the sequence, processing
+ *  terminates with filemark encountered as specified in the READ(6) command (see 5.2.15).
+ *  If EOD is encountered, the sense key is set to BLANK CHECK, the EOM bit is set to one if the logical
+ *  position is at or after early warning, and the additional sense code is set to END-OF-DATA DETECTED.
+ *  If a verify operation fails, then the verification sequence terminates and the VALID bit is set to
+ *  one and the INFORMATION FIELD is set to the requested verification length minus the actual number
+ *  of logical blocks successfully traversed.
+ *  If the VTE bit and the VBF bit are set to zero and the FIXED bit is set to zero, then the expected
+ *  verification sequence termination condition is met when one logical block has been traversed.
+ *  The length of the verified logical block is equal to the value specified in the VERIFICATION LENGTH field.
+ *  If the VERIFICATION LENGTH field is set to zero, then no logical objects are verified and the
+ *  current logical position is not changed. This condition is not considered an error. If a filemark
+ *  is encountered during the sequence, pro- cessing terminates with filemark encountered as specified in the
+ *  READ(6) command (see 5.2.15). If EOD is encountered, the sense key is set to BLANK CHECK, the EOM bit is
+ *  set to one if the logical position is at or after early warning, and the additional sense code is set to
+ *  END-OF-DATA DETECTED. If a verify oper- ation fails, then the verification sequence terminates and the
+ *  VALID bit is set to one and the INFORMATION FIELD is set to the requested verification length minus
+ *  the actual number of bytes successfully traversed.
+ *  A FIXED bit set to zero and either the VTE bit set to one or the VBF bit set to one specifies that the
+ *  block length shall not be checked.
+ *  A FIXED bit set to one specifies that the length of verified logical blocks shall be equal to the the
+ *  current block length reported in the mode parameters block descriptor. Refer to the READ(6) command
+ *  (see 5.2.15) for a description of the FIXED bit and any error conditions that may result from incorrect usage.
+ *
+ * • VERIFICATION LENGTH: The VERIFICATION LENGTH field specifies the number of bytes, logical blocks,
+ *  or file-marks to traverse during verification, as specified by the VBF bit and the FIXED bit.
+ *  If the VTE bit is set to one, then the VERIFICATION LENGTH field is ignored.
+ *  If the VERIFICATION LENGTH field is set to zero and the VTE bit is set to zero, then no logical objects
+ *  are verified and the current logical position is not changed. This condition is not considered an error.
+*/
+uint8_t ssc_verify_6(struct scsi_cmd *cmd)
+{
+	uint8_t *cdb = cmd->scb;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	struct mhvtl_ds *dbuf_p;
+	int blocks;
+	int sz;
+	struct s_sd sd;
+	struct verify_6_bits *cdb1;
+	cdb1 = (struct verify_6_bits *)&cdb[1];
+	dbuf_p = cmd->dbuf_p;
+
+	current_state = MHVTL_STATE_VERIFY;
+
+	dbuf_p->sz = 0;	/* zero data xfer between application and target */
+
+	opcode_6_params(cmd, &blocks, &sz);
+	MHVTL_DBG(1, "%s(): %s: %d, fixed: %d, bytcmp: %d, immed: %d, vbf: %d, vlbpm: %d, vte: %d, cdb[1]: 0x%02x (%ld) **",
+			__func__,
+			(cdb1->FIXED) ? "Num blks" : "byte count",
+			(cdb1->FIXED) ? blocks : sz,
+			cdb1->FIXED, cdb1->BYTCMP, cdb1->IMMED, cdb1->VBF, cdb1->VLBPM, cdb1->VTE, cdb[1],
+			(long)dbuf_p->serialNo);
+
+	if (cdb1->VTE) {	/* To be implemented */
+		MHVTL_DBG(1, "Verify to end of data is currently not implemented");
+		sd.byte0 = SKSV | CD | BPV | 0x6;
+		sd.field_pointer = 1;
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	if (cdb1->VBF) {
+		int count;
+
+		count = (cdb1->FIXED) ? blocks : sz;
+		MHVTL_DBG(1, "Verify %d filemarks", count);
+		resp_space(count, 1, sam_stat); /* Lets try and move 'count' number of filemarks */
+		return *sam_stat;
+	}
+
+	*sam_stat = complete_read_6(cmd, sz, blocks);
+	return *sam_stat;
+}
+
+uint8_t ssc_read_6(struct scsi_cmd *cmd)
+{
+	uint8_t *cdb = cmd->scb;
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	int count;
+	int sz;
+	struct s_sd sd;
+
+	current_state = MHVTL_STATE_READING;
+
+	opcode_6_params(cmd, &count, &sz);
+	MHVTL_DBG(3, "%s(): %d block%s of %d bytes (%ld) **",
+				__func__,
+				count, count == 1 ? "" : "s",
+				sz,
+				(long)cmd->dbuf_p->serialNo);
+
+	/* If both FIXED & SILI bits set, invalid combo.. */
+	if ((cdb[1] & (SILI | FIXED_BLOCK)) == (SILI | FIXED_BLOCK)) {
+		MHVTL_DBG(1, "Suppress ILI and Fixed block "
+					"read not allowed by SSC3");
+		sd.byte0 = SKSV | CD;
+		sd.field_pointer = 1;
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	return complete_read_6(cmd, sz, count);
+}
+
 uint8_t ssc_write_6(struct scsi_cmd *cmd)
 {
 	struct mhvtl_ds *dbuf_p;
@@ -258,7 +389,12 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd)
 
 	current_state = MHVTL_STATE_WRITING;
 
-	rw_6(cmd, &count, &sz, last_cmd == WRITE_6 ? 2 : 1);
+	opcode_6_params(cmd, &count, &sz);
+	MHVTL_DBG(3, "%s(): %d block%s of %d bytes (%ld) **",
+				__func__,
+				count, count == 1 ? "" : "s",
+				sz,
+				(long)cmd->dbuf_p->serialNo);
 
 	/* FIXME: Should handle this instead of 'check & warn' */
 	if ((sz * count) > lu_ssc->bufsize)

@@ -1621,7 +1621,7 @@ void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec)
 		*month = 12;
 }
 
-void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg)
+void opcode_6_params(struct scsi_cmd *cmd, int *num, int *sz)
 {
 	uint8_t *cdb = cmd->scb;
 
@@ -1632,11 +1632,6 @@ void rw_6(struct scsi_cmd *cmd, int *num, int *sz, int dbg)
 		*num = 1;
 		*sz = get_unaligned_be24(&cdb[2]);
 	}
-	MHVTL_DBG(dbg, "%s: %d block%s of %d bytes (%ld) **",
-				cdb[0] == READ_6 ? "READ" : "WRITE",
-				*num, *num == 1 ? "" : "s",
-				*sz,
-				(long)cmd->dbuf_p->serialNo);
 }
 
 char *slot_type_str(int type)
