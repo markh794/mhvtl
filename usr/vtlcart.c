@@ -1384,88 +1384,101 @@ uint64_t filemark_count(void)
 	return (uint64_t)meta.filemark_count;
 }
 
+static void enc_key_to_string(char *dst, uint8_t *key, int len)
+{
+	char b[16];
+	int i;
+
+	dst[0] = '\0';
+
+	for (i = 0; i < len; i++) {
+		sprintf(b, "%02x", key[i]);
+		strncat(dst, b, 16);
+	}
+	key[i] = '\0';
+}
+
 void print_raw_header(void)
 {
-	int i;
-	printf("Hdr:");
+	char *f = NULL;
+	char *enc = NULL;
+
+	enc = malloc(256);
+	if (!enc) {
+		printf("Unable to malloc 256 bytes of memory to produce dump_tape report");
+		MHVTL_ERR("Unable to malloc 256 bytes of memory to produce dump_tape report");
+		return;
+	}
+	f = malloc(256);
+	if (!f) {
+		printf("Unable to malloc 256 bytes of memory to produce dump_tape report");
+		MHVTL_ERR("Unable to malloc 256 bytes of memory to produce dump_tape report");
+		free(enc);
+		return;
+	}
+
+	sprintf(f, "%s", "Hdr:");
+
 	switch (raw_pos.hdr.blk_type) {
 	case B_DATA:
-		if ((raw_pos.hdr.blk_flags &
-			(BLKHDR_FLG_LZO_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
-			(BLKHDR_FLG_LZO_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
-			printf("  Encrypt/Comp data");
-		else if ((raw_pos.hdr.blk_flags &
-			(BLKHDR_FLG_ZLIB_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
-			(BLKHDR_FLG_ZLIB_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
-			printf("  Encrypt/Comp data");
-		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)
-			printf("     Encrypted data");
-		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED)
-			printf("zlibCompressed data");
-		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_LZO_COMPRESSED)
-			printf(" lzoCompressed data");
-		else
-			printf("   non-compressed data");
-		printf("%s", (raw_pos.hdr.blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC) ? " with crc " : " no crc  ");
+		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED) {
+			strncat(f, "Encrypt/", 9);
+		}
+		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED) {
+			strncat(f, "zlibCompressed", 15);
+		} else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_LZO_COMPRESSED) {
+			strncat(f, "lzoCompressed", 14);
+		} else {
+			strncat(f, "non-compressed", 15);
+		}
 
-		printf("(%02x), sz %6d/%-6d, Blk No.: %u, data %" PRId64 ", CRC: %08x\n",
+		strncat(f, (raw_pos.hdr.blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC) ? " with crc" : " no crc", 10);
+		break;
+	case B_FILEMARK:
+		strncat(f, "Filemark", 9);
+		break;
+	case B_EOD:
+		strncat(f, "End of Data", 12);
+		break;
+	case B_NOOP:
+		strncat(f, "No Operation", 13);
+		break;
+	default:
+		strncat(f, "Unknown type", 13);
+		break;
+	}
+	printf("%-35s (0x%02x), sz: %6d/%-6d, Blk No.: %7u, data: %10" PRId64 ", CRC: %08x\n",
+			f,
 			raw_pos.hdr.blk_type,
 			raw_pos.hdr.disk_blk_size,
 			raw_pos.hdr.blk_size,
 			raw_pos.hdr.blk_number,
 			raw_pos.data_offset,
 			raw_pos.hdr.uncomp_crc);
-		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED) {
-			printf("   => Encr key length %d, ukad length %d, "
+	if ((raw_pos.hdr.blk_type == B_DATA) && (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)) {
+
+		printf("   => Encr key length %d, ukad length %d, "
 				"akad length %d\n",
 				raw_pos.hdr.encryption.key_length,
 				raw_pos.hdr.encryption.ukad_length,
 				raw_pos.hdr.encryption.akad_length);
-			printf("       Key  : ");
-			for (i = 0; i < raw_pos.hdr.encryption.key_length; i++)
-				printf("%02x", raw_pos.hdr.encryption.key[i]);
-			if (raw_pos.hdr.encryption.ukad_length > 0) {
-				printf("\n       Ukad : ");
-				for (i = 0; i < raw_pos.hdr.encryption.ukad_length; i++)
-					printf("%02x", raw_pos.hdr.encryption.ukad[i]);
-			}
-			if (raw_pos.hdr.encryption.akad_length > 0) {
-				printf("\n       Akad : ");
-				for (i = 0; i < raw_pos.hdr.encryption.akad_length; i++)
-					printf("%02x", raw_pos.hdr.encryption.akad[i]);
-			}
-			puts("");
+
+		if (raw_pos.hdr.encryption.key_length > 0) {
+				enc_key_to_string(enc, raw_pos.hdr.encryption.key, raw_pos.hdr.encryption.key_length);
+				printf("%12s : %32s\n", "Key", enc);
 		}
-		break;
-	case B_FILEMARK:
-		printf("         Filemark");
-		printf("(%02x), sz %13d, Blk No.: %u, data %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.data_offset);
-		break;
-	case B_EOD:
-		printf("      End of Data");
-		printf("(%02x), sz %13d, Blk No.: %u, data %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.data_offset);
-		break;
-	case B_NOOP:
-		printf("      No Operation");
-		break;
-	default:
-		printf("      Unknown type");
-		printf("(%02x), %6d/%-6d, Blk No.: %u, data %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.disk_blk_size,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.data_offset);
-		break;
+		if (raw_pos.hdr.encryption.ukad_length > 0) {
+				enc_key_to_string(enc, raw_pos.hdr.encryption.ukad, raw_pos.hdr.encryption.ukad_length);
+				printf("%12s : %32s\n", "Ukad", enc);
+		}
+		if (raw_pos.hdr.encryption.akad_length > 0) {
+				enc_key_to_string(enc, raw_pos.hdr.encryption.akad, raw_pos.hdr.encryption.akad_length);
+				printf("%12s : %32s\n", "Akad", enc);
+		}
 	}
+
+	free(enc);
+	free(f);
 }
 
 void print_filemark_count(void)
