@@ -157,6 +157,7 @@ uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count)
 	struct mhvtl_ds *dbuf_p;
 	struct priv_lu_ssc *lu_ssc;
 	uint8_t *buf;
+	int lbp_method;
 	int k;
 	int retval = 0;
 	int fixed = cdb[1] & FIXED_BLOCK;
@@ -193,7 +194,9 @@ uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count)
 	for (k = 0; k < count; k++) {
 		if (!lu_ssc->pm->valid_encryption_blk(cmd))
 			return SAM_STAT_CHECK_CONDITION;
-		retval = readBlock(buf, sz, cdb[1] & SILI, sam_stat);
+		/* If LBP Read bit is set, pass through the LBP_method 0: off, 1 RS-CRC, 2 CRC32C */
+		lbp_method = (lu_ssc->LBP_R) ? lu_ssc->LBP_method : 0;
+		retval = readBlock(buf, sz, cdb[1] & SILI, lbp_method, sam_stat);
 		if (!retval && fixed) {
 			/* Fixed block read hack:
 			 *

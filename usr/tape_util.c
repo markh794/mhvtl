@@ -388,7 +388,7 @@ static int read_data(uint8_t *sam_stat)
 		fprintf(stderr, "Unable to allocate %d bytes\n", c_pos->blk_size);
 		return -ENOMEM;
 	}
-	ret = readBlock(p, c_pos->blk_size, 1, sam_stat);
+	ret = readBlock(p, c_pos->blk_size, 1, 0, sam_stat);
 	if (ret != c_pos->blk_size) {
 		printf("Requested %d bytes, received %d\n",
 				c_pos->blk_size, ret);

@@ -114,14 +114,14 @@ preload_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
 		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c \
 		reed-solomon.o reed-solomon.c
-	$(CC) $(CFLAGS) -o preload_tape crc32c.o mhvtl_io.o tape_util.o minilzo.o default_ssc_pm.o -L. \
+	$(CC) $(CFLAGS) -o preload_tape crc32c.o mhvtl_io.o reed-solomon.o tape_util.o minilzo.o default_ssc_pm.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
 dump_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
 		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c \
 		reed-solomon.o reed-solomon.c
-	$(CC) $(CFLAGS) -o dump_tape crc32c.o mhvtl_io.o tape_util.o minilzo.o default_ssc_pm.o -L. \
+	$(CC) $(CFLAGS) -o dump_tape crc32c.o mhvtl_io.o reed-solomon.o tape_util.o minilzo.o default_ssc_pm.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
 mktape:		mktape.c mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \

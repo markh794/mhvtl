@@ -1215,7 +1215,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	raw_pos.hdr.blk_size = blk_size; /* Size of uncompressed data */
 
 	raw_pos.hdr.uncomp_crc = crc;
-	raw_pos.hdr.blk_flags |= BLKHDR_FLG_UNCOMPRESSED_CRC;
+	raw_pos.hdr.blk_flags |= BLKHDR_FLG_CRC; /* Logical Block Protection */
 
 	MHVTL_DBG(2, "CRC is 0x%08x", crc);
 
@@ -1432,7 +1432,11 @@ void print_raw_header(void)
 			strncat(f, "non-compressed", 15);
 		}
 
-		strncat(f, (raw_pos.hdr.blk_flags & BLKHDR_FLG_UNCOMPRESSED_CRC) ? " with crc" : " no crc", 10);
+		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_CRC) {
+			strncat(f, " with crc", 10);
+		} else {
+			strncat(f, " no crc", 10);
+		}
 		break;
 	case B_FILEMARK:
 		strncat(f, "Filemark", 9);
@@ -1447,9 +1451,10 @@ void print_raw_header(void)
 		strncat(f, "Unknown type", 13);
 		break;
 	}
-	printf("%-35s (0x%02x), sz: %6d/%-6d, Blk No.: %7u, data: %10" PRId64 ", CRC: %08x\n",
+	printf("%-35s (0x%02x/0x%02x), sz: %6d/%-6d, Blk No.: %7u, data: %10" PRId64 ", CRC: %08x\n",
 			f,
 			raw_pos.hdr.blk_type,
+			raw_pos.hdr.blk_flags,
 			raw_pos.hdr.disk_blk_size,
 			raw_pos.hdr.blk_size,
 			raw_pos.hdr.blk_number,
