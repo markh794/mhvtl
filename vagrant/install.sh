@@ -1,20 +1,24 @@
 #!/bin/bash
+
+# This script assumes it is located in a subdirectory from 'mhvtl' source root
+
 echo "Script Begin"
 
-get_os_name(){
-    if [[ "$(hostnamectl | grep -i ubuntu | wc -l)" != "0" ]]; then
-        OS_NAME='ubuntu'
-    elif [[ "$(hostnamectl | grep -i sles | wc -l)" != "0" ]]; then
-        OS_NAME='sles'
-    elif [[ "$(hostnamectl | grep -i opensuse | wc -l)" != "0" ]]; then
-	    OS_NAME='opensuse'
-    elif [[ "$(hostnamectl | grep -i centos | wc -l)" != "0" ]]; then
-        OS_NAME='centos'
-    else
-        echo 'This os is not supported!'
-        exit 1
-    fi
-    echo "OS_NAME is $OS_NAME"
+get_os_name()
+{
+	if [[ "$(hostnamectl | grep -i ubuntu | wc -l)" != "0" ]]; then
+		OS_NAME='ubuntu'
+	elif [[ "$(hostnamectl | grep -i sles | wc -l)" != "0" ]]; then
+		OS_NAME='sles'
+	elif [[ "$(hostnamectl | grep -i opensuse | wc -l)" != "0" ]]; then
+		OS_NAME='opensuse'
+	elif [[ "$(hostnamectl | grep -i centos | wc -l)" != "0" ]]; then
+		OS_NAME='centos'
+	else
+		echo 'This os is not supported!'
+		exit 1
+	fi
+	echo "OS_NAME is $OS_NAME"
 }
 
 # check our script has been started with root auth
@@ -29,32 +33,38 @@ get_os_name
 # Lets break the script if there are any errors
 set -e
 
-install_ubuntu_pre_req(){
-    sudo apt-get update && sudo apt-get install sysstat mtx mt-st sg3-utils zlib1g-dev git lsscsi build-essential gawk alien fakeroot linux-headers-$(uname -r) -y
-}
-install_centos_pre_req(){
-    sudo yum update -y && sudo yum install -y git mc ntp gcc gcc-c++ make kernel-devel-$(uname -r) zlib-devel sg3_utils lsscsi mt-st mtx perl-Config-General
-}
-install_sles_pre_req(){
-    echo "SLES/OpenSuse IS NOT YET SUPPORTED! Use it at your own risk!"
-
-    # Workaround so that we install the same kernel-devel and kernel-syms version as the running kernel.
-    UNAME_R=$(echo $(uname -r) | cut -d "-" -f-2)
-    PATCHED_KERNEL_VERSION=$(sudo zypper se -s kernel-devel | grep ${UNAME_R} | cut -d "|" -f4 | tr -d " ")
-    sudo zypper install -y --oldpackage kernel-devel-${PATCHED_KERNEL_VERSION}
-    sudo zypper install -y --oldpackage kernel-syms-${PATCHED_KERNEL_VERSION}
-
-    sudo zypper install -y git mc ntp gcc gcc-c++ make zlib-devel sg3_utils lsscsi mtx perl-Config-General
+install_ubuntu_pre_req()
+{
+	sudo apt-get update && sudo apt-get install sysstat mtx mt-st sg3-utils zlib1g-dev git lsscsi build-essential gawk alien fakeroot linux-headers-$(uname -r) linux-modules-extra-$(uname -r) -y
 }
 
-install_pre_req(){
-    if [[ ${OS_NAME} == 'ubuntu' ]]; then
-        install_ubuntu_pre_req
-    elif [[ ${OS_NAME} == 'centos' ]]; then
-        install_centos_pre_req
-    elif [[ ${OS_NAME} == 'sles' ]] || [[ ${OS_NAME} == 'opensuse' ]]; then
-        install_sles_pre_req
-    fi
+install_centos_pre_req()
+{
+	sudo yum update -y && sudo yum install -y git mc ntp gcc gcc-c++ make kernel-devel-$(uname -r) zlib-devel sg3_utils lsscsi mt-st mtx perl-Config-General
+}
+
+install_sles_pre_req()
+{
+	echo "SLES/OpenSuse IS NOT YET SUPPORTED! Use it at your own risk!"
+
+	# Workaround so that we install the same kernel-devel and kernel-syms version as the running kernel.
+	UNAME_R=$(echo $(uname -r) | cut -d "-" -f-2)
+	PATCHED_KERNEL_VERSION=$(sudo zypper se -s kernel-devel | grep ${UNAME_R} | cut -d "|" -f4 | tr -d " ")
+	sudo zypper install -y --oldpackage kernel-devel-${PATCHED_KERNEL_VERSION}
+	sudo zypper install -y --oldpackage kernel-syms-${PATCHED_KERNEL_VERSION}
+
+	sudo zypper install -y git mc ntp gcc gcc-c++ make zlib-devel sg3_utils lsscsi mtx perl-Config-General
+}
+
+install_pre_req()
+{
+	if [[ ${OS_NAME} == 'ubuntu' ]]; then
+		install_ubuntu_pre_req
+	elif [[ ${OS_NAME} == 'centos' ]]; then
+		install_centos_pre_req
+	elif [[ ${OS_NAME} == 'sles' ]] || [[ ${OS_NAME} == 'opensuse' ]]; then
+		install_sles_pre_req
+	fi
 }
 
 # Install required packages
@@ -77,14 +87,15 @@ sudo systemctl start mhvtl.target
 
 sleep 3
 echo "Show your tape libraries now!"
-lsscsi -g
+hba=`lsscsi -H | awk '/mhvtl/ {print $1}' | sed -e 's/\[//g' -e 's/\]//g'`
+lsscsi ${hba} -g
 
 echo ""
-if [[ "$(lsscsi -g | wc -l)" -gt 8 ]]
-then
-    echo "Found some virtual tapes, success!"
+if [[ "$(lsscsi -g ${hba} | wc -l)" -gt 2 ]]; then
+	echo "Found some virtual tapes, success!"
 else
-    echo "Could not find the virtual tapes, the installation failed!"
-    exit 1
+	echo "Could not find the virtual tapes, the installation failed!"
+	exit 1
 fi
 
+exit 0
