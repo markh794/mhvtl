@@ -16,13 +16,12 @@ EXTRA_CFLAGS += -DMHVTL_DEBUG
 obj-m	:= mhvtl.o
 vtl-objs := mhvtl.o
 
-# Custom kernel build..
-KDIR	:= /usr/src/linux/
+V	?= $(shell uname -r)
 
 ifeq ($(ubuntu),)
- KDIR	:= /lib/modules/$(shell uname -r)/build
+ KDIR	:= /lib/modules/$(V)/build
 else
- KDIR	:= /usr/src/linux-headers-$(shell uname -r)/
+ KDIR	:= /usr/src/linux-headers-$(V)/
 endif
 
 PWD	:= $(shell pwd)
@@ -58,14 +57,14 @@ distclean:
 	rm -rf .tmp_versions
 
 install:
-	install -o root -g root -m 644 mhvtl.ko /lib/modules/`uname -r`/kernel/drivers/scsi/; \
+	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/; \
 	depmod -a; \
 	if [ -f "/etc/modprobe.d/unsupported-modules" ]; then \
 		sed -i 's/^allow_unsupported_modules 0/allow_unsupported_modules 1/' /etc/modprobe.d/unsupported-modules; \
 	fi
 
 install-bkup:
-	cp mhvtl.ko ~/mhvtl-`uname -r`_`uname -m`.ko
+	cp mhvtl.ko ~/mhvtl-$(V)_`uname -m`.ko
 
 tags:
 	ctags -R *
