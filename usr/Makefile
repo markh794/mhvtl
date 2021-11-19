@@ -185,6 +185,7 @@ clean:
 		hp_ultrium_pm.o \
 		mode.o \
 		log.o \
+		tape_util.o \
 		subprocess.o \
 		stk9x40_pm.o \
 		stklxx_pm.o \
