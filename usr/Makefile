@@ -195,6 +195,7 @@ clean:
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
 		edit_tape.o \
+		tape_util.o \
 		dump_messageQ \
 		dump_tape edit_tape \
 		mktape vtlcmd vtllibrary vtltape tapeexerciser \
