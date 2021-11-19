@@ -54,7 +54,7 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		} else {
 			rem = copy_from_user(kmem_user, buf + offset, len);
 			memcpy(miter.addr, kmem_user, len);
-			flush_kernel_dcache_page(miter.page);
+			flush_dcache_page(miter.page);
 		}
 		if (rem)
 			printk(KERN_DEBUG "mhvtl: %s(): "
