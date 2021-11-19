@@ -91,6 +91,9 @@ vtlcmd:	vtlcmd.o
 minilzo.o:	minilzo.c lzoconf.h lzodefs.h
 	$(CC) $(CFLAGS) $(LZODEBUG) -o minilzo.o -c minilzo.c
 
+tape_util.o:	tape_util.c
+	$(CC) $(CFLAGS) -fPIC -std=gnu99 -o tape_util.o -c tape_util.c
+
 mhvtl_io.o:	mhvtl_io.c
 	$(CC) $(CFLAGS) -std=gnu99 -o mhvtl_io.o -c mhvtl_io.c
 
