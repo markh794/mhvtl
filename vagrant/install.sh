@@ -35,17 +35,25 @@ set -e
 
 install_ubuntu_pre_req()
 {
-	sudo apt-get update && sudo apt-get install sysstat mtx mt-st sg3-utils zlib1g-dev git lsscsi build-essential gawk alien fakeroot linux-headers-$(uname -r) linux-modules-extra-$(uname -r) -y
+	echo "Ubuntu"
+	sudo apt-get update && sudo apt-get install sysstat mtx mt-st sg3-utils zlib1g-dev git lsscsi build-essential gawk alien fakeroot linux-headers-$(uname -r) linux-modules-extra-$(uname -r) targetcli-fb -y
 }
 
 install_centos_pre_req()
 {
-	sudo yum update -y && sudo yum install -y git mc ntp gcc gcc-c++ make kernel-devel-$(uname -r) zlib-devel sg3_utils lsscsi mt-st mtx perl-Config-General
+	echo "CentOS"
+
+	sudo yum install -y deltarpm
+	sudo yum update -y && sudo yum install -y git mc ntp gcc gcc-c++ make kernel-devel-$(uname -r) zlib-devel sg3_utils lsscsi mt-st mtx perl-Config-General targetcli
+	sudo yum upgrade -y
+	# Rebuild VBox guest tools for any new kernel(s) installed
+	/sbin/rcvboxadd quicksetup all
+
 }
 
 install_sles_pre_req()
 {
-	echo "SLES/OpenSuse IS NOT YET SUPPORTED! Use it at your own risk!"
+	echo "SLES/OpenSuse"
 
 	# Workaround so that we install the same kernel-devel and kernel-syms version as the running kernel.
 	UNAME_R=$(echo $(uname -r) | cut -d "-" -f-2)
@@ -53,17 +61,42 @@ install_sles_pre_req()
 	sudo zypper install -y --oldpackage kernel-devel-${PATCHED_KERNEL_VERSION}
 	sudo zypper install -y --oldpackage kernel-syms-${PATCHED_KERNEL_VERSION}
 
-	sudo zypper install -y git mc ntp gcc gcc-c++ make zlib-devel sg3_utils lsscsi mtx perl-Config-General
+	sudo zypper install -y git mc ntp gcc gcc-c++ make zlib-devel sg3_utils lsscsi mtx perl-Config-General targetcli-fb
 }
 
 install_pre_req()
 {
 	if [[ ${OS_NAME} == 'ubuntu' ]]; then
+		SYSTEMD_GENERATOR_DIR="/lib/systemd/system-generators"
 		install_ubuntu_pre_req
+
 	elif [[ ${OS_NAME} == 'centos' ]]; then
+		SYSTEMD_GENERATOR_DIR="/lib/systemd/system-generators"
 		install_centos_pre_req
+
 	elif [[ ${OS_NAME} == 'sles' ]] || [[ ${OS_NAME} == 'opensuse' ]]; then
+		SYSTEMD_GENERATOR_DIR="/usr/lib/systemd/system-generators"
 		install_sles_pre_req
+	fi
+}
+
+install_mhvtl_kernel_module()
+{
+	make distclean
+	if [[ ${OS_NAME} == 'ubuntu' ]]; then
+		make
+		sudo make install
+	elif [[ ${OS_NAME} == 'centos' ]]; then
+		for a in `rpm -qa | awk '/kernel-devel/ {print $1}' | sed -e "s/kernel-devel-//g"`
+		do
+			echo "Building mhVTL kernel module for ${a}"
+			make V=${a}
+			sudo make install V=${a}
+			make distclean
+		done
+	elif [[ ${OS_NAME} == 'sles' ]] || [[ ${OS_NAME} == 'opensuse' ]]; then
+		make
+		sudo make install
 	fi
 }
 
@@ -72,15 +105,21 @@ install_pre_req
 
 # Change to mhVTL folder
 cd ../
+
+# Clean up any previous build
 make distclean
+
+# Build kernel module for all versions which have the development package installed
 cd kernel/
-make
-sudo make install
+install_mhvtl_kernel_module
+
+# Now make user-space binaries and install
 cd ..
 make
-sudo make install
+sudo make install SYSTEMD_GENERATOR_DIR=${SYSTEMD_GENERATOR_DIR}
 
 # Load it
+sudo depmod -a
 sudo systemctl daemon-reload
 sudo systemctl enable mhvtl.target
 sudo systemctl start mhvtl.target
