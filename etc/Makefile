@@ -53,10 +53,10 @@ $(GENERATE_LIB_CONTENTS): $(GENERATE_LIB_CONTENTS).in
 	chmod 755 $@
 
 $(DEVICE_CONF_FILE): $(GENERATE_DEVICE_CONF)
-	./$(GENERATE_DEVICE_CONF) --force --home-dir=$(MHVTL_HOME_PATH) --override-home
+	sh ./$(GENERATE_DEVICE_CONF) --force --home-dir=$(MHVTL_HOME_PATH) --override-home
 
 $(LIB_CONTENTS_FILES): $(GENERATE_LIB_CONTENTS) $(DEVICE_CONF_FILE)
-	./$(GENERATE_LIB_CONTENTS) --force --config=.
+	sh ./$(GENERATE_LIB_CONTENTS) --force --config=.
 
 .PHONY: distclean
 distclean: clean
