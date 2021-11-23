@@ -6,15 +6,17 @@ Vagrant.configure("2") do |config|
 
   config.vm.define "ubuntu" do |instance|
     instance.vm.box = "generic/ubuntu1804"
-#    instance.vm.box = "ubuntu/xenial64"
+    instance.vm.network "private_network". IP: "192.168.56.20"
   end
 
   config.vm.define "centos" do |instance|
     instance.vm.box = "geerlingguy/centos7"
+    instance.vm.network "private_network". IP: "192.168.56.21"
   end
 
   config.vm.define "opensuse" do |instance|
     instance.vm.box = "toni03/opensuse-leap15"
+    instance.vm.network "private_network". IP: "192.168.56.22"
   end
 
   config.vm.provider "virtualbox" do |vb|
