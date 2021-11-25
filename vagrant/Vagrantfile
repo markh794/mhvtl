@@ -1,6 +1,10 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+def gui_enabled?
+  !ENV.fetch('GUI', '').empty?
+end
+
 Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
 
@@ -21,6 +25,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "2048"
+    vb.gui = gui_enabled?
   end
 
   config.vm.synced_folder "../", "/vagrant_data"
