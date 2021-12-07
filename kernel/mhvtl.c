@@ -1138,7 +1138,7 @@ static const char *mhvtl_info(struct Scsi_Host *shp)
 
 static ssize_t opts_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", mhvtl_opts);
+	return sysfs_emit(buf, "0x%x\n", mhvtl_opts);
 }
 
 static ssize_t opts_store(struct device_driver *ddp,
@@ -1169,7 +1169,7 @@ opts_done:
 
 static ssize_t major_show(struct device_driver *ddp, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%d\n", mhvtl_major);
+	return sysfs_emit(buf, "%d\n", mhvtl_major);
 }
 
 static ssize_t add_lu_store(struct device_driver *ddp,
