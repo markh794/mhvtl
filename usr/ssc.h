@@ -40,6 +40,7 @@ struct ssc_personality_template {
 	uint32_t drive_supports_WORM:1;	/* Write Once Read Many */
 	uint32_t drive_supports_SPR:1;	/* SCSI Persistent Reservation */
 	uint32_t drive_supports_SP:1;	/* Security Protocol */
+	uint32_t drive_supports_LBP:1;	/* Logical Block Protection */
 	uint32_t drive_ANSI_VERSION:5;
 
 	struct density_info *native_drive_density;
@@ -118,6 +119,9 @@ struct priv_lu_ssc {
 	uint32_t I_am_SPC_2_Reserved:1;	/* Variables for simple, single initiator, SCSI Reservation system */
 	uint32_t append_only_mode:1;
 	uint32_t MediaWriteProtect:1;
+	uint32_t LBP_method:2;		/* Logical Block Protection method 0: off, 1: Reed-Solomon CRC, 2: CRC32C */
+	uint32_t LBP_W:1;		/* Logical Block Protection during writes */
+	uint32_t LBP_R:1;		/* Logical Block Protection during reads */
 
 	char *barcode;	/* Barcode of tape in the drive - NULL if nothing is in mouth of drive */
 

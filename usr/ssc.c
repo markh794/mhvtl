@@ -924,6 +924,26 @@ static void set_mode_compression(struct scsi_cmd *cmd, uint8_t *p)
 	}
 }
 
+static uint8_t set_lbp(struct scsi_cmd *cmd, uint8_t *buf, int len)
+{
+	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	struct priv_lu_ssc *lu_priv;
+	struct ssc_personality_template *pm;
+	struct s_sd sd;
+
+	lu_priv = cmd->lu->lu_private;
+	pm = lu_priv->pm;
+
+	/* OK, the drive supports Logical Block Protection - good to go */
+	if (pm->drive_supports_LBP) {
+		return update_logical_block_protection(cmd->lu, buf);
+	}
+	sd.byte0 = SKSV | CD;
+	sd.field_pointer = 1;
+	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
+}
+
 /*
  * Process the MODE_SELECT command
  */
@@ -1167,6 +1187,31 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd)
 			}
 			break;
 
+		case MODE_CONTROL:
+			if (page_len == 0x0a) { /* Control mode page - byte[1] is page len */
+				MHVTL_DBG(3, "Setting Mode Control");	/* Silently accept this worked, but really did not change anything */
+			} else {
+				/* Otherwise, subpage handling - where page len is byte[2] & byte[3] */
+				page_len = get_unaligned_be16(&buf[i+2]);
+				if (buf[1+i] == 0xf0) {
+					/* Logical Block Protection */
+					MHVTL_DBG(2, "Setting LBP method: %d, LBP length: %d, LBP_W: %s, LBP_R: %s",
+							buf[4+i], buf[5+i],
+							(buf[6+i] & 0x80) ? "True" : "False",
+							(buf[6+i] & 0x40) ? "True" : "False");
+					if (set_lbp(cmd, &buf[i], page_len))
+						return SAM_STAT_CHECK_CONDITION;
+				} else {
+					MHVTL_DBG(2, "Mode Control - Subpage: 0x%02x not supported", buf[i+1]);
+					sd.byte0 = SKSV;
+					sd.field_pointer = i;
+					sam_illegal_request(E_INVALID_FIELD_IN_CDB,
+									&sd, sam_stat);
+					return SAM_STAT_CHECK_CONDITION;
+				}
+			}
+			return SAM_STAT_GOOD;
+			break;
 		default:
 			MHVTL_DBG_PRT_CDB(1, cmd);
 			MHVTL_LOG("Mode page 0x%02x not handled", page);

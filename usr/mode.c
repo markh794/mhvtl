@@ -42,6 +42,7 @@ static char *mode_rw_error_recover = "Read/Write Error Recovery";
 static char *mode_disconnect_reconnect = "Disconnect/Reconnect";
 static char *mode_control = "Control";
 static char *mode_control_extension = "Control Extension";
+static char *mode_control_data_protection = "Control Data Protection";
 static char *mode_data_compression = "Data Compression";
 static char *mode_device_configuration = "Device Configuration";
 static char *mode_device_configuration_extension =
@@ -118,7 +119,7 @@ static struct mode *alloc_mode_page(struct list_head *m,
 			mp->pcodePointerBitMap = zalloc(size);
 			if (!mp->pcodePointerBitMap) {
 				free(mp);
-				MHVTL_ERR("Unable to malloc(%d)", size);
+				MHVTL_ERR("Mode Pointer bitmap: Unable to malloc(%d)", size);
 				return NULL;
 			}
 
@@ -265,7 +266,7 @@ int add_mode_control(struct lu_phy_attr *lu)
 }
 
 /*
- * Control Extension
+ * Control Extension 0x0A/0x01
  * SPC3
  */
 int add_mode_control_extension(struct lu_phy_attr *lu)
@@ -279,7 +280,7 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
 	mode_pg = &lu->mode_pg;
 	pcode = MODE_CONTROL;
 	subpcode = 1;
-	size = 0x1c;
+	size = 0x1e;	/* 0x1c + 2 for page/subpage code */
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
 				mode_control_extension, pcode, subpcode);
@@ -289,15 +290,66 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = subpcode;
+	put_unaligned_be16(size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]),
+								&mp->pcodePointer[2]);
 
 	/* And copy pcode/size into bitmap structure */
-	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
-	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[1];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[2];
 
 	mp->description = mode_control_extension;
+
+	return 0;
+}
+
+/*
+ * Control Data Protection Mode page 0x0A/0xF0
+ * IBM Ultrium Logical Block Protection
+ */
+int add_mode_control_data_protection(struct lu_phy_attr *lu)
+{
+	struct list_head *mode_pg;
+	struct mode *mp;
+	uint8_t pcode;
+	uint8_t subpcode;
+	uint8_t size;
+
+	mode_pg = &lu->mode_pg;
+	pcode = MODE_CONTROL;
+	subpcode = 0xf0;
+	size = 0x1e;	/* 0x1c + two bytes for page/subpage */
+
+	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
+				mode_control_extension, pcode, subpcode);
+
+	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
+	if (!mp)
+		return -ENOMEM;
+
+	MHVTL_DBG(3, "Added mode page %s (%02x/%02x)",
+				mode_control_extension, pcode, subpcode);
+
+	mp->pcodePointer[0] = pcode;
+	mp->pcodePointer[1] = subpcode;
+	put_unaligned_be16(size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]),
+								&mp->pcodePointer[2]);
+
+	/* And copy pcode/size into bitmap structure */
+	mp->pcodePointerBitMap[0] = mp->pcodePointer[1];
+	mp->pcodePointerBitMap[1] = mp->pcodePointer[2];
+
+	mp->description = mode_control_data_protection;
+
+	/* Default to off */
+	mp->pcodePointer[4] = 0x00;	/* LBP Method: 0 off, 1 Reed-Solomon CRC, 2 CRC32C */
+	mp->pcodePointer[5] = 0x04;	/* LBP length - 32bit CRC */
+	mp->pcodePointer[6] = 0;	/* LBP on write and LBP on read */
+
+	/* And define changeable bits */
+	mp->pcodePointerBitMap[4] = 0x03;
+	mp->pcodePointerBitMap[5] = 0x07;
+	mp->pcodePointerBitMap[6] = 0xc0;
 
 	return 0;
 }
@@ -990,6 +1042,41 @@ int update_prog_early_warning(struct lu_phy_attr *lu)
 			return SAM_STAT_GOOD;
 
 		put_unaligned_be16(lu_priv->prog_early_warning_sz, &mp[6]);
+	}
+	return SAM_STAT_GOOD;
+}
+
+int update_logical_block_protection(struct lu_phy_attr *lu, uint8_t *buf)
+{
+	uint8_t *mp;
+	struct mode *m;
+	struct list_head *mode_pg;
+	struct priv_lu_ssc *lu_priv;
+
+	mode_pg = &lu->mode_pg;
+	lu_priv = (struct priv_lu_ssc *)lu->lu_private;
+
+	MHVTL_DBG(3, "+++ entry +++");
+
+	m = lookup_pcode(mode_pg, MODE_CONTROL, 0xf0);
+	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
+			mode_pg, m, m->pcodePointer);
+	if (m) {
+		mp = m->pcodePointer;
+		if (!mp) {
+			MHVTL_ERR("Could not find mode page");
+			return SAM_STAT_GOOD;
+		}
+		mp[4] = buf[4];	/* Logical Block Protection Method */
+		mp[5] = buf[5];	/* Logical Block Protection Information Length */
+		mp[6] = buf[6];	/* LBP_W & LBP_R */
+		lu_priv->LBP_method = buf[4] & 0x03;
+		lu_priv->LBP_R = (buf[6] & 0x40) ? 1 : 0;
+		lu_priv->LBP_W = (buf[6] & 0x80) ? 1 : 0;
+		MHVTL_DBG(1, "Updating Logical Block Protection: Method: 0x%02x, LBP_R: %s, LPB_W: %s",
+				lu_priv->LBP_method,
+				lu_priv->LBP_R ? "True" : "False",
+				lu_priv->LBP_W ? "True" : "False");
 	}
 	return SAM_STAT_GOOD;
 }

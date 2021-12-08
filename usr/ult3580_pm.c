@@ -826,6 +826,7 @@ void init_ult3580_td7(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_supports_LBP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	ssc_personality_module_register(&ssc_pm);
@@ -836,6 +837,7 @@ void init_ult3580_td7(struct lu_phy_attr *lu)
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control(lu);
 	add_mode_control_extension(lu);
+	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_device_configuration_extention(lu);
@@ -897,6 +899,7 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_supports_LBP = TRUE;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	ssc_personality_module_register(&ssc_pm);
@@ -907,6 +910,7 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control(lu);
 	add_mode_control_extension(lu);
+	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_device_configuration_extention(lu);
