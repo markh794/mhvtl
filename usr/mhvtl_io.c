@@ -471,12 +471,52 @@ static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
 		lu_priv->pm->valid_encryption_media(cmd);
 }
 
+/** Call with
+ ** LBP method, bufer and size, and CRC32C CRC which was already calculated
+ */
+static uint32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c)
+{
+	uint32_t lbp_crc = 0;
+
+	switch (lbp_method) {
+	case 0:
+		break;
+	case 1:
+		MHVTL_DBG(1, "Reed-Solomon CRC check");
+		lbp_crc = mhvtl_rscrc(buf, src_sz);
+		if (lbp_crc == get_unaligned_be32(&buf[src_sz])) {
+			return 0;	/* match - good */
+		} else {
+			MHVTL_ERR("Reed-Solomon CRC mismatch - LBP: 0x%08x, calculated: 0x%08x",
+					get_unaligned_be32(&buf[src_sz]), lbp_crc);
+			return -1;	/* CRC mismatch */
+		}
+		break;
+	case 2:
+		MHVTL_DBG(1, "CRC32C check");
+		if (crc32c == get_unaligned_be32(&buf[src_sz])) {
+			return 0;	/* match - good */
+		} else {
+			MHVTL_ERR("CRC32C mismatch - LBP: 0x%08x, calculated: 0x%08x",
+					get_unaligned_be32(&buf[src_sz]), crc32c);
+			return -1;	/* CRC mismatch */
+		}
+		break;
+	default:
+		MHVTL_ERR("Undefined LBP_method - failing check");
+		return -1;
+		break;
+	}
+
+	return 0;
+}
+
 /*
  * Return number of bytes written to 'file'
  *
  * Zero on error with sense buffer already filled in
  */
-static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
+static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method)
 {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
@@ -492,6 +532,12 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
 	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop, 0,
 							null_wr, crc, sam_stat);
 
+	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+		MHVTL_ERR("LBP mis-compare on write");
+		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+		return 0;
+	}
+
 	lu_priv->bytesWritten_M += src_sz;
 	lu_priv->bytesWritten_I += src_sz;
 
@@ -506,7 +552,7 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
  *
  * Zero on error with sense buffer already filled in
  */
-static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
+static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method)
 {
 	lzo_uint dest_len;
 	lzo_uint src_len = src_sz;
@@ -526,6 +572,12 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 
 	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
+
+	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+		MHVTL_ERR("LBP mis-compare on write");
+		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+		return 0;
+	}
 
 	dest_len = mhvtl_compressBound(src_sz);
 	dest_buf = (lzo_bytep)malloc(dest_len);
@@ -574,7 +626,7 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
  *
  * Zero on error with sense buffer already filled in
  */
-static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr)
+static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method)
 {
 	Bytef *dest_buf;
 	uLong dest_len;
@@ -590,6 +642,12 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 
 	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
+
+	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+		MHVTL_ERR("LBP mis-compare on write");
+		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+		return 0;
+	}
 
 	dest_len = compressBound(src_sz);
 	dest_buf = (Bytef *)malloc(dest_len);
@@ -642,9 +700,31 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	uint64_t current_position;
 	int64_t remaining_capacity;
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint32_t lbp_sz = src_sz;
+	int lbp_method = 0;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 	src_len = 0;
+
+	if (lu_priv->pm->drive_supports_LBP) {
+		if (lu_priv->LBP_W) {
+			MHVTL_DBG(1, "LBP on write - CRC type is %s",
+					(lu_priv->LBP_method == 0) ? "Off" :
+						(lu_priv->LBP_method == 1) ? "RS-CRC" : "CRC32C");
+			switch (lu_priv->LBP_method) {
+			case 1:
+				lbp_method = 1;
+				lbp_sz = src_sz - 4;
+				break;
+			case 2:
+				lbp_method = 2;
+				lbp_sz = src_sz - 4;
+				break;
+			default:
+				break;
+			}
+		}
+	}
 
 	/* Check if we hit EOT and fail before attempting to write */
 	current_position = current_tape_offset();
@@ -657,20 +737,20 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	if (lu_priv->mamp->MediumType == MEDIA_TYPE_NULL) {
 		/* Don't compress if null tape media */
-		src_len = writeBlock_nocomp(cmd, src_sz, TRUE);
+		src_len = writeBlock_nocomp(cmd, lbp_sz, TRUE, 0);
 	} else if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION) {
 		/* No compression - use the no-compression function */
-		return writeBlock_nocomp(cmd, src_sz, FALSE);
+		return writeBlock_nocomp(cmd, lbp_sz, FALSE, lbp_method);
 	} else {
 		switch (lu_priv->compressionType) {
 		case LZO:
-			src_len = writeBlock_lzo(cmd, src_sz, FALSE);
+			src_len = writeBlock_lzo(cmd, lbp_sz, FALSE, lbp_method);
 			break;
 		case ZLIB:
-			src_len = writeBlock_zlib(cmd, src_sz, FALSE);
+			src_len = writeBlock_zlib(cmd, lbp_sz, FALSE, lbp_method);
 			break;
 		default:
-			src_len = writeBlock_nocomp(cmd, src_sz, FALSE);
+			src_len = writeBlock_nocomp(cmd, lbp_sz, FALSE, lbp_method);
 			break;
 		}
 	}
