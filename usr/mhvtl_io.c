@@ -524,10 +524,6 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
-	/* No compression - use the no-compression function */
-	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
-		return writeBlock_nocomp(cmd, src_sz, null_wr);
-
 	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
 
@@ -591,10 +587,6 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 	int z;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
-
-	/* No compression - use the no-compression function */
-	if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION)
-		return writeBlock_nocomp(cmd, src_sz, null_wr);
 
 	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
@@ -666,6 +658,9 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (lu_priv->mamp->MediumType == MEDIA_TYPE_NULL) {
 		/* Don't compress if null tape media */
 		src_len = writeBlock_nocomp(cmd, src_sz, TRUE);
+	} else if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION) {
+		/* No compression - use the no-compression function */
+		return writeBlock_nocomp(cmd, src_sz, FALSE);
 	} else {
 		switch (lu_priv->compressionType) {
 		case LZO:
