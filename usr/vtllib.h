@@ -113,6 +113,7 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define VPD_B0_SZ 4
 #define VPD_B1_SZ SCSI_SN_LEN
 #define VPD_B2_SZ 8
+#define VPD_B5_SZ 8
 #define VPD_C0_SZ 0x28
 
 struct smc_type_slot {

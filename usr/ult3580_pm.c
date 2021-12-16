@@ -265,6 +265,34 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 	return 44;
 }
 
+static void update_vpd_lbp(struct lu_phy_attr *lu)
+{
+	struct vpd *v;
+	uint8_t *d;
+
+	v = lu->lu_vpd[PCODE_OFFSET(0xb5)];
+	d = v->data;
+
+	d[4] = 7;
+	/* LBP method for LBP disabled */
+	d[5] = 0;	/* LBP method */
+	d[6] = 0;	/* LBP len */
+	d[7] = 0;	/* LBP_W & LBP_R set to 0 */
+
+	/* LBP method for RS-CRC */
+	d[12] = 7;
+	d[13] = 1;	/* LBP method */
+	d[14] = 4;	/* LBP len */
+	d[15] = 0xc0;	/* LBP_W & LBP_R set to true */
+
+	if (((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_LBP == LBP_CRC32C) {
+		d[20] = 7;
+		d[21] = 2;	/* LBP method */
+		d[22] = 4;	/* LBP len */
+		d[23] = 0xc0;	/* LBP_W & LBP_R set to true */
+	}
+}
+
 static void init_ult_inquiry(struct lu_phy_attr *lu)
 {
 	int pg;
@@ -302,6 +330,20 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 		exit(-ENOMEM);
 	}
 	update_vpd_b2(lu, &local_TapeAlert);
+
+	/* Logical Block Protection - Ref: 6.3.13.13 (LTO-9 reference guide) */
+	if (((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_LBP) {
+		/* two pages ? - one for CRC32C and one for RS-CRC */
+		int pg_size = (((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_LBP == LBP_RSCRC) ? VPD_B5_SZ : VPD_B5_SZ + VPD_B5_SZ;
+
+		pg = PCODE_OFFSET(0xb5);
+		lu->lu_vpd[pg] = alloc_vpd(pg_size + 12); /* header page, one page for 'disabled' LBP + one or two for RS-CRC / CRC32C */
+		if (!lu->lu_vpd[pg]) {
+			MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
+			exit(-ENOMEM);
+		}
+		update_vpd_lbp(lu);
+	}
 
 	/* VPD page 0xC0 */
 	pg = PCODE_OFFSET(0xc0);
@@ -687,6 +729,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_supports_LBP = LBP_RSCRC;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	ssc_personality_module_register(&ssc_pm);
@@ -697,6 +740,8 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control(lu);
 	add_mode_control_extension(lu);
+	/* LBP appears in LTO5 & 6 IBM SCSI reference Feb 2013 */
+	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_device_configuration_extention(lu);
@@ -756,6 +801,7 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_supports_LBP = LBP_RSCRC;
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	ssc_personality_module_register(&ssc_pm);
@@ -766,6 +812,8 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control(lu);
 	add_mode_control_extension(lu);
+	/* LBP appears in LTO5 & 6 IBM SCSI reference Feb 2013 */
+	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
 	add_mode_device_configuration_extention(lu);
@@ -826,7 +874,7 @@ void init_ult3580_td7(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_supports_LBP = TRUE;
+	ssc_pm.drive_supports_LBP = LBP_CRC32C; /* both RS-CRC and CRC32C */
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	ssc_personality_module_register(&ssc_pm);
@@ -899,7 +947,7 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	ssc_pm.drive_supports_WORM = TRUE;
 	ssc_pm.drive_supports_SPR = TRUE;
 	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_supports_LBP = TRUE;
+	ssc_pm.drive_supports_LBP = LBP_CRC32C; /* both RS-CRC and CRC32C */
 	ssc_pm.drive_ANSI_VERSION = 5;
 
 	ssc_personality_module_register(&ssc_pm);

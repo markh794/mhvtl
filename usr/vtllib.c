@@ -1010,6 +1010,14 @@ void update_vpd_b2(struct lu_phy_attr *lu, void *p)
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
+/* VPD 0xB5 */
+void update_vpd_lbp(struct lu_phy_attr *lu, void *p)
+{
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
+
+	memcpy(vpd_pg->data, p, vpd_pg->sz);
+}
+
 void update_vpd_c0(struct lu_phy_attr *lu, void *p)
 {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
