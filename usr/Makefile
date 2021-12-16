@@ -97,18 +97,23 @@ tape_util.o:	tape_util.c
 mhvtl_io.o:	mhvtl_io.c
 	$(CC) $(CFLAGS) -std=gnu99 -o mhvtl_io.o -c mhvtl_io.c
 
+reed-solomon.o:	reed-solomon.c
+	$(CC) $(CFLAGS) -std=gnu99 -o reed-solomon.o -c reed-solomon.c
+
 crc32c.o:	crc32c.c
 	$(CC) $(CFLAGS) -std=gnu99 -o crc32c.o -c crc32c.c
 
 preload_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
-		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c
+		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c \
+		reed-solomon.o reed-solomon.c
 	$(CC) $(CFLAGS) -o preload_tape crc32c.o mhvtl_io.o tape_util.o minilzo.o default_ssc_pm.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
 dump_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
-		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c
+		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c \
+		reed-solomon.o reed-solomon.c
 	$(CC) $(CFLAGS) -o dump_tape crc32c.o mhvtl_io.o tape_util.o minilzo.o default_ssc_pm.o -L. \
 		-lz -L. -lvtlcart -lvtlscsi
 
@@ -151,6 +156,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h mhvtl_scsi.h \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
 		crc32c.o \
+		reed-solomon.o \
 		be_byteshift.h \
 		mhvtl_io.o \
 		../kernel/vtl_common.h
@@ -163,6 +169,7 @@ vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h mhvtl_scsi.h \
 		ait_pm.o t10000_pm.o ibm_03592_pm.o \
 		minilzo.o \
 		crc32c.o \
+		reed-solomon.o \
 		mhvtl_io.o \
 		-lz -L. -lvtlcart -lvtlscsi
 
@@ -207,6 +214,7 @@ clean:
 		mhvtl_io.o \
 		preload_tape preload_tape.o \
 		crc32c.o \
+		reed-solomon.o \
 		$(GENERATED_FILES)
 	$(RM) TAGS
 
