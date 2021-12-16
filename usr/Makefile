@@ -54,6 +54,7 @@ GENERATED_FILES=$(GENERATOR_FILES:.in=)
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
 	mktape edit_tape vtllibrary tapeexerciser $(GENERATED_FILES) \
 	preload_tape \
+	validate_crc \
 	mhvtl-device-conf-generator
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h mhvtl_scsi.h smc.c spc.c q.c \
@@ -102,6 +103,12 @@ reed-solomon.o:	reed-solomon.c
 
 crc32c.o:	crc32c.c
 	$(CC) $(CFLAGS) -std=gnu99 -o crc32c.o -c crc32c.c
+
+validate_crc:	crc32c.c reed-solomon.c validate_crc.c
+	@$(CC) $(CFLAGS) -std=gnu99 -o validate_crc crc32c.o reed-solomon.o validate_crc.c
+	@./validate_crc
+	@rm -f ./validate_crc
+
 
 preload_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
@@ -215,6 +222,7 @@ clean:
 		preload_tape preload_tape.o \
 		crc32c.o \
 		reed-solomon.o \
+		validate_crc.o validate_crc \
 		$(GENERATED_FILES)
 	$(RM) TAGS
 
