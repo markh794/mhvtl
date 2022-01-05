@@ -390,7 +390,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		break;
 	case 3:
 		/* This should never occur - MODE 0a/f0 should not accept this value */
-		MHVTL_ERR("LBP method 3 not supported");
+		MHVTL_ERR("LBP method 3 not supported : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
 		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
 		rc = 0;
 		goto free_bounce_buf;
@@ -480,6 +480,7 @@ static uint32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src
 
 	switch (lbp_method) {
 	case 0:
+		MHVTL_DBG(1, "No CRC method/check specified");
 		break;
 	case 1:
 		MHVTL_DBG(1, "Reed-Solomon CRC check");
@@ -533,7 +534,7 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
 							null_wr, crc, sam_stat);
 
 	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
-		MHVTL_ERR("LBP mis-compare on write");
+		MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
 		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
 		return 0;
 	}
@@ -573,12 +574,6 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
 
-	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
-		MHVTL_ERR("LBP mis-compare on write");
-		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
-		return 0;
-	}
-
 	dest_len = mhvtl_compressBound(src_sz);
 	dest_buf = (lzo_bytep)malloc(dest_len);
 	wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
@@ -615,6 +610,12 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 	lu_priv->bytesWritten_M += dest_len;
 	lu_priv->bytesWritten_I += src_len;
 
+	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+		MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+		return 0;
+	}
+
 	if (rc < 0)
 		return 0;
 
@@ -642,12 +643,6 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 
 	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
-
-	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
-		MHVTL_ERR("LBP mis-compare on write");
-		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
-		return 0;
-	}
 
 	dest_len = compressBound(src_sz);
 	dest_buf = (Bytef *)malloc(dest_len);
@@ -686,6 +681,12 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 	free(dest_buf);
 	lu_priv->bytesWritten_M += dest_len;
 	lu_priv->bytesWritten_I += src_len;
+
+	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+		MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+		return 0;
+	}
 
 	if (rc < 0)
 		return 0;
