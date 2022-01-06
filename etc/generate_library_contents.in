@@ -85,20 +85,20 @@ CONF_SAMPLE
 	# create the data in the file
 	case $LIBID in
 	'10')
-		# LTO-4 Media
+		# LTO-8 Media
 		for a in {1..20} ; do
-			printf "Slot $a: E0%02d%02dL4\n" $LIBID $a
+			printf "Slot $a: E0%02d%02dL8\n" $LIBID $a
 		done
 		printf "Slot 21: \n"
-		printf "Slot 22: CLN%02d1L4\n" $LIBID
-		printf "Slot 23: CLN%02d2L5\n" $LIBID
+		printf "Slot 22: CLN%02d1L8\n" $LIBID
+		printf "Slot 23: CLN%02d2L6\n" $LIBID
 		for a in {24..29} ; do
 			printf "Slot $a:\n"
 		done
 
-		# LTO-5 Media
+		# LTO-6 Media
 		for a in {30..39} ; do
-			printf "Slot $a: F0%02d%02dL5\n" $LIBID $a
+			printf "Slot $a: F0%02d%02dL6\n" $LIBID $a
 		done
 		;;
 

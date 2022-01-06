@@ -120,6 +120,7 @@ add_drive()
 			$LIB $SLOT
 	echo " Vendor identification: $VENDORID"
 	echo " Product identification: $PRODUCTID"
+	echo "#Product revision level: $PRODUCTREV"
 	echo " Unit serial number: $UNITSERNO"
 	printf " NAA: %02d:22:33:44:ab:%02d:%02d:%02d\n" \
 			$LIB $CH $TARGET $LUN
@@ -145,8 +146,8 @@ add_ibm_ultrium_drive()
 	LIB=$6
 	SLOT=$7
 	VENDORID="IBM"
-	PRODUCTID="ULT3580-TD1" 
-	PRODUCTREV="550V" 
+	PRODUCTID="ULT3580-TD1"
+	PRODUCTREV="550V"
 	DENSITY="42"
 
 	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
@@ -167,8 +168,8 @@ add_ibm_ultrium_2_drive()
 	LIB=$6
 	SLOT=$7
 	VENDORID="IBM"
-	PRODUCTID="ULT3580-TD2" 
-	PRODUCTREV="550V" 
+	PRODUCTID="ULT3580-TD2"
+	PRODUCTREV="550V"
 	DENSITY="44"
 
 	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
@@ -189,8 +190,8 @@ add_ibm_ultrium_3_drive()
 	LIB=$6
 	SLOT=$7
 	VENDORID="IBM"
-	PRODUCTID="ULT3580-TD3" 
-	PRODUCTREV="550V" 
+	PRODUCTID="ULT3580-TD3"
+	PRODUCTREV="550V"
 	DENSITY="46"
 
 	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
@@ -211,8 +212,8 @@ add_ibm_ultrium_4_drive()
 	LIB=$6
 	SLOT=$7
 	VENDORID="IBM"
-	PRODUCTID="ULT3580-TD4" 
-	PRODUCTREV="550V" 
+	PRODUCTID="ULT3580-TD4"
+	PRODUCTREV="550V"
 	DENSITY="48"
 
 	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
@@ -233,8 +234,92 @@ add_ibm_ultrium_5_drive()
 	LIB=$6
 	SLOT=$7
 	VENDORID="IBM"
-	PRODUCTID="ULT3580-TD5" 
-	PRODUCTREV="550V" 
+	PRODUCTID="ULT3580-TD5"
+	PRODUCTREV="550V"
+	DENSITY="50"
+
+	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
+}
+
+# add_ibm_ultrium_6_drive(DevID, Channel, Target, Lun, S/No, LibID, Slot)
+add_ibm_ultrium_6_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+	ID=$1
+	CH=$2
+	TARGET=$3
+	LUN=$4
+	UNITSERNO=$5
+	LIB=$6
+	SLOT=$7
+	VENDORID="IBM"
+	PRODUCTID="ULT3580-TD6"
+	#### According to IBM LTO SCSI reference: REV is built of
+	 # "ABCD" - so 2160 decodes as Year 2022 (2), Jan (1), Day (6th), Version '0'
+	 # A = last digit char of year
+	 # B = Month, 1 - 9, A, B, C
+	 # C = Day, 1-9, A-V
+	 # D = Version
+	PRODUCTREV="2160"
+	DENSITY="50"
+
+	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
+}
+
+# add_ibm_ultrium_7_drive(DevID, Channel, Target, Lun, S/No, LibID, Slot)
+add_ibm_ultrium_7_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+	ID=$1
+	CH=$2
+	TARGET=$3
+	LUN=$4
+	UNITSERNO=$5
+	LIB=$6
+	SLOT=$7
+	VENDORID="IBM"
+	PRODUCTID="ULT3580-TD7"
+	#### According to IBM LTO SCSI reference: REV is built of
+	 # "ABCD" - so 2160 decodes as Year 2022 (2), Jan (1), Day (6th), Version '0'
+	 # A = last digit char of year
+	 # B = Month, 1 - 9, A, B, C
+	 # C = Day, 1-9, A-V
+	 # D = Version
+	PRODUCTREV="2160"
+	DENSITY="50"
+
+	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
+}
+
+# add_ibm_ultrium_8_drive(DevID, Channel, Target, Lun, S/No, LibID, Slot)
+add_ibm_ultrium_8_drive()
+{
+	if (( $# != 7 )) ; then
+		echo "internal error: expected 0 arguments, got $#" 1>&2
+		exit 1
+	fi
+	ID=$1
+	CH=$2
+	TARGET=$3
+	LUN=$4
+	UNITSERNO=$5
+	LIB=$6
+	SLOT=$7
+	VENDORID="IBM"
+	PRODUCTID="ULT3580-TD8"
+	#### According to IBM LTO SCSI reference: REV is built of
+	 # "ABCD" - so 2160 decodes as Year 2022 (2), Jan (1), Day (6th), Version '0'
+	 # A = last digit char of year
+	 # B = Month, 1 - 9, A, B, C
+	 # C = Day, 1-9, A-V
+	 # D = Version
+	PRODUCTREV="2160"
 	DENSITY="50"
 
 	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
@@ -255,8 +340,8 @@ add_stk_t10kb_drive()
 	LIB=$6
 	SLOT=$7
 	VENDORID="STK"
-	PRODUCTID="T10000B" 
-	PRODUCTREV="550V" 
+	PRODUCTID="T10000B"
+	PRODUCTREV="550V"
 	DENSITY="50"
 
 	add_drive $ID $CH $TARGET $LUN $VENDORID $PRODUCTID $PRODUCTREV $UNITSERNO $LIB $SLOT $DENSITY
@@ -273,10 +358,10 @@ add_library_contents_10()
 	#         index channel target LUN Vendor ProdID ProdRev S/No
 	add_library 10 0 0 0 "STK" "L700"  "550V"  "XYZZY_A"
 	#         index channel target LUN S/No Lib# Slot
-	add_ibm_ultrium_5_drive 11 0 1 0 "XYZZY_A1" 10 1
-	add_ibm_ultrium_5_drive 12 0 2 0 "XYZZY_A2" 10 2
-	add_ibm_ultrium_4_drive 13 0 3 0 "XYZZY_A3" 10 3
-	add_ibm_ultrium_4_drive 14 0 4 0 "XYZZY_A4" 10 4
+	add_ibm_ultrium_8_drive 11 0 1 0 "XYZZY_A1" 10 1
+	add_ibm_ultrium_8_drive 12 0 2 0 "XYZZY_A2" 10 2
+	add_ibm_ultrium_6_drive 13 0 3 0 "XYZZY_A3" 10 3
+	add_ibm_ultrium_6_drive 14 0 4 0 "XYZZY_A4" 10 4
 }
 
 # add_library_contents_30(void) -- add the robot "30" with 4 drives
