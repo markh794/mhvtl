@@ -256,7 +256,8 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 /* Reed-Solomon CRC */
 static uint32_t mhvtl_rscrc(unsigned char const *buf, size_t size)
 {
-	return ~GenerateRSCRC(0xffffffff, size, buf);
+/*	return ~GenerateRSCRC(0xffffffff, size, buf); */
+	return GenerateRSCRC(0, size, buf);
 }
 
 /* CRC32C */
