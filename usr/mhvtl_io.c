@@ -473,21 +473,20 @@ static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
 
 /** Call with
  ** LBP method, bufer and size, and CRC32C CRC which was already calculated
+ **
+ ** Return -1 on error or 0 on success (LBP CRC match)
  */
 static uint32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c)
 {
 	uint32_t lbp_crc = 0;
 
 	switch (lbp_method) {
-	case 0:
-		MHVTL_DBG(1, "No CRC method/check specified");
+		case 0:	/* No method defined - skip check */
 		break;
 	case 1:
 		MHVTL_DBG(1, "Reed-Solomon CRC check");
 		lbp_crc = mhvtl_rscrc(buf, src_sz);
-		if (lbp_crc == get_unaligned_be32(&buf[src_sz])) {
-			return 0;	/* match - good */
-		} else {
+		if (lbp_crc != get_unaligned_be32(&buf[src_sz])) {
 			MHVTL_ERR("Reed-Solomon CRC mismatch - LBP: 0x%08x, calculated: 0x%08x",
 					get_unaligned_be32(&buf[src_sz]), lbp_crc);
 			return -1;	/* CRC mismatch */
@@ -495,9 +494,7 @@ static uint32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src
 		break;
 	case 2:
 		MHVTL_DBG(1, "CRC32C check");
-		if (crc32c == get_unaligned_be32(&buf[src_sz])) {
-			return 0;	/* match - good */
-		} else {
+		if (crc32c != get_unaligned_be32(&buf[src_sz])) {
 			MHVTL_ERR("CRC32C mismatch - LBP: 0x%08x, calculated: 0x%08x",
 					get_unaligned_be32(&buf[src_sz]), crc32c);
 			return -1;	/* CRC mismatch */
@@ -533,10 +530,13 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
 	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop, 0,
 							null_wr, crc, sam_stat);
 
-	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
-		MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
-		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
-		return 0;
+	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
+		MHVTL_DBG(1, "Drive supports Logical Block Protection and LBP method: %d", lbp_method);
+		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			return 0;
+		}
 	}
 
 	lu_priv->bytesWritten_M += src_sz;
@@ -610,10 +610,13 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 	lu_priv->bytesWritten_M += dest_len;
 	lu_priv->bytesWritten_I += src_len;
 
-	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
-		MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
-		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
-		return 0;
+	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
+		MHVTL_DBG(1, "Drive supports Logical Block Protection and LBP method: %d", lbp_method);
+		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			return 0;
+		}
 	}
 
 	if (rc < 0)
@@ -682,10 +685,13 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 	lu_priv->bytesWritten_M += dest_len;
 	lu_priv->bytesWritten_I += src_len;
 
-	if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
-		MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
-		sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
-		return 0;
+	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
+		MHVTL_DBG(1, "Drive supports Logical Block Protection and LBP method: %d", lbp_method);
+		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			return 0;
+		}
 	}
 
 	if (rc < 0)
@@ -711,7 +717,8 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		if (lu_priv->LBP_W) {
 			MHVTL_DBG(1, "LBP on write - CRC type is %s",
 					(lu_priv->LBP_method == 0) ? "Off" :
-						(lu_priv->LBP_method == 1) ? "RS-CRC" : "CRC32C");
+					(lu_priv->LBP_method == 1) ? "RS-CRC" :
+					(lu_priv->LBP_method == 2) ? "CRC32C" : "Invalid");
 			switch (lu_priv->LBP_method) {
 			case 1:
 				lbp_method = 1;
