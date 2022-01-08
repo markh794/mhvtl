@@ -60,7 +60,7 @@ static inline struct inode *file_inode(struct file *f)
  *
  * Returns number of characters written to @buf.
  */
-static sysfs_emit(char *buf, const char *fmt, ...)
+static int sysfs_emit(char *buf, const char *fmt, ...)
 {
 	va_list args;
 	int len;
