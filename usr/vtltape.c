@@ -1742,13 +1742,16 @@ static void config_lu(struct lu_phy_attr *lu)
 	else
 		lu_ssc.pm->clear_compression(&lu->mode_pg);
 
+	MHVTL_DBG(1, "%s: supports WORM : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_WORM ? "Yes" : "No");
 	MHVTL_DBG(1, "%s: supports append-only mode : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_append_only_mode ? "Yes" : "No");
+	MHVTL_DBG(1, "%s: supports Security Protocol : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_SP ? "Yes" : "No");
 	MHVTL_DBG(1, "%s: supports early warning mode : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_early_warning ? "Yes" : "No");
 	MHVTL_DBG(1, "%s: supports prog early warning mode : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_prog_early_warning ? "Yes" : "No");
-	MHVTL_DBG(1, "%s: supports WORM : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_WORM ? "Yes" : "No");
 	MHVTL_DBG(1, "%s: supports SCSI Persistent Reservation : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_SPR ? "Yes" : "No");
-	MHVTL_DBG(1, "%s: supports Security Protocol : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_SP ? "Yes" : "No");
-	MHVTL_DBG(1, "%s: supports Data Integrity Validation (Logical Block Protection) : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_LBP ? "Yes" : "No");
+	MHVTL_DBG(1, "%s: supports Data Integrity Validation (Logical Block Protection) : %s", lu_ssc.pm->name,
+						lu_ssc.pm->drive_supports_LBP == 0 ? "No" :
+							lu_ssc.pm->drive_supports_LBP == 1 ? "RS-CRC only" :
+								lu_ssc.pm->drive_supports_LBP == 2 ? "RS-CRC and CRC32C" : "Invalid");
 }
 
 static void cleanup_drive_media_list(struct lu_phy_attr *lu)
