@@ -97,6 +97,7 @@ install -d -m 755 %{buildroot}/var/lib/%{name}
 %doc %{_mandir}/man1/vtlcmd.1*
 %doc %{_mandir}/man1/vtllibrary.1*
 %doc %{_mandir}/man1/vtltape.1*
+%doc %{_mandir}/man1/preload_tape.1*
 %doc %{_mandir}/man1/dump_tape.1*
 %doc %{_mandir}/man1/make_vtl_media.1*
 %doc %{_mandir}/man1/tapeexerciser.1*
@@ -110,6 +111,7 @@ install -d -m 755 %{buildroot}/var/lib/%{name}
 %{_bindir}/mktape
 %{_bindir}/edit_tape
 %{_bindir}/dump_tape
+%{_bindir}/preload_tape
 %{_bindir}/tapeexerciser
 %{_bindir}/make_vtl_media
 %{_bindir}/update_device.conf
