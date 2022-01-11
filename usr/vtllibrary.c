@@ -1093,8 +1093,17 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 
 		switch (type) {
 		case DATA_TRANSFER:
-			if (sscanf(b, "Drive %d: %s", &slt, s))
+			if (sscanf(b, "Drive %d: %s", &slt, s)) {
+				if (slt > start_slot) {
+					/* Config file has holes - fill in empty slots */
+					MHVTL_DBG(1, "Config file is missing Drive %d - Creating empty records up to drive %d", start_slot, slt);
+					for (int z = start_slot; z < slt; z++) {
+						init_drive_slot(lu, z, "");
+					}
+				}
 				init_drive_slot(lu, slt, s);
+				start_slot = slt + 1;
+			}
 			break;
 
 		case MAP_ELEMENT:
@@ -1111,7 +1120,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 			if (sscanf(b, "Slot %d: %s", &slt, s)) {
 				if (slt > start_slot) {
 					/* Config file has holes - fill in empty slots */
-					MHVTL_DBG(1, "Config file is missing Slot %d - filling in to %d", start_slot, slt);
+					MHVTL_DBG(1, "Config file is missing Slot %d - Creating empty slots up to %d", start_slot, slt);
 					for (int z = start_slot; z < slt; z++) {
 						init_storage_slot(lu, z, "");
 					}
