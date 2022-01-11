@@ -1016,6 +1016,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 	struct stat persiststat;
 	int filestat;
 	int start_slot = 1;	/* Slot creation needs to start with 1 */
+	int z;
 
 	filestat = -1;	/* Default to .persist file does not exist */
 
@@ -1097,7 +1098,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 				if (slt > start_slot) {
 					/* Config file has holes - fill in empty slots */
 					MHVTL_DBG(1, "Config file is missing Drive %d - Creating empty records up to drive %d", start_slot, slt);
-					for (int z = start_slot; z < slt; z++) {
+					for (z = start_slot; z < slt; z++) {
 						init_drive_slot(lu, z, "");
 					}
 				}
@@ -1121,7 +1122,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 				if (slt > start_slot) {
 					/* Config file has holes - fill in empty slots */
 					MHVTL_DBG(1, "Config file is missing Slot %d - Creating empty slots up to %d", start_slot, slt);
-					for (int z = start_slot; z < slt; z++) {
+					for (z = start_slot; z < slt; z++) {
 						init_storage_slot(lu, z, "");
 					}
 				}
