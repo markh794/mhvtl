@@ -495,9 +495,10 @@ static uint32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src
 		break;
 	case 2:
 		MHVTL_DBG(1, "CRC32C check");
-		if (crc32c != get_unaligned_be32(&buf[src_sz])) {
+		lbp_crc = get_unaligned_be32(&crc32c);
+		if (lbp_crc != get_unaligned_be32(&buf[src_sz])) {
 			MHVTL_ERR("CRC32C mismatch - LBP: 0x%08x, calculated: 0x%08x",
-					get_unaligned_be32(&buf[src_sz]), crc32c);
+					get_unaligned_be32(&buf[src_sz]), lbp_crc);
 			return -1;	/* CRC mismatch */
 		}
 		break;
