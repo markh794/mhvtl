@@ -510,6 +510,29 @@ static uint32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src
 	return 0;
 }
 
+static void log_crc_options(int lbp_method, unsigned char const *buf, size_t size, uint32_t crc)
+{
+	MHVTL_ERR("Legacy CRC32C: 0x%08x", crc);
+
+	switch (lbp_method) {
+	case 1:
+		MHVTL_ERR("Reed-Solomon CRC with seed 0: 0x%08x", GenerateRSCRC(0, size, buf));
+		MHVTL_ERR("Inverted Reed-Solomon CRC with seed 0: 0x%08x", ~GenerateRSCRC(0, size, buf));
+		MHVTL_ERR("Reed-Solomon CRC with seed 0xffffffff: 0x%08x", GenerateRSCRC(0xffffffff, size, buf));
+		MHVTL_ERR("Inverted Reed-Solomon CRC with seed 0xffffffff: 0x%08x", ~GenerateRSCRC(0xffffffff, size, buf));
+		break;
+	case 2:
+		MHVTL_ERR("CRC32C with seed 0: 0x%08x", crc32c(0, buf, size));
+		MHVTL_ERR("Inverted CRC32C with seed 0: 0x%08x", ~crc32c(0, buf, size));
+		MHVTL_ERR("CRC32C with seed 0xffffffff: 0x%08x", crc32c(0xffffffff, buf, size));
+		MHVTL_ERR("Inverted CRC32C with seed 0xffffffff: 0x%08x", ~crc32c(0xffffffff, buf, size));
+		break;
+	default:
+		MHVTL_ERR("No matching LBP method");
+		break;
+	}
+}
+
 /*
  * Return number of bytes written to 'file'
  *
@@ -536,6 +559,7 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
 		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
 			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
 			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			log_crc_options(lbp_method, src_buf, src_sz, crc);
 			return 0;
 		}
 	}
@@ -616,6 +640,7 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
 			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
 			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			log_crc_options(lbp_method, src_buf, src_sz, crc);
 			return 0;
 		}
 	}
@@ -691,6 +716,7 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
 			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
 			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			log_crc_options(lbp_method, src_buf, src_sz, crc);
 			return 0;
 		}
 	}
@@ -716,7 +742,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	if (lu_priv->pm->drive_supports_LBP) {
 		if (lu_priv->LBP_W) {
-			MHVTL_DBG(1, "LBP on write - CRC type is %s",
+			MHVTL_DBG(1, "Write using LBP (CRC: %s)",
 					(lu_priv->LBP_method == 0) ? "Off" :
 					(lu_priv->LBP_method == 1) ? "RS-CRC" :
 					(lu_priv->LBP_method == 2) ? "CRC32C" : "Invalid");
