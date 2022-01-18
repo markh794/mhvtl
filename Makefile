@@ -25,6 +25,7 @@ MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 SYSTEMD_GENERATOR_DIR ?= /lib/systemd/system-generators
+SYSTEMD_SERVICE_DIR ?= /lib/systemd/system
 ifeq ($(shell whoami),root)
 ROOTUID = "YES"
 endif
@@ -50,10 +51,13 @@ scripts:	patch
 	$(MAKE) -C scripts MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
 
 etc:	patch
-	$(MAKE) -C etc MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
+	$(MAKE) -C etc MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH) \
+		SYSTEM_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
 
 usr:	patch
-	$(MAKE) -C usr MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH) SYSTEMD_GENERATOR_DIR=$(SYSTEMD_GENERATOR_DIR)
+	$(MAKE) -C usr MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH) \
+		SYSTEMD_GENERATOR_DIR=$(SYSTEMD_GENERATOR_DIR) \
+		SYSTEM_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
 
 kernel: patch
 	$(MAKE) -C kernel
@@ -86,9 +90,9 @@ distclean:
 	$(RM) ../$(TAR_FILE)
 
 install: all
-	$(MAKE) -C usr install $(LIBDIR) $(PREFIX) $(DESTDIR)
+	$(MAKE) -C usr install $(LIBDIR) $(PREFIX) $(DESTDIR) $(SYSTEMD_SERVICE_DIR)
 	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
-	$(MAKE) -i -C etc install $(DESTDIR) $(SYSTEMD_SERVICE_DIR)
+	$(MAKE) -i -C etc install $(DESTDIR) SYSTEMD_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
 	$(MAKE) -C man man
 	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
