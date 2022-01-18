@@ -29,9 +29,6 @@ BuildRequires: zlib-devel
 %{?systemd_requires}
 %{?systemd_ordering}
 
-%{?!_systemdgeneratordir:%define _systemdgeneratordir /usr/lib/systemd/system-generators}
-
-
 Obsoletes: mhvtl <= %{version}-%{release}
 Provides: mhvtl = %{version}-%{release}
 
