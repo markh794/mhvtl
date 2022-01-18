@@ -275,8 +275,12 @@ static int mhvtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 					int reason);
 #endif
 #endif
-static int mhvtl_queuecommand_lck(struct scsi_cmnd *,
-					void (*done) (struct scsi_cmnd *));
+static int mhvtl_queuecommand_lck(struct scsi_cmnd *
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0)
+		, done_funct_t done
+#endif
+		);
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int mhvtl_b_ioctl(struct scsi_device *, unsigned int, void __user *);
 #else
@@ -593,8 +597,15 @@ static int mhvtl_q_cmd(struct scsi_cmnd *scp,
 /**********************************************************************
  *                Main interface from SCSI mid level
  **********************************************************************/
-static int mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
+static int mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0)
+		, done_funct_t done
+#endif
+		)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)
+	void (*done)(struct scsi_cmnd *) = scsi_done;
+#endif
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
 	int errsts = 0;
 	struct mhvtl_lu_info *lu = NULL;
