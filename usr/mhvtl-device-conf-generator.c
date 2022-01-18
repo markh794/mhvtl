@@ -260,42 +260,45 @@ int main(int argc, char **argv)
 	if (debug_mode)
 		printf("DEBUG: scanning libraries ...\n");
 	for (ip = our_libraries.next; ip != NULL; ip = ip->next) {
-		const char to_path[] = "/usr/lib/systemd/system/vtllibrary@.service";
-		if (asprintf(&path, "%s/%s/vtllibrary@%d.service", working_dir, dirname, ip->num) < 0) {
+		char *from_path, *to_path;
+		if ((asprintf(&from_path, "%s/%s/vtllibrary@%d.service", working_dir, dirname, ip->num) < 0) ||
+		    (asprintf(&to_path, "%s/vtllibrary@.service", SYSTEMD_SERVICE_DIR) < 0)) {
 			perror("Could not allocate memory (for vtllibrary template symlink)");
 			exit(1);
 		}
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", path, to_path);
-		if (symlink(to_path, path) < 0) {
+			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", from_path, to_path);
+		if (symlink(to_path, from_path) < 0) {
 			if (debug_mode)
 				(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
-						errno, path, to_path);
+						errno, from_path, to_path);
 			// clean up?
 			exit(1);
 		}
-		free(path);
+		free(from_path);
+		free(to_path);
 	}
 	if (debug_mode)
 		printf("DEBUG: scanning tapes ...\n");
 	for (ip = our_tapes.next; ip != NULL; ip = ip->next) {
-		const char *to_path = "/usr/lib/systemd/system/vtltape@.service";
-		if (asprintf(&path, "%s/%s/vtltape@%d.service", working_dir, dirname, ip->num) < 0) {
+		char *from_path, *to_path;
+		if ((asprintf(&from_path, "%s/%s/vtltape@%d.service", working_dir, dirname, ip->num) < 0) ||
+		    (asprintf(&to_path, "%s/vtltape@.service", SYSTEMD_SERVICE_DIR) < 0)) {
 			perror("Could not allocate memory (for vtltape template symlink)");
 			exit(1);
 		}
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", path, to_path);
-		if (symlink(to_path, path) < 0) {
+			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", from_path, to_path);
+		if (symlink(to_path, from_path) < 0) {
 			if (debug_mode)
 				(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
-						errno, path, to_path);
+						errno, from_path, to_path);
 			// clean up?
 			exit(1);
 		}
-		free(path);
+		free(from_path);
+		free(to_path);
 	}
-
 
 	exit(0);
 }

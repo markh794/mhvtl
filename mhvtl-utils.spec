@@ -72,7 +72,8 @@ make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-
 
 %build
 make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} \
-	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir}
+	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
+	SYSTEMD_SERVICE_DIR=%{_unitdir}
 
 %install
 %make_install \
