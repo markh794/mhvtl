@@ -49,7 +49,7 @@ static inline struct inode *file_inode(struct file *f)
 #define HAVE_UNLOCKED_IOCTL 1
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 /* https://patches.linaro.org/project/stable/patch/20210305120853.392925382@linuxfoundation.org/ */
 /**
  *	sysfs_emit - scnprintf equivalent, aware of PAGE_SIZE buffer.
