@@ -127,7 +127,7 @@ static void init_lunit(struct lu_phy_attr *lu, struct priv_lu_ssc *priv_lu)
 	lu->lu_private = priv_lu;
 	lu->sense_p = sense;
 	strncpy(lu->lu_serial_no, "ABC123", 7);
-	strncpy(lu->vendor_id, "TAPE_UTIL", 9);
+	strncpy(lu->vendor_id, "TAPE_UTL", 9);
 	strncpy(lu->product_id, "xyzz", 5);
 	INIT_LIST_HEAD(&lu->den_list);
 	INIT_LIST_HEAD(&lu->mode_pg);
