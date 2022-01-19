@@ -110,12 +110,8 @@ validate_crc:	crc32c.c reed-solomon.c validate_crc.c
 	@rm -f ./validate_crc
 
 
-preload_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
-		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
-		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c \
-		reed-solomon.o reed-solomon.c
-	$(CC) $(CFLAGS) -o preload_tape crc32c.o mhvtl_io.o reed-solomon.o tape_util.o minilzo.o default_ssc_pm.o -L. \
-		-lz -L. -lvtlcart -lvtlscsi
+preload_tape:	dump_tape
+		ln $? $@
 
 dump_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
@@ -241,7 +237,7 @@ install: all
 	install -m 755 vtlcmd $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 mktape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 dump_tape $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 preload_tape $(DESTDIR)$(PREFIX)/bin/
+	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape 
 	install -m 755 edit_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
