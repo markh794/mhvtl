@@ -332,7 +332,8 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	blk_flags = c_pos->blk_flags;
 
 	if (blk_size > request_sz) {
-		bounce_buffer = malloc(blk_size);
+		/* Add a fudge of 4 bytes in caes LBP is calculated */
+		bounce_buffer = malloc(blk_size + 4);
 		if (!bounce_buffer) {
 			MHVTL_ERR("Unable to allocate %d bytes for bounce buffer",
 					blk_size);
@@ -359,8 +360,10 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		rc = blk_size;
 	}
 
+	/* At this point, rc should now contain the actual uncompressed size of the block just read */
+
 	if (blk_flags & BLKHDR_FLG_CRC) {
-		post_crc = mhvtl_crc32c(bounce_buffer, blk_size);
+		post_crc = mhvtl_crc32c(bounce_buffer, rc);
 
 		if (pre_crc != post_crc) {
 			MHVTL_ERR("Recorded CRC: 0x%08x, Calculated CRC: 0x%08x", pre_crc, post_crc);
@@ -373,7 +376,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	/* Update Logical Block Protection CRC */
 	switch (lbp_method) {
 	case 1:
-		lbp_crc = mhvtl_rscrc(bounce_buffer, blk_size);
+		lbp_crc = mhvtl_rscrc(bounce_buffer, rc);
 		put_unaligned_be32(lbp_crc, &bounce_buffer[rc]);
 		MHVTL_DBG(2, "Logical Block Protection - Reed-Solomon CRC, rc: %d, request_sz: %d, lbp_size: %d, RS-CRC: 0x%08x",
 							rc, request_sz, lbp_sz, lbp_crc);
@@ -382,7 +385,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	case 2:
 		MHVTL_DBG(2, "rc: %d, request_sz: %d bounce buffer before LBP: 0x%08x %08x", rc, request_sz, get_unaligned_be32(&bounce_buffer[rc - 4]), get_unaligned_be32(&bounce_buffer[rc]));
 		/* If we don't have a LBP CRC32C format, re-calculate now */
-		lbp_crc = (blk_flags & BLKHDR_FLG_CRC) ? pre_crc : mhvtl_crc32c(bounce_buffer, blk_size);
+		lbp_crc = (blk_flags & BLKHDR_FLG_CRC) ? pre_crc : mhvtl_crc32c(bounce_buffer, rc);
 		put_unaligned_be32(lbp_crc, &bounce_buffer[rc]);
 		MHVTL_DBG(2, "Logical Block Protection - CRC32C, rc: %d, request_sz: %d, lbp_size: %d, CRC32C: 0x%8x",
 							rc, request_sz, lbp_sz, lbp_crc);
@@ -404,6 +407,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	 * data back into buf
 	*/
 	if (bounce_buffer != buf) {
+		MHVTL_DBG(1, "Bounce buffer in use: request_sz: %d", request_sz);
 		memcpy(buf, bounce_buffer, request_sz);
 		free(bounce_buffer);
 		rc = request_sz;
@@ -440,7 +444,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		with the fixed bit set to zero).
 	*/
 	if (rc != request_sz)
-		mk_sense_short_block(lbp_sz, rc, sam_stat);
+		mk_sense_short_block(request_sz, rc, sam_stat);
 	else if (!sili) {
 		if (lbp_sz < blk_size)
 			mk_sense_short_block(lbp_sz, blk_size, sam_stat);
