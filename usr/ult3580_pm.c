@@ -252,12 +252,27 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 	if (lu_priv->load_status == TAPE_LOADED) {
 		switch (mam.MediaType) {
 		case Media_LTO4:
-			MHVTL_DBG(1, "LTO4 Medium");
+			MHVTL_DBG(1, "LTO4 Medium - Setting AVFMV");
 			buf[24] |= 0x80; /* AVFMV */
 			break;
 		case Media_LTO5:
-			MHVTL_DBG(1, "LTO5 Medium");
+			MHVTL_DBG(1, "LTO5 Medium - Setting AVFMV");
 			buf[24] |= 0x80; /* AVFMV */
+			break;
+		case Media_LTO6:
+			MHVTL_DBG(1, "LTO6 Medium - Setting AVFMV");
+			buf[24] |= 0x80; /* AVFMV */
+			break;
+		case Media_LTO7:
+			MHVTL_DBG(1, "LTO7 Medium - Setting AVFMV");
+			buf[24] |= 0x80; /* AVFMV */
+			break;
+		case Media_LTO8:
+			MHVTL_DBG(1, "LTO8 Medium - Setting AVFMV");
+			buf[24] |= 0x80; /* AVFMV */
+			break;
+		default:
+			MHVTL_DBG(1, "Unable to set Encryption (AVFMV) bit on mounted media");
 			break;
 		}
 	}
