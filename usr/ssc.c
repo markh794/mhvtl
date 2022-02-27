@@ -2110,3 +2110,88 @@ log_page_not_found:
 	return SAM_STAT_CHECK_CONDITION;
 }
 
+uint8_t ssc_recv_diagnostics(struct scsi_cmd *cmd)
+{
+	struct s_sd sd;
+	uint8_t *sam_stat;
+
+	sam_stat = &cmd->dbuf_p->sam_stat;
+
+	MHVTL_DBG(1, "SSC RECEIVE DIAGNOSTICS (%ld) **", (long)cmd->dbuf_p->serialNo);
+
+	cmd->dbuf_p->sz = 0;
+	sd.byte0 = SKSV | CD;
+	sd.field_pointer = 2;
+	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
+}
+
+uint32_t GenerateRSCRC(uint32_t seed, int sz, const uint8_t *buf);
+uint32_t crc32c(uint32_t seed, const uint8_t *buf, int sz);
+
+uint8_t ssc_send_diagnostics(struct scsi_cmd *cmd)
+{
+	uint8_t *sam_stat;
+	int crc_check_failed = 0;
+
+	const uint8_t block1[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
+				47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127,
+				131, 137, 139, 149, 151, 157};
+
+	const uint8_t block2[] = {163, 167, 173, 179, 181, 191, 193, 197, 199, 211,
+				223, 227, 229, 233, 239, 241, 251};
+
+
+	sam_stat = &cmd->dbuf_p->sam_stat;
+
+	MHVTL_DBG(1, "SSC SEND DIAGNOSTICS (%ld) **", (long)cmd->dbuf_p->serialNo);
+
+	/* Sanity check - the MAM should be 1024 bytes in size */
+	if (sizeof(struct MAM) != 1024) {
+		MHVTL_ERR("Structure of MAM should be 1024 bytes, but is %ld", sizeof(struct MAM));
+		sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	/* Now check the CRC32C routines pass basic sanity check */
+	uint32_t computedCRC1 = crc32c(0, block1, sizeof(block1));
+	uint32_t computedCRC2 = crc32c(~computedCRC1, block2, sizeof(block2));
+	uint32_t computedCRC3 = crc32c(~crc32c(0, block1, sizeof(block1)), block2, sizeof(block2));
+
+	if (computedCRC1 != 0xE8174F48) {
+		MHVTL_ERR("CRC32C #1 error");
+		crc_check_failed = 1;
+	}
+	if (computedCRC2 != 0x56DAB0A6) {
+		MHVTL_ERR("CRC32C #2 error");
+		crc_check_failed = 1;
+	}
+	if (computedCRC3 != 0x56DAB0A6) {
+		MHVTL_ERR("CRC32C #3 error");
+		crc_check_failed = 1;
+	}
+
+	/* Now check the Reed/Solomon CRC routines pass basic sanity check */
+	computedCRC1 = GenerateRSCRC(0, sizeof(block1), block1);
+	computedCRC2 = GenerateRSCRC(computedCRC1, sizeof(block2), block2);
+	computedCRC3 = GenerateRSCRC(GenerateRSCRC(0, sizeof(block1), block1), sizeof(block2), block2);
+
+	if (computedCRC1 != 0x733D4DCA) {
+		MHVTL_ERR("RS-CRC #1 error");
+		crc_check_failed = 1;
+	}
+	if (computedCRC2 != 0x754ED37E) {
+		MHVTL_ERR("RS-CRC #2 error");
+		crc_check_failed = 1;
+	}
+	if (computedCRC3 != 0x754ED37E) {
+		MHVTL_ERR("RS-CRC #3 error");
+		crc_check_failed = 1;
+	}
+
+	if (crc_check_failed) {
+		sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	return SAM_STAT_GOOD;
+}

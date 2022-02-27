@@ -1841,8 +1841,8 @@ static struct device_type_template ssc_ops = {
 		{ssc_erase,},
 		{spc_mode_sense,},
 		{ssc_load_unload,},
-		{spc_recv_diagnostics,},
-		{spc_send_diagnostics,},
+		{ssc_recv_diagnostics,},
+		{ssc_send_diagnostics,},
 		{ssc_allow_prevent_removal,},
 		{spc_illegal_op,},
 
