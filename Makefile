@@ -90,11 +90,11 @@ distclean:
 	$(RM) ../$(TAR_FILE)
 
 install: all
-	$(MAKE) -C usr install $(LIBDIR) $(PREFIX) $(DESTDIR) $(SYSTEMD_SERVICE_DIR)
-	$(MAKE) -C scripts install $(PREFIX) $(DESTDIR)
-	$(MAKE) -i -C etc install $(DESTDIR) SYSTEMD_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
+	$(MAKE) -C usr install LIBDIR=$(LIBDIR) PREFIX=$(PREFIX) DESTDIR=$(DESTDIR) SYSTEMD_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
+	$(MAKE) -C scripts install PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)
+	$(MAKE) -i -C etc install DESTDIR=$(DESTDIR) SYSTEMD_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
 	$(MAKE) -C man man
-	$(MAKE) -C man install $(PREFIX) $(DESTDIR)
+	$(MAKE) -C man install PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
 ifdef ROOTUID
 	ldconfig
