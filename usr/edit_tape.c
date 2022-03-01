@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (pcl == NULL) {
-		printf("Please supply a barcode (-b barcode)\n\n");
+		printf("Please supply a barcode (-m barcode)\n\n");
 		usage(progname);
 		exit(1);
 	}

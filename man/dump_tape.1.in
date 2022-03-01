@@ -27,7 +27,7 @@ print debugging information
 \fB\-l n\fR
 Where lib_no is the library index number (default library index numbers 10 & 30).
 .TP
-\fB\-f PCL\fR
+\fB\-m PCL\fR
 where PCL is the Physical Cartridge Label (barcode). This is required.
 .TP
 .B \-D

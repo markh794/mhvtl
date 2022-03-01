@@ -412,10 +412,10 @@ static void usage(char *errmsg)
 	if (dump_tape == 1) {
 		printf("  -D               Dump data\n");
 		printf("  -l lib_no        Look in specified library\n");
-		printf("  -f pcl           Look for specified PCL\n");
+		printf("  -m pcl           Look for specified PCL\n");
 	} else if (dump_tape == 2) {
 		printf("  -l lib_no        Look in specified library\n");
-		printf("  -f pcl           Look for specified PCL\n");
+		printf("  -m pcl           Look for specified PCL\n");
 		printf("  -b <block size>  tape block size\n");
 		printf("  -c <compression> Compression type (NONE|LZO|ZLIB)\n");
 		printf("  -F <inputfile>   Filename to read data from\n");
@@ -491,11 +491,11 @@ int main(int argc, char *argv[])
 				debug++;
 				verbose = 9;	/* If debug, make verbose... */
 				break;
-			case 'f':
+			case 'm':
 				if (argc > 1)
 					pcl = argv[2];
 				else
-					usage("More args needed for -f");
+					usage("More args needed for -m");
 				break;
 			case 'l':
 				if (argc > 1)
