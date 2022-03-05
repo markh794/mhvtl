@@ -1,10 +1,12 @@
 # Makefile for linux port of Tcopy
 # By Nicholas Harbour, 2000
 
+include ../config.mk
+
 BINARY=tcopy
 MANPAGE=tcopy.1
-BIN_PATH=/usr/bin/
-MAN_PATH=/usr/local/man/man1/
+BIN_PATH=$(PREFIX)/bin/
+MAN_PATH=$(PREFIX)/$(MANDIR)/man1/
 OBJS=tcopy.o
 CC=gcc
 OPTS=-Wall

@@ -15,24 +15,7 @@
 # @ at the beginning of the first line tell make not to echo the commands as it run it.
 #
 
-VER = $(shell awk '/Version/ {print $$2}' ../mhvtl-utils.spec)
-REL = $(shell awk '/Release/ {print $$2}' ../mhvtl-utils.spec | sed 's/%{?dist}//g')
-
-VERSION ?= $(VER).$(REL)
-EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
-
-PREFIX ?= /usr
-SYSTEMD_GENERATOR_DIR ?= /lib/systemd/system-generators
-MHVTL_HOME_PATH ?= /opt/mhvtl
-MHVTL_CONFIG_PATH ?= /etc/mhvtl
-CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
-HOME_PATH = $(shell echo $(MHVTL_HOME_PATH) | sed -e s'/\//\\\//g')
-
-ifeq ($(shell grep lib64$ /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
-LIBDIR ?= $(PREFIX)/lib
-else
-LIBDIR ?= $(PREFIX)/lib64
-endif
+include ../config.mk
 
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel -I../ccan
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION)$(EXTRAVERSION)\"
@@ -249,4 +232,3 @@ install: all
 
 tar:
 	make -C ../ tar
-

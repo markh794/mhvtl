@@ -2,9 +2,7 @@
 # etc/Makefile
 #
 
-TOP_DIR ?= ..
-
-USR_DIR = $(TOP_DIR)/usr
+include ../config.mk
 
 TAPE_SERVICE_FILE = vtltape@.service
 LIB_SERVICE_FILE = vtllibrary@.service
@@ -16,14 +14,6 @@ LIB_CONTENTS_FILES = library_contents.10 library_contents.30
 
 GENERATE_DEVICE_CONF = generate_device_conf
 GENERATE_LIB_CONTENTS = generate_library_contents
-
-SYSTEMD_SERVICE_DIR ?= /lib/systemd/system
-
-MHVTL_CONFIG_PATH ?= /etc/mhvtl
-MHVTL_HOME_PATH ?= /opt/mhvtl
-
-CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
-HOME_PATH = $(shell echo $(MHVTL_HOME_PATH) | sed -e s'/\//\\\//g')
 
 # files that need to be generated
 GENERATOR_FILES=$(MHVTL_CONF_FILE).in \

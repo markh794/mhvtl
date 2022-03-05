@@ -1,12 +1,6 @@
 #
 # $Id: Makefile,v 1.2.2.3 2006-08-30 06:35:14 markh Exp $
 #
-# For Debian/Ubuntu systems
-# make ubuntu=1
-#
-# or for SuSE / RedHat systems
-# make
-#
 
 # CC=/usr/bin/gcc
 #
@@ -18,10 +12,12 @@ vtl-objs := mhvtl.o
 
 V	?= $(shell uname -r)
 
-ifeq ($(ubuntu),)
- KDIR	:= /lib/modules/$(V)/build
+ifneq ($(wildcard /lib/modules/$(V)/build),)
+KDIR := /lib/modules/$(V)/build
 else
- KDIR	:= /usr/src/linux-headers-$(V)/
+ifneq ($(wildcard /usr/src/linux-headers-$(V)),)
+KDIR := /usr/src/linux-headers-$(V)
+endif
 endif
 
 PWD	:= $(shell pwd)

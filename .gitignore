@@ -11,6 +11,8 @@
 /scripts/update_device.conf
 /man/*.1
 /man/*.5
+/tcopy/tcopy
+local.mk
 
 # Vagrant specific files
 /vagrant/.vagrant
