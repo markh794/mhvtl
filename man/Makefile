@@ -15,22 +15,10 @@
 # @ at the beginning of the first line tell make not to echo the commands as it run it.
 #
 
-VER = $(shell awk '/Version/ {print $$2}' ../mhvtl-utils.spec)
-REL = $(shell awk '/Release/ {print $$2}' ../mhvtl-utils.spec)
-
-VERSION ?= $(VER)
-EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git show-ref --head --abbrev|head -1|awk '{print $$1}'))
+include ../config.mk
 
 MONTH = $(shell date -r ../ChangeLog +%B)
 YEAR = $(shell date -r ../ChangeLog +%Y)
-
-PREFIX ?= /usr
-MHVTL_HOME_PATH ?= /opt/mhvtl
-MHVTL_CONFIG_PATH ?= /etc/mhvtl
-MANDIR ?= /share/man
-
-CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
-HOME_PATH = $(shell echo $(MHVTL_HOME_PATH) | sed -e s'/\//\\\//g')
 
 objects = $(patsubst %.in,%,$(wildcard *.in))
 

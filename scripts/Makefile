@@ -1,9 +1,8 @@
 
-RCFILE = update_device.conf
-PREFIX ?= /usr
-MHVTL_CONFIG_PATH ?= /etc/mhvtl
+include ../config.mk
 
-CONFIG_PATH = $(shell echo $(MHVTL_CONFIG_PATH) | sed -e s'/\//\\\//g')
+RCFILE = update_device.conf
+
 $(RCFILE): $(RCFILE).in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' $< > $@
 

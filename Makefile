@@ -10,37 +10,17 @@
 # 	kernel	to build kernel module
 #
 
-VER = $(shell awk '/Version/ {print $$2}'  mhvtl-utils.spec)
-REL = $(shell awk '/Release/ {print $$2}'  mhvtl-utils.spec | sed s/%{?dist}//g)
-
-TOPDIR = $(shell basename $$PWD)
-
-VERSION ?= $(VER).$(REL)
-EXTRAVERSION =  $(if $(shell git show-ref 2>/dev/null),-git-$(shell git branch |awk '/\*/ {print $$2}'))
+include config.mk
 
 PARENTDIR = mhvtl-$(VER)
-PREFIX ?= /usr
-MHVTL_HOME_PATH ?= /opt/mhvtl
-MHVTL_CONFIG_PATH ?= /etc/mhvtl
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
-SYSTEMD_GENERATOR_DIR ?= /lib/systemd/system-generators
-SYSTEMD_SERVICE_DIR ?= /lib/systemd/system
-ifeq ($(shell whoami),root)
-ROOTUID = "YES"
-endif
 
 TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION)$(EXTRAVERSION).tgz
 
 MAKE_VTL_MEDIA = usr/make_vtl_media
 
-export PREFIX DESTDIR
-
-ifeq ($(shell grep lib64$ /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
-LIBDIR ?= $(PREFIX)/lib
-else
-LIBDIR ?= $(PREFIX)/lib64
-endif
+export PREFIX DESTDIR TOPDIR
 
 CFLAGS=-Wall -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS)
 CLFLAGS=-shared
@@ -48,16 +28,13 @@ CLFLAGS=-shared
 all:	usr etc scripts
 
 scripts:	patch
-	$(MAKE) -C scripts MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH)
+	$(MAKE) -C scripts
 
 etc:	patch
-	$(MAKE) -C etc MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH) \
-		SYSTEM_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
+	$(MAKE) -C etc
 
 usr:	patch
-	$(MAKE) -C usr MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) MHVTL_CONFIG_PATH=$(MHVTL_CONFIG_PATH) \
-		SYSTEMD_GENERATOR_DIR=$(SYSTEMD_GENERATOR_DIR) \
-		SYSTEM_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
+	$(MAKE) -C usr
 
 kernel: patch
 	$(MAKE) -C kernel
@@ -90,13 +67,13 @@ distclean:
 	$(RM) ../$(TAR_FILE)
 
 install: all
-	$(MAKE) -C usr install LIBDIR=$(LIBDIR) PREFIX=$(PREFIX) DESTDIR=$(DESTDIR) SYSTEMD_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
-	$(MAKE) -C scripts install PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)
-	$(MAKE) -i -C etc install DESTDIR=$(DESTDIR) SYSTEMD_SERVICE_DIR=$(SYSTEMD_SERVICE_DIR)
+	$(MAKE) -C usr install
+	$(MAKE) -C scripts install
+	$(MAKE) -i -C etc install
 	$(MAKE) -C man man
-	$(MAKE) -C man install PREFIX=$(PREFIX) DESTDIR=$(DESTDIR)
+	$(MAKE) -C man install
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
-ifdef ROOTUID
+ifeq ($(ROOTUID),YES)
 	ldconfig
 	systemctl daemon-reload
 endif
