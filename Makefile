@@ -97,6 +97,7 @@ tar: distclean
 		 $(PARENTDIR)/tcopy/ \
 		 $(PARENTDIR)/include \
 		 $(PARENTDIR)/Makefile \
+		 $(PARENTDIR)/config.mk \
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
 		 $(PARENTDIR)/ChangeLog \
