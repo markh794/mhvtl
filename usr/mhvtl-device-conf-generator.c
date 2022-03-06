@@ -221,7 +221,7 @@ int main(int argc, char **argv)
 		exit(1);
 
 	/*
-	 * parse the config file /etc/mhvtl/device.conf
+	 * parse the device.conf config file
 	 *
 	 * for each library found:
 	 *	- set up vtllibrary unit
