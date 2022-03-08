@@ -182,6 +182,9 @@ static void parse_config_file(char *path)
 		if (debug_mode)
 			(void) fprintf(stderr, "DEBUG: error: can't open: %s\n",
 					path);
+		snprintf(line_buf, MAX_LINE_WIDTH, "%s: %s", "Unable to open config file", path);
+		perror(line_buf);
+		abort();	/* Don't go out quietly */
 	}
 
 	while ((cp = fgets(line_buf, MAX_LINE_WIDTH, fp)) != NULL) {
