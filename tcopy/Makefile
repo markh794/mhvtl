@@ -1,6 +1,7 @@
 # Makefile for linux port of Tcopy
 # By Nicholas Harbour, 2000
 
+CURDIR = "../"
 include ../config.mk
 
 BINARY=tcopy

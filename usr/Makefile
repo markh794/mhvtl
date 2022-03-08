@@ -15,6 +15,8 @@
 # @ at the beginning of the first line tell make not to echo the commands as it run it.
 #
 
+CURDIR = "../"
+
 include ../config.mk
 
 CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel -I../ccan

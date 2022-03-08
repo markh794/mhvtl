@@ -1,4 +1,5 @@
 
+CURDIR = "../"
 include ../config.mk
 
 RCFILE = update_device.conf

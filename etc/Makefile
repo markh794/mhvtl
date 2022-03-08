@@ -2,6 +2,7 @@
 # etc/Makefile
 #
 
+CURDIR = "../"
 include ../config.mk
 
 TAPE_SERVICE_FILE = vtltape@.service

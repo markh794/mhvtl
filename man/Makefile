@@ -15,6 +15,8 @@
 # @ at the beginning of the first line tell make not to echo the commands as it run it.
 #
 
+CURDIR = "../"
+
 include ../config.mk
 
 MONTH = $(shell date -r ../ChangeLog +%B)
