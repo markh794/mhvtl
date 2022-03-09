@@ -10,6 +10,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,7 @@
 #define		MHVTL_CONFIG_PATH "/etc/mhvtl"
 #endif
 
+extern char *__progname;
 static int	debug_mode = 0;
 static char	*device_conf = MHVTL_CONFIG_PATH "/device.conf";
 
@@ -37,6 +39,49 @@ static struct vtl_info our_libraries = {.num = -1, .next = NULL} ;
 
 static struct vtl_info *last_tape = &our_tapes;
 static struct vtl_info *last_library = &our_libraries;
+
+/*
+ * A very thin wrapper to print to the kernel log. Since when the device
+ * config generator is run, syslog is not up yet, generally, nothing is up yet,
+ * the only place really to print information that needs to be preserved to
+ * is the kernel log. Since it is the only place, it is done here on a
+ * best-effort basis.
+ * For the description of the levels, see
+ * https://www.kernel.org/doc/html/latest/core-api/printk-basics.html
+ * Broadly speaking, 3 (ERR) or 2 (CRIT) should cover this tool's needs
+ */
+__attribute__((__format__ (__printf__, 2, 3)))
+static void pr_klog(int level, const char *fmt, ...)
+{
+	int fd;
+	char buf[1024];
+	va_list ap;
+	int rc;
+	int saved_errno = errno; /* Don't clobber errno */
+
+	if (level < 0 || level > 7)
+		level = 3;
+
+	snprintf(buf, sizeof(buf), "<%d>", level);
+	va_start(ap, fmt);
+	vsnprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), fmt, ap);
+	va_end(ap);
+
+	fd = open("/dev/kmsg", O_WRONLY);
+	if (fd == -1) {
+		if (debug_mode)
+			(void ) fprintf(stderr, "Cannot open /dev/kmsg: %s\n", strerror(errno));
+		errno = saved_errno;
+		return;
+	}
+
+	rc = write(fd, buf, strlen(buf));
+	if (rc) { }; /* Silence warn_unused_result - not much to do if it fails */
+	close(fd);
+
+	errno = saved_errno;
+	return;
+}
 
 /*
  * return 1 if path is a writable directory, else return 0
@@ -167,7 +212,7 @@ static int add_to_tapes(int tape_num)
  * this order. But DO assume that a library will not be referenced
  * before it is mentioned by a drive that uses it
  */
-static void parse_config_file(char *path)
+static int parse_config_file(char *path)
 {
 	FILE			*fp = NULL;
 	char			line_buf[MAX_LINE_WIDTH+1];
@@ -179,12 +224,12 @@ static void parse_config_file(char *path)
 		(void) fprintf(stderr, "DEBUG: parsing config file: %s\n",
 				path);
 	if ((fp = fopen(path, "r")) == NULL) {
+		pr_klog(3, "%s: Cannot open config file %s: %s\n",
+			__progname, path, strerror(errno));
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: can't open: %s\n",
-					path);
-		snprintf(line_buf, MAX_LINE_WIDTH, "%s: %s", "Unable to open config file", path);
-		perror(line_buf);
-		abort();	/* Don't go out quietly */
+			(void) fprintf(stderr, "DEBUG: error: cannot open config file %s: %s\n",
+					path, strerror(errno));
+		return -1;
 	}
 
 	while ((cp = fgets(line_buf, MAX_LINE_WIDTH, fp)) != NULL) {
@@ -209,6 +254,7 @@ static void parse_config_file(char *path)
 
 dun:
 	(void) fclose(fp);
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -217,6 +263,7 @@ int main(int argc, char **argv)
 	struct vtl_info	*ip;
 	const char	dirname[] = "mhvtl.target.wants";
 	char		*path;
+	int		rc;
 
 
 	working_dir = get_working_dir(argc, argv);
@@ -233,7 +280,9 @@ int main(int argc, char **argv)
 	 */
 
 	/* put config in our_tape_library */
-	parse_config_file(device_conf);
+	rc = parse_config_file(device_conf);
+	if (rc == -1)
+		exit(1);
 
 	if (debug_mode) {
 		(void) printf("DEBUG: Libraries:\n");
@@ -253,8 +302,8 @@ int main(int argc, char **argv)
 		printf("DEBUG: creating dir: %s\n", path);
 	if (mkdir(path, 0755) < 0) {
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: can't mkdir: %s\n",
-					path);
+			(void) fprintf(stderr, "DEBUG: error: can't mkdir %s: %s\n",
+					path, strerror(errno));
 		// clean up?
 		exit(1);
 	}
