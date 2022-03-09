@@ -1,3 +1,21 @@
+* Thu Mar 10 10:30:00 AEST 2022 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
+- Updated default drives in library 10 from LTO4/LTO5 to LTO6 & LTO8
+- Added initial support for Data Integrity Validation (via Logical Block Protection) - IBM LTO6,LTO7 & LTO8 with this release.
+- mhvtl.ko: Various updates to match the latest kernels
+- Additional checks for Vagrant build on CentOS, Ubuntu and OpenSUSE
+- Improve tape load/unload handshake to make it more robust
+- Improve handling of missing slot numbers in library_contents.xx
+- Makefile - Move variables to a common location (config.mk)
+- SEND DIAGNOSTICS: Implement basic sanity check for SSC devices
+- VERIFY(6) op code support
+- Update install instructions with sg3_utils vs sg3-utils package names
+- LTO-6 media load to match LTO standards (LTO8 cannot read LTO6 media)
+- New utility 'preload_tape' bypassing need to write via /dev/st*
+- Add missing 'ENCRYPTION capable' bit for LTO6, 7 & 8 media
+- systemd device config: Best effort, log errors via klog
+- Obligatory spelling fixes
+- Bump version to 1.7 : Beginning of LBP, VERIFY(6) and SEND DIAGNOSTICS support
+
 * Thu Oct 07 10:40:00 AEST 2021 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - rename list.h to avoid generic name conflict
 - rename scsi.h to avoid generic name conflict
