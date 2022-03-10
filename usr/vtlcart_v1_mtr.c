@@ -627,7 +627,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	 */
 	sprintf((char *)newMedia, "%s/%s", MHVTL_HOME_PATH, pcl);
 	syslog(LOG_DAEMON|LOG_INFO, "%s being created", newMedia);
-	datafile = creat((char *)newMedia, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	datafile = open((char *)newMedia, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (datafile == -1) {
 		perror("Failed creating file");
 		return 2;

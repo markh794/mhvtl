@@ -695,7 +695,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	if (verbose)
 		printf("Creating new media data file: %s\n", newMedia_data);
-	datafile = creat(newMedia_data, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	datafile = open(newMedia_data, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (datafile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_data,
 			strerror(errno));
@@ -704,7 +704,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	}
 	if (verbose)
 		printf("Creating new media index file: %s\n", newMedia_indx);
-	indxfile = creat(newMedia_indx, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	indxfile = open(newMedia_indx, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (indxfile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_indx,
 			strerror(errno));
@@ -714,7 +714,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	}
 	if (verbose)
 		printf("Creating new media meta file: %s\n", newMedia_meta);
-	metafile = creat(newMedia_meta, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	metafile = open(newMedia_meta, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
 	if (metafile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_meta,
 			strerror(errno));
