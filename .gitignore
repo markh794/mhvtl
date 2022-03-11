@@ -8,6 +8,7 @@
 /kernel/mhvtl.mod.c
 /kernel/Module.symvers
 /kernel/modules.order
+/kernel/config.h
 /scripts/update_device.conf
 /man/*.1
 /man/*.5

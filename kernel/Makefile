@@ -22,8 +22,11 @@ endif
 
 PWD	:= $(shell pwd)
 
-default:
+default:	config.h
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
+
+config.h:
+	./config.sh
 
 clean:
 	rm -f mhvtl.ko
@@ -32,7 +35,7 @@ clean:
 distclean:
 	rm -f mhvtl.o mhvtl.ko \
 	*.o \
-	*.o.d \
+	.*.o.d \
 	mhvtl.mod.c \
 	Modules.symvers \
 	Module.symvers \
@@ -49,7 +52,8 @@ distclean:
 	modules.order \
 	mhvtl.ko.unsigned \
 	.mhvtl.ko.unsigned.cmd \
-	TAGS
+	TAGS \
+	config.h
 	rm -rf .tmp_versions
 
 install:
