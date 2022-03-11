@@ -2,6 +2,8 @@
  * Include wrappers for older kernels as interfaces change
  */
 
+#include "config.h"
+
 #ifndef SG_SEGMENT_SZ
 #define SG_SEGMENT_SZ	65536
 #endif
@@ -13,6 +15,7 @@ typedef unsigned __bitwise slab_flags_t;
 /*
  * Copied kmem_cache_create_usercopy() from scst project
  */
+#if !defined(HAVE_KMEM_CACHE_CREATE_USERCOPY)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 23)
 static inline struct kmem_cache *kmem_cache_create_usercopy(const char *name,
 			unsigned int size, unsigned int align,
@@ -32,8 +35,9 @@ static inline struct kmem_cache *kmem_cache_create_usercopy(const char *name,
 	return kmem_cache_create(name, size, align, flags, ctor);
 }
 #endif
+#endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 9, 0)
+#if !defined(HAVE_FILE_INODE)
 /*
  * See also patch "new helper: file_inode(file)" (commit ID
  * 496ad9aa8ef448058e36ca7a787c61f2e63f0f54).
@@ -49,7 +53,7 @@ static inline struct inode *file_inode(struct file *f)
 #define HAVE_UNLOCKED_IOCTL 1
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+#if !defined(HAVE_SYSFS_EMIT)
 /* https://patches.linaro.org/project/stable/patch/20210305120853.392925382@linuxfoundation.org/ */
 /**
  *	sysfs_emit - scnprintf equivalent, aware of PAGE_SIZE buffer.
