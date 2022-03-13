@@ -7,16 +7,14 @@ syms[file_inode]='fs.h'
 syms[sysfs_emit]='sysfs.h'
 
 output='config.h'
-uname_r="$( uname -r )"
-if [ -e "/lib/modules/${uname_r}/build/include/linux/fs.h" ]
+kparent="${KDIR%/*}"
+
+if [ -e "${KDIR}/include/linux/fs.h" ]
 then
-    KDIR="/lib/modules/${uname_r}/build"
-elif [ -e "/lib/modules/${uname_r}/source/include/linux/fs.h" ]
+    hdrs="${KDIR}"
+elif [ -e "${kparent}/source/include/linux/fs.h" ]
 then
-    KDIR="/lib/modules/${uname_r}/source"
-elif [ -e "/usr/src/linux-headers-${uname_r}/build/include/linux/fs.h" ]
-then
-    KDIR="/usr/src/linux-headers-${uname_r}/build"
+    hdrs="${kparent}/source"
 else
     echo "Cannot infer kernel headers location"
     exit 1
@@ -36,7 +34,7 @@ EOF
 
 for sym in ${!syms[@]}
 do
-    grep -q "${sym}" "${KDIR}/include/linux/${syms[$sym]}"
+    grep -q "${sym}" "${hdrs}/include/linux/${syms[$sym]}"
     if [ $? -eq 0 ]
     then
         printf '#define HAVE_%s\n' "$( echo "${sym}" | tr [:lower:] [:upper:] )" >> "${output}"

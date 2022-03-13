@@ -12,6 +12,7 @@ vtl-objs := mhvtl.o
 
 V	?= $(shell uname -r)
 
+ifeq ($(KDIR),)
 ifneq ($(wildcard /lib/modules/$(V)/build),)
 KDIR := /lib/modules/$(V)/build
 else
@@ -19,6 +20,9 @@ ifneq ($(wildcard /usr/src/linux-headers-$(V)),)
 KDIR := /usr/src/linux-headers-$(V)
 endif
 endif
+endif
+
+export KDIR
 
 PWD	:= $(shell pwd)
 
