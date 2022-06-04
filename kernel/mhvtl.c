@@ -50,7 +50,6 @@
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/genhd.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
@@ -93,6 +92,10 @@ struct scatterlist;
 
 #include "vtl_common.h"
 #include "backport.h"
+
+#if defined(HAVE_GENHD)
+#include <linux/genhd.h>
+#endif
 
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_ioctl.h>
