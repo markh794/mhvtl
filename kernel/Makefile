@@ -29,36 +29,34 @@ PWD	:= $(shell pwd)
 default:	config.h
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-config.h:
+config.h: config.sh
 	./config.sh
 
 clean:
-	rm -f mhvtl.ko
+	$(RM) mhvtl.ko
+	$(RM) *.o
 	$(RM) TAGS
 
-distclean:
-	rm -f mhvtl.o mhvtl.ko \
-	*.o \
-	.*.o.d \
-	mhvtl.mod.c \
-	Modules.symvers \
-	Module.symvers \
-	.mhvtl.ko.cmd \
-	.mhvtl.o.cmd \
-	.mhvtl.mod.o.cmd \
-	.event.o.cmd \
-	.event.o.d \
-	.Module.symvers.cmd \
-	.mhvtl.mod.cmd \
-	.modules.order.cmd \
-	mhvtl.mod \
-	Module.markers \
-	modules.order \
-	mhvtl.ko.unsigned \
-	.mhvtl.ko.unsigned.cmd \
-	TAGS \
-	config.h
-	rm -rf .tmp_versions
+distclean: clean
+	$(RM) .*.o.d \
+	    mhvtl.mod.c \
+	    Modules.symvers \
+	    Module.symvers \
+	    .mhvtl.ko.cmd \
+	    .mhvtl.o.cmd \
+	    .mhvtl.mod.o.cmd \
+	    .event.o.cmd \
+	    .event.o.d \
+	    .Module.symvers.cmd \
+	    .mhvtl.mod.cmd \
+	    .modules.order.cmd \
+	    mhvtl.mod \
+	    Module.markers \
+	    modules.order \
+	    mhvtl.ko.unsigned \
+	    .mhvtl.ko.unsigned.cmd \
+	    config.h
+	$(RM) -r .tmp_versions
 
 install:
 	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/; \
