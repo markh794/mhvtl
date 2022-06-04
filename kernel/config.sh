@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 # vim: tabstop=4 shiftwidth=4 expandtab colorcolumn=80 foldmethod=marker :
 
+# make sure we have the kernel directory defined
+if [ -z "${KDIR}" ] ; then
+    echo "error: you must supply environment variable KDIR" 1>&2
+    exit 1
+fi
+
+#
+# "syms" is an associative array, where the "key"
+# is a symbol that we try to find (using grep) in
+# the "value", i.e. we try to find the string
+# "sysfs_emit" in the include file sysfs.h. Based
+# on that, we create a cpp #define or #undef.
+#
 declare -A syms
 syms[kmem_cache_create_usercopy]='slab.h'
 syms[file_inode]='fs.h'
@@ -9,6 +22,7 @@ syms[sysfs_emit]='sysfs.h'
 output='config.h'
 kparent="${KDIR%/*}"
 
+# use the "fs.h" to determine where the kernel headers are located
 if [ -e "${KDIR}/include/linux/fs.h" ]
 then
     hdrs="${KDIR}"
@@ -16,7 +30,7 @@ elif [ -e "${kparent}/source/include/linux/fs.h" ]
 then
     hdrs="${kparent}/source"
 else
-    echo "Cannot infer kernel headers location"
+    echo "Cannot infer kernel headers location" 1>&2
     exit 1
 fi
 
@@ -42,5 +56,21 @@ do
         printf '#undef HAVE_%s\n' "$( echo "${sym}" | tr [:lower:] [:upper:] )" >> "${output}"
     fi
 done
+
+# do we have a "genhd.h" present?
+if [ -e "${hdrs}/include/linux/genhd.h" ]; then
+    echo "#define HAVE_GENHD"
+else
+    echo "#undef HAVE_GENHD"
+fi >> "${output}"
+
+# see if "struct file_operations" has member "unlocked_ioctl"
+# (otherwise, just "ioctl")
+syms[file_operations]='fs.h'
+if grep -q unlocked_ioctl "${hdrs}/include/linux/fs.h"; then
+    echo "#define HAVE_UNLOCKED_IOCTL"
+else
+    echo "#undef HAVE_UNLOCKED_IOCTL"
+fi >> "${output}"
 
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"

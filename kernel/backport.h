@@ -48,11 +48,6 @@ static inline struct inode *file_inode(struct file *f)
 }
 #endif
 
-/* HAVE_UNLOCKED_IOCTL removed in linux/fs.h for kernels 5.9+ */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 8, 0)
-#define HAVE_UNLOCKED_IOCTL 1
-#endif
-
 #if !defined(HAVE_SYSFS_EMIT)
 /* https://patches.linaro.org/project/stable/patch/20210305120853.392925382@linuxfoundation.org/ */
 /**
