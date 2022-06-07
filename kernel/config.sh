@@ -68,7 +68,9 @@ fi >> "${output}"
 # (otherwise, just "ioctl")
 syms[file_operations]='fs.h'
 if grep -q unlocked_ioctl "${hdrs}/include/linux/fs.h"; then
+    echo "#ifndef HAVE_UNLOCKED_IOCTL"
     echo "#define HAVE_UNLOCKED_IOCTL"
+    echo "#endif"
 else
     echo "#undef HAVE_UNLOCKED_IOCTL"
 fi >> "${output}"
