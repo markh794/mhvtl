@@ -98,7 +98,7 @@ validate_crc:	crc32c.c reed-solomon.c validate_crc.c
 
 preload_tape:	dump_tape
 		@rm -f $@
-		ln $? $@
+		ln -s $? $@
 
 dump_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
 		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
