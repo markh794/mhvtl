@@ -1794,12 +1794,6 @@ int main(int argc, char *argv[])
 	new_action.sa_handler = rereadconfig;
 	sigaction(SIGHUP, &new_action, &old_action);
 
-	child_cleanup = add_lu(my_id, &ctl);
-	if (!child_cleanup) {
-		fprintf(stderr, "error: Could not create logical unit\n");
-		exit(1);
-	}
-
 	/* Initialise message queue as necessary */
 	r_qid = init_queue();
 	if (r_qid == -1) {
@@ -1910,8 +1904,8 @@ int main(int argc, char *argv[])
 		close(STDERR_FILENO);
 	}
 
-	MHVTL_LOG("Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
-					progname, MHVTL_VERSION, verbose,
+	MHVTL_LOG("[%ld] Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
+					(long)getpid(), progname, MHVTL_VERSION, verbose,
 					ctl.channel, ctl.id, ctl.lun);
 
 	oom_adjust();
@@ -1929,6 +1923,12 @@ int main(int argc, char *argv[])
 		goto exit;
 	} else if (fifo_retval < 0) {
 		MHVTL_ERR("Failed to set fifo count()...");
+	}
+
+	child_cleanup = add_lu(my_id, &ctl);
+	if (!child_cleanup) {
+		fprintf(stderr, "error: Could not create logical unit\n");
+		exit(1);
 	}
 
 	for (;;) {
@@ -1950,11 +1950,13 @@ int main(int argc, char *argv[])
 		} else {
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
-					MHVTL_DBG(2,
-						"Cleaning up after add_lu "
+					MHVTL_DBG(1,
+						"[%ld] Cleaning up after add_lu "
 						"child pid: %d",
-							child_cleanup);
+							(long)getpid(), child_cleanup);
 					child_cleanup = 0;
+				} else {
+					MHVTL_DBG(2, "[%ld] Child cleanup of %ld still outstanding", (long)getpid(), (long)child_cleanup);
 				}
 			}
 			fflush(NULL);	/* So I can pipe debug o/p thru tee */

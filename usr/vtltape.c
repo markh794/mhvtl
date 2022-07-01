@@ -1581,7 +1581,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	if (!strncmp(msg->text, "Register", 8)) {
 		lu_ssc.inLibrary = 1;
 		MHVTL_DBG(1, "Notice from Library controller : %s", msg->text);
-		find_media_home_directory(NULL, home_directory, library_id);
+/*		find_media_home_directory(NULL, home_directory, library_id); */
 	}
 
 	if (!strncmp(msg->text, "verbose", 7)) {
@@ -2181,6 +2181,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(VPD_83_SZ);
 	update_vpd_83(lu, NULL);
 
+	if (library_id)
+		find_media_home_directory(NULL, home_directory, library_id);
+
 	if ((backoff < 10) || (backoff > 10000)) {
 		backoff = DEFLT_BACKOFF_VALUE;
 		MHVTL_LOG("Set default backoff value to %ld", backoff);
@@ -2312,11 +2315,12 @@ int main(int argc, char *argv[])
 	int last_state = MHVTL_STATE_UNKNOWN;
 	useconds_t sleep_time = 50000L;	/* Used as backoff counter */
 	uint8_t *buf;
-	pid_t child_cleanup, pid, sid;
+	pid_t child_cleanup, pid, ppid, sid;
 	struct sigaction new_action, old_action;
 	int fifo_retval;
 	int opt;
 	int foreground = 0;
+	const pid_t not_started = -2;
 
 	char *progname = argv[0];
 	char *fifoname = NULL;
@@ -2419,12 +2423,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	child_cleanup = add_lu(my_id, &ctl);
-	if (!child_cleanup) {
-		MHVTL_DBG(1, "Could not create logical unit");
-		exit(1);
-	}
-
 	/* Initialise message queue as necessary */
 	if ((r_qid = init_queue()) == -1) {
 		fprintf(stderr, "error: Could not initialise message queue\n");
@@ -2450,8 +2448,15 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if ((chdir(MHVTL_HOME_PATH)) < 0) {
+		perror("Unable to change directory to " MHVTL_HOME_PATH);
+		exit(-1);
+	}
+
 	/* If debug or 'F' specified don't fork/run in background */
 	if (!foreground) {
+		ppid = getpid();
+
 		switch (pid = fork()) {
 		case 0:         /* Child */
 			break;
@@ -2460,8 +2465,8 @@ int main(int argc, char *argv[])
 			exit(-1);
 			break;
 		default:
-			MHVTL_DBG(1, "Successfully started daemon: PID %d",
-						(int)pid);
+			MHVTL_DBG(1, "Parent PID: %ld successfully started daemon: PID %ld",
+						(long)ppid, (long)pid);
 			exit(0);
 			break;
 		}
@@ -2472,17 +2477,12 @@ int main(int argc, char *argv[])
 		if (sid < 0)
 			exit(-1);
 
-		if ((chdir(MHVTL_HOME_PATH)) < 0) {
-			perror("Unable to change directory to " MHVTL_HOME_PATH);
-			exit(-1);
-		}
-
 		close(STDIN_FILENO);
 		close(STDERR_FILENO);
 	}
 
-	MHVTL_LOG("Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
-					progname, MHVTL_VERSION, verbose,
+	MHVTL_LOG("[%ld] Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
+					(long)getpid(), progname, MHVTL_VERSION, verbose,
 					ctl.channel, ctl.id, ctl.lun);
 	MHVTL_DBG(1, "Size of buffer is %d", lu_ssc.bufsize);
 
@@ -2522,6 +2522,8 @@ int main(int argc, char *argv[])
 		MHVTL_ERR("Failed to set fifo count()...");
 	}
 
+	child_cleanup = not_started;
+
 	for (;;) {
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &lu_ssc.r_entry, MAXOBN, my_id, IPC_NOWAIT);
@@ -2545,12 +2547,21 @@ int main(int argc, char *argv[])
 					"returned: %d, interval: %ld\n",
 						ret, (long)sleep_time);
 			if (child_cleanup) {
+				if (child_cleanup == not_started) {
+					child_cleanup = add_lu(my_id, &ctl);
+					if (!child_cleanup) {
+						MHVTL_ERR("Failed to create logical unit - exiting...");
+						goto exit;
+					}
+				}
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
 					MHVTL_DBG(1,
-						"Cleaning up after add_lu "
+						"[%ld] Cleaning up after add_lu "
 						"child pid: %d",
-							child_cleanup);
+							(long)getpid(), child_cleanup);
 					child_cleanup = 0;
+				} else {
+					MHVTL_DBG(2, "[%ld] Child cleanup of %ld still outstanding", (long)getpid(), (long)child_cleanup);
 				}
 			}
 			fflush(NULL);

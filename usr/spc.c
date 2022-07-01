@@ -96,9 +96,9 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	if (cdb[1] & 0x3) /* VPD bit set - clear memory */
+	if (cdb[1] & 0x3) { /* VPD bit set - clear memory */
 		memset(data, 0, MAX_INQUIRY_SZ);
-	else {	/* Standard inquiry - copy in-mem data struct */
+	} else {	/* Standard inquiry - copy in-mem data struct */
 		memcpy(cmd->dbuf_p->data, lu->inquiry, MAX_INQUIRY_SZ);
 		len = lu->inquiry[4] + 5;
 	}
@@ -109,10 +109,10 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 		data[5] = 0;
 		len = 6;
 
-	} else if (cdb[1] & 0x1) {
+	} else if (cdb[1] & 0x1) {	/* VPD */
 		uint8_t pcode = cdb[2];
 
-		MHVTL_DBG(2, "Page code 0x%02x", pcode);
+		MHVTL_DBG(2, "VPD Page code 0x%02x", pcode);
 
 		if (pcode == 0x00) {
 			uint8_t *p;
@@ -136,7 +136,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
 			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
 
-			MHVTL_DBG(2, "Found page 0x%x", pcode);
+			MHVTL_DBG(2, "VPD Found page 0x%x", pcode);
 
 			data[0] = lu->ptype;
 			data[1] = pcode;

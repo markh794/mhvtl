@@ -505,7 +505,7 @@ static int mhvtl_access(char *p, int len, char *entry)
 pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 {
 	char str[1024];
-	pid_t pid;
+	pid_t ppid, pid;
 	ssize_t retval;
 	int pseudo;
 	char pseudo_filename[256];
@@ -521,13 +521,16 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 		exit(EIO);
 	}
 
+	/* Parent PID */
+	ppid = getpid();
+
 	switch (pid = fork()) {
 	case 0:         /* Child */
 		pseudo = open(pseudo_filename, O_WRONLY);
 		if (pseudo < 0) {
 			snprintf(errmsg, ARRAY_SIZE(errmsg),
 					"Could not open %s", pseudo_filename);
-			MHVTL_DBG(1, "%s : %s", errmsg, strerror(errno));
+			MHVTL_ERR("Parent PID: %ld -> %s : %s", (long)ppid, errmsg, strerror(errno));
 			perror("Could not open 'add_lu'");
 			exit(-1);
 		}
@@ -535,18 +538,18 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 		MHVTL_DBG(2, "Wrote '%s' (%d bytes) to %s",
 					str, (int)retval, pseudo_filename);
 		close(pseudo);
-		MHVTL_DBG(1, "Child anounces 'lu [%d:%d:%d] created'.",
-					ctl->channel, ctl->id, ctl->lun);
+		MHVTL_DBG(1, "Parent PID: %ld -> Child anounces 'lu [%d:%d:%d] created'.",
+					(long)ppid, ctl->channel, ctl->id, ctl->lun);
 		exit(0);
 		break;
 	case -1:
 		perror("Failed to fork()");
-		MHVTL_DBG(1, "Fail to fork() %s", strerror(errno));
+		MHVTL_ERR("Parent PID: %ld -> Fail to fork() %s", (long)ppid, strerror(errno));
 		return 0;
 		break;
 	default:
-		MHVTL_DBG(1, "Child PID %ld starting logical unit [%d:%d:%d]",
-					(long)pid, ctl->channel,
+		MHVTL_DBG(1, "[%ld] Child PID %ld starting logical unit [%d:%d:%d]",
+					(long)ppid, (long)pid, ctl->channel,
 					ctl->id, ctl->lun);
 		return pid;
 		break;
@@ -1121,7 +1124,7 @@ static int mhvtl_shared_mem(int flag)
 		return -1;
 	}
 
-	MHVTL_DBG(3, "shm count is: %d", *base);
+	MHVTL_DBG(3, "[%d] shm count is: %d", (int)getpid(), *base);
 
 	switch (flag) {
 	case QUERYSHM:
@@ -1148,7 +1151,7 @@ static int mhvtl_shared_mem(int flag)
 		}
 		break;
 	}
-	MHVTL_DBG(3, "shm count now: %d", *base);
+	MHVTL_DBG(3, "[%d] shm count now: %d", (int)getpid(), *base);
 
 	retval = *base;
 
