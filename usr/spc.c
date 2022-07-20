@@ -133,6 +133,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 			data[3] = cnt;
 			data[4] = 0x0;
 			len = cnt + 4;
+			hex_dump(data, len);
 		} else if (lu->lu_vpd[PCODE_OFFSET(pcode)]) {
 			vpd_pg = lu->lu_vpd[PCODE_OFFSET(pcode)];
 
@@ -144,6 +145,7 @@ uint8_t spc_inquiry(struct scsi_cmd *cmd)
 			data[3] = vpd_pg->sz & 0xff;
 			memcpy(&data[4], vpd_pg->data, vpd_pg->sz);
 			len = vpd_pg->sz + 4;
+			hex_dump(data, len);
 		}
 	}
 	cmd->dbuf_p->sz = len;
