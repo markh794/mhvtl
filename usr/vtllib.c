@@ -62,6 +62,7 @@
 #include "q.h"
 
 static int reset = 0;
+static int inquiry_data_changed = 0;
 
 static struct state_description {
 	char *state_desc;
@@ -294,6 +295,18 @@ int check_reset(uint8_t *sam_stat)
 return retval;
 }
 
+int check_inquiry_data_has_changed(uint8_t *sam_stat)
+{
+	int retval = inquiry_data_changed;
+
+	if (inquiry_data_changed) {
+		MHVTL_DBG(1, "Returning INQUIRY_DATA_HAS_CHANGED");
+		sam_unit_attention(E_INQUIRY_DATA_HAS_CHANGED, sam_stat);
+		inquiry_data_changed = 0;
+	}
+return retval;
+}
+
 void reset_device(void)
 {
 	reset = 1;
@@ -304,6 +317,12 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 If this fails to compile - sizeof MAM != 1024 bytes !
 */
 	BUILD_BUG_ON(sizeof(struct MAM) % 1024);
+}
+
+/* Force flag to indicate inquiry data has changed */
+void set_inquiry_data_changed(void)
+{
+	inquiry_data_changed = 1;
 }
 
 #define READ_POSITION_LONG_LEN 32

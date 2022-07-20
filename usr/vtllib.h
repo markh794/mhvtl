@@ -526,7 +526,9 @@ enum MHVTL_STATE {
 };
 
 int check_reset(uint8_t *);
+int check_inquiry_data_has_changed(uint8_t *);
 void reset_device(void);
+void set_inquiry_data_changed(void);
 
 void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat);
 void sam_not_ready(uint16_t ascq, uint8_t *sam_stat);

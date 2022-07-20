@@ -295,10 +295,12 @@ static void processCommand(int cdev, uint8_t *cdb, struct mhvtl_ds *dbuf_p,
 	MHVTL_DBG_PRT_CDB(1, cmd);
 
 	switch (cdb[0]) {
+		case INQUIRY:	/* INQUIRY does not need to check PowerOn/reset, however the Inquiry Data may have changed */
+		if (check_inquiry_data_has_changed(&dbuf_p->sam_stat))
+			return;
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
 	case MODE_SELECT:
-	case INQUIRY:
 		dbuf_p->sam_stat = SAM_STAT_GOOD;
 		break;
 	default:
@@ -645,6 +647,8 @@ static int processMessageQ(struct q_msg *msg)
 		list_map(msg);
 	if (!strncmp(msg->text, "load map ", 9))
 		load_map(msg);
+	if (!strncmp(msg->text, "InquiryDataChange", 17))
+		set_inquiry_data_changed();
 	if (!strncmp(msg->text, "offline", 7)) {
 		current_state = MHVTL_STATE_OFFLINE;
 		lunit.online = 0;

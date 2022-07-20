@@ -68,12 +68,13 @@ static void usage(char *prog)
 	fprintf(stderr, "   Where 'DeviceNo' is the number"
 			" associated with tape/library daemon\n\n");
 	fprintf(stderr, "Global commands:\n");
-	fprintf(stderr, "   verbose     -> To enable verbose logging\n");
+	fprintf(stderr, "   verbose           -> To enable verbose logging\n");
 	/*
-	fprintf(stderr, "   debug       -> To enable debug logging\n");
+	fprintf(stderr, "   debug             -> To enable debug logging\n");
 	*/
-	fprintf(stderr, "   TapeAlert # -> 64bit TapeAlert mask (hex)\n");
-	fprintf(stderr, "   exit        -> To shutdown tape/library "
+	fprintf(stderr, "   TapeAlert #       -> 64bit TapeAlert mask (hex)\n");
+	fprintf(stderr, "   InquiryDataChange -> Set LU state to indicate Inquiry Data Has Changed\n");
+	fprintf(stderr, "   exit              -> To shutdown tape/library "
 			"daemon/device\n");
 	fprintf(stderr, "\nTape specific commands:\n");
 	fprintf(stderr, "   Append Only [Yes|No] -> To 'load' media ID\n");
@@ -309,6 +310,9 @@ void Check_Params(int argc, char **argv)
 					return;
 				PrintErrorExit(argv[0], "exit");
 			}
+			if (!strncasecmp(argv[2], "InquriyDataChange", 17)) {
+				return;
+			}
 			if (!strncasecmp(argv[2], "TapeAlert", 9)) {
 				Check_TapeAlert(argc, argv);
 				return;
@@ -520,6 +524,7 @@ int main(int argc, char **argv)
 		} else if (!strncmp(buf, "debug", 5)) {
 		} else if (!strncmp(buf, "exit", 4)) {
 		} else if (!strncmp(buf, "TapeAlert", 9)) {
+		} else if (!strncmp(buf, "InquiryDataChange", 17)) {
 		} else {
 			fprintf(stderr, "Command for library not allowed\n");
 			exit(1);
@@ -535,6 +540,7 @@ int main(int argc, char **argv)
 		} else if (!strncmp(buf, "exit", 4)) {
 		} else if (!strncmp(buf, "compression", 11)) {
 		} else if (!strncmp(buf, "TapeAlert", 9)) {
+		} else if (!strncmp(buf, "InquiryDataChange", 17)) {
 		} else if (!strncasecmp(buf, "append", 6)) {
 		} else if (!strncasecmp(buf, "delay load", 10)) {
 		} else if (!strncasecmp(buf, "delay unload", 12)) {
