@@ -505,13 +505,13 @@ static int mhvtl_access(char *p, int len, char *entry)
 pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 {
 	char str[1024];
-	pid_t ppid, pid;
+	pid_t ppid, pid, mypid;
 	ssize_t retval;
-	int pseudo;
+	FILE *pseudo;
 	char pseudo_filename[256];
 	char errmsg[512];
 
-	sprintf(str, "add %u %d %d %d\n",
+	sprintf(str, "add %u %d %d %d",
 			minor, ctl->channel, ctl->id, ctl->lun);
 
 	if (mhvtl_access(pseudo_filename, ARRAY_SIZE(pseudo_filename), "add_lu") < 0) {
@@ -526,20 +526,23 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 
 	switch (pid = fork()) {
 	case 0:         /* Child */
-		pseudo = open(pseudo_filename, O_WRONLY);
-		if (pseudo < 0) {
+		mypid = getpid();
+		pseudo = fopen(pseudo_filename, "w");
+		if (! pseudo) {
 			snprintf(errmsg, ARRAY_SIZE(errmsg),
-					"Could not open %s", pseudo_filename);
+					"Could not open %s: %s", pseudo_filename, strerror(errno));
 			MHVTL_ERR("Parent PID: %ld -> %s : %s", (long)ppid, errmsg, strerror(errno));
 			perror("Could not open 'add_lu'");
 			exit(-1);
 		}
-		retval = write(pseudo, str, strlen(str));
+
+		retval = fprintf(pseudo, "%s\n", str);
 		MHVTL_DBG(2, "Wrote '%s' (%d bytes) to %s",
 					str, (int)retval, pseudo_filename);
-		close(pseudo);
-		MHVTL_DBG(1, "Parent PID: %ld -> Child anounces 'lu [%d:%d:%d] created'.",
-					(long)ppid, ctl->channel, ctl->id, ctl->lun);
+
+		fclose(pseudo);
+		MHVTL_DBG(1, "Parent PID: [%ld] -> Child [%ld] anounces 'lu [%d:%d:%d] created'.",
+					(long)ppid, (long)mypid, ctl->channel, ctl->id, ctl->lun);
 		exit(0);
 		break;
 	case -1:
@@ -547,13 +550,15 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 		MHVTL_ERR("Parent PID: %ld -> Fail to fork() %s", (long)ppid, strerror(errno));
 		return 0;
 		break;
-	default:
-		MHVTL_DBG(1, "[%ld] Child PID %ld starting logical unit [%d:%d:%d]",
+	default:	/* Parent */
+		MHVTL_DBG(2, "[%ld] Child PID [%ld] will start logical unit [%d:%d:%d]",
 					(long)ppid, (long)pid, ctl->channel,
 					ctl->id, ctl->lun);
+
 		return pid;
 		break;
 	}
+
 	return 0;
 }
 
