@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <err.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -452,13 +453,261 @@ void completeSCSICommand(int cdev, struct mhvtl_ds *ds)
 void hex_dump(uint8_t *p, int count)
 {
 	int j;
+	int lvl = 2;	/* Log at level 'lvl' */
+	int n;
 
-	for (j = 0; j < count; j++) {
-		if ((j != 0) && (j % 16 == 0))
-			printf("\n");
-		printf("%02x ", p[j]);
+	for (j = 0; j < count; j += 16) {
+		n = count - j;
+		switch (n) {
+		case 0:
+			break;
+		case 1:
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %45s : %c", p[j+0], " ", isprint(p[j+0]) ? p[j+0] : ' ');
+			break;
+		case 2:
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %42s : %c%c", p[j+0], p[j+1],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.');
+			break;
+		case 3:
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %02x %39s : %c%c%c", p[j+0], p[j+1], p[j+2],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.');
+			break;
+		case 4:
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %02x %02x %36s : %c%c%c%c", p[j+0], p[j+1], p[j+2], p[j+3],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.',
+						isprint(p[j+3]) ? p[j+3] : '.');
+			break;
+		case 5:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %33s : %c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.',
+						isprint(p[j+3]) ? p[j+3] : '.',
+						isprint(p[j+4]) ? p[j+4] : '.');
+			break;
+		case 6:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %30s : %c%c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.',
+						isprint(p[j+3]) ? p[j+3] : '.',
+						isprint(p[j+4]) ? p[j+4] : '.',
+						isprint(p[j+5]) ? p[j+5] : '.');
+			break;
+		case 7:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %27s : %c%c%c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.',
+						isprint(p[j+3]) ? p[j+3] : '.',
+						isprint(p[j+4]) ? p[j+4] : '.',
+						isprint(p[j+5]) ? p[j+5] : '.',
+						isprint(p[j+6]) ? p[j+6] : '.');
+			break;
+		case 8:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x %24s : %c%c%c%c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.',
+						isprint(p[j+3]) ? p[j+3] : '.',
+						isprint(p[j+4]) ? p[j+4] : '.',
+						isprint(p[j+5]) ? p[j+5] : '.',
+						isprint(p[j+6]) ? p[j+6] : '.',
+						isprint(p[j+7]) ? p[j+7] : '.');
+			break;
+		case 9:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %19s : %c%c%c%c%c%c%c%c %c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.',
+						isprint(p[j+3]) ? p[j+3] : '.',
+						isprint(p[j+4]) ? p[j+4] : '.',
+						isprint(p[j+5]) ? p[j+5] : '.',
+						isprint(p[j+6]) ? p[j+6] : '.',
+						isprint(p[j+7]) ? p[j+7] : '.',
+						isprint(p[j+8]) ? p[j+8] : '.');
+			break;
+		case 10:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %16s : %c%c%c%c%c%c%c%c %c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8], p[j+9],
+						" ",
+						isprint(p[j+0]) ? p[j+0] : '.',
+						isprint(p[j+1]) ? p[j+1] : '.',
+						isprint(p[j+2]) ? p[j+2] : '.',
+						isprint(p[j+3]) ? p[j+3] : '.',
+						isprint(p[j+4]) ? p[j+4] : '.',
+						isprint(p[j+5]) ? p[j+5] : '.',
+						isprint(p[j+6]) ? p[j+6] : '.',
+						isprint(p[j+7]) ? p[j+7] : '.',
+						isprint(p[j+8]) ? p[j+8] : '.',
+						isprint(p[j+9]) ? p[j+9] : '.');
+			break;
+		case 11:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %13s : %c%c%c%c%c%c%c%c %c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8], p[j+9], p[j+10],
+						" ",
+						isprint(p[j+0])  ? p[j+0]  : '.',
+						isprint(p[j+1])  ? p[j+1]  : '.',
+						isprint(p[j+2])  ? p[j+2]  : '.',
+						isprint(p[j+3])  ? p[j+3]  : '.',
+						isprint(p[j+4])  ? p[j+4]  : '.',
+						isprint(p[j+5])  ? p[j+5]  : '.',
+						isprint(p[j+6])  ? p[j+6]  : '.',
+						isprint(p[j+7])  ? p[j+7]  : '.',
+						isprint(p[j+8])  ? p[j+8]  : '.',
+						isprint(p[j+9])  ? p[j+9]  : '.',
+						isprint(p[j+10]) ? p[j+10] : '.');
+			break;
+		case 12:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %10s : %c%c%c%c%c%c%c%c %c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8], p[j+9], p[j+10], p[j+11],
+						" ",
+						isprint(p[j+0])  ? p[j+0]  : '.',
+						isprint(p[j+1])  ? p[j+1]  : '.',
+						isprint(p[j+2])  ? p[j+2]  : '.',
+						isprint(p[j+3])  ? p[j+3]  : '.',
+						isprint(p[j+4])  ? p[j+4]  : '.',
+						isprint(p[j+5])  ? p[j+5]  : '.',
+						isprint(p[j+6])  ? p[j+6]  : '.',
+						isprint(p[j+7])  ? p[j+7]  : '.',
+						isprint(p[j+8])  ? p[j+8]  : '.',
+						isprint(p[j+9])  ? p[j+9]  : '.',
+						isprint(p[j+10]) ? p[j+10] : '.',
+						isprint(p[j+11]) ? p[j+11] : '.');
+			break;
+		case 13:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %8s : %c%c%c%c%c%c%c%c %c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8], p[j+9], p[j+10], p[j+11],
+				p[j+12],
+						" ",
+						isprint(p[j+0])  ? p[j+0]  : '.',
+						isprint(p[j+1])  ? p[j+1]  : '.',
+						isprint(p[j+2])  ? p[j+2]  : '.',
+						isprint(p[j+3])  ? p[j+3]  : '.',
+						isprint(p[j+4])  ? p[j+4]  : '.',
+						isprint(p[j+5])  ? p[j+5]  : '.',
+						isprint(p[j+6])  ? p[j+6]  : '.',
+						isprint(p[j+7])  ? p[j+7]  : '.',
+						isprint(p[j+8])  ? p[j+8]  : '.',
+						isprint(p[j+9])  ? p[j+9]  : '.',
+						isprint(p[j+10]) ? p[j+10] : '.',
+						isprint(p[j+11]) ? p[j+11] : '.',
+						isprint(p[j+12]) ? p[j+12] : '.');
+			break;
+		case 14:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %5s : %c%c%c%c%c%c%c%c %c%c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8], p[j+9], p[j+10], p[j+11],
+				p[j+12], p[j+13],
+						" ",
+						isprint(p[j+0])  ? p[j+0]  : '.',
+						isprint(p[j+1])  ? p[j+1]  : '.',
+						isprint(p[j+2])  ? p[j+2]  : '.',
+						isprint(p[j+3])  ? p[j+3]  : '.',
+						isprint(p[j+4])  ? p[j+4]  : '.',
+						isprint(p[j+5])  ? p[j+5]  : '.',
+						isprint(p[j+6])  ? p[j+6]  : '.',
+						isprint(p[j+7])  ? p[j+7]  : '.',
+						isprint(p[j+8])  ? p[j+8]  : '.',
+						isprint(p[j+9])  ? p[j+9]  : '.',
+						isprint(p[j+10]) ? p[j+10] : '.',
+						isprint(p[j+11]) ? p[j+11] : '.',
+						isprint(p[j+12]) ? p[j+12] : '.',
+						isprint(p[j+13]) ? p[j+13] : '.');
+			break;
+		case 15:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %2s : %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8], p[j+9], p[j+10], p[j+11],
+				p[j+12], p[j+13], p[j+14],
+						" ",
+						isprint(p[j+0])  ? p[j+0]  : '.',
+						isprint(p[j+1])  ? p[j+1]  : '.',
+						isprint(p[j+2])  ? p[j+2]  : '.',
+						isprint(p[j+3])  ? p[j+3]  : '.',
+						isprint(p[j+4])  ? p[j+4]  : '.',
+						isprint(p[j+5])  ? p[j+5]  : '.',
+						isprint(p[j+6])  ? p[j+6]  : '.',
+						isprint(p[j+7])  ? p[j+7]  : '.',
+						isprint(p[j+8])  ? p[j+8]  : '.',
+						isprint(p[j+9])  ? p[j+9]  : '.',
+						isprint(p[j+10]) ? p[j+10] : '.',
+						isprint(p[j+11]) ? p[j+11] : '.',
+						isprint(p[j+12]) ? p[j+12] : '.',
+						isprint(p[j+13]) ? p[j+13] : '.',
+						isprint(p[j+14]) ? p[j+14] : '.');
+			break;
+		default:
+			MHVTL_DBG_NO_FUNC(lvl,
+				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x : %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c",
+				p[j+0], p[j+1], p[j+2], p[j+3],
+				p[j+4], p[j+5], p[j+6], p[j+7],
+				p[j+8], p[j+9], p[j+10], p[j+11],
+				p[j+12], p[j+13], p[j+14], p[j+15],
+						isprint(p[j+0])  ? p[j+0]  : '.',
+						isprint(p[j+1])  ? p[j+1]  : '.',
+						isprint(p[j+2])  ? p[j+2]  : '.',
+						isprint(p[j+3])  ? p[j+3]  : '.',
+						isprint(p[j+4])  ? p[j+4]  : '.',
+						isprint(p[j+5])  ? p[j+5]  : '.',
+						isprint(p[j+6])  ? p[j+6]  : '.',
+						isprint(p[j+7])  ? p[j+7]  : '.',
+						isprint(p[j+8])  ? p[j+8]  : '.',
+						isprint(p[j+9])  ? p[j+9]  : '.',
+						isprint(p[j+10]) ? p[j+10] : '.',
+						isprint(p[j+11]) ? p[j+11] : '.',
+						isprint(p[j+12]) ? p[j+12] : '.',
+						isprint(p[j+13]) ? p[j+13] : '.',
+						isprint(p[j+14]) ? p[j+14] : '.',
+						isprint(p[j+15]) ? p[j+15] : '.');
+			break;
+		}
 	}
-	printf("\n");
 }
 
 
