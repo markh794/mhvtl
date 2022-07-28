@@ -1254,12 +1254,18 @@ void rmnl(char *s, unsigned char c, int len)
 
 void update_vpd_86(struct lu_phy_attr *lu, void *p)
 {
-	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
-	uint8_t *worm;
+	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x86)];
 
-	worm = (uint8_t *)p;
+	struct ssc_personality_template * spt;
 
-	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
+	spt = p;
+
+	MHVTL_DBG(1, "SPT is : 0x%02x", spt->drive_supports_LBP);
+
+	vpd_pg->data[0] = (spt->drive_supports_LBP) ? 0x8 : 0;
+
+	vpd_pg->data[1] = 0x01;	/* SIMPSUP (Device supports simple queing) */
+
 }
 
 void update_vpd_b0(struct lu_phy_attr *lu, void *p)

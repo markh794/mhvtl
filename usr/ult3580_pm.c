@@ -322,6 +322,15 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	/* Set Protect bit if 'drive supports Logical Block Protection */
 	lu->inquiry[5] |= (((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_LBP) ? 1 : 0;
 
+	/* Extended INQUIRY Data VPD page */
+	pg = PCODE_OFFSET(0x86);
+	lu->lu_vpd[pg] = alloc_vpd(VPD_86_SZ);
+	if (!lu->lu_vpd[pg]) {
+		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
+		exit(-ENOMEM);
+	}
+	update_vpd_86(lu, ((struct priv_lu_ssc*)lu->lu_private)->pm);
+
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);

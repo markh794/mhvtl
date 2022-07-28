@@ -290,6 +290,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
+	update_vpd_86(lu, ((struct priv_lu_ssc *)lu->lu_private)->pm);
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
 	pg = PCODE_OFFSET(0xb0);
