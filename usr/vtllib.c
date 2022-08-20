@@ -388,10 +388,10 @@ int resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz)
 {
 	uint8_t *arr = (uint8_t *)dbuf_p->data;
 
-	MHVTL_DBG(2, "Min/Max sz: %d/%d", 4, sz);
+	MHVTL_DBG(2, "Min/Max sz: %d/%d", 1, sz);
 	memset(arr, 0, READBLOCKLIMITS_ARR_SZ);
 	put_unaligned_be24(sz, &arr[1]);
-	arr[5] = 0x4;	/* Minimum block size */
+	arr[5] = 0x1;	/* Minimum block size */
 
 	return READBLOCKLIMITS_ARR_SZ;
 }
