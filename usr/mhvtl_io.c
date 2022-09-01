@@ -43,7 +43,7 @@ extern int debug;
 extern long my_id;
 extern struct priv_lu_ssc lu_ssc;
 extern struct lu_phy_attr lunit;
-extern struct encryption encryption;
+extern struct encryption app_encryption_state;
 
 uint32_t GenerateRSCRC(uint32_t crc, uint32_t size, const void *buf);
 
@@ -470,7 +470,7 @@ static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
  */
 static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
 {
-	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &encryption : NULL;
+	lu_priv->cryptop = lu_priv->ENCRYPT_MODE == 2 ? &app_encryption_state : NULL;
 
 	if (lu_priv->pm->valid_encryption_media)
 		lu_priv->pm->valid_encryption_media(cmd);
@@ -556,8 +556,7 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
 	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
 	setup_crypto(cmd, lu_priv);
 
-	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop, 0,
-							null_wr, crc, sam_stat);
+	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->cryptop, 0, null_wr, crc, sam_stat);
 
 	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
 		MHVTL_DBG(1, "Drive supports Logical Block Protection and LBP method: %d", lbp_method);
@@ -632,8 +631,7 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 	MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
 					src_sz, (unsigned long)dest_len);
 
-	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
-						LZO, null_wr, crc, sam_stat);
+	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop, LZO, null_wr, crc, sam_stat);
 
 	free(dest_buf);
 	free(wrkmem);
@@ -709,8 +707,7 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 					src_sz, (unsigned long)dest_len,
 					*lu_priv->compressionFactor);
 
-	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop,
-						ZLIB, null_wr, crc, sam_stat);
+	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->cryptop, ZLIB, null_wr, crc, sam_stat);
 
 	free(dest_buf);
 	lu_priv->bytesWritten_M += dest_len;

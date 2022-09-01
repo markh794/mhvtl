@@ -111,26 +111,26 @@ uint8_t valid_encryption_blk_t10k(struct scsi_cmd *cmd)
 	if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 		/* compare the keys  - STK requires UKAD back to decrypt */
 		if (lu_priv->DECRYPT_MODE > 1) {
-			if (c_pos->encryption.key_length != KEY_LENGTH) {
+			if (c_pos->blk_encryption_info.key_length != KEY_LENGTH) {
 				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
 				return correct_key;
 			}
-			for (i = 0; i < c_pos->encryption.key_length; ++i) {
-				if (c_pos->encryption.key[i] != KEY[i]) {
+			for (i = 0; i < c_pos->blk_encryption_info.key_length; ++i) {
+				if (c_pos->blk_encryption_info.key[i] != KEY[i]) {
 					sam_data_protect(E_INCORRECT_KEY,
 							sam_stat);
 					correct_key = FALSE;
 					break;
 				}
 			}
-			if (c_pos->encryption.ukad_length != UKAD_LENGTH) {
+			if (c_pos->blk_encryption_info.ukad_length != UKAD_LENGTH) {
 				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
 				return correct_key;
 			}
-			for (i = 0; i < c_pos->encryption.ukad_length; ++i) {
-				if (c_pos->encryption.ukad[i] != UKAD[i]) {
+			for (i = 0; i < c_pos->blk_encryption_info.ukad_length; ++i) {
+				if (c_pos->blk_encryption_info.ukad[i] != UKAD[i]) {
 					sam_data_protect(E_INCORRECT_KEY,
 							sam_stat);
 					correct_key = FALSE;

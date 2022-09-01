@@ -1232,17 +1232,17 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 		unsigned int i;
 
 		raw_pos.hdr.blk_flags |= BLKHDR_FLG_ENCRYPTED;
-		raw_pos.hdr.encryption.ukad_length = encryptp->ukad_length;
+		raw_pos.hdr.blk_encryption_info.ukad_length = encryptp->ukad_length;
 		for (i = 0; i < encryptp->ukad_length; ++i)
-			raw_pos.hdr.encryption.ukad[i] = encryptp->ukad[i];
+			raw_pos.hdr.blk_encryption_info.ukad[i] = encryptp->ukad[i];
 
-		raw_pos.hdr.encryption.akad_length = encryptp->akad_length;
+		raw_pos.hdr.blk_encryption_info.akad_length = encryptp->akad_length;
 		for (i = 0; i < encryptp->akad_length; ++i)
-			raw_pos.hdr.encryption.akad[i] = encryptp->akad[i];
+			raw_pos.hdr.blk_encryption_info.akad[i] = encryptp->akad[i];
 
-		raw_pos.hdr.encryption.key_length = encryptp->key_length;
+		raw_pos.hdr.blk_encryption_info.key_length = encryptp->key_length;
 		for (i = 0; i < encryptp->key_length; ++i)
-			raw_pos.hdr.encryption.key[i] = encryptp->key[i];
+			raw_pos.hdr.blk_encryption_info.key[i] = encryptp->key[i];
 	}
 
 	/* Now write out both the data and the header. */
@@ -1464,20 +1464,20 @@ void print_raw_header(void)
 
 		printf("   => Encr key length %d, ukad length %d, "
 				"akad length %d\n",
-				raw_pos.hdr.encryption.key_length,
-				raw_pos.hdr.encryption.ukad_length,
-				raw_pos.hdr.encryption.akad_length);
+				raw_pos.hdr.blk_encryption_info.key_length,
+				raw_pos.hdr.blk_encryption_info.ukad_length,
+				raw_pos.hdr.blk_encryption_info.akad_length);
 
-		if (raw_pos.hdr.encryption.key_length > 0) {
-				enc_key_to_string(enc, raw_pos.hdr.encryption.key, raw_pos.hdr.encryption.key_length);
+		if (raw_pos.hdr.blk_encryption_info.key_length > 0) {
+				enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.key, raw_pos.hdr.blk_encryption_info.key_length);
 				printf("%12s : %32s\n", "Key", enc);
 		}
-		if (raw_pos.hdr.encryption.ukad_length > 0) {
-				enc_key_to_string(enc, raw_pos.hdr.encryption.ukad, raw_pos.hdr.encryption.ukad_length);
+		if (raw_pos.hdr.blk_encryption_info.ukad_length > 0) {
+				enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.ukad, raw_pos.hdr.blk_encryption_info.ukad_length);
 				printf("%12s : %32s\n", "Ukad", enc);
 		}
-		if (raw_pos.hdr.encryption.akad_length > 0) {
-				enc_key_to_string(enc, raw_pos.hdr.encryption.akad, raw_pos.hdr.encryption.akad_length);
+		if (raw_pos.hdr.blk_encryption_info.akad_length > 0) {
+				enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.akad, raw_pos.hdr.blk_encryption_info.akad_length);
 				printf("%12s : %32s\n", "Akad", enc);
 		}
 	}

@@ -39,14 +39,15 @@
 
 #define TAPE_FMT_VERSION	3
 
+#define ENCR_KEY_MAX_LEN	32
 struct	encryption {
 	uint32_t	key_length;
 	uint32_t	ukad_length;
 	uint32_t	akad_length;
 	uint32_t	pad;
-	uint8_t		key[32];
-	uint8_t		ukad[32];
-	uint8_t		akad[32];
+	uint8_t		key[ENCR_KEY_MAX_LEN];
+	uint8_t		ukad[ENCR_KEY_MAX_LEN];
+	uint8_t		akad[ENCR_KEY_MAX_LEN];
 };
 
 /*
@@ -72,7 +73,7 @@ struct blk_header {
 	uint32_t	blk_size;
 	uint32_t	disk_blk_size;
 	uint32_t	uncomp_crc;
-	struct encryption encryption;
+	struct encryption blk_encryption_info;
 
 	/*
 	 * Add other things right here...

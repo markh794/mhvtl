@@ -86,14 +86,14 @@ char mhvtl_driver_name[] = "vtltape";
 
 /* Variables for simple, logical only SCSI Encryption system */
 
-struct encryption encryption;
+struct encryption app_encryption_state;		/* Stores the encryption info the application sent us */
 
-#define	UKAD_LENGTH	encryption.ukad_length
-#define	AKAD_LENGTH	encryption.akad_length
-#define	KEY_LENGTH	encryption.key_length
-#define	UKAD		encryption.ukad
-#define	AKAD		encryption.akad
-#define	KEY		encryption.key
+#define	UKAD_LENGTH	app_encryption_state.ukad_length
+#define	AKAD_LENGTH	app_encryption_state.akad_length
+#define	KEY_LENGTH	app_encryption_state.key_length
+#define	UKAD		app_encryption_state.ukad
+#define	AKAD		app_encryption_state.akad
+#define	KEY		app_encryption_state.key
 
 #include <zlib.h>
 #include "minilzo.h"
@@ -834,32 +834,32 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 		if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 			correct_key = TRUE;
 			i = 16;
-			if (c_pos->encryption.ukad_length) {
-				buf[3] += 4 + c_pos->encryption.ukad_length;
+			if (c_pos->blk_encryption_info.ukad_length) {
+				buf[3] += 4 + c_pos->blk_encryption_info.ukad_length;
 				buf[i++] = 0x00;
 				buf[i++] = 0x01;
 				buf[i++] = 0x00;
-				buf[i++] = c_pos->encryption.ukad_length;
-				for (count = 0; count < c_pos->encryption.ukad_length; ++count)
-					buf[i++] = c_pos->encryption.ukad[count];
-				ret += 4 + c_pos->encryption.ukad_length;
+				buf[i++] = c_pos->blk_encryption_info.ukad_length;
+				for (count = 0; count < c_pos->blk_encryption_info.ukad_length; ++count)
+					buf[i++] = c_pos->blk_encryption_info.ukad[count];
+				ret += 4 + c_pos->blk_encryption_info.ukad_length;
 			}
-			if (c_pos->encryption.akad_length) {
-				buf[3] += 4 + c_pos->encryption.akad_length;
+			if (c_pos->blk_encryption_info.akad_length) {
+				buf[3] += 4 + c_pos->blk_encryption_info.akad_length;
 				buf[i++] = 0x01;
 				buf[i++] = 0x03;
 				buf[i++] = 0x00;
-				buf[i++] = c_pos->encryption.akad_length;
-				for (count = 0; count < c_pos->encryption.akad_length; ++count)
-					buf[i++] = c_pos->encryption.akad[count];
-				ret += 4 + c_pos->encryption.akad_length;
+				buf[i++] = c_pos->blk_encryption_info.akad_length;
+				for (count = 0; count < c_pos->blk_encryption_info.akad_length; ++count)
+					buf[i++] = c_pos->blk_encryption_info.akad[count];
+				ret += 4 + c_pos->blk_encryption_info.akad_length;
 			}
 			/* compare the keys */
 			if (correct_key) {
-				if (c_pos->encryption.key_length != KEY_LENGTH)
+				if (c_pos->blk_encryption_info.key_length != KEY_LENGTH)
 					correct_key = FALSE;
-				for (count = 0; count < c_pos->encryption.key_length; ++count) {
-					if (c_pos->encryption.key[count] != KEY[count]) {
+				for (count = 0; count < c_pos->blk_encryption_info.key_length; ++count) {
+					if (c_pos->blk_encryption_info.key[count] != KEY[count]) {
 						correct_key = FALSE;
 						break;
 					}
@@ -2243,7 +2243,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	lu_priv->KEY_INSTANCE_COUNTER = 0;
 	lu_priv->DECRYPT_MODE = 0;
 	lu_priv->ENCRYPT_MODE = 0;
-	lu_priv->encr = &encryption;
+	lu_priv->encr = &app_encryption_state;
 	lu_priv->OK_2_write = &OK_to_write;
 	lu_priv->mamp = &mam;
 	INIT_LIST_HEAD(&lu_priv->supported_media_list);

@@ -544,17 +544,17 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd)
 
 	/* decryption logic */
 	correct_key = TRUE;
+
 	if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 		/* compare the keys */
 		if (lu_priv->DECRYPT_MODE > 1) {
-			if (c_pos->encryption.key_length != KEY_LENGTH) {
+			if (c_pos->blk_encryption_info.key_length != KEY_LENGTH) {
 				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
 			}
-			for (i = 0; i < c_pos->encryption.key_length; ++i) {
-				if (c_pos->encryption.key[i] != KEY[i]) {
-					sam_data_protect(E_INCORRECT_KEY,
-								sam_stat);
+			for (i = 0; i < c_pos->blk_encryption_info.key_length; ++i) {
+				if (c_pos->blk_encryption_info.key[i] != KEY[i]) {
+					sam_data_protect(E_INCORRECT_KEY, sam_stat);
 					correct_key = FALSE;
 					return correct_key;
 				}
