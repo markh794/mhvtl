@@ -994,11 +994,13 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 
 	if (cmd->dbuf_p->sz > (19 + KEY_LENGTH + 4)) {
 		if (buf[20 + KEY_LENGTH] == 0x00) {
+			MHVTL_DBG(2, "Unauthenticated Key Associated Data (UKAD) provided");
 			UKAD_LENGTH = get_unaligned_be16(&buf[22 + KEY_LENGTH]);
 			for (count = 0; count < UKAD_LENGTH; ++count) {
 				UKAD[count] = buf[24 + KEY_LENGTH + count];
 			}
 		} else if (buf[20 + KEY_LENGTH] == 0x01) {
+			MHVTL_DBG(2, "Authenticated Key Associated Data (AKAD) provided");
 			AKAD_LENGTH = get_unaligned_be16(&buf[22 + KEY_LENGTH]);
 			for (count = 0; count < AKAD_LENGTH; ++count) {
 				AKAD[count] = buf[24 + KEY_LENGTH + count];
@@ -1006,8 +1008,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd)
 		}
 	}
 
-	count = lu_priv->pm->kad_validation(lu_ssc.ENCRYPT_MODE,
-						UKAD_LENGTH, AKAD_LENGTH);
+	count = lu_priv->pm->kad_validation(lu_ssc.ENCRYPT_MODE, UKAD_LENGTH, AKAD_LENGTH);
 
 	/* For some reason, this command needs to be failed */
 	if (count) {
