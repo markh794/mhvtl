@@ -106,7 +106,7 @@ struct scatterlist;
 #ifndef MHVTL_VERSION
 #define MHVTL_VERSION "0.18.31"
 #endif
-static const char *mhvtl_version_date = "20211119-0";
+static const char *mhvtl_version_date = "20221011-0";
 static const char mhvtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -328,7 +328,7 @@ static struct scsi_host_template mhvtl_driver_template = {
 	.eh_device_reset_handler = mhvtl_device_reset,
 	.eh_host_reset_handler = mhvtl_host_reset,
 	.can_queue =		VTL_CANQUEUE,
-	.this_id =		15,
+	.this_id =		-1,
 	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
 	.cmd_per_lun =		1,
 	.max_sectors =		4096,
