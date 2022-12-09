@@ -567,7 +567,6 @@ void cleanup_density_support(struct list_head *l);
 pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl);
 
 void completeSCSICommand(int, struct mhvtl_ds *ds);
-void getCommand(int, struct mhvtl_header *);
 int retrieve_CDB_data(int cdev, struct mhvtl_ds *dbuf_p);
 int check_for_running_daemons(unsigned minor);
 
