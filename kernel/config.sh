@@ -86,4 +86,3 @@ else
 fi >> "${output}"
 
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"
-
