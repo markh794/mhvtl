@@ -278,11 +278,11 @@ static int mhvtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 					int reason);
 #endif
 #endif
-static int mhvtl_queuecommand_lck(struct scsi_cmnd *
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0)
-		, done_funct_t done
+#ifdef QUEUECOMMAND_LCK_ONE_ARG
+static int mhvtl_queuecommand_lck(struct scsi_cmnd *);
+#else
+static int mhvtl_queuecommand_lck(struct scsi_cmnd *, done_funct_t done);
 #endif
-		);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int mhvtl_b_ioctl(struct scsi_device *, unsigned int, void __user *);
@@ -600,15 +600,8 @@ static int mhvtl_q_cmd(struct scsi_cmnd *scp,
 /**********************************************************************
  *                Main interface from SCSI mid level
  **********************************************************************/
-static int mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0)
-		, done_funct_t done
-#endif
-		)
+static int _mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)
-	void (*done)(struct scsi_cmnd *) = scsi_done;
-#endif
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
 	int errsts = 0;
 	struct mhvtl_lu_info *lu = NULL;
@@ -649,6 +642,21 @@ static int mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt
 	}
 	return mhvtl_schedule_resp(SCpnt, lu, done, errsts);
 }
+
+#ifdef QUEUECOMMAND_LCK_ONE_ARG
+static int mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt)
+{
+	void (*done)(struct scsi_cmnd *) = scsi_done;
+
+	return _mhvtl_queuecommand_lck(SCpnt, done);
+}
+#else
+static int mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
+{
+	return _mhvtl_queuecommand_lck(SCpnt, done);
+}
+#endif
+
 
 /* FIXME: I don't know what version this inline routine was introduced */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9)
