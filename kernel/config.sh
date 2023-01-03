@@ -75,4 +75,15 @@ else
     echo "#undef HAVE_UNLOCKED_IOCTL"
 fi >> "${output}"
 
+# check for the scsi queue command taking one or two args
+str=$( grep 'rc = func_name##_lck' ${hdrs}/include/scsi/scsi_host.h )
+if [[ "$str" == *,* ]] ; then
+    echo "#undef QUEUECOMMAND_LCK_ONE_ARG"
+else
+    echo "#ifndef QUEUECOMMAND_LCK_ONE_ARG"
+    echo "#define QUEUECOMMAND_LCK_ONE_ARG"
+    echo "#endif"
+fi >> "${output}"
+
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"
+
