@@ -69,6 +69,9 @@ static struct density_info density_lto6 = {
 static struct density_info density_lto7 = {
 	19107, 127, 3584, 6000000, medium_density_code_lto7,
 			"LTO-CVE", "U-732", "Ultrium 7/32T" };
+static struct density_info density_lto7m8 = {
+	19107, 127, 5376, 9000000, medium_density_code_lto7m8,
+			"LTO-CVE", "U-7M832", "Ultrium 7M8/32T" };
 static struct density_info density_lto8 = {
 	20669, 127, 6656, 12000000, medium_density_code_lto8,
 			"LTO-CVE", "U-832", "Ultrium 8/32T" };
@@ -112,6 +115,8 @@ static struct name_to_media_info media_info[] = {
 			media_type_hp_lto_data, medium_density_code_lto7},
 	{"LTO7 WORM", Media_LTO7_WORM,
 			media_type_hp_lto_worm, medium_density_code_lto7},
+	{"LTO7M8", Media_LTO7M8,
+			media_type_hp_lto_data, medium_density_code_lto7m8},
 	{"LTO8", Media_LTO8,
 			media_type_hp_lto_data, medium_density_code_lto8},
 	{"LTO8 Clean", Media_LTO8_CLEAN,
@@ -986,6 +991,7 @@ void init_hp_ult_8(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RO, "LTO7 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 ENCR");
+	add_drive_media_list(lu, LOAD_RW, "LTO7M8");
 	add_drive_media_list(lu, LOAD_RW, "LTO8");
 	add_drive_media_list(lu, LOAD_RO, "LTO8 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO8 WORM");

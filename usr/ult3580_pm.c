@@ -69,6 +69,9 @@ static struct density_info density_lto6 = {
 static struct density_info density_lto7 = {
 	19107, 127, 3584, 6000000, medium_density_code_lto7,
 			"LTO-CVE", "U-732", "Ultrium 7/32T" };
+static struct density_info density_lto7m8 = {
+	19107, 127, 5376, 9000000, medium_density_code_lto7m8,
+			"LTO-CVE", "U-732", "Ultrium 7M8/32T" };
 static struct density_info density_lto8 = {
 	20669, 127, 6656, 12000000, medium_density_code_lto8,
 			"LTO-CVE", "U-832", "Ultrium 8/32T" };
@@ -112,6 +115,8 @@ static struct name_to_media_info media_info[] = {
 			media_type_lto7_data, medium_density_code_lto7},
 	{"LTO7 WORM", Media_LTO7_WORM,
 			media_type_lto7_worm, medium_density_code_lto7},
+	{"LTO7M8", Media_LTO7M8,
+			media_type_lto7m8_data, medium_density_code_lto7m8},
 	{"LTO8", Media_LTO8,
 			media_type_lto8_data, medium_density_code_lto8},
 	{"LTO8 Clean", Media_LTO8_CLEAN,
@@ -476,6 +481,9 @@ static uint8_t ult_media_load(struct lu_phy_attr *lu, int load)
 			break;
 		case Media_LTO7:
 			lu->mode_media_type = media_type_lto7_data;
+			break;
+		case Media_LTO7M8:
+			lu->mode_media_type = media_type_lto7m8_data;
 			break;
 		case Media_LTO8:
 			lu->mode_media_type = media_type_lto8_data;
@@ -1020,12 +1028,14 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 
     LTO-8 drives can read and write to LTO-7 and LTO-8 media*/
 	add_density_support(&lu->den_list, &density_lto7, 1);
+	add_density_support(&lu->den_list, &density_lto7m8, 1);
 	add_density_support(&lu->den_list, &density_lto8, 1);
 
 	add_drive_media_list(lu, LOAD_RW, "LTO7");
 	add_drive_media_list(lu, LOAD_RO, "LTO7 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO7 ENCR");
+	add_drive_media_list(lu, LOAD_RW, "LTO7M8");
 	add_drive_media_list(lu, LOAD_RW, "LTO8");
 	add_drive_media_list(lu, LOAD_RO, "LTO8 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO8 WORM");

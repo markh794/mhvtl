@@ -272,6 +272,7 @@ enum Media_Type_list {
 	Media_LTO7,
 	Media_LTO7_CLEAN,
 	Media_LTO7_WORM,
+	Media_LTO7M8,
 	Media_LTO8,
 	Media_LTO8_CLEAN,
 	Media_LTO8_WORM,
