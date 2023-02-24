@@ -22,7 +22,11 @@ URL: http://sites.google.com/site/linuxvtl2/
 Source: mhvtl-%{real_version}.tgz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 
-Requires:	sg3_utils
+Recommends: lsscsi mtx mt-st
+
+Requires:sg3_utils
+Requires: policycoreutils
+
 BuildRequires: systemd
 BuildRequires: systemd-rpm-macros
 BuildRequires: zlib-devel
@@ -50,6 +54,11 @@ The SSC/SMC target daemons have been written from scratch.
 %setup -n %{real_name}-%{version}
 
 %post
+/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/mhvtl-load-modules.service
+/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/vtllibrary@.service
+/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/vtltape@.service
+/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/mhvtl.target
+/sbin/restorecon -R -v %{_unitdir}
 /bin/systemctl daemon-reload
 %{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 /bin/systemctl start mhvtl.target

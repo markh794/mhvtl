@@ -61,9 +61,14 @@ clean:
 install: all
 	[ -d $(DESTDIR)$(SYSTEMD_SERVICE_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
 	install -m 644 $(LIB_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(LIB_SERVICE_FILE)\'
 	install -m 644 $(TAPE_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(TAPE_SERVICE_FILE)\'
 	install -m 644 $(MHVTL_TARGET_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(MHVTL_TARGET_FILE)\'
 	install -m 644 $(MHVTL_LOAD_MODULES_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(MHVTL_LOAD_MODULES_SERVICE_FILE)\'
+	restorecon -R -v  $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
 	[ -d $(DESTDIR)$(MHVTL_CONFIG_PATH) ] || install -d -m 755 $(DESTDIR)$(MHVTL_CONFIG_PATH)
 	install -m 755 $(GENERATE_DEVICE_CONF) $(DESTDIR)/usr/bin
 	install -m 755 $(GENERATE_LIB_CONTENTS) $(DESTDIR)/usr/bin
