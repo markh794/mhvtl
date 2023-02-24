@@ -4,6 +4,7 @@
 # make sure we have the kernel directory defined
 if [ -z "${KDIR}" ] ; then
     echo "error: you must supply environment variable KDIR" 1>&2
+    echo "       or you do not have the kernel-devel installed" 1>&2
     exit 1
 fi
 
