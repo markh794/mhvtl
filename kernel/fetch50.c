@@ -42,7 +42,7 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 
 		len = min(miter.length, buflen - offset);
 		if (unlikely(len > SG_SEGMENT_SZ)) {
-			printk(KERN_INFO "scatter-gather segment size larger than SG_SEGMENT_SZ (%d > %d)",
+			pr_warn("scatter-gather segment size larger than SG_SEGMENT_SZ (%d > %d)",
 						len, SG_SEGMENT_SZ);
 			goto abort_early;
 		}
@@ -57,13 +57,14 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 			flush_dcache_page(miter.page);
 		}
 		if (rem)
-			printk(KERN_DEBUG "mhvtl: %s(): "
-				"copy_%s_user() failed, rem %ld, buf 0x%llx, "
-				"miter.addr 0x%llx, len %d\n",
+			pr_warn("mhvtl: %s(): "
+				"copy_%s_user() failed, rem %ld, buf 0x%pS, "
+				"miter.addr 0x%pS, len %d\n",
 				__func__, (to_buffer) ? "to" : "from",
 				(long)rem,
-				(long long unsigned int)(buf + offset),
-				(long long unsigned int)miter.addr, len);
+				(buf + offset),
+				miter.addr,
+				len);
 
 		offset += len;
 	}

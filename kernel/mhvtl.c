@@ -42,6 +42,8 @@
  *
  */
 
+#define pr_fmt(fmt) "%s:%s: " fmt, KBUILD_MODNAME, __func__
+
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -131,22 +133,47 @@ static const char mhvtl_driver_name[] = "mhvtl";
 
 #ifndef MHVTL_DEBUG
 
-#define MHVTL_DBG(lvl, s...)
 #define MHVTL_DBG_PRT_CDB(lvl, s...)
 
 #else
 
-#define MHVTL_DBG(lvl, format, arg...) {				\
-	if ((mhvtl_opts & VTL_OPT_NOISE) >= (lvl))			\
-			printk(KERN_DEBUG "%s: %s: " format,		\
-				mhvtl_driver_name, __func__, ## arg);	\
-}
-
-#define MHVTL_DBG_PRT_CDB(lvl, sn, cdb, len)				\
-	{								\
-		if ((mhvtl_opts & VTL_OPT_NOISE) >= (lvl)) {		\
-			mhvtl_prt_cdb("CDB", (sn), (cdb), (len));	\
-		}							\
+#define MHVTL_DBG_PRT_CDB(lvl, sn, s, len)							\
+	{											\
+		if ((mhvtl_opts & VTL_OPT_NOISE) >= (lvl)) {					\
+			pr_info("(%llu) %d bytes", (long long unsigned)sn, len);		\
+			switch (len) {								\
+			case 6:									\
+				pr_cont(" %02x %02x %02x %02x %02x %02x",			\
+							s[0], s[1], s[2], s[3],			\
+							s[4], s[5]);				\
+				break;								\
+			case 8:									\
+				pr_cont(" %02x %02x %02x %02x %02x %02x %02x %02x",		\
+							s[0], s[1], s[2], s[3],			\
+							s[4], s[5], s[6], s[7]);		\
+				break;								\
+			case 10:								\
+				pr_cont(" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",	\
+							s[0], s[1], s[2], s[3],			\
+							s[4], s[5], s[6], s[7],			\
+							s[8], s[9]);				\
+				break;								\
+			case 12:								\
+				pr_cont(" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",		\
+							s[0], s[1], s[2], s[3],			\
+							s[4], s[5], s[6], s[7],			\
+							s[8], s[9], s[10], s[11]);		\
+				break;								\
+			case 16:								\
+			default:								\
+				pr_cont(" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",	\
+							s[0], s[1], s[2], s[3],			\
+							s[4], s[5], s[6], s[7],			\
+							s[8], s[9], s[10], s[11],		\
+							s[12], s[13], s[14], s[15]);		\
+				break;								\
+			}									\
+		}										\
 	}
 
 #endif	/* MHVTL_DEBUG */
@@ -329,12 +356,10 @@ static struct scsi_host_template mhvtl_driver_template = {
 	.eh_host_reset_handler = mhvtl_host_reset,
 	.can_queue =		VTL_CANQUEUE,
 	.this_id =		-1,
+	.proc_name =		mhvtl_driver_name,
 	.sg_tablesize =		SCSI_MAX_SG_CHAIN_SEGMENTS,
 	.cmd_per_lun =		1,
 	.max_sectors =		4096,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
-	.unchecked_isa_dma =	0,
-#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
 	.use_clustering =	ENABLE_CLUSTERING,
 #else
@@ -367,52 +392,6 @@ static const struct file_operations mhvtl_fops = {
  #include "fetch.c"
 #endif
 
-
-#ifdef MHVTL_DEBUG
-static void mhvtl_prt_cdb(char *f, uint64_t sn, uint8_t *s, int l)
-{
-	if (sn)
-		printk(KERN_DEBUG "%s: %s (%llu) %d bytes\n",
-				mhvtl_driver_name, f, (long long unsigned)sn, l);
-	else
-		printk(KERN_DEBUG "%s: %s (%d bytes)\n", mhvtl_driver_name, f, l);
-
-	switch (l) {
-	case 6:
-		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x",
-					s[0], s[1], s[2], s[3],
-					s[4], s[5]);
-		break;
-	case 8:
-		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x",
-					s[0], s[1], s[2], s[3],
-					s[4], s[5], s[6], s[7]);
-		break;
-	case 10:
-		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-					s[0], s[1], s[2], s[3],
-					s[4], s[5], s[6], s[7],
-					s[8], s[9]);
-		break;
-	case 12:
-		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-					s[0], s[1], s[2], s[3],
-					s[4], s[5], s[6], s[7],
-					s[8], s[9], s[10], s[11]);
-		break;
-	case 16:
-	default:
-		printk(KERN_DEBUG " %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-					s[0], s[1], s[2], s[3],
-					s[4], s[5], s[6], s[7],
-					s[8], s[9], s[10], s[11],
-					s[12], s[13], s[14], s[15]);
-		break;
-
-	}
-}
-#endif /* MHVTL_DEBUG */
-
 /**********************************************************************
  *                misc functions to handle queuing SCSI commands
  **********************************************************************/
@@ -431,14 +410,12 @@ static int mhvtl_schedule_resp(struct scsi_cmnd *SCpnt,
 {
 	if ((VTL_OPT_NOISE & mhvtl_opts) && SCpnt) {
 		if (scsi_result) {
-#ifdef MHVTL_DEBUG
 			struct scsi_device *sdp = SCpnt->device;
-#endif
 
-			MHVTL_DBG(1, " <%u %u %u %llu> non-zero result=0x%x\n",
+			pr_info(" <%u %u %u %llu> non-zero result=0x%x\n",
 				sdp->host->host_no,
 				sdp->channel, sdp->id,
-				(unsigned long long int)sdp->lun, scsi_result);
+				(unsigned long long)sdp->lun, scsi_result);
 		}
 	}
 	if (SCpnt && lu) {
@@ -466,7 +443,7 @@ static int mhvtl_resp_write_to_user(struct scsi_cmnd *SCpnt,
 	fetched = mhvtl_fetch_to_dev_buffer(SCpnt, up, count);
 
 	if (fetched < count) {
-		MHVTL_DBG(1, " cdb indicated=%d, IO sent=%d bytes\n",
+		pr_err(" cdb indicated=%d, IO sent=%d bytes\n",
 				count, fetched);
 		return -EIO;
 	}
@@ -484,24 +461,24 @@ static void mhvtl_debug_queued_list(struct mhvtl_lu_info *lu)
 	list_for_each_entry_safe(sqcp, n, &lu->cmd_list, queued_sibling) {
 		if (sqcp->state) {
 			if (sqcp->a_cmnd) {
-				MHVTL_DBG(2, "%d entry in use "
+				pr_info("%d entry in use "
 					"SCpnt: %p, SCSI result: %d, done: %p, "
 					"Serial No: %lld\n",
 					k, sqcp->a_cmnd, sqcp->scsi_result,
 					sqcp->done_funct,
 					sqcp->serial_number);
 			} else {
-				MHVTL_DBG(2, "%d entry in use "
+				pr_info("%d entry in use "
 					"SCpnt: %p, SCSI result: %d, done: %p\n",
 					k, sqcp->a_cmnd, sqcp->scsi_result,
 					sqcp->done_funct);
 			}
 		} else
-			MHVTL_DBG(2, "entry free %d\n", k);
+			pr_info("entry free %d\n", k);
 		k++;
 	}
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
-	MHVTL_DBG(2, "found %d entr%s\n", k, (k == 1) ? "y" : "ies");
+	pr_info("found %d entr%s\n", k, (k == 1) ? "y" : "ies");
 }
 
 static struct mhvtl_hba_info *mhvtl_get_hba_entry(void)
@@ -532,8 +509,7 @@ static void mhvtl_dump_queued_list(void)
 	 * lu to see if we can find the serial number in question
 	 */
 	list_for_each_entry_safe(lu, __lu, &mhvtl_hba->lu_list, lu_sibling) {
-		MHVTL_DBG(2, "Channel %d, ID %d, LUN %d\n",
-				lu->channel, lu->target, lu->lun);
+		pr_debug("Channel %d, ID %d, LUN %d\n", lu->channel, lu->target, lu->lun);
 		mhvtl_debug_queued_list(lu);
 	}
 }
@@ -557,7 +533,7 @@ static int mhvtl_q_cmd(struct scsi_cmnd *scp,
 
 	sqcp = kmalloc(sizeof(*sqcp), GFP_ATOMIC);
 	if (!sqcp) {
-		printk(KERN_WARNING "%s: %s kmalloc failed\n", mhvtl_driver_name, __func__);
+		pr_err("%s: %s kmalloc failed\n", mhvtl_driver_name, __func__);
 		return 1;
 	}
 
@@ -591,7 +567,7 @@ static int mhvtl_q_cmd(struct scsi_cmnd *scp,
 	list_add_tail(&sqcp->queued_sibling, &lu->cmd_list);
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 
-	if (VTL_OPT_NOISE & mhvtl_opts)
+	if ((mhvtl_opts & VTL_OPT_NOISE) >= 2)
 		mhvtl_dump_queued_list();
 
 	return 0;
@@ -613,18 +589,18 @@ static int _mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 		MHVTL_DBG_PRT_CDB(1, serial_number, cmd, SCpnt->cmd_len);
 
 	if (SCpnt->device->id == mhvtl_driver_template.this_id) {
-		printk(KERN_INFO "%s: initiator's id used as target!\n", mhvtl_driver_name);
+		pr_err("%s: initiator's id used as target!\n", mhvtl_driver_name);
 		return mhvtl_schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
 
 	if (SCpnt->device->lun >= mhvtl_max_luns) {
-		printk(KERN_INFO "%s: %s max luns exceeded\n", mhvtl_driver_name, __func__);
+		pr_err("%s: %s max luns exceeded\n", mhvtl_driver_name, __func__);
 		return mhvtl_schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
 
 	lu = devInfoReg(SCpnt->device);
 	if (NULL == lu) {
-		printk(KERN_INFO "%s: %s could not find lu\n", mhvtl_driver_name, __func__);
+		pr_err("%s: %s could not find lu\n", mhvtl_driver_name, __func__);
 		return mhvtl_schedule_resp(SCpnt, NULL, done, DID_NO_CONNECT << 16);
 	}
 
@@ -702,7 +678,7 @@ static int mhvtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 					int reason)
 #endif
 {
-	printk(KERN_INFO "mhvtl %s(%d)\n", __func__, qdepth);
+	pr_info("mhvtl %s(%d)\n", __func__, qdepth);
 
 	if (qdepth < 1)
 		qdepth = 1;
@@ -744,7 +720,7 @@ static int mhvtl_b_ioctl(struct scsi_device *sdp, unsigned int cmd, void __user 
 static int mhvtl_b_ioctl(struct scsi_device *sdp, int cmd, void __user *arg)
 #endif
 {
-	MHVTL_DBG(3, "ioctl: cmd=0x%x\n", cmd);
+	pr_debug("ioctl: cmd=0x%x\n", cmd);
 
 	return -ENOTTY;
 }
@@ -827,7 +803,7 @@ static void mhvtl_timer_intr_handler(unsigned long indx)
 	}
 
 	if (!sqcp) {
-		printk(KERN_ERR "%s: %s: Unexpected interrupt, indx %ld\n",
+		pr_err("%s: %s: Unexpected interrupt, indx %ld\n",
 					mhvtl_driver_name, __func__, (unsigned long)indx);
 		return;
 	}
@@ -846,16 +822,16 @@ static int mhvtl_slave_alloc(struct scsi_device *sdp)
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info *lu = (struct mhvtl_lu_info *)sdp->hostdata;
 
-	MHVTL_DBG(2, "slave_alloc <%u %u %u %llu>\n",
+	pr_debug("slave_alloc <%u %u %u %llu>\n",
 			sdp->host->host_no, sdp->channel, sdp->id,
-			(unsigned long long int)sdp->lun);
+			(unsigned long long)sdp->lun);
 
 	if (lu)
 		return 0;
 
 	mhvtl_hba = *(struct mhvtl_hba_info **) sdp->host->hostdata;
 	if (!mhvtl_hba) {
-		printk(KERN_ERR "%s: Host info NULL\n", mhvtl_driver_name);
+		pr_err("%s: Host info NULL\n", mhvtl_driver_name);
 		return -1;
 	}
 
@@ -863,7 +839,7 @@ static int mhvtl_slave_alloc(struct scsi_device *sdp)
 		if ((lu->channel == sdp->channel) &&
 			(lu->target == sdp->id) &&
 			(lu->lun == sdp->lun)) {
-				MHVTL_DBG(3, "line %d found matching lu\n", __LINE__);
+				pr_debug("line %d found matching lu\n", __LINE__);
 				return 0;
 		}
 	}
@@ -874,9 +850,9 @@ static int mhvtl_slave_configure(struct scsi_device *sdp)
 {
 	struct mhvtl_lu_info *lu;
 
-	MHVTL_DBG(2, "slave_configure <%u %u %u %llu>\n",
+	pr_debug("slave_configure <%u %u %u %llu>\n",
 			sdp->host->host_no, sdp->channel, sdp->id,
-			(unsigned long long int)sdp->lun);
+			(unsigned long long)sdp->lun);
 	if (sdp->host->max_cmd_len != VTL_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = VTL_MAX_CMD_LEN;
 	lu = devInfoReg(sdp);
@@ -895,11 +871,11 @@ static void mhvtl_slave_destroy(struct scsi_device *sdp)
 {
 	struct mhvtl_lu_info *lu = (struct mhvtl_lu_info *)sdp->hostdata;
 
-	MHVTL_DBG(2, "slave_destroy <%u %u %u %llu>\n",
+	pr_notice("slave_destroy <%u %u %u %llu>\n",
 			sdp->host->host_no, sdp->channel, sdp->id,
-			(unsigned long long int)sdp->lun);
+			(unsigned long long)sdp->lun);
 	if (lu) {
-		MHVTL_DBG(2, "Removing lu structure, minor %d\n", lu->minor);
+		pr_debug("Removing lu structure, minor %d\n", lu->minor);
 		/* make this slot avaliable for re-use */
 		devp[lu->minor] = NULL;
 		kfree(sdp->hostdata);
@@ -917,7 +893,7 @@ static struct mhvtl_lu_info *devInfoReg(struct scsi_device *sdp)
 
 	mhvtl_hba = *(struct mhvtl_hba_info **) sdp->host->hostdata;
 	if (!mhvtl_hba) {
-		printk(KERN_ERR "%s: %s Host info NULL\n", mhvtl_driver_name, __func__);
+		pr_err("%s: %s Host info NULL\n", mhvtl_driver_name, __func__);
 		return NULL;
 	}
 
@@ -942,14 +918,14 @@ static void mk_sense_buffer(struct mhvtl_lu_info *lu, int key, int asc, int asq)
 	sbuff[7] = 0xa;		/* implies 18 byte sense buffer */
 	sbuff[12] = asc;
 	sbuff[13] = asq;
-	MHVTL_DBG(1, " [key,asc,ascq]: [0x%x,0x%x,0x%x]\n", key, asc, asq);
+	pr_notice(" [key,asc,ascq]: [0x%x,0x%x,0x%x]\n", key, asc, asq);
 }
 
 static int mhvtl_device_reset(struct scsi_cmnd *SCpnt)
 {
 	struct mhvtl_lu_info *lu;
 
-	MHVTL_DBG(3, "Device reset called\n");
+	pr_notice("Device reset called\n");
 	++num_dev_resets;
 	if (SCpnt) {
 		lu = devInfoReg(SCpnt->device);
@@ -966,7 +942,7 @@ static int mhvtl_bus_reset(struct scsi_cmnd *SCpnt)
 	struct scsi_device *sdp;
 	struct Scsi_Host *hp;
 
-	MHVTL_DBG(3, "Bus reset called\n");
+	pr_notice("Bus reset called\n");
 	++num_bus_resets;
 	if (SCpnt && ((sdp = SCpnt->device)) && ((hp = sdp->host))) {
 		mhvtl_hba = *(struct mhvtl_hba_info **) hp->hostdata;
@@ -984,7 +960,7 @@ static int mhvtl_host_reset(struct scsi_cmnd *SCpnt)
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info *lu;
 
-	MHVTL_DBG(3, "Host reset called\n");
+	pr_notice("Host reset called\n");
 	++num_host_resets;
 	spin_lock(&mhvtl_hba_list_lock);
 	list_for_each_entry(mhvtl_hba, &mhvtl_hba_list, hba_sibling) {
@@ -1050,7 +1026,7 @@ static void mhvtl_stop_all_queued(void)
 
 static int mhvtl_abort(struct scsi_cmnd *SCpnt)
 {
-	MHVTL_DBG(3, "Abort called\n");
+	pr_notice("Abort called\n");
 	++num_aborts;
 	mhvtl_stop_queued_cmnd(SCpnt);
 	return SUCCESS;
@@ -1079,27 +1055,27 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl)
 	int error = 0;
 
 	if (devp[minor]) {
-		MHVTL_DBG(2, "device struct already in place\n");
+		pr_notice("device struct already in place");
 		return error;
 	}
 
 	mhvtl_hba = mhvtl_get_hba_entry();
 	if (!mhvtl_hba) {
-		MHVTL_DBG(1, "mhvtl_ost info struct is NULL\n");
+		pr_err("mhvtl_ost info struct is NULL");
 		return -ENOTTY;
 	}
-	MHVTL_DBG(2, "mhvtl_hba_info struct is %p\n", mhvtl_hba);
+	pr_debug("mhvtl_hba_info struct is %p\n", mhvtl_hba);
 
 	hpnt = mhvtl_hba->shost;
 	if (!hpnt) {
-		MHVTL_DBG(1, "scsi host structure is NULL\n");
+		pr_notice("scsi host structure is NULL\n");
 		return -ENOTTY;
 	}
-	MHVTL_DBG(2, "scsi_host struct is %p\n", hpnt);
+	pr_debug("scsi_host struct is %p\n", hpnt);
 
 	lu = kmalloc(sizeof(*lu), GFP_KERNEL);
 	if (!lu) {
-		printk(KERN_ERR "%s: %s line %d - out of memory\n",
+		pr_err("%s: %s line %d - out of memory\n",
 						mhvtl_driver_name, __func__, __LINE__);
 		return -ENOMEM;
 	}
@@ -1124,7 +1100,7 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl)
 	lu->sense_buff[0] = 0x70;
 	lu->sense_buff[7] = 0xa;
 	devp[minor] = lu;
-	MHVTL_DBG(1, "Added lu: %p to devp[%d]\n", lu, minor);
+	pr_debug("Added lu: %p to devp[%d]\n", lu, minor);
 
 	lu->sdev = __scsi_add_device(hpnt, ctl->channel, ctl->id, ctl->lun, NULL);
 	if (IS_ERR(lu->sdev)) {
@@ -1203,7 +1179,7 @@ static ssize_t add_lu_store(struct device_driver *ddp,
 	char str[512];
 
 	if (strncmp(buf, "add", 3)) {
-		printk(KERN_ERR "%s: %s Invalid command: %s\n",
+		pr_err("%s: %s Invalid command: %s\n",
 				mhvtl_driver_name, __func__, buf);
 		return count;
 	}
@@ -1211,7 +1187,7 @@ static ssize_t add_lu_store(struct device_driver *ddp,
 	retval = sscanf(buf, "%s %u %d %d %d",
 			str, &minor, &ctl.channel, &ctl.id, &ctl.lun);
 
-	MHVTL_DBG(2, "Calling 'mhvtl_add_device(minor: %u,"
+	pr_debug("Calling 'mhvtl_add_device(minor: %u,"
 			" Channel: %d, ID: %d, LUN: %d)\n",
 			minor, ctl.channel, ctl.id, ctl.lun);
 
@@ -1256,51 +1232,49 @@ static int __init mhvtl_init(void)
 
 	mhvtl_major = register_chrdev(mhvtl_major, "mhvtl", &mhvtl_fops);
 	if (mhvtl_major < 0) {
-		printk(KERN_ERR "%s: can't get major number\n", mhvtl_driver_name);
+		pr_crit("%s: can't get major number\n", mhvtl_driver_name);
 		goto register_chrdev_error;
 	}
 
 	ret = device_register(&mhvtl_pseudo_primary);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: device_register error: %d\n", mhvtl_driver_name, ret);
+		pr_crit("%s: device_register error: %d\n", mhvtl_driver_name, ret);
 		goto device_register_error;
 	}
 
 	ret = bus_register(&mhvtl_pseudo_lld_bus);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: bus_register error: %d\n", mhvtl_driver_name, ret);
+		pr_crit("%s: bus_register error: %d\n", mhvtl_driver_name, ret);
 		goto bus_register_error;
 	}
 
 	ret = driver_register(&mhvtl_driverfs_driver);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: driver_register error: %d\n", mhvtl_driver_name, ret);
+		pr_crit("%s: driver_register error: %d\n", mhvtl_driver_name, ret);
 		goto driver_register_error;
 	}
 
 	ret = do_create_driverfs_files();
 	if (ret < 0) {
-		printk(KERN_ERR "%s: driver_create_file error: %d\n", mhvtl_driver_name, ret);
+		pr_crit("%s: driver_create_file error: %d\n", mhvtl_driver_name, ret);
 		goto do_create_driverfs_error;
 	}
-
-	mhvtl_driver_template.proc_name = (char *)mhvtl_driver_name;
 
 	mhvtl_add_host = 0;
 
 	if (mhvtl_add_adapter()) {
-		printk(KERN_ERR "%s: %s mhvtl_add_adapter failed\n", mhvtl_driver_name, __func__);
+		pr_crit("%s: %s mhvtl_add_adapter failed\n", mhvtl_driver_name, __func__);
 		goto mhvtl_add_adapter_error;
 	}
 
-	MHVTL_DBG(1, "Built %d host%s\n",
+	pr_debug("Built %d host%s\n",
 			mhvtl_add_host, (mhvtl_add_host == 1) ? "" : "s");
 
 	dsp = (struct kmem_cache *)kmem_cache_create_usercopy("mhvtl_ds_cache",
 				sizeof(struct mhvtl_ds), 0, SLAB_HWCACHE_ALIGN,
 				0, sizeof(struct mhvtl_ds), NULL);
 	if (!dsp) {
-		printk(KERN_ERR "%s: %s unable to create ds cache", mhvtl_driver_name, __func__);
+		pr_err("%s: %s unable to create ds cache", mhvtl_driver_name, __func__);
 		goto mhvtl_kmem_cache_error;
 	}
 
@@ -1308,13 +1282,13 @@ static int __init mhvtl_init(void)
 				SG_SEGMENT_SZ, 0, SLAB_HWCACHE_ALIGN,
 				0, SG_SEGMENT_SZ, NULL);
 	if (!sgp) {
-		printk(KERN_ERR "%s: %s unable to create sg cache (size %d)",
+		pr_err("%s: %s unable to create sg cache (size %d)",
 				mhvtl_driver_name, __func__, (int)SG_SEGMENT_SZ);
 		goto mhvtl_kmem_cache_error;
 	} else {
-		MHVTL_DBG(1, "kmem_cache_user_copy: page size: %d", (int)SG_SEGMENT_SZ);
+		pr_info("kmem_cache_user_copy: page size: %d", (int)SG_SEGMENT_SZ);
 	}
-	MHVTL_DBG(1, "Starting serial_number: %lld", (unsigned long long)serial_number);
+	pr_debug("Starting serial_number: %lld", serial_number);
 
 	return 0;
 
@@ -1351,7 +1325,7 @@ static void __exit mhvtl_exit(void)
 		mhvtl_remove_adapter();
 
 	if (mhvtl_add_host != 0)
-		printk(KERN_ERR "mhvtl %s: mhvtl_remove_adapter "
+		pr_err("mhvtl %s: mhvtl_remove_adapter "
 			"error at line %d\n", __func__, __LINE__);
 
 	do_remove_driverfs_files();
@@ -1368,7 +1342,7 @@ module_exit(mhvtl_exit);
 
 static void mhvtl_pseudo_release(struct device *dev)
 {
-	MHVTL_DBG(1, "%s: %s() called\n", mhvtl_driver_name, __func__);
+	pr_notice("%s: %s() called\n", mhvtl_driver_name, __func__);
 }
 
 static struct device mhvtl_pseudo_primary = {
@@ -1411,7 +1385,7 @@ static int mhvtl_add_adapter(void)
 	mhvtl_hba = kmalloc(sizeof(*mhvtl_hba), GFP_KERNEL);
 
 	if (!mhvtl_hba) {
-		printk(KERN_ERR "%s: out of memory at line %d\n",
+		pr_err("%s: out of memory at line %d\n",
 						__func__, __LINE__);
 		return -ENOMEM;
 	}
@@ -1472,7 +1446,7 @@ static int mhvtl_driver_probe(struct device *dev)
 
 	hpnt = scsi_host_alloc(&mhvtl_driver_template, sizeof(*mhvtl_hba));
 	if (NULL == hpnt) {
-		printk(KERN_ERR "%s: scsi_register failed\n", __func__);
+		pr_err("%s: scsi_register failed\n", __func__);
 		error = -ENODEV;
 		return error;
 	}
@@ -1487,7 +1461,7 @@ static int mhvtl_driver_probe(struct device *dev)
 
 	error = scsi_add_host(hpnt, &mhvtl_hba->dev);
 	if (error) {
-		printk(KERN_ERR "%s: scsi_add_host failed\n", __func__);
+		pr_err("%s: scsi_add_host failed\n", __func__);
 		error = -ENODEV;
 		scsi_host_put(hpnt);
 	} else
@@ -1505,7 +1479,7 @@ static int mhvtl_driver_remove(struct device *dev)
 	mhvtl_hba = to_mhvtl_hba(dev);
 
 	if (!mhvtl_hba) {
-		printk(KERN_ERR "%s: Unable to locate host info\n", __func__);
+		pr_err("%s: Unable to locate host info\n", __func__);
 		return -ENODEV;
 	}
 
@@ -1545,10 +1519,10 @@ static int mhvtl_get_user_data(unsigned int minor, char __user *arg)
 		goto ret_err;
 	}
 
-	MHVTL_DBG(2, " data Cmd S/No  : %lld\n", (unsigned long long)ds->serialNo);
-	MHVTL_DBG(2, " data pointer   : %p\n", ds->data);
-	MHVTL_DBG(2, " data sz        : %d\n", ds->sz);
-	MHVTL_DBG(2, " SAM status     : %d (0x%02x)\n",
+	pr_debug(" data Cmd S/No  : %lld\n", (unsigned long long)ds->serialNo);
+	pr_debug(" data pointer   : %p\n", ds->data);
+	pr_debug(" data sz        : %d\n", ds->sz);
+	pr_debug(" SAM status     : %d (0x%02x)\n",
 					ds->sam_stat, ds->sam_stat);
 	up = ds->data;
 	sz = ds->sz;
@@ -1574,26 +1548,26 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg)
 
 	ds = kmem_cache_alloc(dsp, 0);
 	if (!ds) {
-		printk(KERN_ERR "%s(): Failed to allocate kmem_cache",
+		pr_err("%s(): Failed to allocate kmem_cache",
 						__func__);
 		ret = -EFAULT;
 		goto give_up;
 	}
 
 	if (copy_from_user((u8 *)ds, (u8 *)arg, sizeof(struct mhvtl_ds))) {
-		printk(KERN_ERR "%s(): Failed to copy from user %ld bytes",
-						__func__, sizeof(struct mhvtl_ds));
+		pr_err("%s(): Failed to copy from user %ld bytes",
+						__func__, (unsigned long)sizeof(struct mhvtl_ds));
 		ret = -EFAULT;
 		goto give_up;
 	}
-	MHVTL_DBG(2, " data Cmd S/No  : %lld\n", (unsigned long long)ds->serialNo);
-	MHVTL_DBG(2, " data pointer   : %p\n", ds->data);
-	MHVTL_DBG(2, " data sz        : %d\n", ds->sz);
-	MHVTL_DBG(2, " SAM status     : %d (0x%02x)\n",
+	pr_debug(" data Cmd S/No  : %lld\n", (unsigned long long)ds->serialNo);
+	pr_debug(" data pointer   : %p\n", ds->data);
+	pr_debug(" data sz        : %d\n", ds->sz);
+	pr_debug(" SAM status     : %d (0x%02x)\n",
 						ds->sam_stat, ds->sam_stat);
 	sqcp = lookup_sqcp(devp[minor], ds->serialNo);
 	if (!sqcp) {
-		printk(KERN_ERR "%s: callback function not found for "
+		pr_err("%s: callback function not found for "
 				"SCSI cmd s/no. %lld, minor: %d\n",
 				__func__, (unsigned long long)ds->serialNo,
 				minor);
@@ -1605,10 +1579,10 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg)
 		sqcp->a_cmnd->result = ds->sam_stat;
 		if (copy_from_user(sqcp->a_cmnd->sense_buffer,
 						ds->sense_buf, SENSE_BUF_SIZE))
-			printk(KERN_ERR "Failed to retrieve autosense data\n");
+			pr_err("Failed to retrieve autosense data\n");
 		sqcp->a_cmnd->sense_buffer[0] |= 0x70; /* force valid sense */
 		s = sqcp->a_cmnd->sense_buffer;
-		MHVTL_DBG(2, "Auto-Sense returned [key/ASC/ASCQ] "
+		pr_debug("Auto-Sense returned [key/ASC/ASCQ] "
 				"[%02x %02x %02x]\n",
 				s[2],
 				s[12],
@@ -1619,8 +1593,7 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg)
 	if (sqcp->done_funct)
 		sqcp->done_funct(sqcp->a_cmnd);
 	else
-		printk(KERN_ERR
-			"%s FATAL, line %d: SCSI done_funct callback => NULL\n",
+		pr_err("%s FATAL, line %d: SCSI done_funct callback => NULL\n",
 						__func__, __LINE__);
 	mhvtl_remove_sqcp(devp[minor], sqcp);
 
@@ -1684,14 +1657,14 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg)
 		goto give_up;
 	}
 
-	MHVTL_DBG(1, "ioctl to remove device <c t l> "
+	pr_debug("ioctl to remove device <c t l> "
 		"<%02d %02d %02d>, hba: %p\n",
 			ctl.channel, ctl.id, ctl.lun, mhvtl_hba);
 
 	list_for_each_entry_safe(lu, n, &mhvtl_hba->lu_list, lu_sibling) {
 		if ((lu->channel == ctl.channel) && (lu->target == ctl.id) &&
 						(lu->lun == ctl.lun)) {
-			MHVTL_DBG(2, "line %d found matching lu\n", __LINE__);
+			pr_debug("line %d found matching lu\n", __LINE__);
 			list_del(&lu->lu_sibling);
 			devp[minor] = NULL;
 			baksdev = lu->sdev;
@@ -1717,7 +1690,7 @@ static long mhvtl_c_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 
 	struct inode *inode = file_inode(file);
 	if (!inode) {
-		printk(KERN_ERR "%s() : Unable to obtain inode - inode is null", __func__);
+		pr_err("%s() : Unable to obtain inode - inode is null", __func__);
 		return -ENODEV;
 	}
 
@@ -1763,17 +1736,17 @@ static int mhvtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 		break;
 
 	case VTL_GET_DATA:
-		MHVTL_DBG(3, "ioctl(VTL_GET_DATA)\n");
+		pr_debug("ioctl(VTL_GET_DATA)\n");
 		ret = mhvtl_get_user_data(minor, (char __user *)arg);
 		break;
 
 	case VTL_PUT_DATA:
-		MHVTL_DBG(3, "ioctl(VTL_PUT_DATA)\n");
+		pr_debug("ioctl(VTL_PUT_DATA)\n");
 		ret = mhvtl_put_user_data(minor, (char __user *)arg);
 		break;
 
 	case VTL_REMOVE_LU:
-		MHVTL_DBG(3, "ioctl(VTL_REMOVE_LU)\n");
+		pr_debug("ioctl(VTL_REMOVE_LU)\n");
 		ret = mhvtl_remove_lu(minor, (char __user *)arg);
 		break;
 
@@ -1786,18 +1759,16 @@ static int mhvtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 
 static int mhvtl_release(struct inode *inode, struct file *filp)
 {
-#ifdef MHVTL_DEBUG
 	unsigned int minor = iminor(inode);
-#endif
-	MHVTL_DBG(1, "lu for minor %u Release\n", minor);
+
+	pr_debug("lu for minor %u Release\n", minor);
 	return 0;
 }
 
 static int mhvtl_open(struct inode *inode, struct file *filp)
 {
-#ifdef MHVTL_DEBUG
 	unsigned int minor = iminor(inode);
-#endif
-	MHVTL_DBG(1, "mhvtl%u: opened\n", minor);
+
+	pr_debug("mhvtl%u: opened\n", minor);
 	return 0;
 }

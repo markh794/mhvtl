@@ -19,7 +19,7 @@ static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 	if (NULL == scp->request_buffer)
 		return -1;
 	if (NULL == arr) {
-		printk("%s, userspace pointer is NULL\n", __func__);
+		pr_crit("%s, userspace pointer is NULL\n", __func__);
 		WARN_ON(1);
 	}
 
@@ -47,7 +47,7 @@ static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr,
 		retval = copy_to_user(arr + req_len, kaddr_off, len);
 		kunmap(sg->page);
 		if (retval) {
-			printk("mhvtl: %s[%d] failed to copy_to_user()\n",
+			pr_err("mhvtl: %s[%d] failed to copy_to_user()\n",
 						__func__, __LINE__);
 			return -1;
 		}
@@ -84,7 +84,7 @@ static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 		req_len = scp->request_bufflen;
 		act_len = (req_len < arr_len) ? req_len : arr_len;
 		if (copy_from_user(scp->request_buffer, arr, act_len))
-			printk(KERN_INFO "%s[%d]: failed to copy_from_user()\n",
+			pr_err("%s[%d]: failed to copy_from_user()\n",
 						__func__, __LINE__);
 
 		scp->resid = req_len - act_len;
@@ -106,7 +106,7 @@ static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 			retval = copy_from_user(kaddr_off, arr + req_len, len);
 			kunmap(sg->page);
 			if (retval) {
-				printk("mhvtl: %s[%d] failed to copy_from_user()\n",
+				pr_err("mhvtl: %s[%d] failed to copy_from_user()\n",
 						__func__, __LINE__);
 				return -1;
 			}
