@@ -2245,6 +2245,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
 	lu_priv->ENCRYPT_MODE = 0;
 	lu_priv->encr = &app_encryption_state;
 	lu_priv->OK_2_write = &OK_to_write;
+	lu_priv->barcode = NULL;
 	lu_priv->mamp = &mam;
 	INIT_LIST_HEAD(&lu_priv->supported_media_list);
 	lu_priv->pm = NULL;
