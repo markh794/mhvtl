@@ -2148,7 +2148,7 @@ uint8_t ssc_send_diagnostics(struct scsi_cmd *cmd)
 
 	/* Sanity check - the MAM should be 1024 bytes in size */
 	if (sizeof(struct MAM) != 1024) {
-		MHVTL_ERR("Structure of MAM should be 1024 bytes, but is %ld", sizeof(struct MAM));
+		MHVTL_ERR("Structure of MAM should be 1024 bytes, but is %ld", (long)sizeof(struct MAM));
 		sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}

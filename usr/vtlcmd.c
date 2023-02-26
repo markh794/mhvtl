@@ -108,8 +108,8 @@ int check_media(int libno, char *barcode)
 	find_media_home_directory(NULL, home_directory, libno);
 	path_len = snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", home_directory, barcode);
 	if (path_len >= ARRAY_SIZE(currentMedia)) {
-		fprintf(stderr, "Warning: path to %s/%s/data truncated to %ld bytes",
-				home_directory, barcode, ARRAY_SIZE(currentMedia));
+		fprintf(stderr, "Warning: path to %s/%s/data truncated to %"PRIu32" bytes",
+				home_directory, barcode, (uint32_t)ARRAY_SIZE(currentMedia));
 	}
 	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
 	if (datafile < 0) {

@@ -615,7 +615,7 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 	}
 
 	if (unlikely(!wrkmem)) {
-		MHVTL_ERR("wrkmem malloc(%d) failed", LZO1X_1_MEM_COMPRESS);
+		MHVTL_ERR("wrkmem malloc(%d) failed", (int)LZO1X_1_MEM_COMPRESS);
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		free(dest_buf);
 		return 0;

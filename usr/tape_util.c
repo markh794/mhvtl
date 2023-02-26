@@ -326,7 +326,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 		printf("Block size: %d\n", block_size);
 		printf("Compression : %s\n", compression);
 
-		printf("Tape max capacity is %ld\n", lu_ssc.max_capacity);
+		printf("Tape max capacity is %"PRIu64"\n", lu_ssc.max_capacity);
 	}
 
 	b = malloc(block_size);
@@ -349,7 +349,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 		count = read(fd, b, block_size);
 		if (count > 0) {
 			if (count < block_size) {
-				printf("zeroing out remaining block: %ld\n", block_size - count);
+				printf("zeroing out remaining block: %"PRIu32"\n", (int32_t)(block_size - count));
 				memset(b + count, 0, block_size - count);	/* Zero out remaining block */
 			}
 			retval = writeBlock(&cmd, count);

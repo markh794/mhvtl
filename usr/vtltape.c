@@ -1454,7 +1454,7 @@ return p;
 static void send_msg_and_log(char *s, uint64_t id)
 {
 	send_msg(s, id);
-	MHVTL_DBG(1, "%ld: Replying to snd_id %ld with \"%s\"", my_id, id, s);
+	MHVTL_DBG(1, "%ld: Replying to snd_id %"PRIu64" with \"%s\"", my_id, id, s);
 }
 
 void unloadTape(int update_library, uint8_t *sam_stat)
