@@ -187,7 +187,7 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
  */
 void *zalloc(int sz)
 {
-	void *p = malloc(sz);
+	void *p = malloc(max(32,sz));
 
 	if (p)
 		memset(p, 0, sz);
