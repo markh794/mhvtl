@@ -36,8 +36,8 @@ extern int verbose;
 			mhvtl_driver_name, __func__, ## arg);	\
 		fflush(NULL);					\
 	} else {						\
-		syslog(LOG_DAEMON|LOG_ERR, "ERROR: %s(): " format,	\
-			__func__, ## arg);			\
+		syslog(LOG_DAEMON|LOG_ERR, "ERROR: %s(): line: %d," format,	\
+			__func__, __LINE__, ## arg);			\
 	}							\
 }
 
