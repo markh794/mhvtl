@@ -187,8 +187,12 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
  */
 void *zalloc(int sz)
 {
+#ifdef __arm__
 	void *p = malloc(max(32,sz));
-
+	MHVTL_DBG(2, "arm: malloc(%d)%s", sz, (sz < 32) ? " : rounding up to 32" : "");
+#else
+	void *p = malloc(sz);
+#endif
 	if (p)
 		memset(p, 0, sz);
 
