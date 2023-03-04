@@ -349,7 +349,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 		count = read(fd, b, block_size);
 		if (count > 0) {
 			if (count < block_size) {
-				printf("zeroing out remaining block: %"PRIu32"\n", (int32_t)(block_size - count));
+				printf("zeroing out remaining block: %"PRIu32"\n", (uint32_t)(block_size - count));
 				memset(b + count, 0, block_size - count);	/* Zero out remaining block */
 			}
 			retval = writeBlock(&cmd, count);
