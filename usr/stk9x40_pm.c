@@ -123,7 +123,7 @@ uint8_t valid_encryption_blk_9840(struct scsi_cmd *cmd)
 	MHVTL_DBG(3, "+++ Trace +++");
 
 	lu_priv = lu->lu_private;
-	encr = lu_priv->encr;
+	encr = lu_priv->app_encr_info;
 
 	/* decryption logic */
 	correct_key = TRUE;

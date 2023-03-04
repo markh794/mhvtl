@@ -540,7 +540,7 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd)
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	lu_priv = lu->lu_private;
-	encr = lu_priv->encr;
+	encr = lu_priv->app_encr_info;
 
 	/* decryption logic */
 	correct_key = TRUE;

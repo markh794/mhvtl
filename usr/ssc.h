@@ -170,8 +170,7 @@ struct priv_lu_ssc {
 	uint32_t KEY_INSTANCE_COUNTER;
 	uint32_t DECRYPT_MODE;
 	uint32_t ENCRYPT_MODE;
-	struct encryption *encr;
-	struct encryption *cryptop;
+	struct encryption *app_encr_info;
 
 	struct list_head supported_media_list;
 

@@ -116,7 +116,7 @@ static uint8_t valid_encryption_media_E06(struct scsi_cmd *cmd)
 		 */
 		if (lu_priv->pm->drive_type == drive_3592_E06) {
 			if (lu_priv->ENCRYPT_MODE == 2) {
-				lu_priv->cryptop = NULL;
+				lu_priv->app_encr_info = NULL;
 				mam.Flags |= MAM_FLAGS_ENCRYPTION_FORMAT;
 			} else
 				mam.Flags &= ~MAM_FLAGS_ENCRYPTION_FORMAT;
