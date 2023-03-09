@@ -56,6 +56,7 @@ clean:
 	$(MAKE) -C scripts clean
 	$(MAKE) -C man clean
 	$(MAKE) -C kernel clean
+	$(RM) -f mhvtl_kernel.tgz
 
 .PHONY: distclean
 distclean:
@@ -64,6 +65,7 @@ distclean:
 	$(MAKE) -C scripts distclean
 	$(MAKE) -C kernel distclean
 	$(MAKE) -C man clean
+	$(RM) -f mhvtl_kernel.tgz
 	$(RM) ../$(TAR_FILE)
 
 install: all
@@ -73,6 +75,9 @@ install: all
 	$(MAKE) -C man man
 	$(MAKE) -C man install
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
+	(cd kernel; tar cfz ../mhvtl_kernel.tgz *)
+	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
+	install -m 755 mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
 ifeq ($(ROOTUID),YES)
 	ldconfig
 	systemctl daemon-reload
@@ -86,6 +91,7 @@ endif
 
 tar: distclean
 	test -d ../$(PARENTDIR) || ln -s $(TOPDIR) ../$(PARENTDIR)
+	(cd kernel; tar cfz ../mhvtl_kernel.tgz *)
 	(cd ..;  tar cvzf $(TAR_FILE) --exclude='.git*' \
 		 $(PARENTDIR)/man \
 		 $(PARENTDIR)/doc \
@@ -101,5 +107,6 @@ tar: distclean
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
 		 $(PARENTDIR)/ChangeLog \
+		 $(PARENTDIR)/mhvtl_kernel.tgz \
 		 $(PARENTDIR)/mhvtl-utils.spec)
 	$(RM) ../$(PARENTDIR)

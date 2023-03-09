@@ -3,6 +3,8 @@ TOPDIR ?= $(CURDIR)
 VER ?= $(shell awk '/Version/ {print $$2}'  $(TOPDIR)/mhvtl-utils.spec)
 REL ?= $(shell awk -F'[ %]' '/Release/ {print $$2}' $(TOPDIR)/mhvtl-utils.spec)
 
+FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
+
 VERSION ?= $(VER).$(REL)
 EXTRAVERSION ?= $(if $(shell git show-ref 2>/dev/null),-git-$(shell git rev-parse --abbrev-ref HEAD))
 

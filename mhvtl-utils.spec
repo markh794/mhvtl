@@ -1,6 +1,9 @@
 # Disable the building of the debug package(s).
 %define debug_package %{nil}
 
+# config.sh parses '_firmwarepath' to define FIRMWAREDIR in parent Makefile
+%global _firmwarepath	/usr/lib/firmware
+
 # Compat path macros
 # pilfered from https://src.fedoraproject.org/rpms/snapd/blob/master/f/snapd.spec
 %{!?_systemdgeneratordir: %global _systemdgeneratordir %{_prefix}/lib/systemd/system-generators}
@@ -107,6 +110,7 @@ install -d -m 755 %{buildroot}/var/lib/%{name}
 %doc %{_mandir}/man1/preload_tape.1*
 %doc %{_mandir}/man1/dump_tape.1*
 %doc %{_mandir}/man1/make_vtl_media.1*
+%doc %{_mandir}/man1/mhvtl_kernel_mod_build.1*
 %doc %{_mandir}/man1/tapeexerciser.1*
 %doc %{_mandir}/man1/update_device.conf.1*
 %doc %{_mandir}/man1/generate_device_conf.1*
@@ -121,11 +125,13 @@ install -d -m 755 %{buildroot}/var/lib/%{name}
 %{_bindir}/preload_tape
 %{_bindir}/tapeexerciser
 %{_bindir}/make_vtl_media
+%{_bindir}/mhvtl_kernel_mod_build
 %{_bindir}/update_device.conf
 %{_bindir}/generate_device_conf
 %{_bindir}/generate_library_contents
 %{_libdir}/libvtlscsi.so
 %{_libdir}/libvtlcart.so
+%{_firmwarepath}/mhvtl/mhvtl_kernel.tgz
 %dir %{_sysconfdir}/mhvtl
 %config(noreplace) %{_sysconfdir}/mhvtl/mhvtl.conf
 %config(noreplace) %{_sysconfdir}/mhvtl/device.conf

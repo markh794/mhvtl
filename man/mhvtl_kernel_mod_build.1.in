@@ -1,0 +1,32 @@
+.TH mhvtl_kernel_mod_build "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+mhvtl_kernel_mod_build \- Simple wrapper script to extract mhvtl.ko source and compile
+.SH SYNOPSIS
+\fBmhvtl_kernel_mod_build
+.br
+.SH DESCRIPTION
+.br
+This bash script simply extracts /usr/lib/firmware/mhvtl/mhvtl_kernel.tgz and compiles (make && sudo make install)
+.br
+The mhvtl.ko source is extracted into a unique tmp directory using 'mktemp()'
+.SH AUTHOR
+Written by Mark Harvey
+.SH BUGS
+Assumes the kernel-devel and gcc plus supporting packages are already installed.
+.SH "REPORTING BUGS"
+Report bugs to <markh794@gmail.com> or log an issue at https://github.com/markh794/mhvtl.git
+.br
+Better yet, I'm happy to accept patches which fix bugs :)
+.SH COPYRIGHT
+Copyright \(co 2019 Free Software Foundation, Inc.
+.P
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.BR library_contents(5) ,
+.BR mktape(1) ,
+.BR vtlcmd(1) ,
+.BR vtllibrary(1) ,
+.BR vtltape(1) ,
+.BR generate_device_conf(1) ,
+.BR generate_library_contents(1)

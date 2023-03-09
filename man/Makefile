@@ -44,6 +44,7 @@ install:
 	install edit_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install vtllibrary.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install make_vtl_media.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
+	install mhvtl_kernel_mod_build.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install preload_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
 	install tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/

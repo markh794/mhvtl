@@ -34,7 +34,7 @@ CLFLAGS=-shared ${RPM_OPT_FLAGS}
 LZODEBUG =
 
 # files that need to be generated
-GENERATOR_FILES=make_vtl_media.in
+GENERATOR_FILES=make_vtl_media.in mhvtl_kernel_mod_build.in
 GENERATED_FILES=$(GENERATOR_FILES:.in=)
 
 all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
@@ -170,6 +170,10 @@ make_vtl_media: make_vtl_media.in
 	    -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
 	chmod 755 $@
 
+mhvtl_kernel_mod_build: mhvtl_kernel_mod_build.in
+	sed -e s'|@FIRMWAREDIR@|${FIRMWAREDIR}|' $< > $@
+	chmod 755 $@
+
 clean:
 	rm -f vtltape.o dump_tape.o q.o \
 		vtlcmd.o dump_messageQ.o core mktape.o vtllib.o \
@@ -229,6 +233,7 @@ install: all
 	install -m 755 edit_tape $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
 	install -m 755 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
+	install -m 755 mhvtl_kernel_mod_build $(DESTDIR)$(PREFIX)/bin/
 	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
 	install -m 755 mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
 

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Used to automate the building of the mhvtl.ko module
+# on a running system - without requiring the whole source
+
+BUILD=$(mktemp -u -t tmp.XXXXXXXXXX)
+
+module_source=@FIRMWAREDIR@/mhvtl/mhvtl_kernel.tgz
+
+if [ ! -d ${BUILD} ]; then
+	mkdir -p ${BUILD}
+fi
+
+cd ${BUILD}
+tar xfz ${module_source}
+
+make && sudo make install
+
+rm -r ${BUILD}
