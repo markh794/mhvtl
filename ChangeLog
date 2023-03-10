@@ -1,3 +1,15 @@
+* Fri Mar 10 16:30:00 AEST 2023 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
+- review of all utilities and use '-m <barcode>' the standard option
+- Add support for 'INQUIRY_DATA_HAS_CHANGED'
+- Added 'Extended Inquiry Data VPD page for Ultrium
+- Add SELinux ACL so systemctl scripts will work if SELinux is enforcing
+- mhvtl.ko: Various improvements to suit recent kernel changes (thanks Lee Duncan and Tamas Revesz)
+- mhvtl.ko: Change initiator ID from 15 to -1 (resolves conflict if target also configured with ID 15)
+- mhvtl.ko: Remove printk in favour of pr_* calls
+- pre-package mhvtl.ko source into /usr/lib/firmware/mhvtl/ and add wrapper script 'mhvtl_kernel_mod_build' to extract, compile and install
+- Various 64bit/32bit casts fixed.
+- Updated Vagrant to use AlmaLinux, RockyLinux, CentOS, OpenSuse, Ubuntu
+
 * Thu Mar 10 10:30:00 AEST 2022 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - Updated default drives in library 10 from LTO4/LTO5 to LTO6 & LTO8
 - Added initial support for Data Integrity Validation (via Logical Block Protection) - IBM LTO6,LTO7 & LTO8 with this release.
