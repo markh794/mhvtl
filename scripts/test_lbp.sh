@@ -16,7 +16,7 @@ DRV_INDEX=18
 while [[ $# -gt 0 ]]; do
 	case $1 in
 	-i|--index)
-		if [ -z "$2" ]; then # Plain '-c' without option - default to 'true'
+		if [ -z "$2" ]; then # Check for missing arg
 			echo "Usage: Need to specify drive index"
 			echo "e.g. $0 -i 11"
 			exit 1
@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
 		;;
 
 	-s|--source)
-		if [ -z "$2" ]; then # Missing arg
+		if [ -z "$2" ]; then # Check for missing arg
 			echo "Usage: Need to specify source slot"
 			echo "e.g. $0 -s 1"
 			exit 1
