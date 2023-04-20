@@ -3,14 +3,56 @@
 #systemctl stop mhvtl
 #systemctl start mhvtl
 
+if [[ $EUID -ne 0 ]]; then
+   echo "Sorry, this script needs to be run as root"
+   exit 1
+fi
+
 # Library source slot to move tape to/from
 SOURCE_SLOT=1
 # Which drive are we testing - /etc/mhvtl/device.conf
 DRV_INDEX=18
 
+while [[ $# -gt 0 ]]; do
+	case $1 in
+	-i|--index)
+		if [ -z "$2" ]; then # Plain '-c' without option - default to 'true'
+			echo "Usage: Need to specify drive index"
+			echo "e.g. $0 -i 11"
+			exit 1
+		fi
+		DRV_INDEX="$2"
+		shift # past argument
+		shift # past value
+		;;
+
+	-s|--source)
+		if [ -z "$2" ]; then # Missing arg
+			echo "Usage: Need to specify source slot"
+			echo "e.g. $0 -s 1"
+			exit 1
+		fi
+		SOURCE_SLOT="$2"
+		shift # past argument
+		shift # past value
+		;;
+
+	*)
+		shift # past argument
+	;;
+	esac
+done
+
+
 i=`grep -A6 "^Drive: ${DRV_INDEX} " /etc/mhvtl/device.conf | awk '/Library/ {print $5}'`
 # Convert into hex - leading '0' typically means it's an octal value
-TARGET_DRIVE=$((16#$i-1))
+TARGET_DRIVE=$((16#${i}-1))
+if [ ${TARGET_DRIVE} -lt 0 ]; then
+	echo "Unable to find drive at index ${DRV_INDEX}... Exiting"
+	echo "Perhaps provide drive index using \"-i <num>\""
+	echo "e.g. $0 -i 11"
+	exit
+fi
 
 read -r channel id lun <<< `grep "^Drive: ${DRV_INDEX} " /etc/mhvtl/device.conf | awk '{print $4,$6,$8}'`
 #echo "Channel: $channel, id: $id, lun: $lun"
