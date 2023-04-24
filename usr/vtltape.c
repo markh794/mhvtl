@@ -115,6 +115,12 @@ extern char home_directory[HOME_DIR_PATH_SZ + 1];
   loff_t lseek64(int, loff_t, int);
 #endif
 
+#define SEND_MSG_AND_LOG(s, id)		\
+	{				\
+		send_msg(s, id);	\
+		MHVTL_DBG(1, "%ld: Replying to snd_id %"PRIu64" with \"%s\"", my_id, id, s); \
+	}
+
 int verbose = 0;
 int debug = 0;
 long my_id;
@@ -1452,12 +1458,6 @@ static char *strip_PCL(char *str, int start)
 return p;
 }
 
-static void send_msg_and_log(char *s, uint64_t id)
-{
-	send_msg(s, id);
-	MHVTL_DBG(1, "%ld: Replying to snd_id %"PRIu64" with \"%s\"", my_id, id, s);
-}
-
 void unloadTape(int update_library, uint8_t *sam_stat)
 {
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
@@ -1479,8 +1479,9 @@ void unloadTape(int update_library, uint8_t *sam_stat)
 		MHVTL_DBG(2, "Tape not mounted");
 		break;
 	}
-	if (update_library && lu_ssc.inLibrary && library_id > 0)
-		send_msg_and_log(msg_eject, (uint64_t)library_id);
+	if (update_library && lu_ssc.inLibrary && library_id > 0) {
+		SEND_MSG_AND_LOG(msg_eject, (uint64_t)library_id);
+	}
 	OK_to_write = 0;
 	lu_ssc.load_status = TAPE_UNLOADED;
 }
@@ -1524,10 +1525,9 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 					(lu_ssc.load_status == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok,
 					pcl);
 				strncpy(lu_ssc.barcode, pcl, pcl_len);
-				MHVTL_DBG(1, "pcl: \"%s\", barcode: \"%s\"", pcl, lu_ssc.barcode);
 			}
 		}
-		send_msg_and_log(s, msg->snd_id);
+		SEND_MSG_AND_LOG(s, msg->snd_id);
 	}
 
 	/* Tape Load message from User space */
@@ -1562,18 +1562,18 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		unloadTape(FALSE, sam_stat);	/* Unload - in case something is loaded */
 		free(lu_ssc.barcode);
 		lu_ssc.barcode = NULL;
-		send_msg_and_log(msg_unload_ok, msg->snd_id);
+		SEND_MSG_AND_LOG(msg_unload_ok, msg->snd_id);
 	}
 
 	if (!strncmp(msg->text, msg_mount_state, strlen(msg_mount_state))) {
 		/* string define in q.h */
 		sprintf(s, "%s", (lu_ssc.barcode) ? msg_occupied : msg_not_occupied);
-		send_msg_and_log(s, msg->snd_id);
+		SEND_MSG_AND_LOG(s, msg->snd_id);
 	}
 
 	if (!strncmp(msg->text, "unload", 6)) {
 		unloadTape(FALSE, sam_stat);
-		send_msg_and_log(msg_unload_ok, msg->snd_id);
+		SEND_MSG_AND_LOG(msg_unload_ok, msg->snd_id);
 		free(lu_ssc.barcode);
 		lu_ssc.barcode = NULL;
 	}
