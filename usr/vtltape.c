@@ -1198,7 +1198,7 @@ int loadTape(char *PCL, uint8_t *sam_stat)
 
 	rc = load_tape(PCL, sam_stat);
 	if (rc) {
-		MHVTL_DBG(1, "Media load failed.. Unsupported format");
+		MHVTL_ERR("Media load failed.. Unsupported format");
 		lu_ssc.mediaSerialNo[0] = '\0';
 		if (rc == 2) {
 			/* TapeAlert - Unsupported format */
@@ -1491,6 +1491,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	char *pcl;
 	char s[128];
 	char *z;
+	int rc;
 	struct lu_phy_attr *lu;
 	int pcl_len;
 
@@ -1520,11 +1521,20 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 				MHVTL_ERR("Ugghhh... out of memory allocating buffer for barcode: %s", pcl);
 				sprintf(s, "%s: %s", msg_load_failed, pcl);
 			} else {
-				loadTape(pcl, sam_stat);
-				sprintf(s, "%s: %s",
-					(lu_ssc.load_status == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok,
-					pcl);
+				rc = loadTape(pcl, sam_stat);
 				strncpy(lu_ssc.barcode, pcl, pcl_len);
+				sprintf(s, "%s: %s", (lu_ssc.load_status == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok, pcl);
+				/* If load fails - clean up 'barcode' */
+				if (rc) {
+					MHVTL_LOG("Mount of %s failed, return code: %d", pcl, rc);
+					free(lu_ssc.barcode);
+					lu_ssc.barcode = NULL;
+					if (rc == 2) {
+						/* TapeAlert - Unsupported format */
+						fg = TA_MEDIA_NOT_SUPPORTED;
+						update_TapeAlert(lu, fg);
+					}
+				}
 			}
 		}
 		SEND_MSG_AND_LOG(s, msg->snd_id);
