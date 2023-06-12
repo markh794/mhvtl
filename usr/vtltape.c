@@ -1494,6 +1494,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 	int rc;
 	struct lu_phy_attr *lu;
 	int pcl_len;
+	uint64_t fg = TA_NONE;	/* TapeAlert flags */
 
 	lu = lu_ssc.pm->lu;
 
