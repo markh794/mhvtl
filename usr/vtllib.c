@@ -1000,7 +1000,7 @@ void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg)
 		fprintf(fifo_fd, "%s - %d: - %s\n", timestamp, m_id,
 				state_desc[current_status].state_desc);
 
-	fflush(fifo_fd);
+	fflush_unlocked(fifo_fd);
 
 	return;
 }

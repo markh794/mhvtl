@@ -2582,7 +2582,8 @@ int main(int argc, char *argv[])
 					MHVTL_DBG(2, "[%ld] Child cleanup of %ld still outstanding", (long)getpid(), (long)child_cleanup);
 				}
 			}
-			fflush(NULL);
+			if (debug)
+				fflush(NULL);
 			switch (ret) {
 			case VTL_QUEUE_CMD:	/* A cdb to process */
 				cmd = malloc(sizeof(struct mhvtl_header));

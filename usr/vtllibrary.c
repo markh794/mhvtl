@@ -1963,7 +1963,8 @@ int main(int argc, char *argv[])
 					MHVTL_DBG(2, "[%ld] Child cleanup of %ld still outstanding", (long)getpid(), (long)child_cleanup);
 				}
 			}
-			fflush(NULL);	/* So I can pipe debug o/p thru tee */
+			if (debug)
+				fflush(NULL);	/* So I can pipe debug o/p thru tee */
 			switch (ret) {
 			case VTL_QUEUE_CMD:
 				if (smc_slots.bufsize != buffer_size) {

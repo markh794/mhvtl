@@ -455,7 +455,8 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 		total_count -= i;
 	}
 
-	fflush(NULL);
+	if (debug)
+		fflush(NULL);
 }
 
 /*
