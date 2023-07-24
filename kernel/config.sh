@@ -86,4 +86,13 @@ else
     echo "#endif"
 fi >> "${output}"
 
+# check for DEFINE_SEMAPHORE() taking an argument or not
+if grep -q 'DEFINE_SEMAPHORE(_name, _n)' "${hdrs}/include/linux/semaphore.h"; then
+    echo "#ifndef DEFINE_SEMAPHORE_HAS_NUMERIC_ARG"
+    echo "#define DEFINE_SEMAPHORE_HAS_NUMERIC_ARG"
+    echo "#endif"
+else
+    echo "#undef DEFINE_SEMAPHORE_HAS_NUMERIC_ARG"
+fi >> "${output}"
+
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"

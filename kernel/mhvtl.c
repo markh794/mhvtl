@@ -1631,7 +1631,11 @@ give_up:
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
+#if defined(DEFINE_SEMAPHORE_HAS_NUMERIC_ARG)
+static DEFINE_SEMAPHORE(tmp_mutex, 1);
+#else
 static DEFINE_SEMAPHORE(tmp_mutex);
+#endif /* DEFINE_SEMAPHORE_HAS_NUMERIC_ARG */
 #else
 static DECLARE_MUTEX(tmp_mutex);
 #endif
