@@ -332,7 +332,11 @@ static DEF_SCSI_QCMD(mhvtl_queuecommand)
 
 static struct device mhvtl_pseudo_primary;
 
+#ifdef DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE
+static const struct scsi_host_template mhvtl_driver_template = {
+#else
 static struct scsi_host_template mhvtl_driver_template = {
+#endif
 	.name =			"VTL",
 	.info =			mhvtl_info,
 	.slave_alloc =		mhvtl_slave_alloc,

@@ -95,4 +95,13 @@ else
     echo "#undef DEFINE_SEMAPHORE_HAS_NUMERIC_ARG"
 fi >> "${output}"
 
+# check if scsi_host_template is const struct
+if grep -q 'const struct scsi_host_template' "${hdrs}/include/linux/scsi_host.h"; then
+    echo "#ifndef DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
+    echo "#define DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
+    echo "#endif"
+else
+    echo "#undef DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
+fi >> "${output}"
+
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"
