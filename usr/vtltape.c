@@ -842,7 +842,7 @@ static char *lookup_sp_specific(uint16_t field)
  *
  * Need to insert a valid certificate of my own here...
  */
-#include "vtltape.pem"
+#include "vtltape_pem.h"
 
 /*
  * Returns number of bytes in struct
