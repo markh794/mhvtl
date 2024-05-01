@@ -378,6 +378,26 @@ int add_log_data_compression(struct lu_phy_attr *lu)
 	return 0;
 }
 
+void set_lp_11_crqst(struct lu_phy_attr *lu, int flag)
+{
+	struct vhf_data_4 *vhf4;
+
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(lu, 4);
+	if (!vhf4)
+		return;
+	vhf4->CRQST = (flag) ? 1 : 0;
+}
+
+void set_lp_11_crqrd(struct lu_phy_attr *lu, int flag)
+{
+	struct vhf_data_4 *vhf4;
+
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(lu, 4);
+	if (!vhf4)
+		return;
+	vhf4->CRQRD = (flag) ? 1 : 0;
+}
+
 /* Only valid for SSC devices */
 int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 {
@@ -395,6 +415,15 @@ int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 					(uint32_t)(ta >> 32) & 0xffffffff,
 					(uint32_t)ta & 0xffffffff);
 		set_TapeAlert(lu, ta | flags);
+		if (flags & 1L << 19)	/* Clean Now (required) */
+			set_lp_11_crqrd(lu, 1);
+		else
+			set_lp_11_crqrd(lu, 0);
+		if (flags & 1L << 20)	/* Clean Periodic (requested) */
+			set_lp_11_crqst(lu, 1);
+		else
+			set_lp_11_crqst(lu, 0);
+
 		return 0;
 	}
 	return -1;
@@ -442,6 +471,14 @@ int set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 		sad = (struct seqAccessDevice *)l->p;
 		put_unaligned_be64(flags, &sad->TapeAlert);
 	}
+	if (flags & 1L << 19)	/* Clean Now (required) */
+		set_lp_11_crqrd(lu, 1);
+	else
+		set_lp_11_crqrd(lu, 0);
+	if (flags & 1L << 20)	/* Clean Periodic (requested) */
+		set_lp_11_crqst(lu, 1);
+	else
+		set_lp_11_crqst(lu, 0);
 
 	return 0;
 }
