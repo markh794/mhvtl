@@ -98,10 +98,11 @@ struct encryption app_encryption_state;		/* Stores the encryption info the appli
 #include <zlib.h>
 #include "minilzo.h"
 
-extern uint8_t last_cmd;
+uint8_t last_cmd;
 
 /* scope, Global -> Last status sent to fifo */
-extern int current_state;
+int current_state;
+
 /* user specified home dir for media */
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
@@ -348,11 +349,26 @@ void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len)
 	memset(buf, 0, min((int)alloc_len, lu_priv->bufsize));
 }
 
+int get_tape_load_status(void)
+{
+	return lu_ssc.load_status;
+}
+
+void set_current_state(int s)
+{
+	current_state = s;
+}
+
+void set_tape_load_status(int s)
+{
+	lu_ssc.load_status = s;
+}
+
 static void finish_mount(int sig)
 {
 	MHVTL_DBG(3, "+++ Trace - Received signal %d +++", sig);
-	if (lu_ssc.load_status == TAPE_LOADING)
-		lu_ssc.load_status = TAPE_LOADED;
+	if (get_tape_load_status() == TAPE_LOADING)
+		set_tape_load_status(TAPE_LOADED);
 
 }
 
@@ -819,7 +835,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd)
 		break;
 
 	case ENCR_NEXT_BLK_ENCR_STATUS:
-		if (lu_priv->load_status != TAPE_LOADED) {
+		if (get_tape_load_status() != TAPE_LOADED) {
 			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			break;
 		}
@@ -1209,7 +1225,7 @@ int loadTape(char *PCL, uint8_t *sam_stat)
 		return rc;
 	}
 
-	lu_ssc.load_status = TAPE_LOADING;
+	set_tape_load_status(TAPE_LOADING);
 	lu_ssc.pm->media_load(lu, TAPE_LOADED);
 
 	overflow = snprintf((char *)lu_ssc.mediaSerialNo,
@@ -1231,14 +1247,14 @@ int loadTape(char *PCL, uint8_t *sam_stat)
 
 	switch (mam.MediumType) {
 	case MEDIA_TYPE_DATA:
-		current_state = MHVTL_STATE_LOADING;
+		set_current_state(MHVTL_STATE_LOADING);
 		OK_to_write = 1;	/* Reset flag to OK. */
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
 		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
 	case MEDIA_TYPE_CLEAN:
-		current_state = MHVTL_STATE_LOADING_CLEAN;
+		set_current_state(MHVTL_STATE_LOADING_CLEAN);
 		OK_to_write = 0;
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
@@ -1249,7 +1265,7 @@ int loadTape(char *PCL, uint8_t *sam_stat)
 		sam_unit_attention(E_CLEANING_CART_INSTALLED, sam_stat);
 		break;
 	case MEDIA_TYPE_WORM:
-		current_state = MHVTL_STATE_LOADING_WORM;
+		set_current_state(MHVTL_STATE_LOADING_WORM);
 		/* Special condition...
 		* If we
 		* - rewind,
@@ -1285,7 +1301,7 @@ int loadTape(char *PCL, uint8_t *sam_stat)
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
 		break;
 	case MEDIA_TYPE_NULL:	/* Special - don't save data, just metadata */
-		current_state = MHVTL_STATE_LOADING;
+		set_current_state(MHVTL_STATE_LOADING);
 		OK_to_write = 1;	/* Reset flag to OK. */
 		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
 		break;
@@ -1399,7 +1415,7 @@ int loadTape(char *PCL, uint8_t *sam_stat)
 			(uint8_t)lu->mode_media_type);
 
 	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
-	current_state = MHVTL_STATE_LOADED;
+	set_current_state(MHVTL_STATE_LOADED);
 	return 0;	/* Return successful load */
 
 mismatchmedia:
@@ -1411,10 +1427,10 @@ mismatchmedia:
 			lookup_media_type(lu_ssc.pm->media_handling,
 							mam.MediaType),
 			lu_ssc.pm->name);
-	lu_ssc.load_status = TAPE_UNLOADED;
+	set_tape_load_status(TAPE_UNLOADED);
 	lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
-	current_state = MHVTL_STATE_LOAD_FAILED;
+	set_current_state(MHVTL_STATE_LOAD_FAILED);
 	return 1;
 }
 
@@ -1462,7 +1478,7 @@ void unloadTape(int update_library, uint8_t *sam_stat)
 {
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
 
-	switch (lu_ssc.load_status) {
+	switch (get_tape_load_status()) {
 	case TAPE_LOADING:
 	case TAPE_LOADED:
 		/* Don't update load count on unload -done at load time */
@@ -1482,8 +1498,8 @@ void unloadTape(int update_library, uint8_t *sam_stat)
 	if (update_library && lu_ssc.inLibrary && library_id > 0) {
 		SEND_MSG_AND_LOG(msg_eject, (uint64_t)library_id);
 	}
+	set_tape_load_status(TAPE_UNLOADED);
 	OK_to_write = 0;
-	lu_ssc.load_status = TAPE_UNLOADED;
 }
 
 static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
@@ -1524,7 +1540,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 			} else {
 				rc = loadTape(pcl, sam_stat);
 				strncpy(lu_ssc.barcode, pcl, pcl_len);
-				sprintf(s, "%s: %s", (lu_ssc.load_status == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok, pcl);
+				sprintf(s, "%s: %s", (get_tape_load_status() == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok, pcl);
 				/* If load fails - clean up 'barcode' */
 				if (rc) {
 					MHVTL_LOG("Mount of %s failed, return code: %d", pcl, rc);
@@ -1547,7 +1563,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		pcl_len = strlen(pcl) + 2;
 		if (lu_ssc.inLibrary)
 			MHVTL_ERR("Warn: Tape assigned to library - The library can't remove this tape !");
-		if (lu_ssc.load_status == TAPE_LOADED) {
+		if (get_tape_load_status() == TAPE_LOADED) {
 			MHVTL_DBG(2, "A tape is already mounted");
 		} else {
 			loadTape(pcl, sam_stat);
@@ -2624,10 +2640,10 @@ int main(int argc, char *argv[])
 				last_state = current_state;
 			}
 			if (sleep_time > 0xf000) {
-				if (lu_ssc.load_status == TAPE_LOADED)
-					current_state = MHVTL_STATE_LOADED_IDLE;
+				if (get_tape_load_status() == TAPE_LOADED)
+					set_current_state(MHVTL_STATE_LOADED_IDLE);
 				else
-					current_state = MHVTL_STATE_IDLE;
+					set_current_state(MHVTL_STATE_IDLE);
 			}
 		}
 	}

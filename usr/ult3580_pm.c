@@ -223,7 +223,6 @@ static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int valu
 static int encr_capabilities_ult(struct scsi_cmd *cmd)
 {
 	uint8_t *buf = cmd->dbuf_p->data;
-	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
 
 	put_unaligned_be16(ENCR_CAPABILITIES, &buf[0]);
 	put_unaligned_be16(40, &buf[2]); /* List length */
@@ -249,7 +248,7 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 
 	/* adjustments for each emulated drive type */
 	buf[4] = 0x1; /* CFG_P == 01b */
-	if (lu_priv->load_status == TAPE_LOADED) {
+	if (get_tape_load_status() == TAPE_LOADED) {
 		switch (mam.MediaType) {
 		case Media_LTO4:
 			MHVTL_DBG(1, "LTO4 Medium - Setting AVFMV");

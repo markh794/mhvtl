@@ -296,3 +296,4 @@ void resp_space(int64_t count, int code, uint8_t *sam_stat);
 int loadTape(char *barcode, uint8_t *sam_stat);
 void unloadTape(int update_library, uint8_t *sam_stat);
 void delay_opcode(int what, int value);
+void set_current_state(int state);

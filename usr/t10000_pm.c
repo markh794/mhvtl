@@ -184,7 +184,6 @@ static uint8_t clear_t10k_WORM(struct list_head *m)
 static int encr_capabilities_t10k(struct scsi_cmd *cmd)
 {
 	uint8_t *buf = cmd->dbuf_p->data;
-	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
 
 	MHVTL_DBG(3, "+++ Trace +++");
 
@@ -211,7 +210,7 @@ static int encr_capabilities_t10k(struct scsi_cmd *cmd)
 	buf[43] = 0x14;	/* Encryption Algorithm Id */
 
 	buf[4] = 0x1; /* CFG_P == 01b */
-	if (lu_priv->load_status == TAPE_LOADED) {
+	if (get_tape_load_status() == TAPE_LOADED) {
 		buf[24] |= 0x80; /* AVFMV */
 		buf[27] = 0x1e; /* Max unauthenticated key data */
 		buf[29] = 0x00; /* Max authenticated key data */
@@ -363,7 +362,7 @@ static void t10k_init_sense(struct scsi_cmd *cmd)
 	uint8_t *sense_buf = (uint8_t *)cmd->dbuf_p->sense_buf;
 	struct priv_lu_ssc *lu_priv = cmd->lu->lu_private;
 
-	if (lu_priv->load_status) {
+	if (get_tape_load_status()) {
 		if (lu_priv->append_only_mode)
 			sense_buf[24] |= 0x02;
 

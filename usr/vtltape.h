@@ -199,6 +199,9 @@ void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len);
 int load_tape(const char *pcl, uint8_t *sam_stat);
 void unload_tape(uint8_t *sam_stat);
 
+void set_tape_load_status(int s);
+int get_tape_load_status(void);
+
 int rewind_tape(uint8_t *sam_stat);
 int position_to_eod(uint8_t *sam_stat);
 int position_to_block(uint32_t blk_no, uint8_t *sam_stat);
