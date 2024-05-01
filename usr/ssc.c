@@ -879,13 +879,17 @@ static void set_device_configuration(struct scsi_cmd *cmd, uint8_t *p)
 	MHVTL_DBG(2, " Setting device compression Algorithm");
 	if (p[14]) { /* Select Data Compression Alg */
 		MHVTL_DBG(2, "  Mode Select->Setting compression: %d", p[14]);
-		if (pm->set_compression)
+		if (pm->set_compression) {
 			pm->set_compression(&lu->mode_pg,
 				lu_priv->configCompressionFactor);
+			set_lp11_compression(1);	/* Update LogPage 11 compression bit */
+		}
 	} else {
 		MHVTL_DBG(2, "  Mode Select->Clearing compression");
-		if (pm->clear_compression)
+		if (pm->clear_compression) {
 			pm->clear_compression(&lu->mode_pg);
+			set_lp11_compression(0);	/* Update LogPage 11 compression bit */
+		}
 	}
 }
 
@@ -914,13 +918,17 @@ static void set_mode_compression(struct scsi_cmd *cmd, uint8_t *p)
 
 	if (dce) { /* Data Compression Enable bit set */
 		MHVTL_DBG(1, " Setting compression");
-		if (pm->set_compression)
+		if (pm->set_compression) {
 			pm->set_compression(&lu->mode_pg,
 					lu_priv->configCompressionFactor);
+			set_lp11_compression(1);	/* Update LogPage 11 compression bit */
+		}
 	} else {
 		MHVTL_DBG(1, " Clearing compression");
-		if (pm->clear_compression)
+		if (pm->clear_compression) {
 			pm->clear_compression(&lu->mode_pg);
+			set_lp11_compression(0);	/* Update LogPage 11 compression bit */
+		}
 	}
 }
 
@@ -1821,12 +1829,14 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd)
 			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
+		set_lp11_medium_present(1);
 		break;
 
 	case TAPE_LOADED:
 		if (!load_request)
 			/* Send library an update status 'true' */
 			unloadTape(TRUE, sam_stat);
+		set_lp11_medium_present(1);
 		break;
 
 	default:
@@ -2013,6 +2023,15 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 	case TEMPERATURE_PAGE:	/* Temperature page */
 		MHVTL_DBG(1, "%s %s", msg, "Temperature page");
 		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE);
+		if (!l)
+			goto log_page_not_found;
+
+		b = memcpy(b, l->p, l->size);
+		retval = l->size;
+		break;
+	case DEVICE_STATUS:
+		MHVTL_DBG(1, "%s %s", msg, "VHF Device Status page");
+		l = lookup_log_pg(&lu->log_pg, DEVICE_STATUS);
 		if (!l)
 			goto log_page_not_found;
 

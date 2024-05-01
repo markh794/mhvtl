@@ -202,6 +202,9 @@ void unload_tape(uint8_t *sam_stat);
 void set_tape_load_status(int s);
 int get_tape_load_status(void);
 
+void set_lp11_compression(int flag);	/* Update LogPage 11 compression bit */
+void set_lp11_medium_present(int flag);	/* Update LogPage 11 'Medium Present' bit */
+
 int rewind_tape(uint8_t *sam_stat);
 int position_to_eod(uint8_t *sam_stat);
 int position_to_block(uint32_t blk_no, uint8_t *sam_stat);

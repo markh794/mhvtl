@@ -39,11 +39,45 @@
 #define START_STOP_CYCLE_COUNTER 0x0e
 #define APPLICATION_CLIENT 0x0f
 #define SELFTEST_RESULTS 0x10
+#define DEVICE_STATUS 0x11
 #define TAPE_ALERT 0x2e
 #define INFORMATIONAL_EXCEPTIONS 0x2f
 #define TAPE_USAGE 0x30
 #define TAPE_CAPACITY 0x31
 #define DATA_COMPRESSION 0x32
+
+struct vhf_data_4 {
+	uint8_t DINIT:1;	/* Device Initialized - 0 not initialised*/
+	uint8_t CRQRD:1;	/* Cleaning required - before media is mounted (required) */
+	uint8_t CRQST:1;	/* Cleaning required - non urgent (request) */
+	uint8_t WRTP:1;		/* Physical Write Protect */
+	uint8_t CMPR:1;		/* Compression enabled */
+	uint8_t MACC:1;		/* MAM accessible */
+	uint8_t HIU:1;		/* Host Initiated Unload */
+	uint8_t	PAMR:1;		/* Prevent/Allow Media Removal */
+};
+
+struct vhf_data_5 {
+	uint8_t MOUNTED:1;	/* Medium mounted */
+	uint8_t MTHRD:1;	/* Medium Threaded */
+	uint8_t MSTD:1;		/* Medium Seated */
+	uint8_t RSVD_2:1;
+	uint8_t MPRSNT:1;	/* Medium Present */
+	uint8_t RAA:1;		/* Robotic access allowed */
+	uint8_t RSVD_1:1;
+	uint8_t	INXTN:1;	/* In Transition - other bits in byte 5 not stable */
+};
+
+struct vhf_data_7 {
+	uint8_t TAFC:1;		/* TapeAlert state flag changed */
+	uint8_t INITFC:1;	/* Interface changed */
+	uint8_t RRQST:1;	/* Recovery requested */
+	uint8_t ESR:1;		/* Encryption Service Requested */
+	uint8_t EPP:1;		/* Encryption Parameters Present */
+	uint8_t TDDEC:1;	/* Tape Diagnostic data entry created */
+	uint8_t RSVD:1;
+	uint8_t	VS:1;		/* Always 0 */
+};
 
 struct log_pg_list {
 	struct list_head siblings;
@@ -124,6 +158,15 @@ struct	TapeUsage {
 	uint16_t value10;
 	struct pc_header flagNo11;
 	uint16_t value11;
+	};
+
+struct DeviceStatus {
+	struct log_pg_header pcode_head;
+	struct pc_header vhf_data;
+	uint8_t byte4;
+	uint8_t byte5;
+	uint8_t byte6;
+	uint8_t byte7;
 	};
 
 struct	TapeCapacity {
@@ -245,6 +288,7 @@ void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
 int update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);
 int set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);
+void *get_vhf_byte(struct lu_phy_attr *lu, int offset);
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);
 struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size);
@@ -257,3 +301,4 @@ int add_log_tape_alert(struct lu_phy_attr *lu);
 int add_log_tape_usage(struct lu_phy_attr *lu);
 int add_log_tape_capacity(struct lu_phy_attr *lu);
 int add_log_data_compression(struct lu_phy_attr *lu);
+int add_log_device_status(struct lu_phy_attr *lu);

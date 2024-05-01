@@ -45,6 +45,7 @@ static char *sequential_access_device = "Sequential Access";
 static char *temperature_page = "Temperature";
 static char *tape_alert = "Tape Alert";
 static char *tape_usage = "Tape Usage";
+static char *device_status = "Device Status";
 static char *tape_capacity = "Tape Capacity";
 static char *data_compression = "Data Compression";
 
@@ -299,6 +300,28 @@ int add_log_tape_usage(struct lu_phy_attr *lu)
 	return 0;
 }
 
+int add_log_device_status(struct lu_phy_attr *lu)
+{
+	struct log_pg_list *log_pg;
+	struct DeviceStatus tp = {
+		{ DEVICE_STATUS, 0x00, 0x08, },
+		{ 0x00, 0x00, 0x03, 0x04, }, /* VHF parameter code  - 0000h */
+		0x00, 0x00, 0x00, 0x01, /* VHF data log parameter */
+	};
+
+	log_pg = alloc_log_page(&lu->log_pg, DEVICE_STATUS, sizeof(tp));
+	if (!log_pg)
+		return -ENOMEM;
+
+	log_pg->description = device_status;
+
+	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head), &tp.pcode_head.len);
+
+	memcpy(log_pg->p, &tp, sizeof(tp));
+
+	return 0;
+}
+
 int add_log_tape_capacity(struct lu_phy_attr *lu)
 {
 	struct log_pg_list *log_pg;
@@ -384,6 +407,20 @@ int set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 	struct log_pg_list *l;
 	int i;
 
+	struct vhf_data_7 *p;
+
+	/* Set LP 0x11 'TAFC' bit (TapeAlert Flag Changed) */
+	p = get_vhf_byte(lu, 7);
+	if (p) {
+		if (flags) {
+			p->TAFC = 1;
+			MHVTL_DBG(2, "Setting TAFC bit true");
+		} else {
+			p->TAFC = 0;
+			MHVTL_DBG(3, "Not setting TAFC bit as flags is zero");
+		}
+	}
+
 	l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
 	if (!l)
 		return -1;
@@ -407,4 +444,22 @@ int set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags)
 	}
 
 	return 0;
+}
+
+/*
+ * offset is the byte offset into the VHF data structure - 4/5/6/7
+ */
+void * get_vhf_byte(struct lu_phy_attr *lu, int offset)
+{
+	struct log_pg_list *l;
+	uint8_t *p;
+	int pg_header = 4;
+
+	l = lookup_log_pg(&lu->log_pg, DEVICE_STATUS);
+	if (!l)
+		return NULL;
+
+	p = l->p;
+
+	return p + offset + pg_header;
 }
