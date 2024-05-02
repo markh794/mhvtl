@@ -2795,10 +2795,12 @@ int main(int argc, char *argv[])
 				last_state = current_state;
 			}
 			if (sleep_time > 0xf000) {
-				if (get_tape_load_status() == TAPE_LOADED)
-					set_current_state(MHVTL_STATE_LOADED_IDLE);
-				else
-					set_current_state(MHVTL_STATE_IDLE);
+				if (sleep_time < (0xf000 + backoff)) {
+					if (get_tape_load_status() == TAPE_LOADED)
+						set_current_state(MHVTL_STATE_LOADED_IDLE);
+					else
+						set_current_state(MHVTL_STATE_IDLE);
+				}
 			}
 		}
 	}
