@@ -118,17 +118,17 @@ int add_log_write_err_counter(struct lu_phy_attr *lu)
 	struct log_pg_list *log_pg;
 	struct error_counter tp = {
 	{ WRITE_ERROR_COUNTER, 0x00, 0x00, },
-	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, /* Errors corrected with/o delay */
-	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, /* Errors corrected with delay */
-	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, /* Total rewrites */
-	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, /* Total errors corrected */
-	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, /* total times correct algorithm */
-	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, /* Total bytes processed */
-	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, /* Total uncorrected errors */
-	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, /* Write errors since last read */
-	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, /* Total raw write error flags */
-	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, /* Total dropout error count */
-	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, /* Total servo tracking */
+	{ 0x00, 0x00, 0x60, sizeof(tp.err_correctedWODelay), }, 0x00,	/* {02h:0000h} Errors corrected with/o delay */
+	{ 0x00, 0x01, 0x60, sizeof(tp.err_correctedWDelay), }, 0x00,	/* {02h:0001h} Errors corrected with delay */
+	{ 0x00, 0x02, 0x60, sizeof(tp.totalReTry), }, 0x00,		/* {02h:0002h} Total rewrites */
+	{ 0x00, 0x03, 0x60, sizeof(tp.totalErrorsCorrected), }, 0x00,	/* {02h:0003h} Total errors corrected */
+	{ 0x00, 0x04, 0x60, sizeof(tp.correctAlgorithm), }, 0x00,	/* {02h:0004h} total times correct algorithm */
+	{ 0x00, 0x05, 0x60, sizeof(tp.bytesProcessed), }, 0x00,		/* {02h:0005h} Total bytes processed */
+	{ 0x00, 0x06, 0x60, sizeof(tp.uncorrectedErrors), }, 0x00,	/* {02h:0006h} Total uncorrected errors */
+	{ 0x80, 0x00, 0x60, sizeof(tp.readErrorsSinceLast), }, 0x00,	/* {02h:8000h} Write errors since last read */
+	{ 0x80, 0x01, 0x60, sizeof(tp.totalRawReadError), }, 0x00,	/* {02h:8001h} Total raw write error flags */
+	{ 0x80, 0x02, 0x60, sizeof(tp.totalDropoutError), }, 0x00,	/* {02h:8002h} Total dropout error count */
+	{ 0x80, 0x03, 0x60, sizeof(tp.totalServoTracking), }, 0x00,	/* {02h:8003h} Total servo tracking */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, WRITE_ERROR_COUNTER, sizeof(tp));
@@ -150,17 +150,17 @@ int add_log_read_err_counter(struct lu_phy_attr *lu)
 	struct log_pg_list *log_pg;
 	struct error_counter tp = {
 	{ READ_ERROR_COUNTER, 0x00, 0x00, },
-	{ 0x00, 0x00, 0x60, 0x04, }, 0x00, /* Errors corrected with/o delay */
-	{ 0x00, 0x01, 0x60, 0x04, }, 0x00, /* Errors corrected with delay */
-	{ 0x00, 0x02, 0x60, 0x04, }, 0x00, /* Total rewrites/rereads */
-	{ 0x00, 0x03, 0x60, 0x04, }, 0x00, /* Total errors corrected */
-	{ 0x00, 0x04, 0x60, 0x04, }, 0x00, /* total times correct algorithm */
-	{ 0x00, 0x05, 0x60, 0x08, }, 0x00, /* Total bytes processed */
-	{ 0x00, 0x06, 0x60, 0x04, }, 0x00, /* Total uncorrected errors */
-	{ 0x80, 0x00, 0x60, 0x04, }, 0x00, /* r/w errors since last read */
-	{ 0x80, 0x01, 0x60, 0x04, }, 0x00, /* Total raw write error flags */
-	{ 0x80, 0x02, 0x60, 0x04, }, 0x00, /* Total dropout error count */
-	{ 0x80, 0x03, 0x60, 0x04, }, 0x00, /* Total servo tracking */
+	{ 0x00, 0x00, 0x60, sizeof(tp.err_correctedWODelay), }, 0x00,	/* (03h:0000h} Errors corrected with/o delay */
+	{ 0x00, 0x01, 0x60, sizeof(tp.err_correctedWDelay), }, 0x00,	/* {03h:0001h} Errors corrected with delay */
+	{ 0x00, 0x02, 0x60, sizeof(tp.totalReTry), }, 0x00,		/* {03h:0002h} Total rewrites/rereads */
+	{ 0x00, 0x03, 0x60, sizeof(tp.totalErrorsCorrected), }, 0x00,	/* {03h:0003h} Total errors corrected */
+	{ 0x00, 0x04, 0x60, sizeof(tp.correctAlgorithm), }, 0x00,	/* {03h:0004h} total times correct algorithm */
+	{ 0x00, 0x05, 0x60, sizeof(tp.bytesProcessed), }, 0x00,		/* {03h:0005h} Total bytes processed */
+	{ 0x00, 0x06, 0x60, sizeof(tp.uncorrectedErrors), }, 0x00,	/* {03h:0006h} Total uncorrected errors */
+	{ 0x80, 0x00, 0x60, sizeof(tp.readErrorsSinceLast), }, 0x00,	/* {03h:8009h} r/w errors since last read */
+	{ 0x80, 0x01, 0x60, sizeof(tp.totalRawReadError), }, 0x00,	/* {03h:8001h} Total raw write error flags */
+	{ 0x80, 0x02, 0x60, sizeof(tp.totalDropoutError), }, 0x00,	/* {03h:8002h} Total dropout error count */
+	{ 0x80, 0x03, 0x60, sizeof(tp.totalServoTracking), }, 0x00,	/* {03h:8003h} Total servo tracking */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, READ_ERROR_COUNTER, sizeof(tp));
@@ -182,19 +182,19 @@ int add_log_sequential_access(struct lu_phy_attr *lu)
 	struct log_pg_list *log_pg;
 	struct seqAccessDevice tp = {
 	{ SEQUENTIAL_ACCESS_DEVICE, 0x00, 0x54, },
-	{ 0x00, 0x00, 0x40, 0x08, }, 0x00, /* Write. Bytes from initiator */
-	{ 0x00, 0x01, 0x40, 0x08, }, 0x00, /* Write. Bytes written to media */
-	{ 0x00, 0x02, 0x40, 0x08, }, 0x00, /* Read. Bytes read from media */
-	{ 0x00, 0x03, 0x40, 0x08, }, 0x00, /* Read. Bytes to initialtor */
-	{ 0x00, 0x04, 0x40, 0x04, }, 0x00, /* Native capacity BOT to EOD */
-	{ 0x00, 0x05, 0x40, 0x04, }, 0x00, /* Native capacity BOP to EW */
-	{ 0x00, 0x06, 0x40, 0x04, }, 0x00, /* Native capacity EW & LEOP */
-	{ 0x00, 0x07, 0x40, 0x04, }, 0x00, /* Native capacity BOP to curr pos */
-	{ 0x00, 0x08, 0x40, 0x04, }, 0x00, /* Native capacity in buffer */
-	{ 0x01, 0x00, 0x40, 0x08, }, 0x00, /* Cleaning required (TapeAlert) */
-	{ 0x80, 0x00, 0x40, 0x04, }, 0x00, /* MBytes processed since clean */
-	{ 0x80, 0x01, 0x40, 0x04, }, 0x00, /* Lifetime load cycle */
-	{ 0x80, 0x02, 0x40, 0x04, }, 0x00, /* Lifetime cleaning cycles */
+	{ 0x00, 0x00, 0x40, sizeof(tp.writeDataB4Compression), }, 0x00, /* {0C:0000h} Write. Bytes from initiator */
+	{ 0x00, 0x01, 0x40, sizeof(tp.writeDataAfCompression), }, 0x00, /* {0C:0001h} Write. Bytes written to media */
+	{ 0x00, 0x02, 0x40, sizeof(tp.readDataB4Compression), }, 0x00,	/* {0C:0002h} Read. Bytes read from media */
+	{ 0x00, 0x03, 0x40, sizeof(tp.readDataAfCompression), }, 0x00,	/* {0C:0003h} Read. Bytes to initialtor */
+	{ 0x00, 0x04, 0x40, sizeof(tp.capacity_bop_eod), }, 0x00,	/* {0C:0004h} Native capacity BOT to EOD */
+	{ 0x00, 0x05, 0x40, sizeof(tp.capacity_bop_ew), }, 0x00,	/* {0C:0005h} Native capacity BOP to EW */
+	{ 0x00, 0x06, 0x40, sizeof(tp.capacity_ew_leop), }, 0x00,	/* {0C:0006h} Native capacity EW & LEOP */
+	{ 0x00, 0x07, 0x40, sizeof(tp.capacity_bop_curr), }, 0x00,	/* {0C:0007h} Native capacity BOP to curr pos */
+	{ 0x00, 0x08, 0x40, sizeof(tp.capacity_buffer), }, 0x00,	/* {0C:0008h} Native capacity in buffer */
+	{ 0x01, 0x00, 0x40, sizeof(tp.TapeAlert), }, 0x00,		/* {0C:0100h} Cleaning required (TapeAlert) */
+	{ 0x80, 0x00, 0x40, sizeof(tp.mbytes_processed), }, 0x00,	/* {0C:8000h} MBytes processed since clean */
+	{ 0x80, 0x01, 0x40, sizeof(tp.load_cycle), }, 0x00,		/* {0C:8001h} Lifetime load cycle */
+	{ 0x80, 0x02, 0x40, sizeof(tp.clean_cycle), }, 0x00,		/* {0C:8002h} Lifetime cleaning cycles */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE,
@@ -218,7 +218,7 @@ int add_log_temperature_page(struct lu_phy_attr *lu)
 	struct Temperature_page tp =  {
 		{ TEMPERATURE_PAGE, 0x00, 0x06, },
 		{ 0x00, 0x00, 0x60, 0x02, }, 0x00,	/* Temperature */
-		};
+	};
 
 	log_pg = alloc_log_page(&lu->log_pg, TEMPERATURE_PAGE, sizeof(tp));
 	if (!log_pg)
@@ -273,17 +273,17 @@ int add_log_tape_usage(struct lu_phy_attr *lu)
 	struct log_pg_list *log_pg;
 	struct TapeUsage tp = {
 	{ TAPE_USAGE, 0x00, 0x54, },
-	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00, /* Thread count */
-	{ 0x00, 0x02, 0xc0, 0x08, }, 0x00, /* Total data sets written */
-	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00, /* Total write retries */
-	{ 0x00, 0x04, 0xc0, 0x02, }, 0x00, /* Total Unrecovered write error */
-	{ 0x00, 0x05, 0xc0, 0x02, }, 0x00, /* Total Suspended writes */
-	{ 0x00, 0x06, 0xc0, 0x02, }, 0x00, /* Total Fatal suspended writes */
-	{ 0x00, 0x07, 0xc0, 0x08, }, 0x00, /* Total data sets read */
-	{ 0x00, 0x08, 0xc0, 0x04, }, 0x00, /* Total read retries */
-	{ 0x00, 0x09, 0xc0, 0x02, }, 0x00, /* Total unrecovered read errors */
-	{ 0x00, 0x0a, 0xc0, 0x02, }, 0x00, /* Total suspended reads */
-	{ 0x00, 0x0b, 0xc0, 0x02, }, 0x00, /* Total Fatal suspended reads */
+	{ 0x00, 0x01, 0xc0, sizeof(tp.volumeMounts), }, 0x00,		/* {30h:0001h} Thread count */
+	{ 0x00, 0x02, 0xc0, sizeof(tp.volumeDatasetsWritten), }, 0x00,	/* {30h:0002h} Total data sets written */
+	{ 0x00, 0x03, 0xc0, sizeof(tp.volWriteRetries), }, 0x00,	/* {30h:0003h} Total write retries */
+	{ 0x00, 0x04, 0xc0, sizeof(tp.volWritePerms), }, 0x00,		/* {30h:0004h} Total Unrecovered write error */
+	{ 0x00, 0x05, 0xc0, sizeof(tp.volSuspendedWrites), }, 0x00,	/* {30h:0005h} Total Suspended writes */
+	{ 0x00, 0x06, 0xc0, sizeof(tp.volFatalSuspendedWrites), }, 0x00, /* {30h:0006h} Total Fatal suspended writes */
+	{ 0x00, 0x07, 0xc0, sizeof(tp.volDatasetsRead), }, 0x00,	/* {30h:0007h} Total data sets read */
+	{ 0x00, 0x08, 0xc0, sizeof(tp.volReadRetries), }, 0x00,		/* {30h:0008h} Total read retries */
+	{ 0x00, 0x09, 0xc0, sizeof(tp.volReadPerms), }, 0x00,		/* {30h:0009h} Total unrecovered read errors */
+	{ 0x00, 0x0a, 0xc0, sizeof(tp.volSuspendedReads), }, 0x00,	/* {30h:000ah} Total suspended reads */
+	{ 0x00, 0x0b, 0xc0, sizeof(tp.volFatalSuspendedReads), }, 0x00,	/* {30h:000bh} Total Fatal suspended reads */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, TAPE_USAGE, sizeof(tp));
@@ -305,8 +305,7 @@ int add_log_device_status(struct lu_phy_attr *lu)
 	struct log_pg_list *log_pg;
 	struct DeviceStatus tp = {
 		{ DEVICE_STATUS, 0x00, 0x08, },
-		{ 0x00, 0x00, 0x03, 0x04, }, /* VHF parameter code  - 0000h */
-		0x00, 0x00, 0x00, 0x01, /* VHF data log parameter */
+		{ 0x00, 0x00, 0x03, 0x04, }, 0x00, 0x00, 0x00, 0x01, /* {11h:0000h} VHF parameter code  - 0000h */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, DEVICE_STATUS, sizeof(tp));
@@ -327,10 +326,10 @@ int add_log_tape_capacity(struct lu_phy_attr *lu)
 	struct log_pg_list *log_pg;
 	struct TapeCapacity tp = {
 	{ TAPE_CAPACITY, 0x00, 0x54, },
-	{ 0x00, 0x01, 0xc0, 0x04, }, 0x00, /* main partition remaining cap */
-	{ 0x00, 0x02, 0xc0, 0x04, }, 0x00, /* Alt. partition remaining cap */
-	{ 0x00, 0x03, 0xc0, 0x04, }, 0x00, /* main partition max cap */
-	{ 0x00, 0x04, 0xc0, 0x04, }, 0x00, /* Alt. partition max cap */
+	{ 0x00, 0x01, 0xc0, sizeof(tp.partition0remaining), }, 0x00,	/* {31h:0001h} main partition remaining cap */
+	{ 0x00, 0x02, 0xc0, sizeof(tp.partition1remaining), }, 0x00,	/* {31h:0002h} Alt. partition remaining cap */
+	{ 0x00, 0x03, 0xc0, sizeof(tp.partition0maximum), }, 0x00,	/* {31h:0003h} main partition max cap */
+	{ 0x00, 0x04, 0xc0, sizeof(tp.partition1maximum), }, 0x00,	/* {31h:0004h} Alt. partition max cap */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, TAPE_CAPACITY, sizeof(tp));
@@ -352,16 +351,16 @@ int add_log_data_compression(struct lu_phy_attr *lu)
 	struct log_pg_list *log_pg;
 	struct DataCompression tp = {
 	{ DATA_COMPRESSION, 0x00, 0x54, },
-	{ 0x00, 0x00, 0x40, 0x02, }, 0x00, /* Read Compression Ratio */
-	{ 0x00, 0x00, 0x40, 0x02, }, 0x00, /* Write Compression Ratio */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes transferred to server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes transferred to server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes read from tape */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes read from tape */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes transferred from server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes transferred from server */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* MBytes written to tape */
-	{ 0x00, 0x00, 0x40, 0x04, }, 0x00, /* Bytes written to tape */
+	{ 0x00, 0x00, 0x40, sizeof(tp.ReadCompressionRatio), }, 0x00,	/* {32h:0000h} Read Compression Ratio */
+	{ 0x00, 0x01, 0x40, sizeof(tp.WriteCompressionRatio), }, 0x00,	/* {32h:0001h} Write Compression Ratio */
+	{ 0x00, 0x02, 0x40, sizeof(tp.MBytesToServer), }, 0x00,		/* {32h:0002h} MBytes transferred to server */
+	{ 0x00, 0x03, 0x40, sizeof(tp.BytesToServer), }, 0x00,		/* {32h:0003h} Bytes transferred to server */
+	{ 0x00, 0x04, 0x40, sizeof(tp.MBytesReadFromTape), }, 0x00,	/* {32h:0004h} MBytes read from tape */
+	{ 0x00, 0x05, 0x40, sizeof(tp.BytesReadFromTape), }, 0x00,	/* {32h:0005h} Bytes read from tape */
+	{ 0x00, 0x06, 0x40, sizeof(tp.MBytesFromServer), }, 0x00,	/* {32h:0006h} MBytes transferred from server */
+	{ 0x00, 0x07, 0x40, sizeof(tp.BytesFromServer), }, 0x00,	/* {32h:0007h} Bytes transferred from server */
+	{ 0x00, 0x08, 0x40, sizeof(tp.MBytesWrittenToTape), }, 0x00,	/* {32h:0008h} MBytes written to tape */
+	{ 0x00, 0x09, 0x40, sizeof(tp.BytesWrittenToTape), }, 0x00,	/* {32h:0009h} Bytes written to tape */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, DATA_COMPRESSION, sizeof(tp));

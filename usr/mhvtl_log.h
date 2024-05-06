@@ -55,7 +55,7 @@ struct vhf_data_4 {
 	uint8_t MACC:1;		/* MAM accessible */
 	uint8_t HIU:1;		/* Host Initiated Unload */
 	uint8_t	PAMR:1;		/* Prevent/Allow Media Removal */
-};
+	} __attribute__((packed));
 
 struct vhf_data_5 {
 	uint8_t MOUNTED:1;	/* Medium mounted */
@@ -66,7 +66,7 @@ struct vhf_data_5 {
 	uint8_t RAA:1;		/* Robotic access allowed */
 	uint8_t RSVD_1:1;
 	uint8_t	INXTN:1;	/* In Transition - other bits in byte 5 not stable */
-};
+	} __attribute__((packed));
 
 struct vhf_data_7 {
 	uint8_t TAFC:1;		/* TapeAlert state flag changed */
@@ -77,7 +77,7 @@ struct vhf_data_7 {
 	uint8_t TDDEC:1;	/* Tape Diagnostic data entry created */
 	uint8_t RSVD:1;
 	uint8_t	VS:1;		/* Always 0 */
-};
+	} __attribute__((packed));
 
 struct log_pg_list {
 	struct list_head siblings;
@@ -92,7 +92,7 @@ struct	log_pg_header {
 	uint8_t pcode;
 	uint8_t res;
 	uint16_t len;
-	};
+	} __attribute__((packed));
 
 /* Page Code header struct. */
 struct	pc_header {
@@ -100,7 +100,7 @@ struct	pc_header {
 	uint8_t head1;
 	uint8_t flags;
 	uint8_t len;
-	};
+	} __attribute__((packed));
 
 /* Vendor Specific : 0x32 (Taken from IBM Ultrium doco) */
 struct	DataCompression {
@@ -127,12 +127,12 @@ struct	DataCompression {
 	uint32_t MBytesWrittenToTape;
 	struct pc_header h_BytesWrittenToTape;
 	uint32_t BytesWrittenToTape;
-	};
+	} __attribute__((packed));
 
 /* Buffer Under/Over Run log page - 0x01 : SPC-3 (7.2.3) */
 struct	BufferUnderOverRun {
 	struct log_pg_header	pcode_head;
-	};
+	} __attribute__((packed));
 
 struct	TapeUsage {
 	struct log_pg_header pcode_head;
@@ -141,24 +141,24 @@ struct	TapeUsage {
 	struct pc_header flagNo02;
 	uint64_t volumeDatasetsWritten;
 	struct pc_header flagNo03;
-	uint32_t value03;
+	uint32_t volWriteRetries;
 	struct pc_header flagNo04;
-	uint16_t value04;
+	uint16_t volWritePerms;
 	struct pc_header flagNo05;
-	uint16_t value05;
+	uint16_t volSuspendedWrites;
 	struct pc_header flagNo06;
-	uint16_t value06;
+	uint16_t volFatalSuspendedWrites;
 	struct pc_header flagNo07;
-	uint64_t value07;
+	uint64_t volDatasetsRead;
 	struct pc_header flagNo08;
-	uint32_t value08;
+	uint32_t volReadRetries;
 	struct pc_header flagNo09;
-	uint16_t value09;
+	uint16_t volReadPerms;
 	struct pc_header flagNo10;
-	uint16_t value10;
+	uint16_t volSuspendedReads;
 	struct pc_header flagNo11;
-	uint16_t value11;
-	};
+	uint16_t volFatalSuspendedReads;
+	} __attribute__((packed));
 
 struct DeviceStatus {
 	struct log_pg_header pcode_head;
@@ -167,24 +167,24 @@ struct DeviceStatus {
 	uint8_t byte5;
 	uint8_t byte6;
 	uint8_t byte7;
-	};
+	} __attribute__((packed));
 
 struct	TapeCapacity {
 	struct log_pg_header pcode_head;
 	struct pc_header flagNo01;
-	uint32_t value01;
+	uint32_t partition0remaining;
 	struct pc_header flagNo02;
-	uint32_t value02;
+	uint32_t partition1remaining;
 	struct pc_header flagNo03;
-	uint32_t value03;
+	uint32_t partition0maximum;
 	struct pc_header flagNo04;
-	uint32_t value04;
-	};
+	uint32_t partition1maximum;
+	} __attribute__((packed));
 
 struct TapeAlert_pg {
 	struct pc_header flag;
 	uint8_t value;
-	};
+	} __attribute__((packed));
 
 /* Tape Alert Log Page - 0x2E
  * SSC-3 (8.2.3)
@@ -193,7 +193,7 @@ struct	TapeAlert_page {
 	struct log_pg_header pcode_head;
 
 	struct TapeAlert_pg TapeAlert[64];
-	};
+	} __attribute__((packed));
 
 /* Temperature Log Page - 0x0d
  * SPC-3 (7.2.13)
@@ -202,7 +202,7 @@ struct	Temperature_page {
 	struct log_pg_header pcode_head;
 	struct pc_header header;
 	uint16_t temperature;
-	};
+	} __attribute__((packed));
 
 /* Write/Read/Read Reverse
  * Error Counter log page - 0x02, 0x03, 0x04
@@ -233,7 +233,7 @@ struct	error_counter {
 	uint32_t totalDropoutError;
 	struct pc_header h_totalServoTracking;
 	uint32_t totalServoTracking;
-	};
+	} __attribute__((packed));
 
 /* Sequential-Access
  * Device log page - 0x0C
@@ -272,13 +272,13 @@ struct	seqAccessDevice {
 	uint64_t TapeAlert;
 
 	struct pc_header h_mbytes_processed;
-	uint32_t mbytes_processed;
+	uint32_t mbytes_processed;	/* MB since cleaning */
 
 	struct pc_header h_load_cycle;
-	uint32_t load_cycle;
+	uint32_t load_cycle;		/* Total number of load cycles over drive lifetime*/
 
-	struct pc_header h_clean;	/* Header of clean */
-	uint32_t clean_cycle;
+	struct pc_header h_clean;
+	uint32_t clean_cycle;		/* Total number of cleans over drive lifetime */
 
 	} __attribute__((packed));
 
