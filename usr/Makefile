@@ -45,7 +45,7 @@ all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
 
 libvtlscsi.so:	vtllib.c spc.c vtllib.h mhvtl_scsi.h smc.c spc.c q.c \
 		subprocess.c subprocess.h \
-		mode.c log.c be_byteshift.h \
+		mode.c mhvtl_log.h log.c be_byteshift.h \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic log.c
 	$(CC) $(CFLAGS) -c -fpic mode.c
@@ -57,7 +57,7 @@ libvtlscsi.so:	vtllib.c spc.c vtllib.h mhvtl_scsi.h smc.c spc.c q.c \
 	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o \
 		mode.o log.o subprocess.o -lpthread
 
-libvtlcart.so: vtlcart.c vtllib.h vtllib.c mhvtl_scsi.h log.c q.c \
+libvtlcart.so: vtlcart.c vtllib.h vtllib.c mhvtl_scsi.h mhvtl_log.h log.c q.c \
 		../kernel/vtl_common.h
 	$(CC) $(CFLAGS) -c -fpic log.c
 	$(CC) $(CFLAGS) -c -fpic q.c
