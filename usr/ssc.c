@@ -2084,14 +2084,14 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd)
 
 			cap = get_unaligned_be64(&mam.remaining_capacity);
 			cap /= lu_ssc->capacity_unit;
-			put_unaligned_be32(cap, &tp->value01);
+			put_unaligned_be32(cap, &tp->partition0remaining);
 
 			cap = get_unaligned_be64(&mam.max_capacity);
 			cap /= lu_ssc->capacity_unit;
-			put_unaligned_be32(cap, &tp->value03);
+			put_unaligned_be32(cap, &tp->partition0maximum);
 		} else {
-			tp->value01 = 0;
-			tp->value03 = 0;
+			tp->partition0remaining = 0;
+			tp->partition0maximum = 0;
 		}
 		}
 		break;
