@@ -1492,13 +1492,25 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd)
 	return *sam_stat;
 }
 
+#define READ_POSITION_LEN 20
+#define READ_POSITION_LONG_LEN 32
 uint8_t ssc_read_position(struct scsi_cmd *cmd)
 {
 	uint8_t *sam_stat;
 	int service_action;
 	struct s_sd sd;
+	struct priv_lu_ssc *lu_priv;
+	uint8_t *buf;
+	uint8_t partition = 0;	/* One of these days we'll support multiple partitions - but for now */
+	uint64_t filemarks = 0;
+	struct read_position_information_short *sp;
+	struct read_position_information_long *lp;
+
+	lu_priv = cmd->lu->lu_private;
 
 	sam_stat = &cmd->dbuf_p->sam_stat;
+
+	buf = cmd->dbuf_p->data;
 
 	MHVTL_DBG(1, "READ POSITION (%ld) **", (long)cmd->dbuf_p->serialNo);
 
@@ -1513,17 +1525,93 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 	case TAPE_LOADED:
 		switch (service_action) {
 		case 0:
-		case 1:
-			cmd->dbuf_p->sz = resp_read_position(c_pos->blk_number,
-							cmd->dbuf_p->data,
-							sam_stat);
+			sp = (struct read_position_information_short *)&buf[0];
+
+			memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
+
+			if (c_pos->blk_number < 2) {
+				MHVTL_DBG(3, "Setting Beginning of Parition (BOP)");
+				sp->BOP = 1;	/* Beginning of partition */
+			}
+
+			sp->LOCU = 0;	/* Logical object count unknown - 0: Block count is exact */
+			sp->BYCU = 1;	/* Logical byte count unknown - 1: Byte count is estimate */
+			sp->LOLU = 0;	/* Logical Object Location Unknown - 0: Count is exact */
+
+			if (c_pos->blk_number > 0xfffffffe) {	/* logical block address overflow - currently not possible as blk_number is a uint32_t */
+				sp->PERR = 1;
+				MHVTL_DBG(1, "More than supported number of blocks - Setting Logical Block overflow");
+			}
+
+			buf[1] = partition;
+			put_unaligned_be32(c_pos->blk_number, &buf[4]);	/* First Logical Object Location - (current location) */
+			put_unaligned_be32(c_pos->blk_number, &buf[8]);	/* After a write, Logical Object Location of the new write - If buffer empty: == first logical objecct */
+
+			MHVTL_DBG(1, "Positioned at block %ld", (long)c_pos->blk_number);
+
+			if (current_tape_offset() > lu_priv->early_warning_position) {
+				sp->EOP = 1;
+				MHVTL_DBG(3, "Setting End of Partition (EOP)");
+			}
+			if ((lu_priv->pm->drive_supports_prog_early_warning) && (current_tape_offset() >= lu_priv->prog_early_warning_position)) {
+				MHVTL_DBG(3, "Drive supports prog early warning : Setting prog_early_warning of Partition (BPEW & EOP)");
+				sp->BPEW = 1;
+				sp->EOP = 1;
+			} else {
+				sp->BPEW = 0;
+			}
+			cmd->dbuf_p->sz = READ_POSITION_LEN;
 			break;
 		case 6:
-			cmd->dbuf_p->sz =
-				resp_read_position_long(c_pos->blk_number,
-							cmd->dbuf_p->data,
-							sam_stat);
+			lp = (struct read_position_information_long *)&buf[0];
+
+			/* Return tape position - long format
+			 *
+			 * Need to implement.
+			 * [ 4 -  7] Partition No.
+			 *           - The partition number for the current logical position
+			 * [ 8 - 15] Logical Object No.
+			 *           - The number of logical blocks between the beginning of the
+			 *           - partition and the current logical position.
+			 * [16 - 23] Logical File Identifier
+			 *           - Number of Filemarks between the beginning of the partition and
+			 *           - the logical position.
+			 * [24 - 31] Logical Set Identifier - Obsolete... (IBM Ultrium LTO-9)
+			 *           - Number of Setmarks between the beginning of the partition and
+			 *           - the logical position.
+			 */
+
+			memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
+
+			if (c_pos->blk_number < 2) {
+				lp->BOP = 1;
+				MHVTL_DBG(3, "Setting Beginning of Parition (BOP)");
+			}
+
+			lp->LONU = 0;	/* Set 'Logical Object Number Unknown' bit valid (block location info is valid) */
+			lp->MPU = 0;	/* Mark Position Unknown : 0 = num filemarks is known */
+
+			if (current_tape_offset() > lu_priv->early_warning_position) {
+				MHVTL_DBG(3, "Setting End of Partition (EOP)");
+				lp->BPEW = 0;
+				lp->EOP = 1;
+			}
+			if ((lu_priv->pm->drive_supports_prog_early_warning) && (current_tape_offset() >= lu_priv->prog_early_warning_position)) {
+				MHVTL_DBG(3, "Drive supports prog early warning : Setting prog_early_warning of Partition (BPEW & EOP)");
+				lp->BPEW = 1;
+				lp->EOP = 1;
+			}
+
+			filemarks = filemark_count(c_pos->blk_number);
+
+			put_unaligned_be32(partition, &buf[4]);
+			put_unaligned_be64(c_pos->blk_number, &buf[8]);
+			put_unaligned_be64(filemarks, &buf[16]);
+
+			MHVTL_DBG(1, "Positioned at block %ld, num filemarks: %ld", (long)c_pos->blk_number, filemarks);
+			cmd->dbuf_p->sz =  READ_POSITION_LONG_LEN;
 			break;
+
 		default:
 			MHVTL_DBG(1, "service_action not supported");
 			sd.byte0 = SKSV | CD;
@@ -1904,7 +1992,7 @@ uint8_t ssc_pr_in(struct scsi_cmd *cmd)
 static void update_tape_usage(struct TapeUsage *b,
 				struct priv_lu_ssc *lu_ssc)
 {
-	uint64_t datasets = filemark_count();
+	uint64_t datasets = filemark_count(-1);
 	uint64_t load_count;
 
 	/* if we have more than 1 filemark,

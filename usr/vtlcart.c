@@ -1379,8 +1379,20 @@ uint64_t current_tape_block(void)
 	return 0;
 }
 
-uint64_t filemark_count(void)
+/* Return number of filemarks up to 'block' : -1 for all */
+uint64_t filemark_count(int64_t block)
 {
+	unsigned int a;
+	uint64_t count;
+
+	if (block == -1)
+		return (uint64_t)meta.filemark_count;
+
+	for (a = 0, count = 0; a < meta.filemark_count; a++) {
+		if (filemarks[a] >= block)
+			return (uint64_t)count;
+		count++;
+	}
 	return (uint64_t)meta.filemark_count;
 }
 

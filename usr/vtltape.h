@@ -224,7 +224,7 @@ int format_tape(uint8_t *sam_stat);
 int rewriteMAM(uint8_t *sam_stat);
 uint64_t current_tape_offset(void);
 uint64_t current_tape_block(void);
-uint64_t filemark_count(void);
+uint64_t filemark_count(int64_t count);
 
 void print_raw_header(void);
 void print_filemark_count(void);

@@ -487,6 +487,54 @@ struct s_sd {
 /* Used by Mode Sense - if set, return block descriptor */
 extern uint8_t modeBlockDescriptor[8];
 
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+
+struct read_position_information_short {
+	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t	PERR:1;	/* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
+	uint8_t	LOLU:1;	/* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
+	uint8_t	resvd:1;	/* Reserved */
+	uint8_t	BYCU:1;	/* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
+	uint8_t	LOCU:1;	/* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
+	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+} __attribute__((packed));
+
+struct read_position_information_long {
+	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t	rsvd_1:1;	/* Reserved 1 bit */
+	uint8_t	LONU:1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
+	uint8_t	MPU:1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
+	uint8_t	rsvd_0:2;	/* Reserved 2 bits */
+	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+} __attribute__((packed));
+
+#else
+
+struct read_position_information_short {
+	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t	LOCU:1;	/* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
+	uint8_t	BYCU:1;	/* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
+	uint8_t	resvd:1;	/* Reserved */
+	uint8_t	LOLU:1;	/* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
+	uint8_t	PERR:1;	/* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
+	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+} __attribute__((packed));
+
+struct read_position_information_long {
+	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t	rsvd_0:2;	/* Reserved 2 bits */
+	uint8_t	MPU:1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
+	uint8_t	LONU:1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
+	uint8_t	rsvd_1:1;	/* Reserved 1 bit */
+	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+} __attribute__((packed));
+
+#endif	/* Byte order */
+
 enum MHVTL_STATE {
 	MHVTL_STATE_INIT,
 	MHVTL_STATE_IDLE,
@@ -551,6 +599,7 @@ void hex_dump(uint8_t *, int);
 void *zalloc(int sz);
 int chrdev_open(const char *name, unsigned minor);
 int chrdev_create(unsigned minor);
+void chrdev_delete(unsigned minor);
 int oom_adjust(void);
 int open_fifo(FILE **fifo_fd, char *fifoname);
 void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);

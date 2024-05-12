@@ -329,63 +329,6 @@ void set_inquiry_data_changed(void)
 	inquiry_data_changed = 1;
 }
 
-#define READ_POSITION_LONG_LEN 32
-/* Return tape position - long format
- *
- * Need to implement.
- * [ 4 -  7] Partition No.
- *           - The partition number for the current logical position
- * [ 8 - 15] Logical Object No.
- *           - The number of logical blocks between the beginning of the
- *           - partition and the current logical position.
- * [16 - 23] Logical Field Identifier
- *           - Number of Filemarks between the beginning of the partition and
- *           - the logical position.
- * [24 - 31] Logical Set Identifier
- *           - Number of Setmarks between the beginning of the partition and
- *           - the logical position.
- */
-int resp_read_position_long(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
-{
-	uint32_t partition = 0;
-
-	memset(buf, 0, READ_POSITION_LONG_LEN);	/* Clear 'array' */
-
-	if ((pos == 0) || (pos == 1))
-		buf[0] = 0x80;	/* Beginning of Partition */
-	buf[0] |= 0x04;	/* Set LONU bit valid */
-
-	/* FIXME: Need to update EOP & BPEW bits too */
-
-	put_unaligned_be32(partition, &buf[4]);
-	put_unaligned_be64(pos, &buf[8]);
-
-	MHVTL_DBG(1, "Positioned at block %ld", (long)pos);
-	return READ_POSITION_LONG_LEN;
-}
-
-#define READ_POSITION_LEN 20
-/* Return tape position - short format */
-int resp_read_position(loff_t pos, uint8_t *buf, uint8_t *sam_stat)
-{
-	uint8_t partition = 0;
-
-	memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
-
-	if ((pos == 0) || (pos == 1))
-		buf[0] = 0x80;	/* Beginning of Partition */
-	buf[0] |= 0x20;	/* Logical object count unknown */
-	buf[0] |= 0x10;	/* Logical byte count unknown  */
-
-	/* FIXME: Need to update EOP & BPEW bits too */
-
-	buf[1] = partition;
-	put_unaligned_be32(pos, &buf[4]);
-	put_unaligned_be32(pos, &buf[8]);
-	MHVTL_DBG(1, "Positioned at block %ld", (long)pos);
-
-	return READ_POSITION_LEN;
-}
 
 #define READBLOCKLIMITS_ARR_SZ 6
 int resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz)
