@@ -64,7 +64,7 @@ void find_media_home_directory(char *config_directory, char *home_directory, lon
 static void usage(char *prog)
 {
 	fprintf(stderr, "Usage  : %s <DeviceNo> <command> [-h|-help]\n", prog);
-	fprintf(stderr, "Version: %s\n\n", MHVTL_VERSION);
+	fprintf(stderr, "Version: %s %s %s\n", MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE);
 	fprintf(stderr, "   Where 'DeviceNo' is the number"
 			" associated with tape/library daemon\n\n");
 	fprintf(stderr, "Global commands:\n");
@@ -454,7 +454,7 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		if (!strcasecmp(argv[count], "-v")) {
-			printf("Version: %s\n", MHVTL_VERSION);
+			fprintf(stderr, "Version: %s %s %s\n", MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE);
 			exit(1);
 		}
 	}

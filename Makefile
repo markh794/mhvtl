@@ -16,7 +16,7 @@ PARENTDIR = mhvtl-$(VER)
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 
-TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION)$(EXTRAVERSION).tgz
+TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION).$(EXTRAVERSION).tgz
 
 MAKE_VTL_MEDIA = usr/make_vtl_media
 

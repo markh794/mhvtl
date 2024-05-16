@@ -16,8 +16,9 @@ Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
 Name: mhvtl-utils
 %define real_version 2023-03-10
+%define minor 1
 Version: 1.7
-Release: 1%{?dist}
+Release: %{minor}%{?dist}
 License: GPL
 Group: System/Kernel
 URL: http://sites.google.com/site/linuxvtl2/
@@ -83,13 +84,13 @@ make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-
 #%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %build
-make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} \
+make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir}
 
 %install
 %make_install \
-	MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version}_release LIBDIR=%{_libdir} \
+	MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir}
 install -d -m 755 %{buildroot}%{_sbindir}
