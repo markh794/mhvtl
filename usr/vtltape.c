@@ -2510,6 +2510,7 @@ int main(int argc, char *argv[])
 	int opt;
 	int foreground = 0;
 	const pid_t not_started = -2;
+	int time_to_exit = 0;
 
 	char *progname = argv[0];
 	char *fifoname = NULL;
@@ -2577,6 +2578,14 @@ int main(int argc, char *argv[])
 
 	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
 
+	if (check_for_running_daemons(minor)) {
+		printf("check_for_running_daemons(%d) returned true\n", minor);
+		MHVTL_LOG("%s: version %s %s %s, found another running daemon... exiting", progname, MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE);
+		exit(2);
+	} else {
+		MHVTL_DBG(1, "No lock file found... Continuing");
+	}
+
 	if (lzo_init() != LZO_E_OK) {
 		MHVTL_ERR("Could not initialize LZO... Exiting");
 		exit(1);
@@ -2618,15 +2627,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (check_for_running_daemons(minor)) {
-		MHVTL_LOG("%s: version %s, found another running daemon... exiting", progname, MHVTL_VERSION);
-		exit(2);
-	}
-
 	cdev = chrdev_open(name, minor);
 	if (cdev == -1) {
-		MHVTL_ERR("Could not open /dev/%s%u: %s", name, minor,
-						strerror(errno));
+		MHVTL_ERR("Could not open /dev/%s%u: %s", name, minor, strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}
@@ -2670,8 +2673,8 @@ int main(int argc, char *argv[])
 		close(STDERR_FILENO);
 	}
 
-	MHVTL_LOG("[%ld] Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
-					(long)getpid(), progname, MHVTL_VERSION, verbose,
+	MHVTL_LOG("[%ld] Started %s: version %s %s %s verbose log lvl: %d, lu [%d:%d:%d]",
+					(long)getpid(), progname, MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE, verbose,
 					ctl.channel, ctl.id, ctl.lun);
 	MHVTL_DBG(1, "Size of buffer is %d", lu_ssc.bufsize);
 
@@ -2717,8 +2720,10 @@ int main(int argc, char *argv[])
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &lu_ssc.r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
-			if (processMessageQ(&lu_ssc.r_entry.msg, &lu_ssc.sam_status))
-				goto exit;
+			if (processMessageQ(&lu_ssc.r_entry.msg, &lu_ssc.sam_status)) {
+				time_to_exit = 1;	/* Flag that we need to exit */
+				MHVTL_DBG(1, "Exit called");
+			}
 		} else if (mlen < 0) {
 			if ((r_qid = init_queue()) == -1) {
 				MHVTL_ERR("Can not open message queue: %s",
@@ -2801,6 +2806,8 @@ int main(int argc, char *argv[])
 					else
 						set_current_state(MHVTL_STATE_IDLE);
 				}
+				if (time_to_exit)	/* enough cycles to ensure no outstanding work remains */
+					goto exit;
 			}
 		}
 	}
@@ -2816,6 +2823,7 @@ exit:
 		unlink(lunit.fifoname);
 		free(lunit.fifoname);
 	}
+	free_lock(minor);
 	exit(0);
 }
 

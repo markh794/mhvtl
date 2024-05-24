@@ -1692,6 +1692,7 @@ int main(int argc, char *argv[])
 	int fifo_retval;
 	int opt;
 	int foreground = 0;
+	int time_to_exit = 0;
 
 	int last_state = MHVTL_STATE_UNKNOWN;
 
@@ -1806,7 +1807,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (check_for_running_daemons(my_id)) {
-		MHVTL_LOG("%s: version %s, found another running daemon... exiting", progname, MHVTL_VERSION);
+		MHVTL_LOG("%s: version %s %s %s, found another running daemon... exiting", progname, MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE);
 		exit(2);
 	}
 
@@ -1908,8 +1909,8 @@ int main(int argc, char *argv[])
 		close(STDERR_FILENO);
 	}
 
-	MHVTL_LOG("[%ld] Started %s: version %s, verbose log lvl: %d, lu [%d:%d:%d]",
-					(long)getpid(), progname, MHVTL_VERSION, verbose,
+	MHVTL_LOG("[%ld] Started %s: version %s %s %s verbose log lvl: %d, lu [%d:%d:%d]",
+					(long)getpid(), progname, MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE, verbose,
 					ctl.channel, ctl.id, ctl.lun);
 
 	oom_adjust();
@@ -1940,7 +1941,7 @@ int main(int argc, char *argv[])
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
 			if (processMessageQ(&r_entry.msg))
-				goto exit;
+				time_to_exit = 1;
 		} else if (mlen < 0) {
 			r_qid = init_queue();
 			if (r_qid == -1)
@@ -1999,6 +2000,9 @@ int main(int argc, char *argv[])
 							&smc_slots.state_msg);
 				last_state = current_state;
 			}
+			if (pollInterval > 0xf000)	/* enough time to ensure no outstanding op in flight */
+				if (time_to_exit)
+					goto exit;
 			if (pollInterval > 0x18000)
 				if (current_state != MHVTL_STATE_OFFLINE)
 					current_state = MHVTL_STATE_IDLE;
@@ -2017,6 +2021,6 @@ exit:
 		unlink(lunit.fifoname);
 		free(lunit.fifoname);
 	}
-
+	free_lock(my_id);
 	exit(0);
 }

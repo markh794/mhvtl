@@ -618,6 +618,7 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl);
 void completeSCSICommand(int, struct mhvtl_ds *ds);
 int retrieve_CDB_data(int cdev, struct mhvtl_ds *dbuf_p);
 int check_for_running_daemons(unsigned minor);
+int free_lock(unsigned minor);
 
 void mhvtl_prt_cdb(int l, struct scsi_cmd *cmd);
 void checkstrlen(char *s, unsigned int len, int linecount);
