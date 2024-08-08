@@ -93,6 +93,8 @@ Can be one of
 .BR LTO5 ,
 .BR LTO6 ,
 .BR LTO7 ,
+.BR LTO8 ,
+.BR LTO9 ,
 .BR SDLT1 ,
 .BR SDLT2 ,
 .BR SDLT3 ,

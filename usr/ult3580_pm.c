@@ -72,6 +72,9 @@ static struct density_info density_lto7 = {
 static struct density_info density_lto8 = {
 	20669, 127, 6656, 12000000, medium_density_code_lto8,
 			"LTO-CVE", "U-832", "Ultrium 8/32T" };
+static struct density_info density_lto9 = {
+	21456, 127, 8960, 18000000, medium_density_code_lto9,
+			"LTO-CVE", "U-932", "Ultrium 9/48T" };
 
 static struct name_to_media_info media_info[] = {
 	{"LTO1", Media_LTO1,
@@ -118,6 +121,12 @@ static struct name_to_media_info media_info[] = {
 			media_type_lto8_data, medium_density_code_lto8},
 	{"LTO8 WORM", Media_LTO8_WORM,
 			media_type_lto8_worm, medium_density_code_lto8},
+	{"LTO9", Media_LTO9,
+			media_type_lto9_data, medium_density_code_lto9},
+	{"LTO9 Clean", Media_LTO9_CLEAN,
+			media_type_lto9_data, medium_density_code_lto9},
+	{"LTO9 WORM", Media_LTO9_WORM,
+			media_type_lto9_worm, medium_density_code_lto9},
 	{"", 0, 0, 0},
 };
 
@@ -268,6 +277,10 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 			break;
 		case Media_LTO8:
 			MHVTL_DBG(1, "LTO8 Medium - Setting AVFMV");
+			buf[24] |= 0x80; /* AVFMV */
+			break;
+		case Media_LTO9:
+			MHVTL_DBG(1, "LTO9 Medium - Setting AVFMV");
 			buf[24] |= 0x80; /* AVFMV */
 			break;
 		default:
@@ -479,6 +492,9 @@ static uint8_t ult_media_load(struct lu_phy_attr *lu, int load)
 		case Media_LTO8:
 			lu->mode_media_type = media_type_lto8_data;
 			break;
+		case Media_LTO9:
+			lu->mode_media_type = media_type_lto9_data;
+			break;
 		default:
 			lu->mode_media_type = 0;
 		}
@@ -514,6 +530,7 @@ static char *pm_name_lto5 = "LTO-5";
 static char *pm_name_lto6 = "LTO-6";
 static char *pm_name_lto7 = "LTO-7";
 static char *pm_name_lto8 = "LTO-8";
+static char *pm_name_lto9 = "LTO-9";
 
 static struct ssc_personality_template ssc_pm = {
 	.valid_encryption_blk	= valid_encryption_blk, /* default in ssc.c */
@@ -1035,4 +1052,79 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RO, "LTO8 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO8 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO8 ENCR");
+}
+
+void init_ult3580_td9(struct lu_phy_attr *lu)
+{
+	ssc_pm.name = pm_name_lto9;
+	ssc_pm.lu = lu;
+	ssc_pm.native_drive_density = &density_lto9;
+	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities = encr_capabilities_ult;
+	ssc_pm.kad_validation = td4_kad_validation;
+	ssc_pm.clear_WORM = clear_ult_WORM;
+	ssc_pm.set_WORM = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode = TRUE;
+	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_prog_early_warning = TRUE;
+	ssc_pm.drive_supports_WORM = TRUE;
+	ssc_pm.drive_supports_SPR = TRUE;
+	ssc_pm.drive_supports_SP = TRUE;
+	ssc_pm.drive_supports_LBP = LBP_CRC32C; /* both RS-CRC and CRC32C */
+	ssc_pm.drive_ANSI_VERSION = 5;
+
+	ssc_personality_module_register(&ssc_pm);
+
+	init_ult_inquiry(lu);
+
+	add_mode_page_rw_err_recovery(lu);
+	add_mode_disconnect_reconnect(lu);
+	add_mode_control(lu);
+	add_mode_control_extension(lu);
+	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
+	add_mode_data_compression(lu);
+	add_mode_device_configuration(lu);
+	add_mode_device_configuration_extention(lu);
+	add_mode_medium_partition(lu);
+	add_mode_power_condition(lu);
+	add_mode_information_exception(lu);
+	add_mode_medium_configuration(lu);
+	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-7+ */
+	add_mode_vendor_25h_mode_pages(lu);
+	add_mode_behavior_configuration(lu);
+	add_mode_encryption_mode_attribute(lu);
+
+	/* Supports non-zero programable early warning */
+	update_prog_early_warning(lu);
+
+	add_log_write_err_counter(lu);
+	add_log_read_err_counter(lu);
+	add_log_sequential_access(lu);
+	add_log_temperature_page(lu);
+	add_log_device_status(lu);
+	add_log_tape_alert(lu);
+	add_log_tape_usage(lu);
+	add_log_tape_capacity(lu);
+	add_log_data_compression(lu);
+
+	/* Capacity units in MBytes */
+	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
+
+    /* LTO 9 drives cannot read LTO7 cartridges.
+    https://www.lto.org/lto-generation-compatibility/
+    "LTO drive generations 1-7 are able to read tapes from two generations prior
+    and are able to write to tapes from the prior generation.
+
+    LTO-9 drives can read and write to LTO-8 and LTO-9 media only*/
+	add_density_support(&lu->den_list, &density_lto8, 1);
+	add_density_support(&lu->den_list, &density_lto9, 1);
+
+	add_drive_media_list(lu, LOAD_RW, "LTO8");
+	add_drive_media_list(lu, LOAD_RO, "LTO8 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO8 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO8 ENCR");
+	add_drive_media_list(lu, LOAD_RW, "LTO9");
+	add_drive_media_list(lu, LOAD_RO, "LTO9 Clean");
+	add_drive_media_list(lu, LOAD_RW, "LTO9 WORM");
+	add_drive_media_list(lu, LOAD_RW, "LTO9 ENCR");
 }
