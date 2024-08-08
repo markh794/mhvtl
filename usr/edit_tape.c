@@ -77,6 +77,7 @@ void usage(char *progname)
 	printf("           SDLT1    SDLT220  SDLT320  SDLT600\n");
 	printf("           LTO1     LTO2     LTO3     LTO4\n");
 	printf("           LTO5     LTO6     LTO7     LTO8\n");
+	printf("           LTO9\n");
 	printf("           T10KA    T10KB    T10KC\n");
 	printf("           9840A    9840B    9840C    9840D\n");
 	printf("           9940A    9940B\n");

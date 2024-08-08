@@ -105,6 +105,7 @@ https://github.com/iustin/mt-st/blob/fbfd923faad0d6f613415f4de747833fb6b4a465/mt
 #define medium_density_code_lto7	0x5c
 #define medium_density_code_lto8_m8	0x5d
 #define medium_density_code_lto8	0x5e
+#define medium_density_code_lto9	0x60
 
 #define medium_density_code_j1a		0x51
 #define medium_density_code_e05		0x52
