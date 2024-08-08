@@ -1651,6 +1651,17 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
 		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
+	} else if (!(strncmp(density, "LTO9", 4))) {
+		mamp->MediumDensityCode = medium_density_code_lto9;
+		mamp->MediaType = Media_LTO9;
+		put_unaligned_be32(960, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		memcpy(&mamp->media_info.description, "Ultrium 9/32T", 13);
+		memcpy(&mamp->media_info.density_name, "U-932  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
+		mamp->max_partitions = 2;
+		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "AIT1", 4))) {
 	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
 		mamp->MediumDensityCode = medium_density_code_ait1;

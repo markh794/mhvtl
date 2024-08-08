@@ -178,6 +178,8 @@ https://github.com/iustin/mt-st/blob/fbfd923faad0d6f613415f4de747833fb6b4a465/mt
 #define media_type_lto7_worm	0x7c
 #define media_type_lto8_data	0x88
 #define media_type_lto8_worm	0x8c
+#define media_type_lto9_data	0x98
+#define media_type_lto9_worm	0x9c
 #define media_type_hp_lto_data	0x00
 #define media_type_hp_lto_worm	0x01
 #define media_type_hp_lto_cd	0x80
