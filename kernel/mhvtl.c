@@ -1359,7 +1359,10 @@ static struct device mhvtl_pseudo_primary = {
 };
 
 static int mhvtl_lld_bus_match(struct device *dev,
-				struct device_driver *dev_driver)
+#ifdef DEFINE_CONST_STRUCT_DEVICE_DRIVER
+			       const
+#endif
+			       struct device_driver *dev_driver)
 {
 	return 1;
 }
