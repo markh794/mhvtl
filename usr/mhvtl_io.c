@@ -40,7 +40,7 @@
 
 extern int verbose;
 extern int debug;
-extern long my_id;
+extern uint32_t my_id;
 extern struct priv_lu_ssc lu_ssc;
 extern struct lu_phy_attr lunit;
 extern struct encryption app_encryption_state;

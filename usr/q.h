@@ -29,11 +29,12 @@
 #include <sys/msg.h>
 #include <string.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #define	MAXTEXTLEN	1024
 
 struct	q_msg {
-	long snd_id;
+	uint32_t snd_id;
 	char text[MAXTEXTLEN+1];
 };
 
@@ -44,17 +45,17 @@ struct	q_msg {
 #define VTLCMD_Q 32768		/* Priority for vtlcmd */
 
 struct q_entry {
-	long rcv_id;
+	uint32_t rcv_id;
 	struct q_msg msg;
 };
 
 
-int enter(char *, long rcv_id);
-int send_msg(char *cmd, long rcv_id);
+int enter(char *, uint32_t rcv_id);
+int send_msg(char *cmd, uint32_t rcv_id);
 int serve(void);
 int init_queue(void);
 
-extern long my_id;
+extern uint32_t my_id;
 
 /* Message strings passed between vtllibrary & vtltape */
 #define msg_not_occupied	"Not occupied"

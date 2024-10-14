@@ -64,7 +64,7 @@
 #include "mhvtl_log.h"
 
 char mhvtl_driver_name[] = "vtllibrary";
-long my_id = 0;
+uint32_t my_id = 0;
 
 #define CAP_CLOSED	1
 #define CAP_OPEN	0
@@ -608,7 +608,7 @@ static int set_access_bit(struct q_msg *msg)
 		if (slotOccupied(sp) && sp->element_type == DATA_TRANSFER) {
 			if (sp->drive->drv_id == msg->snd_id) {
 				setAccessStatus(sp, 1);
-				MHVTL_DBG(2, "Enabling access bit for drive id %ld", sp->drive->drv_id);
+				MHVTL_DBG(2, "Enabling access bit for drive id %"PRIu32"", sp->drive->drv_id);
 			}
 		}
 	}
@@ -621,7 +621,7 @@ static int set_access_bit(struct q_msg *msg)
 static int processMessageQ(struct q_msg *msg)
 {
 
-	MHVTL_DBG(1, "%ld: Received from sender id: %ld, msg : %s", my_id, msg->snd_id, msg->text);
+	MHVTL_DBG(1, "%"PRIu32": Received from sender id: %"PRIu32", msg : %s", my_id, msg->snd_id, msg->text);
 
 	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug) {
@@ -722,7 +722,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	char *b;	/* Read from file into this buffer */
 	char *s;	/* Somewhere for sscanf to store results */
 	int slot;
-	long drv_id, lib_id;
+	uint32_t drv_id, lib_id;
 	struct d_info *dp;
 	struct s_info *sp;
 	struct smc_priv *smc_p = lu->lu_private;
@@ -752,16 +752,16 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
 		if (b[0] == '#')	/* Ignore comments */
 			continue;
-		if (sscanf(b, "Drive: %ld", &drv_id) > 0)
+		if (sscanf(b, "Drive: %"PRIu32"", &drv_id) > 0)
 			continue;
-		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2
+		if (sscanf(b, " Library ID: %"PRIu32" Slot: %d", &lib_id, &slot) == 2
 					&& lib_id == my_id
 					&& drv_id >= 0) {
-			MHVTL_DBG(2, "Found Drive %ld in slot %d",
+			MHVTL_DBG(2, "Found Drive %"PRIu32" in slot %d",
 					drv_id, slot);
 			dp = lookup_drive(lu, slot);
 			if (!dp) {
-				MHVTL_LOG("WARNING: Creating new entry for %ld",
+				MHVTL_LOG("WARNING: Creating new entry for %"PRIu32"",
 									drv_id);
 				dp = zalloc(sizeof(struct d_info));
 				if (!dp) {
@@ -775,7 +775,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 				list_add_tail(&dp->siblings,
 						&smc_p->drive_list);
 			}
-			MHVTL_DBG(3, "Updating drive id in slot %d to : %ld",
+			MHVTL_DBG(3, "Updating drive id in slot %d to : %"PRIu32"",
 						dp->slot->slot_location,
 						drv_id);
 			dp->drv_id = drv_id;
@@ -1026,7 +1026,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 
 	/* Lets stat each (potential) file and identify the last one modified */
 	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld" ".persist", my_id);
+					LIBCONTENTS "%"PRIu32"" ".persist", my_id);
 
 	if (lu->persist)	/* If enabled - stat .persist file */
 		filestat = stat(conf, &persiststat);
@@ -1036,11 +1036,11 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 		 * - Update config filename to master 'library_contents.<id>
 		*/
 		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld", my_id);
+					LIBCONTENTS "%"PRIu32"", my_id);
 	} else {
 		/* stat original config file */
 		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld", my_id);
+					LIBCONTENTS "%"PRIu32"", my_id);
 		filestat = stat(conf, &configstat);
 		if (filestat < 0) {	/* Does not exist !! */
 			MHVTL_ERR("Can not stat config file %s: %s",
@@ -1056,7 +1056,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 			   library_contents.<id>.persist
 			*/
 			snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld" ".persist", my_id);
+					LIBCONTENTS "%"PRIu32"" ".persist", my_id);
 		}
 	}
 
@@ -1206,7 +1206,7 @@ static void save_config(struct lu_phy_attr *lu)
 	}
 
 	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld" ".persist", my_id);
+					LIBCONTENTS "%"PRIu32"" ".persist", my_id);
 	ctrl = fopen(conf, "w");
 	if (!ctrl) {
 		MHVTL_ERR("Can not open file %s to save state : %s", conf,
@@ -1622,8 +1622,8 @@ void rereadconfig(int sig)
 
 	lunit.online = 0;	/* Report library offline until finished */
 
-	MHVTL_DBG(1, "Caught signal (%d): Re-initialising library %d",
-			sig, (int)my_id);
+	MHVTL_DBG(1, "Caught signal (%d): Re-initialising library %"PRIu32"",
+			sig, my_id);
 
 	cleanup_lu(&lunit);
 
@@ -1634,7 +1634,7 @@ void rereadconfig(int sig)
 	}
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
-		fprintf(stderr, "error: Cannot find entry for '%ld' in config file\n",
+		fprintf(stderr, "error: Cannot find entry for '%"PRIu32"' in config file\n",
 				my_id);
 		exit(1);
 	}
@@ -1769,7 +1769,7 @@ int main(int argc, char *argv[])
 	reset_device();	/* power-on reset */
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
-		fprintf(stderr, "error: Can not find entry for '%ld' in config file\n",
+		fprintf(stderr, "error: Can not find entry for '%"PRIu32"' in config file\n",
 				my_id);
 		exit(1);
 	}
@@ -1782,7 +1782,7 @@ int main(int argc, char *argv[])
 	lunit.online = 1; /* Mark unit online */
 
 	if (chrdev_create(my_id)) {
-		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);
+		MHVTL_DBG(1, "Error creating device node mhvtl%"PRIu32"", my_id);
 		exit(1);
 	}
 
@@ -1820,7 +1820,7 @@ int main(int argc, char *argv[])
 
 	cdev = chrdev_open(name, my_id);
 	if (cdev == -1) {
-		MHVTL_ERR("Could not open /dev/%s%ld: %s",
+		MHVTL_ERR("Could not open /dev/%s%"PRIu32": %s",
 					name, my_id, strerror(errno));
 		fflush(NULL);
 		exit(1);

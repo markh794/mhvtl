@@ -30,7 +30,7 @@
 #include <syslog.h>
 #include "q.h"
 
-long my_id;
+uint32_t my_id;
 int verbose = 0;
 int debug = 0;
 char *mhvtl_driver_name = "dump_messageQ";
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 			printf("%6s %6s %6s %-55s\n", "MessNo", "RcvID",
 				"SndID", "MessageText");
 		}
-		printf("%6ld %6ld %6ld %-55s\n", mcounter, r_entry.rcv_id,
+		printf("%6ld %6"PRIu32" %6"PRIu32" %-55s\n", mcounter, r_entry.rcv_id,
 			r_entry.msg.snd_id, r_entry.msg.text);
 	}
 	if (mcounter == 0)

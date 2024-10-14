@@ -119,12 +119,12 @@ extern char home_directory[HOME_DIR_PATH_SZ + 1];
 #define SEND_MSG_AND_LOG(s, id)		\
 	{				\
 		send_msg(s, id);	\
-		MHVTL_DBG(1, "%ld: Replying to snd_id %"PRIu64" with \"%s\"", my_id, id, s); \
+		MHVTL_DBG(1, "%"PRIu32": Replying to snd_id %"PRIu32" with \"%s\"", my_id, id, s); \
 	}
 
 int verbose = 0;
 int debug = 0;
-long my_id;
+uint32_t my_id;
 
 /* Backoff algrithm..
  * Each empty poll of kernel module, add backoff to sleep time
@@ -1645,7 +1645,7 @@ void unloadTape(int update_library, uint8_t *sam_stat)
 		break;
 	}
 	if (update_library && lu_ssc.inLibrary && library_id > 0) {
-		SEND_MSG_AND_LOG(msg_eject, (uint64_t)library_id);
+		SEND_MSG_AND_LOG(msg_eject, (uint32_t)library_id);
 	}
 	set_tape_load_status(TAPE_UNLOADED);
 	OK_to_write = 0;
@@ -1663,7 +1663,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 
 	lu = lu_ssc.pm->lu;
 
-	MHVTL_DBG(1, "%ld: Received message \"%s\" from snd_id %ld",
+	MHVTL_DBG(1, "%"PRIu32": Received message \"%s\" from snd_id %"PRIu32"",
 					my_id, msg->text, msg->snd_id);
 
 	/* Tape Load message from Library */
@@ -1674,7 +1674,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		}
 
 		if (lu_ssc.barcode) {
-			MHVTL_ERR("%ld: snd_id %ld: Tape \"%s\" already in mouth of drive",
+			MHVTL_ERR("%"PRIu32": snd_id %"PRIu32": Tape \"%s\" already in mouth of drive",
 					my_id, msg->snd_id, lu_ssc.barcode);
 			sprintf(s, "Load failed - %s is already in mouth of drive", lu_ssc.barcode);
 		} else {
