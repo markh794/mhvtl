@@ -62,7 +62,7 @@ set_media_type()
 	MEDIA_TYPE="data"
 
 	if [[ $type =~ ^"W" ]]; then
-		MEDIA_TYPE="work"
+		MEDIA_TYPE="WORM"
 	elif [[ $type =~ ^"CLN" ]]; then
 		MEDIA_TYPE="clean"
 	# Match JW / JX as 'worm' media
