@@ -50,7 +50,7 @@ char mhvtl_driver_name[] = "tape_util";
 int dump_tape = 0;	/* dual personality - dump_tape & preload_tape */
 int verbose = 0;
 int debug = 0;
-uint32_t my_id = 0;
+long my_id = 0;
 int lib_id;
 struct priv_lu_ssc lu_ssc;
 struct lu_phy_attr lunit;

@@ -48,7 +48,7 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 
-uint32_t my_id = VTLCMD_Q;
+long my_id = VTLCMD_Q;
 char mhvtl_driver_name[] = "vtlcmd";
 int verbose = 0;
 int debug = 0;

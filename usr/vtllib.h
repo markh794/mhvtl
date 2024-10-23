@@ -407,7 +407,7 @@ struct d_info {
 	char inq_product_id[18];
 	char inq_product_rev[6];
 	char inq_product_sno[12];
-	uint32_t drv_id;		/* drive's send_msg queue ID */
+	long drv_id;		/* drive's send_msg queue ID */
 	char online;		/* Physical status of drive */
 	int SCSI_BUS;
 	int SCSI_ID;

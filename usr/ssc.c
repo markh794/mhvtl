@@ -1608,7 +1608,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 			put_unaligned_be64(c_pos->blk_number, &buf[8]);
 			put_unaligned_be64(filemarks, &buf[16]);
 
-			MHVTL_DBG(1, "Positioned at block %ld, num filemarks: %ld", (long)c_pos->blk_number, (long)filemarks);
+			MHVTL_DBG(1, "Positioned at block %ld, num filemarks: %ld", (long)c_pos->blk_number, filemarks);
 			cmd->dbuf_p->sz =  READ_POSITION_LONG_LEN;
 			break;
 

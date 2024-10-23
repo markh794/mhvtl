@@ -174,13 +174,13 @@ static int is_drive_empty(struct d_info *drv)
 		exit(1);
 	}
 
-	MHVTL_DBG(1, "%"PRIu32": Sending \"%s\" to snd_id %"PRIu32"",
+	MHVTL_DBG(1, "%ld: Sending \"%s\" to snd_id %ld",
 				my_id, msg_mount_state, drv->drv_id);
 	send_msg(msg_mount_state, drv->drv_id);
 
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
-		MHVTL_DBG(1, "%"PRIu32": Received \"%s\" from snd_id %"PRIu32"",
+		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
 					my_id,
 					q.msg.text,
 					q.msg.snd_id);
@@ -226,7 +226,7 @@ static int check_tape_unload(void)
 
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
-		MHVTL_DBG(1, "%"PRIu32": Received \"%s\" from snd_id %"PRIu32"",
+		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
 					my_id,
 					q.msg.text,
 					q.msg.snd_id);
@@ -1030,7 +1030,7 @@ static int check_tape_load(void)
 
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
-		MHVTL_DBG(1, "%"PRIu32": Received \"%s\" from snd_id %"PRIu32"",
+		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
 					my_id,
 					q.msg.text,
 					q.msg.snd_id);

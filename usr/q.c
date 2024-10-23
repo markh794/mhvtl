@@ -59,7 +59,7 @@ int init_queue(void)
 	return queue_id;
 }
 
-int send_msg(char *cmd, uint32_t rcv_id)
+int send_msg(char *cmd, long rcv_id)
 {
 	int len, s_qid;
 	struct q_entry s_entry;
@@ -85,11 +85,11 @@ int send_msg(char *cmd, uint32_t rcv_id)
 
 static void proc_obj(struct q_entry *q_entry)
 {
-	printf("rcv_id: %"PRIu32", snd_id: %"PRIu32", text: %s\n",
+	printf("rcv_id: %ld, snd_id: %ld, text: %s\n",
 		q_entry->rcv_id, q_entry->msg.snd_id, q_entry->msg.text);
 }
 
-int enter(char *objname, uint32_t rcv_id)
+int enter(char *objname, long rcv_id)
 {
 	int len, s_qid;
 	struct q_entry s_entry;	/* Structure to hold message */
