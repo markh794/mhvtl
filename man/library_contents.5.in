@@ -36,7 +36,7 @@ Config file not xml.
 needs to be restarted to read any changes made.
 .RE
 .SH "REPORTING BUGS"
-Report bugs to <markh794@gmail.com> <mark.harvey@nutanix.com>.
+Report bugs to <markh794@gmail.com>
 .SH COPYRIGHT
 Copyright \(co 2005 Free Software Foundation, Inc.
 .br

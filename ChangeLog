@@ -1,3 +1,6 @@
+* Wed Feb 05 16:30:00 AEST 2025 Mark Harvey <markh794@gmail.com>
+- Remove reference to Nutanix as I no longer work there
+
 * Fri Mar 10 16:30:00 AEST 2023 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - review of all utilities and use '-m <barcode>' the standard option
 - Add support for 'INQUIRY_DATA_HAS_CHANGED'

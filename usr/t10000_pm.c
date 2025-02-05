@@ -1,8 +1,7 @@
 /*
  * This handles any SCSI OP codes defined in the standards as 'STREAM'
  *
- * Copyright (C) 2005 - 2009 Mark Harvey markh794 at gmail dot com
- *                                mark.harvey at nutanix dot com
+ * Copyright (C) 2005 - 2025 Mark Harvey markh794 at gmail dot com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

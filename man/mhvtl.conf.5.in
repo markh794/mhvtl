@@ -51,7 +51,7 @@ Config file not xml.
 .B vtllibrary(1)
 needs to be restarted to read any changes made. (By design).
 .SH "REPORTING BUGS"
-Report bugs to <markh794@gmail.com> <mark.harvey@nutanix.com>.
+Report bugs to <markh794@gmail.com>
 .SH COPYRIGHT
 Copyright \(co 2019 Free Software Foundation, Inc.
 .br

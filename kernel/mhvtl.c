@@ -18,11 +18,9 @@
  *   dpg: change style of boot options to "vtl.num_tgts=2" and
  *        module options to "modprobe vtl num_tgts=2" [20021221]
  *
- *	Mark Harvey 2005-6-1
+ *	Mark Harvey 2005 - 2025
  *
  *	markh794@gmail.com
- *	  or
- *	Current employ address: mark.harvey@nutanix.com
  *
  *	Pinched wholesale from scsi_debug.[ch]
  *

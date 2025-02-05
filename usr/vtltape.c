@@ -6,8 +6,7 @@
  *   a kernel module (vlt.ko) - Currently on 2.6.x Linux kernel support.
  *   SCSI target daemons for both SMC and SSC devices.
  *
- * Copyright (C) 2005 - 2009 Mark Harvey       markh794@gmail.com
- *                                          mark.harvey at nutanix.com
+ * Copyright (C) 2005 - 2025 Mark Harvey       markh794@gmail.com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

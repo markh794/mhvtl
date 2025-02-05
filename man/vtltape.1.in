@@ -37,7 +37,7 @@ Written by Mark Harvey
 .SH BUGS
 Does not implement the complete SCSI SSC-3 command set.
 .SH "REPORTING BUGS"
-Report bugs to <markh794@gmail.com> <mark.harvey@nutanix.com>.
+Report bugs to <markh794@gmail.com>
 .SH COPYRIGHT
 Copyright \(co 2019 Free Software Foundation, Inc.
 .br

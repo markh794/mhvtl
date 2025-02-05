@@ -3,8 +3,7 @@
  *
  * $Id: vtltape.h,v 1.1.2.1 2006-08-06 07:58:44 markh Exp $
  *
- * Copyright (C) 2005 Mark Harvey markh794 at gmail dot com
- *                                mark.harvey at nutanix dot com
+ * Copyright (C) 2005 - 2025 Mark Harvey markh794 at gmail dot com
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
