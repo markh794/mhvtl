@@ -114,4 +114,15 @@ else
     echo "#undef DEFINE_CONST_STRUCT_DEVICE_DRIVER"
 fi >> "${output}"
 
+# check if slave_configure has been renamed to sdev_configure
+if fgrep -q 'int (* sdev_configure)(struct scsi_device *, struct queue_limits *lim);' \
+    "${hdrs}/include/scsi/scsi_host.h"; then
+    echo "#ifndef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
+    echo "#define DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
+    echo "#endif"
+else
+    echo "#undef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
+fi >> "${output}"
+
+
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"
