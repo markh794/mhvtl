@@ -36,6 +36,7 @@ clean:
 	$(RM) mhvtl.ko
 	$(RM) *.o
 	$(RM) TAGS
+	$(RM) config.h
 
 distclean: clean
 	$(RM) .*.o.d \
