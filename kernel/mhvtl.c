@@ -292,9 +292,13 @@ static void do_remove_driverfs_files(void);
 static int mhvtl_add_adapter(void);
 static void mhvtl_remove_adapter(void);
 
-static int mhvtl_slave_alloc(struct scsi_device *);
-static int mhvtl_slave_configure(struct scsi_device *);
-static void mhvtl_slave_destroy(struct scsi_device *);
+static int mhvtl_sdev_alloc(struct scsi_device *);
+#ifdef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE
+static int mhvtl_sdev_configure(struct scsi_device *, struct queue_limits *lim);
+#else
+static int mhvtl_sdev_configure(struct scsi_device *);
+#endif
+static void mhvtl_sdev_destroy(struct scsi_device *);
 #if LINUX_VERSION_CODE != KERNEL_VERSION(2, 6, 9)
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 19, 0) || LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
 static int mhvtl_change_queue_depth(struct scsi_device *sdev, int qdepth);
@@ -337,9 +341,15 @@ static struct scsi_host_template mhvtl_driver_template = {
 #endif
 	.name =			"VTL",
 	.info =			mhvtl_info,
-	.slave_alloc =		mhvtl_slave_alloc,
-	.slave_configure =	mhvtl_slave_configure,
-	.slave_destroy =	mhvtl_slave_destroy,
+#ifdef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE
+	.sdev_init =            mhvtl_sdev_alloc,
+        .sdev_configure =       mhvtl_sdev_configure,
+	.sdev_destroy =         mhvtl_sdev_destroy,
+#else
+	.slave_alloc =		mhvtl_sdev_alloc,
+	.slave_configure =	mhvtl_sdev_configure,
+	.slave_destroy =	mhvtl_sdev_destroy,
+#endif
 	.ioctl =		mhvtl_b_ioctl,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 	.queuecommand =		mhvtl_queuecommand,
@@ -819,12 +829,12 @@ static void mhvtl_timer_intr_handler(unsigned long indx)
 	mhvtl_remove_sqcp(lu, sqcp);
 }
 
-static int mhvtl_slave_alloc(struct scsi_device *sdp)
+static int mhvtl_sdev_alloc(struct scsi_device *sdp)
 {
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info *lu = (struct mhvtl_lu_info *)sdp->hostdata;
 
-	pr_debug("slave_alloc <%u %u %u %llu>\n",
+	pr_debug("sdev_alloc <%u %u %u %llu>\n",
 			sdp->host->host_no, sdp->channel, sdp->id,
 			(unsigned long long)sdp->lun);
 
@@ -848,11 +858,16 @@ static int mhvtl_slave_alloc(struct scsi_device *sdp)
 	return -1;
 }
 
-static int mhvtl_slave_configure(struct scsi_device *sdp)
+
+#ifdef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE
+static int mhvtl_sdev_configure(struct scsi_device *sdp, struct queue_limits *lim)
+#else
+static int mhvtl_sdev_configure(struct scsi_device *sdp)
+#endif
 {
 	struct mhvtl_lu_info *lu;
 
-	pr_debug("slave_configure <%u %u %u %llu>\n",
+	pr_debug("sdev_configure <%u %u %u %llu>\n",
 			sdp->host->host_no, sdp->channel, sdp->id,
 			(unsigned long long)sdp->lun);
 	if (sdp->host->max_cmd_len != VTL_MAX_CMD_LEN)
@@ -869,11 +884,11 @@ static int mhvtl_slave_configure(struct scsi_device *sdp)
 	return 0;
 }
 
-static void mhvtl_slave_destroy(struct scsi_device *sdp)
+static void mhvtl_sdev_destroy(struct scsi_device *sdp)
 {
 	struct mhvtl_lu_info *lu = (struct mhvtl_lu_info *)sdp->hostdata;
 
-	pr_notice("slave_destroy <%u %u %u %llu>\n",
+	pr_notice("sdev_destroy <%u %u %u %llu>\n",
 			sdp->host->host_no, sdp->channel, sdp->id,
 			(unsigned long long)sdp->lun);
 	if (lu) {
@@ -1046,8 +1061,8 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *hpnt, uint channel, uint
  * According to scsi_mid_low_api.txt
  *
  * A call from LLD scsi_add_device() will result in SCSI mid layer
- *   -> slave_alloc()
- *   -> slave_configure()
+ *   -> sdev_alloc()
+ *   -> sdev_configure()
  */
 static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl)
 {
