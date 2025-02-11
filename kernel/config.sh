@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # vim: tabstop=4 shiftwidth=4 expandtab colorcolumn=80 foldmethod=marker :
 
+# uncomment the next line to enable script debugging
+# set -x
+
 # make sure we have the kernel directory defined
 if [ -z "${KDIR}" ] ; then
     echo "error: you must supply environment variable KDIR" 1>&2
@@ -115,9 +118,12 @@ else
 fi >> "${output}"
 
 #
-# check if scsi_host_template is const struct
+# check if scsi_host_template argument to scsi_host_alloc
+# is const
 #
-if grep -q 'const struct scsi_host_template' "${hdrs}/scsi/scsi_host.h"; then
+if fgrep -q 'extern struct Scsi_Host *scsi_host_alloc(const' \
+        "${hdrs}/scsi/scsi_host.h"; then
+    # the first argument to scsi_host_alloc needs to be a "const"
     echo "#ifndef DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
     echo "#define DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
     echo "#endif"
@@ -146,7 +152,6 @@ if [ -r "$bus_type_def_file" ] &&
     echo "#define DEFINE_CONST_STRUCT_DEVICE_DRIVER"
     echo "#endif"
 else
-    # the second argument does NOT need a "const" definition
     echo "#undef DEFINE_CONST_STRUCT_DEVICE_DRIVER"
 fi >> "${output}"
 
