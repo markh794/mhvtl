@@ -23,13 +23,15 @@ syms[sysfs_emit]='sysfs.h'
 output='config.h'
 kparent="${KDIR%/*}"
 
+#
 # use the "fs.h" to determine where the kernel headers are located
+#
 if [ -e "${KDIR}/include/linux/fs.h" ]
 then
-    hdrs="${KDIR}"
+    hdrs="${KDIR}/include"
 elif [ -e "${kparent}/source/include/linux/fs.h" ]
 then
-    hdrs="${kparent}/source"
+    hdrs="${kparent}/source/include"
 else
     echo "Cannot infer kernel headers location" 1>&2
     exit 1
@@ -47,28 +49,41 @@ cat <<EOF >"${output}"
 
 EOF
 
+#
+# start checking for compatability issues
+#
+
+#
+# first, check the symbols in our associative array
+#
 for sym in ${!syms[@]}
 do
-    grep -q "${sym}" "${hdrs}/include/linux/${syms[$sym]}"
+    grep -q "${sym}" "${hdrs}/linux/${syms[$sym]}"
     if [ $? -eq 0 ]
     then
-        printf '#define HAVE_%s\n' "$( echo "${sym}" | tr [:lower:] [:upper:] )" >> "${output}"
+        printf '#define HAVE_%s\n' \
+            "$( echo "${sym}" | tr [:lower:] [:upper:] )" >> "${output}"
     else
-        printf '#undef HAVE_%s\n' "$( echo "${sym}" | tr [:lower:] [:upper:] )" >> "${output}"
+        printf '#undef HAVE_%s\n' \
+            "$( echo "${sym}" | tr [:lower:] [:upper:] )" >> "${output}"
     fi
 done
 
+#
 # do we have a "genhd.h" present?
-if [ -e "${hdrs}/include/linux/genhd.h" ]; then
+#
+if [ -e "${hdrs}/linux/genhd.h" ]; then
     echo "#define HAVE_GENHD"
 else
     echo "#undef HAVE_GENHD"
 fi >> "${output}"
 
+#
 # see if "struct file_operations" has member "unlocked_ioctl"
 # (otherwise, just "ioctl")
+#
 syms[file_operations]='fs.h'
-if grep -q unlocked_ioctl "${hdrs}/include/linux/fs.h"; then
+if grep -q unlocked_ioctl "${hdrs}/linux/fs.h"; then
     echo "#ifndef HAVE_UNLOCKED_IOCTL"
     echo "#define HAVE_UNLOCKED_IOCTL"
     echo "#endif"
@@ -76,8 +91,10 @@ else
     echo "#undef HAVE_UNLOCKED_IOCTL"
 fi >> "${output}"
 
+#
 # check for the scsi queue command taking one or two args
-str=$( grep 'rc = func_name##_lck' ${hdrs}/include/scsi/scsi_host.h )
+#
+str=$( grep 'rc = func_name##_lck' ${hdrs}/scsi/scsi_host.h )
 if [[ "$str" == *,* ]] ; then
     echo "#undef QUEUECOMMAND_LCK_ONE_ARG"
 else
@@ -86,8 +103,10 @@ else
     echo "#endif"
 fi >> "${output}"
 
+#
 # check for DEFINE_SEMAPHORE() taking an argument or not
-if grep -q 'DEFINE_SEMAPHORE(_name, _n)' "${hdrs}/include/linux/semaphore.h"; then
+#
+if grep -q 'DEFINE_SEMAPHORE(_name, _n)' "${hdrs}/linux/semaphore.h"; then
     echo "#ifndef DEFINE_SEMAPHORE_HAS_NUMERIC_ARG"
     echo "#define DEFINE_SEMAPHORE_HAS_NUMERIC_ARG"
     echo "#endif"
@@ -95,8 +114,10 @@ else
     echo "#undef DEFINE_SEMAPHORE_HAS_NUMERIC_ARG"
 fi >> "${output}"
 
+#
 # check if scsi_host_template is const struct
-if grep -q 'const struct scsi_host_template' "${hdrs}/include/scsi/scsi_host.h"; then
+#
+if grep -q 'const struct scsi_host_template' "${hdrs}/scsi/scsi_host.h"; then
     echo "#ifndef DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
     echo "#define DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
     echo "#endif"
@@ -104,25 +125,41 @@ else
     echo "#undef DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
 fi >> "${output}"
 
-# check if bus_type->match()'s 2nd argument is a "const"
-if fgrep -q 'int (*match)(struct device *dev, const struct device_driver *drv);' \
-    "${hdrs}/include/linux/device/bus.h"; then
+#
+# We need to find the definition for "struct bus_type", so that we
+# can if the "match" member of this struct, which points to a function,
+# has a 2nd argument that is const or not.
+#
+
+# The pattern to find (if "const" is needed)
+pat='int (*match)(struct device *dev, const struct device_driver *drv);'
+
+# First, find the file
+bus_type_def_file=$(grep -rl 'struct bus_type {' ${hdrs})
+: {bus_type_def_file:="not-found"}
+
+# Now check for the 2nd argument needs a "const"
+if [ -r "$bus_type_def_file" ] &&
+   fgrep -q "$pat" "$bus_type_def_file"; then
+    # the second argument needs a "const" definition
     echo "#ifndef DEFINE_CONST_STRUCT_DEVICE_DRIVER"
     echo "#define DEFINE_CONST_STRUCT_DEVICE_DRIVER"
     echo "#endif"
 else
+    # the second argument does NOT need a "const" definition
     echo "#undef DEFINE_CONST_STRUCT_DEVICE_DRIVER"
 fi >> "${output}"
 
+#
 # check if slave_configure has been renamed to sdev_configure
-if fgrep -q 'int (* sdev_configure)(struct scsi_device *, struct queue_limits *lim);' \
-    "${hdrs}/include/scsi/scsi_host.h"; then
+#
+pat='int (* sdev_configure)(struct scsi_device *, struct queue_limits *lim);'
+if fgrep -q "$pat" "${hdrs}/scsi/scsi_host.h"; then
     echo "#ifndef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
     echo "#define DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
     echo "#endif"
 else
     echo "#undef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
 fi >> "${output}"
-
 
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"
