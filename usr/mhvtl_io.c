@@ -386,9 +386,8 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		MHVTL_DBG(2, "rc: %d, request_sz: %d bounce buffer before LBP: 0x%08x %08x", rc, request_sz, get_unaligned_be32(&bounce_buffer[rc - 4]), get_unaligned_be32(&bounce_buffer[rc]));
 		/* If we don't have a LBP CRC32C format, re-calculate now */
 		lbp_crc = (blk_flags & BLKHDR_FLG_CRC) ? pre_crc : mhvtl_crc32c(bounce_buffer, rc);
-		put_unaligned_be32(lbp_crc, &bounce_buffer[rc]);
-		MHVTL_DBG(2, "Logical Block Protection - CRC32C, rc: %d, request_sz: %d, lbp_size: %d, CRC32C: 0x%8x",
-							rc, request_sz, lbp_sz, lbp_crc);
+		memcpy(&bounce_buffer[rc], &lbp_crc, 4);
+		MHVTL_DBG(2, "Logical Block Protection - CRC32C, rc: %d, request_sz: %d, lbp_size: %d, CRC32C: 0x%8x", rc, request_sz, lbp_sz, lbp_crc);
 		MHVTL_DBG(2, "rc: %d, request_sz: %d bounce buffer after LBP: 0x%08x %08x", rc, request_sz, get_unaligned_be32(&bounce_buffer[rc - 4]), get_unaligned_be32(&bounce_buffer[rc]));
 		rc += 4;	/* Account for LBP checksum */
 		break;
