@@ -1,5 +1,14 @@
-* Wed Feb 05 16:30:00 AEST 2025 Mark Harvey <markh794@gmail.com>
+* Mon Mar 10 12:11:00 AEST 2025 Mark Harvey <markh794@gmail.com>
 - Remove reference to Nutanix as I no longer work there
+- Implement Logical Block Protection for LTO emulations
+- mhvtl.ko: Update to support recent kernel changes
+- more 32/64bit cast fixes (Raspberry-Pi) & x86_64
+- Fix issue with helper script creating WORM media (Thanks Gaurav Malhotra)
+- Initial LTO-9 emulation (Thanks Gwen Dawes)
+- daemon exit strategy change - reduce possibility of shutdown during inflight I/O
+- Fix READ POSITION
+- Implement VHF log page
+- Reduce calls to fflush() unless in debug mode
 
 * Fri Mar 10 16:30:00 AEST 2023 Mark Harvey <markh794@gmail.com> <mark.harvey@nutanix.com>
 - review of all utilities and use '-m <barcode>' the standard option
