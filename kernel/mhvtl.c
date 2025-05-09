@@ -1104,7 +1104,7 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl)
 	lu->mhvtl_hba = mhvtl_hba;
 	lu->reset = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
-	lu->cmd_list_lock = __SPIN_LOCK_UNLOCKED(lu.cmd_list_lock);
+	spin_lock_init(&lu->cmd_list_lock);
 #else
 	lu->cmd_list_lock = SPIN_LOCK_UNLOCKED;
 #endif
