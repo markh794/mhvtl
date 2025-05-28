@@ -480,7 +480,7 @@ static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
  **
  ** Return -1 on error or 0 on success (LBP CRC match)
  */
-static uint32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c)
+static int32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c)
 {
 	uint32_t lbp_crc = 0;
 
