@@ -50,6 +50,7 @@ int dump_tape = 0;	/* dual personality - dump_tape & preload_tape */
 int verbose = 0;
 int debug = 0;
 long my_id = 0;
+int lbp_rscrc_be = 1;	/* Return RS-CRC in BigEndian format */
 int lib_id;
 struct priv_lu_ssc lu_ssc;
 struct lu_phy_attr lunit;

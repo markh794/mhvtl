@@ -41,11 +41,14 @@
 extern int verbose;
 extern int debug;
 extern long my_id;
+extern int lbp_rscrc_be;
 extern struct priv_lu_ssc lu_ssc;
 extern struct lu_phy_attr lunit;
 extern struct encryption app_encryption_state;
 
 uint32_t GenerateRSCRC(uint32_t crc, uint32_t size, const void *buf);
+uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);
+uint32_t BlockProtectRSCRC(uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);
 
 static void
 mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_valid)
@@ -135,8 +138,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		goto complete;
 		break;
 	case LZO_E_INPUT_NOT_CONSUMED:
-		MHVTL_DBG(1, "The end of compressed block has been detected before all %d bytes",
-				blk_size);
+		MHVTL_DBG(1, "The end of compressed block has been detected before all %d bytes", blk_size);
 		break;
 	case LZO_E_INPUT_OVERRUN:
 		MHVTL_ERR("The decompressor requested more bytes from the compressed block");
@@ -253,13 +255,6 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 	return rc;
 }
 
-/* Reed-Solomon CRC */
-static uint32_t mhvtl_rscrc(unsigned char const *buf, size_t size)
-{
-/*	return ~GenerateRSCRC(0xffffffff, size, buf); */
-	return GenerateRSCRC(0, size, buf);
-}
-
 /* CRC32C */
 static uint32_t mhvtl_crc32c(unsigned char const *buf, size_t size)
 {
@@ -272,7 +267,7 @@ static uint32_t mhvtl_crc32c(unsigned char const *buf, size_t size)
  */
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8_t *sam_stat)
 {
-	uint32_t disk_blk_size, blk_size;
+	uint32_t disk_blk_size, blk_size, blk_number;
 	uint32_t rc;
 	uint32_t save_sense;
 	uint32_t pre_crc;
@@ -327,6 +322,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	   the read causes the tape block to advance.
 	*/
 	blk_size = c_pos->blk_size;
+	blk_number = c_pos->blk_number;
 	disk_blk_size = c_pos->disk_blk_size;
 	pre_crc = c_pos->uncomp_crc;
 	blk_flags = c_pos->blk_flags;
@@ -376,11 +372,11 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	/* Update Logical Block Protection CRC */
 	switch (lbp_method) {
 	case 1:
-		lbp_crc = mhvtl_rscrc(bounce_buffer, rc);
-		put_unaligned_be32(lbp_crc, &bounce_buffer[rc]);
-		MHVTL_DBG(2, "Logical Block Protection - Reed-Solomon CRC, rc: %d, request_sz: %d, lbp_size: %d, RS-CRC: 0x%08x",
-							rc, request_sz, lbp_sz, lbp_crc);
-		rc += 4;	/* Account for LBP checksum */
+		rc = BlockProtectRSCRC(bounce_buffer, rc, lbp_rscrc_be);
+		if (rc == 0) {
+			MHVTL_ERR("Failed to generate/append RSCRC: lbp_be: %d", lbp_rscrc_be);
+		}
+		MHVTL_DBG(2, "READ block %d LBP RSCRC : 0x%02x 0x%02x 0x%02x 0x%02x", blk_number, bounce_buffer[rc - 4], bounce_buffer[rc - 3], bounce_buffer[rc - 2], bounce_buffer[rc - 1]);
 		break;
 	case 2:
 		MHVTL_DBG(2, "rc: %d, request_sz: %d bounce buffer before LBP: 0x%08x %08x", rc, request_sz, get_unaligned_be32(&bounce_buffer[rc - 4]), get_unaligned_be32(&bounce_buffer[rc]));
@@ -389,6 +385,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		memcpy(&bounce_buffer[rc], &lbp_crc, 4);
 		MHVTL_DBG(2, "Logical Block Protection - CRC32C, rc: %d, request_sz: %d, lbp_size: %d, CRC32C: 0x%8x", rc, request_sz, lbp_sz, lbp_crc);
 		MHVTL_DBG(2, "rc: %d, request_sz: %d bounce buffer after LBP: 0x%08x %08x", rc, request_sz, get_unaligned_be32(&bounce_buffer[rc - 4]), get_unaligned_be32(&bounce_buffer[rc]));
+		MHVTL_DBG(2, "READ block %d LBP RSCRC : 0x%02x 0x%02x 0x%02x 0x%02x", blk_number, bounce_buffer[rc], bounce_buffer[rc + 1], bounce_buffer[rc + 2], bounce_buffer[rc + 3]);
 		rc += 4;	/* Account for LBP checksum */
 		break;
 	case 3:
@@ -480,7 +477,7 @@ static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
  **
  ** Return -1 on error or 0 on success (LBP CRC match)
  */
-static int32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c)
+static int32_t verify_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c)
 {
 	uint32_t lbp_crc = 0;
 
@@ -488,20 +485,21 @@ static int32_t get_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_
 		case 0:	/* No method defined - skip check */
 		break;
 	case 1:
-		MHVTL_DBG(1, "Reed-Solomon CRC check");
-		lbp_crc = mhvtl_rscrc(buf, src_sz);
-		if (lbp_crc != get_unaligned_be32(&buf[src_sz])) {
-			MHVTL_ERR("Reed-Solomon CRC mismatch - LBP: 0x%08x, calculated: 0x%08x",
-					get_unaligned_be32(&buf[src_sz]), lbp_crc);
+		MHVTL_DBG(2, "WRITE block %d LBP RSCRC : 0x%02x 0x%02x 0x%02x 0x%02x", c_pos->blk_number - 1, buf[src_sz], buf[src_sz + 1], buf[src_sz + 2], buf[src_sz + 3]);
+		if (!BlockVerifyRSCRC(buf, src_sz + 4, lbp_rscrc_be)) {
+			if (lbp_rscrc_be) {
+				MHVTL_ERR("RSCRC mismatch: lbp_be: %d - LBP provided: 0x%08x, calculated RSCRC: 0x%08x", lbp_rscrc_be, get_unaligned_be32(&buf[src_sz]), GenerateRSCRC(0, src_sz, buf));
+			} else {
+				MHVTL_ERR("RSCRC mismatch: lbp_be: %d - LBP provided: 0x%08x, calculated RSCRC: 0x%08x", lbp_rscrc_be, get_unaligned_be32(&buf[src_sz]), __bswap_32(GenerateRSCRC(0, src_sz, buf)));
+			}
 			return -1;	/* CRC mismatch */
 		}
 		break;
 	case 2:
-		MHVTL_DBG(1, "CRC32C check");
+		MHVTL_DBG(2, "WRITE block %d LBP CRC32C : 0x%02x 0x%02x 0x%02x 0x%02x", c_pos->blk_number - 1, buf[src_sz], buf[src_sz + 1], buf[src_sz + 2], buf[src_sz + 3]);
 		lbp_crc = get_unaligned_be32(&crc32c);
 		if (lbp_crc != get_unaligned_be32(&buf[src_sz])) {
-			MHVTL_ERR("CRC32C mismatch - LBP: 0x%08x, calculated: 0x%08x",
-					get_unaligned_be32(&buf[src_sz]), lbp_crc);
+			MHVTL_ERR("CRC32C mismatch - LBP: 0x%08x, calculated: 0x%08x", get_unaligned_be32(&buf[src_sz]), lbp_crc);
 			return -1;	/* CRC mismatch */
 		}
 		break;
@@ -537,6 +535,21 @@ static void log_crc_options(int lbp_method, unsigned char const *buf, size_t siz
 	}
 }
 
+static void log_lbp_method(int lbp_method)
+{
+	switch(lbp_method) {
+	case 1:
+		MHVTL_DBG(2, "Drive supports RS-CRC Logical Block Protection, lbp_be: %d", lbp_rscrc_be);
+		break;
+	case 2:
+		MHVTL_DBG(2, "Drive supports RS-CRC and CRC32C Logical Block Protection");
+		break;
+	default:
+		MHVTL_DBG(2, "Drive supports Logical Block Protection (LBP) but unsupported LBP method provided: %d", lbp_method);
+		break;
+	}
+}
+
 /*
  * Return number of bytes written to 'file'
  *
@@ -558,8 +571,8 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
 	rc = write_tape_block(src_buf, src_sz, 0, lu_priv->app_encr_info, 0, null_wr, crc, sam_stat);
 
 	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
-		MHVTL_DBG(1, "Drive supports Logical Block Protection and LBP method: %d", lbp_method);
-		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+		log_lbp_method(lbp_method);
+		if (verify_lbp_crc(lbp_method, src_buf, src_sz, crc) < 0) {
 			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
 			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
 			log_crc_options(lbp_method, src_buf, src_sz, crc);
@@ -627,8 +640,7 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 		return 0;
 	}
 
-	MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld",
-					src_sz, (unsigned long)dest_len);
+	MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld", src_sz, (unsigned long)dest_len);
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->app_encr_info, LZO, null_wr, crc, sam_stat);
 
@@ -638,9 +650,9 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 	lu_priv->bytesWritten_I += src_len;
 
 	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
-		MHVTL_DBG(1, "Drive supports Logical Block Protection and LBP method: %d", lbp_method);
-		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
-			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+		log_lbp_method(lbp_method);
+		if (verify_lbp_crc(lbp_method, src_buf, src_sz, crc) < 0) {
+			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED - but wrote block anyway...");
 			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
 			log_crc_options(lbp_method, src_buf, src_sz, crc);
 			return 0;
@@ -713,8 +725,8 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 	lu_priv->bytesWritten_I += src_len;
 
 	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
-		MHVTL_DBG(1, "Drive supports Logical Block Protection and LBP method: %d", lbp_method);
-		if (get_lbp_crc(lbp_method, src_buf, src_sz, crc)) {
+		log_lbp_method(lbp_method);
+		if (verify_lbp_crc(lbp_method, src_buf, src_sz, crc) < 0) {
 			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
 			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
 			log_crc_options(lbp_method, src_buf, src_sz, crc);
@@ -743,7 +755,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 
 	if (lu_priv->pm->drive_supports_LBP) {
 		if (lu_priv->LBP_W) {
-			MHVTL_DBG(1, "Write using LBP (CRC: %s)",
+			MHVTL_DBG(2, "Write using LBP (CRC: %s)",
 					(lu_priv->LBP_method == 0) ? "Off" :
 					(lu_priv->LBP_method == 1) ? "RS-CRC" :
 					(lu_priv->LBP_method == 2) ? "CRC32C" : "Invalid");
@@ -776,7 +788,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 		src_len = writeBlock_nocomp(cmd, lbp_sz, TRUE, 0);
 	} else if (*lu_priv->compressionFactor == MHVTL_NO_COMPRESSION) {
 		/* No compression - use the no-compression function */
-		return writeBlock_nocomp(cmd, lbp_sz, FALSE, lbp_method);
+		src_len = writeBlock_nocomp(cmd, lbp_sz, FALSE, lbp_method);
 	} else {
 		switch (lu_priv->compressionType) {
 		case LZO:

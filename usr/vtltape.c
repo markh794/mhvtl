@@ -130,6 +130,9 @@ long my_id;
  * and call usleep() before polling again.
  */
 long backoff;
+
+int lbp_rscrc_be;	/* Logical Block Protection: RS-CRC big-endian */
+
 static useconds_t cumul_pollInterval;
 
 int library_id = 0;
@@ -2216,6 +2219,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	lu->ptype = TYPE_TAPE;
 
 	backoff = DEFLT_BACKOFF_VALUE;
+	lbp_rscrc_be = 1;	/* Default RSCRC is big-endian */
 
 	lu->sense_p = &sense[0];
 
@@ -2298,6 +2302,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 			}
 			if (sscanf(b, " Library ID: %d", &library_id)) {
 				MHVTL_DBG(2, "Library ID: %d", library_id);
+			}
+			if (sscanf(b, " LBP RSCRC BE: %d", &lbp_rscrc_be)) {
+				MHVTL_DBG(2, "Logical Block Protection RSCRC: %d", lbp_rscrc_be);
 			}
 			if (sscanf(b, " Backoff: %d", &i)) {
 				if ((i > 1) && (i < 10000)) {
