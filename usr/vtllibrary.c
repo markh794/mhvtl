@@ -1606,7 +1606,9 @@ static void customise_lu(struct lu_phy_attr *lu)
 		customise_hp_lu(lu);
 	else if (!strncasecmp(lu->product_id, "OVERLAND", 8))
 		init_overland_smc(lu);
-	else if (!strncasecmp(lu->product_id, "scalar", 6))
+	else if (!strncasecmp(lu->product_id, "ADIC", 4))
+		init_scalar_smc(lu);
+	else if (!strncasecmp(lu->product_id, "QUANTUM", 7))
 		init_scalar_smc(lu);
 	else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7))
 		customise_spectra_lu(lu);
