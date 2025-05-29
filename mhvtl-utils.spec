@@ -30,6 +30,7 @@ Recommends: lsscsi mtx mt-st
 
 Requires:sg3_utils
 Requires: policycoreutils
+Requires: tar >= 1.28
 
 BuildRequires: systemd
 BuildRequires: systemd-rpm-macros
