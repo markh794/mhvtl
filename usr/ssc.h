@@ -298,3 +298,4 @@ int loadTape(char *barcode, uint8_t *sam_stat);
 void unloadTape(int update_library, uint8_t *sam_stat);
 void delay_opcode(int what, int value);
 void set_current_state(int state);
+void set_timestamp(uint8_t source, uint64_t ts);

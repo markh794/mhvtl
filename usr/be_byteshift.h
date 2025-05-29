@@ -50,6 +50,12 @@ static inline uint32_t get_unaligned_be32(const void *p)
 	return __get_unaligned_be32((const uint8_t *)p);
 }
 
+static inline uint64_t get_unaligned_be48(const void *p)
+{
+	return (uint64_t)__get_unaligned_be32(p) << 32 |
+		__get_unaligned_be16(p + 4);
+}
+
 static inline uint64_t get_unaligned_be64(const void *p)
 {
 	return __get_unaligned_be64((const uint8_t *)p);
@@ -70,6 +76,12 @@ static inline void put_unaligned_be24(uint32_t val, void *p)
 static inline void put_unaligned_be32(uint32_t val, void *p)
 {
 	__put_unaligned_be32(val, (uint8_t *)p);
+}
+
+static inline void put_unaligned_be48(uint64_t val, void *p)
+{
+	__put_unaligned_be32(val >> 32, (uint8_t *)p);
+	__put_unaligned_be16(val, p + 4);
 }
 
 static inline void put_unaligned_be64(uint64_t val, void *p)

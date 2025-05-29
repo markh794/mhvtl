@@ -34,6 +34,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <sys/time.h>
 #include "be_byteshift.h"
 #include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
@@ -703,6 +704,104 @@ uint8_t ssc_load_display(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
+#define REPORT_TIMESTAMP_DATA_LEN 0x0a
+
+/* If timestamp_source == 0 : timestamp is num of uS at logical unit initialization - get_timestamp will return delta of mS between init and now
+ * If timestamp_source == 2 : timestamp is set to that provided by initiator - get_timestamp will return delta + timestamp
+ */
+
+static uint64_t timestamp;	/* Used for device clock - number uS since initialization */
+static int64_t timestamp_offset;	/* Used for device clock - offset of local clock and initiator 'set timestamp' value */
+static uint8_t timestamp_source;
+
+void set_timestamp(uint8_t source, uint64_t ts)
+{
+	struct timeval tv;
+	uint64_t now;
+
+	timestamp_source = source;
+	gettimeofday(&tv, NULL);
+	now = 1000000 * tv.tv_sec + tv.tv_usec;
+	if (source) {
+		timestamp = ts * 1000;	/* save as uSec */
+		timestamp_offset = now - timestamp;
+	} else {
+		timestamp = now;
+		timestamp_offset = 0;
+	}
+	MHVTL_DBG(1, "SET timestamp: source %u, timestamp is %lu, offset is %ld", source, timestamp, timestamp_offset);
+}
+
+static uint64_t get_timestamp()
+{
+	struct timeval tv;
+	uint64_t now;
+
+	gettimeofday(&tv, NULL);
+	now = 1000000 * tv.tv_sec + tv.tv_usec;
+
+	if (timestamp_source) {
+		MHVTL_DBG(1, "now: %lx, offset: %ld, ret val:  0x%lx", now, timestamp_offset, (now - timestamp_offset) / 1000);
+		return (now - timestamp_offset) / 1000;	/* Account for any offset between local time and initiator set time */
+	} else {
+		MHVTL_DBG(1, "now: %lx, timestamp: %lx, ret val: 0x%lx", now, timestamp, (now - timestamp) / 1000);
+		return (now - timestamp) / 1000;	/* Num of mS since init */
+	}
+}
+
+static uint8_t report_timestamp(struct scsi_cmd *cmd)
+{
+	uint8_t *data;
+
+	data = cmd->dbuf_p->data;
+	memset(data, 0, REPORT_TIMESTAMP_DATA_LEN + 2);
+
+	put_unaligned_be16(REPORT_TIMESTAMP_DATA_LEN, &data[0]);
+	data[2] = timestamp_source;	/* Timestamp origin - Timestamp initialised to zero at power-on */
+	put_unaligned_be48(get_timestamp() & 0xffffffffffff, &data[4]);
+
+	MHVTL_DBG(1, "Returning timestamp 0x%08lx (%lu)", get_unaligned_be48(&data[4]), get_unaligned_be48(&data[4]));
+	cmd->dbuf_p->sz = REPORT_TIMESTAMP_DATA_LEN + 2;
+	cmd->dbuf_p->sam_stat = SAM_STAT_GOOD;
+	return SAM_STAT_GOOD;
+}
+
+static uint8_t configure_timestamp(struct scsi_cmd *cmd)
+{
+	struct s_sd sd;
+	uint8_t *data;
+
+	cmd->dbuf_p->sz = get_unaligned_be32(&cmd->scb[6]);
+	if (cmd->dbuf_p->sz == 0)
+		return SAM_STAT_GOOD;
+	if (cmd->dbuf_p->sz != 0x0c) {
+		cmd->dbuf_p->sz = 0;
+		sd.byte0 = SKSV;
+		sd.field_pointer = 6;
+		MHVTL_LOG("Unexpected timestamp parameter length..");
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, &cmd->dbuf_p->sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+	data = cmd->dbuf_p->data;
+
+	if (data[4] > 0xf0) {	/* overflow - Illegal request */
+		cmd->dbuf_p->sz = 0;
+		sd.byte0 = SKSV;
+		sd.field_pointer = 4;
+		MHVTL_LOG("Unexpected set timestamp value.. Value too large");
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, &cmd->dbuf_p->sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	set_timestamp(2, get_unaligned_be48(&data[4]));
+
+	cmd->dbuf_p->sz = 0;
+	cmd->dbuf_p->sam_stat = SAM_STAT_GOOD;
+	return SAM_STAT_GOOD;
+}
+
 uint8_t ssc_a3_service_action(struct scsi_cmd *cmd)
 {
 	switch (cmd->scb[1]) {
@@ -714,6 +813,10 @@ uint8_t ssc_a3_service_action(struct scsi_cmd *cmd)
 		break;
 	case REPORT_SUPPORTED_OPCODES:
 		log_opcode("REPORT SUPPORTED OPCODES **", cmd);
+		break;
+	case REPORT_TIMESTAMP:
+		MHVTL_DBG(1, "REPORT TIMESTAMP (%ld) **", (long)cmd->dbuf_p->serialNo);
+		return report_timestamp(cmd);
 		break;
 	default:
 		log_opcode("UNKNOWN SERVICE ACTION A3 **", cmd);
@@ -733,6 +836,10 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd)
 		break;
 	case FORCED_EJECT:
 		log_opcode("FORCED EJECT **", cmd);
+		break;
+	case SET_TIMESTAMP:
+		MHVTL_DBG(1, "SET TIMESTAMP (%ld) **", (long)cmd->dbuf_p->serialNo);
+		return configure_timestamp(cmd);
 		break;
 	default:
 		log_opcode("UNKNOWN SERVICE ACTION A4 **", cmd);

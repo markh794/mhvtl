@@ -1943,6 +1943,7 @@ static void config_lu(struct lu_phy_attr *lu)
 						lu_ssc.pm->drive_supports_LBP == 0 ? "No" :
 							lu_ssc.pm->drive_supports_LBP == 1 ? "RS-CRC only" :
 								lu_ssc.pm->drive_supports_LBP == 2 ? "RS-CRC and CRC32C" : "Invalid");
+	set_timestamp(0, 0);	/* timestamp source - num mS from initialisation */
 }
 
 static void cleanup_drive_media_list(struct lu_phy_attr *lu)
