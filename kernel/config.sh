@@ -121,7 +121,7 @@ fi >> "${output}"
 # check if scsi_host_template argument to scsi_host_alloc
 # is const
 #
-if fgrep -q 'extern struct Scsi_Host *scsi_host_alloc(const' \
+if grep -F -q 'extern struct Scsi_Host *scsi_host_alloc(const' \
         "${hdrs}/scsi/scsi_host.h"; then
     # the first argument to scsi_host_alloc needs to be a "const"
     echo "#ifndef DEFINE_CONST_STRUCT_SCSI_HOST_TEMPLATE"
@@ -146,7 +146,7 @@ bus_type_def_file=$(grep -rl 'struct bus_type {' ${hdrs})
 
 # Now check for the 2nd argument needs a "const"
 if [ -r "$bus_type_def_file" ] &&
-   fgrep -q "$pat" "$bus_type_def_file"; then
+    grep -F -q "$pat" "$bus_type_def_file"; then
     # the second argument needs a "const" definition
     echo "#ifndef DEFINE_CONST_STRUCT_DEVICE_DRIVER"
     echo "#define DEFINE_CONST_STRUCT_DEVICE_DRIVER"
@@ -159,7 +159,7 @@ fi >> "${output}"
 # check if slave_configure has been renamed to sdev_configure
 #
 pat='int (* sdev_configure)(struct scsi_device *, struct queue_limits *lim);'
-if fgrep -q "$pat" "${hdrs}/scsi/scsi_host.h"; then
+if grep -F -q "$pat" "${hdrs}/scsi/scsi_host.h"; then
     echo "#ifndef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
     echo "#define DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
     echo "#endif"
