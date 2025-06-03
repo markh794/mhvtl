@@ -597,8 +597,9 @@ static int _mhvtl_queuecommand_lck(struct scsi_cmnd *SCpnt, done_funct_t done)
 	if (done == NULL)
 		return 0;	/* assume mid level reprocessing command */
 
-	if (cmd)
+	if (cmd) {
 		MHVTL_DBG_PRT_CDB(1, serial_number, cmd, SCpnt->cmd_len);
+	}
 
 	if (SCpnt->device->id == mhvtl_driver_template.this_id) {
 		pr_err("initiator's id used as target!\n");
