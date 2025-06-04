@@ -167,4 +167,15 @@ else
     echo "#undef DEFINE_QUEUE_LIMITS_SCSI_DEV_CONFIGURE"
 fi >> "${output}"
 
+#
+# check if del_timer_sync() has been renamed to timer_delete()
+#
+if grep -F -q 'int timer_delete_sync(' "${hdrs}/linux/timer.h"; then
+    echo "#ifndef USE_TIMER_DELETE_NOT_DEL_TIMER"
+    echo "#define USE_TIMER_DELETE_NOT_DEL_TIMER"
+    echo "#endif"
+else
+    echo "#undef USE_TIMER_DELETE_NOT_DEL_TIMER"
+fi >> "${output}"
+
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"
