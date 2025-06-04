@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <inttypes.h>
 
-uint32_t crc32c(uint32_t seed, const uint8_t *buf, int sz);
+uint32_t crc32c(uint32_t seed, const uint8_t *buf, size_t sz);
 uint32_t GenerateRSCRC(uint32_t seed, int sz, const uint8_t *buf);
 
 int main(int argc, char *argv[])

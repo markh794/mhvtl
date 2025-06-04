@@ -2332,7 +2332,7 @@ uint8_t ssc_recv_diagnostics(struct scsi_cmd *cmd)
 }
 
 uint32_t GenerateRSCRC(uint32_t seed, int sz, const uint8_t *buf);
-uint32_t crc32c(uint32_t seed, const uint8_t *buf, int sz);
+uint32_t crc32c(uint32_t seed, const uint8_t *buf, size_t sz);
 
 uint8_t ssc_send_diagnostics(struct scsi_cmd *cmd)
 {
