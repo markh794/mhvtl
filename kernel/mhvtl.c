@@ -1002,11 +1002,7 @@ static int mhvtl_stop_queued_cmnd(struct scsi_cmnd *SCpnt)
 	spin_lock_irqsave(&lu->cmd_list_lock, iflags);
 	list_for_each_entry_safe(sqcp, n, &lu->cmd_list, queued_sibling) {
 		if (sqcp->state && (SCpnt == sqcp->a_cmnd)) {
-#ifdef USE_TIMER_DELETE_NOT_DEL_TIMER
 			timer_delete_sync(&sqcp->cmnd_timer);
-#else
-			del_timer_sync(&sqcp->cmnd_timer);
-#endif
 			sqcp->state = CMD_STATE_FREE;
 			sqcp->a_cmnd = NULL;
 			found = 1;
@@ -1035,11 +1031,7 @@ static void mhvtl_stop_all_queued(void)
 		list_for_each_entry_safe(sqcp, n, &lu->cmd_list,
 			queued_sibling) {
 			if (sqcp->state && sqcp->a_cmnd) {
-#ifdef USE_TIMER_DELETE_NOT_DEL_TIMER
 				timer_delete_sync(&sqcp->cmnd_timer);
-#else
-				del_timer_sync(&sqcp->cmnd_timer);
-#endif
 				sqcp->state = CMD_STATE_FREE;
 				sqcp->a_cmnd = NULL;
 				__mhvtl_remove_sqcp(sqcp);
@@ -1610,11 +1602,7 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg)
 	} else {
 		sqcp->a_cmnd->result = DID_OK << 16;
 	}
-#ifdef USE_TIMER_DELETE_NOT_DEL_TIMER
 	timer_delete_sync(&sqcp->cmnd_timer);
-#else
-	del_timer_sync(&sqcp->cmnd_timer);
-#endif
 	if (sqcp->done_funct)
 		sqcp->done_funct(sqcp->a_cmnd);
 	else

@@ -75,3 +75,7 @@ static int sysfs_emit(char *buf, const char *fmt, ...)
 	return len;
 }
 #endif
+
+#if !defined(USE_TIMER_DELETE_NOT_DEL_TIMER)
+#define timer_delete_sync del_timer_sync
+#endif
