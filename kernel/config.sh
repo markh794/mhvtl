@@ -178,4 +178,15 @@ else
     echo "#undef USE_TIMER_DELETE_NOT_DEL_TIMER"
 fi >> "${output}"
 
+#
+# has "from_timer()" been renamed to "timer_container_of()"?
+#
+if grep -F -q 'timer_container_of(' "${hdrs}/linux/timer.h"; then
+    echo "#ifndef FROM_TIMER_NOW_TIMER_CONTAINER_OF"
+    echo "#define FROM_TIMER_NOW_TIMER_CONTAINER_OF"
+    echo "#endif"
+else
+    echo "#undef FROM_TIMER_NOW_TIMER_CONTAINER_OF"
+fi >> "${output}"
+
 printf '\n\n#endif /* _MHVTL_KERNEL_CONFIG_H */\n' >> "${output}"
