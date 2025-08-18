@@ -79,3 +79,10 @@ static int sysfs_emit(char *buf, const char *fmt, ...)
 #if !defined(USE_TIMER_DELETE_NOT_DEL_TIMER)
 #define timer_delete_sync del_timer_sync
 #endif
+
+/*
+ * 6.16 kernel change, from "from_timer()" to "timer_container_of()" in timer.h.
+ */
+#if !defined(FROM_TIMER_NOW_TIMER_CONTAINER_OF)
+#define timer_container_of	from_timer
+#endif

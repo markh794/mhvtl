@@ -104,9 +104,9 @@ struct scatterlist;
  #define VTL_VERSION "1.75"
 */
 #ifndef MHVTL_VERSION
-#define MHVTL_VERSION "0.18.36"
+#define MHVTL_VERSION "0.18.37"
 #endif
-static const char *mhvtl_version_date = "20250611-0";
+static const char *mhvtl_version_date = "20250819-0";
 static const char mhvtl_driver_name[] = "mhvtl";
 
 /* Additional Sense Code (ASC) used */
@@ -791,12 +791,7 @@ static void mhvtl_remove_sqcp(struct mhvtl_lu_info *lu, struct mhvtl_queued_cmd 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 static void mhvtl_timer_intr_handler(struct timer_list *t)
 {
-#ifdef FROM_TIMER_NOW_TIMER_CONTAINER_OF
-	struct mhvtl_queued_cmd *sqcp = timer_container_of(sqcp, t,
-							   cmnd_timer);
-#else
-	struct mhvtl_queued_cmd *sqcp = from_timer(sqcp, t, cmnd_timer);
-#endif
+	struct mhvtl_queued_cmd *sqcp = timer_container_of(sqcp, t, cmnd_timer);
 	unsigned long long indx = sqcp->serial_number;
 #else
 static void mhvtl_timer_intr_handler(unsigned long indx)
