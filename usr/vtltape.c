@@ -701,10 +701,8 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 
 	put_unaligned_be32(ret_val, &buf[0]);
 
-	if ((uint32_t)ret_val > alloc_len)
-		ret_val = alloc_len;
-
-	return ret_val;
+	/* Add 4 bytes for the AVAILABLE DATA length field. */
+	return min(ret_val + 4, alloc_len);
 }
 
 /*
