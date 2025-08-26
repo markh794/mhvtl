@@ -643,7 +643,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 {
 	uint16_t attrib;
 	uint32_t alloc_len;
-	int ret_val = 0;
+	uint32_t ret_val = 0;
 	int byte_index = 4;
 	int indx, found_attribute;
 	uint8_t *cdb = cmd->scb;
@@ -667,7 +667,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 			if (found_attribute) {
 				/* calculate available data length */
 				ret_val += MAM_Attributes[indx].length + 5;
-				if ((uint32_t)ret_val < alloc_len) {
+				if (ret_val < alloc_len) {
 					/* add it to output */
 					buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
 					buf[byte_index++] = MAM_Attributes[indx].attribute;
@@ -691,7 +691,7 @@ int resp_read_attribute(struct scsi_cmd *cmd)
 		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
 			/* calculate available data length */
 			ret_val += 2;
-			if ((uint32_t)ret_val <= alloc_len) {
+			if (ret_val <= alloc_len) {
 				/* add it to output */
 				buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
 				buf[byte_index++] = MAM_Attributes[indx].attribute;
