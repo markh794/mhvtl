@@ -48,10 +48,10 @@
 #include "mhvtl_log.h"
 
 static struct density_info density_lto1 = {
-	4880, 127, 384, 10000, medium_density_code_lto1,
+	4880, 127, 384, 100000, medium_density_code_lto1,
 			"LTO-CVE", "U-18", "Ultrium 1/8T" };
 static struct density_info density_lto2 = {
-	4880, 127, 512, 20000, medium_density_code_lto2,
+	4880, 127, 512, 200000, medium_density_code_lto2,
 			"LTO-CVE", "U-28", "Ultrium 2/8T" };
 static struct density_info density_lto3 = {
 	9638, 127, 704, 381469, medium_density_code_lto3,
