@@ -642,7 +642,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu) {
 	add_mode_control(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
 	add_mode_behavior_configuration(lu);
@@ -701,7 +701,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu) {
 	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -768,7 +768,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu) {
 	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -840,7 +840,7 @@ void init_ult3580_td6(struct lu_phy_attr *lu) {
 	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -912,7 +912,7 @@ void init_ult3580_td7(struct lu_phy_attr *lu) {
 	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -985,7 +985,7 @@ void init_ult3580_td8(struct lu_phy_attr *lu) {
 	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -1059,7 +1059,7 @@ void init_ult3580_td9(struct lu_phy_attr *lu) {
 	add_mode_control_data_protection(lu); /* LBP 0x0a/0xf0 */
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);

@@ -589,7 +589,7 @@ void init_hp_ult_3(struct lu_phy_attr *lu) {
 	add_mode_control(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
 	add_mode_behavior_configuration(lu);
@@ -647,7 +647,7 @@ void init_hp_ult_4(struct lu_phy_attr *lu) {
 	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -712,7 +712,7 @@ void init_hp_ult_5(struct lu_phy_attr *lu) {
 	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -782,7 +782,7 @@ void init_hp_ult_6(struct lu_phy_attr *lu) {
 	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -853,7 +853,7 @@ void init_hp_ult_7(struct lu_phy_attr *lu) {
 	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
@@ -923,7 +923,7 @@ void init_hp_ult_8(struct lu_phy_attr *lu) {
 	add_mode_control_extension(lu);
 	add_mode_data_compression(lu);
 	add_mode_device_configuration(lu);
-	add_mode_device_configuration_extention(lu);
+	add_mode_device_configuration_extension(lu);
 	add_mode_medium_partition(lu);
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);

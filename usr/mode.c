@@ -438,7 +438,7 @@ int add_mode_device_configuration(struct lu_phy_attr *lu) {
 	return 0;
 }
 
-int add_mode_device_configuration_extention(struct lu_phy_attr *lu) {
+int add_mode_device_configuration_extension(struct lu_phy_attr *lu) {
 	struct list_head				*mode_pg;
 	struct priv_lu_ssc				*ssc;
 	struct ssc_personality_template *pm;
