@@ -306,34 +306,42 @@ static void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
 
 void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(UNIT_ATTENTION, ascq, NULL, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 void sam_not_ready(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(NOT_READY, ascq, NULL, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat) {
 	return_sense(ILLEGAL_REQUEST, ascq, sd, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 void sam_medium_error(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(MEDIUM_ERROR, ascq, NULL, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 void sam_blank_check(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(BLANK_CHECK, ascq, NULL, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 void sam_data_protect(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(DATA_PROTECT, ascq, NULL, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(HARDWARE_ERROR, ascq, NULL, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(NO_SENSE | key, ascq, NULL, sam_stat);
+	MHVTL_DBG(1, "");
 }
 
 int check_reset(uint8_t *sam_stat) {
