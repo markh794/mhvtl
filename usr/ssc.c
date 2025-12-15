@@ -155,25 +155,21 @@ void set_lp11_compression(int flag) {
 }
 
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd) {
-	uint8_t			   *cdb				= cmd->scb;
-	uint8_t				allow_overwrite = cdb[2] & 0x0f;
-	uint8_t				partition		= cdb[3];
-	uint8_t			   *sam_stat		= &cmd->dbuf_p->sam_stat;
-	uint8_t				ret_stat		= SAM_STAT_GOOD;
-	uint64_t			allow_overwrite_block;
-	struct priv_lu_ssc *lu_ssc;
-	struct s_sd			sd;
+	declare_ssc_vars;
 
-	lu_ssc = cmd->lu->lu_private;
+	struct s_sd sd;
+	uint64_t	allow_overwrite_block;
+	uint8_t		allow_overwrite = cdb[2] & 0x0f;
+	uint8_t		partition		= cdb[3];
 
 	if (allow_overwrite > 2) /* Truncate bad values 3 to 15 -> '3' */
 		allow_overwrite = 3;
 
 	MHVTL_DBG(1, "ALLOW OVERWRITE (%ld) : %s **",
-			  (long)cmd->dbuf_p->serialNo,
+			  (long)dbuf_p->serialNo,
 			  allow_overwrite_desc[allow_overwrite].desc);
 
-	lu_ssc->allow_overwrite = FALSE;
+	lu_priv->allow_overwrite = FALSE;
 
 	switch (allow_overwrite) {
 	case 0:
@@ -191,44 +187,41 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd) {
 		MHVTL_DBG(1, "Allow overwrite block: %lld",
 				  (long long)allow_overwrite_block);
 		if (allow_overwrite_block == current_tape_block()) {
-			lu_ssc->allow_overwrite_block = allow_overwrite_block;
-			lu_ssc->allow_overwrite		  = TRUE;
+			lu_priv->allow_overwrite_block = allow_overwrite_block;
+			lu_priv->allow_overwrite	   = TRUE;
 		} else {
 			/* Set allow_overwrite position to an invalid number */
-			lu_ssc->allow_overwrite_block = 0;
-			lu_ssc->allow_overwrite_block--;
+			lu_priv->allow_overwrite_block = 0;
+			lu_priv->allow_overwrite_block--;
 			sam_illegal_request(E_SEQUENTIAL_POSITIONING_ERROR,
 								NULL, sam_stat);
-			ret_stat = SAM_STAT_CHECK_CONDITION;
+			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
 	case 2:
-		lu_ssc->allow_overwrite = 2;
+		lu_priv->allow_overwrite = 2;
 		break;
 	default:
 		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 2;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
-		ret_stat = SAM_STAT_CHECK_CONDITION;
+		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 
-	return ret_stat;
+	return SAM_STAT_GOOD;
 }
 
 uint8_t ssc_log_select(struct scsi_cmd *cmd) {
-	uint8_t				sam_status;
-	uint8_t				pcr = cmd->scb[1] & 0x2; /* Parameter code reset */
-	struct priv_lu_ssc *lu_priv;
+	declare_ssc_vars;
+	uint8_t pcr = cdb[1] & 0x2; /* Parameter code reset */
 
-	lu_priv = cmd->lu->lu_private;
-
-	sam_status = spc_log_select(cmd);
-	if (sam_status) /* spc_log_select() failed - return */
-		return sam_status;
+	*sam_stat = spc_log_select(cmd);
+	if (*sam_stat) /* spc_log_select() failed - return */
+		return *sam_stat;
 
 	if (pcr) {
-		switch ((cmd->scb[2] & 0xc0) >> 6) {
+		switch ((cdb[2] & 0xc0) >> 6) {
 		case 3:
 			lu_priv->bytesRead_I	= 0;
 			lu_priv->bytesRead_M	= 0;
@@ -241,18 +234,12 @@ uint8_t ssc_log_select(struct scsi_cmd *cmd) {
 }
 
 uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count) {
-	uint8_t			   *cdb		 = cmd->scb;
-	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
-	struct mhvtl_ds	   *dbuf_p;
-	struct priv_lu_ssc *lu_ssc;
-	uint8_t			   *buf;
-	int					lbp_method;
-	int					k;
-	int					retval = 0;
-	int					fixed  = cdb[1] & FIXED_BLOCK;
+	declare_ssc_vars;
 
-	lu_ssc = cmd->lu->lu_private;
-	dbuf_p = cmd->dbuf_p;
+	int lbp_method;
+	int k;
+	int retval = 0;
+	int fixed  = cdb[1] & FIXED_BLOCK;
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADING:
@@ -279,12 +266,11 @@ uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count) {
 		break;
 	}
 
-	buf = dbuf_p->data;
 	for (k = 0; k < count; k++) {
-		if (!lu_ssc->pm->valid_encryption_blk(cmd))
+		if (!lu_priv->pm->valid_encryption_blk(cmd))
 			return SAM_STAT_CHECK_CONDITION;
 		/* If LBP Read bit is set, pass through the LBP_method 0: off, 1 RS-CRC, 2 CRC32C */
-		lbp_method = (lu_ssc->LBP_R) ? lu_ssc->LBP_method : 0;
+		lbp_method = (lu_priv->LBP_R) ? lu_priv->LBP_method : 0;
 		retval	   = readBlock(buf, sz, cdb[1] & SILI, lbp_method, sam_stat);
 		if (!retval && fixed) {
 			/* Fixed block read hack:
@@ -395,15 +381,12 @@ uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count) {
  *  are verified and the current logical position is not changed. This condition is not considered an error.
  */
 uint8_t ssc_verify_6(struct scsi_cmd *cmd) {
-	uint8_t				 *cdb	   = cmd->scb;
-	uint8_t				 *sam_stat = &cmd->dbuf_p->sam_stat;
-	struct mhvtl_ds		 *dbuf_p;
+	declare_ssc_vars;
+
 	int					  blocks;
 	int					  sz;
 	struct s_sd			  sd;
-	struct verify_6_bits *cdb1;
-	cdb1   = (struct verify_6_bits *)&cdb[1];
-	dbuf_p = cmd->dbuf_p;
+	struct verify_6_bits *cdb1 = (struct verify_6_bits *)&cdb[1];
 
 	set_current_state(MHVTL_STATE_VERIFY);
 
@@ -433,13 +416,12 @@ uint8_t ssc_verify_6(struct scsi_cmd *cmd) {
 		return *sam_stat;
 	}
 
-	*sam_stat = complete_read_6(cmd, sz, blocks);
-	return *sam_stat;
+	return complete_read_6(cmd, sz, blocks);
 }
 
 uint8_t ssc_read_6(struct scsi_cmd *cmd) {
-	uint8_t	   *cdb		 = cmd->scb;
-	uint8_t	   *sam_stat = &cmd->dbuf_p->sam_stat;
+	declare_ssc_vars;
+
 	int			count;
 	int			sz;
 	struct s_sd sd;
@@ -466,15 +448,12 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_write_6(struct scsi_cmd *cmd) {
-	struct mhvtl_ds	   *dbuf_p;
-	struct priv_lu_ssc *lu_ssc;
-	int					count;
-	int					sz;
-	int					k;
-	int					retval = 0;
+	declare_ssc_vars;
 
-	lu_ssc = cmd->lu->lu_private;
-	dbuf_p = cmd->dbuf_p;
+	int retval = 0;
+	int count;
+	int sz;
+	int k;
 
 	set_current_state(MHVTL_STATE_WRITING);
 
@@ -483,13 +462,13 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
 			  __func__,
 			  count, count == 1 ? "" : "s",
 			  sz,
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
 	/* FIXME: Should handle this instead of 'check & warn' */
-	if ((sz * count) > lu_ssc->bufsize)
+	if ((sz * count) > lu_priv->bufsize)
 		MHVTL_DBG(1,
 				  "Fatal: bufsize %d, requested write of %d bytes",
-				  lu_ssc->bufsize, sz);
+				  lu_priv->bufsize, sz);
 
 	dbuf_p->sz = sz * count;
 
@@ -497,17 +476,16 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
 	if (likely(mam.MediumType != MEDIA_TYPE_NULL))
 		retrieve_CDB_data(cmd->cdev, dbuf_p);
 
-	if (!lu_ssc->pm->check_restrictions(cmd))
+	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
 
 	if (OK_to_write) {
 		for (k = 0; k < count; k++) {
 			retval = writeBlock(cmd, sz);
-			dbuf_p->data += retval;
+			buf += retval;
 
-			/* If sam_stat != SAM_STAT_GOOD, return */
-			if (cmd->dbuf_p->sam_stat)
-				return cmd->dbuf_p->sam_stat;
+			if (*sam_stat)
+				return *sam_stat;
 		}
 	}
 	return SAM_STAT_GOOD;
@@ -518,27 +496,26 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
  * Return 1 = OK to write, zero -> Can't write.
  */
 uint8_t check_restrictions(struct scsi_cmd *cmd) {
-	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
-	struct priv_lu_ssc *lu_ssc	 = cmd->lu->lu_private;
+	declare_ssc_vars;
 
 	/* Check that there is a piece of media loaded.. */
 	switch (get_tape_load_status()) {
 	case TAPE_LOADING:
 		sam_not_ready(E_BECOMING_READY, sam_stat);
-		*lu_ssc->OK_2_write = 0;
-		return *lu_ssc->OK_2_write;
+		*lu_priv->OK_2_write = 0;
+		return *lu_priv->OK_2_write;
 		break;
 	case TAPE_LOADED: /* Do nothing */
 		break;
 	case TAPE_UNLOADED:
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-		*lu_ssc->OK_2_write = 0;
-		return *lu_ssc->OK_2_write;
+		*lu_priv->OK_2_write = 0;
+		return *lu_priv->OK_2_write;
 		break;
 	default:
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		*lu_ssc->OK_2_write = 0;
-		return *lu_ssc->OK_2_write;
+		*lu_priv->OK_2_write = 0;
+		return *lu_priv->OK_2_write;
 		break;
 	}
 
@@ -546,7 +523,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd) {
 	case MEDIA_TYPE_CLEAN:
 		sam_not_ready(E_CLEANING_CART_INSTALLED, sam_stat);
 		MHVTL_DBG(2, "Can not write - Cleaning cart");
-		*lu_ssc->OK_2_write = 0;
+		*lu_priv->OK_2_write = 0;
 		break;
 	case MEDIA_TYPE_WORM:
 		/* If we are not at end of data for a write
@@ -555,29 +532,29 @@ uint8_t check_restrictions(struct scsi_cmd *cmd) {
 
 		/* OK to append to end of 'tape' */
 		if (c_pos->blk_type == B_EOD)
-			*lu_ssc->OK_2_write = 1;
+			*lu_priv->OK_2_write = 1;
 
-		if (!*lu_ssc->OK_2_write) {
+		if (!*lu_priv->OK_2_write) {
 			MHVTL_DBG(1, "Failed attempt to overwrite WORM data");
 			sam_data_protect(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
 		}
 		break;
 	case MEDIA_TYPE_DATA:
-		*lu_ssc->OK_2_write = 1;
+		*lu_priv->OK_2_write = 1;
 		break;
 	case MEDIA_TYPE_NULL:
-		*lu_ssc->OK_2_write = 1;
+		*lu_priv->OK_2_write = 1;
 		/* Special case - no need for more checks */
-		return *lu_ssc->OK_2_write;
+		return *lu_priv->OK_2_write;
 		break;
 	default:
-		*lu_ssc->OK_2_write = 0;
+		*lu_priv->OK_2_write = 0;
 		sam_illegal_request(E_MEDIUM_INCOMPATIBLE, NULL, sam_stat);
 	}
 
 	/* over-ride the above IF the virtual write protect switch is on */
-	if (*lu_ssc->OK_2_write && lu_ssc->MediaWriteProtect) {
-		*lu_ssc->OK_2_write = 0;
+	if (*lu_priv->OK_2_write && lu_priv->MediaWriteProtect) {
+		*lu_priv->OK_2_write = 0;
 		sam_data_protect(E_WRITE_PROTECT, sam_stat);
 	}
 
@@ -586,14 +563,14 @@ uint8_t check_restrictions(struct scsi_cmd *cmd) {
 	 * Some writes would be OK, like the first write to an empty tape or
 	 * WORM media overwriting a filemark that is next to EOD
 	 */
-	if (*lu_ssc->OK_2_write && lu_ssc->append_only_mode) {
-		if ((c_pos->blk_number != lu_ssc->allow_overwrite_block) &&
+	if (*lu_priv->OK_2_write && lu_priv->append_only_mode) {
+		if ((c_pos->blk_number != lu_priv->allow_overwrite_block) &&
 			(c_pos->blk_type != B_EOD)) {
 
 			uint64_t TAflag;
 
-			lu_ssc->OK_2_write		= 0;
-			lu_ssc->allow_overwrite = FALSE;
+			lu_priv->OK_2_write		 = 0;
+			lu_priv->allow_overwrite = FALSE;
 			sam_data_protect(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
 			/* And set TapeAlert flg 09 -> WRITE PROTECT */
 			TAflag = TA_WRITE_PROTECT;
@@ -602,8 +579,8 @@ uint8_t check_restrictions(struct scsi_cmd *cmd) {
 	}
 
 	MHVTL_DBG(2, "returning:%s writable",
-			  (*lu_ssc->OK_2_write) ? "" : " not");
-	return *lu_ssc->OK_2_write;
+			  (*lu_priv->OK_2_write) ? "" : " not");
+	return *lu_priv->OK_2_write;
 }
 
 /*
@@ -616,15 +593,10 @@ uint8_t check_restrictions(struct scsi_cmd *cmd) {
 #define AKAD		(encr->akad)
 #define KEY			(encr->key)
 uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
-	uint8_t				correct_key;
-	int					i;
-	struct lu_phy_attr *lu = cmd->lu;
-	struct priv_lu_ssc *lu_priv;
-	struct encryption  *encr;
-	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
+	declare_ssc_vars;
 
-	lu_priv = lu->lu_private;
-	encr	= lu_priv->app_encr_info;
+	uint8_t correct_key;
+	int		i;
 
 	/* decryption logic */
 	correct_key = TRUE;
@@ -655,12 +627,7 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 }
 
 uint8_t valid_encryption_media(struct scsi_cmd *cmd) {
-	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
-	struct lu_phy_attr *lu;
-	struct priv_lu_ssc *lu_priv;
-
-	lu		= cmd->lu;
-	lu_priv = lu->lu_private;
+	declare_ssc_vars;
 
 	if (c_pos->blk_number == 0) {
 		modeBlockDescriptor[0]	 = lu_priv->pm->native_drive_density->density;
@@ -687,82 +654,78 @@ uint8_t ssc_allow_prevent_removal(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
-	struct lu_phy_attr *lu;
-	struct priv_lu_ssc *lu_priv;
+	declare_ssc_vars;
 
-	lu		= cmd->lu;
-	lu_priv = lu->lu_private;
-
-	MHVTL_DBG(1, "FORMAT MEDIUM (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "FORMAT MEDIUM (%ld) **", (long)dbuf_p->serialNo);
 
 	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
 
 	if (c_pos->blk_number != 0) {
 		MHVTL_DBG(2, "Failed - Not at beginning");
-		sam_illegal_request(E_POSITION_PAST_BOM, NULL,
-							&cmd->dbuf_p->sam_stat);
+		sam_illegal_request(E_POSITION_PAST_BOM, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	format_tape(&cmd->dbuf_p->sam_stat);
+	format_tape(sam_stat);
 
 	return SAM_STAT_GOOD;
 }
 
 uint8_t ssc_locate(struct scsi_cmd *cmd) {
-	uint32_t blk_no;
+	declare_ssc_vars;
+	uint64_t blk_no;
 
 	set_current_state(MHVTL_STATE_LOCATE);
 
-	MHVTL_DBG(1, "LOCATE %d (%ld) **", (cmd->scb[0] == LOCATE_16) ? 16 : 10,
-			  (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "LOCATE %d (%ld) **", (cdb[0] == LOCATE_16) ? 16 : 10,
+			  (long)dbuf_p->serialNo);
 
-	blk_no = (cmd->scb[0] == LOCATE_16) ? get_unaligned_be64(&cmd->scb[4]) : get_unaligned_be32(&cmd->scb[3]);
+	blk_no = (cdb[0] == LOCATE_16) ? get_unaligned_be64(&cdb[4]) : get_unaligned_be32(&cdb[3]);
 
 	/* If we want to seek closer to beginning of file than
 	 * we currently are, rewind and seek from there
 	 */
 	MHVTL_DBG(2, "Current blk: %d, seek: %d",
 			  c_pos->blk_number, blk_no);
-	position_to_block(blk_no, &cmd->dbuf_p->sam_stat);
+	position_to_block(blk_no, sam_stat);
 
-	return cmd->dbuf_p->sam_stat;
+	return *sam_stat;
 }
 
 uint8_t ssc_load_display(struct scsi_cmd *cmd) {
-	unsigned char *d;
-	char		   str1[9];
-	char		   str2[9];
+	declare_ssc_vars;
+
+	char str1[9];
+	char str2[9];
 
 	MHVTL_DBG(1, "LOAD DISPLAY (%ld) - T10000 specific **",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
-	cmd->dbuf_p->sz = cmd->scb[4];
-	retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
-	d = cmd->dbuf_p->data;
-	memcpy(str1, &d[1], 8);
+	dbuf_p->sz = cdb[4];
+	retrieve_CDB_data(cmd->cdev, dbuf_p);
+	memcpy(str1, &buf[1], 8);
 	str1[8] = 0;
-	memcpy(str2, &d[9], 8);
+	memcpy(str2, &buf[9], 8);
 	str2[8] = 0;
 
 	MHVTL_DBG(3, "Raw data: %02x  "
 				 "%02x %02x %02x %02x %02x %02x %02x %02x  "
 				 "%02x %02x %02x %02x %02x %02x %02x %02x",
-			  d[0], d[1], d[2], d[3], d[4],
-			  d[5], d[6], d[7], d[8],
-			  d[9], d[10], d[11], d[12],
-			  d[13], d[14], d[15], d[16]);
+			  buf[0], buf[1], buf[2], buf[3], buf[4],
+			  buf[5], buf[6], buf[7], buf[8],
+			  buf[9], buf[10], buf[11], buf[12],
+			  buf[13], buf[14], buf[15], buf[16]);
 
-	switch (d[0] >> 5) { /* Bits 5, 6 & 7 are overlay */
+	switch (buf[0] >> 5) { /* Bits 5, 6 & 7 are overlay */
 	case 0:
 		MHVTL_DBG(1, "Display \'%s\' until next"
 					 " command that initiates tape motion",
-				  /* Low/High bit */ (d[0] & 2) ? str2 : str1);
+				  /* Low/High bit */ (buf[0] & 2) ? str2 : str1);
 		break;
 	case 1:
 		MHVTL_DBG(1, "Maintain \'%s\' until the"
 					 " cartridge is unloaded",
-				  /* Low/High bit */ (d[0] & 2) ? str2 : str1);
+				  /* Low/High bit */ (buf[0] & 2) ? str2 : str1);
 		break;
 	case 2:
 		MHVTL_DBG(1, "Maintain \'%s\' until the drive"
@@ -782,7 +745,7 @@ uint8_t ssc_load_display(struct scsi_cmd *cmd) {
 	MHVTL_DBG(2, "Load display: msg1: %s msg2: %s",
 			  str1, str2);
 
-	cmd->dbuf_p->sz = 0;
+	dbuf_p->sz = 0;
 	return SAM_STAT_GOOD;
 }
 
@@ -830,58 +793,59 @@ static uint64_t get_timestamp() {
 }
 
 static uint8_t report_timestamp(struct scsi_cmd *cmd) {
-	uint8_t *data;
+	declare_ssc_vars;
 
-	data = cmd->dbuf_p->data;
-	memset(data, 0, REPORT_TIMESTAMP_DATA_LEN + 2);
+	memset(buf, 0, REPORT_TIMESTAMP_DATA_LEN + 2);
 
-	put_unaligned_be16(REPORT_TIMESTAMP_DATA_LEN, &data[0]);
-	data[2] = timestamp_source; /* Timestamp origin - Timestamp initialised to zero at power-on */
-	put_unaligned_be48(get_timestamp() & 0xffffffffffff, &data[4]);
+	put_unaligned_be16(REPORT_TIMESTAMP_DATA_LEN, &buf[0]);
+	buf[2] = timestamp_source; /* Timestamp origin - Timestamp initialised to zero at power-on */
+	put_unaligned_be48(get_timestamp() & 0xffffffffffff, &buf[4]);
 
-	MHVTL_DBG(1, "Returning timestamp 0x%08lx (%lu)", get_unaligned_be48(&data[4]), get_unaligned_be48(&data[4]));
-	cmd->dbuf_p->sz		  = REPORT_TIMESTAMP_DATA_LEN + 2;
-	cmd->dbuf_p->sam_stat = SAM_STAT_GOOD;
+	MHVTL_DBG(1, "Returning timestamp 0x%08lx (%lu)", get_unaligned_be48(&buf[4]), get_unaligned_be48(&buf[4]));
+	dbuf_p->sz = REPORT_TIMESTAMP_DATA_LEN + 2;
+	*sam_stat  = SAM_STAT_GOOD;
 	return SAM_STAT_GOOD;
 }
 
 static uint8_t configure_timestamp(struct scsi_cmd *cmd) {
-	struct s_sd sd;
-	uint8_t	   *data;
+	declare_ssc_vars;
 
-	cmd->dbuf_p->sz = get_unaligned_be32(&cmd->scb[6]);
-	if (cmd->dbuf_p->sz == 0)
+	struct s_sd sd;
+
+	dbuf_p->sz = get_unaligned_be32(&cdb[6]);
+	if (dbuf_p->sz == 0)
 		return SAM_STAT_GOOD;
-	if (cmd->dbuf_p->sz != 0x0c) {
-		cmd->dbuf_p->sz	 = 0;
+	if (dbuf_p->sz != 0x0c) {
+		dbuf_p->sz		 = 0;
 		sd.byte0		 = SKSV;
 		sd.field_pointer = 6;
 		MHVTL_LOG("Unexpected timestamp parameter length..");
-		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, &cmd->dbuf_p->sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
-	data = cmd->dbuf_p->data;
 
-	if (data[4] > 0xf0) { /* overflow - Illegal request */
-		cmd->dbuf_p->sz	 = 0;
+	if (buf[4] > 0xf0) { /* overflow - Illegal request */
+		dbuf_p->sz		 = 0;
 		sd.byte0		 = SKSV;
 		sd.field_pointer = 4;
 		MHVTL_LOG("Unexpected set timestamp value.. Value too large");
-		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, &cmd->dbuf_p->sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	set_timestamp(2, get_unaligned_be48(&data[4]));
+	set_timestamp(2, get_unaligned_be48(&buf[4]));
 
-	cmd->dbuf_p->sz		  = 0;
-	cmd->dbuf_p->sam_stat = SAM_STAT_GOOD;
+	dbuf_p->sz = 0;
+	*sam_stat  = SAM_STAT_GOOD;
 	return SAM_STAT_GOOD;
 }
 
 uint8_t ssc_a3_service_action(struct scsi_cmd *cmd) {
-	switch (cmd->scb[1]) {
+	declare_ssc_vars;
+
+	switch (cdb[1]) {
 	case MANAGEMENT_PROTOCOL_IN:
 		log_opcode("MANAGEMENT PROTOCOL IN **", cmd);
 		break;
@@ -892,18 +856,20 @@ uint8_t ssc_a3_service_action(struct scsi_cmd *cmd) {
 		log_opcode("REPORT SUPPORTED OPCODES **", cmd);
 		break;
 	case REPORT_TIMESTAMP:
-		MHVTL_DBG(1, "REPORT TIMESTAMP (%ld) **", (long)cmd->dbuf_p->serialNo);
+		MHVTL_DBG(1, "REPORT TIMESTAMP (%ld) **", (long)dbuf_p->serialNo);
 		return report_timestamp(cmd);
 		break;
 	default:
 		log_opcode("UNKNOWN SERVICE ACTION A3 **", cmd);
 		break;
 	}
-	return cmd->dbuf_p->sam_stat;
+	return *sam_stat;
 }
 
 uint8_t ssc_a4_service_action(struct scsi_cmd *cmd) {
-	switch (cmd->scb[1]) {
+	declare_ssc_vars;
+
+	switch (cdb[1]) {
 	case MANAGEMENT_PROTOCOL_OUT:
 		log_opcode("MANAGEMENT PROTOCOL OUT **", cmd);
 		break;
@@ -914,25 +880,27 @@ uint8_t ssc_a4_service_action(struct scsi_cmd *cmd) {
 		log_opcode("FORCED EJECT **", cmd);
 		break;
 	case SET_TIMESTAMP:
-		MHVTL_DBG(1, "SET TIMESTAMP (%ld) **", (long)cmd->dbuf_p->serialNo);
+		MHVTL_DBG(1, "SET TIMESTAMP (%ld) **", (long)dbuf_p->serialNo);
 		return configure_timestamp(cmd);
 		break;
 	default:
 		log_opcode("UNKNOWN SERVICE ACTION A4 **", cmd);
 		break;
 	}
-	return cmd->dbuf_p->sam_stat;
+	return *sam_stat;
 }
 
 uint8_t ssc_spout(struct scsi_cmd *cmd) {
+	declare_ssc_vars;
+
 	MHVTL_DBG(1, "SECURITY PROTOCOL OUT (%ld) **",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
-	cmd->dbuf_p->sz = get_unaligned_be32(&cmd->scb[6]);
+	dbuf_p->sz = get_unaligned_be32(&cdb[6]);
 	/* Check for '512 increment' bit & multiply sz by 512 if set */
-	cmd->dbuf_p->sz *= (cmd->scb[4] & 0x80) ? 512 : 1;
+	dbuf_p->sz *= (cdb[4] & 0x80) ? 512 : 1;
 
-	retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+	retrieve_CDB_data(cmd->cdev, dbuf_p);
 
 	return resp_spout(cmd);
 }
@@ -945,21 +913,18 @@ uint8_t ssc_spin(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_pr_out(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
-
-	lu_priv = cmd->lu->lu_private;
+	declare_ssc_vars;
 
 	MHVTL_DBG(1, "PERSISTENT RESERVE OUT (%ld) **",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 	if (lu_priv->I_am_SPC_2_Reserved) {
 		MHVTL_DBG(1, "SPC 2 reserved");
 		*sam_stat = SAM_STAT_RESERVATION_CONFLICT;
 		return SAM_STAT_RESERVATION_CONFLICT;
 	}
-	cmd->dbuf_p->sz = get_unaligned_be32(&cmd->scb[5]);
-	retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
-	return resp_spc_pro(cmd->scb, cmd->dbuf_p);
+	dbuf_p->sz = get_unaligned_be32(&cdb[5]);
+	retrieve_CDB_data(cmd->cdev, dbuf_p);
+	return resp_spc_pro(cdb, dbuf_p);
 }
 
 static uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t *p) {
@@ -1131,8 +1096,8 @@ static uint8_t set_lbp(struct scsi_cmd *cmd, uint8_t *buf, int len) {
  * Process the MODE_SELECT command
  */
 uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
-	uint8_t	   *sam_stat		= &cmd->dbuf_p->sam_stat;
-	uint8_t	   *buf				= cmd->dbuf_p->data;
+	declare_ssc_vars;
+
 	uint8_t	   *bdb				= NULL;
 	int			page_len		= 0;
 	int			mode_param_h_sz = 0;
@@ -1148,29 +1113,29 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 	int			mode_block_descriptor_len;
 	struct s_sd sd;
 
-	save_pages	= cmd->scb[1] & 0x01;
-	page_format = (cmd->scb[1] & (1 << 4)) ? 1 : 0;
+	save_pages	= cdb[1] & 0x01;
+	page_format = (cdb[1] & (1 << 4)) ? 1 : 0;
 
-	switch (cmd->scb[0]) {
+	switch (cdb[0]) {
 	case MODE_SELECT:
 		mselect_6		= 1;
-		cmd->dbuf_p->sz = cmd->scb[4];
+		dbuf_p->sz		= cdb[4];
 		mode_param_h_sz = 4;
 		break;
 	case MODE_SELECT_10:
-		cmd->dbuf_p->sz = get_unaligned_be16(&cmd->scb[7]);
+		dbuf_p->sz		= get_unaligned_be16(&cdb[7]);
 		mode_param_h_sz = 8;
 		break;
 	default:
-		cmd->dbuf_p->sz = 0;
+		dbuf_p->sz = 0;
 	}
 
 	MHVTL_DBG(1, "MODE SELECT %d (%ld) **",
-			  (mselect_6) ? 6 : 10, (long)cmd->dbuf_p->serialNo);
+			  (mselect_6) ? 6 : 10, (long)dbuf_p->serialNo);
 	MHVTL_DBG(1, " Save Pages: %d, Page Format conforms to %s standard",
 			  save_pages, (page_format) ? "T10" : "Vendor uniq");
 
-	count = retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+	count = retrieve_CDB_data(cmd->cdev, dbuf_p);
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
@@ -1349,8 +1314,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 			 * for MODE DEVICE CONFIGURATION
 			 */
 			if (page_len == 0x01) {
-				if (set_device_configuration_extension(cmd,
-													   &buf[i]))
+				if (set_device_configuration_extension(cmd, &buf[i]))
 					return SAM_STAT_CHECK_CONDITION;
 				/* Subpage 1 - override default page length */
 				page_len = get_unaligned_be16(&buf[i + 2]);
@@ -1362,8 +1326,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 						  page_len);
 				sd.byte0		 = SKSV;
 				sd.field_pointer = i + 1;
-				sam_illegal_request(E_INVALID_FIELD_IN_CDB,
-									&sd, sam_stat);
+				sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
 			}
 			break;
@@ -1386,8 +1349,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 					MHVTL_DBG(2, "Mode Control - Subpage: 0x%02x not supported", buf[i + 1]);
 					sd.byte0		 = SKSV;
 					sd.field_pointer = i;
-					sam_illegal_request(E_INVALID_FIELD_IN_CDB,
-										&sd, sam_stat);
+					sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 					return SAM_STAT_CHECK_CONDITION;
 				}
 			}
@@ -1398,18 +1360,16 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 			MHVTL_LOG("Mode page 0x%02x not handled", page);
 			sd.byte0		 = SKSV;
 			sd.field_pointer = i;
-			sam_illegal_request(E_INVALID_FIELD_IN_CDB,
-								&sd, sam_stat);
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 			break;
 		}
 		if (page_len == 0) { /* Something wrong with data structure */
-			page_len = cmd->dbuf_p->sz;
+			page_len = dbuf_p->sz;
 			MHVTL_LOG("Problem with mode select data structure");
 			sd.byte0		 = SKSV;
 			sd.field_pointer = i + 1;
-			sam_illegal_request(E_INVALID_FIELD_IN_CDB,
-								&sd, sam_stat);
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
 		i += page_len + offset; /* Next mode page */
@@ -1420,12 +1380,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_write_attributes(struct scsi_cmd *cmd) {
-	int		 sz;
-	uint8_t *sam_stat;
+	declare_ssc_vars;
 
-	sam_stat = &cmd->dbuf_p->sam_stat;
+	int sz;
 
-	MHVTL_DBG(1, "WRITE ATTRIBUTES (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "WRITE ATTRIBUTES (%ld) **", (long)dbuf_p->serialNo);
 
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
@@ -1433,11 +1392,11 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
-		cmd->dbuf_p->sz = get_unaligned_be32(&cmd->scb[10]);
-		sz				= retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+		dbuf_p->sz = get_unaligned_be32(&cdb[10]);
+		sz		   = retrieve_CDB_data(cmd->cdev, dbuf_p);
 		MHVTL_DBG(1, "  --> Expected to read %d bytes"
 					 ", read %d",
-				  cmd->dbuf_p->sz, sz);
+				  dbuf_p->sz, sz);
 		if (resp_write_attribute(cmd) > 0)
 			rewriteMAM(sam_stat);
 		break;
@@ -1450,13 +1409,9 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_tur(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
-	char				str[64];
+	declare_ssc_vars;
 
-	lu_priv	  = cmd->lu->lu_private;
-	sam_stat  = &cmd->dbuf_p->sam_stat;
-	*sam_stat = SAM_STAT_GOOD;
+	char str[64];
 
 	sprintf(str, "Test Unit Ready (%ld) ** : ",
 			(long)cmd->dbuf_p->serialNo);
@@ -1465,12 +1420,10 @@ uint8_t ssc_tur(struct scsi_cmd *cmd) {
 	case TAPE_UNLOADED:
 		strcat(str, "No, No tape loaded");
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADING:
 		strcat(str, "No, Tape loading");
 		sam_not_ready(E_BECOMING_READY, sam_stat);
-		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
 		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
@@ -1485,32 +1438,25 @@ uint8_t ssc_tur(struct scsi_cmd *cmd) {
 
 			switch (state) {
 			case CLEAN_MOUNT_STAGE1:
-				sam_not_ready(E_CLEANING_CART_INSTALLED,
-							  sam_stat);
+				sam_not_ready(E_CLEANING_CART_INSTALLED, sam_stat);
 				break;
 			case CLEAN_MOUNT_STAGE2:
-				sam_not_ready(E_CAUSE_NOT_REPORTABLE,
-							  sam_stat);
+				sam_not_ready(E_CAUSE_NOT_REPORTABLE, sam_stat);
 				break;
 			case CLEAN_MOUNT_STAGE3:
-				sam_not_ready(E_INITIALIZING_REQUIRED,
-							  sam_stat);
+				sam_not_ready(E_INITIALIZING_REQUIRED, sam_stat);
 				break;
 			default:
 				MHVTL_ERR("Unknown cleaning media mount state");
-				sam_not_ready(E_CLEANING_CART_INSTALLED,
-							  sam_stat);
+				sam_not_ready(E_CLEANING_CART_INSTALLED, sam_stat);
 				break;
 			}
-
-			*sam_stat = SAM_STAT_CHECK_CONDITION;
 		} else
 			strcat(str, "Yes");
 		break;
 	default:
 		strcat(str, "No, Media format corrupt");
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		*sam_stat = SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 
@@ -1520,47 +1466,39 @@ uint8_t ssc_tur(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_rewind(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
-	int					retval;
+	declare_ssc_vars;
 
-	lu_priv	 = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
+	int retval;
 
-	MHVTL_DBG(1, "REWINDING (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "REWINDING (%ld) **", (long)dbuf_p->serialNo);
 
 	set_current_state(MHVTL_STATE_REWIND);
 
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
 		retval = rewind_tape(sam_stat);
 		delay_opcode(DELAY_REWIND, lu_priv->delay_rewind);
 		if (retval < 0) {
 			sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
 	default:
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 uint8_t ssc_read_attributes(struct scsi_cmd *cmd) {
-	uint8_t	   *sam_stat;
+	declare_ssc_vars;
 	struct s_sd sd;
 
-	sam_stat = &cmd->dbuf_p->sam_stat;
-
 	MHVTL_DBG(1, "READ ATTRIBUTE (%ld) **",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
@@ -1578,62 +1516,50 @@ uint8_t ssc_read_attributes(struct scsi_cmd *cmd) {
 	}
 
 	/* Only support Service Action - Attribute Values */
-	if (cmd->scb[1] > 1) {
+	if (cdb[1] > 1) {
 		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	cmd->dbuf_p->sz = resp_read_attribute(cmd);
+	dbuf_p->sz = resp_read_attribute(cmd);
 
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 uint8_t ssc_read_block_limits(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
-
-	lu_priv	 = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
+	declare_ssc_vars;
 
 	MHVTL_DBG(1, "READ BLOCK LIMITS (%ld) **",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADED:
 	case TAPE_UNLOADED:
-		cmd->dbuf_p->sz = resp_read_block_limits(cmd->dbuf_p,
-												 lu_priv->bufsize);
+		dbuf_p->sz = resp_read_block_limits(dbuf_p, lu_priv->bufsize);
 		break;
 	case TAPE_LOADING:
 		sam_not_ready(E_BECOMING_READY, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 /* SPC 6.17 - READ MEDIA SERIAL NUMBER */
 uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
-	uint32_t			alloc_len;
-	struct s_sd			sd;
+	declare_ssc_vars;
 
-	lu_priv	  = cmd->lu->lu_private;
-	sam_stat  = &cmd->dbuf_p->sam_stat;
-	alloc_len = get_unaligned_be32(&cmd->scb[6]);
+	uint32_t	alloc_len = get_unaligned_be32(&cdb[6]);
+	struct s_sd sd;
 
 	MHVTL_DBG(1, "READ MEDIUM SERIAL NO. (%ld) **",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
-	if (cmd->scb[1] != 1) { /* Service Action 1 only */
+	if (cdb[1] != 1) { /* Service Action 1 only */
 		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
@@ -1644,17 +1570,15 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADED:
-		cmd->dbuf_p->sz = resp_read_media_serial(lu_priv->mediaSerialNo,
-												 cmd->dbuf_p->data,
-												 sam_stat);
+		dbuf_p->sz = resp_read_media_serial(lu_priv->mediaSerialNo,
+											buf,
+											sam_stat);
 		break;
 	case TAPE_UNLOADED:
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 	return *sam_stat;
@@ -1662,31 +1586,23 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 
 #define READ_POSITION_LEN	   20
 #define READ_POSITION_LONG_LEN 32
+
 uint8_t ssc_read_position(struct scsi_cmd *cmd) {
-	uint8_t								   *sam_stat;
+	declare_ssc_vars;
+
 	int										service_action;
 	struct s_sd								sd;
-	struct priv_lu_ssc					   *lu_priv;
-	uint8_t								   *buf;
 	uint8_t									partition = 0; /* One of these days we'll support multiple partitions - but for now */
 	uint64_t								filemarks = 0;
 	struct read_position_information_short *sp;
 	struct read_position_information_long  *lp;
 
-	lu_priv = cmd->lu->lu_private;
+	MHVTL_DBG(1, "READ POSITION (%ld) **", (long)dbuf_p->serialNo);
 
-	sam_stat = &cmd->dbuf_p->sam_stat;
-
-	buf = cmd->dbuf_p->data;
-
-	MHVTL_DBG(1, "READ POSITION (%ld) **", (long)cmd->dbuf_p->serialNo);
-
-	service_action = cmd->scb[1] & 0x1f;
+	service_action = cdb[1] & 0x1f;
 	/* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
 
 	MHVTL_DBG(1, "service_action: %d", service_action);
-
-	*sam_stat = SAM_STAT_GOOD;
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADED:
@@ -1727,7 +1643,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			} else {
 				sp->BPEW = 0;
 			}
-			cmd->dbuf_p->sz = READ_POSITION_LEN;
+			dbuf_p->sz = READ_POSITION_LEN;
 			break;
 		case 6:
 			lp = (struct read_position_information_long *)&buf[0];
@@ -1776,7 +1692,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			put_unaligned_be64(filemarks, &buf[16]);
 
 			MHVTL_DBG(1, "Positioned at block %ld, num filemarks: %ld", (long)c_pos->blk_number, filemarks);
-			cmd->dbuf_p->sz = READ_POSITION_LONG_LEN;
+			dbuf_p->sz = READ_POSITION_LONG_LEN;
 			break;
 
 		default:
@@ -1785,27 +1701,23 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			sd.field_pointer = 1;
 			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd,
 								sam_stat);
-			return SAM_STAT_CHECK_CONDITION;
 		}
 		break;
 	case TAPE_UNLOADED:
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	default:
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
 	return *sam_stat;
 }
 
 uint8_t ssc_release(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
+	declare_ssc_vars;
 
-	lu_priv = cmd->lu->lu_private;
+	MHVTL_DBG(1, "RELEASE (%ld) **", (long)dbuf_p->serialNo);
 
-	MHVTL_DBG(1, "RELEASE (%ld) **", (long)cmd->dbuf_p->serialNo);
 	if (!SPR_Reservation_Type && SPR_Reservation_Key)
 		return SAM_STAT_RESERVATION_CONFLICT;
 
@@ -1814,22 +1726,18 @@ uint8_t ssc_release(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_report_density_support(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
-	uint8_t				media;
-	struct s_sd			sd;
+	declare_ssc_vars;
 
-	lu_priv	 = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
+	struct s_sd sd;
+	uint8_t		media = cdb[1] & 0x01;
 
-	media			= cmd->scb[1] & 0x01;
-	cmd->dbuf_p->sz = 0;
+	dbuf_p->sz = 0;
 
 	MHVTL_DBG(1, "REPORT %s DENSITY SUPPORT (%ld) **",
 			  (media) ? "MOUNTED MEDIA" : "DRIVE",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
-	if (cmd->scb[1] & 0x02) { /* Don't support Medium Type (yet) */
+	if (cdb[1] & 0x02) { /* Don't support Medium Type (yet) */
 		MHVTL_DBG(1, "Medium Type - not currently supported");
 		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
@@ -1843,19 +1751,18 @@ uint8_t ssc_report_density_support(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	memset_ssc_buf(cmd, get_unaligned_be16(&cmd->scb[7]));
+	memset_ssc_buf(cmd, get_unaligned_be16(&cdb[7]));
 
-	cmd->dbuf_p->sz = resp_report_density(lu_priv, media, cmd->dbuf_p);
+	dbuf_p->sz = resp_report_density(lu_priv, media, dbuf_p);
 
 	return SAM_STAT_GOOD;
 }
 
 uint8_t ssc_reserve(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
+	declare_ssc_vars;
 
-	lu_priv = cmd->lu->lu_private;
+	MHVTL_DBG(1, "RESERVE (%ld) **", (long)dbuf_p->serialNo);
 
-	MHVTL_DBG(1, "RESERVE (%ld) **", (long)cmd->dbuf_p->serialNo);
 	if (!SPR_Reservation_Type && !SPR_Reservation_Key)
 		lu_priv->I_am_SPC_2_Reserved = 1;
 	if (!SPR_Reservation_Type && SPR_Reservation_Key)
@@ -1864,13 +1771,9 @@ uint8_t ssc_reserve(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_erase(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
+	declare_ssc_vars;
 
-	lu_priv	 = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
-
-	MHVTL_DBG(1, "ERASING (%ld) **", (long)cmd->dbuf_p->serialNo);
+	MHVTL_DBG(1, "ERASING (%ld) **", (long)dbuf_p->serialNo);
 
 	set_current_state(MHVTL_STATE_ERASE);
 
@@ -1888,32 +1791,28 @@ uint8_t ssc_erase(struct scsi_cmd *cmd) {
 	else {
 		MHVTL_LOG("Attempt to erase Write-protected media");
 		sam_not_ready(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 	}
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 uint8_t ssc_space_6(struct scsi_cmd *cmd) {
-	uint8_t	   *sam_stat;
+	declare_ssc_vars;
+
 	uint32_t	count;
 	int32_t		icount;
 	uint8_t		code;
 	struct s_sd sd;
 
-	sam_stat = &cmd->dbuf_p->sam_stat;
-
-	*sam_stat = SAM_STAT_GOOD;
-
 	set_current_state(MHVTL_STATE_POSITIONING);
 
-	count = get_unaligned_be24(&cmd->scb[2]);
-	code  = cmd->scb[1] & 0x07;
+	count = get_unaligned_be24(&cdb[2]);
+	code  = cdb[1] & 0x07;
 
 	/* 'count' is only a 24-bit value.  If the top bit is set, it
 	   should be treated as a twos-complement negative number.
 	*/
 
-	if (cmd->scb[2] >= 0x80) /* MSB of the count field */
+	if (cdb[2] >= 0x80) /* MSB of the count field */
 		icount = -(0xffffff - count + 1);
 	else
 		icount = (int32_t)count;
@@ -1921,29 +1820,27 @@ uint8_t ssc_space_6(struct scsi_cmd *cmd) {
 	switch (code) {
 	case 0: /* Logical blocks - supported */
 		MHVTL_DBG(1, "SPACE (%ld) ** %s %d block%s",
-				  (long)cmd->dbuf_p->serialNo,
+				  (long)dbuf_p->serialNo,
 				  (icount >= 0) ? "forward" : "back",
 				  abs(icount),
 				  (1 == abs(icount)) ? "" : "s");
 		break;
 	case 1: /* Filemarks - supported */
 		MHVTL_DBG(1, "SPACE (%ld) ** %s %d filemark%s",
-				  (long)cmd->dbuf_p->serialNo,
+				  (long)dbuf_p->serialNo,
 				  (icount >= 0) ? "forward" : "back",
 				  abs(icount),
 				  (1 == abs(icount)) ? "" : "s");
 		break;
 	case 3: /* End of Data - supported */
 		MHVTL_DBG(1, "SPACE (%ld) ** %s ",
-				  (long)cmd->dbuf_p->serialNo,
+				  (long)dbuf_p->serialNo,
 				  "to End-of-data");
 		break;
 	case 2:	 /* Sequential filemarks currently not supported */
 	default: /* obsolete / reserved values */
 		MHVTL_DBG(1, "SPACE (%ld) ** - Unsupported option %d",
-				  (long)cmd->dbuf_p->serialNo,
-				  code);
-
+				  (long)dbuf_p->serialNo, code);
 		sd.byte0		 = SKSV | CD | BPV | code;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
@@ -1958,46 +1855,39 @@ uint8_t ssc_space_6(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_space_16(struct scsi_cmd *cmd) {
-	uint8_t	   *sam_stat;
-	int64_t		icount;
-	uint8_t		code;
+	declare_ssc_vars;
+
+	uint8_t		code = cdb[1] & 0x0f;
 	struct s_sd sd;
-
-	sam_stat = &cmd->dbuf_p->sam_stat;
-
-	*sam_stat = SAM_STAT_GOOD;
+	int64_t		icount = get_unaligned_be64(&cmd->scb[4]);
 
 	set_current_state(MHVTL_STATE_POSITIONING);
-
-	icount = get_unaligned_be64(&cmd->scb[4]);
-	code   = cmd->scb[1] & 0x0f;
 
 	switch (code) {
 	case 0: /* Logical blocks - supported */
 		MHVTL_DBG(1, "SPACE (%ld) ** %s %d block%s",
-				  (long)cmd->dbuf_p->serialNo,
+				  (long)dbuf_p->serialNo,
 				  (icount >= 0) ? "forward" : "back",
 				  abs(icount),
 				  (1 == abs(icount)) ? "" : "s");
 		break;
 	case 1: /* Filemarks - supported */
 		MHVTL_DBG(1, "SPACE (%ld) ** %s %d filemark%s",
-				  (long)cmd->dbuf_p->serialNo,
+				  (long)dbuf_p->serialNo,
 				  (icount >= 0) ? "forward" : "back",
 				  abs(icount),
 				  (1 == abs(icount)) ? "" : "s");
 		break;
 	case 3: /* End of Data - supported */
 		MHVTL_DBG(1, "SPACE (%ld) ** %s ",
-				  (long)cmd->dbuf_p->serialNo,
+				  (long)dbuf_p->serialNo,
 				  "to End-of-data");
 		break;
 	case 2:	 /* Sequential filemarks currently not supported */
 	default: /* obsolete / reserved values */
 		MHVTL_DBG(1, "SPACE (%ld) ** - Unsupported option %d",
-				  (long)cmd->dbuf_p->serialNo,
+				  (long)dbuf_p->serialNo,
 				  code);
-
 		sd.byte0		 = SKSV | CD | BPV | code;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
@@ -2012,20 +1902,15 @@ uint8_t ssc_space_16(struct scsi_cmd *cmd) {
 }
 
 uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
-	struct s_sd			sd;
-	int					load_request;
-	int					media_state;
+	declare_ssc_vars;
 
-	lu_priv	 = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
-
-	load_request = cmd->scb[4] & 0x01;
+	struct s_sd sd;
+	int			load_request = cdb[4] & 0x01;
+	int			media_state;
 
 	set_current_state((load_request) ? MHVTL_STATE_LOADING : MHVTL_STATE_UNLOADING);
 
-	if (cmd->scb[4] & 0x04) { /* EOT bit */
+	if (cdb[4] & 0x04) { /* EOT bit */
 		MHVTL_ERR("EOT bit set on load. Not supported");
 		sd.byte0		 = SKSV | CD | BPV | 4;
 		sd.field_pointer = 4;
@@ -2034,14 +1919,13 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 	}
 
 	MHVTL_DBG(1, "%s TAPE (%ld) **", (load_request) ? "LOADING" : "UNLOADING",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
 
 	media_state = rewind_tape(sam_stat);
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
 		if (load_request) {
 			int load_state;
-
 			/*
 			 * media_state = 0 - Load OK -> Nothing to do
 			 * media_state = 1 - Already loaded -> Nothing to do
@@ -2089,24 +1973,19 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 
 	default:
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 uint8_t ssc_write_filemarks(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *sam_stat;
-	int					count;
+	declare_ssc_vars;
 
-	lu_priv	 = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
+	uint32_t count = get_unaligned_be24(&cdb[2]);
 
-	count = get_unaligned_be24(&cmd->scb[2]);
+	MHVTL_DBG(1, "WRITE %d FILEMARKS (%ld) **",
+			  count, (long)cmd->dbuf_p->serialNo);
 
-	MHVTL_DBG(1, "WRITE %d FILEMARKS (%ld) **", count,
-			  (long)cmd->dbuf_p->serialNo);
 	if (!lu_priv->pm->check_restrictions(cmd)) {
 		/* If restrictions & WORM media at block 0.. OK
 		 * Otherwise return CHECK_CONDITION.
@@ -2127,24 +2006,22 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd) {
 			mam.remaining_capacity = 0L;
 			MHVTL_DBG(2, "Setting EOM flag");
 			sam_no_sense(SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
-			return SAM_STAT_CHECK_CONDITION;
 		}
 	}
 
-	return SAM_STAT_GOOD;
+	return *sam_stat;
 }
 
 uint8_t ssc_pr_in(struct scsi_cmd *cmd) {
-	struct priv_lu_ssc *lu_priv;
-
-	lu_priv = cmd->lu->lu_private;
+	declare_ssc_vars;
 
 	MHVTL_DBG(1, "PERSISTENT RESERVE IN (%ld) **",
-			  (long)cmd->dbuf_p->serialNo);
+			  (long)dbuf_p->serialNo);
+
 	if (lu_priv->I_am_SPC_2_Reserved)
 		return SAM_STAT_RESERVATION_CONFLICT;
 	else
-		return resp_spc_pri(cmd->scb, cmd->dbuf_p);
+		return resp_spc_pri(cdb, dbuf_p);
 }
 
 static void update_tape_usage(struct TapeUsage	 *b,
@@ -2196,42 +2073,36 @@ static void update_seq_access_counters(struct seqAccessDevice *sa,
 }
 
 uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
-	struct lu_phy_attr *lu;
-	struct priv_lu_ssc *lu_ssc;
-	uint8_t			   *b	= cmd->dbuf_p->data;
-	uint8_t			   *cdb = cmd->scb;
-	uint8_t			   *sam_stat;
+	declare_ssc_vars;
+
+	uint8_t				page = cdb[2] & 0x3f;
+	struct log_pg_list *l;
+	struct list_head   *l_head;
 	int					retval;
 	int					i;
-	uint16_t			alloc_len;
-	struct list_head   *l_head;
-	struct log_pg_list *l;
 	char				msg[64];
 	struct s_sd			sd;
 
-	sprintf(msg, "LOG SENSE (%ld) ** : ", (long)cmd->dbuf_p->serialNo);
+	sprintf(msg, "LOG SENSE (%ld) ** : ", (long)dbuf_p->serialNo);
 
-	alloc_len		= get_unaligned_be16(&cdb[7]);
-	cmd->dbuf_p->sz = alloc_len;
+	uint16_t alloc_len = get_unaligned_be16(&cdb[7]);
+	dbuf_p->sz		   = alloc_len;
 
-	lu		 = cmd->lu;
-	lu_ssc	 = cmd->lu->lu_private;
-	sam_stat = &cmd->dbuf_p->sam_stat;
-	l_head	 = &lu->log_pg;
-	retval	 = 0;
+	l_head = &lu->log_pg;
+	retval = 0;
 
 	switch (cdb[2] & 0x3f) {
 	case 0: /* Send supported pages */
 		MHVTL_DBG(1, "%s %s", msg, "Sending supported pages");
-		memset(b, 0, 4); /* Clear first few (4) bytes */
-		i	   = 4;
-		b[i++] = 0; /* b[0] is log page '0' (this one) */
+		memset(buf, 0, 4); /* Clear first few (4) bytes */
+		i		 = 4;
+		buf[i++] = 0; /* b[0] is log page '0' (this one) */
 		list_for_each_entry(l, l_head, siblings) {
 			MHVTL_DBG(3, "found page 0x%02x", l->log_page_num);
-			b[i] = l->log_page_num;
+			buf[i] = l->log_page_num;
 			i++;
 		}
-		put_unaligned_be16(i - 4, &b[2]);
+		put_unaligned_be16(i - 4, &buf[2]);
 		retval = i;
 		break;
 	case WRITE_ERROR_COUNTER: /* Write error page */
@@ -2240,7 +2111,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b	   = memcpy(b, l->p, l->size);
+		buf	   = memcpy(buf, l->p, l->size);
 		retval = l->size;
 		break;
 	case READ_ERROR_COUNTER: /* Read error page */
@@ -2249,7 +2120,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b	   = memcpy(b, l->p, l->size);
+		buf	   = memcpy(buf, l->p, l->size);
 		retval = l->size;
 		break;
 	case SEQUENTIAL_ACCESS_DEVICE:
@@ -2258,8 +2129,8 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b = memcpy(b, l->p, l->size);
-		update_seq_access_counters((struct seqAccessDevice *)b, lu_ssc);
+		buf = memcpy(buf, l->p, l->size);
+		update_seq_access_counters((struct seqAccessDevice *)buf, lu_priv);
 		retval = l->size;
 		break;
 	case TEMPERATURE_PAGE: /* Temperature page */
@@ -2268,7 +2139,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b	   = memcpy(b, l->p, l->size);
+		buf	   = memcpy(buf, l->p, l->size);
 		retval = l->size;
 		break;
 	case DEVICE_STATUS:
@@ -2277,7 +2148,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b	   = memcpy(b, l->p, l->size);
+		buf	   = memcpy(buf, l->p, l->size);
 		retval = l->size;
 		break;
 	case TAPE_ALERT: /* TapeAlert page */
@@ -2287,7 +2158,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b	   = memcpy(b, l->p, l->size);
+		buf	   = memcpy(buf, l->p, l->size);
 		retval = l->size;
 
 		/* Clear flags after value read. */
@@ -2303,8 +2174,8 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b = memcpy(b, l->p, l->size);
-		update_tape_usage((struct TapeUsage *)b, lu_ssc);
+		buf = memcpy(buf, l->p, l->size);
+		update_tape_usage((struct TapeUsage *)buf, lu_priv);
 		retval = l->size;
 		break;
 	case TAPE_CAPACITY: { /* Tape Capacity page */
@@ -2315,21 +2186,21 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b	   = memcpy(b, l->p, l->size);
+		buf	   = memcpy(buf, l->p, l->size);
 		retval = l->size;
 
 		/* Point the data structure to return data */
-		tp = (struct TapeCapacity *)b;
+		tp = (struct TapeCapacity *)buf;
 
 		if (get_tape_load_status() == TAPE_LOADED) {
 			uint64_t cap;
 
 			cap = get_unaligned_be64(&mam.remaining_capacity);
-			cap /= lu_ssc->capacity_unit;
+			cap /= lu_priv->capacity_unit;
 			put_unaligned_be32(cap, &tp->partition0remaining);
 
 			cap = get_unaligned_be64(&mam.max_capacity);
-			cap /= lu_ssc->capacity_unit;
+			cap /= lu_priv->capacity_unit;
 			put_unaligned_be32(cap, &tp->partition0maximum);
 		} else {
 			tp->partition0remaining = 0;
@@ -2342,7 +2213,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		b	   = memcpy(b, l->p, l->size);
+		buf	   = memcpy(buf, l->p, l->size);
 		retval = l->size;
 		break;
 	default:
@@ -2350,12 +2221,12 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		goto log_page_not_found;
 		break;
 	}
-	cmd->dbuf_p->sz = retval;
+	dbuf_p->sz = retval;
 
 	return SAM_STAT_GOOD;
 
 log_page_not_found:
-	cmd->dbuf_p->sz	 = 0;
+	dbuf_p->sz		 = 0;
 	sd.byte0		 = SKSV | CD;
 	sd.field_pointer = 2;
 	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
@@ -2363,14 +2234,12 @@ log_page_not_found:
 }
 
 uint8_t ssc_recv_diagnostics(struct scsi_cmd *cmd) {
+	declare_ssc_vars;
 	struct s_sd sd;
-	uint8_t	   *sam_stat;
 
-	sam_stat = &cmd->dbuf_p->sam_stat;
+	MHVTL_DBG(1, "SSC RECEIVE DIAGNOSTICS (%ld) **", (long)dbuf_p->serialNo);
 
-	MHVTL_DBG(1, "SSC RECEIVE DIAGNOSTICS (%ld) **", (long)cmd->dbuf_p->serialNo);
-
-	cmd->dbuf_p->sz	 = 0;
+	dbuf_p->sz		 = 0;
 	sd.byte0		 = SKSV | CD;
 	sd.field_pointer = 2;
 	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
@@ -2381,17 +2250,18 @@ uint32_t GenerateRSCRC(uint32_t seed, int sz, const uint8_t *buf);
 uint32_t crc32c(uint32_t seed, const uint8_t *buf, size_t sz);
 
 uint8_t ssc_send_diagnostics(struct scsi_cmd *cmd) {
-	uint8_t *sam_stat;
-	int		 crc_check_failed = 0;
+	declare_ssc_vars;
 
-	const uint8_t block1[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
-							  47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127,
-							  131, 137, 139, 149, 151, 157};
+	uint32_t	  computedCRC1;
+	uint32_t	  computedCRC2;
+	uint32_t	  computedCRC3;
+	int			  crc_check_failed = 0;
+	const uint8_t block1[]		   = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43,
+									  47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127,
+									  131, 137, 139, 149, 151, 157};
 
 	const uint8_t block2[] = {163, 167, 173, 179, 181, 191, 193, 197, 199, 211,
 							  223, 227, 229, 233, 239, 241, 251};
-
-	sam_stat = &cmd->dbuf_p->sam_stat;
 
 	MHVTL_DBG(1, "SSC SEND DIAGNOSTICS (%ld) **", (long)cmd->dbuf_p->serialNo);
 
@@ -2403,9 +2273,9 @@ uint8_t ssc_send_diagnostics(struct scsi_cmd *cmd) {
 	}
 
 	/* Now check the CRC32C routines pass basic sanity check */
-	uint32_t computedCRC1 = crc32c(0, block1, sizeof(block1));
-	uint32_t computedCRC2 = crc32c(~computedCRC1, block2, sizeof(block2));
-	uint32_t computedCRC3 = crc32c(~crc32c(0, block1, sizeof(block1)), block2, sizeof(block2));
+	computedCRC1 = crc32c(0, block1, sizeof(block1));
+	computedCRC2 = crc32c(~computedCRC1, block2, sizeof(block2));
+	computedCRC3 = crc32c(~crc32c(0, block1, sizeof(block1)), block2, sizeof(block2));
 
 	if (computedCRC1 != 0xE8174F48) {
 		MHVTL_ERR("CRC32C #1 error");
