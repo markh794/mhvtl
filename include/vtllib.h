@@ -202,6 +202,7 @@ struct MAM {
 
 struct lu_phy_attr;
 
+/* Vital Product Data (VPD) */
 struct vpd {
 	uint16_t sz;
 	uint8_t *data;
