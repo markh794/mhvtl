@@ -1143,7 +1143,7 @@ int free_lock(unsigned minor) {
 }
 
 /* Abort if string length > len */
-void checkstrlen(char *s, unsigned len, int lineno) {
+void checkstrlen(char *s, unsigned int len, int lineno) {
 	if (strlen(s) > len) {
 		MHVTL_DBG(1, "Line #: %d, String %s is > %d... Aborting",
 				  lineno, s, len);
