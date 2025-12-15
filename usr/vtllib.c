@@ -1178,7 +1178,7 @@ int check_for_running_daemons(unsigned minor) {
 		MHVTL_DBG(3, "stat %s file %d times", lck_file, a);
 		if (stat(lck_file, &km) == 0) { /* Lock file still exists */
 			rand = 0xffL & random();
-			MHVTL_DBG(3, "sleeping for 0x%lx", rand << 12)
+			MHVTL_DBG(3, "sleeping for 0x%lx", rand << 12);
 			usleep((useconds_t)(rand << 12));
 		} else {
 			/* There is a race between stat() and creat() - but should be small for this use case */
