@@ -324,7 +324,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	blk_flags	  = c_pos->blk_flags;
 
 	if (blk_size > request_sz) {
-		/* Add a fudge of 4 bytes in caes LBP is calculated */
+		/* Add a fudge of 4 bytes in case LBP is calculated */
 		bounce_buffer = malloc(blk_size + 4);
 		if (!bounce_buffer) {
 			MHVTL_ERR("Unable to allocate %d bytes for bounce buffer",
