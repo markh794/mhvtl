@@ -45,6 +45,7 @@
 #define TAPE_CAPACITY			   0x31
 #define DATA_COMPRESSION		   0x32
 
+/* VHF (Very High Frequency) data */
 struct vhf_data_4 {
 	uint8_t DINIT : 1; /* Device Initialized - 0 not initialised*/
 	uint8_t CRQRD : 1; /* Cleaning required - before media is mounted (required) */
