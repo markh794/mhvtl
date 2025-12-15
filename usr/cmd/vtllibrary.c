@@ -1714,6 +1714,7 @@ int main(int argc, char *argv[]) {
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (sp->element_type == DATA_TRANSFER) {
 			dp = sp->drive;
+			MHVTL_DBG(1, "Registering driveId: %ld", dp->drv_id);
 			send_msg("Register", dp->drv_id);
 
 			if (debug) {
