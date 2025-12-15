@@ -82,7 +82,7 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 
 #define HOME_DIR_PATH_SZ 1024
 /*
- * Medium Type Definations
+ * Medium Type Definitions
  */
 #define MEDIA_TYPE_DATA		  0
 #define MEDIA_TYPE_WORM		  1
