@@ -47,25 +47,24 @@
 #include "vtl_common.h"
 #include "vtllib.h"
 
-long my_id = VTLCMD_Q;
+long my_id				 = VTLCMD_Q;
 char mhvtl_driver_name[] = "vtlcmd";
-int verbose = 0;
-int debug = 0;
+int	 verbose			 = 0;
+int	 debug				 = 0;
 
 #define TYPE_UNKNOWN 0
 #define TYPE_LIBRARY 1
-#define TYPE_DRIVE 2
+#define TYPE_DRIVE	 2
 
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 void find_media_home_directory(char *config_directory, char *home_directory, long lib_id);
 
-static void usage(char *prog)
-{
+static void usage(char *prog) {
 	fprintf(stderr, "Usage  : %s <DeviceNo> <command> [-h|-help]\n", prog);
 	fprintf(stderr, "Version: %s %s %s\n", MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE);
 	fprintf(stderr, "   Where 'DeviceNo' is the number"
-			" associated with tape/library daemon\n\n");
+					" associated with tape/library daemon\n\n");
 	fprintf(stderr, "Global commands:\n");
 	fprintf(stderr, "   verbose           -> To enable verbose logging\n");
 	/*
@@ -74,11 +73,11 @@ static void usage(char *prog)
 	fprintf(stderr, "   TapeAlert #       -> 64bit TapeAlert mask (hex)\n");
 	fprintf(stderr, "   InquiryDataChange -> Set LU state to indicate Inquiry Data Has Changed\n");
 	fprintf(stderr, "   exit              -> To shutdown tape/library "
-			"daemon/device\n");
+					"daemon/device\n");
 	fprintf(stderr, "\nTape specific commands:\n");
 	fprintf(stderr, "   Append Only [Yes|No] -> To 'load' media ID\n");
 	fprintf(stderr, "   compression [zlib|lzo] -> Use zlib or lzo "
-						"compression\n");
+					"compression\n");
 	fprintf(stderr, "   load ID        -> To 'load' media ID\n");
 	fprintf(stderr, "   unload ID      -> To 'unload' media ID\n");
 	fprintf(stderr, "   delay load n   -> Set load delay to n seconds\n");
@@ -98,22 +97,21 @@ static void usage(char *prog)
 }
 
 /* check if media (tape) exists in directory (/opt/mhvtl/..) */
-int check_media(int libno, char *barcode)
-{
+int check_media(int libno, char *barcode) {
 	char currentMedia[1024];
-	int datafile;
-	int path_len;
+	int	 datafile;
+	int	 path_len;
 
 	find_media_home_directory(NULL, home_directory, libno);
 	path_len = snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", home_directory, barcode);
 	if (path_len >= ARRAY_SIZE(currentMedia)) {
-		fprintf(stderr, "Warning: path to %s/%s/data truncated to %"PRIu32" bytes",
+		fprintf(stderr, "Warning: path to %s/%s/data truncated to %" PRIu32 " bytes",
 				home_directory, barcode, (uint32_t)ARRAY_SIZE(currentMedia));
 	}
-	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
+	datafile = open(currentMedia, O_RDWR | O_LARGEFILE);
 	if (datafile < 0) {
 		fprintf(stderr, "Could not open %s: %s\n",
-			currentMedia, strerror(errno));
+				currentMedia, strerror(errno));
 		return 1;
 	}
 	close(datafile);
@@ -121,16 +119,14 @@ int check_media(int libno, char *barcode)
 }
 
 /* Display the answer from daemon/service */
-void DisplayResponse(int msqid, char *s)
-{
-	struct q_entry	r_entry;
+void DisplayResponse(int msqid, char *s) {
+	struct q_entry r_entry;
 
 	if (msgrcv(msqid, &r_entry, MAXOBN, VTLCMD_Q, 0) > 0)
 		printf("%s%s\n", s, r_entry.msg.text);
 }
 
-int ishex(char *str)
-{
+int ishex(char *str) {
 	while (*str) {
 		if (!isxdigit(*str))
 			return 0;
@@ -139,8 +135,7 @@ int ishex(char *str)
 	return 1;
 }
 
-int isnumeric(char *str)
-{
+int isnumeric(char *str) {
 	while (*str) {
 		if (!isdigit(*str))
 			return 0;
@@ -149,15 +144,13 @@ int isnumeric(char *str)
 	return 1;
 }
 
-void PrintErrorExit(char *prog, char *s)
-{
+void PrintErrorExit(char *prog, char *s) {
 	fprintf(stderr, "Please check command, parameter \'%s\' wrong.\n\n", s);
 	usage(prog);
 	exit(1);
 }
 
-void Check_TapeAlert(int argc, char **argv)
-{
+void Check_TapeAlert(int argc, char **argv) {
 	if (argc > 3) {
 		if (!ishex(argv[3])) {
 			fprintf(stderr, "Value not hexadecimal: %s\n", argv[3]);
@@ -171,8 +164,7 @@ void Check_TapeAlert(int argc, char **argv)
 	PrintErrorExit(argv[0], "TapeAlert");
 }
 
-void Check_Load(int argc, char **argv)
-{
+void Check_Load(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 5)
@@ -189,8 +181,7 @@ void Check_Load(int argc, char **argv)
 	PrintErrorExit(argv[0], "load");
 }
 
-void Check_delay(int argc, char **argv)
-{
+void Check_delay(int argc, char **argv) {
 	if (argc > 4) {
 		if (argc == 5) {
 			if (atoi(argv[4]) >= 0)
@@ -202,8 +193,7 @@ void Check_delay(int argc, char **argv)
 	PrintErrorExit(argv[0], "delay");
 }
 
-void Check_Unload(int argc, char **argv)
-{
+void Check_Unload(int argc, char **argv) {
 	if (argc > 3) {
 		if (argc == 4)
 			return;
@@ -213,8 +203,7 @@ void Check_Unload(int argc, char **argv)
 	PrintErrorExit(argv[0], "unload");
 }
 
-void Check_Compression(int argc, char **argv)
-{
+void Check_Compression(int argc, char **argv) {
 	if (argc > 3) {
 		if (argc == 4)
 			return;
@@ -224,8 +213,7 @@ void Check_Compression(int argc, char **argv)
 	PrintErrorExit(argv[0], "compression : missing lzo or zlib");
 }
 
-void Check_append_only(int argc, char **argv)
-{
+void Check_append_only(int argc, char **argv) {
 	if (argc > 4) {
 		if (argc == 5)
 			return;
@@ -235,17 +223,14 @@ void Check_append_only(int argc, char **argv)
 	PrintErrorExit(argv[0], "Append Only : missing Yes / No");
 }
 
-void Check_List(int argc, char **argv)
-{
+void Check_List(int argc, char **argv) {
 	if (argc != 4)
 		PrintErrorExit(argv[0], "list map : too many args");
-	else
-		if (strcmp(argv[3], "map"))
-			PrintErrorExit(argv[0], "list map : Can only list map");
+	else if (strcmp(argv[3], "map"))
+		PrintErrorExit(argv[0], "list map : Can only list map");
 }
 
-void Check_Empty(int argc, char **argv)
-{
+void Check_Empty(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
@@ -256,8 +241,7 @@ void Check_Empty(int argc, char **argv)
 	PrintErrorExit(argv[0], "empty map");
 }
 
-void Check_Open(int argc, char **argv)
-{
+void Check_Open(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
@@ -268,8 +252,7 @@ void Check_Open(int argc, char **argv)
 	PrintErrorExit(argv[0], "open map");
 }
 
-void Check_Close(int argc, char **argv)
-{
+void Check_Close(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
@@ -280,8 +263,7 @@ void Check_Close(int argc, char **argv)
 	PrintErrorExit(argv[0], "close map");
 }
 
-void Check_Params(int argc, char **argv)
-{
+void Check_Params(int argc, char **argv) {
 	if (argc > 1) {
 		if (!isnumeric(argv[1])) {
 			fprintf(stderr, "DeviceNo not numeric: %s\n", argv[1]);
@@ -379,13 +361,12 @@ void Check_Params(int argc, char **argv)
 }
 
 /* Open a new queue (for answers from server) */
-int CreateNewQueue(void)
-{
+int CreateNewQueue(void) {
 	long queue_id;
 
 	/* Attempt to create a message queue */
 	queue_id = msgget(IPC_PRIVATE,
-			IPC_CREAT|S_IRUSR|S_IWUSR|S_IWGRP|S_IWOTH);
+					  IPC_CREAT | S_IRUSR | S_IWUSR | S_IWGRP | S_IWOTH);
 	if (queue_id == -1)
 		fprintf(stderr, "%s: %s\n", __func__, strerror(errno));
 
@@ -393,8 +374,7 @@ int CreateNewQueue(void)
 }
 
 /* Open an alreay opened queue (opened by server) */
-int OpenExistingQueue(key_t key)
-{
+int OpenExistingQueue(key_t key) {
 	long queue_id;
 
 	/* Attempt to open an existing message queue */
@@ -406,12 +386,11 @@ int OpenExistingQueue(key_t key)
 }
 
 /* Send command to queue */
-int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf)
-{
+int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf) {
 	struct q_entry s_entry;
 
-	s_entry.rcv_id = ReceiverMtyp;
-	s_entry.msg.snd_id = VTLCMD_Q;
+	s_entry.rcv_id		= ReceiverMtyp;
+	s_entry.msg.snd_id	= VTLCMD_Q;
 	s_entry.msg.text[0] = '\0';
 	strncat(s_entry.msg.text, sndbuf, MAXTEXTLEN);
 
@@ -422,15 +401,14 @@ int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf)
 	return 0;
 }
 
-int main(int argc, char **argv)
-{
-	char *config = MHVTL_CONFIG_PATH"/device.conf";
+int main(int argc, char **argv) {
+	char *config = MHVTL_CONFIG_PATH "/device.conf";
 	FILE *conf;
-	char b[1024];
-	int device_type = TYPE_UNKNOWN;
-	long deviceNo, indx;
-	int count;
-	char buf[1024];
+	char  b[1024];
+	int	  device_type = TYPE_UNKNOWN;
+	long  deviceNo, indx;
+	int	  count;
+	char  buf[1024];
 	char *p;
 
 	if ((argc < 2) || (argc > 6)) {
@@ -463,18 +441,19 @@ int main(int argc, char **argv)
 	deviceNo = atol(argv[1]);
 	if ((deviceNo < 0) || (deviceNo >= VTLCMD_Q)) {
 		fprintf(stderr, "Invalid device number for "
-			"tape/library: %s\n", argv[1]);
+						"tape/library: %s\n",
+				argv[1]);
 		exit(1);
 	}
 
 	conf = fopen(config, "r");
 	if (!conf) {
 		fprintf(stderr, "Can not open config file %s : %s\n",
-			config, strerror(errno));
+				config, strerror(errno));
 		exit(1);
 	}
 
-	p = buf;
+	p	   = buf;
 	buf[0] = '\0';
 
 	/* While read in a line */
@@ -494,12 +473,13 @@ int main(int argc, char **argv)
 
 	if (device_type == TYPE_UNKNOWN) {
 		fprintf(stderr, "No tape/library (%s) configured with "
-			"device number: %ld\n", config, deviceNo);
+						"device number: %ld\n",
+				config, deviceNo);
 		exit(1);
 	}
 
 	/* Concat all args into one string */
-	p = buf;
+	p	   = buf;
 	buf[0] = '\0';
 
 	for (count = 2; count < argc; count++) {
@@ -557,7 +537,7 @@ int main(int argc, char **argv)
 		if (!strcmp(argv[2], "load") && !strcmp(argv[3], "map")) {
 			if (check_media(deviceNo, argv[4])) {
 				fprintf(stderr, "Hint: Use command 'mktape' to "
-					"create media first\n");
+								"create media first\n");
 				exit(1);
 			}
 		}
@@ -592,4 +572,3 @@ int main(int argc, char **argv)
 
 	exit(0);
 }
-

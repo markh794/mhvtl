@@ -1,13 +1,12 @@
 
-#ifndef	SPC_H
-#define	SPC_H
+#ifndef SPC_H
+#define SPC_H
 
 /* Variables for simple, single initiator, SCSI Reservation system */
 
 extern uint64_t SPR_Reservation_Key;
 extern uint32_t SPR_Reservation_Generation;
-extern uint8_t SPR_Reservation_Type;
-
+extern uint8_t	SPR_Reservation_Type;
 
 uint8_t resp_spc_pro(uint8_t *cdb, struct mhvtl_ds *dbuf_p);
 uint8_t resp_spc_pri(uint8_t *cdb, struct mhvtl_ds *dbuf_p);
@@ -25,4 +24,4 @@ uint8_t spc_reserve(struct scsi_cmd *cmd);
 uint8_t spc_send_diagnostics(struct scsi_cmd *cmd);
 uint8_t spc_tur(struct scsi_cmd *cmd);
 
-#endif	/* SPC_H */
+#endif /* SPC_H */

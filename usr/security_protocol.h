@@ -11,12 +11,11 @@
 /*
  * Security Algorithm Code
  */
-#define HMAC_KDF_SHA1		0x0020002
-#define HMAC_KDF_SHA256		0x0020005
-#define HMAC_KDF_SHA384		0x0020006
-#define HMAC_KDF_SHA512		0x0020007
-#define KDF_AES_128_XCBC	0x0020004
-
+#define HMAC_KDF_SHA1	 0x0020002
+#define HMAC_KDF_SHA256	 0x0020005
+#define HMAC_KDF_SHA384	 0x0020006
+#define HMAC_KDF_SHA512	 0x0020007
+#define KDF_AES_128_XCBC 0x0020004
 
 /*
  * Security Association
@@ -40,9 +39,8 @@ struct sa {
 	uint8_t keymat[1024];
 
 	uint16_t usage_type;
-	uint8_t usage_data[1024];
-	uint8_t mgmt_data[1024];
+	uint8_t	 usage_data[1024];
+	uint8_t	 mgmt_data[1024];
 };
-
 
 #endif /*  _SECURITY_PROTOCOL_H_ */

@@ -27,7 +27,7 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#define __STDC_FORMAT_MACROS	/* for PRId64 */
+#define __STDC_FORMAT_MACROS /* for PRId64 */
 
 /* for unistd.h pread/pwrite and fcntl.h posix_fadvise */
 #define _XOPEN_SOURCE 600
@@ -57,9 +57,9 @@
 */
 
 struct raw_header {
-	loff_t	data_offset;
+	loff_t			  data_offset;
 	struct blk_header hdr;
-	char pad[512 - sizeof(loff_t) - sizeof(struct blk_header)];
+	char			  pad[512 - sizeof(loff_t) - sizeof(struct blk_header)];
 };
 
 /* The .meta file consists of a MAM structure followed by a meta_header
@@ -68,45 +68,44 @@ struct raw_header {
    for future expansion with backwards compatibility.
 */
 
-struct	meta_header {
+struct meta_header {
 	uint32_t filemark_count;
-	char pad[512 - sizeof(uint32_t)];
+	char	 pad[512 - sizeof(uint32_t)];
 };
 
 static int datafile = -1;
 static int indxfile = -1;
 static int metafile = -1;
 
-static struct raw_header raw_pos;
+static struct raw_header  raw_pos;
 static struct meta_header meta;
-static uint64_t eod_data_offset;
-static uint32_t eod_blk_number;
+static uint64_t			  eod_data_offset;
+static uint32_t			  eod_blk_number;
 
 #define FM_DELTA 500
-static int filemark_alloc = 0;
-static uint32_t *filemarks = NULL;
+static int		 filemark_alloc = 0;
+static uint32_t *filemarks		= NULL;
 
 /* Globally visible variables. */
 
-struct MAM mam;
-struct blk_header *c_pos = &raw_pos.hdr;
-int OK_to_write = 0;
-char home_directory[HOME_DIR_PATH_SZ + 1 + MAX_BARCODE_LEN];
+struct MAM		   mam;
+struct blk_header *c_pos	   = &raw_pos.hdr;
+int				   OK_to_write = 0;
+char			   home_directory[HOME_DIR_PATH_SZ + 1 + MAX_BARCODE_LEN];
 
 #ifdef MHVTL_DEBUG
-static char *mhvtl_block_type_desc(int blk_type)
-{
+static char *mhvtl_block_type_desc(int blk_type) {
 	unsigned int i;
 
 	static const struct {
-		int blk_type;
+		int	  blk_type;
 		char *desc;
-		} block_type_desc[] = {
-			{ B_FILEMARK, "FILEMARK" },
-			{ B_EOD, "END OF DATA" },
-			{ B_NOOP, "NO OP"},
-			{ B_DATA, "DATA" },
-		};
+	} block_type_desc[] = {
+		{B_FILEMARK, "FILEMARK"},
+		{B_EOD, "END OF DATA"},
+		{B_NOOP, "NO OP"},
+		{B_DATA, "DATA"},
+	};
 	for (i = 0; i < ARRAY_SIZE(block_type_desc); i++)
 		if (block_type_desc[i].blk_type == blk_type)
 			return block_type_desc[i].desc;
@@ -118,18 +117,17 @@ static char *mhvtl_block_type_desc(int blk_type)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-static int mkEODHeader(uint32_t blk_number, uint64_t data_offset)
-{
+static int mkEODHeader(uint32_t blk_number, uint64_t data_offset) {
 	memset(&raw_pos, 0, sizeof(raw_pos));
 
 	raw_pos.data_offset = data_offset;
 
-	raw_pos.hdr.blk_type = B_EOD;
+	raw_pos.hdr.blk_type   = B_EOD;
 	raw_pos.hdr.blk_number = blk_number;
 
-	eod_blk_number = blk_number;
+	eod_blk_number	= blk_number;
 	eod_data_offset = data_offset;
 
 	OK_to_write = 1;
@@ -141,22 +139,21 @@ static int mkEODHeader(uint32_t blk_number, uint64_t data_offset)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-static int read_header(uint32_t blk_number, uint8_t *sam_stat)
-{
+static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 	loff_t nread;
 
 	MHVTL_DBG(3, "Reading header for block %d", blk_number);
 
 	if (blk_number > eod_blk_number) {
 		MHVTL_ERR("Attempt to seek [%d] beyond EOD [%d]",
-				blk_number, eod_blk_number);
+				  blk_number, eod_blk_number);
 	} else if (blk_number == eod_blk_number)
 		mkEODHeader(eod_blk_number, eod_data_offset);
 	else {
 		nread = pread(indxfile, &raw_pos, sizeof(raw_pos),
-			blk_number * sizeof(raw_pos));
+					  blk_number * sizeof(raw_pos));
 		if (nread < 0) {
 			MHVTL_ERR("Medium format corrupt");
 			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
@@ -169,15 +166,14 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat)
 	}
 
 	MHVTL_DBG(3, "Reading header %d at offset %ld, type: %s, size: %d",
-			raw_pos.hdr.blk_number,
-			(unsigned long)raw_pos.data_offset,
-			mhvtl_block_type_desc(raw_pos.hdr.blk_type),
-			raw_pos.hdr.blk_size);
+			  raw_pos.hdr.blk_number,
+			  (unsigned long)raw_pos.data_offset,
+			  mhvtl_block_type_desc(raw_pos.hdr.blk_type),
+			  raw_pos.hdr.blk_size);
 	return 0;
 }
 
-static int tape_loaded(uint8_t *sam_stat)
-{
+static int tape_loaded(uint8_t *sam_stat) {
 	if (datafile != -1)
 		return 1;
 
@@ -185,38 +181,39 @@ static int tape_loaded(uint8_t *sam_stat)
 	return 0;
 }
 
-static int rewrite_meta_file(void)
-{
+static int rewrite_meta_file(void) {
 	ssize_t io_size, nwrite;
-	size_t io_offset;
+	size_t	io_offset;
 
-	io_size = sizeof(meta);
+	io_size	  = sizeof(meta);
 	io_offset = sizeof(struct MAM);
-	nwrite = pwrite(metafile, &meta, io_size, io_offset);
+	nwrite	  = pwrite(metafile, &meta, io_size, io_offset);
 	if (nwrite < 0) {
 		MHVTL_ERR("Error writing meta_header to metafile: %s",
-					strerror(errno));
+				  strerror(errno));
 		return -1;
 	}
 	if (nwrite != io_size) {
 		MHVTL_ERR("Error writing meta_header map to metafile."
-				" Expected to write %d bytes", (int)io_size);
+				  " Expected to write %d bytes",
+				  (int)io_size);
 		return -1;
 	}
 
-	io_size = meta.filemark_count * sizeof(*filemarks);
+	io_size	  = meta.filemark_count * sizeof(*filemarks);
 	io_offset = sizeof(struct MAM) + sizeof(meta);
 
 	if (io_size) {
 		nwrite = pwrite(metafile, filemarks, io_size, io_offset);
 		if (nwrite < 0) {
 			MHVTL_ERR("Error writing filemark map to metafile: %s",
-					strerror(errno));
+					  strerror(errno));
 			return -1;
 		}
 		if (nwrite != io_size) {
 			MHVTL_ERR("Error writing filemark map to metafile."
-				" Expected to write %d bytes", (int)io_size);
+					  " Expected to write %d bytes",
+					  (int)io_size);
 			return -1;
 		}
 	}
@@ -233,10 +230,9 @@ static int rewrite_meta_file(void)
 	return 0;
 }
 
-static int check_for_overwrite(uint8_t *sam_stat)
-{
-	uint32_t blk_number;
-	uint64_t data_offset;
+static int check_for_overwrite(uint8_t *sam_stat) {
+	uint32_t	 blk_number;
+	uint64_t	 data_offset;
 	unsigned int i;
 
 	if (raw_pos.hdr.blk_type == B_EOD)
@@ -248,22 +244,23 @@ static int check_for_overwrite(uint8_t *sam_stat)
 	   the data and index files back to the current length.
 	*/
 
-	blk_number = raw_pos.hdr.blk_number;
+	blk_number	= raw_pos.hdr.blk_number;
 	data_offset = raw_pos.data_offset;
 
 	if (ftruncate(indxfile, blk_number * sizeof(raw_pos))) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Index file ftruncate failure, pos: "
-			"%" PRId64 ": %s",
-			(uint64_t)blk_number * sizeof(raw_pos),
-			strerror(errno));
+				  "%" PRId64 ": %s",
+				  (uint64_t)blk_number * sizeof(raw_pos),
+				  strerror(errno));
 		return -1;
 	}
 	if (ftruncate(datafile, data_offset)) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Data file ftruncate failure, pos: "
-			"%" PRId64 ": %s", data_offset,
-			strerror(errno));
+				  "%" PRId64 ": %s",
+				  data_offset,
+				  strerror(errno));
 		return -1;
 	}
 
@@ -276,7 +273,7 @@ static int check_for_overwrite(uint8_t *sam_stat)
 		MHVTL_DBG(2, "filemarks[%d] %d", i, filemarks[i]);
 		if (filemarks[i] >= blk_number) {
 			MHVTL_DBG(2, "Setting filemark_count from %d to %d",
-					meta.filemark_count, i);
+					  meta.filemark_count, i);
 			meta.filemark_count = i;
 			return rewrite_meta_file();
 		}
@@ -285,8 +282,7 @@ static int check_for_overwrite(uint8_t *sam_stat)
 	return 0;
 }
 
-static int check_filemarks_alloc(uint32_t count)
-{
+static int check_filemarks_alloc(uint32_t count) {
 	uint32_t new_size;
 
 	/* See if we have enough space allocated to hold 'count' filemarks.
@@ -297,10 +293,10 @@ static int check_filemarks_alloc(uint32_t count)
 		new_size = ((count + FM_DELTA - 1) / FM_DELTA) * FM_DELTA;
 
 		filemarks = (uint32_t *)realloc(filemarks,
-						new_size * sizeof(*filemarks));
+										new_size * sizeof(*filemarks));
 		if (filemarks == NULL) {
 			MHVTL_ERR("filemark map realloc failed, %s",
-				strerror(errno));
+					  strerror(errno));
 			return -1;
 		}
 		filemark_alloc = new_size;
@@ -308,14 +304,13 @@ static int check_filemarks_alloc(uint32_t count)
 	return 0;
 }
 
-static int add_filemark(uint32_t blk_number)
-{
+static int add_filemark(uint32_t blk_number) {
 	/* See if we have enough space remaining to add the new filemark.  If
 	   not, realloc now.
 	*/
 
 	if (check_filemarks_alloc(meta.filemark_count + 1))
-			return -1;
+		return -1;
 
 	filemarks[meta.filemark_count++] = blk_number;
 
@@ -330,8 +325,7 @@ static int add_filemark(uint32_t blk_number)
  *        2 -> format corrupt.
  */
 
-int rewind_tape(uint8_t *sam_stat)
-{
+int rewind_tape(uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
@@ -348,13 +342,13 @@ int rewind_tape(uint8_t *sam_stat)
 		 */
 
 		if (raw_pos.hdr.blk_type == B_EOD ||
-		    (raw_pos.hdr.blk_type == B_FILEMARK && eod_blk_number == 1))
+			(raw_pos.hdr.blk_type == B_FILEMARK && eod_blk_number == 1))
 			OK_to_write = 1;
 		else
 			OK_to_write = 0;
 		break;
 	case MEDIA_TYPE_DATA:
-		OK_to_write = 1;	/* Reset flag to OK. */
+		OK_to_write = 1; /* Reset flag to OK. */
 		break;
 	}
 
@@ -367,10 +361,9 @@ int rewind_tape(uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_to_eod(uint8_t *sam_stat)
-{
+int position_to_eod(uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
@@ -387,10 +380,9 @@ int position_to_eod(uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_to_block(uint32_t blk_number, uint8_t *sam_stat)
-{
+int position_to_block(uint32_t blk_number, uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
@@ -419,12 +411,11 @@ int position_to_block(uint32_t blk_number, uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_blocks_forw(uint64_t count, uint8_t *sam_stat)
-{
-	uint32_t residual;
-	uint32_t blk_target;
+int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
+	uint32_t	 residual;
+	uint32_t	 blk_target;
 	unsigned int i;
 
 	if (!tape_loaded(sam_stat))
@@ -479,13 +470,12 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_blocks_back(uint64_t count, uint8_t *sam_stat)
-{
-	uint32_t residual;
-	uint32_t blk_target;
-	int i = -1;
+int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
+	uint32_t	 residual;
+	uint32_t	 blk_target;
+	int			 i			   = -1;
 	unsigned int num_filemarks = meta.filemark_count;
 
 	if (!tape_loaded(sam_stat))
@@ -506,7 +496,7 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat)
 	if (num_filemarks > 0) {
 		for (i = num_filemarks - 1; i >= 0; i--) {
 			MHVTL_DBG(3, "filemark at %ld",
-						(unsigned long)filemarks[i]);
+					  (unsigned long)filemarks[i]);
 			if (filemarks[i] < raw_pos.hdr.blk_number)
 				break;
 		}
@@ -547,11 +537,10 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_filemarks_forw(uint64_t count, uint8_t *sam_stat)
-{
-	uint32_t residual;
+int position_filemarks_forw(uint64_t count, uint8_t *sam_stat) {
+	uint32_t	 residual;
 	unsigned int i;
 
 	if (!tape_loaded(sam_stat))
@@ -585,12 +574,11 @@ int position_filemarks_forw(uint64_t count, uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_filemarks_back(uint64_t count, uint8_t *sam_stat)
-{
+int position_filemarks_back(uint64_t count, uint8_t *sam_stat) {
 	uint32_t residual;
-	int i;
+	int		 i;
 
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -624,8 +612,7 @@ int position_filemarks_back(uint64_t count, uint8_t *sam_stat)
  * Returns 0 if nothing written or -1 on error
  */
 
-int rewriteMAM(uint8_t *sam_stat)
-{
+int rewriteMAM(uint8_t *sam_stat) {
 	loff_t nwrite = 0;
 
 	if (!tape_loaded(sam_stat))
@@ -647,15 +634,14 @@ int rewriteMAM(uint8_t *sam_stat)
  * == 0, the new PCL was successfully created.
  * == 2, could not create the directory or some file(s)
  * == 1, an error occurred.
-*/
-int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
-{
+ */
+int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat) {
 	struct stat data_stat;
-	char *newMedia = NULL;
-	char newMedia_data[1024];
-	char newMedia_indx[1024];
-	char newMedia_meta[1024];
-	int rc = 0;
+	char	   *newMedia = NULL;
+	char		newMedia_data[1024];
+	char		newMedia_indx[1024];
+	char		newMedia_meta[1024];
+	int			rc = 0;
 
 	/* Attempt to create the new PCL.  This will fail if the PCL's directory
 	   or any of the PCL's three files already exist, leaving any existing
@@ -681,12 +667,12 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	if (verbose)
 		printf("Creating new media directory: %s\n", newMedia);
 
-	rc = mkdir(newMedia, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_ISGID);
+	rc = mkdir(newMedia, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_ISGID);
 	if (rc) {
 		/* No need to fail just because the parent dir exists */
 		if (errno != EEXIST) {
 			MHVTL_ERR("Failed to create directory %s: %s",
-					newMedia, strerror(errno));
+					  newMedia, strerror(errno));
 			rc = 2;
 			goto free_strings;
 		}
@@ -695,29 +681,29 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	if (verbose)
 		printf("Creating new media data file: %s\n", newMedia_data);
-	datafile = open(newMedia_data, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	datafile = open(newMedia_data, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if (datafile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_data,
-			strerror(errno));
+				  strerror(errno));
 		rc = 2;
 		goto free_strings;
 	}
 	if (verbose)
 		printf("Creating new media index file: %s\n", newMedia_indx);
-	indxfile = open(newMedia_indx, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	indxfile = open(newMedia_indx, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if (indxfile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_indx,
-			strerror(errno));
+				  strerror(errno));
 		unlink(newMedia_data);
 		rc = 2;
 		goto cleanup;
 	}
 	if (verbose)
 		printf("Creating new media meta file: %s\n", newMedia_meta);
-	metafile = open(newMedia_meta, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	metafile = open(newMedia_meta, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if (metafile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", newMedia_meta,
-			strerror(errno));
+				  strerror(errno));
 		unlink(newMedia_data);
 		unlink(newMedia_indx);
 		rc = 2;
@@ -735,9 +721,9 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	meta.filemark_count = 0;
 
 	if (write(metafile, &mam, sizeof(mam)) != sizeof(mam) ||
-		    write(metafile, &meta, sizeof(meta)) != sizeof(meta)) {
+		write(metafile, &meta, sizeof(meta)) != sizeof(meta)) {
 		MHVTL_ERR("Failed to initialize file %s: %s", newMedia_meta,
-			strerror(errno));
+				  strerror(errno));
 		unlink(newMedia_data);
 		unlink(newMedia_indx);
 		unlink(newMedia_meta);
@@ -774,18 +760,17 @@ free_strings:
  * == 3 -> cartridge does not exist or cannot be opened.
  */
 
-int load_tape(const char *pcl, uint8_t *sam_stat)
-{
-	char pcl_data[1024], pcl_indx[1024], pcl_meta[1024];
-	char *currentPCL = NULL;
+int load_tape(const char *pcl, uint8_t *sam_stat) {
+	char		pcl_data[1024], pcl_indx[1024], pcl_meta[1024];
+	char	   *currentPCL = NULL;
 	struct stat data_stat, indx_stat, meta_stat;
-	uint64_t exp_size;
-	size_t	io_size;
-	loff_t nread;
-	int rc = 0;
-	int null_media_type;
-	char touch_file[128];
-	int ret;
+	uint64_t	exp_size;
+	size_t		io_size;
+	loff_t		nread;
+	int			rc = 0;
+	int			null_media_type;
+	char		touch_file[128];
+	int			ret;
 
 	uint8_t error_check;
 
@@ -796,7 +781,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 		MHVTL_LOG("WARNING - touch file %s found - bypassing sanity checks on open", touch_file);
 	}
 
-/* KFRDEBUG - sam_stat needs updates in lots of places here. */
+	/* KFRDEBUG - sam_stat needs updates in lots of places here. */
 
 	/* If some other PCL is already open, return. */
 	if (datafile >= 0)
@@ -821,7 +806,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 
 	if (stat(pcl_data, &data_stat) == -1) {
 		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
-				pcl_data, MHVTL_HOME_PATH, pcl);
+				  pcl_data, MHVTL_HOME_PATH, pcl);
 		free(currentPCL);
 		if (asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl) < 0) {
 			perror("Could not allocate memory");
@@ -834,45 +819,45 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 
 	free(currentPCL);
 
-	datafile = open(pcl_data, O_RDWR|O_LARGEFILE);
+	datafile = open(pcl_data, O_RDWR | O_LARGEFILE);
 	if (datafile == -1) {
 		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
-			pcl_data, strerror(errno));
+				  pcl_data, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
-	indxfile = open(pcl_indx, O_RDWR|O_LARGEFILE);
+	indxfile = open(pcl_indx, O_RDWR | O_LARGEFILE);
 	if (indxfile == -1) {
 		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
-			pcl_indx, strerror(errno));
+				  pcl_indx, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
-	metafile = open(pcl_meta, O_RDWR|O_LARGEFILE);
+	metafile = open(pcl_meta, O_RDWR | O_LARGEFILE);
 	if (metafile == -1) {
 		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
-			pcl_meta, strerror(errno));
+				  pcl_meta, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 
 	if (fstat(datafile, &data_stat) < 0) {
 		MHVTL_ERR("stat of pcl %s file %s failed: %s", pcl,
-			pcl_data, strerror(errno));
+				  pcl_data, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 
 	if (fstat(indxfile, &indx_stat) < 0) {
 		MHVTL_ERR("stat of pcl %s file %s failed: %s", pcl,
-			pcl_indx, strerror(errno));
+				  pcl_indx, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
 
 	if (fstat(metafile, &meta_stat) < 0) {
 		MHVTL_ERR("stat of pcl %s file %s failed: %s", pcl,
-			pcl_meta, strerror(errno));
+				  pcl_meta, strerror(errno));
 		rc = 3;
 		goto failed;
 	}
@@ -882,9 +867,9 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	exp_size = sizeof(mam) + sizeof(meta);
 	if ((uint32_t)meta_stat.st_size < exp_size) {
 		MHVTL_ERR("sizeof(mam) + sizeof(meta) - "
-			"pcl %s file %s is not the correct length, "
-			"expected at least %" PRId64 ", actual %" PRId64,
-			pcl, pcl_meta, exp_size, meta_stat.st_size);
+				  "pcl %s file %s is not the correct length, "
+				  "expected at least %" PRId64 ", actual %" PRId64,
+				  pcl, pcl_meta, exp_size, meta_stat.st_size);
 		if (error_check) {
 			rc = 2;
 			goto failed;
@@ -895,14 +880,15 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	nread = read(metafile, &mam, sizeof(mam));
 	if (nread < 0) {
 		MHVTL_ERR("Error reading pcl %s MAM from metafile: %s",
-			pcl, strerror(errno));
+				  pcl, strerror(errno));
 		if (error_check) {
 			rc = 2;
 			goto failed;
 		}
 	} else if (nread != sizeof(mam)) {
 		MHVTL_ERR("Error reading pcl %s MAM from metafile: "
-			"unexpected read length", pcl);
+				  "unexpected read length",
+				  pcl);
 		if (error_check) {
 			rc = 2;
 			goto failed;
@@ -925,12 +911,14 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	nread = read(metafile, &meta, sizeof(meta));
 	if (nread < 0) {
 		MHVTL_ERR("Error reading pcl %s meta_header from "
-			"metafile: %s", pcl, strerror(errno));
+				  "metafile: %s",
+				  pcl, strerror(errno));
 		rc = 2;
 		goto failed;
 	} else if (nread != sizeof(meta)) {
 		MHVTL_ERR("Error reading pcl %s meta header from "
-			"metafile: unexpected read length", pcl);
+				  "metafile: unexpected read length",
+				  pcl);
 		rc = 2;
 		goto failed;
 	}
@@ -938,13 +926,14 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	/* Now recompute the correct size of the meta file. */
 
 	exp_size = sizeof(mam) + sizeof(meta) +
-		(meta.filemark_count * sizeof(*filemarks));
+			   (meta.filemark_count * sizeof(*filemarks));
 
 	if ((uint32_t)meta_stat.st_size != exp_size) {
 		MHVTL_ERR("sizeof(mam) + sizeof(meta) + sizeof(*filemarks) - "
-			"pcl %s file %s is not the correct length, "
-			"expected %" PRId64 ", actual %" PRId64, pcl,
-			pcl_meta, exp_size, meta_stat.st_size);
+				  "pcl %s file %s is not the correct length, "
+				  "expected %" PRId64 ", actual %" PRId64,
+				  pcl,
+				  pcl_meta, exp_size, meta_stat.st_size);
 		if (error_check) {
 			rc = 2;
 			goto failed;
@@ -969,12 +958,14 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 		nread = read(metafile, filemarks, io_size);
 		if (nread < 0) {
 			MHVTL_ERR("Error reading pcl %s filemark map from "
-				"metafile: %s", pcl, strerror(errno));
+					  "metafile: %s",
+					  pcl, strerror(errno));
 			rc = 2;
 			goto failed;
 		} else if ((size_t)nread != io_size) {
 			MHVTL_ERR("Error reading pcl %s filemark map from "
-				"metafile: unexpected read length", pcl);
+					  "metafile: unexpected read length",
+					  pcl);
 			if (error_check) {
 				rc = 2;
 				goto failed;
@@ -988,7 +979,8 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 
 	if ((indx_stat.st_size % sizeof(struct raw_header)) != 0) {
 		MHVTL_ERR("pcl %s indx file has improper length, indicating "
-			"possible file corruption", pcl);
+				  "possible file corruption",
+				  pcl);
 		rc = 2;
 		goto failed;
 	}
@@ -1000,10 +992,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	if (meta.filemark_count && eod_blk_number &&
 		filemarks[meta.filemark_count - 1] >= eod_blk_number) {
 		MHVTL_ERR("pcl %s indx file has improper length as compared "
-			"to the meta file, indicating possible file corruption",
-			pcl);
+				  "to the meta file, indicating possible file corruption",
+				  pcl);
 		MHVTL_ERR("Filemark count: %d eod_blk_number: %d",
-				meta.filemark_count, eod_blk_number);
+				  meta.filemark_count, eod_blk_number);
 		rc = 2;
 		goto failed;
 	}
@@ -1016,22 +1008,23 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 		eod_data_offset = 0;
 	else {
 		MHVTL_DBG(3, "Media format sanity check - Reading block before EOD: %d",
-					eod_blk_number - 1);
+				  eod_blk_number - 1);
 		if (read_header(eod_blk_number - 1, sam_stat)) {
 			rc = 3;
 			goto failed;
 		}
 		eod_data_offset = raw_pos.data_offset +
-			raw_pos.hdr.disk_blk_size;
+						  raw_pos.hdr.disk_blk_size;
 	}
 
 	if (null_media_type) {
-		MHVTL_LOG("Loaded NULL media type");	/* Skip check */
+		MHVTL_LOG("Loaded NULL media type"); /* Skip check */
 	} else if ((uint64_t)data_stat.st_size != eod_data_offset) {
 		MHVTL_ERR("st_size != eod_data_offset - "
-			"pcl %s file %s is not the correct length, "
-			"expected %" PRId64 ", actual %" PRId64, pcl,
-			pcl_data, eod_data_offset, data_stat.st_size);
+				  "pcl %s file %s is not the correct length, "
+				  "expected %" PRId64 ", actual %" PRId64,
+				  pcl,
+				  pcl_data, eod_data_offset, data_stat.st_size);
 		if (error_check) {
 			rc = 2;
 			goto failed;
@@ -1072,18 +1065,16 @@ failed:
 	return rc;
 }
 
-void zero_filemark_count(void)
-{
+void zero_filemark_count(void) {
 	free(filemarks);
 	filemark_alloc = 0;
-	filemarks = NULL;
+	filemarks	   = NULL;
 
 	meta.filemark_count = 0;
 	rewrite_meta_file();
 }
 
-int format_tape(uint8_t *sam_stat)
-{
+int format_tape(uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
@@ -1099,13 +1090,12 @@ int format_tape(uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int write_filemarks(uint32_t count, uint8_t *sam_stat)
-{
+int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	uint32_t blk_number;
 	uint64_t data_offset;
-	ssize_t nwrite;
+	ssize_t	 nwrite;
 
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -1133,34 +1123,34 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat)
 	   fill it in with new data.
 	*/
 
-	blk_number = raw_pos.hdr.blk_number;
+	blk_number	= raw_pos.hdr.blk_number;
 	data_offset = raw_pos.data_offset;
 
 	memset(&raw_pos, 0, sizeof(raw_pos));
 
 	raw_pos.data_offset = data_offset;
 
-	raw_pos.hdr.blk_type = B_FILEMARK;	/* Header type */
-	raw_pos.hdr.blk_flags = 0;
-	raw_pos.hdr.blk_number = blk_number;
-	raw_pos.hdr.blk_size = 0;
+	raw_pos.hdr.blk_type	  = B_FILEMARK; /* Header type */
+	raw_pos.hdr.blk_flags	  = 0;
+	raw_pos.hdr.blk_number	  = blk_number;
+	raw_pos.hdr.blk_size	  = 0;
 	raw_pos.hdr.disk_blk_size = 0;
 
 	/* Now write out one header per filemark. */
 
-	for ( ; count > 0; count--, blk_number++) {
+	for (; count > 0; count--, blk_number++) {
 		raw_pos.hdr.blk_number = blk_number;
 
 		MHVTL_DBG(3, "Writing filemark: block %d", blk_number);
 
 		nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
-			blk_number * sizeof(raw_pos));
+						blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
 			sam_medium_error(E_WRITE_ERROR, sam_stat);
 			MHVTL_ERR("Index file write failure,"
-					" pos: %" PRId64 ": %s",
-				(uint64_t)blk_number * sizeof(raw_pos),
-				strerror(errno));
+					  " pos: %" PRId64 ": %s",
+					  (uint64_t)blk_number * sizeof(raw_pos),
+					  strerror(errno));
 			return -1;
 		}
 		add_filemark(blk_number);
@@ -1176,13 +1166,12 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat)
 }
 
 int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
-		uint32_t comp_size, const struct encryption *encryptp,
-		uint8_t comp_type, uint8_t null_media_type, uint32_t crc, uint8_t *sam_stat)
-{
+					 uint32_t comp_size, const struct encryption *encryptp,
+					 uint8_t comp_type, uint8_t null_media_type, uint32_t crc, uint8_t *sam_stat) {
 	uint32_t blk_number, disk_blk_size;
 	uint32_t max_blk_number;
 	uint64_t data_offset;
-	ssize_t nwrite;
+	ssize_t	 nwrite;
 
 	/* Medium format limits to unsigned 32bit blks */
 	max_blk_number = 0xfffffff0;
@@ -1197,7 +1186,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	   fill it in with new data.
 	*/
 
-	blk_number = raw_pos.hdr.blk_number;
+	blk_number	= raw_pos.hdr.blk_number;
 	data_offset = raw_pos.data_offset;
 
 	if (blk_number > max_blk_number) {
@@ -1209,10 +1198,10 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 
 	raw_pos.data_offset = data_offset;
 
-	raw_pos.hdr.blk_type = B_DATA;	/* Header type */
-	raw_pos.hdr.blk_flags = 0;
+	raw_pos.hdr.blk_type   = B_DATA; /* Header type */
+	raw_pos.hdr.blk_flags  = 0;
 	raw_pos.hdr.blk_number = blk_number;
-	raw_pos.hdr.blk_size = blk_size; /* Size of uncompressed data */
+	raw_pos.hdr.blk_size   = blk_size; /* Size of uncompressed data */
 
 	raw_pos.hdr.uncomp_crc = crc;
 	raw_pos.hdr.blk_flags |= BLKHDR_FLG_CRC; /* Logical Block Protection */
@@ -1254,10 +1243,10 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
 		MHVTL_ERR("Data file write failure, pos: %" PRId64 ": %s",
-			data_offset, strerror(errno));
+				  data_offset, strerror(errno));
 
 		/* Truncate last partital write */
-		MHVTL_DBG(1, "Truncating data file size: %"PRId64, data_offset);
+		MHVTL_DBG(1, "Truncating data file size: %" PRId64, data_offset);
 		if (ftruncate(datafile, data_offset) < 0) {
 			MHVTL_ERR("Error truncating data: %s", strerror(errno));
 		}
@@ -1267,15 +1256,15 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	}
 
 	nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
-						blk_number * sizeof(raw_pos));
+					blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
 		long indxsz = (blk_number - 1) * sizeof(raw_pos);
 
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
 		MHVTL_ERR("Index file write failure, pos: %" PRId64 ": %s",
-			(uint64_t)blk_number * sizeof(raw_pos),
-			strerror(errno));
+				  (uint64_t)blk_number * sizeof(raw_pos),
+				  strerror(errno));
 
 		MHVTL_DBG(1, "Truncating index file size to: %ld", indxsz);
 		if (ftruncate(indxfile, indxsz) < 0) {
@@ -1283,11 +1272,11 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 		}
 
 		if (!null_media_type) {
-			MHVTL_DBG(1, "Truncating data file size: %"PRId64,
-							data_offset);
+			MHVTL_DBG(1, "Truncating data file size: %" PRId64,
+					  data_offset);
 			if (ftruncate(datafile, data_offset) < 0) {
 				MHVTL_ERR("Error truncating data: %s",
-							strerror(errno));
+						  strerror(errno));
 			}
 		}
 
@@ -1300,8 +1289,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	return mkEODHeader(blk_number + 1, data_offset + disk_blk_size);
 }
 
-void unload_tape(uint8_t *sam_stat)
-{
+void unload_tape(uint8_t *sam_stat) {
 	if (datafile >= 0) {
 		close(datafile);
 		datafile = -1;
@@ -1316,20 +1304,19 @@ void unload_tape(uint8_t *sam_stat)
 		metafile = -1;
 	}
 	free(filemarks);
-	filemarks = NULL;
+	filemarks	   = NULL;
 	filemark_alloc = 0;
 }
 
-uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
-{
-	loff_t nread;
+uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
+	loff_t	 nread;
 	uint32_t iosize;
 
 	if (!tape_loaded(sam_stat))
 		return -1;
 
 	MHVTL_DBG(3, "Reading blk %ld, size: %d",
-			(unsigned long)raw_pos.hdr.blk_number, buf_size);
+			  (unsigned long)raw_pos.hdr.blk_number, buf_size);
 
 	/* The caller should have already verified that this is a
 	   B_DATA block before issuing this read, so we shouldn't have to
@@ -1354,36 +1341,33 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 
 	/* Now position to the following block. */
 	MHVTL_DBG(3, "Read block, now positioning to next header: %d",
-				raw_pos.hdr.blk_number + 1);
+			  raw_pos.hdr.blk_number + 1);
 	if (read_header(raw_pos.hdr.blk_number + 1, sam_stat)) {
 		MHVTL_ERR("Failed to read block header %d",
-				raw_pos.hdr.blk_number + 1);
+				  raw_pos.hdr.blk_number + 1);
 		return -1;
 	}
 
 	return nread;
 }
 
-uint64_t current_tape_offset(void)
-{
+uint64_t current_tape_offset(void) {
 	if (datafile != -1)
 		return raw_pos.data_offset;
 
 	return 0;
 }
 
-uint64_t current_tape_block(void)
-{
+uint64_t current_tape_block(void) {
 	if (datafile != -1)
 		return (uint64_t)c_pos->blk_number;
 	return 0;
 }
 
 /* Return number of filemarks up to 'block' : -1 for all */
-uint64_t filemark_count(int64_t block)
-{
+uint64_t filemark_count(int64_t block) {
 	unsigned int a;
-	uint64_t count;
+	uint64_t	 count;
 
 	if (block == -1)
 		return (uint64_t)meta.filemark_count;
@@ -1396,10 +1380,9 @@ uint64_t filemark_count(int64_t block)
 	return (uint64_t)meta.filemark_count;
 }
 
-static void enc_key_to_string(char *dst, uint8_t *key, int len)
-{
+static void enc_key_to_string(char *dst, uint8_t *key, int len) {
 	char b[16];
-	int i;
+	int	 i;
 
 	dst[0] = '\0';
 
@@ -1410,9 +1393,8 @@ static void enc_key_to_string(char *dst, uint8_t *key, int len)
 	key[i] = '\0';
 }
 
-void print_raw_header(void)
-{
-	char *f = NULL;
+void print_raw_header(void) {
+	char *f	  = NULL;
 	char *enc = NULL;
 
 	enc = malloc(256);
@@ -1464,33 +1446,33 @@ void print_raw_header(void)
 		break;
 	}
 	printf("%-35s (0x%02x/0x%02x), sz: %6d/%-6d, Blk No.: %7u, data: %10" PRId64 ", CRC: %08x\n",
-			f,
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.blk_flags,
-			raw_pos.hdr.disk_blk_size,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.data_offset,
-			raw_pos.hdr.uncomp_crc);
+		   f,
+		   raw_pos.hdr.blk_type,
+		   raw_pos.hdr.blk_flags,
+		   raw_pos.hdr.disk_blk_size,
+		   raw_pos.hdr.blk_size,
+		   raw_pos.hdr.blk_number,
+		   raw_pos.data_offset,
+		   raw_pos.hdr.uncomp_crc);
 	if ((raw_pos.hdr.blk_type == B_DATA) && (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)) {
 
 		printf("   => Encr key length %d, ukad length %d, "
-				"akad length %d\n",
-				raw_pos.hdr.blk_encryption_info.key_length,
-				raw_pos.hdr.blk_encryption_info.ukad_length,
-				raw_pos.hdr.blk_encryption_info.akad_length);
+			   "akad length %d\n",
+			   raw_pos.hdr.blk_encryption_info.key_length,
+			   raw_pos.hdr.blk_encryption_info.ukad_length,
+			   raw_pos.hdr.blk_encryption_info.akad_length);
 
 		if (raw_pos.hdr.blk_encryption_info.key_length > 0) {
-				enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.key, raw_pos.hdr.blk_encryption_info.key_length);
-				printf("%12s : %32s\n", "Key", enc);
+			enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.key, raw_pos.hdr.blk_encryption_info.key_length);
+			printf("%12s : %32s\n", "Key", enc);
 		}
 		if (raw_pos.hdr.blk_encryption_info.ukad_length > 0) {
-				enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.ukad, raw_pos.hdr.blk_encryption_info.ukad_length);
-				printf("%12s : %32s\n", "Ukad", enc);
+			enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.ukad, raw_pos.hdr.blk_encryption_info.ukad_length);
+			printf("%12s : %32s\n", "Ukad", enc);
 		}
 		if (raw_pos.hdr.blk_encryption_info.akad_length > 0) {
-				enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.akad, raw_pos.hdr.blk_encryption_info.akad_length);
-				printf("%12s : %32s\n", "Akad", enc);
+			enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.akad, raw_pos.hdr.blk_encryption_info.akad_length);
+			printf("%12s : %32s\n", "Akad", enc);
 		}
 	}
 
@@ -1498,13 +1480,11 @@ void print_raw_header(void)
 	free(f);
 }
 
-void print_filemark_count(void)
-{
+void print_filemark_count(void) {
 	printf("Total num of filemarks: %d\n", meta.filemark_count);
 }
 
-void print_metadata(void)
-{
+void print_metadata(void) {
 	unsigned int a;
 
 	for (a = 0; a < meta.filemark_count; a++)
@@ -1514,7 +1494,6 @@ void print_metadata(void)
 /*
  * Cleanup entry point
  */
-void cart_deinit(void)
-{
+void cart_deinit(void) {
 	free(filemarks);
 }

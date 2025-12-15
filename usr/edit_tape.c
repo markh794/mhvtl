@@ -49,21 +49,20 @@ static void *largefile_support = "No largefile support";
 
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
 
-char mhvtl_driver_name[] = "edit_tape";
-int verbose;
-int debug;
-int wp;	/* Write protect flag */
-long my_id;
+char		mhvtl_driver_name[] = "edit_tape";
+int			verbose;
+int			debug;
+int			wp; /* Write protect flag */
+long		my_id;
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 #define WRITE_PROTECT_OFF 1
 #define WRITE_PROTECT_ON  2
 
-void usage(char *progname)
-{
+void usage(char *progname) {
 	printf("Usage: %s -l lib -m PCL [-s size] [-t type] [-d density]"
-		" [-w on|off]\n",
-					progname);
+		   " [-w on|off]\n",
+		   progname);
 	printf("       Where 'size' is in Megabytes\n");
 	printf("             'lib' is Library number\n");
 	printf("             'type' is data | clean | WORM\n");
@@ -83,28 +82,27 @@ void usage(char *progname)
 	printf("           J1A      E05      E06\n\n");
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	unsigned char sam_stat;
-	char *progname = argv[0];
-	char *pcl = NULL;
-	char *mediaType = NULL;
-	char *mediaCapacity = NULL;
-	char *density = NULL;
-	uint64_t size;
-	struct MAM new_mam;
-	char *lib = NULL;
-	int libno = 0;
-	int indx;
-	int rc;
-	char *config = MHVTL_CONFIG_PATH"/device.conf";
-	FILE *conf;
-	char *b;	/* Read from file into this buffer */
-	char *s;	/* Somewhere for sscanf to store results */
+	char		 *progname		= argv[0];
+	char		 *pcl			= NULL;
+	char		 *mediaType		= NULL;
+	char		 *mediaCapacity = NULL;
+	char		 *density		= NULL;
+	uint64_t	  size;
+	struct MAM	  new_mam;
+	char		 *lib	= NULL;
+	int			  libno = 0;
+	int			  indx;
+	int			  rc;
+	char		 *config = MHVTL_CONFIG_PATH "/device.conf";
+	FILE		 *conf;
+	char		 *b; /* Read from file into this buffer */
+	char		 *s; /* Somewhere for sscanf to store results */
 
 	if (sizeof(struct MAM) != 1024) {
 		printf("Structure of MAM incorrect size: %d\n",
-						(int)sizeof(struct MAM));
+			   (int)sizeof(struct MAM));
 		exit(2);
 	}
 
@@ -113,10 +111,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	debug = 0;
-	my_id = 0;
+	debug	= 0;
+	my_id	= 0;
 	verbose = 0;
-	wp = 0;
+	wp		= 0;
 
 	while (argc > 0) {
 		if (argv[0][0] == '-') {
@@ -159,8 +157,8 @@ int main(int argc, char *argv[])
 				break;
 			case 'V':
 				printf("%s: version %s\n%s\n\n",
-						progname, MHVTL_VERSION,
-						(char *)largefile_support);
+					   progname, MHVTL_VERSION,
+					   (char *)largefile_support);
 				break;
 			case 'v':
 				verbose++;
@@ -190,10 +188,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	conf = fopen(config , "r");
+	conf = fopen(config, "r");
 	if (!conf) {
 		printf("Can not open config file %s : %s", config,
-					strerror(errno));
+			   strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -217,7 +215,7 @@ int main(int argc, char *argv[])
 		rc = load_tape(pcl, &sam_stat);
 	} else { /* Walk thru all defined libraries looking for media */
 		while (readline(b, MALLOC_SZ, conf) != NULL) {
-			if (b[0] == '#')	/* Ignore comments */
+			if (b[0] == '#') /* Ignore comments */
 				continue;
 			/* If found a library: Attempt to load media
 			 * Break out of loop if found. Otherwise try next lib.
@@ -237,8 +235,8 @@ int main(int argc, char *argv[])
 
 	if (rc) {
 		fprintf(stderr, "PCL %s cannot be dumped, "
-				"load_tape() returned %d\n",
-					pcl, rc);
+						"load_tape() returned %d\n",
+				pcl, rc);
 		exit(1);
 	}
 
@@ -249,13 +247,13 @@ int main(int argc, char *argv[])
 	if (mediaCapacity) {
 		sscanf(mediaCapacity, "%" PRId64, &size);
 		printf("New capacity for %s: %ldMB\n",
-					pcl, (unsigned long)size);
+			   pcl, (unsigned long)size);
 	}
 
 	if (mediaType) {
 		if (!strncasecmp("clean", mediaType, 5)) {
 			MHVTL_DBG(1, "Setting media type to CLEAN");
-			new_mam.MediumType = MEDIA_TYPE_CLEAN;
+			new_mam.MediumType			  = MEDIA_TYPE_CLEAN;
 			new_mam.MediumTypeInformation = 20;
 		} else if (!strncasecmp("data", mediaType, 4)) {
 			MHVTL_DBG(1, "Setting media type to DATA");
@@ -276,7 +274,7 @@ int main(int argc, char *argv[])
 		printf("Setting density to %s\n", density);
 		if (set_media_params(&new_mam, density)) {
 			printf("Could not determine media density: %s\n",
-					density);
+				   density);
 			unload_tape(&sam_stat);
 			exit(1);
 		}

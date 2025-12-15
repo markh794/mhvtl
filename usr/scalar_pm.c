@@ -12,21 +12,20 @@
 #include "mode.h"
 
 static struct smc_personality_template smc_pm = {
-	.library_has_map		= TRUE,
-	.library_has_barcode_reader	= TRUE,
+	.library_has_map			= TRUE,
+	.library_has_barcode_reader = TRUE,
 	.library_has_playground		= FALSE,
 
-	.dvcid_len			= 34,
+	.dvcid_len = 34,
 };
 
-static void init_scalar_inquiry(struct lu_phy_attr *lu)
-{
+static void init_scalar_inquiry(struct lu_phy_attr *lu) {
 	struct smc_priv *smc_p;
 	smc_p = lu->lu_private;
 
-	lu->inquiry[2] = 3;	/* SNSI Approved Version */
-	lu->inquiry[3] = 2;	/* Response data format */
-	lu->inquiry[4] = 0x1f;	/* Additional length */
+	lu->inquiry[2] = 3;	   /* SNSI Approved Version */
+	lu->inquiry[3] = 2;	   /* Response data format */
+	lu->inquiry[4] = 0x1f; /* Additional length */
 
 	lu->inquiry[6] |= smc_p->pm->library_has_barcode_reader ? 0x20 : 0;
 	lu->inquiry[55] |= smc_p->pm->library_has_barcode_reader ? 1 : 0;
@@ -37,15 +36,14 @@ static void init_scalar_inquiry(struct lu_phy_attr *lu)
 	put_unaligned_be16(0x02fe, &lu->inquiry[64]); /* SMC-2 */
 }
 
-static void update_scalar_vpd_80(struct  lu_phy_attr *lu)
-{
+static void update_scalar_vpd_80(struct lu_phy_attr *lu) {
 	struct vpd *lu_vpd;
-	uint8_t *d;
+	uint8_t	   *d;
 
 	lu_vpd = lu->lu_vpd[PCODE_OFFSET(0x80)];
 
 	/* Unit Serial Number */
-	if (lu_vpd)	/* Free any earlier allocation */
+	if (lu_vpd) /* Free any earlier allocation */
 		dealloc_vpd(lu_vpd);
 
 	lu_vpd = alloc_vpd(24);
@@ -58,20 +56,19 @@ static void update_scalar_vpd_80(struct  lu_phy_attr *lu)
 	}
 }
 
-static void update_scalar_vpd_83(struct  lu_phy_attr *lu)
-{
+static void update_scalar_vpd_83(struct lu_phy_attr *lu) {
 	struct vpd *lu_vpd;
-	uint8_t *d;
+	uint8_t	   *d;
 
 	lu_vpd = lu->lu_vpd[PCODE_OFFSET(0x83)];
 
 	/* Unit Serial Number */
-	if (lu_vpd)	/* Free any earlier allocation */
+	if (lu_vpd) /* Free any earlier allocation */
 		dealloc_vpd(lu_vpd);
 
 	lu_vpd = alloc_vpd(36);
 	if (lu_vpd) {
-		d = lu_vpd->data;
+		d	 = lu_vpd->data;
 		d[0] = 0xf2;
 		d[1] = 0x01;
 		d[3] = 0x20;
@@ -83,21 +80,20 @@ static void update_scalar_vpd_83(struct  lu_phy_attr *lu)
 	}
 }
 
-void init_scalar_smc(struct  lu_phy_attr *lu)
-{
+void init_scalar_smc(struct lu_phy_attr *lu) {
 	int h, m, sec;
 	int day, month, year;
 
-	smc_pm.name = "mhVTL - Scalar emulation";
-	smc_pm.library_has_map = TRUE;
+	smc_pm.name						  = "mhVTL - Scalar emulation";
+	smc_pm.library_has_map			  = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
-	smc_pm.library_has_playground = FALSE;
-	smc_pm.dvcid_serial_only = FALSE;
+	smc_pm.library_has_playground	  = FALSE;
+	smc_pm.dvcid_serial_only		  = FALSE;
 
-	smc_pm.start_picker	= 0x0001;
-	smc_pm.start_map	= 0x0010;
-	smc_pm.start_drive	= 0x0100;
-	smc_pm.start_storage	= 0x1000;
+	smc_pm.start_picker	 = 0x0001;
+	smc_pm.start_map	 = 0x0010;
+	smc_pm.start_drive	 = 0x0100;
+	smc_pm.start_storage = 0x1000;
 
 	smc_pm.lu = lu;
 	smc_personality_module_register(&smc_pm);
@@ -109,7 +105,7 @@ void init_scalar_smc(struct  lu_phy_attr *lu)
 
 	/* Controller firmware build date */
 	sprintf((char *)&lu->inquiry[36], "%04d-%02d-%02d %02d:%02d:%02d",
-				year, month, day, h, m, sec);
+			year, month, day, h, m, sec);
 
 	init_scalar_inquiry(lu);
 	update_scalar_vpd_80(lu);

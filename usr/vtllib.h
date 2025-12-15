@@ -21,8 +21,8 @@
 #define _VTLLIB_H_
 
 #ifndef Solaris
-  #include <endian.h>
-  #include <byteswap.h>
+#include <endian.h>
+#include <byteswap.h>
 #endif
 #include <inttypes.h>
 #include <sys/types.h>
@@ -42,7 +42,7 @@
 /*
 http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
  */
-#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2 * !!(condition)]))
 
 #define min(x, y) ({		\
 	typeof(x) _x = (x);	\
@@ -58,8 +58,8 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-#define likely(x)       __builtin_expect((x), 1)
-#define unlikely(x)     __builtin_expect((x), 0)
+#define likely(x)	__builtin_expect((x), 1)
+#define unlikely(x) __builtin_expect((x), 0)
 
 #define STATUS_OK 0
 
@@ -67,45 +67,45 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 
 #define SCSI_SN_LEN 16
 
-#define MAX_BARCODE_LEN	16
+#define MAX_BARCODE_LEN	 16
 #define LEFT_JUST_16_STR "%-16.16s"
 
 #define MAX_INQ_ARR_SZ 64
-#define MALLOC_SZ 512
+#define MALLOC_SZ	   512
 
 #define TAPE_UNLOADED 0
-#define TAPE_LOADED 1
-#define TAPE_LOADING 2
+#define TAPE_LOADED	  1
+#define TAPE_LOADING  2
 
-#define MIN_SLEEP_TIME 5
+#define MIN_SLEEP_TIME		5
 #define DEFLT_BACKOFF_VALUE 400
 
 #define HOME_DIR_PATH_SZ 1024
 /*
  * Medium Type Definations
  */
-#define MEDIA_TYPE_DATA 0
-#define MEDIA_TYPE_WORM 1
-#define MEDIA_TYPE_NULL 2
+#define MEDIA_TYPE_DATA		  0
+#define MEDIA_TYPE_WORM		  1
+#define MEDIA_TYPE_NULL		  2
 #define MEDIA_TYPE_DIAGNOSTIC 3
-#define MEDIA_TYPE_FIRMWARE 4
-#define MEDIA_TYPE_CLEAN 6
+#define MEDIA_TYPE_FIRMWARE	  4
+#define MEDIA_TYPE_CLEAN	  6
 
 #define MHVTL_NO_COMPRESSION 0
 
 /* status definitions (byte[2] in the element descriptor) */
-#define STATUS_Full      0x01
-#define STATUS_ImpExp    0x02
-#define STATUS_Except    0x04
-#define STATUS_Access    0x08
-#define STATUS_ExEnab    0x10
-#define STATUS_InEnab    0x20
+#define STATUS_Full		 0x01
+#define STATUS_ImpExp	 0x02
+#define STATUS_Except	 0x04
+#define STATUS_Access	 0x08
+#define STATUS_ExEnab	 0x10
+#define STATUS_InEnab	 0x20
 #define STATUS_Reserved6 0x40
 #define STATUS_Reserved7 0x80
 /* internal_status definitions: */
 #define INSTATUS_NO_BARCODE 0x01
 
-#define	VOLTAG_LEN	36	/* size of voltag area in RES descriptor */
+#define VOLTAG_LEN 36 /* size of voltag area in RES descriptor */
 
 #define VPD_83_SZ 50
 #define VPD_86_SZ 0x3c
@@ -116,20 +116,20 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define VPD_C0_SZ 0x28
 
 struct smc_type_slot {
-	char type;
+	char	 type;
 	uint32_t start;
 	uint32_t number;
 };
 
 struct mode {
 	struct list_head siblings;
-	uint8_t pcode;		/* Page code */
-	uint8_t subpcode;	/* Sub page code */
-	int32_t pcodeSize;	/* Size of page code data. */
-	uint8_t *pcodePointerBitMap;	/* bitmap for changeable data */
-	uint8_t *pcodePointer;	/* Pointer to page code data */
-	char *description;	/* ASCII text 'description' */
-	};
+	uint8_t			 pcode;				 /* Page code */
+	uint8_t			 subpcode;			 /* Sub page code */
+	int32_t			 pcodeSize;			 /* Size of page code data. */
+	uint8_t			*pcodePointerBitMap; /* bitmap for changeable data */
+	uint8_t			*pcodePointer;		 /* Pointer to page code data */
+	char			*description;		 /* ASCII text 'description' */
+};
 
 /* v2 of the tape media
  * Between BOT & blk #1, is the MAM (Medium Auxiliary Memory)
@@ -144,29 +144,29 @@ struct MAM {
 	uint64_t TapeAlert;
 	uint64_t LoadCount;
 	uint64_t MAMSpaceRemaining;
-	uint8_t AssigningOrganization_1[8];
-	uint8_t InitializationCount[2];
-	uint8_t DevMakeSerialLastLoad[40];
-	uint8_t DevMakeSerialLastLoad1[40];
-	uint8_t DevMakeSerialLastLoad2[40];
-	uint8_t DevMakeSerialLastLoad3[40];
+	uint8_t	 AssigningOrganization_1[8];
+	uint8_t	 InitializationCount[2];
+	uint8_t	 DevMakeSerialLastLoad[40];
+	uint8_t	 DevMakeSerialLastLoad1[40];
+	uint8_t	 DevMakeSerialLastLoad2[40];
+	uint8_t	 DevMakeSerialLastLoad3[40];
 	uint64_t WrittenInMediumLife;
 	uint64_t ReadInMediumLife;
 	uint64_t WrittenInLastLoad;
 	uint64_t ReadInLastLoad;
 
-	uint8_t MediumManufacturer[8];
-	uint8_t MediumSerialNumber[32];
+	uint8_t	 MediumManufacturer[8];
+	uint8_t	 MediumSerialNumber[32];
 	uint32_t MediumLength;
 	uint32_t MediumWidth;
-	uint8_t AssigningOrganization_2[8];
-	uint8_t MediumManufactureDate[12];
-	uint8_t FormattedDensityCode;
-	uint8_t MediumDensityCode;
-	uint8_t MediumType;	/* 0 -> Data, 1 -> WORM, 6 -> Clean */
-	uint8_t MediaType;	/* LTO1, LTO2, AIT etc (Media_Type_list) */
+	uint8_t	 AssigningOrganization_2[8];
+	uint8_t	 MediumManufactureDate[12];
+	uint8_t	 FormattedDensityCode;
+	uint8_t	 MediumDensityCode;
+	uint8_t	 MediumType; /* 0 -> Data, 1 -> WORM, 6 -> Clean */
+	uint8_t	 MediaType;	 /* LTO1, LTO2, AIT etc (Media_Type_list) */
 	uint64_t MAMCapacity;
-	uint16_t MediumTypeInformation;	/* If Clean, max mount */
+	uint16_t MediumTypeInformation; /* If Clean, max mount */
 
 	uint8_t ApplicationVendor[8];
 	uint8_t ApplicationName[32];
@@ -178,14 +178,14 @@ struct MAM {
 	uint8_t OwningHostTextualName[80];
 	uint8_t MediaPool[160];
 
-	uint8_t record_dirty; /* 0 = Record clean, non-zero umount failed. */
+	uint8_t	 record_dirty; /* 0 = Record clean, non-zero umount failed. */
 	uint16_t Flags;
 
 	struct uniq_media_info {
 		uint32_t bits_per_mm;
 		uint16_t tracks;
-		char density_name[8];
-		char description[32];
+		char	 density_name[8];
+		char	 description[32];
 	} media_info;
 	uint8_t max_partitions;
 	uint8_t num_partitions;
@@ -194,10 +194,10 @@ struct MAM {
 	uint8_t pad[1024 - 878];
 } __attribute__((packed));
 
-#define MAM_FLAGS_ENCRYPTION_FORMAT   0x0001
+#define MAM_FLAGS_ENCRYPTION_FORMAT	  0x0001
 #define MAM_FLAGS_MEDIA_WRITE_PROTECT 0x0002
 
-#define PCODE_SHIFT 7
+#define PCODE_SHIFT		7
 #define PCODE_OFFSET(x) (x & ((1 << PCODE_SHIFT) - 1))
 
 struct lu_phy_attr;
@@ -284,8 +284,8 @@ enum Media_Type_list {
 	Media_3592_JB_CLEAN,
 	Media_3592_JX,
 	Media_3592_JX_CLEAN,
-	Media_3592_JK,		/* E07 */
-	Media_3592_JK_CLEAN,	/* E07 */
+	Media_3592_JK,		 /* E07 */
+	Media_3592_JK_CLEAN, /* E07 */
 	Media_AIT1,
 	Media_AIT1_CLEAN,
 	Media_AIT2,
@@ -348,11 +348,11 @@ enum Media_Type_list {
 };
 
 struct scsi_cmd {
-	uint8_t *scb;	/* SCSI Command Block */
-	int scb_len;
-	int cdev;	/* filepointer to char dev */
-	useconds_t pollInterval;	/* Poor mans Performance counter */
-	struct mhvtl_ds *dbuf_p;
+	uint8_t			   *scb; /* SCSI Command Block */
+	int					scb_len;
+	int					cdev;		  /* filepointer to char dev */
+	useconds_t			pollInterval; /* Poor mans Performance counter */
+	struct mhvtl_ds	   *dbuf_p;
 	struct lu_phy_attr *lu;
 };
 
@@ -366,7 +366,7 @@ struct device_type_template {
 	struct device_type_operations ops[256];
 };
 
-#define MAX_INQUIRY_SZ	256
+#define MAX_INQUIRY_SZ 256
 
 /* Logical Unit information */
 struct lu_phy_attr {
@@ -386,75 +386,75 @@ struct lu_phy_attr {
 
 	struct device_type_template *scsi_ops;
 
-	uint8_t *naa;
+	uint8_t	   *naa;
 	struct vpd *lu_vpd[1 << (PCODE_SHIFT + 1)];
 
 	FILE *fifo_fd;
 	char *fifoname;
-	int fifo_flag;
-	int persist;	/* Save changes across restarts */
+	int	  fifo_flag;
+	int	  persist; /* Save changes across restarts */
 
-	uint8_t	*sense_p;	/* Pointer to sense buffer */
+	uint8_t *sense_p; /* Pointer to sense buffer */
 
-	void *lu_private;	/* Private data struct per lu */
+	void *lu_private; /* Private data struct per lu */
 };
 
 /* Drive Info */
 struct d_info {
 	struct list_head siblings;
-	char inq_vendor_id[10];
-	char inq_product_id[18];
-	char inq_product_rev[6];
-	char inq_product_sno[12];
-	long drv_id;		/* drive's send_msg queue ID */
-	char online;		/* Physical status of drive */
-	int SCSI_BUS;
-	int SCSI_ID;
-	int SCSI_LUN;
-	char load_status;	/* Tape is 'loaded' by drive */
-	struct s_info *slot;
+	char			 inq_vendor_id[10];
+	char			 inq_product_id[18];
+	char			 inq_product_rev[6];
+	char			 inq_product_sno[12];
+	long			 drv_id; /* drive's send_msg queue ID */
+	char			 online; /* Physical status of drive */
+	int				 SCSI_BUS;
+	int				 SCSI_ID;
+	int				 SCSI_LUN;
+	char			 load_status; /* Tape is 'loaded' by drive */
+	struct s_info	*slot;
 };
 
 struct m_info { /* Media Info */
 	struct list_head siblings;
-	uint32_t last_location;
-	char barcode[MAX_BARCODE_LEN + 1];
-	uint8_t media_domain;
-	uint8_t media_type;
-	uint8_t cart_type;
-	uint8_t internal_status; /* internal states */
+	uint32_t		 last_location;
+	char			 barcode[MAX_BARCODE_LEN + 1];
+	uint8_t			 media_domain;
+	uint8_t			 media_type;
+	uint8_t			 cart_type;
+	uint8_t			 internal_status; /* internal states */
 };
 
 struct s_info { /* Slot Info */
 	struct list_head siblings;
-	uint32_t slot_location;
-	uint32_t last_location;
-	struct d_info *drive;
-	struct m_info *media;
+	uint32_t		 slot_location;
+	uint32_t		 last_location;
+	struct d_info	*drive;
+	struct m_info	*media;
 	/* Additional Sense Code & Additional Sense Code Qualifier */
 	uint16_t asc_ascq;
-	uint8_t	status;	/* Used for MAP status. */
+	uint8_t	 status; /* Used for MAP status. */
 	/* 1 Media Transport, 2 Storage, 3 MAP, 4 Data transfer */
 	uint8_t element_type;
-	uint8_t media_domain;	/* L700 */
-	uint8_t media_type;	/* L700 */
+	uint8_t media_domain; /* L700 */
+	uint8_t media_type;	  /* L700 */
 };
 
 #define DEF_SMC_PRIV_STATE_MSG_LENGTH 64
 
 struct smc_priv {
-	uint32_t bufsize;
+	uint32_t		 bufsize;
 	struct list_head drive_list;
 	struct list_head slot_list;
 	struct list_head media_list;
-	int commandtimeout;	/* Timeout for 'movecommand' */
-	int num_drives;
-	int num_picker;
-	int num_map;
-	int num_storage;
-	char cap_closed;
-	char *state_msg;	/* Custom State message */
-	char *movecommand;	/* 3rd party command to call */
+	int				 commandtimeout; /* Timeout for 'movecommand' */
+	int				 num_drives;
+	int				 num_picker;
+	int				 num_map;
+	int				 num_storage;
+	char			 cap_closed;
+	char			*state_msg;	  /* Custom State message */
+	char			*movecommand; /* 3rd party command to call */
 
 	struct smc_personality_template *pm;
 };
@@ -465,15 +465,15 @@ struct density_info {
 	uint16_t tracks;
 	uint32_t capacity;
 	uint16_t density;
-	char assigning_org[9];
-	char density_name[9];
-	char description[20];
+	char	 assigning_org[9];
+	char	 density_name[9];
+	char	 description[20];
 };
 
 struct supported_density_list {
-	struct list_head siblings;
+	struct list_head	 siblings;
 	struct density_info *density_info;
-	int rw;
+	int					 rw;
 };
 
 extern uint8_t sense[SENSE_BUF_SIZE];
@@ -482,7 +482,7 @@ extern uint8_t sense[SENSE_BUF_SIZE];
  * For those sense keys where the invalid byte/field is known
  */
 struct s_sd {
-	uint8_t byte0;
+	uint8_t	 byte0;
 	uint16_t field_pointer;
 };
 
@@ -492,55 +492,55 @@ extern uint8_t modeBlockDescriptor[8];
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
 struct read_position_information_short {
-	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
-	uint8_t	PERR:1;	/* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
-	uint8_t	LOLU:1;	/* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
-	uint8_t	resvd:1;	/* Reserved */
-	uint8_t	BYCU:1;	/* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
-	uint8_t	LOCU:1;	/* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
-	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
-	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t BPEW : 1;  /* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t PERR : 1;  /* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
+	uint8_t LOLU : 1;  /* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
+	uint8_t resvd : 1; /* Reserved */
+	uint8_t BYCU : 1;  /* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
+	uint8_t LOCU : 1;  /* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
+	uint8_t EOP : 1;   /* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t BOP : 1;   /* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
 } __attribute__((packed));
 
 struct read_position_information_long {
-	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
-	uint8_t	rsvd_1:1;	/* Reserved 1 bit */
-	uint8_t	LONU:1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
-	uint8_t	MPU:1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
-	uint8_t	rsvd_0:2;	/* Reserved 2 bits */
-	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
-	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t BPEW : 1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t rsvd_1 : 1; /* Reserved 1 bit */
+	uint8_t LONU : 1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
+	uint8_t MPU : 1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
+	uint8_t rsvd_0 : 2; /* Reserved 2 bits */
+	uint8_t EOP : 1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t BOP : 1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
 } __attribute__((packed));
 
 #else
 
 struct read_position_information_short {
-	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
-	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
-	uint8_t	LOCU:1;	/* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
-	uint8_t	BYCU:1;	/* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
-	uint8_t	resvd:1;	/* Reserved */
-	uint8_t	LOLU:1;	/* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
-	uint8_t	PERR:1;	/* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
-	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t BOP : 1;   /* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t EOP : 1;   /* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t LOCU : 1;  /* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
+	uint8_t BYCU : 1;  /* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
+	uint8_t resvd : 1; /* Reserved */
+	uint8_t LOLU : 1;  /* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
+	uint8_t PERR : 1;  /* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
+	uint8_t BPEW : 1;  /* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
 } __attribute__((packed));
 
 struct read_position_information_long {
-	uint8_t	BOP:1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
-	uint8_t	EOP:1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
-	uint8_t	rsvd_0:2;	/* Reserved 2 bits */
-	uint8_t	MPU:1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
-	uint8_t	LONU:1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
-	uint8_t	rsvd_1:1;	/* Reserved 1 bit */
-	uint8_t	BPEW:1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t BOP : 1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t EOP : 1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t rsvd_0 : 2; /* Reserved 2 bits */
+	uint8_t MPU : 1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
+	uint8_t LONU : 1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
+	uint8_t rsvd_1 : 1; /* Reserved 1 bit */
+	uint8_t BPEW : 1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
 } __attribute__((packed));
 
-#endif	/* Byte order */
+#endif /* Byte order */
 
 enum MHVTL_STATE {
 	MHVTL_STATE_INIT,
 	MHVTL_STATE_IDLE,
-/* Drive operation states */
+	/* Drive operation states */
 	MHVTL_STATE_UNLOADED,
 	MHVTL_STATE_LOADING,
 	MHVTL_STATE_LOADING_CLEAN,
@@ -557,7 +557,7 @@ enum MHVTL_STATE {
 	MHVTL_STATE_ERASE,
 	MHVTL_STATE_VERIFY,
 
-/* Library operation states */
+	/* Library operation states */
 	MHVTL_STATE_MOVING_DRIVE_2_SLOT,
 	MHVTL_STATE_MOVING_SLOT_2_DRIVE,
 	MHVTL_STATE_MOVING_DRIVE_2_MAP,
@@ -575,8 +575,8 @@ enum MHVTL_STATE {
 	MHVTL_STATE_UNKNOWN,
 };
 
-int check_reset(uint8_t *);
-int check_inquiry_data_has_changed(uint8_t *);
+int	 check_reset(uint8_t *);
+int	 check_inquiry_data_has_changed(uint8_t *);
 void reset_device(void);
 void set_inquiry_data_changed(void);
 
@@ -589,43 +589,43 @@ void sam_data_protect(uint16_t ascq, uint8_t *sam_stat);
 void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat);
 void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat);
 
-void resp_log_select(uint8_t *, uint8_t *);
-int resp_read_position_long(loff_t, uint8_t *, uint8_t *);
-int resp_read_position(loff_t, uint8_t *, uint8_t *);
-uint32_t resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
-int resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
+void		 resp_log_select(uint8_t *, uint8_t *);
+int			 resp_read_position_long(loff_t, uint8_t *, uint8_t *);
+int			 resp_read_position(loff_t, uint8_t *, uint8_t *);
+uint32_t	 resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
+int			 resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
 struct mode *lookup_pcode(struct list_head *l, uint8_t pcode, uint8_t subpcode);
-int resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz);
+int			 resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz);
 
-void hex_dump(uint8_t *, int);
+void  hex_dump(uint8_t *, int);
 void *zalloc(int sz);
-int chrdev_open(const char *name, unsigned minor);
-int chrdev_create(unsigned minor);
-void chrdev_delete(unsigned minor);
-int oom_adjust(void);
-int open_fifo(FILE **fifo_fd, char *fifoname);
-void status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);
+int	  chrdev_open(const char *name, unsigned minor);
+int	  chrdev_create(unsigned minor);
+void  chrdev_delete(unsigned minor);
+int	  oom_adjust(void);
+int	  open_fifo(FILE **fifo_fd, char *fifoname);
+void  status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);
 
 char *readline(char *s, int len, FILE *f);
-void blank_fill(uint8_t *dest, char *src, int len);
+void  blank_fill(uint8_t *dest, char *src, int len);
 
 void log_opcode(char *opcode, struct scsi_cmd *cmd);
 
 struct vpd *alloc_vpd(uint16_t sz);
-void dealloc_vpd(struct vpd *pg);
-void cleanup_density_support(struct list_head *l);
+void		dealloc_vpd(struct vpd *pg);
+void		cleanup_density_support(struct list_head *l);
 
 pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl);
 
 void completeSCSICommand(int, struct mhvtl_ds *ds);
-int retrieve_CDB_data(int cdev, struct mhvtl_ds *dbuf_p);
-int check_for_running_daemons(unsigned minor);
-int free_lock(unsigned minor);
+int	 retrieve_CDB_data(int cdev, struct mhvtl_ds *dbuf_p);
+int	 check_for_running_daemons(unsigned minor);
+int	 free_lock(unsigned minor);
 
-void mhvtl_prt_cdb(int l, struct scsi_cmd *cmd);
-void checkstrlen(char *s, unsigned int len, int linecount);
-extern int device_type_register(struct lu_phy_attr *lu,
-					struct device_type_template *t);
+void	   mhvtl_prt_cdb(int l, struct scsi_cmd *cmd);
+void	   checkstrlen(char *s, unsigned int len, int linecount);
+extern int device_type_register(struct lu_phy_attr			*lu,
+								struct device_type_template *t);
 
 void process_fifoname(struct lu_phy_attr *lu, char *s, int flag);
 
@@ -634,8 +634,8 @@ uint8_t set_WORM(struct list_head *l);
 uint8_t clear_compression_mode_pg(struct list_head *l);
 uint8_t set_compression_mode_pg(struct list_head *l, int lvl);
 
-void rmnl(char *s, unsigned char c, int len);
-void truncate_spaces(char *s, int maxlen);
+void  rmnl(char *s, unsigned char c, int len);
+void  truncate_spaces(char *s, int maxlen);
 char *get_version(void);
 
 void update_vpd_80(struct lu_phy_attr *lu, void *p);
@@ -647,22 +647,22 @@ void update_vpd_b2(struct lu_phy_attr *lu, void *p);
 void update_vpd_c0(struct lu_phy_attr *lu, void *p);
 void update_vpd_c1(struct lu_phy_attr *lu, void *p);
 
-int get_fifo_count(void);
-int dec_fifo_count(void);
-int inc_fifo_count(void);
+int	 get_fifo_count(void);
+int	 dec_fifo_count(void);
+int	 inc_fifo_count(void);
 void cleanup_msg(void);
 
 int add_density_support(struct list_head *l, struct density_info *di, int rw);
 int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);
 
-void find_media_home_directory(char *config_directory, char *home_directory, long lib_id);
+void		 find_media_home_directory(char *config_directory, char *home_directory, long lib_id);
 unsigned int set_media_params(struct MAM *mamp, char *density);
 
 char *slot_type_str(int type);
-void init_smc_log_pages(struct lu_phy_attr *lu);
-void init_smc_mode_pages(struct lu_phy_attr *lu);
-void bubbleSort(int *array, int size);
-void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type);
+void  init_smc_log_pages(struct lu_phy_attr *lu);
+void  init_smc_mode_pages(struct lu_phy_attr *lu);
+void  bubbleSort(int *array, int size);
+void  sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type);
 
 void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec);
 void opcode_6_params(struct scsi_cmd *cmd, int *num, int *sz);

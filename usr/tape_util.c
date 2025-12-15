@@ -45,44 +45,43 @@
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
 
-char mhvtl_driver_name[] = "tape_util";
-int dump_tape = 0;	/* dual personality - dump_tape & preload_tape */
-int verbose = 0;
-int debug = 0;
-long my_id = 0;
-int lbp_rscrc_be = 1;	/* Return RS-CRC in BigEndian format */
-int lib_id;
+char			   mhvtl_driver_name[] = "tape_util";
+int				   dump_tape		   = 0; /* dual personality - dump_tape & preload_tape */
+int				   verbose			   = 0;
+int				   debug			   = 0;
+long			   my_id			   = 0;
+int				   lbp_rscrc_be		   = 1; /* Return RS-CRC in BigEndian format */
+int				   lib_id;
 struct priv_lu_ssc lu_ssc;
 struct lu_phy_attr lunit;
-struct encryption app_encryption_state;		/* Stores the encryption info the application sent us */
+struct encryption  app_encryption_state; /* Stores the encryption info the application sent us */
 
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 static char *progname;
 
-static void print_mam_info(void)
-{
-	uint64_t size;
-	uint64_t remaining;
-	char size_mul;		/* K/M/G/T/P multiplier */
-	char remain_mul;	/* K/M/G/T/P multiplier */
-	int a;
+static void print_mam_info(void) {
+	uint64_t		  size;
+	uint64_t		  remaining;
+	char			  size_mul;	  /* K/M/G/T/P multiplier */
+	char			  remain_mul; /* K/M/G/T/P multiplier */
+	int				  a;
 	static const char mul[] = " KMGT";
 
-	size = get_unaligned_be64(&mam.max_capacity);
+	size	  = get_unaligned_be64(&mam.max_capacity);
 	remaining = get_unaligned_be64(&mam.remaining_capacity);
 
 	size_mul = remain_mul = ' ';
 	for (a = 0; a < 4; a++) {
 		if (size > 5121) {
-			size >>= 10;	/* divide by 1024 */
-			size_mul = mul[a+1];
+			size >>= 10; /* divide by 1024 */
+			size_mul = mul[a + 1];
 		}
 	}
 	for (a = 0; a < 4; a++) {
 		if (remaining > 5121) {
-			remaining >>= 10;	/* divide by 1024 */
-			remain_mul = mul[a+1];
+			remaining >>= 10; /* divide by 1024 */
+			remain_mul = mul[a + 1];
 		}
 	}
 
@@ -90,8 +89,8 @@ static void print_mam_info(void)
 	printf("Media type code   : 0x%02x\n", mam.MediaType);
 	printf("Media description : %s\n", mam.media_info.description);
 	printf("Tape Capacity     : %" PRId64 " (%" PRId64 " %cBytes)\n",
-					get_unaligned_be64(&mam.max_capacity),
-					size, size_mul);
+		   get_unaligned_be64(&mam.max_capacity),
+		   size, size_mul);
 	switch (mam.MediumType) {
 	case MEDIA_TYPE_CLEAN:
 		printf("Media type        : Cleaning media\n");
@@ -111,21 +110,19 @@ static void print_mam_info(void)
 	}
 
 	printf("Media             : %s\n",
-				(mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) ?
-					"Write-protected" : "read-write");
+		   (mam.Flags & MAM_FLAGS_MEDIA_WRITE_PROTECT) ? "Write-protected" : "read-write");
 	printf("Remaining Tape Capacity : %" PRId64 " (%" PRId64 " %cBytes)\n",
-				get_unaligned_be64(&mam.remaining_capacity),
-				remaining, remain_mul);
+		   get_unaligned_be64(&mam.remaining_capacity),
+		   remaining, remain_mul);
 }
 
-static void init_lunit(struct lu_phy_attr *lu, struct priv_lu_ssc *priv_lu)
-{
+static void init_lunit(struct lu_phy_attr *lu, struct priv_lu_ssc *priv_lu) {
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
 	memset(lu, 0, sizeof(struct lu_phy_attr));
 
 	lu->lu_private = priv_lu;
-	lu->sense_p = sense;
+	lu->sense_p	   = sense;
 	strncpy(lu->lu_serial_no, "ABC123", 7);
 	strncpy(lu->vendor_id, "TAPE_UTL", 9);
 	strncpy(lu->product_id, "xyzz", 5);
@@ -134,64 +131,59 @@ static void init_lunit(struct lu_phy_attr *lu, struct priv_lu_ssc *priv_lu)
 	INIT_LIST_HEAD(&lu->log_pg);
 }
 
-static void init_lu_ssc(struct priv_lu_ssc *lu_priv)
-{
+static void init_lu_ssc(struct priv_lu_ssc *lu_priv) {
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
 	memset(lu_priv, 0, sizeof(struct priv_lu_ssc));
 
-	lu_priv->bufsize = 2 * 1024 * 1024;
-	lu_priv->load_status = TAPE_UNLOADED;
-	lu_priv->inLibrary = 0;
-	lu_priv->sam_status = SAM_STAT_GOOD;
-	lu_priv->MediaWriteProtect = MEDIA_WRITABLE;
-	lu_priv->capacity_unit = 1;
+	lu_priv->bufsize				 = 2 * 1024 * 1024;
+	lu_priv->load_status			 = TAPE_UNLOADED;
+	lu_priv->inLibrary				 = 0;
+	lu_priv->sam_status				 = SAM_STAT_GOOD;
+	lu_priv->MediaWriteProtect		 = MEDIA_WRITABLE;
+	lu_priv->capacity_unit			 = 1;
 	lu_priv->configCompressionFactor = Z_BEST_SPEED;
-	lu_priv->bytesRead_I = 0;
-	lu_priv->bytesRead_M = 0;
-	lu_priv->bytesWritten_I = 0;
-	lu_priv->bytesWritten_M = 0;
-	lu_priv->c_pos = c_pos;
-	lu_priv->KEY_INSTANCE_COUNTER = 0;
-	lu_priv->DECRYPT_MODE = 0;
-	lu_priv->ENCRYPT_MODE = 0;
-	lu_priv->app_encr_info = &app_encryption_state;
-	lu_priv->OK_2_write = &OK_to_write;
-	lu_priv->mamp = &mam;
+	lu_priv->bytesRead_I			 = 0;
+	lu_priv->bytesRead_M			 = 0;
+	lu_priv->bytesWritten_I			 = 0;
+	lu_priv->bytesWritten_M			 = 0;
+	lu_priv->c_pos					 = c_pos;
+	lu_priv->KEY_INSTANCE_COUNTER	 = 0;
+	lu_priv->DECRYPT_MODE			 = 0;
+	lu_priv->ENCRYPT_MODE			 = 0;
+	lu_priv->app_encr_info			 = &app_encryption_state;
+	lu_priv->OK_2_write				 = &OK_to_write;
+	lu_priv->mamp					 = &mam;
 	INIT_LIST_HEAD(&lu_priv->supported_media_list);
-	lu_priv->pm = NULL;
-	lu_priv->state_msg = NULL;
-	lu_priv->delay_load = 0;
-	lu_priv->delay_unload = 0;
-	lu_priv->delay_thread = 0;
+	lu_priv->pm				= NULL;
+	lu_priv->state_msg		= NULL;
+	lu_priv->delay_load		= 0;
+	lu_priv->delay_unload	= 0;
+	lu_priv->delay_thread	= 0;
 	lu_priv->delay_position = 0;
-	lu_priv->delay_rewind = 0;
+	lu_priv->delay_rewind	= 0;
 }
 
 /* Fix me - make sure it's not a WORM, cleaning cart etc */
-uint8_t check_restrictions(struct scsi_cmd *cmd)
-{
+uint8_t check_restrictions(struct scsi_cmd *cmd) {
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
 	*lu_ssc.OK_2_write = 1;
 	return 1;
 }
 
-uint8_t valid_encryption_blk(struct scsi_cmd *cmd)
-{
+uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
 	return TRUE;
 }
 
-void register_ops(struct lu_phy_attr *lu, int op, void *f, void *g, void *h)
-{
+void register_ops(struct lu_phy_attr *lu, int op, void *f, void *g, void *h) {
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
 }
 
-void ssc_personality_module_register(struct ssc_personality_template *pm)
-{
+void ssc_personality_module_register(struct ssc_personality_template *pm) {
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
 	lu_ssc.pm = pm;
@@ -199,8 +191,7 @@ void ssc_personality_module_register(struct ssc_personality_template *pm)
 		printf("Exiting %s() ++\n", __func__);
 }
 
-static struct media_details *check_media_can_load(struct list_head *mdl, int mt)
-{
+static struct media_details *check_media_can_load(struct list_head *mdl, int mt) {
 	struct media_details *m_detail;
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
@@ -211,15 +202,14 @@ static struct media_details *check_media_can_load(struct list_head *mdl, int mt)
 	list_for_each_entry(m_detail, mdl, siblings) {
 		if (debug)
 			printf("testing against m_detail->media_type (0x%02x)\n",
-						m_detail->media_type);
+				   m_detail->media_type);
 		if (m_detail->media_type == (unsigned int)mt)
 			return m_detail;
 	}
 	return NULL;
 }
 
-static int lookup_media_int(struct name_to_media_info *media_info, char *s)
-{
+static int lookup_media_int(struct name_to_media_info *media_info, char *s) {
 	unsigned int i;
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
@@ -234,41 +224,40 @@ static int lookup_media_int(struct name_to_media_info *media_info, char *s)
 	return Media_undefined;
 }
 
-int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
-{
-	struct priv_lu_ssc *lu_tape;
+int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s) {
+	struct priv_lu_ssc	 *lu_tape;
 	struct media_details *m_detail;
-	struct list_head *den_list;
-	int media_type;
+	struct list_head	 *den_list;
+	int					  media_type;
 
 	if (debug)
 		printf("Entering %s() +++\n", __func__);
-	lu_tape = (struct priv_lu_ssc *)lu->lu_private;
+	lu_tape	 = (struct priv_lu_ssc *)lu->lu_private;
 	den_list = &lu_tape->supported_media_list;
 
 	if (debug)
 		printf("Adding %s, status: 0x%02x\n", s, status);
 	media_type = lookup_media_int(lu_tape->pm->media_handling, s);
-	m_detail = check_media_can_load(den_list, media_type);
+	m_detail   = check_media_can_load(den_list, media_type);
 
 	if (m_detail) {
 		if (debug)
 			printf("Existing status for %s, Load Capability: 0x%02x\n",
-					s, m_detail->load_capability);
+				   s, m_detail->load_capability);
 		m_detail->load_capability |= status;
 		if (debug)
 			printf("Updating entry for %s, new Load Capability: 0x%02x\n",
-					s, m_detail->load_capability);
+				   s, m_detail->load_capability);
 	} else {
 		if (debug)
 			printf("Adding new entry for %s\n", s);
 		m_detail = zalloc(sizeof(struct media_details));
 		if (!m_detail) {
 			printf("Failed to allocate %d bytes\n",
-						(int)sizeof(m_detail));
+				   (int)sizeof(m_detail));
 			return -ENOMEM;
 		}
-		m_detail->media_type = media_type;
+		m_detail->media_type	  = media_type;
 		m_detail->load_capability = status;
 		list_add_tail(&m_detail->siblings, den_list);
 	}
@@ -276,8 +265,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s)
 	return 0;
 }
 
-static void set_compression(struct priv_lu_ssc *lu_priv, char *compression)
-{
+static void set_compression(struct priv_lu_ssc *lu_priv, char *compression) {
 	if (!strcasecmp(compression, "LZO")) {
 		if (verbose)
 			printf("Setting compression to LZO\n");
@@ -293,13 +281,12 @@ static void set_compression(struct priv_lu_ssc *lu_priv, char *compression)
 	}
 }
 
-static int write_tape(char *source_file, uint32_t block_size, char *compression, uint8_t *sam_stat)
-{
-	uint8_t *b;
-	int fd = -1;
-	int rc = 0;
-	int retval;
-	size_t count = 1;
+static int write_tape(char *source_file, uint32_t block_size, char *compression, uint8_t *sam_stat) {
+	uint8_t		   *b;
+	int				fd = -1;
+	int				rc = 0;
+	int				retval;
+	size_t			count = 1;
 	struct scsi_cmd cmd;
 	struct mhvtl_ds ds;
 	void (*drive_init)(struct lu_phy_attr *) = init_default_ssc;
@@ -311,8 +298,8 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 	memset(&cmd, 0, sizeof(cmd));
 	memset(&ds, 0, sizeof(ds));
 
-	cmd.lu = &lunit;
-	cmd.dbuf_p = &ds;
+	cmd.lu		 = &lunit;
+	cmd.dbuf_p	 = &ds;
 	ds.sense_buf = sense;
 
 	lu_ssc.max_capacity = get_unaligned_be64(&mam.max_capacity);
@@ -326,7 +313,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 		printf("Block size: %d\n", block_size);
 		printf("Compression : %s\n", compression);
 
-		printf("Tape max capacity is %"PRIu64"\n", lu_ssc.max_capacity);
+		printf("Tape max capacity is %" PRIu64 "\n", lu_ssc.max_capacity);
 	}
 
 	b = malloc(block_size);
@@ -335,7 +322,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 	if (debug)
 		printf("malloc(%d) successfully\n", block_size);
 	ds.data = b;
-	ds.sz = block_size;
+	ds.sz	= block_size;
 
 	set_compression(lunit.lu_private, compression);
 
@@ -345,12 +332,12 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 		rc = -EBADF;
 		goto abort;
 	}
-	while(count > 0) {
+	while (count > 0) {
 		count = read(fd, b, block_size);
 		if (count > 0) {
 			if (count < block_size) {
-				printf("zeroing out remaining block: %"PRIu32"\n", (uint32_t)(block_size - count));
-				memset(b + count, 0, block_size - count);	/* Zero out remaining block */
+				printf("zeroing out remaining block: %" PRIu32 "\n", (uint32_t)(block_size - count));
+				memset(b + count, 0, block_size - count); /* Zero out remaining block */
 			}
 			retval = writeBlock(&cmd, count);
 			if (retval < count) {
@@ -358,7 +345,7 @@ static int write_tape(char *source_file, uint32_t block_size, char *compression,
 					printf("No space left on media, hit EOM while writing\n");
 				} else {
 					printf("Tried to write %d, only succeeded in writing %d, SAM status: 0x%02x 0x%02x 0x%02x\n",
-							block_size, retval, sense[2], sense[12], sense[13]);
+						   block_size, retval, sense[2], sense[12], sense[13]);
 				}
 				break;
 			}
@@ -372,8 +359,7 @@ abort:
 	return rc;
 }
 
-static int read_data(uint8_t *sam_stat)
-{
+static int read_data(uint8_t *sam_stat) {
 	uint8_t *p;
 	uint32_t ret;
 
@@ -391,7 +377,7 @@ static int read_data(uint8_t *sam_stat)
 	ret = readBlock(p, c_pos->blk_size, 1, 0, sam_stat);
 	if (ret != c_pos->blk_size) {
 		printf("Requested %d bytes, received %d\n",
-				c_pos->blk_size, ret);
+			   c_pos->blk_size, ret);
 	}
 	free(p);
 	puts("\n");
@@ -400,8 +386,7 @@ static int read_data(uint8_t *sam_stat)
 
 void find_media_home_directory(char *config_directory, char *home_directory, long lib_id);
 
-static void usage(char *errmsg)
-{
+static void usage(char *errmsg) {
 	if (errmsg)
 		printf("%s\n", errmsg);
 	printf("Usage: %s OPTIONS\n", progname);
@@ -425,13 +410,12 @@ static void usage(char *errmsg)
 	exit(errmsg ? 1 : 0);
 }
 
-static void dump_tape_metadata(int dump_data, uint8_t *sam_stat)
-{
+static void dump_tape_metadata(int dump_data, uint8_t *sam_stat) {
 
 	if (lzo_init() != LZO_E_OK) {
 		fprintf(stderr, "internal error - lzo_init() failed !!!\n");
 		fprintf(stderr,
-			"(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable '-DLZO_DEBUG' for diagnostics)\n");
+				"(this usually indicates a compiler bug - try recompiling\nwithout optimizations, and enable '-DLZO_DEBUG' for diagnostics)\n");
 		exit(3);
 	}
 	print_mam_info();
@@ -453,21 +437,20 @@ static void dump_tape_metadata(int dump_data, uint8_t *sam_stat)
 	unload_tape(sam_stat);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	uint8_t sam_stat;
-	char *pcl = NULL;
-	int rc;
-	int libno = 0;
-	int indx;
-	int block_size = 0;
-	int dump_data = FALSE;
-	char *config = MHVTL_CONFIG_PATH"/device.conf";
-	char *source_file = NULL;
-	char *compression = NULL;
-	FILE *conf;
-	char *b;	/* Read from file into this buffer */
-	char *s;	/* Somewhere for sscanf to store results */
+	char   *pcl = NULL;
+	int		rc;
+	int		libno = 0;
+	int		indx;
+	int		block_size	= 0;
+	int		dump_data	= FALSE;
+	char   *config		= MHVTL_CONFIG_PATH "/device.conf";
+	char   *source_file = NULL;
+	char   *compression = NULL;
+	FILE   *conf;
+	char   *b; /* Read from file into this buffer */
+	char   *s; /* Somewhere for sscanf to store results */
 
 	progname = argv[0];
 	if (strcasestr(progname, "dump_tape")) {
@@ -489,7 +472,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'd':
 				debug++;
-				verbose = 9;	/* If debug, make verbose... */
+				verbose = 9; /* If debug, make verbose... */
 				break;
 			case 'm':
 				if (argc > 1)
@@ -509,7 +492,7 @@ int main(int argc, char *argv[])
 			case 'v':
 				verbose++;
 				break;
-			case 'b':	/* block size */
+			case 'b': /* block size */
 				if (dump_tape == 2) {
 					if (argc > 1) {
 						block_size = atoi(argv[2]);
@@ -520,7 +503,7 @@ int main(int argc, char *argv[])
 					usage("-b is not a supported option");
 				}
 				break;
-			case 'c':	/* compression type (NONE/LZO/ZLIB) */
+			case 'c': /* compression type (NONE/LZO/ZLIB) */
 				if (dump_tape == 2) {
 					if (argc > 1) {
 						compression = argv[2];
@@ -531,7 +514,7 @@ int main(int argc, char *argv[])
 					usage("-c is not a supported option");
 				}
 				break;
-			case 'F':	/* File to read from */
+			case 'F': /* File to read from */
 				if (dump_tape == 2) {
 					if (argc > 1) {
 						source_file = argv[2];
@@ -575,11 +558,10 @@ int main(int argc, char *argv[])
 	init_lu_ssc(&lu_ssc);
 	init_lunit(&lunit, &lu_ssc);
 
-
-	conf = fopen(config , "r");
+	conf = fopen(config, "r");
 	if (!conf) {
 		fprintf(stderr, "Cannot open config file %s: %s\n", config,
-					strerror(errno));
+				strerror(errno));
 		exit(1);
 	}
 	s = malloc(MALLOC_SZ);
@@ -601,7 +583,7 @@ int main(int argc, char *argv[])
 		rc = load_tape(pcl, &sam_stat);
 	} else { /* Walk thru all defined libraries looking for media */
 		while (readline(b, MALLOC_SZ, conf) != NULL) {
-			if (b[0] == '#')	/* Ignore comments */
+			if (b[0] == '#') /* Ignore comments */
 				continue;
 			/* If found a library: Attempt to load media
 			 * Break out of loop if found. Otherwise try next lib.
@@ -621,8 +603,8 @@ int main(int argc, char *argv[])
 
 	if (rc) {
 		fprintf(stderr, "PCL %s cannot be opened, "
-				"load_tape() returned %d\n",
-					pcl, rc);
+						"load_tape() returned %d\n",
+				pcl, rc);
 		exit(1);
 	}
 

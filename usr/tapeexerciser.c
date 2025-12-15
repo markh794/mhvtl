@@ -12,115 +12,107 @@
 #include <string.h>
 #include <errno.h>
 
-static int space_forward_filemark(int fd, int count)
-{
+static int space_forward_filemark(int fd, int count) {
 	struct mtop mtop;
-	int err;
+	int			err;
 
 	printf("%s(%d)", __func__, count);
-	mtop.mt_op = MTFSF;	/* Forward Space over count Filemarks */
+	mtop.mt_op	  = MTFSF; /* Forward Space over count Filemarks */
 	mtop.mt_count = count;
-	err = ioctl(fd, MTIOCTOP, &mtop);
+	err			  = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
 	printf("\n");
 	return err;
 }
 
-static int space_back_filemark(int fd, int count)
-{
+static int space_back_filemark(int fd, int count) {
 	struct mtop mtop;
-	int err;
+	int			err;
 
 	printf("%s(%d)", __func__, count);
-	mtop.mt_op = MTBSF;	/* Back Space over count Filemarks */
+	mtop.mt_op	  = MTBSF; /* Back Space over count Filemarks */
 	mtop.mt_count = count;
-	err = ioctl(fd, MTIOCTOP, &mtop);
+	err			  = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
 	printf("\n");
 	return err;
 }
 
-static int space_forward_block(int fd, int count)
-{
+static int space_forward_block(int fd, int count) {
 	struct mtop mtop;
-	int err;
+	int			err;
 
 	printf("%s(%d)", __func__, count);
-	mtop.mt_op = MTFSR;	/* Forward count block */
+	mtop.mt_op	  = MTFSR; /* Forward count block */
 	mtop.mt_count = count;
-	err = ioctl(fd, MTIOCTOP, &mtop);
+	err			  = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
 	printf("\n");
 	return err;
 }
 
-static int write_filemarks(int fd, int count)
-{
+static int write_filemarks(int fd, int count) {
 	struct mtop mtop;
-	int err;
+	int			err;
 
 	printf("%s(%d)", __func__, count);
-	mtop.mt_op = MTWEOF;
+	mtop.mt_op	  = MTWEOF;
 	mtop.mt_count = count;
-	err = ioctl(fd, MTIOCTOP, &mtop);
+	err			  = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
 	printf("\n");
 	return err;
 }
 
-static int space_back_block(int fd, int count)
-{
+static int space_back_block(int fd, int count) {
 	struct mtop mtop;
-	int err;
+	int			err;
 
 	printf("%s(%d)", __func__, count);
-	mtop.mt_op = MTBSR;	/* Back count block */
+	mtop.mt_op	  = MTBSR; /* Back count block */
 	mtop.mt_count = 1;
-	err = ioctl(fd, MTIOCTOP, &mtop);
+	err			  = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
 	printf("\n");
 	return err;
 }
 
-static int set_compression(int fd, int state)
-{
+static int set_compression(int fd, int state) {
 	struct mtop mtop;
-	int err;
+	int			err;
 
 	printf("%s()", __func__);
-	mtop.mt_op = MTCOMPRESSION; /* Set compression */
+	mtop.mt_op	  = MTCOMPRESSION; /* Set compression */
 	mtop.mt_count = state;
-	err = ioctl(fd, MTIOCTOP, &mtop);
+	err			  = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
 	printf("\n");
 	return err;
 }
 
-static int rewind_tape(int fd)
-{
+static int rewind_tape(int fd) {
 	struct mtop mtop;
-	int err;
+	int			err;
 
 	printf("%s()", __func__);
-	mtop.mt_op = MTREW;
+	mtop.mt_op	  = MTREW;
 	mtop.mt_count = 1;
-	err = ioctl(fd, MTIOCTOP, &mtop);
+	err			  = ioctl(fd, MTIOCTOP, &mtop);
 	if (err)
 		printf(" %s", strerror(errno));
 	printf("\n");
 	return err;
 }
 
-static int read_block_position(int fd)
-{
+static int read_block_position(int fd) {
 	struct mtpos mtpos;
-	int err;
+	int			 err;
 
 	err = ioctl(fd, MTIOCPOS, &mtpos);
 	if (err) {
@@ -131,10 +123,9 @@ static int read_block_position(int fd)
 	return mtpos.mt_blkno;
 }
 
-static int read_block(int fd, int size)
-{
+static int read_block(int fd, int size) {
 	char *buf;
-	int err;
+	int	  err;
 
 	buf = malloc(size);
 	if (!buf)
@@ -149,10 +140,9 @@ static int read_block(int fd, int size)
 	return err;
 }
 
-static int write_block(int fd, int size)
-{
+static int write_block(int fd, int size) {
 	char *buf;
-	int err;
+	int	  err;
 
 	buf = malloc(size);
 	if (!buf)
@@ -169,14 +159,12 @@ static int write_block(int fd, int size)
 	return err;
 }
 
-static void usage(char *arg)
-{
+static void usage(char *arg) {
 	printf("Usage: %s -f tape_path\n", arg);
 	printf("       WARNING: %s will overwrite the tape\n\n", arg);
 }
 
-void write_tape_pattern_1(int fd)
-{
+void write_tape_pattern_1(int fd) {
 	rewind_tape(fd);
 
 	write_block(fd, 8 * 1024);
@@ -187,12 +175,11 @@ void write_tape_pattern_1(int fd)
 	write_block(fd, 64 * 1024);
 	write_block(fd, 64 * 1024);
 	write_block(fd, 64 * 1024);
-	write_filemarks(fd, 0);	/* Flush data */
+	write_filemarks(fd, 0); /* Flush data */
 	write_filemarks(fd, 1);
 }
 
-void write_tape_pattern_2(int fd)
-{
+void write_tape_pattern_2(int fd) {
 	rewind_tape(fd);
 
 	space_forward_filemark(fd, 1);
@@ -208,8 +195,7 @@ void write_tape_pattern_2(int fd)
 	write_filemarks(fd, 2);
 }
 
-int read_test_1(int fd)
-{
+int read_test_1(int fd) {
 	rewind_tape(fd);
 	read_block(fd, 8 * 1024);
 	printf("%s: Block %d\n", __func__, read_block_position(fd));
@@ -224,8 +210,7 @@ int read_test_1(int fd)
 	return 0;
 }
 
-int read_test_2(int fd)
-{
+int read_test_2(int fd) {
 	rewind_tape(fd);
 	space_forward_filemark(fd, 3);
 	read_block(fd, 64 * 1024);
@@ -236,7 +221,8 @@ int read_test_2(int fd)
 	rewind_tape(fd);
 	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	printf("%s: Note: following space_forward_filemark(100000)"
-		" should error\n", __func__);
+		   " should error\n",
+		   __func__);
 	space_forward_filemark(fd, 100000);
 	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_back_filemark(fd, 2);
@@ -248,86 +234,82 @@ int read_test_2(int fd)
 	return 0;
 }
 
-int read_test_3(int fd)
-{
+int read_test_3(int fd) {
 	rewind_tape(fd);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	read_block(fd, 8 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_forward_filemark(fd, 3);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	read_block(fd, 64 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_back_block(fd, 1);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	read_block(fd, 64 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	printf("%s: Note: following space_forward_block() should error\n",
-				__func__);
+		   __func__);
 	space_forward_block(fd, 1);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	return 0;
 }
 
-int read_test_4(int fd)
-{
+int read_test_4(int fd) {
 	rewind_tape(fd);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_forward_filemark(fd, 1);
 	printf("*** Should be at block 3 ==> \t");
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 
 	rewind_tape(fd);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	read_block(fd, 8 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_forward_filemark(fd, 1);
 	printf("*** Should be at block 3 ==> \t");
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	read_block(fd, 64 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_back_block(fd, 1);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	read_block(fd, 64 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_forward_block(fd, 1);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_forward_filemark(fd, 1);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	return 0;
 }
 
-int read_test_5(int fd)
-{
+int read_test_5(int fd) {
 	rewind_tape(fd);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_forward_filemark(fd, 1);
 	printf("*** Should be at block 3 ==> \t");
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 
 	rewind_tape(fd);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	read_block(fd, 8 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 	space_forward_filemark(fd, 1);
 	printf("*** Should be at block 3 ==> \t");
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 
 	printf("Only reading 32k of a 64k block\n");
 	read_block(fd, 32 * 1024);
-	printf("%s: Block %d\n", __func__ , read_block_position(fd));
+	printf("%s: Block %d\n", __func__, read_block_position(fd));
 
 	return 0;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	struct mtget mtstat;
 	struct mtpos mtpos;
-	char *dev = NULL;
-	int tape_fd;
-	int err;
-	int count;
+	char		*dev = NULL;
+	int			 tape_fd;
+	int			 err;
+	int			 count;
 
 	if (argc != 3) {
 		usage(argv[0]);
@@ -355,7 +337,7 @@ int main(int argc, char *argv[])
 	tape_fd = open(dev, O_RDWR);
 	if (tape_fd < 0) {
 		printf("Failed to open %s: %s\n",
-				dev, strerror(errno));
+			   dev, strerror(errno));
 		exit(-1);
 	}
 
@@ -380,12 +362,12 @@ int main(int argc, char *argv[])
 	printf("    Querying type drive\n");
 	printf("  =======================\n");
 	printf("Status from tape device: type: %s\n",
-		(mtstat.mt_type == MT_ISSCSI1) ? "SCSI-1" : "SCSI-2");
+		   (mtstat.mt_type == MT_ISSCSI1) ? "SCSI-1" : "SCSI-2");
 	printf("Position: fileno: %d, blockno: %d\n",
-		mtstat.mt_fileno, mtstat.mt_blkno);
+		   mtstat.mt_fileno, mtstat.mt_blkno);
 	printf("Block size: %d, density: 0x%02x\n",
-		(unsigned int)mtstat.mt_dsreg & MT_ST_BLKSIZE_MASK,
-		(unsigned int)mtstat.mt_dsreg >> MT_ST_DENSITY_SHIFT);
+		   (unsigned int)mtstat.mt_dsreg & MT_ST_BLKSIZE_MASK,
+		   (unsigned int)mtstat.mt_dsreg >> MT_ST_DENSITY_SHIFT);
 	printf("Drive is %sline\n", GMT_ONLINE(mtstat.mt_gstat) ? "On" : "Off");
 	printf("Drive is EOF: %s\n", GMT_EOF(mtstat.mt_gstat) ? "Yes" : "No");
 	printf("Drive is BOT: %s\n", GMT_BOT(mtstat.mt_gstat) ? "Yes" : "No");
@@ -393,13 +375,12 @@ int main(int argc, char *argv[])
 	printf("Drive is EOD: %s\n", GMT_EOD(mtstat.mt_gstat) ? "Yes" : "No");
 	printf("Drive is SM: %s\n", GMT_SM(mtstat.mt_gstat) ? "Yes" : "No");
 	printf("Drive is WRITE PROTECT: %s\n",
-				GMT_WR_PROT(mtstat.mt_gstat) ? "Yes" : "No");
+		   GMT_WR_PROT(mtstat.mt_gstat) ? "Yes" : "No");
 	printf("Tape is %sloaded in the drive\n",
-				GMT_DR_OPEN(mtstat.mt_gstat) ? "not " : "");
+		   GMT_DR_OPEN(mtstat.mt_gstat) ? "not " : "");
 
 	printf("  =======================\n\n");
 
 	close(tape_fd);
 	exit(0);
 }
-

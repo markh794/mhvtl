@@ -19,7 +19,6 @@
  *
  */
 
-
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,18 +31,16 @@
 #include "logging.h"
 
 static pid_t pid;
-static int timedout;
+static int	 timedout;
 
-void alarm_timeout(int sig)
-{
+void alarm_timeout(int sig) {
 	alarm(0);
 	timedout = 1;
 	if (pid)
 		kill(pid, 9);
 }
 
-int run_command(char *command, int timeout)
-{
+int run_command(char *command, int timeout) {
 	pid = fork();
 	if (!pid) {
 		/* child */
@@ -68,7 +65,8 @@ int run_command(char *command, int timeout)
 		} else if (WIFSIGNALED(status)) {
 			int sig = WTERMSIG(status);
 			MHVTL_DBG(1, "command died with signal: %d "
-					"(timedout: %d)\n", sig, timedout);
+						 "(timedout: %d)\n",
+					  sig, timedout);
 			return -sig;
 		}
 	}

@@ -21,7 +21,7 @@
 #include <stdint.h>
 
 #ifndef Solaris
- #include <byteswap.h>
+#include <byteswap.h>
 #endif
 
 #define __STDC_FORMAT_MACROS
@@ -60,45 +60,109 @@
 #include "mhvtl_log.h"
 #include "q.h"
 
-static int reset = 0;
+static int reset				= 0;
 static int inquiry_data_changed = 0;
 
 static struct state_description {
 	char *state_desc;
 } state_desc[] = {
-	{ "Initialising v2", },
-	{ "Idle", },
-	{ "Unloading", },
-	{ "Loading", },
-	{ "Loading Cleaning Tape", },
-	{ "Loading WORM media", },
-	{ "Loading NULL media", },
-	{ "Loaded", },
-	{ "Loaded - Idle", },
-	{ "Load failed", },
-	{ "Rewinding", },
-	{ "Positioning", },
-	{ "Locate", },
-	{ "Reading", },
-	{ "Writing", },
-	{ "Unloading", },
-	{ "Erasing", },
+	{
+		"Initialising v2",
+	},
+	{
+		"Idle",
+	},
+	{
+		"Unloading",
+	},
+	{
+		"Loading",
+	},
+	{
+		"Loading Cleaning Tape",
+	},
+	{
+		"Loading WORM media",
+	},
+	{
+		"Loading NULL media",
+	},
+	{
+		"Loaded",
+	},
+	{
+		"Loaded - Idle",
+	},
+	{
+		"Load failed",
+	},
+	{
+		"Rewinding",
+	},
+	{
+		"Positioning",
+	},
+	{
+		"Locate",
+	},
+	{
+		"Reading",
+	},
+	{
+		"Writing",
+	},
+	{
+		"Unloading",
+	},
+	{
+		"Erasing",
+	},
 
-	{ "Moving media from drive to slot", },
-	{ "Moving media from slot to drive", },
-	{ "Moving media from drive to MAP", },
-	{ "Moving media from MAP to drive", },
-	{ "Moving media from slot to MAP", },
-	{ "Moving media from MAP to slot", },
-	{ "Moving media from drive to drive", },
-	{ "Moving media from slot to slot", },
-	{ "Opening MAP", },
-	{ "Closing MAP", },
-	{ "Robot Inventory", },
-	{ "Initialise Elements", },
-	{ "Online", },
-	{ "Offline", },
-	{ "System Uninitialised", },
+	{
+		"Moving media from drive to slot",
+	},
+	{
+		"Moving media from slot to drive",
+	},
+	{
+		"Moving media from drive to MAP",
+	},
+	{
+		"Moving media from MAP to drive",
+	},
+	{
+		"Moving media from slot to MAP",
+	},
+	{
+		"Moving media from MAP to slot",
+	},
+	{
+		"Moving media from drive to drive",
+	},
+	{
+		"Moving media from slot to slot",
+	},
+	{
+		"Opening MAP",
+	},
+	{
+		"Closing MAP",
+	},
+	{
+		"Robot Inventory",
+	},
+	{
+		"Initialise Elements",
+	},
+	{
+		"Online",
+	},
+	{
+		"Offline",
+	},
+	{
+		"System Uninitialised",
+	},
 };
 
 static char *slot_type_string[] = {
@@ -110,71 +174,70 @@ static char *slot_type_string[] = {
 };
 
 uint8_t sense[SENSE_BUF_SIZE];
-uint8_t modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0 };
+uint8_t modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
-{
-	int groupCode;
+void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd) {
+	int		 groupCode;
 	uint8_t *cdb = cmd->scb;
 #ifdef MHVTL_DEBUG
-	uint64_t sn = cmd->dbuf_p->serialNo;
+	uint64_t sn	   = cmd->dbuf_p->serialNo;
 	uint64_t delay = (uint64_t)cmd->pollInterval;
 #endif
 
 	groupCode = (cdb[0] & 0xe0) >> 5;
 	switch (groupCode) {
-	case 0:	/*  6 byte commands */
+	case 0: /*  6 byte commands */
 		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
-				"%02x %02x %02x %02x %02x %02x",
-			sn, delay,
-			cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5]);
+							   "%02x %02x %02x %02x %02x %02x",
+						  sn, delay,
+						  cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5]);
 		break;
 	case 1: /* 10 byte commands */
 	case 2: /* 10 byte commands */
 		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
-			"%02x %02x %02x %02x %02x %02x"
-			" %02x %02x %02x %02x",
-			sn, delay,
-			cdb[0], cdb[1], cdb[2], cdb[3],
-			cdb[4], cdb[5], cdb[6], cdb[7],
-			cdb[8], cdb[9]);
+							   "%02x %02x %02x %02x %02x %02x"
+							   " %02x %02x %02x %02x",
+						  sn, delay,
+						  cdb[0], cdb[1], cdb[2], cdb[3],
+						  cdb[4], cdb[5], cdb[6], cdb[7],
+						  cdb[8], cdb[9]);
 		break;
 	case 3: /* Reserved - There is always one exception ;) */
 		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
-			"%02x %02x %02x %02x %02x %02x"
-			" %02x %02x %02x %02x %02x %02x",
-			sn, delay,
-			cdb[0], cdb[1], cdb[2], cdb[3],
-			cdb[4], cdb[5], cdb[6], cdb[7],
-			cdb[8], cdb[9], cdb[10], cdb[11]);
+							   "%02x %02x %02x %02x %02x %02x"
+							   " %02x %02x %02x %02x %02x %02x",
+						  sn, delay,
+						  cdb[0], cdb[1], cdb[2], cdb[3],
+						  cdb[4], cdb[5], cdb[6], cdb[7],
+						  cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 4: /* 16 byte commands */
 		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
-			"%02x %02x %02x %02x %02x %02x"
-			" %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-			sn, delay,
-			cdb[0], cdb[1], cdb[2], cdb[3],
-			cdb[4], cdb[5], cdb[6], cdb[7],
-			cdb[8], cdb[9], cdb[10], cdb[11],
-			cdb[12], cdb[13], cdb[14], cdb[15]);
+							   "%02x %02x %02x %02x %02x %02x"
+							   " %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+						  sn, delay,
+						  cdb[0], cdb[1], cdb[2], cdb[3],
+						  cdb[4], cdb[5], cdb[6], cdb[7],
+						  cdb[8], cdb[9], cdb[10], cdb[11],
+						  cdb[12], cdb[13], cdb[14], cdb[15]);
 		break;
 	case 5: /* 12 byte commands */
 		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "): "
-			"%02x %02x %02x %02x %02x %02x %02x"
-			" %02x %02x %02x %02x %02x",
-			sn, delay,
-			cdb[0], cdb[1], cdb[2], cdb[3],
-			cdb[4], cdb[5], cdb[6], cdb[7],
-			cdb[8], cdb[9], cdb[10], cdb[11]);
+							   "%02x %02x %02x %02x %02x %02x %02x"
+							   " %02x %02x %02x %02x %02x",
+						  sn, delay,
+						  cdb[0], cdb[1], cdb[2], cdb[3],
+						  cdb[4], cdb[5], cdb[6], cdb[7],
+						  cdb[8], cdb[9], cdb[10], cdb[11]);
 		break;
 	case 6: /* Vendor Specific */
 	case 7: /* Vendor Specific */
 		MHVTL_DBG_NO_FUNC(lvl, "CDB (%" PRId64 ") (delay %" PRId64 "), "
-					"VENDOR SPECIFIC !! "
-			" %02x %02x %02x %02x %02x %02x",
-			sn, delay,
-			cdb[0], cdb[1], cdb[2], cdb[3],
-			cdb[4], cdb[5]);
+							   "VENDOR SPECIFIC !! "
+							   " %02x %02x %02x %02x %02x %02x",
+						  sn, delay,
+						  cdb[0], cdb[1], cdb[2], cdb[3],
+						  cdb[4], cdb[5]);
 		break;
 	}
 }
@@ -184,10 +247,9 @@ void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd)
  *
  * Wrapper to first call malloc() and zero out any allocated space.
  */
-void *zalloc(int sz)
-{
+void *zalloc(int sz) {
 #ifdef __arm__
-	void *p = malloc(max(32,sz));
+	void *p = malloc(max(32, sz));
 	MHVTL_DBG(2, "arm: malloc(%d)%s", sz, (sz < 32) ? " : rounding up to 32" : "");
 #else
 	void *p = malloc(sz);
@@ -204,8 +266,7 @@ void *zalloc(int sz)
  */
 
 static void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
-						uint8_t *sam_stat)
-{
+						 uint8_t *sam_stat) {
 	char extended[32];
 
 	/* Clear Sense key status */
@@ -243,63 +304,53 @@ static void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
 	}
 
 	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x %02x %02x]%s",
-				sense[2], sense[12], sense[13],
-				(sd) ? extended : "");
+			  sense[2], sense[12], sense[13],
+			  (sd) ? extended : "");
 }
 
-void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat)
-{
+void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(UNIT_ATTENTION, ascq, NULL, sam_stat);
 }
 
-void sam_not_ready(uint16_t ascq, uint8_t *sam_stat)
-{
+void sam_not_ready(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(NOT_READY, ascq, NULL, sam_stat);
 }
 
-void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat)
-{
+void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat) {
 	return_sense(ILLEGAL_REQUEST, ascq, sd, sam_stat);
 }
 
-void sam_medium_error(uint16_t ascq, uint8_t *sam_stat)
-{
+void sam_medium_error(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(MEDIUM_ERROR, ascq, NULL, sam_stat);
 }
 
-void sam_blank_check(uint16_t ascq, uint8_t *sam_stat)
-{
+void sam_blank_check(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(BLANK_CHECK, ascq, NULL, sam_stat);
 }
 
-void sam_data_protect(uint16_t ascq, uint8_t *sam_stat)
-{
+void sam_data_protect(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(DATA_PROTECT, ascq, NULL, sam_stat);
 }
 
-void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat)
-{
+void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(HARDWARE_ERROR, ascq, NULL, sam_stat);
 }
 
-void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat)
-{
+void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(NO_SENSE | key, ascq, NULL, sam_stat);
 }
 
-int check_reset(uint8_t *sam_stat)
-{
+int check_reset(uint8_t *sam_stat) {
 	int retval = reset;
 
 	if (reset) {
 		sam_unit_attention(E_POWERON_RESET, sam_stat);
 		reset = 0;
 	}
-return retval;
+	return retval;
 }
 
-int check_inquiry_data_has_changed(uint8_t *sam_stat)
-{
+int check_inquiry_data_has_changed(uint8_t *sam_stat) {
 	int retval = inquiry_data_changed;
 
 	if (inquiry_data_changed) {
@@ -307,37 +358,33 @@ int check_inquiry_data_has_changed(uint8_t *sam_stat)
 		sam_unit_attention(E_INQUIRY_DATA_HAS_CHANGED, sam_stat);
 		inquiry_data_changed = 0;
 	}
-return retval;
+	return retval;
 }
 
-void reset_device(void)
-{
+void reset_device(void) {
 	reset = 1;
 
-/*
-http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
+	/*
+	http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 
-If this fails to compile - sizeof MAM != 1024 bytes !
-*/
+	If this fails to compile - sizeof MAM != 1024 bytes !
+	*/
 	BUILD_BUG_ON(sizeof(struct MAM) % 1024);
 }
 
 /* Force flag to indicate inquiry data has changed */
-void set_inquiry_data_changed(void)
-{
+void set_inquiry_data_changed(void) {
 	inquiry_data_changed = 1;
 }
 
-
 #define READBLOCKLIMITS_ARR_SZ 6
-int resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz)
-{
+int resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz) {
 	uint8_t *arr = (uint8_t *)dbuf_p->data;
 
 	MHVTL_DBG(2, "Min/Max sz: %d/%d", 1, sz);
 	memset(arr, 0, READBLOCKLIMITS_ARR_SZ);
 	put_unaligned_be24(sz, &arr[1]);
-	arr[5] = 0x1;	/* Minimum block size */
+	arr[5] = 0x1; /* Minimum block size */
 
 	return READBLOCKLIMITS_ARR_SZ;
 }
@@ -345,8 +392,7 @@ int resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz)
 /*
  * Respond with S/No. of media currently mounted
  */
-uint32_t resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
-{
+uint32_t resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat) {
 	uint32_t size = 38;
 
 	snprintf((char *)&buf[4], size - 3, "%-34.34s", sno);
@@ -355,13 +401,12 @@ uint32_t resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat)
 	return size;
 }
 
-void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
-{
+void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg) {
 	int a;
 
 	MHVTL_DBG(2, "Setting TapeAlert flags 0x%.8x %.8x",
-				(uint32_t)(flg >> 32) & 0xffffffff,
-				(uint32_t)flg & 0xffffffff);
+			  (uint32_t)(flg >> 32) & 0xffffffff,
+			  (uint32_t)flg & 0xffffffff);
 
 	for (a = 0; a < 64; a++)
 		ta->TapeAlert[a].value = (flg & (1ull << a)) ? 1 : 0;
@@ -370,20 +415,18 @@ void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg)
 /*
  * Simple function to read 'count' bytes from the chardev into 'buf'.
  */
-int retrieve_CDB_data(int cdev, struct mhvtl_ds *ds)
-{
+int retrieve_CDB_data(int cdev, struct mhvtl_ds *ds) {
 	int ioctl_err;
 
 	MHVTL_DBG(3, "retrieving %d bytes from kernel", ds->sz);
 	ioctl_err = ioctl(cdev, VTL_GET_DATA, ds);
 	if (ioctl_err < 0) {
 		MHVTL_ERR("Failed retrieving data via ioctl(): %s",
-				strerror(errno));
+				  strerror(errno));
 		return 0;
 	}
 	return ds->sz;
 }
-
 
 /*
  * Passes struct mhvtl_ds to kernel module.
@@ -391,8 +434,7 @@ int retrieve_CDB_data(int cdev, struct mhvtl_ds *ds)
  *
  * Returns nothing.
  */
-void completeSCSICommand(int cdev, struct mhvtl_ds *ds)
-{
+void completeSCSICommand(int cdev, struct mhvtl_ds *ds) {
 	uint8_t *s;
 
 	ioctl(cdev, VTL_PUT_DATA, ds);
@@ -401,24 +443,23 @@ void completeSCSICommand(int cdev, struct mhvtl_ds *ds)
 
 	if (ds->sam_stat == SAM_STAT_CHECK_CONDITION) {
 		MHVTL_DBG(2, "s/n: (%ld), sz: %d, sam_status: %d"
-			" [%02x %02x %02x]",
-			(unsigned long)ds->serialNo,
-			ds->sz, ds->sam_stat,
-			s[2], s[12], s[13]);
+					 " [%02x %02x %02x]",
+				  (unsigned long)ds->serialNo,
+				  ds->sz, ds->sam_stat,
+				  s[2], s[12], s[13]);
 	} else {
 		MHVTL_DBG(2, "OP s/n: (%ld), sz: %d, sam_status: %d",
-			(unsigned long)ds->serialNo,
-			ds->sz, ds->sam_stat);
+				  (unsigned long)ds->serialNo,
+				  ds->sz, ds->sam_stat);
 	}
 
 	ds->sam_stat = 0;
 }
 
 /* Hex dump 'count' bytes at p  */
-void hex_dump(uint8_t *p, int count)
-{
+void hex_dump(uint8_t *p, int count) {
 	int j;
-	int lvl = 2;	/* Log at level 'lvl' */
+	int lvl = 2; /* Log at level 'lvl' */
 	int n;
 
 	for (j = 0; j < count; j += 16) {
@@ -427,263 +468,261 @@ void hex_dump(uint8_t *p, int count)
 		case 0:
 			break;
 		case 1:
-			MHVTL_DBG_NO_FUNC(lvl, "%02x %45s : %c", p[j+0], " ", isprint(p[j+0]) ? p[j+0] : ' ');
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %45s : %c", p[j + 0], " ", isprint(p[j + 0]) ? p[j + 0] : ' ');
 			break;
 		case 2:
-			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %42s : %c%c", p[j+0], p[j+1],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.');
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %42s : %c%c", p[j + 0], p[j + 1],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.');
 			break;
 		case 3:
-			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %02x %39s : %c%c%c", p[j+0], p[j+1], p[j+2],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.');
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %02x %39s : %c%c%c", p[j + 0], p[j + 1], p[j + 2],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.');
 			break;
 		case 4:
-			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %02x %02x %36s : %c%c%c%c", p[j+0], p[j+1], p[j+2], p[j+3],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.',
-						isprint(p[j+3]) ? p[j+3] : '.');
+			MHVTL_DBG_NO_FUNC(lvl, "%02x %02x %02x %02x %36s : %c%c%c%c", p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.');
 			break;
 		case 5:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %33s : %c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.',
-						isprint(p[j+3]) ? p[j+3] : '.',
-						isprint(p[j+4]) ? p[j+4] : '.');
+							  "%02x %02x %02x %02x %02x %33s : %c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.');
 			break;
 		case 6:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %30s : %c%c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.',
-						isprint(p[j+3]) ? p[j+3] : '.',
-						isprint(p[j+4]) ? p[j+4] : '.',
-						isprint(p[j+5]) ? p[j+5] : '.');
+							  "%02x %02x %02x %02x %02x %02x %30s : %c%c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.');
 			break;
 		case 7:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %27s : %c%c%c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.',
-						isprint(p[j+3]) ? p[j+3] : '.',
-						isprint(p[j+4]) ? p[j+4] : '.',
-						isprint(p[j+5]) ? p[j+5] : '.',
-						isprint(p[j+6]) ? p[j+6] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %27s : %c%c%c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.');
 			break;
 		case 8:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x %24s : %c%c%c%c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.',
-						isprint(p[j+3]) ? p[j+3] : '.',
-						isprint(p[j+4]) ? p[j+4] : '.',
-						isprint(p[j+5]) ? p[j+5] : '.',
-						isprint(p[j+6]) ? p[j+6] : '.',
-						isprint(p[j+7]) ? p[j+7] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x %24s : %c%c%c%c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.');
 			break;
 		case 9:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %19s : %c%c%c%c%c%c%c%c %c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.',
-						isprint(p[j+3]) ? p[j+3] : '.',
-						isprint(p[j+4]) ? p[j+4] : '.',
-						isprint(p[j+5]) ? p[j+5] : '.',
-						isprint(p[j+6]) ? p[j+6] : '.',
-						isprint(p[j+7]) ? p[j+7] : '.',
-						isprint(p[j+8]) ? p[j+8] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %19s : %c%c%c%c%c%c%c%c %c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.');
 			break;
 		case 10:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %16s : %c%c%c%c%c%c%c%c %c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8], p[j+9],
-						" ",
-						isprint(p[j+0]) ? p[j+0] : '.',
-						isprint(p[j+1]) ? p[j+1] : '.',
-						isprint(p[j+2]) ? p[j+2] : '.',
-						isprint(p[j+3]) ? p[j+3] : '.',
-						isprint(p[j+4]) ? p[j+4] : '.',
-						isprint(p[j+5]) ? p[j+5] : '.',
-						isprint(p[j+6]) ? p[j+6] : '.',
-						isprint(p[j+7]) ? p[j+7] : '.',
-						isprint(p[j+8]) ? p[j+8] : '.',
-						isprint(p[j+9]) ? p[j+9] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %16s : %c%c%c%c%c%c%c%c %c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8], p[j + 9],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.',
+							  isprint(p[j + 9]) ? p[j + 9] : '.');
 			break;
 		case 11:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %13s : %c%c%c%c%c%c%c%c %c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8], p[j+9], p[j+10],
-						" ",
-						isprint(p[j+0])  ? p[j+0]  : '.',
-						isprint(p[j+1])  ? p[j+1]  : '.',
-						isprint(p[j+2])  ? p[j+2]  : '.',
-						isprint(p[j+3])  ? p[j+3]  : '.',
-						isprint(p[j+4])  ? p[j+4]  : '.',
-						isprint(p[j+5])  ? p[j+5]  : '.',
-						isprint(p[j+6])  ? p[j+6]  : '.',
-						isprint(p[j+7])  ? p[j+7]  : '.',
-						isprint(p[j+8])  ? p[j+8]  : '.',
-						isprint(p[j+9])  ? p[j+9]  : '.',
-						isprint(p[j+10]) ? p[j+10] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %13s : %c%c%c%c%c%c%c%c %c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8], p[j + 9], p[j + 10],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.',
+							  isprint(p[j + 9]) ? p[j + 9] : '.',
+							  isprint(p[j + 10]) ? p[j + 10] : '.');
 			break;
 		case 12:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %10s : %c%c%c%c%c%c%c%c %c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8], p[j+9], p[j+10], p[j+11],
-						" ",
-						isprint(p[j+0])  ? p[j+0]  : '.',
-						isprint(p[j+1])  ? p[j+1]  : '.',
-						isprint(p[j+2])  ? p[j+2]  : '.',
-						isprint(p[j+3])  ? p[j+3]  : '.',
-						isprint(p[j+4])  ? p[j+4]  : '.',
-						isprint(p[j+5])  ? p[j+5]  : '.',
-						isprint(p[j+6])  ? p[j+6]  : '.',
-						isprint(p[j+7])  ? p[j+7]  : '.',
-						isprint(p[j+8])  ? p[j+8]  : '.',
-						isprint(p[j+9])  ? p[j+9]  : '.',
-						isprint(p[j+10]) ? p[j+10] : '.',
-						isprint(p[j+11]) ? p[j+11] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %10s : %c%c%c%c%c%c%c%c %c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8], p[j + 9], p[j + 10], p[j + 11],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.',
+							  isprint(p[j + 9]) ? p[j + 9] : '.',
+							  isprint(p[j + 10]) ? p[j + 10] : '.',
+							  isprint(p[j + 11]) ? p[j + 11] : '.');
 			break;
 		case 13:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %8s : %c%c%c%c%c%c%c%c %c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8], p[j+9], p[j+10], p[j+11],
-				p[j+12],
-						" ",
-						isprint(p[j+0])  ? p[j+0]  : '.',
-						isprint(p[j+1])  ? p[j+1]  : '.',
-						isprint(p[j+2])  ? p[j+2]  : '.',
-						isprint(p[j+3])  ? p[j+3]  : '.',
-						isprint(p[j+4])  ? p[j+4]  : '.',
-						isprint(p[j+5])  ? p[j+5]  : '.',
-						isprint(p[j+6])  ? p[j+6]  : '.',
-						isprint(p[j+7])  ? p[j+7]  : '.',
-						isprint(p[j+8])  ? p[j+8]  : '.',
-						isprint(p[j+9])  ? p[j+9]  : '.',
-						isprint(p[j+10]) ? p[j+10] : '.',
-						isprint(p[j+11]) ? p[j+11] : '.',
-						isprint(p[j+12]) ? p[j+12] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %8s : %c%c%c%c%c%c%c%c %c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8], p[j + 9], p[j + 10], p[j + 11],
+							  p[j + 12],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.',
+							  isprint(p[j + 9]) ? p[j + 9] : '.',
+							  isprint(p[j + 10]) ? p[j + 10] : '.',
+							  isprint(p[j + 11]) ? p[j + 11] : '.',
+							  isprint(p[j + 12]) ? p[j + 12] : '.');
 			break;
 		case 14:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %5s : %c%c%c%c%c%c%c%c %c%c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8], p[j+9], p[j+10], p[j+11],
-				p[j+12], p[j+13],
-						" ",
-						isprint(p[j+0])  ? p[j+0]  : '.',
-						isprint(p[j+1])  ? p[j+1]  : '.',
-						isprint(p[j+2])  ? p[j+2]  : '.',
-						isprint(p[j+3])  ? p[j+3]  : '.',
-						isprint(p[j+4])  ? p[j+4]  : '.',
-						isprint(p[j+5])  ? p[j+5]  : '.',
-						isprint(p[j+6])  ? p[j+6]  : '.',
-						isprint(p[j+7])  ? p[j+7]  : '.',
-						isprint(p[j+8])  ? p[j+8]  : '.',
-						isprint(p[j+9])  ? p[j+9]  : '.',
-						isprint(p[j+10]) ? p[j+10] : '.',
-						isprint(p[j+11]) ? p[j+11] : '.',
-						isprint(p[j+12]) ? p[j+12] : '.',
-						isprint(p[j+13]) ? p[j+13] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %5s : %c%c%c%c%c%c%c%c %c%c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8], p[j + 9], p[j + 10], p[j + 11],
+							  p[j + 12], p[j + 13],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.',
+							  isprint(p[j + 9]) ? p[j + 9] : '.',
+							  isprint(p[j + 10]) ? p[j + 10] : '.',
+							  isprint(p[j + 11]) ? p[j + 11] : '.',
+							  isprint(p[j + 12]) ? p[j + 12] : '.',
+							  isprint(p[j + 13]) ? p[j + 13] : '.');
 			break;
 		case 15:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %2s : %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8], p[j+9], p[j+10], p[j+11],
-				p[j+12], p[j+13], p[j+14],
-						" ",
-						isprint(p[j+0])  ? p[j+0]  : '.',
-						isprint(p[j+1])  ? p[j+1]  : '.',
-						isprint(p[j+2])  ? p[j+2]  : '.',
-						isprint(p[j+3])  ? p[j+3]  : '.',
-						isprint(p[j+4])  ? p[j+4]  : '.',
-						isprint(p[j+5])  ? p[j+5]  : '.',
-						isprint(p[j+6])  ? p[j+6]  : '.',
-						isprint(p[j+7])  ? p[j+7]  : '.',
-						isprint(p[j+8])  ? p[j+8]  : '.',
-						isprint(p[j+9])  ? p[j+9]  : '.',
-						isprint(p[j+10]) ? p[j+10] : '.',
-						isprint(p[j+11]) ? p[j+11] : '.',
-						isprint(p[j+12]) ? p[j+12] : '.',
-						isprint(p[j+13]) ? p[j+13] : '.',
-						isprint(p[j+14]) ? p[j+14] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %2s : %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8], p[j + 9], p[j + 10], p[j + 11],
+							  p[j + 12], p[j + 13], p[j + 14],
+							  " ",
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.',
+							  isprint(p[j + 9]) ? p[j + 9] : '.',
+							  isprint(p[j + 10]) ? p[j + 10] : '.',
+							  isprint(p[j + 11]) ? p[j + 11] : '.',
+							  isprint(p[j + 12]) ? p[j + 12] : '.',
+							  isprint(p[j + 13]) ? p[j + 13] : '.',
+							  isprint(p[j + 14]) ? p[j + 14] : '.');
 			break;
 		default:
 			MHVTL_DBG_NO_FUNC(lvl,
-				"%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x : %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c",
-				p[j+0], p[j+1], p[j+2], p[j+3],
-				p[j+4], p[j+5], p[j+6], p[j+7],
-				p[j+8], p[j+9], p[j+10], p[j+11],
-				p[j+12], p[j+13], p[j+14], p[j+15],
-						isprint(p[j+0])  ? p[j+0]  : '.',
-						isprint(p[j+1])  ? p[j+1]  : '.',
-						isprint(p[j+2])  ? p[j+2]  : '.',
-						isprint(p[j+3])  ? p[j+3]  : '.',
-						isprint(p[j+4])  ? p[j+4]  : '.',
-						isprint(p[j+5])  ? p[j+5]  : '.',
-						isprint(p[j+6])  ? p[j+6]  : '.',
-						isprint(p[j+7])  ? p[j+7]  : '.',
-						isprint(p[j+8])  ? p[j+8]  : '.',
-						isprint(p[j+9])  ? p[j+9]  : '.',
-						isprint(p[j+10]) ? p[j+10] : '.',
-						isprint(p[j+11]) ? p[j+11] : '.',
-						isprint(p[j+12]) ? p[j+12] : '.',
-						isprint(p[j+13]) ? p[j+13] : '.',
-						isprint(p[j+14]) ? p[j+14] : '.',
-						isprint(p[j+15]) ? p[j+15] : '.');
+							  "%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x : %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c",
+							  p[j + 0], p[j + 1], p[j + 2], p[j + 3],
+							  p[j + 4], p[j + 5], p[j + 6], p[j + 7],
+							  p[j + 8], p[j + 9], p[j + 10], p[j + 11],
+							  p[j + 12], p[j + 13], p[j + 14], p[j + 15],
+							  isprint(p[j + 0]) ? p[j + 0] : '.',
+							  isprint(p[j + 1]) ? p[j + 1] : '.',
+							  isprint(p[j + 2]) ? p[j + 2] : '.',
+							  isprint(p[j + 3]) ? p[j + 3] : '.',
+							  isprint(p[j + 4]) ? p[j + 4] : '.',
+							  isprint(p[j + 5]) ? p[j + 5] : '.',
+							  isprint(p[j + 6]) ? p[j + 6] : '.',
+							  isprint(p[j + 7]) ? p[j + 7] : '.',
+							  isprint(p[j + 8]) ? p[j + 8] : '.',
+							  isprint(p[j + 9]) ? p[j + 9] : '.',
+							  isprint(p[j + 10]) ? p[j + 10] : '.',
+							  isprint(p[j + 11]) ? p[j + 11] : '.',
+							  isprint(p[j + 12]) ? p[j + 12] : '.',
+							  isprint(p[j + 13]) ? p[j + 13] : '.',
+							  isprint(p[j + 14]) ? p[j + 14] : '.',
+							  isprint(p[j + 15]) ? p[j + 15] : '.');
 			break;
 		}
 	}
 }
 
-
-static int mhvtl_access(char *p, int len, char *entry)
-{
-	int fstat;
+static int mhvtl_access(char *p, int len, char *entry) {
+	int			fstat;
 	struct stat km;
-	char filename[256];
+	char		filename[256];
 
 	snprintf(filename, ARRAY_SIZE(filename),
-			"/sys/bus/mhvtl/drivers/mhvtl/%s", entry);
+			 "/sys/bus/mhvtl/drivers/mhvtl/%s", entry);
 	MHVTL_DBG(1, "Testing %s", filename);
 	fstat = stat(filename, &km);
 	if (fstat >= 0) {
@@ -691,7 +730,7 @@ static int mhvtl_access(char *p, int len, char *entry)
 		return 0;
 	}
 	snprintf(filename, ARRAY_SIZE(filename),
-			"/sys/bus/pseudo9/drivers/mhvtl/%s", entry);
+			 "/sys/bus/pseudo9/drivers/mhvtl/%s", entry);
 	MHVTL_DBG(1, "Testing %s", filename);
 	fstat = stat(filename, &km);
 	if (fstat >= 0) {
@@ -699,7 +738,7 @@ static int mhvtl_access(char *p, int len, char *entry)
 		return 0;
 	}
 	snprintf(filename, ARRAY_SIZE(filename),
-			"/sys/bus/pseudo/drivers/mhvtl/%s", entry);
+			 "/sys/bus/pseudo/drivers/mhvtl/%s", entry);
 	MHVTL_DBG(1, "Testing %s", filename);
 	fstat = stat(filename, &km);
 	if (fstat >= 0) {
@@ -716,14 +755,13 @@ static int mhvtl_access(char *p, int len, char *entry)
  * So spawn child process and don't wait for return.
  * Let the child process write to the kernel module
  */
-pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
-{
-	char str[1024];
-	pid_t ppid, pid, mypid;
+pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl) {
+	char	str[1024];
+	pid_t	ppid, pid, mypid;
 	ssize_t retval;
-	FILE *pseudo;
-	char pseudo_filename[256];
-	char errmsg[512];
+	FILE   *pseudo;
+	char	pseudo_filename[256];
+	char	errmsg[512];
 
 	sprintf(str, "add %u %d %d %d",
 			minor, ctl->channel, ctl->id, ctl->lun);
@@ -739,12 +777,12 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 	ppid = getpid();
 
 	switch (pid = fork()) {
-	case 0:         /* Child */
-		mypid = getpid();
+	case 0: /* Child */
+		mypid  = getpid();
 		pseudo = fopen(pseudo_filename, "w");
-		if (! pseudo) {
+		if (!pseudo) {
 			snprintf(errmsg, ARRAY_SIZE(errmsg),
-					"Could not open %s: %s", pseudo_filename, strerror(errno));
+					 "Could not open %s: %s", pseudo_filename, strerror(errno));
 			MHVTL_ERR("Parent PID: %ld -> %s : %s", (long)ppid, errmsg, strerror(errno));
 			perror("Could not open 'add_lu'");
 			exit(-1);
@@ -752,11 +790,11 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 
 		retval = fprintf(pseudo, "%s\n", str);
 		MHVTL_DBG(2, "Wrote '%s' (%d bytes) to %s",
-					str, (int)retval, pseudo_filename);
+				  str, (int)retval, pseudo_filename);
 
 		fclose(pseudo);
 		MHVTL_DBG(1, "Parent PID: [%ld] -> Child [%ld] anounces 'lu [%d:%d:%d] created'.",
-					(long)ppid, (long)mypid, ctl->channel, ctl->id, ctl->lun);
+				  (long)ppid, (long)mypid, ctl->channel, ctl->id, ctl->lun);
 		exit(0);
 		break;
 	case -1:
@@ -764,10 +802,10 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 		MHVTL_ERR("Parent PID: %ld -> Fail to fork() %s", (long)ppid, strerror(errno));
 		return 0;
 		break;
-	default:	/* Parent */
+	default: /* Parent */
 		MHVTL_DBG(2, "[%ld] Child PID [%ld] will start logical unit [%d:%d:%d]",
-					(long)ppid, (long)pid, ctl->channel,
-					ctl->id, ctl->lun);
+				  (long)ppid, (long)pid, ctl->channel,
+				  ctl->id, ctl->lun);
 
 		return pid;
 		break;
@@ -776,14 +814,13 @@ pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl)
 	return 0;
 }
 
-static int chrdev_get_major(void)
-{
-	FILE *f;
-	char filename[256];
+static int chrdev_get_major(void) {
+	FILE	  *f;
+	char	   filename[256];
 	const char str[] = "Could not locate mhvtl kernel module";
-	int rc = 0;
-	int x;
-	int majno;
+	int		   rc	 = 0;
+	int		   x;
+	int		   majno;
 
 	if (mhvtl_access(filename, ARRAY_SIZE(filename), "major") < 0) {
 		MHVTL_ERR("%s: %s", mhvtl_driver_name, str);
@@ -807,13 +844,12 @@ static int chrdev_get_major(void)
 	return rc;
 }
 
-int chrdev_create(unsigned minor)
-{
-	int majno;
-	int x;
-	int ret = 0;
+int chrdev_create(unsigned minor) {
+	int	  majno;
+	int	  x;
+	int	  ret = 0;
 	dev_t dev;
-	char pathname[64];
+	char  pathname[64];
 
 	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%u", minor);
 
@@ -826,17 +862,17 @@ int chrdev_create(unsigned minor)
 
 	dev = makedev(majno, minor);
 	MHVTL_DBG(2, "Major number: %d, minor number: %u",
-			major(dev), minor(dev));
+			  major(dev), minor(dev));
 	MHVTL_DBG(3, "mknod(%s, %02o, major: %d minor: %d",
-		pathname, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP,
-		major(dev), minor(dev));
-	x = mknod(pathname, S_IFCHR|S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP, dev);
+			  pathname, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
+			  major(dev), minor(dev));
+	x = mknod(pathname, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP, dev);
 	if (x < 0) {
 		if (errno == EEXIST) /* Success if node already exists */
 			return 0;
 
 		MHVTL_DBG(1, "Error creating device node for mhvtl: %s",
-			strerror(errno));
+				  strerror(errno));
 		ret = -1;
 	}
 
@@ -844,18 +880,17 @@ err:
 	return ret;
 }
 
-int chrdev_open(const char *name, unsigned minor)
-{
+int chrdev_open(const char *name, unsigned minor) {
 	FILE *f;
-	char devname[256];
-	char buf[256];
-	int devn;
-	int ctlfd;
+	char  devname[256];
+	char  buf[256];
+	int	  devn;
+	int	  ctlfd;
 
 	f = fopen("/proc/devices", "r");
 	if (!f) {
 		printf("Cannot open control path to the driver: %s\n",
-			strerror(errno));
+			   strerror(errno));
 		return -1;
 	}
 
@@ -872,11 +907,12 @@ int chrdev_open(const char *name, unsigned minor)
 	fclose(f);
 	if (!devn) {
 		printf("Cannot find %s in /proc/devices - "
-				"make sure the module is loaded\n", name);
+			   "make sure the module is loaded\n",
+			   name);
 		return -1;
 	}
 	snprintf(devname, sizeof(devname), "/dev/%s%u", name, minor);
-	ctlfd = open(devname, O_RDWR|O_NONBLOCK|O_EXCL);
+	ctlfd = open(devname, O_RDWR | O_NONBLOCK | O_EXCL);
 	if (ctlfd < 0) {
 		printf("Cannot open %s %s\n", devname, strerror(errno));
 		fflush(NULL);
@@ -890,43 +926,41 @@ int chrdev_open(const char *name, unsigned minor)
  * Return 0 on success,
  * Return errno on failure
  */
-int open_fifo(FILE **fifo_fd, char *fifoname)
-{
+int open_fifo(FILE **fifo_fd, char *fifoname) {
 	int ret;
 
 	umask(0);
 	ret = 0;
 
-	ret = mknod(fifoname, S_IFIFO|0644, 0);
+	ret = mknod(fifoname, S_IFIFO | 0644, 0);
 	if ((ret < 0) && (errno != EEXIST)) {
 		MHVTL_LOG("Sorry, cant create %s: %s, Disabling fifo feature",
-				fifoname, strerror(errno));
+				  fifoname, strerror(errno));
 		ret = errno;
 	} else {
 		*fifo_fd = fopen(fifoname, "w+");
 		if (*fifo_fd) {
 			MHVTL_DBG(2, "Successfully opened named pipe: %s",
-						fifoname);
+					  fifoname);
 		} else {
 			MHVTL_LOG("Sorry, cant open %s: %s, "
-					"Disabling fifo feature",
-						fifoname, strerror(errno));
+					  "Disabling fifo feature",
+					  fifoname, strerror(errno));
 			ret = errno;
 		}
 	}
 	return ret;
 }
 
-void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg)
-{
-	time_t t;
-	char *timestamp;
+void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg) {
+	time_t	 t;
+	char	*timestamp;
 	unsigned i;
 
 	if (!fifo_fd)
 		return;
 
-	t = time(NULL);
+	t		  = time(NULL);
 	timestamp = ctime(&t);
 
 	for (i = 14; i < strlen(timestamp); i++)
@@ -954,9 +988,8 @@ void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg)
  * Modified to always return success. Earlier kernels don't have oom_adjust
  * 'feature' so don't fail if we can't find it..
  */
-int oom_adjust(void)
-{
-	int fd, ret;
+int oom_adjust(void) {
+	int	 fd, ret;
 	char path[64];
 
 	/* Avoid oom-killer */
@@ -964,22 +997,21 @@ int oom_adjust(void)
 	fd = open(path, O_WRONLY);
 	if (fd < 0) {
 		MHVTL_DBG(3, "Can't open oom-killer's pardon %s, %s",
-				path, strerror(errno));
+				  path, strerror(errno));
 		return 0;
 	}
 	ret = write(fd, "-17\n", 4);
 	if (ret < 0) {
 		MHVTL_DBG(3, "Can't adjust oom-killer's pardon %s, %s",
-				path, strerror(errno));
+				  path, strerror(errno));
 	}
 	close(fd);
 	return 0;
 }
 
 /* fgets but replace '\n' with null */
-char *readline(char *buf, int len, FILE *s)
-{
-	int i;
+char *readline(char *buf, int len, FILE *s) {
+	int	  i;
 	char *ret;
 
 	ret = fgets(buf, len, s);
@@ -997,9 +1029,8 @@ char *readline(char *buf, int len, FILE *s)
 
 /* Copy bytes from 'src' to 'dest, blank-filling to length 'len'.  There will
  * not be a NULL byte at the end.
-*/
-void blank_fill(uint8_t *dest, char *src, int len)
-{
+ */
+void blank_fill(uint8_t *dest, char *src, int len) {
 	int i;
 
 	for (i = 0; i < len; i++) {
@@ -1010,8 +1041,7 @@ void blank_fill(uint8_t *dest, char *src, int len)
 	}
 }
 
-void truncate_spaces(char *s, int maxlen)
-{
+void truncate_spaces(char *s, int maxlen) {
 	int x;
 
 	for (x = 0; x < maxlen; x++)
@@ -1027,13 +1057,12 @@ void truncate_spaces(char *s, int maxlen)
  *
  * NOTE: Caller has to free string after use.
  */
-char *get_version(void)
-{
-	char b[64];
-	int x, y, z;
+char *get_version(void) {
+	char  b[64];
+	int	  x, y, z;
 	char *c;
 
-	c = (char *)zalloc(32);	/* Way more than enough for a 4 byte string */
+	c = (char *)zalloc(32); /* Way more than enough for a 4 byte string */
 	if (!c)
 		return NULL;
 
@@ -1048,30 +1077,28 @@ char *get_version(void)
 	return c;
 }
 
-void log_opcode(char *opcode, struct scsi_cmd *cmd)
-{
+void log_opcode(char *opcode, struct scsi_cmd *cmd) {
 	struct s_sd sd;
 
 	MHVTL_DBG(1, "*** Unsupported op code: %s ***", opcode);
-	sd.byte0 = SKSV | CD;
+	sd.byte0		 = SKSV | CD;
 	sd.field_pointer = 0;
 	sam_illegal_request(E_INVALID_OP_CODE, &sd, &cmd->dbuf_p->sam_stat);
 	MHVTL_DBG_PRT_CDB(1, cmd);
 }
 
 #define LOCK_PATH "/var/lock/mhvtl"
-#define MAX_WAIT 20
-int check_for_running_daemons(unsigned minor)
-{
-	char lck_file[128];
+#define MAX_WAIT  20
+int check_for_running_daemons(unsigned minor) {
+	char		lck_file[128];
 	struct stat km;
-	int lck;
-	int err;
-	int a;
-	long rand;
+	int			lck;
+	int			err;
+	int			a;
+	long		rand;
 
 	/* Don't really care if this dir exists already */
-	err = mkdir(LOCK_PATH, S_IWUSR|S_IRUSR);
+	err = mkdir(LOCK_PATH, S_IWUSR | S_IRUSR);
 	if (err < 0) {
 		MHVTL_DBG(3, "Unable to create lock directory %s", LOCK_PATH);
 	}
@@ -1081,14 +1108,14 @@ int check_for_running_daemons(unsigned minor)
 
 	for (a = 0; a < MAX_WAIT; a++) {
 		MHVTL_DBG(3, "stat %s file %d times", lck_file, a);
-		if (stat(lck_file, &km) == 0) {	/* Lock file still exists */
+		if (stat(lck_file, &km) == 0) { /* Lock file still exists */
 			rand = 0xffL & random();
 			MHVTL_DBG(3, "sleeping for 0x%lx", rand << 12)
 			usleep((useconds_t)(rand << 12));
 		} else {
 			/* There is a race between stat() and creat() - but should be small for this use case */
-			lck = creat(lck_file, O_CREAT|S_IRWXU);
-			if (lck < 0) {	/* Lock file exists */
+			lck = creat(lck_file, O_CREAT | S_IRWXU);
+			if (lck < 0) { /* Lock file exists */
 				MHVTL_DBG(1, "creat lock file %s failed %s", lck_file, strerror(err));
 			} else {
 				break;
@@ -1106,8 +1133,7 @@ int check_for_running_daemons(unsigned minor)
 	return 0;
 }
 
-int free_lock(unsigned minor)
-{
+int free_lock(unsigned minor) {
 	char lck_file[128];
 
 	sprintf(lck_file, "%s/mhvtl%d", LOCK_PATH, minor);
@@ -1117,78 +1143,73 @@ int free_lock(unsigned minor)
 }
 
 /* Abort if string length > len */
-void checkstrlen(char *s, unsigned len, int lineno)
-{
+void checkstrlen(char *s, unsigned len, int lineno) {
 	if (strlen(s) > len) {
 		MHVTL_DBG(1, "Line #: %d, String %s is > %d... Aborting",
-						lineno, s, len);
+				  lineno, s, len);
 		printf("String %s longer than %d chars\n", s, len);
 		printf("Please fix config file\n");
 		abort();
 	}
 }
 
-int device_type_register(struct lu_phy_attr *lu, struct device_type_template *t)
-{
+int device_type_register(struct lu_phy_attr *lu, struct device_type_template *t) {
 	lu->scsi_ops = t;
 	return 0;
 }
 
-uint8_t set_compression_mode_pg(struct list_head *l, int lvl)
-{
+uint8_t set_compression_mode_pg(struct list_head *l, int lvl) {
 	struct mode *m;
-	uint8_t *p;
+	uint8_t		*p;
 
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
 	m = lookup_pcode(l, MODE_DATA_COMPRESSION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			l, m, m->pcodePointer);
+			  l, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
-		p[2] |= 0x80;	/* Set data compression enable */
+		p[2] |= 0x80; /* Set data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
 	m = lookup_pcode(l, MODE_DEVICE_CONFIGURATION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			l, m, m->pcodePointer);
+			  l, m, m->pcodePointer);
 	if (m) {
-		p = m->pcodePointer;
+		p	  = m->pcodePointer;
 		p[14] = lvl;
 	}
 	return SAM_STAT_GOOD;
 }
 
-uint8_t clear_compression_mode_pg(struct list_head *l)
-{
+uint8_t clear_compression_mode_pg(struct list_head *l) {
 	struct mode *m;
-	uint8_t *p;
+	uint8_t		*p;
 
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
 	m = lookup_pcode(l, MODE_DATA_COMPRESSION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			l, m, m->pcodePointer);
+			  l, m, m->pcodePointer);
 	if (m) {
 		p = m->pcodePointer;
-		p[2] &= 0x7f;	/* clear data compression enable */
+		p[2] &= 0x7f; /* clear data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
 	m = lookup_pcode(l, MODE_DEVICE_CONFIGURATION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			l, m, m->pcodePointer);
+			  l, m, m->pcodePointer);
 	if (m) {
-		p = m->pcodePointer;
+		p	  = m->pcodePointer;
 		p[14] = MHVTL_NO_COMPRESSION;
 	}
 	return SAM_STAT_GOOD;
 }
 
-uint8_t clear_WORM(struct list_head *l)
-{
-	uint8_t *smp_dp;
+uint8_t clear_WORM(struct list_head *l) {
+	uint8_t		*smp_dp;
 	struct mode *m;
 
 	m = lookup_pcode(l, MODE_MEDIUM_CONFIGURATION, 0);
@@ -1196,7 +1217,7 @@ uint8_t clear_WORM(struct list_head *l)
 		MHVTL_DBG(3, "Did not find MODE_MEDIUM_CONFIGURATION page");
 	} else {
 		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			l, m, m->pcodePointer);
+				  l, m, m->pcodePointer);
 
 		smp_dp = m->pcodePointer;
 		if (!smp_dp)
@@ -1207,9 +1228,8 @@ uint8_t clear_WORM(struct list_head *l)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t set_WORM(struct list_head *l)
-{
-	uint8_t *smp_dp;
+uint8_t set_WORM(struct list_head *l) {
+	uint8_t		*smp_dp;
 	struct mode *m;
 
 	MHVTL_DBG(3, "*** Trace ***");
@@ -1219,7 +1239,7 @@ uint8_t set_WORM(struct list_head *l)
 		MHVTL_DBG(3, "Did not find MODE_MEDIUM_CONFIGURATION page");
 	} else {
 		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			l, m, m->pcodePointer);
+				  l, m, m->pcodePointer);
 
 		smp_dp = m->pcodePointer;
 		if (!smp_dp)
@@ -1232,8 +1252,7 @@ uint8_t set_WORM(struct list_head *l)
 }
 
 /* Remove newline from string and fill rest of 'len' with char 'c' */
-void rmnl(char *s, unsigned char c, int len)
-{
+void rmnl(char *s, unsigned char c, int len) {
 	int i;
 	int found = 0;
 
@@ -1245,11 +1264,10 @@ void rmnl(char *s, unsigned char c, int len)
 	}
 }
 
-void update_vpd_86(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_86(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x86)];
 
-	struct ssc_personality_template * spt;
+	struct ssc_personality_template *spt;
 
 	spt = p;
 
@@ -1257,58 +1275,50 @@ void update_vpd_86(struct lu_phy_attr *lu, void *p)
 
 	vpd_pg->data[0] = (spt->drive_supports_LBP) ? 0x8 : 0;
 
-	vpd_pg->data[1] = 0x01;	/* SIMPSUP (Device supports simple queing) */
-
+	vpd_pg->data[1] = 0x01; /* SIMPSUP (Device supports simple queing) */
 }
 
-void update_vpd_b0(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_b0(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb0)];
-	uint8_t *worm;
+	uint8_t	   *worm;
 
 	worm = (uint8_t *)p;
 
-	*vpd_pg->data = (*worm) ? 1 : 0;        /* Set WORM bit */
+	*vpd_pg->data = (*worm) ? 1 : 0; /* Set WORM bit */
 }
 
-void update_vpd_b1(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_b1(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb1)];
 
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
-void update_vpd_b2(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_b2(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
 
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
 /* VPD 0xB5 */
-void update_vpd_lbp(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_lbp(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xb2)];
 
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
-void update_vpd_c0(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_c0(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc0)];
 
 	memcpy(&vpd_pg->data[20], p, strlen((const char *)p));
 }
 
-void update_vpd_c1(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_c1(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0xc1)];
 
 	memcpy(vpd_pg->data, p, vpd_pg->sz);
 }
 
-void cleanup_density_support(struct list_head *l)
-{
+void cleanup_density_support(struct list_head *l) {
 	struct supported_density_list *dp, *ndp;
 
 	list_for_each_entry_safe(dp, ndp, l, siblings) {
@@ -1317,8 +1327,7 @@ void cleanup_density_support(struct list_head *l)
 	}
 }
 
-int add_density_support(struct list_head *l, struct density_info *di, int rw)
-{
+int add_density_support(struct list_head *l, struct density_info *di, int rw) {
 	struct supported_density_list *supported;
 
 	supported = zalloc(sizeof(struct supported_density_list));
@@ -1326,16 +1335,15 @@ int add_density_support(struct list_head *l, struct density_info *di, int rw)
 		return -ENOMEM;
 
 	supported->density_info = di;
-	supported->rw = rw;
+	supported->rw			= rw;
 	list_add_tail(&supported->siblings, l);
 	return 0;
 }
 
-void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
-{
+void process_fifoname(struct lu_phy_attr *lu, char *s, int flag) {
 	MHVTL_DBG(3, "entry: %s, flag: %d, existing name: %s",
-				s, flag, lu->fifoname);
-	if (lu->fifo_flag)	/* fifo set via '-f <fifo>' switch */
+			  s, flag, lu->fifoname);
+	if (lu->fifo_flag) /* fifo set via '-f <fifo>' switch */
 		return;
 	checkstrlen(s, MALLOC_SZ - 1, 0);
 	free(lu->fifoname);
@@ -1350,10 +1358,9 @@ void process_fifoname(struct lu_phy_attr *lu, char *s, int flag)
 }
 
 /* Remove message queue */
-void cleanup_msg(void)
-{
-	int msqid;
-	int retval;
+void cleanup_msg(void) {
+	int				msqid;
+	int				retval;
 	struct msqid_ds ds;
 
 	msqid = init_queue();
@@ -1370,20 +1377,19 @@ void cleanup_msg(void)
 }
 
 #define QUERYSHM 0
-#define INCSHM	1
-#define DECSHM	2
+#define INCSHM	 1
+#define DECSHM	 2
 
-static int mhvtl_shared_mem(int flag)
-{
-	int mhvtl_shm;
-	int retval = -1;
-	int *base;
-	key_t key;
+static int mhvtl_shared_mem(int flag) {
+	int				mhvtl_shm;
+	int				retval = -1;
+	int			   *base;
+	key_t			key;
 	struct shmid_ds buf;
 
 	key = 0x4d61726b;
 
-	mhvtl_shm = shmget(key, 16, IPC_CREAT|0666);
+	mhvtl_shm = shmget(key, 16, IPC_CREAT | 0666);
 	if (mhvtl_shm < 0) {
 		printf("Attempt to get Shared memory failed\n");
 		MHVTL_ERR("Attempt to get shared memory failed");
@@ -1391,7 +1397,7 @@ static int mhvtl_shared_mem(int flag)
 	}
 
 	base = (int *)shmat(mhvtl_shm, NULL, 0);
-	if (base == (void *) -1) {
+	if (base == (void *)-1) {
 		MHVTL_ERR("Failed to attach to shm: %s", strerror(errno));
 		return -1;
 	}
@@ -1413,11 +1419,11 @@ static int mhvtl_shared_mem(int flag)
 			shmctl(mhvtl_shm, IPC_STAT, &buf);
 			shmctl(mhvtl_shm, IPC_RMID, &buf);
 			MHVTL_DBG(3, "pid of creator: %d,"
-					" pid of last shmat(): %d, "
-					" Number of current attach: %d",
-					buf.shm_cpid,
-					buf.shm_lpid,
-					(int)buf.shm_nattch);
+						 " pid of last shmat(): %d, "
+						 " Number of current attach: %d",
+					  buf.shm_cpid,
+					  buf.shm_lpid,
+					  (int)buf.shm_nattch);
 			/* Should be no more users of the message Q either */
 			cleanup_msg();
 		}
@@ -1432,13 +1438,12 @@ static int mhvtl_shared_mem(int flag)
 	return retval;
 }
 
-static int mhvtl_fifo_count(int direction)
-{
+static int mhvtl_fifo_count(int direction) {
 	sem_t *mhvtl_sem;
-	int sval;
-	int i;
-	char errmsg[] = "mhvtl_sem";
-	int retval = -1;
+	int	   sval;
+	int	   i;
+	char   errmsg[] = "mhvtl_sem";
+	int	   retval	= -1;
 
 	mhvtl_sem = sem_open("/mhVTL", O_CREAT, 0664, 1);
 	if (SEM_FAILED == mhvtl_sem) {
@@ -1454,8 +1459,8 @@ static int mhvtl_fifo_count(int direction)
 			if (i > 8)
 				/* Give up.. Clear the semaphore & do it */
 				MHVTL_ERR("waiting for semaphore: %p",
-								mhvtl_sem);
-				sem_post(mhvtl_sem);
+						  mhvtl_sem);
+			sem_post(mhvtl_sem);
 		} else {
 			retval = mhvtl_shared_mem(direction);
 			sem_post(mhvtl_sem);
@@ -1467,18 +1472,15 @@ static int mhvtl_fifo_count(int direction)
 	return retval;
 }
 
-int dec_fifo_count(void)
-{
+int dec_fifo_count(void) {
 	return mhvtl_fifo_count(DECSHM);
 }
 
-int inc_fifo_count(void)
-{
+int inc_fifo_count(void) {
 	return mhvtl_fifo_count(INCSHM);
 }
 
-int get_fifo_count(void)
-{
+int get_fifo_count(void) {
 	return mhvtl_fifo_count(QUERYSHM);
 }
 
@@ -1487,27 +1489,26 @@ int get_fifo_count(void)
  * file from our config directory. Use the default config directory unless one
  * is passed in
  */
-void find_media_home_directory(char *config_directory, char *home_directory, long lib_id)
-{
+void find_media_home_directory(char *config_directory, char *home_directory, long lib_id) {
 	char *config;
 	FILE *conf;
-	char *b;	/* Read from file into this buffer */
-	char *s;	/* Somewhere for sscanf to store results */
-	long i;
-	int found;
+	char *b; /* Read from file into this buffer */
+	char *s; /* Somewhere for sscanf to store results */
+	long  i;
+	int	  found;
 
-	found = 0;
+	found			  = 0;
 	home_directory[0] = '\0';
 
 	if (asprintf(&config, "%s/device.conf",
-			config_directory ? config_directory : MHVTL_CONFIG_PATH) < 0) {
+				 config_directory ? config_directory : MHVTL_CONFIG_PATH) < 0) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	conf = fopen(config , "r");
+	conf = fopen(config, "r");
 	if (!conf) {
 		MHVTL_ERR("Can not open config file %s : %s", config,
-					strerror(errno));
+				  strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -1522,13 +1523,13 @@ void find_media_home_directory(char *config_directory, char *home_directory, lon
 		exit(1);
 	}
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
-		if (b[0] == '#')	/* Ignore comments */
+		if (b[0] == '#') /* Ignore comments */
 			continue;
-		if (strlen(b) < 3)	/* Reset drive number of blank line */
+		if (strlen(b) < 3) /* Reset drive number of blank line */
 			i = 0xff;
 		if (sscanf(b, "Library: %ld ", &i)) {
 			MHVTL_DBG(2, "Found Library %ld, looking for %ld",
-							i, lib_id);
+					  i, lib_id);
 			if (i == lib_id)
 				found = 1;
 		}
@@ -1538,7 +1539,7 @@ void find_media_home_directory(char *config_directory, char *home_directory, lon
 			if (a > 0) {
 				strncpy(home_directory, s, HOME_DIR_PATH_SZ);
 				MHVTL_DBG(2, "Found home directory  : %s",
-						home_directory);
+						  home_directory);
 				goto finished; /* Found what we came for */
 			}
 		}
@@ -1546,10 +1547,10 @@ void find_media_home_directory(char *config_directory, char *home_directory, lon
 
 	/* Not found, then append the library id to default path */
 	snprintf(home_directory, HOME_DIR_PATH_SZ, "%s/%ld",
-						MHVTL_HOME_PATH, lib_id);
+			 MHVTL_HOME_PATH, lib_id);
 	MHVTL_DBG(1, "Append library id %ld to default path %s: %s",
-						lib_id, MHVTL_HOME_PATH,
-						home_directory);
+			  lib_id, MHVTL_HOME_PATH,
+			  home_directory);
 
 finished:
 	free(s);
@@ -1558,8 +1559,7 @@ finished:
 	free(config);
 }
 
-unsigned int set_media_params(struct MAM *mamp, char *density)
-{
+unsigned int set_media_params(struct MAM *mamp, char *density) {
 	/* Invent some defaults */
 	mamp->MediaType = Media_undefined;
 	put_unaligned_be32(2048, &mamp->media_info.bits_per_mm);
@@ -1572,7 +1572,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 
 	if (!(strncmp(density, "LTO1", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto1;
-		mamp->MediaType = Media_LTO1;
+		mamp->MediaType			= Media_LTO1;
 		put_unaligned_be32(384, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 1/8T", 12);
@@ -1581,7 +1581,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(4880, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO2", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto2;
-		mamp->MediaType = Media_LTO2;
+		mamp->MediaType			= Media_LTO2;
 		put_unaligned_be32(512, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 2/8T", 12);
@@ -1590,7 +1590,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(7398, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO3", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto3;
-		mamp->MediaType = Media_LTO3;
+		mamp->MediaType			= Media_LTO3;
 		put_unaligned_be32(704, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 3/16T", 13);
@@ -1599,7 +1599,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(9638, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO4", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto4;
-		mamp->MediaType = Media_LTO4;
+		mamp->MediaType			= Media_LTO4;
 		put_unaligned_be32(896, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 4/16T", 13);
@@ -1608,7 +1608,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(12725, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "LTO5", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto5;
-		mamp->MediaType = Media_LTO5;
+		mamp->MediaType			= Media_LTO5;
 		put_unaligned_be32(1280, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 5/16T", 13);
@@ -1619,7 +1619,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO6", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto6;
-		mamp->MediaType = Media_LTO6;
+		mamp->MediaType			= Media_LTO6;
 		put_unaligned_be32(2176, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 6/16T", 13);
@@ -1630,7 +1630,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO7", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto7;
-		mamp->MediaType = Media_LTO7;
+		mamp->MediaType			= Media_LTO7;
 		put_unaligned_be32(960, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 7/32T", 13);
@@ -1641,7 +1641,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO8", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto8;
-		mamp->MediaType = Media_LTO8;
+		mamp->MediaType			= Media_LTO8;
 		put_unaligned_be32(960, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 8/32T", 13);
@@ -1652,7 +1652,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO9", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto9;
-		mamp->MediaType = Media_LTO9;
+		mamp->MediaType			= Media_LTO9;
 		put_unaligned_be32(960, &mamp->MediumLength);
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 9/32T", 13);
@@ -1662,9 +1662,9 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "AIT1", 4))) {
-	/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
+		/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
 		mamp->MediumDensityCode = medium_density_code_ait1;
-		mamp->MediaType = Media_AIT1;
+		mamp->MediaType			= Media_AIT1;
 		put_unaligned_be32(384, &mamp->MediumLength);
 		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape1", 20);
@@ -1673,7 +1673,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(0x11d7, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT2", 4))) {
 		mamp->MediumDensityCode = medium_density_code_ait2;
-		mamp->MediaType = Media_AIT2;
+		mamp->MediaType			= Media_AIT2;
 		put_unaligned_be32(384, &mamp->MediumLength);
 		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape2", 20);
@@ -1682,7 +1682,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(0x17d6, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT3", 4))) {
 		mamp->MediumDensityCode = medium_density_code_ait3;
-		mamp->MediaType = Media_AIT3;
+		mamp->MediaType			= Media_AIT3;
 		put_unaligned_be32(384, &mamp->MediumLength);
 		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape3", 20);
@@ -1691,7 +1691,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(0x17d6, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "AIT4", 4))) {
 		mamp->MediumDensityCode = medium_density_code_ait4;
-		mamp->MediaType = Media_AIT4;
+		mamp->MediaType			= Media_AIT4;
 		put_unaligned_be32(384, &mamp->MediumLength);
 		put_unaligned_be32(0x50, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "AdvIntelligentTape4", 20);
@@ -1700,47 +1700,47 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(0x17d6, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DLT3", 4))) {
 		mamp->MediumDensityCode = medium_density_code_dlt3;
-		mamp->MediaType = Media_DLT3;
+		mamp->MediaType			= Media_DLT3;
 		memcpy(&mamp->media_info.description, "DLTtape III", 11);
 		memcpy(&mamp->media_info.density_name, "DLT-III", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 	} else if (!(strncmp(density, "DLT4", 4))) {
 		mamp->MediumDensityCode = medium_density_code_dlt4;
-		mamp->MediaType = Media_DLT4;
+		mamp->MediaType			= Media_DLT4;
 		memcpy(&mamp->media_info.description, "DLTtape IV", 10);
 		memcpy(&mamp->media_info.density_name, "DLT-IV", 6);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 	} else if (!(strncmp(density, "SDLT1", 5))) {
 		mamp->MediumDensityCode = 0x48;
-		mamp->MediaType = Media_SDLT;
+		mamp->MediaType			= Media_SDLT;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT-1", 6);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		put_unaligned_be32(133000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "SDLT220", 7))) {
 		mamp->MediumDensityCode = medium_density_code_220;
-		mamp->MediaType = Media_SDLT220;
+		mamp->MediaType			= Media_SDLT220;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT220", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		put_unaligned_be32(133000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "SDLT320", 7))) {
 		mamp->MediumDensityCode = medium_density_code_320;
-		mamp->MediaType = Media_SDLT320;
+		mamp->MediaType			= Media_SDLT320;
 		memcpy(&mamp->media_info.description, "SDLT I media", 12);
 		memcpy(&mamp->media_info.density_name, "SDLT320", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		put_unaligned_be32(190000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "SDLT600", 7))) {
 		mamp->MediumDensityCode = medium_density_code_600;
-		mamp->MediaType = Media_SDLT600;
+		mamp->MediaType			= Media_SDLT600;
 		memcpy(&mamp->media_info.description, "SDLT II media", 13);
 		memcpy(&mamp->media_info.density_name, "SDLT600", 7);
 		memcpy(&mamp->AssigningOrganization_1, "QUANTUM", 7);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "9840A", 5))) {
 		mamp->MediumDensityCode = medium_density_code_9840A;
-		mamp->MediaType = Media_9840A;
+		mamp->MediaType			= Media_9840A;
 		memcpy(&mamp->media_info.description, "Raven 20 GB", 11);
 		memcpy(&mamp->media_info.density_name, "R-20", 4);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
@@ -1750,7 +1750,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(1024, &mamp->MediumLength);
 	} else if (!(strncmp(density, "9840B", 5))) {
 		mamp->MediumDensityCode = medium_density_code_9840B;
-		mamp->MediaType = Media_9840B;
+		mamp->MediaType			= Media_9840B;
 		memcpy(&mamp->media_info.description, "Raven 20 GB", 11);
 		memcpy(&mamp->media_info.density_name, "R-20", 4);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
@@ -1760,7 +1760,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(1024, &mamp->MediumLength);
 	} else if (!(strncmp(density, "9840C", 5))) {
 		mamp->MediumDensityCode = medium_density_code_9840C;
-		mamp->MediaType = Media_9840C;
+		mamp->MediaType			= Media_9840C;
 		memcpy(&mamp->media_info.description, "Raven 40 GB", 11);
 		memcpy(&mamp->media_info.density_name, "R-40", 4);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
@@ -1770,7 +1770,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(1024, &mamp->MediumLength);
 	} else if (!(strncmp(density, "9840D", 5))) {
 		mamp->MediumDensityCode = medium_density_code_9840D;
-		mamp->MediaType = Media_9840D;
+		mamp->MediaType			= Media_9840D;
 		memcpy(&mamp->media_info.description, "Raven 75 GB", 11);
 		memcpy(&mamp->media_info.density_name, "R-75", 4);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
@@ -1780,7 +1780,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(1024, &mamp->MediumLength);
 	} else if (!(strncmp(density, "9940A", 5))) {
 		mamp->MediumDensityCode = medium_density_code_9940A;
-		mamp->MediaType = Media_9940A;
+		mamp->MediaType			= Media_9940A;
 		memcpy(&mamp->media_info.description, "PeakCapacity 60 GB", 18);
 		memcpy(&mamp->media_info.density_name, "P-60", 4);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
@@ -1790,9 +1790,9 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(1024, &mamp->MediumLength);
 	} else if (!(strncmp(density, "9940B", 5))) {
 		mamp->MediumDensityCode = medium_density_code_9940B;
-		mamp->MediaType = Media_9940B;
+		mamp->MediaType			= Media_9940B;
 		memcpy(&mamp->media_info.description,
-						"PeakCapacity 200 GB", 19);
+			   "PeakCapacity 200 GB", 19);
 		memcpy(&mamp->media_info.density_name, "P-200", 5);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		put_unaligned_be32(0, &mamp->media_info.bits_per_mm);
@@ -1801,83 +1801,83 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 		put_unaligned_be32(1024, &mamp->MediumLength);
 	} else if (!(strncmp(density, "T10KA", 5))) {
 		mamp->MediumDensityCode = medium_density_code_10kA;
-		mamp->MediaType = Media_T10KA;
+		mamp->MediaType			= Media_T10KA;
 		memcpy(&mamp->media_info.description, "STK T10KA media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000A", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "T10KB", 5))) {
 		mamp->MediumDensityCode = medium_density_code_10kB;
-		mamp->MediaType = Media_T10KB;
+		mamp->MediaType			= Media_T10KB;
 		memcpy(&mamp->media_info.description, "STK T10KB media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000B", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "T10KC", 5))) {
 		mamp->MediumDensityCode = medium_density_code_10kC;
-		mamp->MediaType = Media_T10KC;
+		mamp->MediaType			= Media_T10KC;
 		memcpy(&mamp->media_info.description, "STK T10KC media", 15);
 		memcpy(&mamp->media_info.density_name, "T10000C", 7);
 		memcpy(&mamp->AssigningOrganization_1, "STK", 3);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS1", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS1;
-		mamp->MediaType = Media_DDS1;
+		mamp->MediaType			= Media_DDS1;
 		memcpy(&mamp->media_info.description, "4MM DDS-1 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS1", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS2", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS2;
-		mamp->MediaType = Media_DDS2;
+		mamp->MediaType			= Media_DDS2;
 		memcpy(&mamp->media_info.description, "4MM DDS-2 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS2", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS3", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS3;
-		mamp->MediaType = Media_DDS3;
+		mamp->MediaType			= Media_DDS3;
 		memcpy(&mamp->media_info.description, "4MM DDS-3 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS3", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "DDS4", 4))) {
 		mamp->MediumDensityCode = medium_density_code_DDS4;
-		mamp->MediaType = Media_DDS4;
+		mamp->MediaType			= Media_DDS4;
 		memcpy(&mamp->media_info.description, "4MM DDS-4 media", 15);
 		memcpy(&mamp->media_info.density_name, "DDS4", 4);
 		memcpy(&mamp->AssigningOrganization_1, "HP", 2);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "J1A", 3))) {
 		mamp->MediumDensityCode = medium_density_code_j1a;
-		mamp->MediaType = Media_3592_JA;
+		mamp->MediaType			= Media_3592_JA;
 		memcpy(&mamp->media_info.description, "3592 J1A media", 14);
 		memcpy(&mamp->media_info.density_name, "3592J1A", 7);
 		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "E05", 3))) {
 		mamp->MediumDensityCode = medium_density_code_e05;
-		mamp->MediaType = Media_3592_JB;
+		mamp->MediaType			= Media_3592_JB;
 		memcpy(&mamp->media_info.description, "3592 E05 media", 14);
 		memcpy(&mamp->media_info.density_name, "3592E05", 7);
 		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
 		put_unaligned_be32(233000, &mamp->media_info.bits_per_mm);
 	} else if (!(strncmp(density, "E06", 3))) {
 		mamp->MediumDensityCode = medium_density_code_e06;
-		mamp->MediaType = Media_3592_JX;
+		mamp->MediaType			= Media_3592_JX;
 		memcpy(&mamp->media_info.description, "3592 E06 media", 14);
 		memcpy(&mamp->media_info.density_name, "3592E06", 7);
 		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
 	} else if (!(strncmp(density, "E07", 3))) {
 		mamp->MediumDensityCode = medium_density_code_e07;
-		mamp->MediaType = Media_3592_JK;
+		mamp->MediaType			= Media_3592_JK;
 		memcpy(&mamp->media_info.description, "3592 E07 media", 14);
 		memcpy(&mamp->media_info.density_name, "3592E07", 7);
 		memcpy(&mamp->AssigningOrganization_1, "IBM", 3);
 	} else
 		printf("'%s' is an invalid density\n", density);
 
-	if (mamp->MediaType == Media_undefined)	{
+	if (mamp->MediaType == Media_undefined) {
 		printf("Warning: mamp->MediaType is still undefined\n");
 		return 1;
 	}
@@ -1885,8 +1885,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density)
 	return 0;
 }
 
-void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec)
-{
+void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec) {
 	sscanf(__TIME__, "%d:%d:%d", hh, min, sec);
 
 	if (sscanf(__DATE__, "Jan %d %d", day, year) == 2)
@@ -1915,32 +1914,28 @@ void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec)
 		*month = 12;
 }
 
-void opcode_6_params(struct scsi_cmd *cmd, int *num, int *sz)
-{
+void opcode_6_params(struct scsi_cmd *cmd, int *num, int *sz) {
 	uint8_t *cdb = cmd->scb;
 
-	if (cdb[1] & FIXED_BLOCK) {	/* If Fixed block writes */
+	if (cdb[1] & FIXED_BLOCK) { /* If Fixed block writes */
 		*num = get_unaligned_be24(&cdb[2]);
-		*sz = get_unaligned_be24(&modeBlockDescriptor[5]);
-	} else {		/* else - Variable Block writes */
+		*sz	 = get_unaligned_be24(&modeBlockDescriptor[5]);
+	} else { /* else - Variable Block writes */
 		*num = 1;
-		*sz = get_unaligned_be24(&cdb[2]);
+		*sz	 = get_unaligned_be24(&cdb[2]);
 	}
 }
 
-char *slot_type_str(int type)
-{
+char *slot_type_str(int type) {
 	return slot_type_string[type];
 }
 
-void init_smc_log_pages(struct lu_phy_attr *lu)
-{
+void init_smc_log_pages(struct lu_phy_attr *lu) {
 	add_log_temperature_page(lu);
 	add_log_tape_alert(lu);
 }
 
-void init_smc_mode_pages(struct lu_phy_attr *lu)
-{
+void init_smc_mode_pages(struct lu_phy_attr *lu) {
 	add_mode_disconnect_reconnect(lu);
 	add_mode_control_extension(lu);
 	add_mode_power_condition(lu);
@@ -1950,8 +1945,7 @@ void init_smc_mode_pages(struct lu_phy_attr *lu)
 	add_mode_device_capabilities(lu);
 }
 
-void bubbleSort(int *array, int size)
-{
+void bubbleSort(int *array, int size) {
 	int swapped;
 	int i;
 	int j;
@@ -1959,11 +1953,11 @@ void bubbleSort(int *array, int size)
 	for (i = 1; i < size; i++) {
 		swapped = 0;
 		for (j = 0; j < size - i; j++) {
-			if (array[j] > array[j+1]) {
-				int temp = array[j];
-				array[j] = array[j+1];
-				array[j+1] = temp;
-				swapped = 1;
+			if (array[j] > array[j + 1]) {
+				int temp	 = array[j];
+				array[j]	 = array[j + 1];
+				array[j + 1] = temp;
+				swapped		 = 1;
 			}
 		}
 		if (!swapped)
@@ -1971,11 +1965,10 @@ void bubbleSort(int *array, int size)
 	}
 }
 
-void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type)
-{
-	int i;
+void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type) {
+	int				 i;
 	struct smc_priv *smc_p = lu->lu_private;
-	int arr[4];
+	int				 arr[4];
 
 	arr[0] = smc_p->pm->start_drive;
 	arr[1] = smc_p->pm->start_picker;
@@ -1986,50 +1979,48 @@ void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type)
 
 	for (i = 0; i < 4; i++) {
 		if (smc_p->pm->start_drive == arr[i]) {
-			type[i].type = DATA_TRANSFER;
+			type[i].type  = DATA_TRANSFER;
 			type[i].start = smc_p->pm->start_drive;
 		}
 		if (smc_p->pm->start_picker == arr[i]) {
-			type[i].type = MEDIUM_TRANSPORT;
+			type[i].type  = MEDIUM_TRANSPORT;
 			type[i].start = smc_p->pm->start_picker;
 		}
 		if (smc_p->pm->start_map == arr[i]) {
-			type[i].type = MAP_ELEMENT;
+			type[i].type  = MAP_ELEMENT;
 			type[i].start = smc_p->pm->start_map;
 		}
 		if (smc_p->pm->start_storage == arr[i]) {
-			type[i].type = STORAGE_ELEMENT;
+			type[i].type  = STORAGE_ELEMENT;
 			type[i].start = smc_p->pm->start_storage;
 		}
 	}
 }
 
 /* Set VPD data with device serial number */
-void update_vpd_80(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_80(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x80)];
 
-	assert(vpd_pg);		/* space should have been pre-allocated */
+	assert(vpd_pg); /* space should have been pre-allocated */
 
 	memcpy(vpd_pg->data, p, strlen((const char *)p));
 }
 
-void update_vpd_83(struct lu_phy_attr *lu, void *p)
-{
+void update_vpd_83(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x83)];
-	uint8_t *d;
-	char *ptr;
-	int num;
-	int len, j;
+	uint8_t	   *d;
+	char	   *ptr;
+	int			num;
+	int			len, j;
 
-	assert(vpd_pg);		/* space should have been pre-allocated */
+	assert(vpd_pg); /* space should have been pre-allocated */
 
 	d = vpd_pg->data;
 
 	d[0] = 2;
 	d[1] = 1;
 	d[2] = 0;
-	num = VENDOR_ID_LEN + PRODUCT_ID_LEN + 10;
+	num	 = VENDOR_ID_LEN + PRODUCT_ID_LEN + 10;
 	d[3] = num;
 
 	memcpy(&d[4], &lu->vendor_id, VENDOR_ID_LEN);
@@ -2040,30 +2031,30 @@ void update_vpd_83(struct lu_phy_attr *lu, void *p)
 
 	num += 4;
 	/* NAA IEEE registered identifier (faked) */
-	d[num] = 0x1;	/* Binary */
-	d[num + 1] = 0x3;
-	d[num + 2] = 0x0;
-	d[num + 3] = 0x8;
-	d[num + 4] = 0x51;
-	d[num + 5] = 0x23;
-	d[num + 6] = 0x45;
-	d[num + 7] = 0x60;
-	d[num + 8] = 0x3;
-	d[num + 9] = 0x3;
+	d[num]		= 0x1; /* Binary */
+	d[num + 1]	= 0x3;
+	d[num + 2]	= 0x0;
+	d[num + 3]	= 0x8;
+	d[num + 4]	= 0x51;
+	d[num + 5]	= 0x23;
+	d[num + 6]	= 0x45;
+	d[num + 7]	= 0x60;
+	d[num + 8]	= 0x3;
+	d[num + 9]	= 0x3;
 	d[num + 10] = 0x3;
 	d[num + 11] = 0x3;
 
 	if (lu->naa) { /* If defined in config file */
 		sscanf((const char *)lu->naa,
-			"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			&d[num + 4],
-			&d[num + 5],
-			&d[num + 6],
-			&d[num + 7],
-			&d[num + 8],
-			&d[num + 9],
-			&d[num + 10],
-			&d[num + 11]);
+			   "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+			   &d[num + 4],
+			   &d[num + 5],
+			   &d[num + 6],
+			   &d[num + 7],
+			   &d[num + 8],
+			   &d[num + 9],
+			   &d[num + 10],
+			   &d[num + 11]);
 	} else { /* Else munge the serial number */
 		ptr--;
 		for (j = 11; j > 3; ptr--, j--)

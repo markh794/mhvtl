@@ -10,25 +10,24 @@
 #include <syslog.h>
 #include "q.h"
 
-extern int debug;
+extern int	 debug;
 extern char *mhvtl_driver_name;
 
-#define MHVTL_ERR(format, arg...) {				\
-	if (debug)						\
-		printf("%s: ERROR %s: " format "\n",		\
-			"mhvtl_driver_name", __func__, ## arg);	\
-	else							\
-		syslog(LOG_DAEMON|LOG_ERR, "ERROR %s: " format,	\
-			__func__, ## arg);			\
-}
+#define MHVTL_ERR(format, arg...)                             \
+	{                                                         \
+		if (debug)                                            \
+			printf("%s: ERROR %s: " format "\n",              \
+				   "mhvtl_driver_name", __func__, ##arg);     \
+		else                                                  \
+			syslog(LOG_DAEMON | LOG_ERR, "ERROR %s: " format, \
+				   __func__, ##arg);                          \
+	}
 
-static void warn(char *s)
-{
+static void warn(char *s) {
 	fprintf(stderr, "Warning: %s\n", s);
 }
 
-int init_queue(void)
-{
+int init_queue(void) {
 	int queue_id;
 
 	/* Attempt to create or open message queue */
@@ -53,15 +52,14 @@ int init_queue(void)
 			break;
 		}
 		MHVTL_ERR("msgget(%d) failed %s, %s",
-				QKEY, strerror(errno), s);
+				  QKEY, strerror(errno), s);
 	}
 
 	return queue_id;
 }
 
-int send_msg(char *cmd, long rcv_id)
-{
-	int len, s_qid;
+int send_msg(char *cmd, long rcv_id) {
+	int			   len, s_qid;
 	struct q_entry s_entry;
 
 	memset(&s_entry, 0, sizeof(struct q_entry));
@@ -70,7 +68,7 @@ int send_msg(char *cmd, long rcv_id)
 	if (s_qid == -1)
 		return -1;
 
-	s_entry.rcv_id = rcv_id;
+	s_entry.rcv_id	   = rcv_id;
 	s_entry.msg.snd_id = my_id;
 	strcpy(s_entry.msg.text, cmd);
 	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_entry, msg.text);
@@ -83,16 +81,14 @@ int send_msg(char *cmd, long rcv_id)
 	return 0;
 }
 
-static void proc_obj(struct q_entry *q_entry)
-{
+static void proc_obj(struct q_entry *q_entry) {
 	printf("rcv_id: %ld, snd_id: %ld, text: %s\n",
-		q_entry->rcv_id, q_entry->msg.snd_id, q_entry->msg.text);
+		   q_entry->rcv_id, q_entry->msg.snd_id, q_entry->msg.text);
 }
 
-int enter(char *objname, long rcv_id)
-{
-	int len, s_qid;
-	struct q_entry s_entry;	/* Structure to hold message */
+int enter(char *objname, long rcv_id) {
+	int			   len, s_qid;
+	struct q_entry s_entry; /* Structure to hold message */
 
 	/* Validate name length, rcv_id */
 	if (strlen(objname) > MAXTEXTLEN) {
@@ -111,7 +107,7 @@ int enter(char *objname, long rcv_id)
 		return -1;
 
 	/* Initialize s_entry */
-	s_entry.rcv_id = rcv_id;
+	s_entry.rcv_id	   = rcv_id;
 	s_entry.msg.snd_id = my_id;
 	strcpy(s_entry.msg.text, objname);
 	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_msg, text);
@@ -125,9 +121,8 @@ int enter(char *objname, long rcv_id)
 	return 0;
 }
 
-int serve(void)
-{
-	int mlen, r_qid;
+int serve(void) {
+	int			   mlen, r_qid;
 	struct q_entry r_entry;
 
 	/* Initialise message queue as necessary */
@@ -138,7 +133,7 @@ int serve(void)
 	/* Get and process next message, waiting if necessary */
 	for (;;) {
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN,
-					(-1 * MAXPRIOR), MSG_NOERROR);
+					  (-1 * MAXPRIOR), MSG_NOERROR);
 		if (mlen == -1) {
 			MHVTL_ERR("msgsnd failed: %s", strerror(errno));
 			return -1;
@@ -148,4 +143,3 @@ int serve(void)
 		}
 	}
 }
-

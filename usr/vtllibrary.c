@@ -63,23 +63,23 @@
 #include "mhvtl_log.h"
 
 char mhvtl_driver_name[] = "vtllibrary";
-long my_id = 0;
+long my_id				 = 0;
 
-#define CAP_CLOSED	1
-#define CAP_OPEN	0
-#define OPERATOR	1
-#define ROBOT_ARM	0
+#define CAP_CLOSED 1
+#define CAP_OPEN   0
+#define OPERATOR   1
+#define ROBOT_ARM  0
 
 #define SMC_BUF_SIZE 1024 * 1024 /* Default size of buffer */
 
 #define LIBCONTENTS "/library_contents."
 
-int verbose = 0;
-int debug = 0;
-static uint8_t sam_status = 0;		/* Non-zero if Sense-data is valid */
-long backoff;	/* Backoff value for polling char device */
+int			   verbose	  = 0;
+int			   debug	  = 0;
+static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
+long		   backoff;		   /* Backoff value for polling char device */
 
-extern int current_state;	/* scope, Global -> Last status sent to fifo */
+extern int current_state; /* scope, Global -> Last status sent to fifo */
 
 struct lu_phy_attr lunit;
 
@@ -87,8 +87,7 @@ static struct smc_priv smc_slots;
 
 struct s_info *add_new_slot(struct lu_phy_attr *lu);
 
-static void usage(char *progname)
-{
+static void usage(char *progname) {
 	printf("Usage: %s [OPTIONS] -q <Q-number>\n", progname);
 	printf("Where:\n");
 	printf("       '-q <Q-number>' is the queue priority number\n");
@@ -100,156 +99,386 @@ static void usage(char *progname)
 }
 
 #ifndef Solaris
- int ioctl(int, int, void *);
+int ioctl(int, int, void *);
 #endif
 
 struct device_type_template smc_template = {
-	.ops	= {
+	.ops = {
 		/* 0x00 -> 0x0f */
-		{spc_tur,},
-		{smc_rezero,},
-		{spc_illegal_op,},
-		{spc_request_sense,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{smc_initialize_element_status,},
+		{
+			spc_tur,
+		},
+		{
+			smc_rezero,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_request_sense,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			smc_initialize_element_status,
+		},
 
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
 		/* 0x10 -> 0x1f */
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_inquiry,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_mode_select,},
-		{spc_reserve,},
-		{spc_release,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_inquiry,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_mode_select,
+		},
+		{
+			spc_reserve,
+		},
+		{
+			spc_release,
+		},
 
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_mode_sense,},
-		{smc_open_close_import_export_element,},
-		{spc_recv_diagnostics,},
-		{spc_send_diagnostics,},
-		{smc_allow_removal,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_mode_sense,
+		},
+		{
+			smc_open_close_import_export_element,
+		},
+		{
+			spc_recv_diagnostics,
+		},
+		{
+			spc_send_diagnostics,
+		},
+		{
+			smc_allow_removal,
+		},
+		{
+			spc_illegal_op,
+		},
 
-		[0x20 ... 0x3f] = {spc_illegal_op,},
+		[0x20 ... 0x3f] = {
+			spc_illegal_op,
+		},
 
 		/* 0x40 -> 0x4f */
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_log_select,},
-		{smc_log_sense,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_log_select,
+		},
+		{
+			smc_log_sense,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
 		/* 0x50 -> 0x5f */
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_mode_select,},
-		{spc_reserve,},
-		{spc_release,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_mode_select,
+		},
+		{
+			spc_reserve,
+		},
+		{
+			spc_release,
+		},
 
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_mode_sense,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_mode_sense,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
-		[0x60 ... 0x9f] = {spc_illegal_op,},
+		[0x60 ... 0x9f] = {
+			spc_illegal_op,
+		},
 
 		/* 0xa0 -> 0xaf */
-		{spc_illegal_op,}, /* processed in the kernel module */
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{smc_move_medium,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		}, /* processed in the kernel module */
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			smc_move_medium,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
 		/* 0xb0 -> 0xbf */
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
-		{smc_read_element_status,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			smc_read_element_status,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
-		[0xc0 ... 0xdf] = {spc_illegal_op,},
+		[0xc0 ... 0xdf] = {
+			spc_illegal_op,
+		},
 
 		/* 0xe0 -> 0xef */
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{smc_initialize_element_status_with_range,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			smc_initialize_element_status_with_range,
+		},
 
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
-		{spc_illegal_op,},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
+		{
+			spc_illegal_op,
+		},
 
-		[0xf0 ... 0xff] = {spc_illegal_op,},
-	}
-};
+		[0xf0 ... 0xff] = {
+			spc_illegal_op,
+		},
+	}};
 
-__attribute__((constructor)) static void smc_init(void)
-{
+__attribute__((constructor)) static void smc_init(void) {
 	device_type_register(&lunit, &smc_template);
 }
 
@@ -257,10 +486,9 @@ __attribute__((constructor)) static void smc_init(void)
  * Update ops[xx] with new/updated/custom function 'f'
  */
 void register_ops(struct lu_phy_attr *lu, int op,
-			void *f, void *g, void *h)
-{
-	lu->scsi_ops->ops[op].cmd_perform = f;
-	lu->scsi_ops->ops[op].pre_cmd_perform = g;
+				  void *f, void *g, void *h) {
+	lu->scsi_ops->ops[op].cmd_perform	   = f;
+	lu->scsi_ops->ops[op].pre_cmd_perform  = g;
 	lu->scsi_ops->ops[op].post_cmd_perform = h;
 }
 
@@ -277,24 +505,23 @@ void register_ops(struct lu_phy_attr *lu, int op,
  *	SAM status returned in struct mhvtl_ds.sam_stat
  */
 static void processCommand(int cdev, uint8_t *cdb, struct mhvtl_ds *dbuf_p,
-			useconds_t pollInterval)
-{
-	int err = 0;
-	struct scsi_cmd _cmd;
+						   useconds_t pollInterval) {
+	int				 err = 0;
+	struct scsi_cmd	 _cmd;
 	struct scsi_cmd *cmd;
 	cmd = &_cmd;
 
-	cmd->scb = cdb;
-	cmd->scb_len = 16;	/* fixme */
-	cmd->dbuf_p = dbuf_p;
-	cmd->lu = &lunit;
+	cmd->scb		  = cdb;
+	cmd->scb_len	  = 16; /* fixme */
+	cmd->dbuf_p		  = dbuf_p;
+	cmd->lu			  = &lunit;
 	cmd->pollInterval = pollInterval;
-	cmd->cdev = cdev;
+	cmd->cdev		  = cdev;
 
 	MHVTL_DBG_PRT_CDB(1, cmd);
 
 	switch (cdb[0]) {
-		case INQUIRY:	/* INQUIRY does not need to check PowerOn/reset, however the Inquiry Data may have changed */
+	case INQUIRY: /* INQUIRY does not need to check PowerOn/reset, however the Inquiry Data may have changed */
 		if (check_inquiry_data_has_changed(&dbuf_p->sam_stat))
 			return;
 	case REPORT_LUNS:
@@ -328,17 +555,16 @@ static void processCommand(int cdev, uint8_t *cdb, struct mhvtl_ds *dbuf_p,
 /*
  * Respond to messageQ 'list map' by sending a list of PCLs to messageQ
  */
-static void list_map(struct q_msg *msg)
-{
+static void list_map(struct q_msg *msg) {
 	struct list_head *slot_head = &smc_slots.slot_list;
-	struct s_info *sp;
-	char buf[MAXOBN];
-	char *c = buf;
-	*c = '\0';
+	struct s_info	 *sp;
+	char			  buf[MAXOBN];
+	char			 *c = buf;
+	*c					= '\0';
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
-			strncat(c, (char *)sp->media->barcode, MAX_BARCODE_LEN+1);
+			strncat(c, (char *)sp->media->barcode, MAX_BARCODE_LEN + 1);
 			MHVTL_DBG(2, "MAP slot %d full", sp->slot_location);
 		} else {
 			MHVTL_DBG(2, "MAP slot %d empty", sp->slot_location);
@@ -349,31 +575,29 @@ static void list_map(struct q_msg *msg)
 }
 
 /* Check existing MAP & Storage slots for existing barcode */
-int already_in_slot(char *barcode)
-{
+int already_in_slot(char *barcode) {
 	struct list_head *slot_head = &smc_slots.slot_list;
-	struct s_info *sp = NULL;
-	int len;
+	struct s_info	 *sp		= NULL;
+	int				  len;
 
 	len = strlen(barcode);
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp)) {
-			if (!strncmp((char *)sp->media->barcode, barcode, len)){
+			if (!strncmp((char *)sp->media->barcode, barcode, len)) {
 				MHVTL_DBG(3, "Match: %s %s",
-					sp->media->barcode, barcode);
+						  sp->media->barcode, barcode);
 				return 1;
 			} else
 				MHVTL_DBG(3, "No match: %s %s",
-					sp->media->barcode, barcode);
+						  sp->media->barcode, barcode);
 		}
 	}
 	return 0;
 }
 
-static struct s_info *locate_empty_map(void)
-{
-	struct s_info *sp = NULL;
+static struct s_info *locate_empty_map(void) {
+	struct s_info	 *sp		= NULL;
 	struct list_head *slot_head = &smc_slots.slot_list;
 
 	list_for_each_entry(sp, slot_head, siblings) {
@@ -384,11 +608,10 @@ static struct s_info *locate_empty_map(void)
 	return NULL;
 }
 
-static struct m_info *lookup_barcode(struct lu_phy_attr *lu, char *barcode)
-{
+static struct m_info *lookup_barcode(struct lu_phy_attr *lu, char *barcode) {
 	struct list_head *media_list_head;
-	struct m_info *m;
-	int match;
+	struct m_info	 *m;
+	int				  match;
 
 	media_list_head = &((struct smc_priv *)lu->lu_private)->media_list;
 
@@ -396,7 +619,7 @@ static struct m_info *lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 		match = strncmp(m->barcode, barcode, MAX_BARCODE_LEN + 1);
 		if (!match) {
 			MHVTL_DBG(3, "Match barcodes: %s %s: %d",
-				barcode, m->barcode, match);
+					  barcode, m->barcode, match);
 			return m;
 		}
 	}
@@ -404,14 +627,13 @@ static struct m_info *lookup_barcode(struct lu_phy_attr *lu, char *barcode)
 	return NULL;
 }
 
-static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode)
-{
+static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode) {
 	struct list_head *media_list_head;
-	struct m_info *m;
+	struct m_info	 *m;
 
 	if (strlen(barcode) > MAX_BARCODE_LEN) {
 		MHVTL_ERR("Barcode \'%s\' exceeds max barcode lenght: %d",
-				barcode, MAX_BARCODE_LEN);
+				  barcode, MAX_BARCODE_LEN);
 		exit(1);
 	}
 	if (lookup_barcode(lu, barcode)) {
@@ -422,7 +644,7 @@ static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode)
 	m = zalloc(sizeof(struct m_info));
 	if (!m) {
 		MHVTL_ERR("Out of memory allocating memory for barcode %s",
-			barcode);
+				  barcode);
 		exit(-ENOMEM);
 	}
 
@@ -431,9 +653,9 @@ static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode)
 	memset(m, 0, sizeof(struct m_info));
 
 	snprintf((char *)m->barcode, MAX_BARCODE_LEN + 1, LEFT_JUST_16_STR,
-					barcode);
+			 barcode);
 	m->barcode[MAX_BARCODE_LEN] = '\0';
-	m->cart_type = get_cart_type(barcode);
+	m->cart_type				= get_cart_type(barcode);
 	if (!strncmp((char *)m->barcode, "NOBAR", 5))
 		m->internal_status = INSTATUS_NO_BARCODE;
 	else
@@ -443,16 +665,14 @@ static struct m_info *add_barcode(struct lu_phy_attr *lu, char *barcode)
 	return m;
 }
 
-
 /* Return zero - failed, non-zero - success */
-static int load_map(struct q_msg *msg)
-{
+static int load_map(struct q_msg *msg) {
 	struct s_info *sp = NULL;
 	struct m_info *mp = NULL;
-	char *barcode;
-	int i;
-	int str_len;
-	char *text = &msg->text[9];	/* skip past "load map " */
+	char		  *barcode;
+	int			   i;
+	int			   str_len;
+	char		  *text = &msg->text[9]; /* skip past "load map " */
 
 	MHVTL_DBG(2, "Loading %s into MAP", text);
 
@@ -491,18 +711,18 @@ static int load_map(struct q_msg *msg)
 		if (!mp)
 			mp = add_barcode(&lunit, barcode);
 
-		snprintf((char *)mp->barcode, MAX_BARCODE_LEN+1, LEFT_JUST_16_STR,
-						barcode);
+		snprintf((char *)mp->barcode, MAX_BARCODE_LEN + 1, LEFT_JUST_16_STR,
+				 barcode);
 		mp->barcode[MAX_BARCODE_LEN] = '\0';
 
 		/* 1 = data, 2 = Clean */
 		mp->cart_type = get_cart_type(barcode);
-		sp->status = STATUS_InEnab | STATUS_ExEnab |
-					STATUS_Access | STATUS_ImpExp |
-					STATUS_Full;
+		sp->status	  = STATUS_InEnab | STATUS_ExEnab |
+					 STATUS_Access | STATUS_ImpExp |
+					 STATUS_Full;
 		/* Media placed by operator */
 		setImpExpStatus(sp, OPERATOR);
-		sp->media = mp;
+		sp->media				   = mp;
 		sp->media->internal_status = 0;
 		send_msg("OK", msg->snd_id);
 		return 1;
@@ -511,8 +731,7 @@ static int load_map(struct q_msg *msg)
 	return 0;
 }
 
-static void open_map(struct q_msg *msg)
-{
+static void open_map(struct q_msg *msg) {
 	MHVTL_DBG(1, "Called");
 
 	current_state = MHVTL_STATE_OPENING_MAP;
@@ -521,8 +740,7 @@ static void open_map(struct q_msg *msg)
 	send_msg("OK", msg->snd_id);
 }
 
-static void close_map(struct q_msg *msg)
-{
+static void close_map(struct q_msg *msg) {
 	MHVTL_DBG(1, "Called");
 
 	current_state = MHVTL_STATE_CLOSING_MAP;
@@ -532,20 +750,19 @@ static void close_map(struct q_msg *msg)
 }
 
 /* add new slot && assignment && initialization memory */
-static void add_storage_slot(struct q_msg *msg)
-{
-	int buffer_size;
-	int slt_no;
-	char message[20];
-	struct s_info *sp1 = NULL;
+static void add_storage_slot(struct q_msg *msg) {
+	int				 buffer_size;
+	int				 slt_no;
+	char			 message[20];
+	struct s_info	*sp1   = NULL;
 	struct smc_priv *smc_p = lunit.lu_private;
 
 	sp1 = add_new_slot(&lunit);
 
 	smc_p->num_storage++;
-	slt_no = smc_p->num_storage;
-	sp1->element_type = STORAGE_ELEMENT;
-	sp1->status = STATUS_Access;
+	slt_no			   = smc_p->num_storage;
+	sp1->element_type  = STORAGE_ELEMENT;
+	sp1->status		   = STATUS_Access;
 	sp1->slot_location = slt_no + smc_p->pm->start_storage - 1;
 
 	/* Slot status to Empty */
@@ -556,9 +773,8 @@ static void add_storage_slot(struct q_msg *msg)
 	MHVTL_DBG(1, "add slot && init smc");
 
 	/* malloc a big enough buffer to fit worst case read element status */
-	buffer_size = (smc_slots.num_drives + smc_slots.num_picker
-			+ smc_slots.num_map + smc_slots.num_storage) * 80;
-	buffer_size = max(SMC_BUF_SIZE, buffer_size);
+	buffer_size		  = (smc_slots.num_drives + smc_slots.num_picker + smc_slots.num_map + smc_slots.num_storage) * 80;
+	buffer_size		  = max(SMC_BUF_SIZE, buffer_size);
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
 
@@ -571,9 +787,8 @@ static void add_storage_slot(struct q_msg *msg)
  * Respond to messageQ 'empty map' by clearing 'ocuplied' status in map slots.
  * Return 0 on failure, non-zero - success.
  */
-static int empty_map(struct q_msg *msg)
-{
-	struct s_info *sp;
+static int empty_map(struct q_msg *msg) {
+	struct s_info	 *sp;
 	struct list_head *slot_head = &smc_slots.slot_list;
 
 	if (smc_slots.cap_closed) {
@@ -586,8 +801,8 @@ static int empty_map(struct q_msg *msg)
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
 			setSlotEmpty(sp);
 			MHVTL_DBG(2, "MAP slot %d emptied",
-					sp->slot_location -
-						smc_slots.pm->start_map);
+					  sp->slot_location -
+						  smc_slots.pm->start_map);
 		}
 	}
 
@@ -598,9 +813,8 @@ static int empty_map(struct q_msg *msg)
 /* Extract the id of the tape sending notification a tape was ejected
  * Set the 'access' bit in the READ_ELEMENT_STATUS page
  */
-static int set_access_bit(struct q_msg *msg)
-{
-	struct s_info *sp;
+static int set_access_bit(struct q_msg *msg) {
+	struct s_info	 *sp;
 	struct list_head *slot_head = &smc_slots.slot_list;
 
 	list_for_each_entry(sp, slot_head, siblings) {
@@ -617,8 +831,7 @@ static int set_access_bit(struct q_msg *msg)
 /*
  * Return 1, exit program
  */
-static int processMessageQ(struct q_msg *msg)
-{
+static int processMessageQ(struct q_msg *msg) {
 
 	MHVTL_DBG(1, "%ld: Received from sender id: %ld, msg : %s", my_id, msg->snd_id, msg->text);
 
@@ -650,11 +863,11 @@ static int processMessageQ(struct q_msg *msg)
 		set_inquiry_data_changed();
 	if (!strncmp(msg->text, "offline", 7)) {
 		current_state = MHVTL_STATE_OFFLINE;
-		lunit.online = 0;
+		lunit.online  = 0;
 	}
 	if (!strncmp(msg->text, "online", 6)) {
 		current_state = MHVTL_STATE_ONLINE;
-		lunit.online = 1;
+		lunit.online  = 1;
 	}
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = TA_NONE;
@@ -667,37 +880,35 @@ static int processMessageQ(struct q_msg *msg)
 		else
 			verbose = 3;
 		MHVTL_LOG("verbose: %s at level %d",
-				 verbose ? "enabled" : "disabled", verbose);
+				  verbose ? "enabled" : "disabled", verbose);
 	}
 
-return 0;
+	return 0;
 }
 
-static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no)
-{
+static struct d_info *lookup_drive(struct lu_phy_attr *lu, int drive_no) {
 	struct list_head *drive_list_head;
-	struct d_info *d;
-	uint32_t slot_offset;
+	struct d_info	 *d;
+	uint32_t		  slot_offset;
 
 	drive_list_head = &((struct smc_priv *)lu->lu_private)->drive_list;
-	slot_offset = ((struct smc_priv *)lu->lu_private)->pm->start_drive;
+	slot_offset		= ((struct smc_priv *)lu->lu_private)->pm->start_drive;
 
 	/* Drive numbering starts from 1, decrement slot_offset */
 	slot_offset--;
 
 	list_for_each_entry(d, drive_list_head, siblings) {
 		MHVTL_DBG(3, "Slot location: %d, offset + drive_no: %d",
-				d->slot->slot_location, slot_offset + drive_no);
+				  d->slot->slot_location, slot_offset + drive_no);
 		if (d->slot->slot_location == slot_offset + drive_no)
 			return d;
 	}
 
-return NULL;
+	return NULL;
 }
 
-struct s_info *add_new_slot(struct lu_phy_attr *lu)
-{
-	struct s_info *new;
+struct s_info *add_new_slot(struct lu_phy_attr *lu) {
+	struct s_info	 *new;
 	struct list_head *slot_list_head;
 
 	slot_list_head = &((struct smc_priv *)lu->lu_private)->slot_list;
@@ -714,22 +925,21 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu)
 
 /* Open device config file and update device information
  */
-static void update_drive_details(struct lu_phy_attr *lu)
-{
-	char *config = MHVTL_CONFIG_PATH"/device.conf";
-	FILE *conf;
-	char *b;	/* Read from file into this buffer */
-	char *s;	/* Somewhere for sscanf to store results */
-	int slot;
-	long drv_id, lib_id;
-	struct d_info *dp;
-	struct s_info *sp;
+static void update_drive_details(struct lu_phy_attr *lu) {
+	char			*config = MHVTL_CONFIG_PATH "/device.conf";
+	FILE			*conf;
+	char			*b; /* Read from file into this buffer */
+	char			*s; /* Somewhere for sscanf to store results */
+	int				 slot;
+	long			 drv_id, lib_id;
+	struct d_info	*dp;
+	struct s_info	*sp;
 	struct smc_priv *smc_p = lu->lu_private;
 
-	conf = fopen(config , "r");
+	conf = fopen(config, "r");
 	if (!conf) {
 		MHVTL_DBG(1, "Can not open config file %s : %s", config,
-					strerror(errno));
+				  strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -745,38 +955,36 @@ static void update_drive_details(struct lu_phy_attr *lu)
 	}
 
 	drv_id = -1;
-	dp = NULL;
+	dp	   = NULL;
 
 	/* While read in a line */
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
-		if (b[0] == '#')	/* Ignore comments */
+		if (b[0] == '#') /* Ignore comments */
 			continue;
 		if (sscanf(b, "Drive: %ld", &drv_id) > 0)
 			continue;
-		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2
-					&& lib_id == my_id
-					&& drv_id >= 0) {
+		if (sscanf(b, " Library ID: %ld Slot: %d", &lib_id, &slot) == 2 && lib_id == my_id && drv_id >= 0) {
 			MHVTL_DBG(2, "Found Drive %ld in slot %d",
-					drv_id, slot);
+					  drv_id, slot);
 			dp = lookup_drive(lu, slot);
 			if (!dp) {
 				MHVTL_LOG("WARNING: Creating new entry for %ld",
-									drv_id);
+						  drv_id);
 				dp = zalloc(sizeof(struct d_info));
 				if (!dp) {
 					MHVTL_ERR("Couldn't malloc memory");
 					exit(-ENOMEM);
 				}
-				sp = add_new_slot(lu);
+				sp				 = add_new_slot(lu);
 				sp->element_type = DATA_TRANSFER;
-				dp->slot = sp;
-				sp->drive = dp;
+				dp->slot		 = sp;
+				sp->drive		 = dp;
 				list_add_tail(&dp->siblings,
-						&smc_p->drive_list);
+							  &smc_p->drive_list);
 			}
 			MHVTL_DBG(3, "Updating drive id in slot %d to : %ld",
-						dp->slot->slot_location,
-						drv_id);
+					  dp->slot->slot_location,
+					  drv_id);
 			dp->drv_id = drv_id;
 			continue;
 		}
@@ -792,7 +1000,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 				strncpy(dp->inq_product_id, s, 16);
 				dp->inq_product_id[16] = 0;
 				MHVTL_DBG(3, "id: \'%s\', inq_product_id: \'%s\'",
-					s, dp->inq_product_id);
+						  s, dp->inq_product_id);
 			}
 			if (sscanf(b, " Product revision level: %s", s) > 0) {
 				strncpy(dp->inq_product_rev, s, 4);
@@ -805,7 +1013,7 @@ static void update_drive_details(struct lu_phy_attr *lu)
 		}
 		if (strlen(b) == 1) { /* Blank line => Reset device pointer */
 			drv_id = -1;
-			dp = NULL;
+			dp	   = NULL;
 		}
 	}
 
@@ -818,29 +1026,28 @@ static void update_drive_details(struct lu_phy_attr *lu)
  * Return 0 - no address space conflict
  * Return 1 - overlap address with another slot type
  */
-static int check_overflow(struct lu_phy_attr *lu, int slot, char type)
-{
+static int check_overflow(struct lu_phy_attr *lu, int slot, char type) {
 	struct smc_priv *smc_p;
-	int co;
+	int				 co;
 
 	smc_p = lu->lu_private;
-	co = 0;
+	co	  = 0;
 
 	switch (type) {
 	case MAP_ELEMENT:
 		co = slot + smc_p->pm->start_map;
 		if (smc_p->pm->start_map < smc_p->pm->start_storage &&
-					co > smc_p->pm->start_storage) {
+			co > smc_p->pm->start_storage) {
 			MHVTL_LOG("MAP: %d, overlaps with storage slot", slot);
 			return 1;
 		}
 		if (smc_p->pm->start_map < smc_p->pm->start_picker &&
-					co > smc_p->pm->start_picker) {
+			co > smc_p->pm->start_picker) {
 			MHVTL_LOG("MAP: %d, overlaps with Picker slot", slot);
 			return 1;
 		}
 		if (smc_p->pm->start_map < smc_p->pm->start_drive &&
-					co > smc_p->pm->start_drive) {
+			co > smc_p->pm->start_drive) {
 			MHVTL_LOG("MAP: %d, overlaps with Drives", slot);
 			return 1;
 		}
@@ -848,60 +1055,60 @@ static int check_overflow(struct lu_phy_attr *lu, int slot, char type)
 	case DATA_TRANSFER:
 		co = slot + smc_p->pm->start_drive;
 		if (smc_p->pm->start_drive < smc_p->pm->start_storage &&
-					co > smc_p->pm->start_storage) {
+			co > smc_p->pm->start_storage) {
 			MHVTL_LOG("Drive: %d, overlaps with storage slot",
-					slot);
+					  slot);
 			return 1;
 		}
 		if (smc_p->pm->start_drive < smc_p->pm->start_picker &&
-					co > smc_p->pm->start_picker) {
+			co > smc_p->pm->start_picker) {
 			MHVTL_LOG("Drive: %d, overlaps with picker slot",
-					slot);
+					  slot);
 			return 1;
 		}
 		if (smc_p->pm->start_drive < smc_p->pm->start_map &&
-					co > smc_p->pm->start_map) {
+			co > smc_p->pm->start_map) {
 			MHVTL_LOG("Drive: %d, overlaps with MAP slot",
-					slot);
+					  slot);
 			return 1;
 		}
 		break;
 	case MEDIUM_TRANSPORT:
 		co = slot + smc_p->pm->start_picker;
 		if (smc_p->pm->start_picker < smc_p->pm->start_map &&
-					co > smc_p->pm->start_map) {
+			co > smc_p->pm->start_map) {
 			MHVTL_LOG("Picker slot: %d overlaps with MAP", slot);
 			return 1;
 		}
 		if (smc_p->pm->start_picker < smc_p->pm->start_drive &&
-					co > smc_p->pm->start_drive) {
+			co > smc_p->pm->start_drive) {
 			MHVTL_LOG("Picker slot: %d overlaps with drives", slot);
 			return 1;
 		}
 		if (smc_p->pm->start_picker < smc_p->pm->start_storage &&
-					co > smc_p->pm->start_storage) {
+			co > smc_p->pm->start_storage) {
 			MHVTL_LOG("Picker slot: %d overlaps with Storage",
-					slot);
+					  slot);
 			return 1;
 		}
 		break;
 	case STORAGE_ELEMENT:
 		co = slot + smc_p->pm->start_storage;
 		if (smc_p->pm->start_storage < smc_p->pm->start_map &&
-					co > smc_p->pm->start_map) {
+			co > smc_p->pm->start_map) {
 			MHVTL_LOG("Storage slot: %d, overlaps with MAP", slot);
 			return 1;
 		}
 		if (smc_p->pm->start_storage < smc_p->pm->start_picker &&
-					co > smc_p->pm->start_picker) {
+			co > smc_p->pm->start_picker) {
 			MHVTL_LOG("Storage slot: %d, overlaps with picker",
-					slot);
+					  slot);
 			return 1;
 		}
 		if (smc_p->pm->start_storage < smc_p->pm->start_drive &&
-					co > smc_p->pm->start_drive) {
+			co > smc_p->pm->start_drive) {
 			MHVTL_LOG("Storage slot: %d, overlaps with drives",
-					slot);
+					  slot);
 			return 1;
 		}
 		break;
@@ -909,10 +1116,9 @@ static int check_overflow(struct lu_phy_attr *lu, int slot, char type)
 	return 0;
 }
 
-void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s)
-{
-	struct s_info *sp = NULL;
-	struct d_info *dp = NULL;
+void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s) {
+	struct s_info	*sp	   = NULL;
+	struct d_info	*dp	   = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
 
 	if (check_overflow(lu, slt, DATA_TRANSFER))
@@ -925,38 +1131,37 @@ void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s)
 			MHVTL_ERR("Couldn't malloc memory");
 			exit(-ENOMEM);
 		}
-		sp = add_new_slot(lu);
+		sp				 = add_new_slot(lu);
 		sp->element_type = DATA_TRANSFER;
-		dp->slot = sp;
-		sp->drive = dp;
+		dp->slot		 = sp;
+		sp->drive		 = dp;
 		list_add_tail(&dp->siblings, &smc_p->drive_list);
 	}
 	dp->slot->slot_location = slt + smc_p->pm->start_drive - 1;
-	dp->slot->status = STATUS_Access;
+	dp->slot->status		= STATUS_Access;
 	smc_p->num_drives++;
 	if (strlen(s)) {
 		strncpy(dp->inq_product_sno, s, 10);
 		MHVTL_DBG(2, "Drive s/no: %s", s);
 	}
 	MHVTL_DBG(3, "Slot: %d, start_drive: %d, slot_location: %d",
-			slt, smc_p->pm->start_drive, dp->slot->slot_location);
+			  slt, smc_p->pm->start_drive, dp->slot->slot_location);
 }
 
-void init_map_slot(struct lu_phy_attr *lu, int slt, char *barcode)
-{
-	struct s_info *sp = NULL;
+void init_map_slot(struct lu_phy_attr *lu, int slt, char *barcode) {
+	struct s_info	*sp	   = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
 
 	if (check_overflow(lu, slt, MAP_ELEMENT))
 		return;
 
-	sp = add_new_slot(lu);
+	sp				 = add_new_slot(lu);
 	sp->element_type = MAP_ELEMENT;
 	smc_p->num_map++;
 
 	sp->slot_location = slt + smc_p->pm->start_map - 1;
-	sp->status = STATUS_InEnab | STATUS_ExEnab |
-				STATUS_Access | STATUS_ImpExp;
+	sp->status		  = STATUS_InEnab | STATUS_ExEnab |
+				 STATUS_Access | STATUS_ImpExp;
 
 	if (strlen(barcode)) {
 		MHVTL_DBG(2, "Barcode %s in MAP %d", barcode, slt);
@@ -965,40 +1170,38 @@ void init_map_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 	}
 }
 
-void init_transport_slot(struct lu_phy_attr *lu, int slt, char *barcode)
-{
-	struct s_info *sp = NULL;
+void init_transport_slot(struct lu_phy_attr *lu, int slt, char *barcode) {
+	struct s_info	*sp	   = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
 
 	if (check_overflow(lu, slt, MEDIUM_TRANSPORT))
 		return;
 
-	sp = add_new_slot(lu);
+	sp				 = add_new_slot(lu);
 	sp->element_type = MEDIUM_TRANSPORT;
 	smc_p->num_picker++;
 	sp->slot_location = slt + smc_p->pm->start_picker - 1;
-	sp->status = 0;
+	sp->status		  = 0;
 
 	if (strlen(barcode)) {
 		MHVTL_DBG(2, "Barcode %s in Picker %d", barcode, slt);
-		sp->media = add_barcode(lu, barcode);
+		sp->media		  = add_barcode(lu, barcode);
 		sp->slot_location = slt + smc_p->pm->start_picker - 1;
 		sp->status |= STATUS_Full;
 	}
 }
 
-void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode)
-{
-	struct s_info *sp = NULL;
+void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode) {
+	struct s_info	*sp	   = NULL;
 	struct smc_priv *smc_p = lu->lu_private;
 
 	if (check_overflow(lu, slt, STORAGE_ELEMENT))
 		return;
 
-	sp = add_new_slot(lu);
+	sp				 = add_new_slot(lu);
 	sp->element_type = STORAGE_ELEMENT;
 	smc_p->num_storage++;
-	sp->status = STATUS_Access;
+	sp->status		  = STATUS_Access;
 	sp->slot_location = slt + smc_p->pm->start_storage - 1;
 	if (strlen(barcode)) {
 		MHVTL_DBG(2, "Barcode %s in slot %d", barcode, slt);
@@ -1008,54 +1211,54 @@ void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode)
 	}
 }
 
-static void __init_slot_info(struct lu_phy_attr *lu, int type)
-{
-	char conf[256];
-	FILE *ctrl;
-	char *b;	/* Read from file into this buffer */
-	char *s;	/* Somewhere for sscanf to store results */
-	int slt;
+static void __init_slot_info(struct lu_phy_attr *lu, int type) {
+	char		conf[256];
+	FILE	   *ctrl;
+	char	   *b; /* Read from file into this buffer */
+	char	   *s; /* Somewhere for sscanf to store results */
+	int			slt;
 	struct stat configstat;
 	struct stat persiststat;
-	int filestat;
-	int start_slot = 1;	/* Slot creation needs to start with 1 */
-	int z;
+	int			filestat;
+	int			start_slot = 1; /* Slot creation needs to start with 1 */
+	int			z;
 
-	filestat = -1;	/* Default to .persist file does not exist */
+	filestat = -1; /* Default to .persist file does not exist */
 
 	/* Lets stat each (potential) file and identify the last one modified */
-	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld" ".persist", my_id);
+	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
+																   ".persist",
+			 my_id);
 
-	if (lu->persist)	/* If enabled - stat .persist file */
+	if (lu->persist) /* If enabled - stat .persist file */
 		filestat = stat(conf, &persiststat);
 
 	if (filestat < 0) {
 		/* PERSIST is either disabled or .persist file does not exist
 		 * - Update config filename to master 'library_contents.<id>
-		*/
-		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld", my_id);
+		 */
+		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
 	} else {
 		/* stat original config file */
-		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld", my_id);
+		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
 		filestat = stat(conf, &configstat);
-		if (filestat < 0) {	/* Does not exist !! */
+		if (filestat < 0) { /* Does not exist !! */
 			MHVTL_ERR("Can not stat config file %s: %s",
-						conf, strerror(errno));
+					  conf, strerror(errno));
 			exit(1);
 		}
 		if (configstat.st_mtime > persiststat.st_mtime) {
 			/* Don't do anything - leave config filename alone */
 			MHVTL_DBG(1, "%s is newer than %s.persist file. "
-					"Using %s instead", conf, conf, conf);
+						 "Using %s instead",
+					  conf, conf, conf);
 		} else {
 			/* Update the config file to
 			   library_contents.<id>.persist
 			*/
-			snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld" ".persist", my_id);
+			snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
+																		   ".persist",
+					 my_id);
 		}
 	}
 
@@ -1064,18 +1267,18 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 	 *   - We have stat'ed each file - so unless it's been removed within
 	 *     last few millisecs we should be good.
 	 * - Filename will be latest modify date
-	*/
-	ctrl = fopen(conf , "r");
+	 */
+	ctrl = fopen(conf, "r");
 	if (!ctrl) {
 		MHVTL_ERR("Can not open config file %s : %s", conf,
-					strerror(errno));
+				  strerror(errno));
 		exit(1);
 	}
 
 	/* Log which config file is being used to read in data */
 	MHVTL_DBG(2, "Reading %s configuration information from %s",
-						slot_type_str(type),
-						conf);
+			  slot_type_str(type),
+			  conf);
 
 	/* Grab a couple of generic MALLOC_SZ buffers.. */
 	s = zalloc(MALLOC_SZ);
@@ -1091,7 +1294,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 
 	rewind(ctrl);
 	while (readline(b, MALLOC_SZ, ctrl) != NULL) {
-		if (b[0] == '#')	/* Ignore comments */
+		if (b[0] == '#') /* Ignore comments */
 			continue;
 		s[0] = '\0';
 
@@ -1141,9 +1344,8 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type)
 }
 
 /* Linked list data needs to be built in slot order */
-void init_slot_info(struct lu_phy_attr *lu)
-{
-	int i;
+void init_slot_info(struct lu_phy_attr *lu) {
+	int					 i;
 	struct smc_type_slot arr[4];
 
 	sort_library_slot_type(lu, &arr[0]);
@@ -1154,10 +1356,9 @@ void init_slot_info(struct lu_phy_attr *lu)
 
 /* Return original slot location if empty
  */
-static struct s_info *previous_storage_slot(struct s_info *s,
-						struct list_head *slot_head)
-{
-	struct s_info *sp;	/* Slot Pointer */
+static struct s_info *previous_storage_slot(struct s_info	 *s,
+											struct list_head *slot_head) {
+	struct s_info *sp; /* Slot Pointer */
 
 	/* Find slot info for 'previous location' */
 	list_for_each_entry(sp, slot_head, siblings) {
@@ -1173,10 +1374,9 @@ static struct s_info *previous_storage_slot(struct s_info *s,
 
 /* Return first empty storage slot.
  */
-static struct s_info *find_empty_storage_slot(struct s_info *s,
-						struct list_head *slot_head)
-{
-	struct s_info *sp;	/* Slot Pointer */
+static struct s_info *find_empty_storage_slot(struct s_info	   *s,
+											  struct list_head *slot_head) {
+	struct s_info *sp; /* Slot Pointer */
 
 	/* If previous location is no good - lets find first empty slot */
 	list_for_each_entry(sp, slot_head, siblings) {
@@ -1188,35 +1388,35 @@ static struct s_info *find_empty_storage_slot(struct s_info *s,
 }
 
 /* Save config on shutdown - Not to be called at other times !! */
-static void save_config(struct lu_phy_attr *lu)
-{
-	FILE *ctrl;
-	char conf[256];
-	struct smc_priv *lu_priv;
+static void save_config(struct lu_phy_attr *lu) {
+	FILE			 *ctrl;
+	char			  conf[256];
+	struct smc_priv	 *lu_priv;
 	struct list_head *slot_head;
 	struct list_head *drive_head;
-	struct s_info *sp;	/* Slot Pointer */
-	struct d_info *dp;	/* Drive Pointer */
-	int last_element_type = 0;
+	struct s_info	 *sp; /* Slot Pointer */
+	struct d_info	 *dp; /* Drive Pointer */
+	int				  last_element_type = 0;
 
 	if (strlen(MHVTL_CONFIG_PATH LIBCONTENTS) >=
-				ARRAY_SIZE(conf) - sizeof(".persist")) {
+		ARRAY_SIZE(conf) - sizeof(".persist")) {
 		MHVTL_LOG("Filename length exceeds %d", (int)ARRAY_SIZE(conf));
 	}
 
-	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH
-					LIBCONTENTS "%ld" ".persist", my_id);
+	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
+																   ".persist",
+			 my_id);
 	ctrl = fopen(conf, "w");
 	if (!ctrl) {
 		MHVTL_ERR("Can not open file %s to save state : %s", conf,
-					strerror(errno));
+				  strerror(errno));
 		return;
 	}
 
 	lu_priv = lu->lu_private;
 
 	drive_head = &lu_priv->drive_list;
-	slot_head = &lu_priv->slot_list;
+	slot_head  = &lu_priv->slot_list;
 
 	/* Walk each drive and force-unload into previous location
 	 * - if possible */
@@ -1227,12 +1427,12 @@ static void save_config(struct lu_phy_attr *lu)
 			 */
 			sp = dp->slot;
 			MHVTL_DBG(1, "Found %s in drive %d from %d",
-					sp->media->barcode,
-					sp->slot_location -
-						lu_priv->pm->start_drive + 1,
-					sp->last_location);
+					  sp->media->barcode,
+					  sp->slot_location -
+						  lu_priv->pm->start_drive + 1,
+					  sp->last_location);
 			unload_drive_on_shutdown(sp,
-					previous_storage_slot(sp, slot_head));
+									 previous_storage_slot(sp, slot_head));
 		}
 	}
 
@@ -1244,12 +1444,12 @@ static void save_config(struct lu_phy_attr *lu)
 			 */
 			sp = dp->slot;
 			MHVTL_DBG(1, "Found %s in drive %d from %d",
-					sp->media->barcode,
-					sp->slot_location -
-						lu_priv->pm->start_drive + 1,
-					sp->last_location);
+					  sp->media->barcode,
+					  sp->slot_location -
+						  lu_priv->pm->start_drive + 1,
+					  sp->last_location);
 			unload_drive_on_shutdown(sp,
-					find_empty_storage_slot(sp, slot_head));
+									 find_empty_storage_slot(sp, slot_head));
 		}
 	}
 
@@ -1271,42 +1471,41 @@ static void save_config(struct lu_phy_attr *lu)
 			break;
 		case MEDIUM_TRANSPORT:
 			fprintf(ctrl, "Picker %d: %s\n",
-				sp->slot_location -
+					sp->slot_location -
 						lu_priv->pm->start_picker + 1,
-				slotOccupied(sp) ? sp->media->barcode : "");
+					slotOccupied(sp) ? sp->media->barcode : "");
 			break;
 		case MAP_ELEMENT:
 			fprintf(ctrl, "MAP %d: %s\n",
-				sp->slot_location -
+					sp->slot_location -
 						lu_priv->pm->start_map + 1,
-				slotOccupied(sp) ? sp->media->barcode : "");
+					slotOccupied(sp) ? sp->media->barcode : "");
 			break;
 		case STORAGE_ELEMENT:
 			fprintf(ctrl, "Slot %d: %s\n",
-				sp->slot_location -
+					sp->slot_location -
 						lu_priv->pm->start_storage + 1,
-				slotOccupied(sp) ? sp->media->barcode : "");
+					slotOccupied(sp) ? sp->media->barcode : "");
 			break;
 		}
 	}
 	fclose(ctrl);
 }
 
-static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl)
-{
+static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl) {
 
 	struct vpd **lu_vpd = lu->lu_vpd;
 
-	char *config = MHVTL_CONFIG_PATH"/device.conf";
-	FILE *conf;
-	char *b;	/* Read from file into this buffer */
-	char *s;	/* Somewhere for sscanf to store results */
-	int indx;
+	char			*config = MHVTL_CONFIG_PATH "/device.conf";
+	FILE			*conf;
+	char			*b; /* Read from file into this buffer */
+	char			*s; /* Somewhere for sscanf to store results */
+	int				 indx;
 	struct mhvtl_ctl tmpctl;
-	int found = 0;
-	int linecount;
+	int				 found = 0;
+	int				 linecount;
 
-	backoff = DEFLT_BACKOFF_VALUE;
+	backoff		= DEFLT_BACKOFF_VALUE;
 	lu->persist = FALSE;
 
 	/* Set static 'home_directory' var - used for get_cart_type() function */
@@ -1314,26 +1513,26 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 	/* Configure default inquiry data */
 	memset(&lu->inquiry, 0, MAX_INQUIRY_SZ);
-	lu->inquiry[0] = TYPE_MEDIUM_CHANGER;	/* SMC device */
-	lu->inquiry[1] = 0x80;	/* Removable bit set */
-	lu->inquiry[2] = 0x05;	/* SCSI Version (v3) */
-	lu->inquiry[3] = 0x02;	/* Response Data Format */
-	lu->inquiry[4] = 59;	/* Additional Length */
-	lu->inquiry[6] = 0x01;	/* Addr16 */
-	lu->inquiry[7] = 0x20;	/* Wbus16 */
+	lu->inquiry[0] = TYPE_MEDIUM_CHANGER; /* SMC device */
+	lu->inquiry[1] = 0x80;				  /* Removable bit set */
+	lu->inquiry[2] = 0x05;				  /* SCSI Version (v3) */
+	lu->inquiry[3] = 0x02;				  /* Response Data Format */
+	lu->inquiry[4] = 59;				  /* Additional Length */
+	lu->inquiry[6] = 0x01;				  /* Addr16 */
+	lu->inquiry[7] = 0x20;				  /* Wbus16 */
 
 	put_unaligned_be16(0x0300, &lu->inquiry[58]); /* SPC-3 No ver claimed */
 	put_unaligned_be16(0x0960, &lu->inquiry[60]); /* iSCSI */
 	put_unaligned_be16(0x0200, &lu->inquiry[62]); /* SSC */
 
-	lu->ptype = TYPE_MEDIUM_CHANGER;	/* SSC */
+	lu->ptype = TYPE_MEDIUM_CHANGER; /* SSC */
 
-	lu->sense_p = &sense[0];	/* Save pointer to sense buffer */
+	lu->sense_p = &sense[0]; /* Save pointer to sense buffer */
 
-	conf = fopen(config , "r");
+	conf = fopen(config, "r");
 	if (!conf) {
 		MHVTL_ERR("Can not open config file %s : %s", config,
-					strerror(errno));
+				  strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}
@@ -1348,26 +1547,26 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 		exit(1);
 	}
 
-	lu->fifoname = NULL;
-	lu->fifo_fd = NULL;
+	lu->fifoname  = NULL;
+	lu->fifo_fd	  = NULL;
 	lu->fifo_flag = 0;
 
-	smc_slots.movecommand = NULL;
+	smc_slots.movecommand	 = NULL;
 	smc_slots.commandtimeout = 20;
 
 	/* While read in a line */
-	linecount = 0;	/* Line count */
+	linecount = 0; /* Line count */
 	while (readline(b, MALLOC_SZ, conf) != NULL) {
 		linecount++;
-		if (b[0] == '#')	/* Ignore comments */
+		if (b[0] == '#') /* Ignore comments */
 			continue;
-		if (strlen(b) == 1)	/* Reset drive number of blank line */
+		if (strlen(b) == 1) /* Reset drive number of blank line */
 			indx = 0xff;
 		if (sscanf(b, "Library: %d CHANNEL: %d TARGET: %d LUN: %d",
-					&indx, &tmpctl.channel,
-					&tmpctl.id, &tmpctl.lun)) {
+				   &indx, &tmpctl.channel,
+				   &tmpctl.id, &tmpctl.lun)) {
 			MHVTL_DBG(2, "Found Library %d, looking for %u",
-							indx, minor);
+					  indx, minor);
 			if (indx == minor) {
 				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
@@ -1375,7 +1574,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 		}
 		if (indx == minor) {
 			unsigned int c, d, e, f, g, h, j, k;
-			int i;
+			int			 i;
 
 			if (sscanf(b, " Unit serial number: %s", s)) {
 				checkstrlen(s, SCSI_SN_LEN, linecount);
@@ -1383,7 +1582,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 			}
 			if (sscanf(b, " Product identification: %16c", s) > 0) {
 				/* sscanf does not NULL terminate */
-				i = strlen(b) - 25; /* len of ' Product identification: ' */
+				i	 = strlen(b) - 25; /* len of ' Product identification: ' */
 				s[i] = '\0';
 				snprintf(lu->product_id, PRODUCT_ID_LEN + 1, "%-16s", s);
 				sprintf(&lu->inquiry[16], "%-16s", s);
@@ -1401,7 +1600,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 				process_fifoname(lu, s, 0);
 			if (sscanf(b, " PERSIST: %s", s)) {
 				if (!strncasecmp(s, "yes", 3) ||
-						 (!strncasecmp(s, "true", 4)))
+					(!strncasecmp(s, "true", 4)))
 					lu->persist = TRUE;
 			}
 			if (sscanf(b, " movecommand: %s", s))
@@ -1415,15 +1614,15 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 				}
 			}
 			i = sscanf(b,
-				" NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-					&c, &d, &e, &f, &g, &h, &j, &k);
+					   " NAA: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+					   &c, &d, &e, &f, &g, &h, &j, &k);
 			if (i == 8) {
 				free(lu->naa);
 				lu->naa = zalloc(48);
 				if (lu->naa)
 					sprintf((char *)lu->naa,
-				"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-					c, d, e, f, g, h, j, k);
+							"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+							c, d, e, f, g, h, j, k);
 				MHVTL_DBG(2, "Setting NAA: to %s", lu->naa);
 			} else if (i > 0) {
 				free(lu->naa);
@@ -1432,7 +1631,8 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 				 * for logging */
 				rmnl(b, '\0', MALLOC_SZ);
 				MHVTL_DBG(1, "NAA: Incorrect params: %s"
-						", Using defaults", b);
+							 ", Using defaults",
+						  b);
 			}
 		}
 	}
@@ -1459,27 +1659,26 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 	free(smc_slots.state_msg);
 
-	smc_slots.num_drives = 0;
-	smc_slots.num_picker = 0;
-	smc_slots.num_map = 0;
+	smc_slots.num_drives  = 0;
+	smc_slots.num_picker  = 0;
+	smc_slots.num_map	  = 0;
 	smc_slots.num_storage = 0;
-	smc_slots.bufsize = SMC_BUF_SIZE;
-	smc_slots.state_msg = NULL;
+	smc_slots.bufsize	  = SMC_BUF_SIZE;
+	smc_slots.state_msg	  = NULL;
 
 	/* Unit Serial Number */
 	lu_vpd[PCODE_OFFSET(0x80)] = alloc_vpd(strlen(lu->lu_serial_no));
 	update_vpd_80(lu, lu->lu_serial_no);
 
-	lu->lu_private = &smc_slots;
+	lu->lu_private		 = &smc_slots;
 	smc_slots.cap_closed = CAP_CLOSED;
 	return found;
 }
 
 static void process_cmd(int cdev, uint8_t *buf, struct mhvtl_header *mhvtl_cmd,
-			useconds_t pollInterval)
-{
+						useconds_t pollInterval) {
 	struct mhvtl_ds dbuf;
-	uint8_t *cdb;
+	uint8_t		   *cdb;
 
 	/* Get the SCSI cdb from vtl driver
 	 * - Returns SCSI command S/No. */
@@ -1489,10 +1688,10 @@ static void process_cmd(int cdev, uint8_t *buf, struct mhvtl_header *mhvtl_cmd,
 	/* Interpret the SCSI command & process
 	-> Returns no. of bytes to send back to kernel
 	 */
-	dbuf.sz = 0;
-	dbuf.serialNo = mhvtl_cmd->serialNo;
-	dbuf.data = buf;
-	dbuf.sam_stat = sam_status;
+	dbuf.sz		   = 0;
+	dbuf.serialNo  = mhvtl_cmd->serialNo;
+	dbuf.data	   = buf;
+	dbuf.sam_stat  = sam_status;
 	dbuf.sense_buf = &sense;
 
 	processCommand(cdev, cdb, &dbuf, pollInterval);
@@ -1507,14 +1706,13 @@ static void process_cmd(int cdev, uint8_t *buf, struct mhvtl_header *mhvtl_cmd,
 /*
  * Be nice and free all malloc() on exit
  */
-static void cleanup_lu(struct lu_phy_attr *lu)
-{
-	int i;
-	struct smc_priv *lu_priv;
+static void cleanup_lu(struct lu_phy_attr *lu) {
+	int				  i;
+	struct smc_priv	 *lu_priv;
 	struct list_head *slot_head;
-	struct s_info *sp, *sn;	/* Slot */
-	struct d_info *dp, *dn;	/* Drive */
-	struct m_info *mp, *mn;	/* Media */
+	struct s_info	 *sp, *sn; /* Slot */
+	struct d_info	 *dp, *dn; /* Drive */
+	struct m_info	 *mp, *mn; /* Media */
 
 	lu_priv = lu->lu_private;
 
@@ -1552,8 +1750,7 @@ static void cleanup_lu(struct lu_phy_attr *lu)
 	lu_priv->state_msg = NULL;
 }
 
-static void customise_ibm_lu(struct lu_phy_attr *lu)
-{
+static void customise_ibm_lu(struct lu_phy_attr *lu) {
 	if (!strncasecmp(lu->product_id, "3573-TL", 7))
 		init_ibmts3100(lu);
 	else if (!strncasecmp(lu->product_id, "03584", 5))
@@ -1562,30 +1759,27 @@ static void customise_ibm_lu(struct lu_phy_attr *lu)
 		init_default_smc(lu);
 }
 
-static void customise_stk_lu(struct lu_phy_attr *lu)
-{
+static void customise_stk_lu(struct lu_phy_attr *lu) {
 	if (!strncasecmp(lu->product_id, "SL500", 5))
-		init_stkslxx(lu);	/* STK SL series */
+		init_stkslxx(lu); /* STK SL series */
 	else if (!strncasecmp(lu->product_id, "L20", 3))
-		init_stkl20(lu);	/* L20/40/80 */
+		init_stkl20(lu); /* L20/40/80 */
 	else if (!strncasecmp(lu->product_id, "L40", 3))
-		init_stkl20(lu);	/* L20/40/80 */
+		init_stkl20(lu); /* L20/40/80 */
 	else if (!strncasecmp(lu->product_id, "L80", 3))
-		init_stkl20(lu);	/* L20/40/80 */
+		init_stkl20(lu); /* L20/40/80 */
 	else
-		init_stklxx(lu);	/* STK L series */
+		init_stklxx(lu); /* STK L series */
 }
 
-static void customise_hp_lu(struct lu_phy_attr *lu)
-{
+static void customise_hp_lu(struct lu_phy_attr *lu) {
 	if (!strncasecmp(lu->product_id, "MSL", 3))
 		init_hp_msl_smc(lu);
 	else
 		init_hp_eml_smc(lu);
 }
 
-static void customise_spectra_lu(struct lu_phy_attr *lu)
-{
+static void customise_spectra_lu(struct lu_phy_attr *lu) {
 	if (!strncasecmp(lu->product_id, "PYTHON", 6))
 		init_spectra_logic_smc(lu);
 	else if (!strncasecmp(lu->product_id, "GATOR", 5))
@@ -1596,8 +1790,7 @@ static void customise_spectra_lu(struct lu_phy_attr *lu)
 		init_spectra_logic_smc(lu);
 }
 
-static void customise_lu(struct lu_phy_attr *lu)
-{
+static void customise_lu(struct lu_phy_attr *lu) {
 	if (!strncasecmp(lu->vendor_id, "stk", 3))
 		customise_stk_lu(lu);
 	else if (!strncasecmp(lu->vendor_id, "IBM", 3))
@@ -1616,15 +1809,14 @@ static void customise_lu(struct lu_phy_attr *lu)
 		init_default_smc(lu);
 }
 
-void rereadconfig(int sig)
-{
+void rereadconfig(int sig) {
 	struct mhvtl_ctl ctl;
-	int buffer_size;
+	int				 buffer_size;
 
-	lunit.online = 0;	/* Report library offline until finished */
+	lunit.online = 0; /* Report library offline until finished */
 
 	MHVTL_DBG(1, "Caught signal (%d): Re-initialising library %d",
-			sig, (int)my_id);
+			  sig, (int)my_id);
 
 	cleanup_lu(&lunit);
 
@@ -1649,33 +1841,33 @@ void rereadconfig(int sig)
 
 	/* malloc a big enough buffer to fit worst case read element status */
 	buffer_size = (smc_slots.num_drives +
-				smc_slots.num_picker +
-				smc_slots.num_map +
-				smc_slots.num_storage) * 80;
-	reset_device();	/* Force a POWER-ON/RESET sense code */
+				   smc_slots.num_picker +
+				   smc_slots.num_map +
+				   smc_slots.num_storage) *
+				  80;
+	reset_device(); /* Force a POWER-ON/RESET sense code */
 	if (buffer_size > smc_slots.bufsize) {
 		MHVTL_LOG("Too many slots configured"
-			" - possible buffer overflow");
+				  " - possible buffer overflow");
 		MHVTL_LOG("Please shutdown this daemon and restart so"
-			" correct buffer allocation can be performed");
+				  " correct buffer allocation can be performed");
 		/* Leave library offline */
 	} else {
-		lunit.online = 1;	/* Should be good to go */
+		lunit.online = 1; /* Should be good to go */
 	}
 }
 
-void smc_personality_module_register(struct smc_personality_template *pm)
-{
+void smc_personality_module_register(struct smc_personality_template *pm) {
 	MHVTL_LOG("%s", pm->name);
 	smc_slots.pm = pm;
 }
 
-static void caught_signal(int signo)
-{
+static void caught_signal(int signo) {
 	MHVTL_DBG(1, " %d", signo);
 	printf("Please use 'vtlcmd <index> exit' to shutdown nicely\n");
 	MHVTL_LOG("Please use 'vtlcmd <index> exit' to shutdown nicely,"
-			" Received signal: %d", signo);
+			  " Received signal: %d",
+			  signo);
 }
 
 /*
@@ -1683,47 +1875,46 @@ static void caught_signal(int signo)
  *
  * e'nuf sed
  */
-int main(int argc, char *argv[])
-{
-	int cdev;
-	int ret;
-	long pollInterval = 0L;
+int main(int argc, char *argv[]) {
+	int		 cdev;
+	int		 ret;
+	long	 pollInterval = 0L;
 	uint8_t *buf;
-	int buffer_size;
-	int fifo_retval;
-	int opt;
-	int foreground = 0;
-	int time_to_exit = 0;
+	int		 buffer_size;
+	int		 fifo_retval;
+	int		 opt;
+	int		 foreground	  = 0;
+	int		 time_to_exit = 0;
 
 	int last_state = MHVTL_STATE_UNKNOWN;
 
 	struct list_head *slot_head = &smc_slots.slot_list;
-	struct s_info *sp;
-	struct d_info *dp;
+	struct s_info	 *sp;
+	struct d_info	 *dp;
 
 	struct mhvtl_header mhvtl_cmd;
-	struct mhvtl_ctl ctl;
-	char s[100];
+	struct mhvtl_ctl	ctl;
+	char				s[100];
 
-	pid_t pid, sid, child_cleanup;
+	pid_t			 pid, sid, child_cleanup;
 	struct sigaction new_action, old_action;
 
 	char *progname = argv[0];
-	char *name = "mhvtl";
+	char *name	   = "mhvtl";
 	char *fifoname = NULL;
 
 	memset(&mhvtl_cmd, 0, sizeof(struct mhvtl_header));
 	memset(&ctl, 0, sizeof(struct mhvtl_ctl));
 
 	/* Message Q */
-	int mlen, r_qid;
+	int			   mlen, r_qid;
 	struct q_entry r_entry;
 
 	while ((opt = getopt(argc, argv, "dv::q:f::F")) != -1) {
 		switch (opt) {
 		case 'd':
 			debug++;
-			verbose = 9;	/* If debug, make verbose... */
+			verbose	   = 9; /* If debug, make verbose... */
 			foreground = 1;
 			break;
 		case 'v':
@@ -1763,11 +1954,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	openlog(progname, LOG_PID, LOG_DAEMON|LOG_WARNING);
+	openlog(progname, LOG_PID, LOG_DAEMON | LOG_WARNING);
 
 	/* Clear Sense arr */
 	memset(sense, 0, sizeof(sense));
-	reset_device();	/* power-on reset */
+	reset_device(); /* power-on reset */
 
 	if (!init_lu(&lunit, my_id, &ctl)) {
 		fprintf(stderr, "error: Can not find entry for '%ld' in config file\n",
@@ -1788,7 +1979,7 @@ int main(int argc, char *argv[])
 	}
 
 	new_action.sa_handler = caught_signal;
-	new_action.sa_flags = 0;
+	new_action.sa_flags	  = 0;
 	sigemptyset(&new_action.sa_mask);
 	sigaction(SIGALRM, &new_action, &old_action);
 	sigaction(SIGINT, &new_action, &old_action);
@@ -1822,17 +2013,18 @@ int main(int argc, char *argv[])
 	cdev = chrdev_open(name, my_id);
 	if (cdev == -1) {
 		MHVTL_ERR("Could not open /dev/%s%ld: %s",
-					name, my_id, strerror(errno));
+				  name, my_id, strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}
 
 	/* malloc a big enough buffer to fit worst case read element status */
 	buffer_size = (smc_slots.num_drives +
-				smc_slots.num_picker +
-				smc_slots.num_map +
-				smc_slots.num_storage) * 80;
-	buffer_size = max(SMC_BUF_SIZE, buffer_size);
+				   smc_slots.num_picker +
+				   smc_slots.num_map +
+				   smc_slots.num_storage) *
+				  80;
+	buffer_size		  = max(SMC_BUF_SIZE, buffer_size);
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
 	buf = (uint8_t *)zalloc(buffer_size);
@@ -1853,30 +2045,30 @@ int main(int argc, char *argv[])
 
 				MHVTL_DBG(3, "\nDrive %d", sp->slot_location);
 
-				strncpy(s, dp->inq_vendor_id, 8+2);
+				strncpy(s, dp->inq_vendor_id, 8 + 2);
 				rmnl(s, ' ', 8);
 				s[8] = '\0';
 				MHVTL_DBG(3, "Vendor ID     : \"%s\"", s);
 
-				strncpy(s, dp->inq_product_id, 16+2);
+				strncpy(s, dp->inq_product_id, 16 + 2);
 				rmnl(s, ' ', 16);
 				s[16] = '\0';
 				MHVTL_DBG(3, "Product ID    : \"%s\"", s);
 
-				strncpy(s, dp->inq_product_rev, 4+2);
+				strncpy(s, dp->inq_product_rev, 4 + 2);
 				rmnl(s, ' ', 4);
 				s[4] = '\0';
 				MHVTL_DBG(3, "Revision Level: \"%s\"", s);
 
-				strncpy(s, dp->inq_product_sno, 10+2);
+				strncpy(s, dp->inq_product_sno, 10 + 2);
 				rmnl(s, ' ', 10);
 				s[10] = '\0';
 				MHVTL_DBG(3, "Product S/No  : \"%s\"", s);
 
 				MHVTL_DBG(3, "Drive location: %d",
-						dp->slot->slot_location);
+						  dp->slot->slot_location);
 				MHVTL_DBG(3, "Drive occupied: %s",
-				(dp->slot->status & STATUS_Full) ? "No" : "Yes");
+						  (dp->slot->status & STATUS_Full) ? "No" : "Yes");
 			}
 		}
 	}
@@ -1884,7 +2076,7 @@ int main(int argc, char *argv[])
 	/* If debug or 'F' specified don't fork/run in background */
 	if (!foreground) {
 		switch (pid = fork()) {
-		case 0:         /* Child */
+		case 0: /* Child */
 			break;
 		case -1:
 			fprintf(stderr, "error: Failed to fork daemon\n");
@@ -1895,7 +2087,7 @@ int main(int argc, char *argv[])
 			exit(0);
 		}
 
-		umask(0);	/* Change the file mode mask */
+		umask(0); /* Change the file mode mask */
 
 		sid = setsid();
 		if (sid < 0)
@@ -1911,8 +2103,8 @@ int main(int argc, char *argv[])
 	}
 
 	MHVTL_LOG("[%ld] Started %s: version %s %s %s verbose log lvl: %d, lu [%d:%d:%d]",
-					(long)getpid(), progname, MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE, verbose,
-					ctl.channel, ctl.id, ctl.lun);
+			  (long)getpid(), progname, MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE, verbose,
+			  ctl.channel, ctl.id, ctl.lun);
 
 	oom_adjust();
 
@@ -1947,7 +2139,7 @@ int main(int argc, char *argv[])
 			r_qid = init_queue();
 			if (r_qid == -1)
 				MHVTL_ERR("Can not open message queue: %s",
-					strerror(errno));
+						  strerror(errno));
 		}
 
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &mhvtl_cmd);
@@ -1957,21 +2149,21 @@ int main(int argc, char *argv[])
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
 					MHVTL_DBG(1,
-						"[%ld] Cleaning up after add_lu "
-						"child pid: %d",
-							(long)getpid(), child_cleanup);
+							  "[%ld] Cleaning up after add_lu "
+							  "child pid: %d",
+							  (long)getpid(), child_cleanup);
 					child_cleanup = 0;
 				} else {
 					MHVTL_DBG(2, "[%ld] Child cleanup of %ld still outstanding", (long)getpid(), (long)child_cleanup);
 				}
 			}
 			if (debug)
-				fflush(NULL);	/* So I can pipe debug o/p thru tee */
+				fflush(NULL); /* So I can pipe debug o/p thru tee */
 			switch (ret) {
 			case VTL_QUEUE_CMD:
 				if (smc_slots.bufsize != buffer_size) {
 					buffer_size = smc_slots.bufsize;
-					buf = realloc(buf, buffer_size);
+					buf			= realloc(buf, buffer_size);
 					if (!buf) {
 						perror("Problems allocating memory");
 						exit(1);
@@ -1990,18 +2182,18 @@ int main(int argc, char *argv[])
 
 			default:
 				MHVTL_LOG("ioctl(0x%x) returned %d",
-						VTL_POLL_AND_GET_HEADER, ret);
+						  VTL_POLL_AND_GET_HEADER, ret);
 				sleep(1);
 				break;
 			}
 			if (current_state != last_state) {
 				status_change(lunit.fifo_fd,
-							current_state,
-							my_id,
-							&smc_slots.state_msg);
+							  current_state,
+							  my_id,
+							  &smc_slots.state_msg);
 				last_state = current_state;
 			}
-			if (pollInterval > 0xf000)	/* enough time to ensure no outstanding op in flight */
+			if (pollInterval > 0xf000) /* enough time to ensure no outstanding op in flight */
 				if (time_to_exit)
 					goto exit;
 			if (pollInterval > 0x18000)

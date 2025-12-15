@@ -7,15 +7,14 @@
 #include <inttypes.h>
 #include <byteswap.h>
 
- /*----------------------------------------------------------------------------
- ** ABSTRACT: function to compute interim LBP CRC
- ** INPUTS:	crc - initial crc (0 for fresh) (i.e., seed)
- **		cnt - the number of data bytes to compute CRC for
- **		start - the starting address of the data bytes (e.g., data buffer)
- ** OUTPUTS: uint32_t - crc in big endian (MSB is first byte)
- */
-uint32_t GenerateRSCRC(uint32_t crc, uint32_t cnt, const void *start)
-{
+/*----------------------------------------------------------------------------
+** ABSTRACT: function to compute interim LBP CRC
+** INPUTS:	crc - initial crc (0 for fresh) (i.e., seed)
+**		cnt - the number of data bytes to compute CRC for
+**		start - the starting address of the data bytes (e.g., data buffer)
+** OUTPUTS: uint32_t - crc in big endian (MSB is first byte)
+*/
+uint32_t GenerateRSCRC(uint32_t crc, uint32_t cnt, const void *start) {
 	static const uint32_t crcTable[256] =
 		{
 			0x00000000, 0x38CF3801, 0x70837002, 0x484C4803, 0xE01BE004, 0xD8D4D805,
@@ -60,68 +59,65 @@ uint32_t GenerateRSCRC(uint32_t crc, uint32_t cnt, const void *start)
 			0x098709EA, 0x314831EB, 0x991F99EC, 0xA1D0A1ED, 0xE99CE9EE, 0xD153D1EF,
 			0x035E03F0, 0x3B913BF1, 0x73DD73F2, 0x4B124BF3, 0xE345E3F4, 0xDB8ADBF5,
 			0x93C693F6, 0xAB09ABF7, 0xDE68DEF8, 0xE6A7E6F9, 0xAEEBAEFA, 0x962496FB,
-			0x3E733EFC, 0x06BC06FD, 0x4EF04EFE, 0x763F76FF
-		};
+			0x3E733EFC, 0x06BC06FD, 0x4EF04EFE, 0x763F76FF};
 
-	int i;
+	int			   i;
 	const uint8_t *d = start;
 
-	for (i = 0; i < cnt; i++ ) {
+	for (i = 0; i < cnt; i++) {
 		crc = (crc << 8) ^ crcTable[*d ^ (crc >> 24)];
 		d++;
 	}
 	return crc;
 }
 
- /*----------------------------------------------------------------------------
- **  ABSTRACT: function to compute and append LBP CRC to a data block
- **  INPUTS:	blkbuf  - starting address of the data block to protect
- **		blklen  - length of block to protect (NOT including CRC)
- **		bigendian - Check CRC in big/little endian
- **  OUTPUTS:	uint32_t - length of protected block (to write) including LBP CRC
- */
-uint32_t BlockProtectRSCRC(uint8_t *blkbuf, uint32_t blklen, int32_t bigendian)
-{
+/*----------------------------------------------------------------------------
+**  ABSTRACT: function to compute and append LBP CRC to a data block
+**  INPUTS:	blkbuf  - starting address of the data block to protect
+**		blklen  - length of block to protect (NOT including CRC)
+**		bigendian - Check CRC in big/little endian
+**  OUTPUTS:	uint32_t - length of protected block (to write) including LBP CRC
+*/
+uint32_t BlockProtectRSCRC(uint8_t *blkbuf, uint32_t blklen, int32_t bigendian) {
 	uint32_t crc = GenerateRSCRC(0x00000000, blklen, blkbuf);
 	if (blklen == 0)
 		return 0; /* no such thing as a zero length block in SSC (write NOP) */
 
 	if (bigendian) {
-	/* append CRC in proper byte order (regardless of system endian-ness) */
-		blkbuf[blklen+0] = (crc >> 24) & 0xFF;
-		blkbuf[blklen+1] = (crc >> 16) & 0xFF;
-		blkbuf[blklen+2] = (crc >>  8) & 0xFF;
-		blkbuf[blklen+3] = (crc >>  0) & 0xFF;
+		/* append CRC in proper byte order (regardless of system endian-ness) */
+		blkbuf[blklen + 0] = (crc >> 24) & 0xFF;
+		blkbuf[blklen + 1] = (crc >> 16) & 0xFF;
+		blkbuf[blklen + 2] = (crc >> 8) & 0xFF;
+		blkbuf[blklen + 3] = (crc >> 0) & 0xFF;
 	} else {
-		blkbuf[blklen+0] = (crc >>  0) & 0xFF;
-		blkbuf[blklen+1] = (crc >>  8) & 0xFF;
-		blkbuf[blklen+2] = (crc >> 16) & 0xFF;
-		blkbuf[blklen+3] = (crc >> 24) & 0xFF;
+		blkbuf[blklen + 0] = (crc >> 0) & 0xFF;
+		blkbuf[blklen + 1] = (crc >> 8) & 0xFF;
+		blkbuf[blklen + 2] = (crc >> 16) & 0xFF;
+		blkbuf[blklen + 3] = (crc >> 24) & 0xFF;
 	}
-	return (blklen+4); /* size of block to be written includes CRC */
+	return (blklen + 4); /* size of block to be written includes CRC */
 }
 
- /*----------------------------------------------------------------------------
- **  ABSTRACT: function to verify block with LBP CRC
- **  INPUTS:	blkbuf  - starting address of the data block to protect
- **		blklen  - length of block to verify (INCLUDING CRC)
- **		bigendian - Check CRC in big/little endian
- **  OUTPUTS:	uint32_t - length of block w/o CRC (0 if verify failed)
- */
-uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigendian)
-{
+/*----------------------------------------------------------------------------
+**  ABSTRACT: function to verify block with LBP CRC
+**  INPUTS:	blkbuf  - starting address of the data block to protect
+**		blklen  - length of block to verify (INCLUDING CRC)
+**		bigendian - Check CRC in big/little endian
+**  OUTPUTS:	uint32_t - length of block w/o CRC (0 if verify failed)
+*/
+uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigendian) {
 	if (blklen <= 4)
 		return 0; /* block is too small to be valid, cannot check CRC */
-	blklen -= 4; /* user data portion does not include CRC */
+	blklen -= 4;  /* user data portion does not include CRC */
 
 	uint32_t crccmp;
 	uint32_t crcblk;
 
 	/* this matches the append method in the function above */
-	crcblk  = (blkbuf[blklen+0] << 24) |
-		(blkbuf[blklen+1] << 16) |
-		(blkbuf[blklen+2] <<  8) |
-		(blkbuf[blklen+3] <<  0);
+	crcblk = (blkbuf[blklen + 0] << 24) |
+			 (blkbuf[blklen + 1] << 16) |
+			 (blkbuf[blklen + 2] << 8) |
+			 (blkbuf[blklen + 3] << 0);
 	if (bigendian) {
 		crccmp = GenerateRSCRC(0x00000000, blklen, blkbuf);
 	} else {
@@ -129,14 +125,13 @@ uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigend
 	}
 	if (crccmp != crcblk)
 		return 0; /* block CRC is incorrect */
-	return(blklen);
+	return (blklen);
 
 #if 2 /* method 2: calculate including CRC and check magic constant */
 	{
-	if (GenerateRSCRC(0x00000000, blklen+4, blkbuf) != 0x00000000)
-		return 0; /* block CRC is incorrect (CRC did not neutralize) */
-	return(blklen);
+		if (GenerateRSCRC(0x00000000, blklen + 4, blkbuf) != 0x00000000)
+			return 0; /* block CRC is incorrect (CRC did not neutralize) */
+		return (blklen);
 	}
 #endif
 }
-

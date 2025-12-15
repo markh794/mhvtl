@@ -49,95 +49,93 @@
 
 static struct density_info density_lto1 = {
 	4880, 127, 384, 100000, medium_density_code_lto1,
-			"LTO-CVE", "U-18", "Ultrium 1/8T" };
+	"LTO-CVE", "U-18", "Ultrium 1/8T"};
 static struct density_info density_lto2 = {
 	4880, 127, 512, 200000, medium_density_code_lto2,
-			"LTO-CVE", "U-28", "Ultrium 2/8T" };
+	"LTO-CVE", "U-28", "Ultrium 2/8T"};
 static struct density_info density_lto3 = {
 	9638, 127, 704, 381469, medium_density_code_lto3,
-			"LTO-CVE", "U-316", "Ultrium 3/16T" };
+	"LTO-CVE", "U-316", "Ultrium 3/16T"};
 static struct density_info density_lto4 = {
 	12725, 127, 896, 800000, medium_density_code_lto4,
-			"LTO-CVE", "U-416", "Ultrium 4/16T" };
+	"LTO-CVE", "U-416", "Ultrium 4/16T"};
 static struct density_info density_lto5 = {
 	15142, 127, 1280, 1500000, medium_density_code_lto5,
-			"LTO-CVE", "U-516", "Ultrium 5/16T" };
+	"LTO-CVE", "U-516", "Ultrium 5/16T"};
 static struct density_info density_lto6 = {
 	15142, 127, 2176, 2500000, medium_density_code_lto6,
-			"LTO-CVE", "U-616", "Ultrium 6/16T" };
+	"LTO-CVE", "U-616", "Ultrium 6/16T"};
 static struct density_info density_lto7 = {
 	19107, 127, 3584, 6000000, medium_density_code_lto7,
-			"LTO-CVE", "U-732", "Ultrium 7/32T" };
+	"LTO-CVE", "U-732", "Ultrium 7/32T"};
 static struct density_info density_lto8 = {
 	20669, 127, 6656, 12000000, medium_density_code_lto8,
-			"LTO-CVE", "U-832", "Ultrium 8/32T" };
+	"LTO-CVE", "U-832", "Ultrium 8/32T"};
 static struct density_info density_lto9 = {
 	21456, 127, 8960, 18000000, medium_density_code_lto9,
-			"LTO-CVE", "U-932", "Ultrium 9/48T" };
+	"LTO-CVE", "U-932", "Ultrium 9/48T"};
 
 static struct name_to_media_info media_info[] = {
 	{"LTO1", Media_LTO1,
-			media_type_lto1_data, medium_density_code_lto1},
+	 media_type_lto1_data, medium_density_code_lto1},
 	{"LTO1 Clean", Media_LTO1_CLEAN,
-			media_type_lto1_data, medium_density_code_lto1},
+	 media_type_lto1_data, medium_density_code_lto1},
 	{"LTO2", Media_LTO2,
-			media_type_lto2_data, medium_density_code_lto2},
+	 media_type_lto2_data, medium_density_code_lto2},
 	{"LTO2 Clean", Media_LTO2_CLEAN,
-			media_type_lto2_data, medium_density_code_lto2},
+	 media_type_lto2_data, medium_density_code_lto2},
 	{"LTO3", Media_LTO3,
-			media_type_lto3_data, medium_density_code_lto3},
+	 media_type_lto3_data, medium_density_code_lto3},
 	{"LTO3 Clean", Media_LTO3_CLEAN,
-			media_type_lto3_data, medium_density_code_lto3},
+	 media_type_lto3_data, medium_density_code_lto3},
 	{"LTO3 WORM", Media_LTO3_WORM,
-			media_type_lto3_worm, medium_density_code_lto3},
+	 media_type_lto3_worm, medium_density_code_lto3},
 	{"LTO4", Media_LTO4,
-			media_type_lto4_data, medium_density_code_lto4},
+	 media_type_lto4_data, medium_density_code_lto4},
 	{"LTO4 Clean", Media_LTO4_CLEAN,
-			media_type_lto4_data, medium_density_code_lto4},
+	 media_type_lto4_data, medium_density_code_lto4},
 	{"LTO4 WORM", Media_LTO4_WORM,
-			media_type_lto4_worm, medium_density_code_lto4},
+	 media_type_lto4_worm, medium_density_code_lto4},
 	{"LTO5", Media_LTO5,
-			media_type_lto5_data, medium_density_code_lto5},
+	 media_type_lto5_data, medium_density_code_lto5},
 	{"LTO5 Clean", Media_LTO5_CLEAN,
-			media_type_lto5_data, medium_density_code_lto5},
+	 media_type_lto5_data, medium_density_code_lto5},
 	{"LTO5 WORM", Media_LTO5_WORM,
-			media_type_lto5_worm, medium_density_code_lto5},
+	 media_type_lto5_worm, medium_density_code_lto5},
 	{"LTO6", Media_LTO6,
-			media_type_lto6_data, medium_density_code_lto6},
+	 media_type_lto6_data, medium_density_code_lto6},
 	{"LTO6 Clean", Media_LTO6_CLEAN,
-			media_type_lto6_data, medium_density_code_lto6},
+	 media_type_lto6_data, medium_density_code_lto6},
 	{"LTO6 WORM", Media_LTO6_WORM,
-			media_type_lto6_worm, medium_density_code_lto6},
+	 media_type_lto6_worm, medium_density_code_lto6},
 	{"LTO7", Media_LTO7,
-			media_type_lto7_data, medium_density_code_lto7},
+	 media_type_lto7_data, medium_density_code_lto7},
 	{"LTO7 Clean", Media_LTO7_CLEAN,
-			media_type_lto7_data, medium_density_code_lto7},
+	 media_type_lto7_data, medium_density_code_lto7},
 	{"LTO7 WORM", Media_LTO7_WORM,
-			media_type_lto7_worm, medium_density_code_lto7},
+	 media_type_lto7_worm, medium_density_code_lto7},
 	{"LTO8", Media_LTO8,
-			media_type_lto8_data, medium_density_code_lto8},
+	 media_type_lto8_data, medium_density_code_lto8},
 	{"LTO8 Clean", Media_LTO8_CLEAN,
-			media_type_lto8_data, medium_density_code_lto8},
+	 media_type_lto8_data, medium_density_code_lto8},
 	{"LTO8 WORM", Media_LTO8_WORM,
-			media_type_lto8_worm, medium_density_code_lto8},
+	 media_type_lto8_worm, medium_density_code_lto8},
 	{"LTO9", Media_LTO9,
-			media_type_lto9_data, medium_density_code_lto9},
+	 media_type_lto9_data, medium_density_code_lto9},
 	{"LTO9 Clean", Media_LTO9_CLEAN,
-			media_type_lto9_data, medium_density_code_lto9},
+	 media_type_lto9_data, medium_density_code_lto9},
 	{"LTO9 WORM", Media_LTO9_WORM,
-			media_type_lto9_worm, medium_density_code_lto9},
+	 media_type_lto9_worm, medium_density_code_lto9},
 	{"", 0, 0, 0},
 };
 
-static uint8_t clear_ult_compression(struct list_head *m)
-{
+static uint8_t clear_ult_compression(struct list_head *m) {
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
 	/* default clear_compression is in libvtlscsi */
 	return clear_compression_mode_pg(m);
 }
 
-static uint8_t set_ult_compression(struct list_head *m, int lvl)
-{
+static uint8_t set_ult_compression(struct list_head *m, int lvl) {
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
 	/* default set_compression is in libvtlscsi */
 	return set_compression_mode_pg(m, lvl);
@@ -146,15 +144,14 @@ static uint8_t set_ult_compression(struct list_head *m, int lvl)
 /* As per IBM LTO5 SCSI Programmers Guide..
  * Filling in compile time/date & dummy 'platform' string
  */
-static void update_vpd_ult_c0(struct lu_phy_attr *lu)
-{
-	uint8_t *data;
+static void update_vpd_ult_c0(struct lu_phy_attr *lu) {
+	uint8_t	   *data;
 	struct vpd *vpd_p;
-	int h, m, s;
-	int day, month, year;
+	int			h, m, s;
+	int			day, month, year;
 
 	vpd_p = lu->lu_vpd[PCODE_OFFSET(0xc0)];
-	data = vpd_p->data;
+	data  = vpd_p->data;
 
 	ymd(&year, &month, &day, &h, &m, &s);
 
@@ -166,13 +163,12 @@ static void update_vpd_ult_c0(struct lu_phy_attr *lu)
 	sprintf((char *)&data[31], "mhvtl_fl_f");
 }
 
-static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn)
-{
-	uint8_t *data;
+static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn) {
+	uint8_t	   *data;
 	struct vpd *vpd_p;
 
 	vpd_p = lu->lu_vpd[PCODE_OFFSET(0xc1)];
-	data = vpd_p->data;
+	data  = vpd_p->data;
 
 	data[1] = 0xc1;
 	data[3] = 0x18;
@@ -180,19 +176,18 @@ static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn)
 	snprintf((char *)&data[16], 13, "%-12.12s", sn);
 }
 
-static uint8_t set_ult_WORM(struct list_head *lst)
-{
-	uint8_t *mp;
+static uint8_t set_ult_WORM(struct list_head *lst) {
+	uint8_t		*mp;
 	struct mode *m;
 
-	set_WORM(lst);	/* Default WORM setup */
+	set_WORM(lst); /* Default WORM setup */
 
 	/* Now for the Ultrium unique stuff */
 
 	m = lookup_pcode(lst, MODE_BEHAVIOR_CONFIGURATION, 0);
 	if (m) {
 		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-				lst, m, m->pcodePointer);
+				  lst, m, m->pcodePointer);
 
 		mp = m->pcodePointer;
 		if (!mp)
@@ -206,14 +201,12 @@ static uint8_t set_ult_WORM(struct list_head *lst)
 	return SAM_STAT_GOOD;
 }
 
-static uint8_t clear_ult_WORM(struct list_head *m)
-{
+static uint8_t clear_ult_WORM(struct list_head *m) {
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", m);
 	return clear_WORM(m);
 }
 
-static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int value)
-{
+static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int value) {
 	struct mode *mp;
 
 	MHVTL_DBG(3, "+++ Trace +++");
@@ -228,31 +221,30 @@ static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int valu
 	return SAM_STAT_GOOD;
 }
 
-static int encr_capabilities_ult(struct scsi_cmd *cmd)
-{
+static int encr_capabilities_ult(struct scsi_cmd *cmd) {
 	uint8_t *buf = cmd->dbuf_p->data;
 
 	put_unaligned_be16(ENCR_CAPABILITIES, &buf[0]);
 	put_unaligned_be16(40, &buf[2]); /* List length */
 
-	buf[20] = 1;	/* Algorithm index */
-	buf[21] = 0;	/* Reserved */
+	buf[20] = 1;						/* Algorithm index */
+	buf[21] = 0;						/* Reserved */
 	put_unaligned_be16(0x14, &buf[22]); /* Descriptor length */
-	buf[24] = 0x3a;	/* MAC C/DED_C DECRYPT_C = 2 ENCRYPT_C = 2 */
-	buf[25] = 0x10;	/* NONCE_C = 1 */
+	buf[24] = 0x3a;						/* MAC C/DED_C DECRYPT_C = 2 ENCRYPT_C = 2 */
+	buf[25] = 0x10;						/* NONCE_C = 1 */
 	/* Max unauthenticated key data */
 	put_unaligned_be16(0x20, &buf[26]);
 	/* Max authenticated  key data */
 	put_unaligned_be16(0x0c, &buf[28]);
 	/* Key size */
 	put_unaligned_be16(0x20, &buf[30]);
-	buf[32] = 0x01;	/* EAREM */
+	buf[32] = 0x01; /* EAREM */
 	/* buf 12 - 19 reserved */
 
 	buf[40] = 0;	/* Encryption Algorithm Id */
-	buf[41] = 0x01;	/* Encryption Algorithm Id */
+	buf[41] = 0x01; /* Encryption Algorithm Id */
 	buf[42] = 0;	/* Encryption Algorithm Id */
-	buf[43] = 0x14;	/* Encryption Algorithm Id */
+	buf[43] = 0x14; /* Encryption Algorithm Id */
 
 	/* adjustments for each emulated drive type */
 	buf[4] = 0x1; /* CFG_P == 01b */
@@ -291,40 +283,38 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd)
 	return 44;
 }
 
-static void update_vpd_lbp(struct lu_phy_attr *lu)
-{
+static void update_vpd_lbp(struct lu_phy_attr *lu) {
 	struct vpd *v;
-	uint8_t *d;
+	uint8_t	   *d;
 
 	v = lu->lu_vpd[PCODE_OFFSET(0xb5)];
 	d = v->data;
 
 	d[4] = 7;
 	/* LBP method for LBP disabled */
-	d[5] = 0;	/* LBP method */
-	d[6] = 0;	/* LBP len */
-	d[7] = 0;	/* LBP_W & LBP_R set to 0 */
+	d[5] = 0; /* LBP method */
+	d[6] = 0; /* LBP len */
+	d[7] = 0; /* LBP_W & LBP_R set to 0 */
 
 	/* LBP method for RS-CRC */
 	d[12] = 7;
-	d[13] = 1;	/* LBP method */
-	d[14] = 4;	/* LBP len */
-	d[15] = 0xc0;	/* LBP_W & LBP_R set to true */
+	d[13] = 1;	  /* LBP method */
+	d[14] = 4;	  /* LBP len */
+	d[15] = 0xc0; /* LBP_W & LBP_R set to true */
 
 	if (((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_LBP == LBP_CRC32C) {
 		d[20] = 7;
-		d[21] = 2;	/* LBP method */
-		d[22] = 4;	/* LBP len */
-		d[23] = 0xc0;	/* LBP_W & LBP_R set to true */
+		d[21] = 2;	  /* LBP method */
+		d[22] = 4;	  /* LBP len */
+		d[23] = 0xc0; /* LBP_W & LBP_R set to true */
 	}
 }
 
-static void init_ult_inquiry(struct lu_phy_attr *lu)
-{
-	int pg;
+static void init_ult_inquiry(struct lu_phy_attr *lu) {
+	int		pg;
 	uint8_t worm;
 	uint8_t local_TapeAlert[8] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	worm = ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_WORM;
 	lu->inquiry[2] =
@@ -334,16 +324,16 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	lu->inquiry[5] |= (((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_LBP) ? 1 : 0;
 
 	/* Extended INQUIRY Data VPD page */
-	pg = PCODE_OFFSET(0x86);
+	pg			   = PCODE_OFFSET(0x86);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_86_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
 		exit(-ENOMEM);
 	}
-	update_vpd_86(lu, ((struct priv_lu_ssc*)lu->lu_private)->pm);
+	update_vpd_86(lu, ((struct priv_lu_ssc *)lu->lu_private)->pm);
 
 	/* Sequential Access device capabilities - Ref: 8.4.2 */
-	pg = PCODE_OFFSET(0xb0);
+	pg			   = PCODE_OFFSET(0xb0);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B0_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
@@ -352,7 +342,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	update_vpd_b0(lu, &worm);
 
 	/* Manufacture-assigned serial number - Ref: 8.4.3 */
-	pg = PCODE_OFFSET(0xb1);
+	pg			   = PCODE_OFFSET(0xb1);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B1_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
@@ -361,7 +351,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	update_vpd_b1(lu, lu->lu_serial_no);
 
 	/* TapeAlert supported flags - Ref: 8.4.4 */
-	pg = PCODE_OFFSET(0xb2);
+	pg			   = PCODE_OFFSET(0xb2);
 	lu->lu_vpd[pg] = alloc_vpd(VPD_B2_SZ);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
@@ -374,7 +364,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 		/* two pages ? - one for CRC32C and one for RS-CRC */
 		int pg_size = (((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_LBP == LBP_RSCRC) ? VPD_B5_SZ : VPD_B5_SZ + VPD_B5_SZ;
 
-		pg = PCODE_OFFSET(0xb5);
+		pg			   = PCODE_OFFSET(0xb5);
 		lu->lu_vpd[pg] = alloc_vpd(pg_size + 12); /* header page, one page for 'disabled' LBP + one or two for RS-CRC / CRC32C */
 		if (!lu->lu_vpd[pg]) {
 			MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
@@ -384,7 +374,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	}
 
 	/* VPD page 0xC0 */
-	pg = PCODE_OFFSET(0xc0);
+	pg			   = PCODE_OFFSET(0xc0);
 	lu->lu_vpd[pg] = alloc_vpd(43);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
@@ -393,7 +383,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	update_vpd_ult_c0(lu);
 
 	/* VPD page 0xC1 */
-	pg = PCODE_OFFSET(0xc1);
+	pg			   = PCODE_OFFSET(0xc1);
 	lu->lu_vpd[pg] = alloc_vpd(28);
 	if (!lu->lu_vpd[pg]) {
 		MHVTL_ERR("Failed to malloc(): Line %d", __LINE__);
@@ -402,8 +392,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu)
 	update_vpd_ult_c1(lu, lu->lu_serial_no);
 }
 
-static int td4_kad_validation(int encrypt_mode, int ukad, int akad)
-{
+static int td4_kad_validation(int encrypt_mode, int ukad, int akad) {
 	int count = FALSE;
 	if (ukad > 32 || akad > 12)
 		count = TRUE;
@@ -441,15 +430,13 @@ static volatile sig_atomic_t cleaning_media_state;
 
 static void inc_cleaning_state(int sig);
 
-static void set_cleaning_timer(int t)
-{
+static void set_cleaning_timer(int t) {
 	MHVTL_DBG(3, "+++ Trace +++ Setting alarm for %d", t);
 	signal(SIGALRM, inc_cleaning_state);
 	alarm(t);
 }
 
-static void inc_cleaning_state(int sig)
-{
+static void inc_cleaning_state(int sig) {
 	MHVTL_DBG(3, "+++ Trace +++");
 	signal(sig, inc_cleaning_state);
 
@@ -459,8 +446,7 @@ static void inc_cleaning_state(int sig)
 		set_cleaning_timer(90);
 }
 
-static uint8_t ult_media_load(struct lu_phy_attr *lu, int load)
-{
+static uint8_t ult_media_load(struct lu_phy_attr *lu, int load) {
 	struct priv_lu_ssc *lu_priv = lu->lu_private;
 
 	MHVTL_DBG(3, "+++ Trace +++ %s", (load) ? "load" : "unload");
@@ -505,8 +491,7 @@ static uint8_t ult_media_load(struct lu_phy_attr *lu, int load)
 	return 0;
 }
 
-static uint8_t ult_cleaning(void *ssc_priv)
-{
+static uint8_t ult_cleaning(void *ssc_priv) {
 	struct priv_lu_ssc *ssc;
 
 	MHVTL_DBG(3, "+++ Trace +++");
@@ -514,7 +499,7 @@ static uint8_t ult_cleaning(void *ssc_priv)
 	ssc = ssc_priv;
 
 	ssc->cleaning_media_state = &cleaning_media_state;
-	cleaning_media_state = CLEAN_MOUNT_STAGE1;
+	cleaning_media_state	  = CLEAN_MOUNT_STAGE1;
 
 	set_cleaning_timer(30);
 
@@ -532,29 +517,28 @@ static char *pm_name_lto8 = "LTO-8";
 static char *pm_name_lto9 = "LTO-9";
 
 static struct ssc_personality_template ssc_pm = {
-	.valid_encryption_blk	= valid_encryption_blk, /* default in ssc.c */
-	.check_restrictions	= check_restrictions, /* default in ssc.c */
-	.clear_compression	= clear_ult_compression,
-	.set_compression	= set_ult_compression,
-	.media_load		= ult_media_load,
-	.cleaning_media		= ult_cleaning,
-	.media_handling		= media_info,
+	.valid_encryption_blk = valid_encryption_blk, /* default in ssc.c */
+	.check_restrictions	  = check_restrictions,	  /* default in ssc.c */
+	.clear_compression	  = clear_ult_compression,
+	.set_compression	  = set_ult_compression,
+	.media_load			  = ult_media_load,
+	.cleaning_media		  = ult_cleaning,
+	.media_handling		  = media_info,
 };
 
-void init_ult3580_td1(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto1;
-	ssc_pm.lu = lu;
+void init_ult3580_td1(struct lu_phy_attr *lu) {
+	ssc_pm.name					= pm_name_lto1;
+	ssc_pm.lu					= lu;
 	ssc_pm.native_drive_density = &density_lto1;
 
 	/* Drive capabilities need to be defined before mode pages */
-	ssc_pm.drive_supports_append_only_mode = FALSE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+	ssc_pm.drive_supports_append_only_mode	 = FALSE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
-	ssc_pm.drive_supports_WORM = FALSE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = FALSE;
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = FALSE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = FALSE;
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -587,18 +571,17 @@ void init_ult3580_td1(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RO, "LTO1 Clean");
 }
 
-void init_ult3580_td2(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto2;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto2;
-	ssc_pm.drive_supports_append_only_mode = FALSE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td2(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto2;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto2;
+	ssc_pm.drive_supports_append_only_mode	 = FALSE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
-	ssc_pm.drive_supports_WORM = FALSE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = FALSE;
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = FALSE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = FALSE;
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -635,20 +618,19 @@ void init_ult3580_td2(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RO, "LTO2 Clean");
 }
 
-void init_ult3580_td3(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto3;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto3;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	ssc_pm.drive_supports_append_only_mode = FALSE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td3(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto3;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto3;
+	ssc_pm.clear_WORM						 = clear_ult_WORM;
+	ssc_pm.set_WORM							 = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode	 = FALSE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
-	ssc_pm.drive_supports_WORM = TRUE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = FALSE;
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = TRUE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = FALSE;
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -692,23 +674,22 @@ void init_ult3580_td3(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO3 WORM");
 }
 
-void init_ult3580_td4(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto4;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto4;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
-	ssc_pm.encryption_capabilities = encr_capabilities_ult;
-	ssc_pm.kad_validation = td4_kad_validation;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	ssc_pm.drive_supports_append_only_mode = FALSE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td4(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto4;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto4;
+	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
+	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.clear_WORM						 = clear_ult_WORM;
+	ssc_pm.set_WORM							 = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode	 = FALSE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = FALSE;
-	ssc_pm.drive_supports_WORM = TRUE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = TRUE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = TRUE;
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -725,7 +706,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-4 */
+	add_mode_ult_encr_mode_pages(lu); /* Extra for LTO-4 */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -757,24 +738,23 @@ void init_ult3580_td4(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO4 WORM");
 }
 
-void init_ult3580_td5(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto5;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto5;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
-	ssc_pm.encryption_capabilities = encr_capabilities_ult;
-	ssc_pm.kad_validation = td4_kad_validation;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	ssc_pm.drive_supports_append_only_mode = TRUE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td5(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto5;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto5;
+	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
+	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.clear_WORM						 = clear_ult_WORM;
+	ssc_pm.set_WORM							 = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode	 = TRUE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = TRUE;
-	ssc_pm.drive_supports_WORM = TRUE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_supports_LBP = LBP_RSCRC;
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = TRUE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = TRUE;
+	ssc_pm.drive_supports_LBP				 = LBP_RSCRC;
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -793,7 +773,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-5 */
+	add_mode_ult_encr_mode_pages(lu); /* Extra for LTO-5 */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -830,24 +810,23 @@ void init_ult3580_td5(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO5 ENCR");
 }
 
-void init_ult3580_td6(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto6;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto6;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
-	ssc_pm.encryption_capabilities = encr_capabilities_ult;
-	ssc_pm.kad_validation = td4_kad_validation;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	ssc_pm.drive_supports_append_only_mode = TRUE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td6(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto6;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto6;
+	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
+	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.clear_WORM						 = clear_ult_WORM;
+	ssc_pm.set_WORM							 = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode	 = TRUE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = TRUE;
-	ssc_pm.drive_supports_WORM = TRUE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_supports_LBP = LBP_RSCRC;
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = TRUE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = TRUE;
+	ssc_pm.drive_supports_LBP				 = LBP_RSCRC;
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -866,7 +845,7 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-6 */
+	add_mode_ult_encr_mode_pages(lu); /* Extra for LTO-6 */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -904,24 +883,23 @@ void init_ult3580_td6(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO6 ENCR");
 }
 
-void init_ult3580_td7(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto7;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto7;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
-	ssc_pm.encryption_capabilities = encr_capabilities_ult;
-	ssc_pm.kad_validation = td4_kad_validation;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	ssc_pm.drive_supports_append_only_mode = TRUE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td7(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto7;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto7;
+	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
+	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.clear_WORM						 = clear_ult_WORM;
+	ssc_pm.set_WORM							 = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode	 = TRUE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = TRUE;
-	ssc_pm.drive_supports_WORM = TRUE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_supports_LBP = LBP_CRC32C; /* both RS-CRC and CRC32C */
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = TRUE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = TRUE;
+	ssc_pm.drive_supports_LBP				 = LBP_CRC32C; /* both RS-CRC and CRC32C */
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -939,7 +917,7 @@ void init_ult3580_td7(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-7 */
+	add_mode_ult_encr_mode_pages(lu); /* Extra for LTO-7 */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -978,24 +956,23 @@ void init_ult3580_td7(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO7 ENCR");
 }
 
-void init_ult3580_td8(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto8;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto8;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
-	ssc_pm.encryption_capabilities = encr_capabilities_ult;
-	ssc_pm.kad_validation = td4_kad_validation;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	ssc_pm.drive_supports_append_only_mode = TRUE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td8(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto8;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto8;
+	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
+	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.clear_WORM						 = clear_ult_WORM;
+	ssc_pm.set_WORM							 = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode	 = TRUE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = TRUE;
-	ssc_pm.drive_supports_WORM = TRUE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_supports_LBP = LBP_CRC32C; /* both RS-CRC and CRC32C */
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = TRUE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = TRUE;
+	ssc_pm.drive_supports_LBP				 = LBP_CRC32C; /* both RS-CRC and CRC32C */
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -1013,7 +990,7 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-7+ */
+	add_mode_ult_encr_mode_pages(lu); /* Extra for LTO-7+ */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -1034,12 +1011,12 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 
-    /* LTO 8 drives cannot read LTO6 cartridges.
-    https://www.lto.org/lto-generation-compatibility/
-    "LTO drive generations 1-7 are able to read tapes from two generations prior
-    and are able to write to tapes from the prior generation.
+	/* LTO 8 drives cannot read LTO6 cartridges.
+	https://www.lto.org/lto-generation-compatibility/
+	"LTO drive generations 1-7 are able to read tapes from two generations prior
+	and are able to write to tapes from the prior generation.
 
-    LTO-8 drives can read and write to LTO-7 and LTO-8 media*/
+	LTO-8 drives can read and write to LTO-7 and LTO-8 media*/
 	add_density_support(&lu->den_list, &density_lto7, 1);
 	add_density_support(&lu->den_list, &density_lto8, 1);
 
@@ -1053,24 +1030,23 @@ void init_ult3580_td8(struct lu_phy_attr *lu)
 	add_drive_media_list(lu, LOAD_RW, "LTO8 ENCR");
 }
 
-void init_ult3580_td9(struct lu_phy_attr *lu)
-{
-	ssc_pm.name = pm_name_lto9;
-	ssc_pm.lu = lu;
-	ssc_pm.native_drive_density = &density_lto9;
-	ssc_pm.update_encryption_mode = update_ult_encryption_mode;
-	ssc_pm.encryption_capabilities = encr_capabilities_ult;
-	ssc_pm.kad_validation = td4_kad_validation;
-	ssc_pm.clear_WORM = clear_ult_WORM;
-	ssc_pm.set_WORM = set_ult_WORM;
-	ssc_pm.drive_supports_append_only_mode = TRUE;
-	ssc_pm.drive_supports_early_warning = TRUE;
+void init_ult3580_td9(struct lu_phy_attr *lu) {
+	ssc_pm.name								 = pm_name_lto9;
+	ssc_pm.lu								 = lu;
+	ssc_pm.native_drive_density				 = &density_lto9;
+	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
+	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
+	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.clear_WORM						 = clear_ult_WORM;
+	ssc_pm.set_WORM							 = set_ult_WORM;
+	ssc_pm.drive_supports_append_only_mode	 = TRUE;
+	ssc_pm.drive_supports_early_warning		 = TRUE;
 	ssc_pm.drive_supports_prog_early_warning = TRUE;
-	ssc_pm.drive_supports_WORM = TRUE;
-	ssc_pm.drive_supports_SPR = TRUE;
-	ssc_pm.drive_supports_SP = TRUE;
-	ssc_pm.drive_supports_LBP = LBP_CRC32C; /* both RS-CRC and CRC32C */
-	ssc_pm.drive_ANSI_VERSION = 5;
+	ssc_pm.drive_supports_WORM				 = TRUE;
+	ssc_pm.drive_supports_SPR				 = TRUE;
+	ssc_pm.drive_supports_SP				 = TRUE;
+	ssc_pm.drive_supports_LBP				 = LBP_CRC32C; /* both RS-CRC and CRC32C */
+	ssc_pm.drive_ANSI_VERSION				 = 5;
 
 	ssc_personality_module_register(&ssc_pm);
 
@@ -1088,7 +1064,7 @@ void init_ult3580_td9(struct lu_phy_attr *lu)
 	add_mode_power_condition(lu);
 	add_mode_information_exception(lu);
 	add_mode_medium_configuration(lu);
-	add_mode_ult_encr_mode_pages(lu);	/* Extra for LTO-7+ */
+	add_mode_ult_encr_mode_pages(lu); /* Extra for LTO-7+ */
 	add_mode_vendor_25h_mode_pages(lu);
 	add_mode_behavior_configuration(lu);
 	add_mode_encryption_mode_attribute(lu);
@@ -1109,12 +1085,12 @@ void init_ult3580_td9(struct lu_phy_attr *lu)
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
 
-    /* LTO 9 drives cannot read LTO7 cartridges.
-    https://www.lto.org/lto-generation-compatibility/
-    "LTO drive generations 1-7 are able to read tapes from two generations prior
-    and are able to write to tapes from the prior generation.
+	/* LTO 9 drives cannot read LTO7 cartridges.
+	https://www.lto.org/lto-generation-compatibility/
+	"LTO drive generations 1-7 are able to read tapes from two generations prior
+	and are able to write to tapes from the prior generation.
 
-    LTO-9 drives can read and write to LTO-8 and LTO-9 media only*/
+	LTO-9 drives can read and write to LTO-8 and LTO-9 media only*/
 	add_density_support(&lu->den_list, &density_lto8, 1);
 	add_density_support(&lu->den_list, &density_lto9, 1);
 

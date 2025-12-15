@@ -19,25 +19,25 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define		MAX_LINE_WIDTH		1024
+#define MAX_LINE_WIDTH 1024
 
-#ifndef		MHVTL_CONFIG_PATH
-#define		MHVTL_CONFIG_PATH "/etc/mhvtl"
+#ifndef MHVTL_CONFIG_PATH
+#define MHVTL_CONFIG_PATH "/etc/mhvtl"
 #endif
 
 extern char *__progname;
-static int	debug_mode = 0;
-static char	*device_conf = MHVTL_CONFIG_PATH "/device.conf";
+static int	 debug_mode	 = 0;
+static char *device_conf = MHVTL_CONFIG_PATH "/device.conf";
 
 struct vtl_info {
-	int		num;
-	struct vtl_info	*next;
+	int				 num;
+	struct vtl_info *next;
 };
 
-static struct vtl_info our_tapes = {.num = -1, .next = NULL} ;
-static struct vtl_info our_libraries = {.num = -1, .next = NULL} ;
+static struct vtl_info our_tapes	 = {.num = -1, .next = NULL};
+static struct vtl_info our_libraries = {.num = -1, .next = NULL};
 
-static struct vtl_info *last_tape = &our_tapes;
+static struct vtl_info *last_tape	 = &our_tapes;
 static struct vtl_info *last_library = &our_libraries;
 
 /*
@@ -50,14 +50,12 @@ static struct vtl_info *last_library = &our_libraries;
  * https://www.kernel.org/doc/html/latest/core-api/printk-basics.html
  * Broadly speaking, 3 (ERR) or 2 (CRIT) should cover this tool's needs
  */
-__attribute__((__format__ (__printf__, 2, 3)))
-static void pr_klog(int level, const char *fmt, ...)
-{
-	int fd;
-	char buf[1024];
+__attribute__((__format__(__printf__, 2, 3))) static void pr_klog(int level, const char *fmt, ...) {
+	int		fd;
+	char	buf[1024];
 	va_list ap;
-	int rc;
-	int saved_errno = errno; /* Don't clobber errno */
+	int		rc;
+	int		saved_errno = errno; /* Don't clobber errno */
 
 	if (level < 0 || level > 7)
 		level = 3;
@@ -70,13 +68,13 @@ static void pr_klog(int level, const char *fmt, ...)
 	fd = open("/dev/kmsg", O_WRONLY);
 	if (fd == -1) {
 		if (debug_mode)
-			(void ) fprintf(stderr, "Cannot open /dev/kmsg: %s\n", strerror(errno));
+			(void)fprintf(stderr, "Cannot open /dev/kmsg: %s\n", strerror(errno));
 		errno = saved_errno;
 		return;
 	}
 
 	rc = write(fd, buf, strlen(buf));
-	if (rc) { }; /* Silence warn_unused_result - not much to do if it fails */
+	if (rc) {}; /* Silence warn_unused_result - not much to do if it fails */
 	close(fd);
 
 	errno = saved_errno;
@@ -86,10 +84,9 @@ static void pr_klog(int level, const char *fmt, ...)
 /*
  * return 1 if path is a writable directory, else return 0
  */
-static int is_writable_dir(char *path)
-{
-	struct stat	sb;
-	int		res = 0;	/* default to "no" */
+static int is_writable_dir(char *path) {
+	struct stat sb;
+	int			res = 0; /* default to "no" */
 
 	if (lstat(path, &sb) < 0)
 		goto dun;
@@ -98,8 +95,8 @@ static int is_writable_dir(char *path)
 	res = (access(path, W_OK) == 0);
 dun:
 	if (debug_mode)
-		(void) printf("DEBUG: %s is%s writable\n", path,
-				res ? "" : " not");
+		(void)printf("DEBUG: %s is%s writable\n", path,
+					 res ? "" : " not");
 	return res;
 }
 
@@ -107,33 +104,34 @@ dun:
  * scan arguments and return the "normal_dir" if all goes well,
  * else return NULL
  */
-static char *get_working_dir(int argc, char **argv)
-{
-	char		*normal_dir;
+static char *get_working_dir(int argc, char **argv) {
+	char *normal_dir;
 
 	/* skip program name */
-	argc--; argc++;
+	argc--;
+	argc++;
 
 	if ((argc > 1) && !strcmp(argv[1], "-d")) {
 		debug_mode++;
-		argc--; argv++;
+		argc--;
+		argv++;
 	}
 
 	if (argc != 4) {
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: expected 3 arguments, got %d\n", argc);
+			(void)fprintf(stderr, "DEBUG: error: expected 3 arguments, got %d\n", argc);
 		return NULL;
 	}
 
 	if (debug_mode)
-		(void) printf("DEBUG: normal=%s, early=%s, late=%s\n",
-				argv[1], argv[2], argv[3]);
+		(void)printf("DEBUG: normal=%s, early=%s, late=%s\n",
+					 argv[1], argv[2], argv[3]);
 	normal_dir = argv[1];
 
 	/* we care about normal dir, so make sure it's real */
 	if (!is_writable_dir(normal_dir)) {
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: not a writable dir: %s\n", normal_dir);
+			(void)fprintf(stderr, "DEBUG: error: not a writable dir: %s\n", normal_dir);
 		return NULL;
 	}
 
@@ -145,12 +143,11 @@ static char *get_working_dir(int argc, char **argv)
  *
  * return bool success (0 -> fail, else success)
  */
-static int add_to_libraries(int lib_num)
-{
-	struct vtl_info	*info;
+static int add_to_libraries(int lib_num) {
+	struct vtl_info *info;
 
 	if (debug_mode)
-		(void) printf("DEBUG: add_to_libraries(%d): entering\n", lib_num);
+		(void)printf("DEBUG: add_to_libraries(%d): entering\n", lib_num);
 
 	if (lib_num <= 0)
 		return 0;
@@ -158,15 +155,15 @@ static int add_to_libraries(int lib_num)
 	info = malloc(sizeof(struct vtl_info));
 	if (info == NULL) {
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: no memory\n");
+			(void)fprintf(stderr, "DEBUG: error: no memory\n");
 		return 0;
 	}
 
-	info->num = lib_num;
+	info->num  = lib_num;
 	info->next = NULL;
 
 	last_library->next = info;
-	last_library = info;
+	last_library	   = info;
 
 	return 1;
 }
@@ -176,12 +173,11 @@ static int add_to_libraries(int lib_num)
  *
  * return bool success (0 -> fail, else success)
  */
-static int add_to_tapes(int tape_num)
-{
-	struct vtl_info	*info;
+static int add_to_tapes(int tape_num) {
+	struct vtl_info *info;
 
 	if (debug_mode)
-		(void) printf("DEBUG: add_to_tapes(%d): entering\n", tape_num);
+		(void)printf("DEBUG: add_to_tapes(%d): entering\n", tape_num);
 
 	if (tape_num <= 0)
 		return 0;
@@ -189,15 +185,15 @@ static int add_to_tapes(int tape_num)
 	info = malloc(sizeof(struct vtl_info));
 	if (info == NULL) {
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: no memory\n");
+			(void)fprintf(stderr, "DEBUG: error: no memory\n");
 		return 0;
 	}
 
-	info->num = tape_num;
+	info->num  = tape_num;
 	info->next = NULL;
 
 	last_tape->next = info;
-	last_tape = info;
+	last_tape		= info;
 
 	return 1;
 }
@@ -212,59 +208,56 @@ static int add_to_tapes(int tape_num)
  * this order. But DO assume that a library will not be referenced
  * before it is mentioned by a drive that uses it
  */
-static int parse_config_file(char *path)
-{
-	FILE			*fp = NULL;
-	char			line_buf[MAX_LINE_WIDTH+1];
-	char			*cp = NULL;
-	int			tape_num = -1;
-	int			library_num = -1;
+static int parse_config_file(char *path) {
+	FILE *fp = NULL;
+	char  line_buf[MAX_LINE_WIDTH + 1];
+	char *cp		  = NULL;
+	int	  tape_num	  = -1;
+	int	  library_num = -1;
 
 	if (debug_mode)
-		(void) fprintf(stderr, "DEBUG: parsing config file: %s\n",
-				path);
+		(void)fprintf(stderr, "DEBUG: parsing config file: %s\n",
+					  path);
 	if ((fp = fopen(path, "r")) == NULL) {
 		pr_klog(3, "%s: Cannot open config file %s: %s\n",
-			__progname, path, strerror(errno));
+				__progname, path, strerror(errno));
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: cannot open config file %s: %s\n",
-					path, strerror(errno));
+			(void)fprintf(stderr, "DEBUG: error: cannot open config file %s: %s\n",
+						  path, strerror(errno));
 		return -1;
 	}
 
 	while ((cp = fgets(line_buf, MAX_LINE_WIDTH, fp)) != NULL) {
 		if (*cp == '\n')
-			continue;	// blank line
+			continue; // blank line
 		if (*cp == '#')
-			continue;	// comment line
+			continue; // comment line
 		if (*cp == ' ')
-			continue;	// the middle of some record
+			continue; // the middle of some record
 		if (strncmp(cp, "Library: ", 9) == 0) {
 			/* found a Library entry */
-			library_num = strtol(cp+9, NULL, 0);
+			library_num = strtol(cp + 9, NULL, 0);
 			if (!add_to_libraries(library_num))
 				goto dun;
 		} else if (strncmp(cp, "Drive: ", 7) == 0) {
 			/* found a Drive entry */
-			tape_num = strtol(cp+7, NULL, 0);
+			tape_num = strtol(cp + 7, NULL, 0);
 			if (!add_to_tapes(tape_num))
 				goto dun;
 		}
 	}
 
 dun:
-	(void) fclose(fp);
+	(void)fclose(fp);
 	return 0;
 }
 
-int main(int argc, char **argv)
-{
-	char		*working_dir;
-	struct vtl_info	*ip;
-	const char	dirname[] = "mhvtl.target.wants";
-	char		*path;
-	int		rc;
-
+int main(int argc, char **argv) {
+	char			*working_dir;
+	struct vtl_info *ip;
+	const char		 dirname[] = "mhvtl.target.wants";
+	char			*path;
+	int				 rc;
 
 	working_dir = get_working_dir(argc, argv);
 	if (!working_dir)
@@ -285,13 +278,13 @@ int main(int argc, char **argv)
 		exit(1);
 
 	if (debug_mode) {
-		(void) printf("DEBUG: Libraries:\n");
+		(void)printf("DEBUG: Libraries:\n");
 		for (ip = our_libraries.next; ip != NULL; ip = ip->next)
-			(void) printf("DEBUG:  %d\n", ip->num);
+			(void)printf("DEBUG:  %d\n", ip->num);
 
-		(void) printf("DEBUG: Tapes:\n");
+		(void)printf("DEBUG: Tapes:\n");
 		for (ip = our_tapes.next; ip != NULL; ip = ip->next)
-			(void) printf("DEBUG:  %d\n", ip->num);
+			(void)printf("DEBUG:  %d\n", ip->num);
 	}
 
 	if (asprintf(&path, "%s/%s", working_dir, dirname) < 0) {
@@ -302,8 +295,8 @@ int main(int argc, char **argv)
 		printf("DEBUG: creating dir: %s\n", path);
 	if (mkdir(path, 0755) < 0) {
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: error: can't mkdir %s: %s\n",
-					path, strerror(errno));
+			(void)fprintf(stderr, "DEBUG: error: can't mkdir %s: %s\n",
+						  path, strerror(errno));
 		// clean up?
 		exit(1);
 	}
@@ -314,16 +307,16 @@ int main(int argc, char **argv)
 	for (ip = our_libraries.next; ip != NULL; ip = ip->next) {
 		char *from_path, *to_path;
 		if ((asprintf(&from_path, "%s/%s/vtllibrary@%d.service", working_dir, dirname, ip->num) < 0) ||
-		    (asprintf(&to_path, "%s/vtllibrary@.service", SYSTEMD_SERVICE_DIR) < 0)) {
+			(asprintf(&to_path, "%s/vtllibrary@.service", SYSTEMD_SERVICE_DIR) < 0)) {
 			perror("Could not allocate memory (for vtllibrary template symlink)");
 			exit(1);
 		}
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", from_path, to_path);
+			(void)fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", from_path, to_path);
 		if (symlink(to_path, from_path) < 0) {
 			if (debug_mode)
-				(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
-						errno, from_path, to_path);
+				(void)fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
+							  errno, from_path, to_path);
 			// clean up?
 			exit(1);
 		}
@@ -335,16 +328,16 @@ int main(int argc, char **argv)
 	for (ip = our_tapes.next; ip != NULL; ip = ip->next) {
 		char *from_path, *to_path;
 		if ((asprintf(&from_path, "%s/%s/vtltape@%d.service", working_dir, dirname, ip->num) < 0) ||
-		    (asprintf(&to_path, "%s/vtltape@.service", SYSTEMD_SERVICE_DIR) < 0)) {
+			(asprintf(&to_path, "%s/vtltape@.service", SYSTEMD_SERVICE_DIR) < 0)) {
 			perror("Could not allocate memory (for vtltape template symlink)");
 			exit(1);
 		}
 		if (debug_mode)
-			(void) fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", from_path, to_path);
+			(void)fprintf(stderr, "DEBUG: creating symlink: %s => %s\n", from_path, to_path);
 		if (symlink(to_path, from_path) < 0) {
 			if (debug_mode)
-				(void) fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
-						errno, from_path, to_path);
+				(void)fprintf(stderr, "DEBUG: error: can't create symlink (%d): %s => %s\n",
+							  errno, from_path, to_path);
 			// clean up?
 			exit(1);
 		}

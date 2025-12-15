@@ -29,14 +29,13 @@ static void *largefile_support = "No largefile support";
 
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
 
-char mhvtl_driver_name[] = "mktape";
-int verbose = 0;
-int debug = 0;
-long my_id = 0;
+char		mhvtl_driver_name[] = "mktape";
+int			verbose				= 0;
+int			debug				= 0;
+long		my_id				= 0;
 extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
-static void usage(char *progname)
-{
+static void usage(char *progname) {
 	printf("Usage: %s [OPTIONS] [REQUIRED-PARAMS]", progname);
 	printf("Where OPTIONS are from:\n");
 	printf("      -h    -- print this message and exit\n");
@@ -44,9 +43,9 @@ static void usage(char *progname)
 	printf("      -D[N] -- set debug level to N [1]\n");
 	printf("      -V    -- print Version and exit\n");
 	printf("      -C config-dir -- override default config dir [ %s ]\n",
-					MHVTL_CONFIG_PATH);
+		   MHVTL_CONFIG_PATH);
 	printf("      -H home-dir   -- override default home dir [ %s ]\n",
-					MHVTL_HOME_PATH);
+		   MHVTL_HOME_PATH);
 	printf("And REQUIRED-PARAMS are:\n");
 	printf("      -l lib      -- set Library number\n");
 	printf("      -m PCL      -- set Physical Cartrige Label (barcode)\n");
@@ -66,37 +65,35 @@ static void usage(char *progname)
 	printf("\n");
 }
 
-int gettime()
-{
+int gettime() {
 	const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
-	time_t t;
-	if ( source_date_epoch == NULL || (t = (time_t)strtoll(source_date_epoch, NULL, 10)) <= 0)
+	time_t		t;
+	if (source_date_epoch == NULL || (t = (time_t)strtoll(source_date_epoch, NULL, 10)) <= 0)
 		t = time(NULL);
 	return t;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
 	unsigned char sam_stat;
-	char *progname = argv[0];
-	char *pcl = NULL;
-	char *mediaType = NULL;
-	char *mediaCapacity = NULL;
-	char *density = NULL;
-	char *lib = NULL;
-	uint64_t size;
-	int libno;
-	int opt;
-	int res;
-	char *param_config_dir = NULL;
-	char *param_home_dir = NULL;
-	char ver[64];
-	int major, minor;
-	int ret;
+	char		 *progname		= argv[0];
+	char		 *pcl			= NULL;
+	char		 *mediaType		= NULL;
+	char		 *mediaCapacity = NULL;
+	char		 *density		= NULL;
+	char		 *lib			= NULL;
+	uint64_t	  size;
+	int			  libno;
+	int			  opt;
+	int			  res;
+	char		 *param_config_dir = NULL;
+	char		 *param_home_dir   = NULL;
+	char		  ver[64];
+	int			  major, minor;
+	int			  ret;
 
 	if (sizeof(struct MAM) != 1024) {
 		fprintf(stderr, "error: Structure of MAM incorrect size: %d\n",
-						(int)sizeof(struct MAM));
+				(int)sizeof(struct MAM));
 		exit(2);
 	}
 
@@ -209,7 +206,7 @@ int main(int argc, char *argv[])
 	memset((uint8_t *)&mam, 0, sizeof(mam));
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
-	mam.mam_fmt_version = MAM_VERSION;
+	mam.mam_fmt_version	 = MAM_VERSION;
 	put_unaligned_be64(size * 1048576, &mam.max_capacity);
 	put_unaligned_be64(size * 1048576, &mam.remaining_capacity);
 	put_unaligned_be64(sizeof(mam.pad), &mam.MAMSpaceRemaining);
@@ -219,14 +216,14 @@ int main(int argc, char *argv[])
 	sprintf((char *)mam.ApplicationVersion, "%d", TAPE_FMT_VERSION);
 
 	if (!strncmp("clean", mediaType, 5)) {
-		mam.MediumType = MEDIA_TYPE_CLEAN;	/* Cleaning cart */
-		mam.MediumTypeInformation = 20;		/* Max cleaning loads */
+		mam.MediumType			  = MEDIA_TYPE_CLEAN; /* Cleaning cart */
+		mam.MediumTypeInformation = 20;				  /* Max cleaning loads */
 	} else if (!strncmp("NULL", mediaType, 4)) {
-		mam.MediumType = MEDIA_TYPE_NULL;	/* save metadata only */
+		mam.MediumType = MEDIA_TYPE_NULL; /* save metadata only */
 	} else if (!strncmp("WORM", mediaType, 4)) {
-		mam.MediumType = MEDIA_TYPE_WORM;	/* WORM cart */
+		mam.MediumType = MEDIA_TYPE_WORM; /* WORM cart */
 	} else {
-		mam.MediumType = MEDIA_TYPE_DATA;	/* Normal data cart */
+		mam.MediumType = MEDIA_TYPE_DATA; /* Normal data cart */
 	}
 	set_media_params(&mam, density);
 

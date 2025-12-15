@@ -29,24 +29,23 @@
 #include <string.h>
 #include <errno.h>
 
-#define	MAXTEXTLEN	1024
+#define MAXTEXTLEN 1024
 
-struct	q_msg {
+struct q_msg {
 	long snd_id;
-	char text[MAXTEXTLEN+1];
+	char text[MAXTEXTLEN + 1];
 };
 
-#define QKEY	(key_t)0x4d61726b	/* Identifying key for queue */
-#define QPERM	0660		/* Permissions for queue */
-#define MAXOBN	sizeof(struct q_msg)	/* Maximum length of message for Q. */
-#define MAXPRIOR 1024		/* max priority level */
-#define VTLCMD_Q 32768		/* Priority for vtlcmd */
+#define QKEY	 (key_t)0x4d61726b	  /* Identifying key for queue */
+#define QPERM	 0660				  /* Permissions for queue */
+#define MAXOBN	 sizeof(struct q_msg) /* Maximum length of message for Q. */
+#define MAXPRIOR 1024				  /* max priority level */
+#define VTLCMD_Q 32768				  /* Priority for vtlcmd */
 
 struct q_entry {
-	long rcv_id;
+	long		 rcv_id;
 	struct q_msg msg;
 };
-
 
 int enter(char *, long rcv_id);
 int send_msg(char *cmd, long rcv_id);
@@ -56,13 +55,13 @@ int init_queue(void);
 extern long my_id;
 
 /* Message strings passed between vtllibrary & vtltape */
-#define msg_not_occupied	"Not occupied"
-#define msg_occupied		"occupied"
-#define msg_unload_ok		"Unloaded OK"
-#define msg_load_failed		"Load failed"
-#define msg_load_ok		"Loaded OK"
-#define msg_mount_state		"mount_state"
-#define msg_eject		"eject"
-#define msg_set_empty		"set_empty"
+#define msg_not_occupied "Not occupied"
+#define msg_occupied	 "occupied"
+#define msg_unload_ok	 "Unloaded OK"
+#define msg_load_failed	 "Load failed"
+#define msg_load_ok		 "Loaded OK"
+#define msg_mount_state	 "mount_state"
+#define msg_eject		 "eject"
+#define msg_set_empty	 "set_empty"
 
 #endif /* _Q_H_ */

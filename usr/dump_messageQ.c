@@ -29,25 +29,23 @@
 #include <syslog.h>
 #include "q.h"
 
-long my_id;
-int verbose = 0;
-int debug = 0;
+long  my_id;
+int	  verbose			= 0;
+int	  debug				= 0;
 char *mhvtl_driver_name = "dump_messageQ";
 
-static void usage(char *prog)
-{
+static void usage(char *prog) {
 	fprintf(stdout, "Usage  : %s [-h|-help]\n", prog);
 	fprintf(stdout, "Version: %s\n\n", MHVTL_VERSION);
 	fprintf(stdout, "Dumping message queue content of "
-		"library/tape queue.\n");
+					"library/tape queue.\n");
 	fprintf(stdout, "Primarily used for debugging purposes.\n\n");
 }
 
-int main(int argc, char **argv)
-{
-	int r_qid;
-	long mcounter = 0;
-	int i;
+int main(int argc, char **argv) {
+	int			   r_qid;
+	long		   mcounter = 0;
+	int			   i;
 	struct q_entry r_entry;
 
 	my_id = 0;
@@ -92,14 +90,13 @@ int main(int argc, char **argv)
 		if (mcounter == 1) {
 			printf("\nDump Message Queue Content\n\n");
 			printf("%6s %6s %6s %-55s\n", "MessNo", "RcvID",
-				"SndID", "MessageText");
+				   "SndID", "MessageText");
 		}
 		printf("%6ld %6ld %6ld %-55s\n", mcounter, r_entry.rcv_id,
-			r_entry.msg.snd_id, r_entry.msg.text);
+			   r_entry.msg.snd_id, r_entry.msg.text);
 	}
 	if (mcounter == 0)
 		printf("Message queue empty\n");
 
 	exit(0);
 }
-

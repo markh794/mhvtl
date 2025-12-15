@@ -37,50 +37,49 @@
 #include "smc.h"
 #include "be_byteshift.h"
 
-static char *mode_rw_error_recover = "Read/Write Error Recovery";
-static char *mode_disconnect_reconnect = "Disconnect/Reconnect";
-static char *mode_control = "Control";
-static char *mode_control_extension = "Control Extension";
+static char *mode_rw_error_recover		  = "Read/Write Error Recovery";
+static char *mode_disconnect_reconnect	  = "Disconnect/Reconnect";
+static char *mode_control				  = "Control";
+static char *mode_control_extension		  = "Control Extension";
 static char *mode_control_data_protection = "Control Data Protection";
-static char *mode_data_compression = "Data Compression";
-static char *mode_device_configuration = "Device Configuration";
+static char *mode_data_compression		  = "Data Compression";
+static char *mode_device_configuration	  = "Device Configuration";
 static char *mode_device_configuration_extension =
-					"Device Configuration Extension";
-static char *mode_medium_partition = "Medium Partition";
-static char *mode_power_condition = "Power Condition";
-static char *mode_information_exception = "Information Exception";
-static char *mode_medium_configuration = "Medium Configuration";
-static char *mode_vendor_24h = "Vendor (IBM) unique page 24h"
-				" - Advise ENCRYPTION Capable device";
-static char *mode_vendor_25h = "Vendor (IBM) unique page 25h"
-				" - Early Warning";
-static char *mode_encryption_mode = "Encryption Mode";
-static char *mode_behaviour_configuration = "Behaviour Configuration";
+	"Device Configuration Extension";
+static char *mode_medium_partition		   = "Medium Partition";
+static char *mode_power_condition		   = "Power Condition";
+static char *mode_information_exception	   = "Information Exception";
+static char *mode_medium_configuration	   = "Medium Configuration";
+static char *mode_vendor_24h			   = "Vendor (IBM) unique page 24h"
+											 " - Advise ENCRYPTION Capable device";
+static char *mode_vendor_25h			   = "Vendor (IBM) unique page 25h"
+											 " - Early Warning";
+static char *mode_encryption_mode		   = "Encryption Mode";
+static char *mode_behaviour_configuration  = "Behaviour Configuration";
 static char *mode_ait_device_configuration = "AIT Device Configuration";
-static char *mode_element_address = "Element Address";
-static char *mode_transport_geometry = "Transport Geometry";
-static char *mode_device_capabilities = "Device Capabilities";
-static char *drive_configuration_page = "STK Vendor-Unique Drive Configuration";
+static char *mode_element_address		   = "Element Address";
+static char *mode_transport_geometry	   = "Transport Geometry";
+static char *mode_device_capabilities	   = "Device Capabilities";
+static char *drive_configuration_page	   = "STK Vendor-Unique Drive Configuration";
 
-struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
-{
+struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode) {
 	struct mode *mp;
 
 	MHVTL_DBG(3, "Looking for: Page/subpage (%02x/%02x)",
-					pcode, subpcode);
+			  pcode, subpcode);
 
 	list_for_each_entry(mp, m, siblings) {
 		if (mp->pcode == pcode && mp->subpcode == subpcode) {
 			MHVTL_DBG(3, "Found \"%s\" -> "
-				"Page/subpage (%02x/%02x)",
-					mp->description,
-					mp->pcode, mp->subpcode);
+						 "Page/subpage (%02x/%02x)",
+					  mp->description,
+					  mp->pcode, mp->subpcode);
 			return mp;
 		}
 	}
 
 	MHVTL_DBG(3, "Page/subpage code 0x%02x/0x%02x not found",
-					pcode, subpcode);
+			  pcode, subpcode);
 
 	return NULL;
 }
@@ -96,22 +95,21 @@ struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode)
  * Return pointer to mode structure being init. or NULL if alloc failed
  */
 static struct mode *alloc_mode_page(struct list_head *m,
-				uint8_t pcode, uint8_t subpcode, int size)
-{
+									uint8_t pcode, uint8_t subpcode, int size) {
 	struct mode *mp;
 
 	MHVTL_DBG(3, "Allocating %d bytes for (%02x/%02x)",
-					size, pcode, subpcode);
+			  size, pcode, subpcode);
 
 	mp = lookup_pcode(m, pcode, subpcode);
-	if (!mp) {	/* Create a new entry */
+	if (!mp) { /* Create a new entry */
 		mp = (struct mode *)zalloc(sizeof(struct mode));
 	}
 	if (mp) {
 		mp->pcodePointer = (uint8_t *)zalloc(size);
-		if (mp->pcodePointer) {	/* If ! null, set size of data */
-			mp->pcode = pcode;
-			mp->subpcode = subpcode;
+		if (mp->pcodePointer) { /* If ! null, set size of data */
+			mp->pcode	  = pcode;
+			mp->subpcode  = subpcode;
 			mp->pcodeSize = size;
 
 			/* Allocate a 'changeable bitmap' mode page info */
@@ -132,8 +130,7 @@ static struct mode *alloc_mode_page(struct list_head *m,
 	return NULL;
 }
 
-void dealloc_all_mode_pages(struct lu_phy_attr *lu)
-{
+void dealloc_all_mode_pages(struct lu_phy_attr *lu) {
 	struct mode *mp, *mn;
 
 	list_for_each_entry_safe(mp, mn, &lu->mode_pg, siblings) {
@@ -149,31 +146,28 @@ void dealloc_all_mode_pages(struct lu_phy_attr *lu)
  * READ/WRITE Error Recovery
  * SSC3-8.3.5
  */
-int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu)
-{
+int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	pcode = MODE_RW_ERROR_RECOVER;
+	pcode	 = MODE_RW_ERROR_RECOVER;
 	subpcode = 0;
-	size = 12;
+	size	 = 12;
 
 	mode_pg = &lu->mode_pg;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_rw_error_recover, pcode, subpcode);
+			  mode_rw_error_recover, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -188,37 +182,34 @@ int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu)
  * Disconnect / Reconnect
  * SPC3-7.4.8
  */
-int add_mode_disconnect_reconnect(struct lu_phy_attr *lu)
-{
+int add_mode_disconnect_reconnect(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_DISCONNECT_RECONNECT;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_DISCONNECT_RECONNECT;
 	subpcode = 0;
-	size = 0x0e + 2;
+	size	 = 0x0e + 2;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_disconnect_reconnect, pcode, subpcode);
+			  mode_disconnect_reconnect, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
-	mp->pcodePointer[2] = 50;	/* Buffer full ratio */
-	mp->pcodePointer[3] = 50;	/* Buffer empty ratio */
+	mp->pcodePointer[2]	 = 50; /* Buffer full ratio */
+	mp->pcodePointer[3]	 = 50; /* Buffer empty ratio */
 	mp->pcodePointer[10] = 4;
 
 	mp->description = mode_disconnect_reconnect;
@@ -230,30 +221,27 @@ int add_mode_disconnect_reconnect(struct lu_phy_attr *lu)
  * Control
  * SPC3
  */
-int add_mode_control(struct lu_phy_attr *lu)
-{
+int add_mode_control(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_CONTROL;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_CONTROL;
 	subpcode = 0;
-	size = 12;
+	size	 = 12;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_control, pcode, subpcode);
+			  mode_control, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -268,21 +256,20 @@ int add_mode_control(struct lu_phy_attr *lu)
  * Control Extension 0x0A/0x01
  * SPC3
  */
-int add_mode_control_extension(struct lu_phy_attr *lu)
-{
+int add_mode_control_extension(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_CONTROL;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_CONTROL;
 	subpcode = 1;
-	size = 0x1e;	/* 0x1c + 2 for page/subpage code */
+	size	 = 0x1e; /* 0x1c + 2 for page/subpage code */
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_control_extension, pcode, subpcode);
+			  mode_control_extension, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
@@ -291,7 +278,7 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
 	mp->pcodePointer[0] = pcode;
 	mp->pcodePointer[1] = subpcode;
 	put_unaligned_be16(size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]),
-								&mp->pcodePointer[2]);
+					   &mp->pcodePointer[2]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[1];
@@ -306,33 +293,32 @@ int add_mode_control_extension(struct lu_phy_attr *lu)
  * Control Data Protection Mode page 0x0A/0xF0
  * IBM Ultrium Logical Block Protection
  */
-int add_mode_control_data_protection(struct lu_phy_attr *lu)
-{
+int add_mode_control_data_protection(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_CONTROL;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_CONTROL;
 	subpcode = 0xf0;
-	size = 0x1e;	/* 0x1c + two bytes for page/subpage */
+	size	 = 0x1e; /* 0x1c + two bytes for page/subpage */
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_control_extension, pcode, subpcode);
+			  mode_control_extension, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	MHVTL_DBG(3, "Added mode page %s (%02x/%02x)",
-				mode_control_extension, pcode, subpcode);
+			  mode_control_extension, pcode, subpcode);
 
 	mp->pcodePointer[0] = pcode;
 	mp->pcodePointer[1] = subpcode;
 	put_unaligned_be16(size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]),
-								&mp->pcodePointer[2]);
+					   &mp->pcodePointer[2]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[1];
@@ -341,8 +327,8 @@ int add_mode_control_data_protection(struct lu_phy_attr *lu)
 	mp->description = mode_control_data_protection;
 
 	/* Default to off */
-	mp->pcodePointer[4] = 0x00;	/* LBP Method: 0 off, 1 Reed-Solomon CRC, 2 CRC32C */
-	mp->pcodePointer[5] = 0x04;	/* LBP length - 32bit CRC */
+	mp->pcodePointer[4] = 0x00; /* LBP Method: 0 off, 1 Reed-Solomon CRC, 2 CRC32C */
+	mp->pcodePointer[5] = 0x04; /* LBP length - 32bit CRC */
 	mp->pcodePointer[6] = 0;	/* LBP on write and LBP on read */
 
 	/* And define changeable bits */
@@ -359,43 +345,40 @@ int add_mode_control_data_protection(struct lu_phy_attr *lu)
  */
 #define COMPRESSION_TYPE 0x10
 
-int add_mode_data_compression(struct lu_phy_attr *lu)
-{
+int add_mode_data_compression(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_DATA_COMPRESSION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_DATA_COMPRESSION;
 	subpcode = 0;
-	size = 16;
+	size	 = 16;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_data_compression, pcode, subpcode);
+			  mode_data_compression, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
-	mp->pcodePointer[2] = 0xc0;	/* Set data compression enable */
-	mp->pcodePointer[3] = 0x80;	/* Set data decompression enable */
+	mp->pcodePointer[2] = 0xc0; /* Set data compression enable */
+	mp->pcodePointer[3] = 0x80; /* Set data decompression enable */
 	put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[4]);
 	put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[8]);
 
 	/* Changeable fields */
-	mp->pcodePointerBitMap[2] = 0xc0; /* DCE & DCC */
-	mp->pcodePointerBitMap[3] = 0x80; /* DDE bit */
+	mp->pcodePointerBitMap[2] = 0xc0;					  /* DCE & DCC */
+	mp->pcodePointerBitMap[3] = 0x80;					  /* DDE bit */
 	put_unaligned_be32(0xffffffff, &mp->pcodePointer[4]); /* Comp alg */
 	put_unaligned_be32(0xffffffff, &mp->pcodePointer[8]); /* De-comp alg */
 
@@ -409,44 +392,41 @@ int add_mode_data_compression(struct lu_phy_attr *lu)
  * SSC3-8.3.3
  */
 
-int add_mode_device_configuration(struct lu_phy_attr *lu)
-{
-	struct list_head *mode_pg;
-	struct mode *mp;
+int add_mode_device_configuration(struct lu_phy_attr *lu) {
+	struct list_head   *mode_pg;
+	struct mode		   *mp;
 	struct priv_lu_ssc *ssc;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	uint8_t				pcode;
+	uint8_t				subpcode;
+	uint8_t				size;
 
-	ssc = (struct priv_lu_ssc *)lu->lu_private;
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_DEVICE_CONFIGURATION;
+	ssc		 = (struct priv_lu_ssc *)lu->lu_private;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_DEVICE_CONFIGURATION;
 	subpcode = 0;
-	size = 16;
+	size	 = 16;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_device_configuration, pcode, subpcode);
+			  mode_device_configuration, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
-	mp->pcodePointer[7] = 0x64;	/* Write delay (100mS intervals) */
-	mp->pcodePointer[8] = 0x40;	/* Block Identifiers supported */
-	mp->pcodePointer[10] = 0x18;	/* Enable EOD & Sync at early warning */
+	mp->pcodePointer[7]	 = 0x64; /* Write delay (100mS intervals) */
+	mp->pcodePointer[8]	 = 0x40; /* Block Identifiers supported */
+	mp->pcodePointer[10] = 0x18; /* Enable EOD & Sync at early warning */
 	mp->pcodePointer[14] = ssc->configCompressionFactor;
-	mp->pcodePointer[15] = 0x80;	/* WTRE (WORM handling) */
+	mp->pcodePointer[15] = 0x80; /* WTRE (WORM handling) */
 
-	mp->pcodePointerBitMap[14] = 0xff;	/* Compression is changeable */
+	mp->pcodePointerBitMap[14] = 0xff; /* Compression is changeable */
 
 	/* Set pointer for compressionFactor to correct location in
 	 * mode page struct
@@ -458,45 +438,42 @@ int add_mode_device_configuration(struct lu_phy_attr *lu)
 	return 0;
 }
 
-int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
-{
-	struct list_head *mode_pg;
-	struct priv_lu_ssc *ssc;
+int add_mode_device_configuration_extention(struct lu_phy_attr *lu) {
+	struct list_head				*mode_pg;
+	struct priv_lu_ssc				*ssc;
 	struct ssc_personality_template *pm;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode						*mp;
+	uint8_t							 pcode;
+	uint8_t							 subpcode;
+	uint8_t							 size;
 
 	/* Only for TAPE (SSC) devices */
 	if (lu->ptype != TYPE_TAPE)
 		return -ENOTTY;
 
 	ssc = lu->lu_private;
-	pm = ssc->pm;
+	pm	= ssc->pm;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_DEVICE_CONFIGURATION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_DEVICE_CONFIGURATION;
 	subpcode = 0x01;
-	size = 32;
+	size	 = 32;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-			mode_device_configuration_extension, pcode, subpcode);
+			  mode_device_configuration_extension, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
-	mp->pcodePointer[5] = 0x02;	/* Short erase mode  - write EOD */
+	mp->pcodePointer[5] = 0x02; /* Short erase mode  - write EOD */
 
 	/* default size of early warning */
 	put_unaligned_be16(0, &mp->pcodePointer[6]);
@@ -514,30 +491,27 @@ int add_mode_device_configuration_extention(struct lu_phy_attr *lu)
 	return 0;
 }
 
-int add_mode_medium_partition(struct lu_phy_attr *lu)
-{
+int add_mode_medium_partition(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_MEDIUM_PARTITION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_MEDIUM_PARTITION;
 	subpcode = 0;
-	size = 16;
+	size	 = 16;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_medium_partition, pcode, subpcode);
+			  mode_medium_partition, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* FDP (Fixed Data Partitions) |
 	 *	PSUM (partition size unit of measure) |
@@ -563,30 +537,27 @@ int add_mode_medium_partition(struct lu_phy_attr *lu)
 	return 0;
 }
 
-int add_mode_power_condition(struct lu_phy_attr *lu)
-{
+int add_mode_power_condition(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_POWER_CONDITION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_POWER_CONDITION;
 	subpcode = 0;
-	size = 0x26;
+	size	 = 0x26;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_power_condition, pcode, subpcode);
+			  mode_power_condition, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -597,30 +568,27 @@ int add_mode_power_condition(struct lu_phy_attr *lu)
 	return 0;
 }
 
-int add_mode_information_exception(struct lu_phy_attr *lu)
-{
+int add_mode_information_exception(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_INFORMATION_EXCEPTION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_INFORMATION_EXCEPTION;
 	subpcode = 0;
-	size = 12;
+	size	 = 12;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_information_exception, pcode, subpcode);
+			  mode_information_exception, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -634,37 +602,34 @@ int add_mode_information_exception(struct lu_phy_attr *lu)
 	return 0;
 }
 
-int add_mode_medium_configuration(struct lu_phy_attr *lu)
-{
+int add_mode_medium_configuration(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_MEDIUM_CONFIGURATION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_MEDIUM_CONFIGURATION;
 	subpcode = 0;
-	size = 32;
+	size	 = 32;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_medium_configuration, pcode, subpcode);
+			  mode_medium_configuration, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
-	mp->pcodePointer[4] = 0x01;	/* WORM mode label restrictions */
-	mp->pcodePointer[5] = 0x01;	/* WORM mode filemark restrictions */
+	mp->pcodePointer[4] = 0x01; /* WORM mode label restrictions */
+	mp->pcodePointer[5] = 0x01; /* WORM mode filemark restrictions */
 
 	mp->description = mode_medium_configuration;
 
@@ -679,34 +644,31 @@ int add_mode_medium_configuration(struct lu_phy_attr *lu)
  *
  * Return void  - Nothing
  */
-int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
-{
-	struct list_head *mode_pg;	/* Mode Page list */
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu) {
+	struct list_head *mode_pg; /* Mode Page list */
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_VENDOR_SPECIFIC_24H;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_VENDOR_SPECIFIC_24H;
 	subpcode = 0;
-	size = 8;
+	size	 = 8;
 
 	/* Vendor Unique (IBM Ultrium)
 	 * Page 151, table 118
 	 * Advise ENCRYPTION Capable device
 	 */
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_vendor_24h, pcode, subpcode);
+			  mode_vendor_24h, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -727,111 +689,102 @@ int add_mode_ult_encr_mode_pages(struct lu_phy_attr *lu)
  *
  * Return void  - Nothing
  */
-int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu)
-{
-	struct list_head *mode_pg;	/* Mode Page list */
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+int add_mode_vendor_25h_mode_pages(struct lu_phy_attr *lu) {
+	struct list_head *mode_pg; /* Mode Page list */
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_VENDOR_SPECIFIC_25H;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_VENDOR_SPECIFIC_25H;
 	subpcode = 0;
-	size = 32;
+	size	 = 32;
 
 	/* Vendor Unique (IBM Ultrium)
 	 * Page 151, table 118
 	 * Advise ENCRYPTION Capable device
 	 */
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_vendor_25h, pcode, subpcode);
+			  mode_vendor_25h, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
-	mp->pcodePointer[5] = 1;	/* LEOP to maximize medium capacity */
-	mp->pcodePointer[6] = 1;	/* Early Warning */
+	mp->pcodePointer[5] = 1; /* LEOP to maximize medium capacity */
+	mp->pcodePointer[6] = 1; /* Early Warning */
 
 	mp->description = mode_vendor_25h;
 
 	return 0;
 }
 
-int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu)
-{
+int add_mode_encryption_mode_attribute(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_ENCRYPTION_MODE;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_ENCRYPTION_MODE;
 	subpcode = 0x20;
-	size = 9;
+	size	 = 9;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_encryption_mode, pcode, subpcode);
+			  mode_encryption_mode, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
 
 	/* Application Managed Encryption */
-	mp->pcodePointer[5] = 0x03;	/* Encryption Solution Method */
-	mp->pcodePointer[6] = 0x01;	/* Key Path */
-	mp->pcodePointer[7] = 0x01;	/* Default Encruption State */
-	mp->pcodePointer[8] = 0x00;	/* Desnity Reporting */
+	mp->pcodePointer[5] = 0x03; /* Encryption Solution Method */
+	mp->pcodePointer[6] = 0x01; /* Key Path */
+	mp->pcodePointer[7] = 0x01; /* Default Encruption State */
+	mp->pcodePointer[8] = 0x00; /* Desnity Reporting */
 
 	mp->description = mode_encryption_mode;
 
 	return 0;
 }
 
-int add_mode_ait_device_configuration(struct lu_phy_attr *lu)
-{
+int add_mode_ait_device_configuration(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_AIT_DEVICE_CONFIGURATION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_AIT_DEVICE_CONFIGURATION;
 	subpcode = 0;
-	size = 8;
+	size	 = 8;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_ait_device_configuration, pcode, subpcode);
+			  mode_ait_device_configuration, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -846,24 +799,23 @@ int add_mode_ait_device_configuration(struct lu_phy_attr *lu)
 	return 0;
 }
 
-int add_mode_element_address_assignment(struct lu_phy_attr *lu)
-{
-	struct list_head *mode_pg;
-	struct mode *mp;
+int add_mode_element_address_assignment(struct lu_phy_attr *lu) {
+	struct list_head	   *mode_pg;
+	struct mode			   *mp;
 	static struct smc_priv *smc_p;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
-	uint8_t *p;
+	uint8_t					pcode;
+	uint8_t					subpcode;
+	uint8_t					size;
+	uint8_t				   *p;
 
-	mode_pg = &lu->mode_pg;
-	smc_p = (struct smc_priv *)lu->lu_private;
-	pcode = MODE_ELEMENT_ADDRESS;
+	mode_pg	 = &lu->mode_pg;
+	smc_p	 = (struct smc_priv *)lu->lu_private;
+	pcode	 = MODE_ELEMENT_ADDRESS;
 	subpcode = 0;
-	size = 20;
+	size	 = 20;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_element_address, pcode, subpcode);
+			  mode_element_address, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
@@ -896,30 +848,27 @@ int add_mode_element_address_assignment(struct lu_phy_attr *lu)
  * Transport Geometry Parameters mode page
  * SMC-3 7.3.4
  */
-int add_mode_transport_geometry(struct lu_phy_attr *lu)
-{
+int add_mode_transport_geometry(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_TRANSPORT_GEOMETRY;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_TRANSPORT_GEOMETRY;
 	subpcode = 0;
-	size = 4;
+	size	 = 4;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_transport_geometry, pcode, subpcode);
+			  mode_transport_geometry, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -934,30 +883,27 @@ int add_mode_transport_geometry(struct lu_phy_attr *lu)
  * Device Capabilities mode page:
  * SMC-3 7.3.2
  */
-int add_mode_device_capabilities(struct lu_phy_attr *lu)
-{
+int add_mode_device_capabilities(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_DEVICE_CAPABILITIES;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_DEVICE_CAPABILITIES;
 	subpcode = 0;
-	size = 20;
+	size	 = 20;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_device_capabilities, pcode, subpcode);
+			  mode_device_capabilities, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -985,30 +931,27 @@ int add_mode_device_capabilities(struct lu_phy_attr *lu)
  * Behavior Configuration Mode Page
  * IBM Ultrium SCSI Reference - 9th Edition
  */
-int add_mode_behavior_configuration(struct lu_phy_attr *lu)
-{
+int add_mode_behavior_configuration(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
-	mode_pg = &lu->mode_pg;
-	pcode = MODE_BEHAVIOR_CONFIGURATION;
+	mode_pg	 = &lu->mode_pg;
+	pcode	 = MODE_BEHAVIOR_CONFIGURATION;
 	subpcode = 0;
-	size = 10;
+	size	 = 10;
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				mode_behaviour_configuration, pcode, subpcode);
+			  mode_behaviour_configuration, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -1022,11 +965,10 @@ int add_mode_behavior_configuration(struct lu_phy_attr *lu)
 	return 0;
 }
 
-int update_prog_early_warning(struct lu_phy_attr *lu)
-{
-	uint8_t *mp;
-	struct mode *m;
-	struct list_head *mode_pg;
+int update_prog_early_warning(struct lu_phy_attr *lu) {
+	uint8_t			   *mp;
+	struct mode		   *m;
+	struct list_head   *mode_pg;
 	struct priv_lu_ssc *lu_priv;
 
 	mode_pg = &lu->mode_pg;
@@ -1034,7 +976,7 @@ int update_prog_early_warning(struct lu_phy_attr *lu)
 
 	m = lookup_pcode(mode_pg, MODE_DEVICE_CONFIGURATION, 1);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			mode_pg, m, m->pcodePointer);
+			  mode_pg, m, m->pcodePointer);
 	if (m) {
 		mp = m->pcodePointer;
 		if (!mp)
@@ -1045,11 +987,10 @@ int update_prog_early_warning(struct lu_phy_attr *lu)
 	return SAM_STAT_GOOD;
 }
 
-int update_logical_block_protection(struct lu_phy_attr *lu, uint8_t *buf)
-{
-	uint8_t *mp;
-	struct mode *m;
-	struct list_head *mode_pg;
+int update_logical_block_protection(struct lu_phy_attr *lu, uint8_t *buf) {
+	uint8_t			   *mp;
+	struct mode		   *m;
+	struct list_head   *mode_pg;
 	struct priv_lu_ssc *lu_priv;
 
 	mode_pg = &lu->mode_pg;
@@ -1059,55 +1000,52 @@ int update_logical_block_protection(struct lu_phy_attr *lu, uint8_t *buf)
 
 	m = lookup_pcode(mode_pg, MODE_CONTROL, 0xf0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
-			mode_pg, m, m->pcodePointer);
+			  mode_pg, m, m->pcodePointer);
 	if (m) {
 		mp = m->pcodePointer;
 		if (!mp) {
 			MHVTL_ERR("Could not find mode page");
 			return SAM_STAT_GOOD;
 		}
-		mp[4] = buf[4];	/* Logical Block Protection Method */
-		mp[5] = buf[5];	/* Logical Block Protection Information Length */
-		mp[6] = buf[6];	/* LBP_W & LBP_R */
+		mp[4]				= buf[4]; /* Logical Block Protection Method */
+		mp[5]				= buf[5]; /* Logical Block Protection Information Length */
+		mp[6]				= buf[6]; /* LBP_W & LBP_R */
 		lu_priv->LBP_method = buf[4] & 0x03;
-		lu_priv->LBP_R = (buf[6] & 0x40) ? 1 : 0;
-		lu_priv->LBP_W = (buf[6] & 0x80) ? 1 : 0;
+		lu_priv->LBP_R		= (buf[6] & 0x40) ? 1 : 0;
+		lu_priv->LBP_W		= (buf[6] & 0x80) ? 1 : 0;
 		MHVTL_DBG(1, "Updating Logical Block Protection: Method: 0x%02x, LBP_R: %s, LPB_W: %s",
-				lu_priv->LBP_method,
-				lu_priv->LBP_R ? "True" : "False",
-				lu_priv->LBP_W ? "True" : "False");
+				  lu_priv->LBP_method,
+				  lu_priv->LBP_R ? "True" : "False",
+				  lu_priv->LBP_W ? "True" : "False");
 	}
 	return SAM_STAT_GOOD;
 }
 
-int add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu)
-{
+int add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
-	struct mode *mp;
-	uint8_t pcode;
-	uint8_t subpcode;
-	uint8_t size;
+	struct mode		 *mp;
+	uint8_t			  pcode;
+	uint8_t			  subpcode;
+	uint8_t			  size;
 
 	mode_pg = &lu->mode_pg;
 	/* A Vendor-specific page for the StorageTek L20, L40 and L80 libraries */
-	pcode = 0x2d;
+	pcode	 = 0x2d;
 	subpcode = 0;
-	size = 0x26;
-/*
- * FIXME: Need to fill in details from Table 4-21 L20 SCSI Reference Manual
- */
+	size	 = 0x26;
+	/*
+	 * FIXME: Need to fill in details from Table 4-21 L20 SCSI Reference Manual
+	 */
 
 	MHVTL_DBG(3, "Adding mode page %s (%02x/%02x)",
-				drive_configuration_page, pcode, subpcode);
+			  drive_configuration_page, pcode, subpcode);
 
 	mp = alloc_mode_page(mode_pg, pcode, subpcode, size);
 	if (!mp)
 		return -ENOMEM;
 
 	mp->pcodePointer[0] = pcode;
-	mp->pcodePointer[1] = size
-				 - sizeof(mp->pcodePointer[0])
-				 - sizeof(mp->pcodePointer[1]);
+	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
@@ -1117,4 +1055,3 @@ int add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu)
 
 	return 0;
 }
-

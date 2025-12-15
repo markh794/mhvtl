@@ -33,7 +33,7 @@
 
 #define _FILE_OFFSET_BITS 64
 
-#define __STDC_FORMAT_MACROS	/* for PRId64 */
+#define __STDC_FORMAT_MACROS /* for PRId64 */
 
 /* for unistd.h pread/pwrite and fcntl.h posix_fadvise */
 #define _XOPEN_SOURCE 600
@@ -57,12 +57,12 @@
    for future expansion with backwards compatibility.
 */
 
-struct	meta_header {
+struct meta_header {
 	uint32_t filemark_count;
-	char pad[512 - sizeof(uint32_t)];
+	char	 pad[512 - sizeof(uint32_t)];
 };
 
-static char currentPCL[HOME_DIR_PATH_SZ * 2];	/* make room for home_dir plus some */
+static char				  currentPCL[HOME_DIR_PATH_SZ * 2]; /* make room for home_dir plus some */
 static struct meta_header meta;
 
 static char home_directory[HOME_DIR_PATH_SZ + 1];
@@ -80,25 +80,23 @@ static char home_directory[HOME_DIR_PATH_SZ + 1];
  * == 5 -> NULL media type (SMC specifies values > 4 as 'reserved')
  */
 
-void update_home_dir(long lib_id)
-{
+void update_home_dir(long lib_id) {
 	if (strlen(home_directory) < 2) {
 		find_media_home_directory(NULL, home_directory, lib_id);
 		MHVTL_DBG(3, "Setting home dir to %s", home_directory);
 	}
 }
 
-int get_cart_type(const char *barcode)
-{
-	char *pcl_meta = NULL;
-	char pcl[MAX_BARCODE_LEN + 1];
+int get_cart_type(const char *barcode) {
+	char	   *pcl_meta = NULL;
+	char		pcl[MAX_BARCODE_LEN + 1];
 	struct stat meta_stat;
-	uint64_t exp_size;
-	loff_t nread;
-	int rc = 0;
-	int i;
-	int metafile;
-	struct MAM tmp_mam;
+	uint64_t	exp_size;
+	loff_t		nread;
+	int			rc = 0;
+	int			i;
+	int			metafile;
+	struct MAM	tmp_mam;
 
 	/* copy barcode to &pcl and terminate at either ' ' or '\0' */
 	for (i = 0; i < MAX_BARCODE_LEN; i++) {
@@ -111,10 +109,10 @@ int get_cart_type(const char *barcode)
 
 	if (strlen(home_directory))
 		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
-						home_directory, pcl);
+				 home_directory, pcl);
 	else
 		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
-						MHVTL_HOME_PATH, pcl);
+				 MHVTL_HOME_PATH, pcl);
 
 	if (asprintf(&pcl_meta, "%s/meta", currentPCL) < 0) {
 		perror("Could not allocate memory");
@@ -123,9 +121,9 @@ int get_cart_type(const char *barcode)
 
 	if (stat(pcl_meta, &meta_stat) == -1) {
 		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
-				pcl_meta, MHVTL_HOME_PATH, pcl);
+				  pcl_meta, MHVTL_HOME_PATH, pcl);
 		snprintf(currentPCL, ARRAY_SIZE(currentPCL), "%s/%s",
-						MHVTL_HOME_PATH, pcl);
+				 MHVTL_HOME_PATH, pcl);
 		free(pcl_meta);
 		if (asprintf(&pcl_meta, "%s/meta", currentPCL) < 0) {
 			perror("Could not allocate memory");
@@ -136,14 +134,14 @@ int get_cart_type(const char *barcode)
 	metafile = open(pcl_meta, O_RDONLY);
 	if (metafile == -1) {
 		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
-			pcl_meta, strerror(errno));
+				  pcl_meta, strerror(errno));
 		rc = 0;
 		goto failed;
 	}
 
 	if (fstat(metafile, &meta_stat) < 0) {
 		MHVTL_ERR("stat of pcl %s file %s failed: %s", pcl,
-			pcl_meta, strerror(errno));
+				  pcl_meta, strerror(errno));
 		rc = 0;
 		goto failed;
 	}
@@ -153,8 +151,8 @@ int get_cart_type(const char *barcode)
 	exp_size = sizeof(tmp_mam) + sizeof(meta);
 	if ((uint32_t)meta_stat.st_size < exp_size) {
 		MHVTL_ERR("pcl %s file %s is not the correct length, "
-			"expected at least %" PRId64 ", actual %" PRId64,
-			pcl, pcl_meta, exp_size, meta_stat.st_size);
+				  "expected at least %" PRId64 ", actual %" PRId64,
+				  pcl, pcl_meta, exp_size, meta_stat.st_size);
 		rc = 0;
 		goto failed;
 	}
@@ -163,19 +161,20 @@ int get_cart_type(const char *barcode)
 	nread = read(metafile, &tmp_mam, sizeof(tmp_mam));
 	if (nread < 0) {
 		MHVTL_ERR("Error reading pcl %s MAM from metafile: %s",
-			pcl, strerror(errno));
+				  pcl, strerror(errno));
 		rc = 0;
 		goto failed;
 	} else if (nread != sizeof(tmp_mam)) {
 		MHVTL_ERR("Error reading pcl %s MAM from metafile: "
-			"unexpected read length", pcl);
+				  "unexpected read length",
+				  pcl);
 		rc = 0;
 		goto failed;
 	}
 
 	switch (tmp_mam.MediumType) {
 	case MEDIA_TYPE_NULL:
-		rc = 5;	/* Reserved */
+		rc = 5; /* Reserved */
 		break;
 	case MEDIA_TYPE_DATA:
 		rc = 1;
@@ -197,7 +196,7 @@ int get_cart_type(const char *barcode)
 failed:
 	close(metafile);
 	MHVTL_DBG(3, "Opening media: %s (barcode %s), returning type %d",
-			currentPCL, barcode, rc);
+			  currentPCL, barcode, rc);
 	if (pcl_meta)
 		free(pcl_meta);
 	return rc;

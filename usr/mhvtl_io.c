@@ -37,48 +37,45 @@
 #include <zlib.h>
 #include "minilzo.h"
 
-
-extern int verbose;
-extern int debug;
-extern long my_id;
-extern int lbp_rscrc_be;
+extern int				  verbose;
+extern int				  debug;
+extern long				  my_id;
+extern int				  lbp_rscrc_be;
 extern struct priv_lu_ssc lu_ssc;
 extern struct lu_phy_attr lunit;
-extern struct encryption app_encryption_state;
+extern struct encryption  app_encryption_state;
 
 uint32_t GenerateRSCRC(uint32_t crc, uint32_t size, const void *buf);
 uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);
 uint32_t BlockProtectRSCRC(uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);
 
 static void
-mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_valid)
-{
+mk_sense_short_block(uint32_t requested, uint32_t processed, uint8_t *sense_valid) {
 	int difference = (int)requested - (int)processed;
 
 	/* No sense, ILI bit set */
 	sam_no_sense(SD_ILI, NO_ADDITIONAL_SENSE, sense_valid);
 
 	MHVTL_DBG(2, "Short block read: Requested: %d, Read: %d,"
-			" short by %d bytes",
-					requested, processed, difference);
+				 " short by %d bytes",
+			  requested, processed, difference);
 
 	/* Now fill in the datablock with number of bytes not read/written */
 	put_unaligned_be32(difference, &sense[3]);
 }
 
-static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat)
-{
+static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat) {
 	uint8_t *cbuf, *c2buf;
 	uint32_t disk_blk_size, blk_size;
-	int rc, z;
-	loff_t nread = 0;
+	int		 rc, z;
+	loff_t	 nread = 0;
 	lzo_uint uncompress_sz;
 
 	/* The tape block is compressed.
 	   Save field values we will need after the read which
 	   causes the tape block to advance.
 	*/
-	blk_size = c_pos->blk_size;
+	blk_size	  = c_pos->blk_size;
 	disk_blk_size = c_pos->disk_blk_size;
 
 	/* Malloc a buffer to hold the compressed data, and read the
@@ -102,7 +99,7 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 		return 0;
 	}
 
-	rc = tgtsize;
+	rc			  = tgtsize;
 	uncompress_sz = blk_size;
 
 	/* If the scsi read buffer is at least as big as the size of
@@ -133,8 +130,8 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 	switch (z) {
 	case LZO_E_OK:
 		MHVTL_DBG(2, "Read %u bytes of lzo compressed"
-				" data, have %u bytes for result",
-				(uint32_t)nread, blk_size);
+					 " data, have %u bytes for result",
+				  (uint32_t)nread, blk_size);
 		goto complete;
 		break;
 	case LZO_E_INPUT_NOT_CONSUMED:
@@ -166,19 +163,18 @@ complete:
 	return rc;
 }
 
-static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat)
-{
-	uint8_t	*cbuf, *c2buf;
-	loff_t nread = 0;
-	uLongf uncompress_sz;
+static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat) {
+	uint8_t *cbuf, *c2buf;
+	loff_t	 nread = 0;
+	uLongf	 uncompress_sz;
 	uint32_t disk_blk_size, blk_size;
-	int rc, z;
+	int		 rc, z;
 
 	/* The tape block is compressed.
 	   Save field values we will need after the read which
 	   causes the tape block to advance.
 	*/
-	blk_size = c_pos->blk_size;
+	blk_size	  = c_pos->blk_size;
 	disk_blk_size = c_pos->disk_blk_size;
 
 	/* Malloc a buffer to hold the compressed data, and read the
@@ -199,7 +195,7 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 		return 0;
 	}
 
-	rc = tgtsize;
+	rc			  = tgtsize;
 	uncompress_sz = blk_size;
 
 	/* If the scsi read buffer is at least as big as the size of
@@ -230,8 +226,8 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 	switch (z) {
 	case Z_OK:
 		MHVTL_DBG(2, "Read %u bytes of zlib compressed"
-			" data, have %u bytes for result",
-			(uint32_t)nread, blk_size);
+					 " data, have %u bytes for result",
+				  (uint32_t)nread, blk_size);
 		break;
 	case Z_MEM_ERROR:
 		MHVTL_ERR("Not enough memory to decompress");
@@ -256,8 +252,7 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 }
 
 /* CRC32C */
-static uint32_t mhvtl_crc32c(unsigned char const *buf, size_t size)
-{
+static uint32_t mhvtl_crc32c(unsigned char const *buf, size_t size) {
 	return crc32c(0, buf, size);
 }
 
@@ -265,8 +260,7 @@ static uint32_t mhvtl_crc32c(unsigned char const *buf, size_t size)
  * Return number of bytes read.
  *        0 on error with sense[] filled in...
  */
-int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8_t *sam_stat)
-{
+int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8_t *sam_stat) {
 	uint32_t disk_blk_size, blk_size, blk_number;
 	uint32_t rc;
 	uint32_t save_sense;
@@ -275,10 +269,11 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	uint32_t post_crc;
 	uint32_t lbp_crc;
 	uint8_t *bounce_buffer;
-	int lbp_sz;
+	int		 lbp_sz;
 
 	MHVTL_DBG(3, "Request to read: %d bytes, SILI: %d, LBP_method: %s",
-			request_sz, sili, (lbp_method == 0) ? "None" : (lbp_method == 1) ? "RS-CRC" : "CRC32c");
+			  request_sz, sili, (lbp_method == 0) ? "None" : (lbp_method == 1) ? "RS-CRC"
+																			   : "CRC32c");
 
 	/* check for a zero length read
 	 * This is not an error, and shouldn't change the tape position */
@@ -312,7 +307,8 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		break;
 	default:
 		MHVTL_ERR("Unknown blk header at offset %u"
-				" - Abort read cmd", c_pos->blk_number);
+				  " - Abort read cmd",
+				  c_pos->blk_number);
 		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 		return 0;
 		break;
@@ -321,18 +317,18 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	/* The tape block is compressed.  Save field values we will need after
 	   the read causes the tape block to advance.
 	*/
-	blk_size = c_pos->blk_size;
-	blk_number = c_pos->blk_number;
+	blk_size	  = c_pos->blk_size;
+	blk_number	  = c_pos->blk_number;
 	disk_blk_size = c_pos->disk_blk_size;
-	pre_crc = c_pos->uncomp_crc;
-	blk_flags = c_pos->blk_flags;
+	pre_crc		  = c_pos->uncomp_crc;
+	blk_flags	  = c_pos->blk_flags;
 
 	if (blk_size > request_sz) {
 		/* Add a fudge of 4 bytes in caes LBP is calculated */
 		bounce_buffer = malloc(blk_size + 4);
 		if (!bounce_buffer) {
 			MHVTL_ERR("Unable to allocate %d bytes for bounce buffer",
-					blk_size);
+					  blk_size);
 			sam_medium_error(E_UNRECOVERED_READ, sam_stat);
 			return 0;
 		}
@@ -345,9 +341,9 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	else if (blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED)
 		rc = uncompress_zlib_block(bounce_buffer, blk_size, sam_stat);
 	else {
-	/* If the tape block is uncompressed, we can read the number of bytes
-	   we need directly into the scsi read buffer and we are done.
-	*/
+		/* If the tape block is uncompressed, we can read the number of bytes
+		   we need directly into the scsi read buffer and we are done.
+		*/
 		if (read_tape_block(bounce_buffer, blk_size, sam_stat) != blk_size) {
 			MHVTL_ERR("read failed, %s", strerror(errno));
 			sam_medium_error(E_UNRECOVERED_READ, sam_stat);
@@ -386,7 +382,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		MHVTL_DBG(2, "Logical Block Protection - CRC32C, rc: %d, request_sz: %d, lbp_size: %d, CRC32C: 0x%8x", rc, request_sz, lbp_sz, lbp_crc);
 		MHVTL_DBG(2, "rc: %d, request_sz: %d bounce buffer after LBP: 0x%08x %08x", rc, request_sz, get_unaligned_be32(&bounce_buffer[rc - 4]), get_unaligned_be32(&bounce_buffer[rc]));
 		MHVTL_DBG(2, "READ block %d LBP RSCRC : 0x%02x 0x%02x 0x%02x 0x%02x", blk_number, bounce_buffer[rc], bounce_buffer[rc + 1], bounce_buffer[rc + 2], bounce_buffer[rc + 3]);
-		rc += 4;	/* Account for LBP checksum */
+		rc += 4; /* Account for LBP checksum */
 		break;
 	case 3:
 		/* This should never occur - MODE 0a/f0 should not accept this value */
@@ -401,7 +397,7 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 
 	/* If bounce_buffer != buf then we're reading a large block and need to copy
 	 * data back into buf
-	*/
+	 */
 	if (bounce_buffer != buf) {
 		MHVTL_DBG(1, "Bounce buffer in use: request_sz: %d", request_sz);
 		memcpy(buf, bounce_buffer, request_sz);
@@ -455,8 +451,7 @@ free_bounce_buf:
 	return 0;
 }
 
-static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
-{
+static lzo_uint mhvtl_compressBound(lzo_uint src_sz) {
 	return src_sz + src_sz / 16 + 67;
 }
 
@@ -464,8 +459,7 @@ static lzo_uint mhvtl_compressBound(lzo_uint src_sz)
  * blk_header.
  * We may adjust this decision for the 3592. (See ibm_3592_xx.pm)
  */
-static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
-{
+static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv) {
 	lu_priv->app_encr_info = lu_priv->ENCRYPT_MODE == 2 ? &app_encryption_state : NULL;
 
 	if (lu_priv->pm->valid_encryption_media)
@@ -477,12 +471,11 @@ static void setup_crypto(struct scsi_cmd *cmd, struct priv_lu_ssc *lu_priv)
  **
  ** Return -1 on error or 0 on success (LBP CRC match)
  */
-static int32_t verify_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c)
-{
+static int32_t verify_lbp_crc(int lbp_method, unsigned char const *buf, size_t src_sz, uint32_t crc32c) {
 	uint32_t lbp_crc = 0;
 
 	switch (lbp_method) {
-		case 0:	/* No method defined - skip check */
+	case 0: /* No method defined - skip check */
 		break;
 	case 1:
 		MHVTL_DBG(2, "WRITE block %d LBP RSCRC : 0x%02x 0x%02x 0x%02x 0x%02x", c_pos->blk_number - 1, buf[src_sz], buf[src_sz + 1], buf[src_sz + 2], buf[src_sz + 3]);
@@ -492,7 +485,7 @@ static int32_t verify_lbp_crc(int lbp_method, unsigned char const *buf, size_t s
 			} else {
 				MHVTL_ERR("RSCRC mismatch: lbp_be: %d - LBP provided: 0x%08x, calculated RSCRC: 0x%08x", lbp_rscrc_be, get_unaligned_be32(&buf[src_sz]), __bswap_32(GenerateRSCRC(0, src_sz, buf)));
 			}
-			return -1;	/* CRC mismatch */
+			return -1; /* CRC mismatch */
 		}
 		break;
 	case 2:
@@ -500,7 +493,7 @@ static int32_t verify_lbp_crc(int lbp_method, unsigned char const *buf, size_t s
 		lbp_crc = get_unaligned_be32(&crc32c);
 		if (lbp_crc != get_unaligned_be32(&buf[src_sz])) {
 			MHVTL_ERR("CRC32C mismatch - LBP: 0x%08x, calculated: 0x%08x", get_unaligned_be32(&buf[src_sz]), lbp_crc);
-			return -1;	/* CRC mismatch */
+			return -1; /* CRC mismatch */
 		}
 		break;
 	default:
@@ -512,8 +505,7 @@ static int32_t verify_lbp_crc(int lbp_method, unsigned char const *buf, size_t s
 	return 0;
 }
 
-static void log_crc_options(int lbp_method, unsigned char const *buf, size_t size, uint32_t crc)
-{
+static void log_crc_options(int lbp_method, unsigned char const *buf, size_t size, uint32_t crc) {
 	MHVTL_ERR("Legacy CRC32C: 0x%08x", crc);
 
 	switch (lbp_method) {
@@ -535,9 +527,8 @@ static void log_crc_options(int lbp_method, unsigned char const *buf, size_t siz
 	}
 }
 
-static void log_lbp_method(int lbp_method)
-{
-	switch(lbp_method) {
+static void log_lbp_method(int lbp_method) {
+	switch (lbp_method) {
 	case 1:
 		MHVTL_DBG(2, "Drive supports RS-CRC Logical Block Protection, lbp_be: %d", lbp_rscrc_be);
 		break;
@@ -555,13 +546,12 @@ static void log_lbp_method(int lbp_method)
  *
  * Zero on error with sense buffer already filled in
  */
-static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method)
-{
-	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
+static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method) {
+	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t			   *src_buf	 = (uint8_t *)cmd->dbuf_p->data;
 	struct priv_lu_ssc *lu_priv;
-	uint32_t crc;
-	int rc;
+	uint32_t			crc;
+	int					rc;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
@@ -594,21 +584,20 @@ static int writeBlock_nocomp(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null
  *
  * Zero on error with sense buffer already filled in
  */
-static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method)
-{
-	lzo_uint dest_len;
-	lzo_uint src_len = src_sz;
+static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method) {
+	lzo_uint  dest_len;
+	lzo_uint  src_len = src_sz;
 	lzo_bytep dest_buf;
 	lzo_bytep wrkmem = NULL;
-	uint32_t crc;
+	uint32_t  crc;
 
 	lzo_bytep src_buf = (lzo_bytep)cmd->dbuf_p->data;
 
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	struct priv_lu_ssc *lu_priv;
-	int rc;
-	int z;
+	int					rc;
+	int					z;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
@@ -617,7 +606,7 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
 
 	dest_len = mhvtl_compressBound(src_sz);
 	dest_buf = (lzo_bytep)malloc(dest_len);
-	wrkmem = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
+	wrkmem	 = (lzo_bytep)malloc(LZO1X_1_MEM_COMPRESS);
 
 	if (unlikely(!dest_buf)) {
 		MHVTL_ERR("dest_buf malloc(%d) failed", (int)dest_len);
@@ -670,17 +659,16 @@ static int writeBlock_lzo(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr
  *
  * Zero on error with sense buffer already filled in
  */
-static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method)
-{
-	Bytef *dest_buf;
-	uLong dest_len;
-	uLong src_len = src_sz;
-	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t *src_buf = (uint8_t *)cmd->dbuf_p->data;
+static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_wr, int lbp_method) {
+	Bytef			   *dest_buf;
+	uLong				dest_len;
+	uLong				src_len	 = src_sz;
+	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t			   *src_buf	 = (uint8_t *)cmd->dbuf_p->data;
 	struct priv_lu_ssc *lu_priv;
-	uint32_t crc;
-	int rc;
-	int z;
+	uint32_t			crc;
+	int					rc;
+	int					z;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 
@@ -696,7 +684,7 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 	}
 
 	z = compress2(dest_buf, &dest_len, src_buf, src_sz,
-						*lu_priv->compressionFactor);
+				  *lu_priv->compressionFactor);
 	if (z != Z_OK) {
 		switch (z) {
 		case Z_MEM_ERROR:
@@ -704,7 +692,7 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 			break;
 		case Z_BUF_ERROR:
 			MHVTL_ERR("Not enough memory in destination "
-					"buf to compress data");
+					  "buf to compress data");
 			break;
 		case Z_DATA_ERROR:
 			MHVTL_ERR("Input data corrupt / incomplete");
@@ -714,9 +702,9 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 		return 0;
 	}
 	MHVTL_DBG(2, "Compression: Orig %d, after comp: %ld"
-				", Compression factor: %d",
-					src_sz, (unsigned long)dest_len,
-					*lu_priv->compressionFactor);
+				 ", Compression factor: %d",
+			  src_sz, (unsigned long)dest_len,
+			  *lu_priv->compressionFactor);
 
 	rc = write_tape_block(dest_buf, src_len, dest_len, lu_priv->app_encr_info, ZLIB, null_wr, crc, sam_stat);
 
@@ -740,15 +728,14 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint8_t null_w
 	return src_len;
 }
 
-int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
-{
+int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz) {
 	struct priv_lu_ssc *lu_priv;
-	int src_len;
-	uint64_t current_position;
-	int64_t remaining_capacity;
-	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint32_t lbp_sz = src_sz;
-	int lbp_method = 0;
+	int					src_len;
+	uint64_t			current_position;
+	int64_t				remaining_capacity;
+	uint8_t			   *sam_stat   = &cmd->dbuf_p->sam_stat;
+	uint32_t			lbp_sz	   = src_sz;
+	int					lbp_method = 0;
 
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
 	src_len = 0;
@@ -756,17 +743,17 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	if (lu_priv->pm->drive_supports_LBP) {
 		if (lu_priv->LBP_W) {
 			MHVTL_DBG(2, "Write using LBP (CRC: %s)",
-					(lu_priv->LBP_method == 0) ? "Off" :
-					(lu_priv->LBP_method == 1) ? "RS-CRC" :
-					(lu_priv->LBP_method == 2) ? "CRC32C" : "Invalid");
+					  (lu_priv->LBP_method == 0) ? "Off" : (lu_priv->LBP_method == 1) ? "RS-CRC"
+													   : (lu_priv->LBP_method == 2)	  ? "CRC32C"
+																					  : "Invalid");
 			switch (lu_priv->LBP_method) {
 			case 1:
 				lbp_method = 1;
-				lbp_sz = src_sz - 4;
+				lbp_sz	   = src_sz - 4;
 				break;
 			case 2:
 				lbp_method = 2;
-				lbp_sz = src_sz - 4;
+				lbp_sz	   = src_sz - 4;
 				break;
 			default:
 				break;
@@ -813,11 +800,11 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz)
 	current_position = current_tape_offset();
 
 	if ((lu_priv->pm->drive_supports_early_warning) &&
-			(current_position >= (uint64_t)lu_priv->early_warning_position)) {
+		(current_position >= (uint64_t)lu_priv->early_warning_position)) {
 		MHVTL_DBG(1, "End of Medium - Early Warning");
 		sam_no_sense(SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
 	} else if ((lu_priv->pm->drive_supports_prog_early_warning) &&
-			(current_position >= (uint64_t)lu_priv->prog_early_warning_position)) {
+			   (current_position >= (uint64_t)lu_priv->prog_early_warning_position)) {
 		/* FIXME: Need to implement REW bit in Device Configuration Mode Page
 		 *	  REW == Report Early Warning
 		 */
