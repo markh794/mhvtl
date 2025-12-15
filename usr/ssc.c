@@ -393,8 +393,7 @@ uint8_t ssc_verify_6(struct scsi_cmd *cmd) {
 	dbuf_p->sz = 0; /* zero data xfer between application and target */
 
 	opcode_6_params(cmd, &blocks, &sz);
-	MHVTL_DBG(1, "%s(): %s: %d, fixed: %d, bytcmp: %d, immed: %d, vbf: %d, vlbpm: %d, vte: %d, cdb[1]: 0x%02x (%ld) **",
-			  __func__,
+	MHVTL_DBG(1, "VERIFY 6 : %s: %d, fixed: %d, bytcmp: %d, immed: %d, vbf: %d, vlbpm: %d, vte: %d, cdb[1]: 0x%02x (%ld) **",
 			  (cdb1->FIXED) ? "Num blks" : "byte count",
 			  (cdb1->FIXED) ? blocks : sz,
 			  cdb1->FIXED, cdb1->BYTCMP, cdb1->IMMED, cdb1->VBF, cdb1->VLBPM, cdb1->VTE, cdb[1],
@@ -429,11 +428,10 @@ uint8_t ssc_read_6(struct scsi_cmd *cmd) {
 	set_current_state(MHVTL_STATE_READING);
 
 	opcode_6_params(cmd, &count, &sz);
-	MHVTL_DBG(3, "%s(): %d block%s of %d bytes (%ld) **",
-			  __func__,
+	MHVTL_DBG(3, "READ 6 (%ld) ** %d block%s of %d bytes ",
+			  (long)dbuf_p->serialNo,
 			  count, count == 1 ? "" : "s",
-			  sz,
-			  (long)cmd->dbuf_p->serialNo);
+			  sz);
 
 	/* If both FIXED & SILI bits set, invalid combo.. */
 	if ((cdb[1] & (SILI | FIXED_BLOCK)) == (SILI | FIXED_BLOCK)) {
@@ -458,8 +456,7 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
 	set_current_state(MHVTL_STATE_WRITING);
 
 	opcode_6_params(cmd, &count, &sz);
-	MHVTL_DBG(3, "%s(): %d block%s of %d bytes (%ld) **",
-			  __func__,
+	MHVTL_DBG(3, "WRITE 6 : %d block%s of %d bytes (%ld) **",
 			  count, count == 1 ? "" : "s",
 			  sz,
 			  (long)dbuf_p->serialNo);
@@ -1413,8 +1410,8 @@ uint8_t ssc_tur(struct scsi_cmd *cmd) {
 
 	char str[64];
 
-	sprintf(str, "Test Unit Ready (%ld) ** : ",
-			(long)cmd->dbuf_p->serialNo);
+	sprintf(str, "TEST UNIT READY (%ld) ** : ",
+			(long)dbuf_p->serialNo);
 
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
@@ -1495,10 +1492,18 @@ uint8_t ssc_rewind(struct scsi_cmd *cmd) {
 
 uint8_t ssc_read_attributes(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
+
+	uint8_t		service_action = cmd->scb[1] & 0b00011111;
 	struct s_sd sd;
 
-	MHVTL_DBG(1, "READ ATTRIBUTE (%ld) **",
-			  (long)dbuf_p->serialNo);
+	MHVTL_DBG(1, "READ ATTRIBUTE (%ld) ** %s",
+			  (long)cmd->dbuf_p->serialNo,
+			  (service_action == 0)	  ? "Attribute Values"
+			  : (service_action == 1) ? "Attribute List"
+			  : (service_action == 2) ? "Logical Volume List"
+			  : (service_action == 3) ? "Partition List"
+			  : (service_action == 5) ? "Supported Attributes"
+									  : "Unknown service action");
 
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
@@ -1584,25 +1589,26 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 	return *sam_stat;
 }
 
-#define READ_POSITION_LEN	   20
-#define READ_POSITION_LONG_LEN 32
+#define READ_POSITION_SERVICE_ACTION 0b000111111
+#define READ_POSITION_LEN			 20
+#define READ_POSITION_LONG_LEN		 32
 
 uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
-	int										service_action;
+	uint8_t									service_action = cdb[1] & READ_POSITION_SERVICE_ACTION;
 	struct s_sd								sd;
 	uint8_t									partition = 0; /* One of these days we'll support multiple partitions - but for now */
 	uint64_t								filemarks = 0;
 	struct read_position_information_short *sp;
 	struct read_position_information_long  *lp;
 
-	MHVTL_DBG(1, "READ POSITION (%ld) **", (long)dbuf_p->serialNo);
-
-	service_action = cdb[1] & 0x1f;
-	/* service_action == 0 or 1 -> Returns 20 bytes of data (short) */
-
-	MHVTL_DBG(1, "service_action: %d", service_action);
+	MHVTL_DBG(1, "READ POSITION (%ld) ** %s form",
+			  (long)cmd->dbuf_p->serialNo,
+			  (service_action == 0)	  ? "Short"
+			  : (service_action == 6) ? "Long"
+			  : (service_action == 8) ? "Extended"
+									  : "Unknown");
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADED:
@@ -1819,27 +1825,20 @@ uint8_t ssc_space_6(struct scsi_cmd *cmd) {
 
 	switch (code) {
 	case 0: /* Logical blocks - supported */
-		MHVTL_DBG(1, "SPACE (%ld) ** %s %d block%s",
+	case 1: /* filemarks - supported */
+		MHVTL_DBG(1, "SPACE 6 (%ld) ** %s %d %s%s",
 				  (long)dbuf_p->serialNo,
-				  (icount >= 0) ? "forward" : "back",
-				  abs(icount),
-				  (1 == abs(icount)) ? "" : "s");
-		break;
-	case 1: /* Filemarks - supported */
-		MHVTL_DBG(1, "SPACE (%ld) ** %s %d filemark%s",
-				  (long)dbuf_p->serialNo,
-				  (icount >= 0) ? "forward" : "back",
-				  abs(icount),
-				  (1 == abs(icount)) ? "" : "s");
+				  (icount >= 0) ? "forward " : "back ", abs(icount),
+				  (code == 0) ? "block" : "filemark",
+				  (abs(icount) != 1) ? "s" : "");
 		break;
 	case 3: /* End of Data - supported */
-		MHVTL_DBG(1, "SPACE (%ld) ** %s ",
-				  (long)dbuf_p->serialNo,
-				  "to End-of-data");
+		MHVTL_DBG(1, "SPACE 6 (%ld) ** %s ",
+				  (long)dbuf_p->serialNo, "to End-of-data");
 		break;
 	case 2:	 /* Sequential filemarks currently not supported */
-	default: /* obsolete / reserved values */
-		MHVTL_DBG(1, "SPACE (%ld) ** - Unsupported option %d",
+	default: /* Unsupported or reserved option */
+		MHVTL_DBG(1, "SPACE 6 (%ld) ** - Unsupported option %d",
 				  (long)dbuf_p->serialNo, code);
 		sd.byte0		 = SKSV | CD | BPV | code;
 		sd.field_pointer = 1;
@@ -1865,29 +1864,21 @@ uint8_t ssc_space_16(struct scsi_cmd *cmd) {
 
 	switch (code) {
 	case 0: /* Logical blocks - supported */
-		MHVTL_DBG(1, "SPACE (%ld) ** %s %d block%s",
+	case 1: /* filemarks - supported */
+		MHVTL_DBG(1, "SPACE 16 (%ld) ** %s %d %s%s",
 				  (long)dbuf_p->serialNo,
-				  (icount >= 0) ? "forward" : "back",
-				  abs(icount),
-				  (1 == abs(icount)) ? "" : "s");
-		break;
-	case 1: /* Filemarks - supported */
-		MHVTL_DBG(1, "SPACE (%ld) ** %s %d filemark%s",
-				  (long)dbuf_p->serialNo,
-				  (icount >= 0) ? "forward" : "back",
-				  abs(icount),
-				  (1 == abs(icount)) ? "" : "s");
+				  (icount >= 0) ? "forward " : "back ", abs(icount),
+				  (code == 0) ? "block" : "filemark",
+				  (abs(icount) != 1) ? "s" : "");
 		break;
 	case 3: /* End of Data - supported */
-		MHVTL_DBG(1, "SPACE (%ld) ** %s ",
-				  (long)dbuf_p->serialNo,
-				  "to End-of-data");
+		MHVTL_DBG(1, "SPACE 16 (%ld) ** %s ",
+				  (long)dbuf_p->serialNo, "to End-of-data");
 		break;
 	case 2:	 /* Sequential filemarks currently not supported */
-	default: /* obsolete / reserved values */
-		MHVTL_DBG(1, "SPACE (%ld) ** - Unsupported option %d",
-				  (long)dbuf_p->serialNo,
-				  code);
+	default: /* Unsupported or reserved option */
+		MHVTL_DBG(1, "SPACE 16 (%ld) ** - Unsupported option %d",
+				  (long)dbuf_p->serialNo, code);
 		sd.byte0		 = SKSV | CD | BPV | code;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
@@ -1918,8 +1909,8 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	MHVTL_DBG(1, "%s TAPE (%ld) **", (load_request) ? "LOADING" : "UNLOADING",
-			  (long)dbuf_p->serialNo);
+	MHVTL_DBG(1, "TAPE %s (%ld) **",
+			  (load_request) ? "LOADING" : "UNLOADING", (long)cmd->dbuf_p->serialNo);
 
 	media_state = rewind_tape(sam_stat);
 	switch (get_tape_load_status()) {
