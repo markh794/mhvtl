@@ -544,7 +544,7 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 
 	attrib	  = get_unaligned_be16(&cdb[8]);
 	alloc_len = get_unaligned_be32(&cdb[10]);
-	MHVTL_DBG(2, "Read Attribute: 0x%x, allocation len: %d",
+	MHVTL_DBG(2, "Attribute : 0x%04x, allocation len: %d",
 			  attrib, alloc_len);
 
 	memset_ssc_buf(cmd, alloc_len); /* Clear memory */
