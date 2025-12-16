@@ -608,33 +608,36 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
  *         or -1 on failure.
  */
 int resp_write_attribute(struct scsi_cmd *cmd) {
-	uint32_t			alloc_len;
-	unsigned int		byte_index;
-	int					indx, attrib, attribute_length, found_attribute = 0;
-	struct MAM		   *mamp;
-	struct MAM			mam_backup;
-	uint8_t			   *buf		 = (uint8_t *)cmd->dbuf_p->data;
 	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
 	uint8_t			   *cdb		 = cmd->scb;
-	struct priv_lu_ssc *lu_priv;
-	struct s_sd			sd;
+	uint8_t			   *buf		 = (uint8_t *)cmd->dbuf_p->data;
+	struct priv_lu_ssc *lu_priv	 = cmd->lu->lu_private;
+	struct MAM		   *mamp	 = lu_priv->mamp;
+
+	struct MAM	 mam_backup;
+	uint32_t	 alloc_len;
+	uint16_t	 attrib;
+	uint16_t	 attribute_length;
+	unsigned int byte_index = 4;
+	int			 indx, found_attribute;
+	struct s_sd	 sd;
 
 	alloc_len = get_unaligned_be32(&cdb[10]);
-	lu_priv	  = (struct priv_lu_ssc *)cmd->lu->lu_private;
-	mamp	  = lu_priv->mamp;
+	attrib	  = get_unaligned_be16(&buf[byte_index]);
+
 	MHVTL_DBG(2, "Write Attribute: 0x%x, allocation len: %d",
 			  attrib, alloc_len);
 
-	memcpy(&mam_backup, mamp, sizeof(struct MAM));
+	memcpy(&mam_backup, mamp, sizeof(struct MAM)); /* In case of error, keep former state of mam */
+
 	for (byte_index = 4; byte_index < alloc_len;) {
-		attrib = ((uint16_t)buf[byte_index++] << 8);
-		attrib += buf[byte_index++];
+		attrib = get_unaligned_be16(&buf[byte_index]);
+
 		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
 			if (attrib == MAM_Attributes[indx].attribute) {
-				found_attribute = 1;
-				byte_index += 1;
-				attribute_length = ((uint16_t)buf[byte_index++] << 8);
-				attribute_length += buf[byte_index++];
+				found_attribute	 = 1;
+				attribute_length = get_unaligned_be16(&buf[byte_index + 3]);
+				byte_index += 5;		 /* positioning to the actual value */
 				if ((attrib == 0x408) && /* Attribute == Medium Type */
 					(attribute_length == 1) &&
 					(buf[byte_index] == 0x80)) {
@@ -646,7 +649,7 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 						   &buf[byte_index],
 						   MAM_Attributes[indx].length);
 				}
-				byte_index += attribute_length;
+				byte_index += attribute_length; /* Positioning to the next attribute if any */
 				break;
 			} else {
 				found_attribute	 = 0;
