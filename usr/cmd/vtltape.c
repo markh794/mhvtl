@@ -617,6 +617,8 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 	alloc_len = get_unaligned_be32(&cdb[10]);
 	lu_priv	  = (struct priv_lu_ssc *)cmd->lu->lu_private;
 	mamp	  = lu_priv->mamp;
+	MHVTL_DBG(2, "Write Attribute: 0x%x, allocation len: %d",
+			  attrib, alloc_len);
 
 	memcpy(&mam_backup, mamp, sizeof(struct MAM));
 	for (byte_index = 4; byte_index < alloc_len;) {
