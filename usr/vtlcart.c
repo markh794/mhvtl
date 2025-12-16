@@ -470,10 +470,9 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
  */
 
 int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
-	uint32_t	 residual;
-	uint32_t	 blk_target;
-	int			 i			   = -1;
-	unsigned int num_filemarks = meta.filemark_count;
+	uint32_t residual;
+	uint32_t blk_target;
+	int		 i;
 
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -483,20 +482,13 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 
 	MHVTL_DBG(2, "Position before movement: %d", raw_pos.hdr.blk_number);
 
-	if (count < raw_pos.hdr.blk_number)
-		blk_target = raw_pos.hdr.blk_number - count;
-	else
-		blk_target = 0;
+	blk_target = c_pos->blk_number - count;
 
 	/* Find the first filemark prior to our current position, if any. */
 
-	if (num_filemarks > 0) {
-		for (i = num_filemarks - 1; i >= 0; i--) {
-			MHVTL_DBG(3, "filemark at %ld",
-					  (unsigned long)filemarks[i]);
-			if (filemarks[i] < raw_pos.hdr.blk_number)
-				break;
-		}
+	for (i = meta.filemark_count - 1; i >= 0; i--) {
+		if (filemarks[i] < c_pos->blk_number)
+			break;
 	}
 
 	/* If there is one, see if it is between our current position and our
@@ -506,7 +498,7 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 		if (filemarks[i] < blk_target)
 			return position_to_block(blk_target, sam_stat);
 
-		residual = raw_pos.hdr.blk_number - blk_target;
+		residual = c_pos->blk_number - blk_target;
 		if (read_header(filemarks[i], sam_stat))
 			return -1;
 
@@ -516,8 +508,8 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 		return -1;
 	}
 
-	if (count > raw_pos.hdr.blk_number) {
-		residual = count - raw_pos.hdr.blk_number;
+	if (blk_target < 0) {
+		residual = count - c_pos->blk_number;
 		if (read_header(0, sam_stat))
 			return -1;
 
