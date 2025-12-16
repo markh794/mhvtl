@@ -1442,7 +1442,7 @@ void print_raw_header(void) {
 		strncat(f, "Unknown type", 13);
 		break;
 	}
-	printf("%-35s (0x%02x/0x%02x), sz: %6d/%-6d, Blk No.: %7u, data: %10" PRId64 ", CRC: %08x\n",
+	printf("%-35s (0x%02x/0x%02x), sz: %6d/%-6d, Blk No.: %7u, data_offset: %10" PRId64 ", CRC: %08x\n",
 		   f,
 		   raw_pos.hdr.blk_type,
 		   raw_pos.hdr.blk_flags,
