@@ -52,7 +52,7 @@ struct encryption {
 /*
  * Header before each block of data in 'file'
  *
- *	block_type	-> See above 'Block type definations'
+ *	block_type	-> See above 'Block type definitions'
  *	blk_size	-> Uncompressed size of data block
  *		   (Specifies capacity of tape (used in BOT header) in Mbytes.
  *	disk_blk_size	-> Amount of space block takes up in 'file'
