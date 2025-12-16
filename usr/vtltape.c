@@ -2985,7 +2985,7 @@ int main(int argc, char *argv[]) {
 		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &mhvtl_cmd);
 		if (ret < 0) {
 			MHVTL_DBG(2,
-					  "ioctl(VTL_POLL_AND_GET_HEADER: %d : %s",
+					  "ioctl(VTL_POLL_AND_GET_HEADER): %d : %s",
 					  ret, strerror(errno));
 		} else {
 			if (debug)
