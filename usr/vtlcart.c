@@ -1337,8 +1337,7 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 	}
 
 	/* Now position to the following block. */
-	MHVTL_DBG(3, "Read block, now positioning to next header: %d",
-			  raw_pos.hdr.blk_number + 1);
+	MHVTL_DBG(3, "Reading data succeeded, now positioning to next header");
 	if (read_header(raw_pos.hdr.blk_number + 1, sam_stat)) {
 		MHVTL_ERR("Failed to read block header %d",
 				  raw_pos.hdr.blk_number + 1);
