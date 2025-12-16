@@ -628,7 +628,7 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 				byte_index += 1;
 				attribute_length = ((uint16_t)buf[byte_index++] << 8);
 				attribute_length += buf[byte_index++];
-				if ((attrib == 0x408) &&
+				if ((attrib == 0x408) && /* Attribute == Medium Type */
 					(attribute_length == 1) &&
 					(buf[byte_index] == 0x80)) {
 					/* set media to worm */
