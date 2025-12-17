@@ -21,6 +21,9 @@
  *
  */
 
+#ifndef MHVTL_LOG_H
+#define MHVTL_LOG_H
+
 /*
  * Process the LOG_SENSE page definitions
  */
@@ -302,3 +305,5 @@ int add_log_tape_usage(struct lu_phy_attr *lu);
 int add_log_tape_capacity(struct lu_phy_attr *lu);
 int add_log_data_compression(struct lu_phy_attr *lu);
 int add_log_device_status(struct lu_phy_attr *lu);
+
+#endif /* MHVTL_LOG_H */
