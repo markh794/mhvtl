@@ -11,7 +11,7 @@
 #
 # Makefile magic
 # $@ is a variable that expands to the name of the file being built
-# $< is a variable that expands to the naem of the source file
+# $< is a variable that expands to the name of the source file
 # @ at the beginning of the first line tell make not to echo the commands as it run it.
 #
 
