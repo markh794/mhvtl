@@ -39,19 +39,17 @@ CLFLAGS = -shared ${RPM_OPT_FLAGS}
 LZODEBUG =
 
 # files that need to be generated
-GENERATOR_FILES=make_vtl_media.in mhvtl_kernel_mod_build.in
-GENERATED_FILES=$(GENERATOR_FILES:.in=)
-GENERATED_FILES:=$(addprefix bin/, $(GENERATED_FILES))
+GENERATED_FILES = $(patsubst cmd/%.in,bin/%,$(wildcard cmd/*.in))
 
-all: create_folders libvtlcart.so libvtlscsi.so commands validate_crc
+BINARIES = $(patsubst cmd/%.c,bin/%,$(wildcard cmd/*.c)) bin/dump_tape
+LIBRARIES = libvtlcart.so libvtlscsi.so
 
-commands : bin/vtltape bin/vtllibrary bin/vtlcmd bin/dump_tape bin/preload_tape bin/dump_messageQ \
-	bin/mktape bin/edit_tape  bin/tapeexerciser \
-	$(GENERATED_FILES)  \
-	bin/mhvtl-device-conf-generator
+all: | bin
+all: $(LIBRARIES) $(BINARIES) $(GENERATED_FILES) validate_crc
 
-create_folders :
-	- mkdir bin
+bin :
+	install -d -m 755 $@
+	
 # ================== objects ==================
 
 # ------------ VTL objects
@@ -145,6 +143,9 @@ bin/preload_tape: bin/dump_tape
 	@rm -f $@
 	ln -s $? $@
 
+bin/tape_util:
+	@true
+
 DUMP_TAPE_OBJ = cmd/tape_util.o \
 		mhvtl_io.o \
 		utils/minilzo.o \
@@ -220,23 +221,26 @@ tags:
 .PHONY:distclean
 distclean: clean
 
+# ========== command targets ==========
+
+$(DESTDIR)$(PREFIX)/bin:
+	install -d -m 755 $@
+$(DESTDIR)$(LIBDIR):
+	install -d -m 755 $@
+
+$(DESTDIR)$(LIBDIR)/%.so: %.so | $(DESTDIR)$(LIBDIR)
+	install -m 755 $< $@
+$(DESTDIR)$(PREFIX)/bin/%: bin/% | $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $< $@
+$(DESTDIR)$(PREFIX)/bin/tape_util: bin/tape_util
+	@true
+
 .PHONY:install
-install: all
-	[ -d $(DESTDIR)$(LIBDIR) ] || install -d -m 755 $(DESTDIR)$(LIBDIR)
-	install -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
-	install -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
-	[ -d $(DESTDIR)$(PREFIX)/bin ] || install -d -m 755 $(DESTDIR)$(PREFIX)/bin
-	install -m 755 bin/vtltape $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 bin/vtllibrary $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 bin/vtlcmd $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 bin/mktape $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 bin/dump_tape $(DESTDIR)$(PREFIX)/bin/
+install: all \
+		 $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
+		 $(addprefix $(DESTDIR)$(LIBDIR)/,$(LIBRARIES)) 
 	@rm -f $(DESTDIR)$(PREFIX)/bin/preload_tape
-	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape 
-	install -m 755 bin/edit_tape $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 bin/tapeexerciser $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 bin/make_vtl_media $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 bin/mhvtl_kernel_mod_build $(DESTDIR)$(PREFIX)/bin/
+	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape
 	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
 	install -m 755 bin/mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
 
