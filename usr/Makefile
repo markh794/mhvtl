@@ -23,6 +23,7 @@ IFLAGS = -I ../include -I ../include/utils -I ../include/common -I ../ccan
 
 CFLAGS = -Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) $(IFLAGS)
 CFLAGS += -MMD -MP # create header dependencies dynamically (.d files)
+CFLAGS += -std=gnu99
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION).$(EXTRAVERSION)\"
 CFLAGS += -DMHVTL_GITDATE=\"$(GITDATE)\"
 CFLAGS += -DMHVTL_GITHASH=\"$(GITHASH)\"
@@ -59,9 +60,6 @@ VTL_DEP = $(VTL_SRC:.c=.d)
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-mhvtl_io.o: \
-	CFLAGS += -std=gnu99
-
 mhvtl_log.o mode.o \
 smc.o spc.o \
 vtlcart.o vtllib.o: \
@@ -84,7 +82,7 @@ cmd/%.o: cmd/%.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 cmd/tape_util.o: \
-	CFLAGS += -fPIC -std=gnu99
+	CFLAGS += -fPIC
 
 
 # ------------ utils
@@ -93,12 +91,6 @@ UTILS_DEP = $(UTILS_SRC:.c=.d)
 -include $(UTILS_DEP)
 utils/%.o: utils/%.c
 	$(CC) $(CFLAGS) -o $@ -c $< 
-
-
-utils/crc32c.o \
-utils/reed-solomon.o \
-utils/validate_crc.o: \
-		CFLAGS += -std=gnu99
 
 utils/minilzo.o: \
 		CFLAGS += $(LZODEBUG)
@@ -120,7 +112,7 @@ libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
 # ================== Commands and scripts ==================
 
 bin/validate_crc: utils/validate_crc.o utils/crc32c.o utils/reed-solomon.o
-	@$(CC) $(CFLAGS) -o $@ $^ -std=gnu99
+	@$(CC) $(CFLAGS) -o $@ $^
 
 .PHONY: validate_crc
 validate_crc: bin/validate_crc
