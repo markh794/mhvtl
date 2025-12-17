@@ -57,7 +57,8 @@ install: all
 ifeq ($(ROOTUID),YES)
 	systemctl daemon-reload
 endif
-	# now ensure VTL media is setup
+
+tape: # now ensure VTL media is setup
 	env LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR) \
 		$(MAKE_VTL_MEDIA) \
 			--config-dir=$(DESTDIR)$(MHVTL_CONFIG_PATH) \
