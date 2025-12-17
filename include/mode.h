@@ -21,6 +21,9 @@
  *
  */
 
+#ifndef MODE_H
+#define MODE_H
+
 int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu);
 int add_mode_disconnect_reconnect(struct lu_phy_attr *lu);
 int add_mode_control(struct lu_phy_attr *lu);
@@ -46,3 +49,5 @@ int	 update_prog_early_warning(struct lu_phy_attr *lu);
 int	 update_logical_block_protection(struct lu_phy_attr *lu, uint8_t *buf);
 void dealloc_all_mode_pages(struct lu_phy_attr *lu);
 int	 add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu);
+
+#endif /* MODE_H */
