@@ -115,8 +115,7 @@ libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
 	 	utils/subprocess.o
 	$(CC) $(CLFLAGS) -o $@ $^ -lpthread
 
-libvtlcart.so: vtllib.o vtlcart.o mhvtl_log.o \
-		utils/q.o 
+libvtlcart.so: vtlcart.o
 	$(CC) $(CLFLAGS) -o $@ $^ -lpthread
 
 # ================== Commands and scripts ==================
