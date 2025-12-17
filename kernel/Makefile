@@ -42,9 +42,6 @@ install: all
 	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
 	install -m 755 ../mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
 	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/
-	if [ -f "/etc/modprobe.d/unsupported-modules" ]; then \
-		sed -i 's/^allow_unsupported_modules 0/allow_unsupported_modules 1/' /etc/modprobe.d/unsupported-modules; \
-	fi
 	depmod -a
 
 uninstall: distclean
@@ -63,7 +60,7 @@ tags:
 
 # ========== Cleaning ==========
 
-.PHONY:clean
+.PHONY: clean
 clean:
 	$(RM) mhvtl.ko
 	$(RM) *.o
