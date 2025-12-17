@@ -20,7 +20,7 @@
  */
 
 #ifndef _SCSI_SCSI_H
-#define _SCSI_SCSI_H 1
+#define _SCSI_SCSI_H
 
 /*
  * Device types
@@ -319,4 +319,4 @@
 #define TA_WORM_INTEGRITY_FAILED	 0x400000000000000ull
 #define TA_WORM_OVERWRITE_ATTEMPTED	 0x800000000000000ull
 
-#endif
+#endif /* _SCSI_SCSI_H */
