@@ -12,7 +12,7 @@
  *
  * This is a vtllibrary 'helper'. This contains a function to open the media
  * metadata file and return the media type (Data, WORM, Cleaning etc)
- * Required to fill in details of READ ELEMENT STATUS - instead of just gussing
+ * Required to fill in details of READ ELEMENT STATUS - instead of just guessing
  * based on barcode, open the actual media metadata and read 'from the horses
  * mouth'
 
