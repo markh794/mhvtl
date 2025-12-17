@@ -23,16 +23,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <string.h>
-#include <syslog.h>
 #include <inttypes.h>
 #include <errno.h>
 #include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
 #include "logging.h"
 #include "vtllib.h"
-#include "q.h"
 #include "ssc.h"
 #include "smc.h"
 #include "be_byteshift.h"

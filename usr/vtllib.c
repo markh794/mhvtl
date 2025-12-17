@@ -26,19 +26,16 @@
 
 #define __STDC_FORMAT_MACROS
 
-#include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <err.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <inttypes.h>
 #include <sys/ipc.h>
 #include <semaphore.h>
 #include <sys/shm.h>
@@ -50,15 +47,14 @@
 #include "mhvtl_list.h"
 #include "mhvtl_scsi.h"
 #include "vtl_common.h"
+#include "vtlcart.h"
 #include "logging.h"
 #include "vtllib.h"
 #include "smc.h"
-#include "vtlcart.h"
 #include "mode.h"
 #include "q.h"
 #include "ssc.h"
 #include "mhvtl_log.h"
-#include "q.h"
 
 static int reset				= 0;
 static int inquiry_data_changed = 0;

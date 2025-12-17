@@ -23,7 +23,9 @@
 #ifndef _VTLCART_H_
 #define _VTLCART_H_
 
-#include "vtllib.h"
+#include <stdint.h>
+
+struct MAM;
 
 /* Block type definitions */
 #define B_DATA	   11

@@ -34,17 +34,17 @@
 #define _FILE_OFFSET_BITS 64
 
 #include <stdio.h>
+#include <sys/ipc.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/msg.h>
 #include <stdlib.h>
-#include <syslog.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <inttypes.h>
-#include "mhvtl_list.h"
 #include "q.h"
-#include "vtl_common.h"
 #include "vtllib.h"
 
 long my_id				 = VTLCMD_Q;

@@ -8,7 +8,6 @@
  * Designed to abort if CRC32C or RS-CRC fails basic sanity check
  */
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <inttypes.h>

@@ -2,6 +2,10 @@
 #ifndef SPC_H
 #define SPC_H
 
+#include <stdint.h>
+
+struct scsi_cmd;
+
 /* Variables for simple, single initiator, SCSI Reservation system */
 
 extern uint64_t SPR_Reservation_Key;

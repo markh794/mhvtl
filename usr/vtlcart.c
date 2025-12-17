@@ -32,7 +32,6 @@
 /* for unistd.h pread/pwrite and fcntl.h posix_fadvise */
 #define _XOPEN_SOURCE 600
 
-#include <sys/syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -41,12 +40,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pwd.h>
-
 #include "logging.h"
 #include "mhvtl_scsi.h"
-#include "mhvtl_list.h"
 #include "vtlcart.h"
+#include "vtllib.h"
 #include "be_byteshift.h"
 
 /* The .indx file consists of an array of one raw_header structure per

@@ -21,19 +21,10 @@
  *
  */
 
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <string.h>
-#include <dirent.h>
-#include <syslog.h>
-#include <ctype.h>
 #include <inttypes.h>
-#include <assert.h>
 #include <sys/time.h>
 #include "be_byteshift.h"
 #include "mhvtl_scsi.h"
@@ -42,7 +33,6 @@
 #include "logging.h"
 #include "vtllib.h"
 #include "spc.h"
-#include "q.h"
 #include "ssc.h"
 #include "vtlcart.h"
 #include "mhvtl_log.h"

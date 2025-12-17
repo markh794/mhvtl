@@ -24,6 +24,11 @@
 #ifndef MHVTL_LOG_H
 #define MHVTL_LOG_H
 
+#include <stdint.h>
+#include "mhvtl_list.h"
+
+struct lu_phy_attr;
+
 /*
  * Process the LOG_SENSE page definitions
  */

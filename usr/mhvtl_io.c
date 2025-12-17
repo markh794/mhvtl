@@ -6,33 +6,20 @@
  * dump_tape / vtltape both use same functions
  * which are currently duplicated
  */
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <strings.h>
-#include <syslog.h>
+#include <string.h>
 #include <inttypes.h>
-#include <pwd.h>
-#include <signal.h>
-#include <ctype.h>
-#include "mhvtl_list.h"
 #include "be_byteshift.h"
 #include "vtl_common.h"
 #include "mhvtl_scsi.h"
-#include "q.h"
 #include "logging.h"
 #include "vtllib.h"
 #include "vtlcart.h"
-#include "spc.h"
 #include "ssc.h"
 #include "mhvtl_log.h"
-#include "mode.h"
 #include "ccan/crc32c/crc32c.h"
 #include <zlib.h>
 #include "minilzo.h"

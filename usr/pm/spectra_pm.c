@@ -2,14 +2,9 @@
  * Personality module for Spectra Logic
  */
 
-#include <stdio.h>
-#include "mhvtl_list.h"
 #include "vtllib.h"
 #include "smc.h"
 #include "logging.h"
-#include "be_byteshift.h"
-#include "mhvtl_log.h"
-#include "mode.h"
 #include "mhvtl_scsi.h"
 
 static void update_spectra_215_device_capabilities(struct lu_phy_attr *lu) {

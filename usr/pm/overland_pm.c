@@ -4,13 +4,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "mhvtl_list.h"
 #include "vtllib.h"
 #include "smc.h"
 #include "logging.h"
-#include "be_byteshift.h"
-#include "mhvtl_log.h"
-#include "mode.h"
 
 static void update_eml_vpd_80(struct lu_phy_attr *lu) {
 	struct vpd **lu_vpd = lu->lu_vpd;

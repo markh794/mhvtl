@@ -23,20 +23,12 @@
  *
  */
 
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <syslog.h>
 #include <string.h>
-#include <time.h>
 #include <inttypes.h>
 #include "be_byteshift.h"
-#include "mhvtl_list.h"
-#include "vtl_common.h"
 #include "vtlcart.h"
 #include "vtllib.h"
 #include "logging.h"

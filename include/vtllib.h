@@ -24,11 +24,14 @@
 #include <endian.h>
 #include <byteswap.h>
 #endif
+
+#include <stdio.h>
 #include <inttypes.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "vtl_common.h"
+#include "mhvtl_list.h"
 
 #ifndef MHVTL_CONFIG_PATH
 #define MHVTL_CONFIG_PATH "/etc/mhvtl"

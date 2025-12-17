@@ -22,18 +22,11 @@
  */
 
 #include <unistd.h>
+#include <sys/msg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <string.h>
-#include <dirent.h>
-#include <syslog.h>
-#include <ctype.h>
 #include <inttypes.h>
-#include <assert.h>
 #include "be_byteshift.h"
 #include "mhvtl_scsi.h"
 #include "mhvtl_list.h"

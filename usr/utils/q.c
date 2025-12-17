@@ -8,6 +8,9 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <sys/msg.h>
+#include <errno.h>
+#include <string.h>
 #include "q.h"
 
 extern int	 debug;

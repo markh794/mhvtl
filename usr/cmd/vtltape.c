@@ -53,6 +53,9 @@
 #define __STDC_FORMAT_MACROS /* for PRId64 */
 
 #include <unistd.h>
+#include <sys/ipc.h>
+#include <string.h>
+#include <sys/msg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -60,11 +63,9 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
 #include <strings.h>
 #include <syslog.h>
 #include <inttypes.h>
-#include <pwd.h>
 #include <signal.h>
 #include <ctype.h>
 #include "mhvtl_list.h"
@@ -79,7 +80,6 @@
 #include "ssc.h"
 #include "mhvtl_log.h"
 #include "mode.h"
-#include "ccan/crc32c/crc32c.h"
 
 char mhvtl_driver_name[] = "vtltape";
 

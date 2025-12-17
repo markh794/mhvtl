@@ -1,6 +1,11 @@
 #ifndef SMC_H
 #define SMC_H
 
+#include <stdint.h>
+
+struct scsi_cmd;
+struct s_info;
+
 /* Element type codes */
 #define ANY				 0
 #define MEDIUM_TRANSPORT 1

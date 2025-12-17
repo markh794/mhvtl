@@ -2,6 +2,13 @@
 #define SSC_H
 
 #include <signal.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include "mhvtl_list.h"
+#include "q.h"
+
+struct mhvtl_ds;
+struct scsi_cmd;
 
 #define ENCR_C 1 /* Device supports Encryption */
 #define ENCR_E 4 /* Encryption is enabled */

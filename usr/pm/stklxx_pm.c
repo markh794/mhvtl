@@ -4,13 +4,9 @@
  */
 
 #include <stdio.h>
-#include <errno.h>
-#include "mhvtl_list.h"
 #include "vtllib.h"
 #include "smc.h"
 #include "logging.h"
-#include "be_byteshift.h"
-#include "mhvtl_log.h"
 #include "mode.h"
 
 static struct smc_personality_template smc_pm = {

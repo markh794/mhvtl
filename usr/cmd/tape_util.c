@@ -25,8 +25,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
 #include <inttypes.h>
@@ -40,7 +38,6 @@
 #include "vtlcart.h"
 #include "q.h"
 #include "ssc.h"
-#include "ccan/crc32c/crc32c.h"
 
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1

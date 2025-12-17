@@ -8,6 +8,8 @@
  *
  */
 
+#include <stdint.h>
+
 /*
  * Security Algorithm Code
  */

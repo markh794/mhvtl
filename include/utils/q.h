@@ -23,12 +23,6 @@
 #ifndef _Q_H_
 #define _Q_H_
 
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
-#include <string.h>
-#include <errno.h>
-
 #define MAXTEXTLEN 1024
 
 struct q_msg {

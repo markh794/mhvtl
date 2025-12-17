@@ -24,6 +24,10 @@
 #ifndef MODE_H
 #define MODE_H
 
+#include <stdint.h>
+
+struct lu_phy_attr;
+
 int add_mode_page_rw_err_recovery(struct lu_phy_attr *lu);
 int add_mode_disconnect_reconnect(struct lu_phy_attr *lu);
 int add_mode_control(struct lu_phy_attr *lu);

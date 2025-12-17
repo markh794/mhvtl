@@ -39,17 +39,14 @@
 #define _XOPEN_SOURCE 600
 
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 #include "logging.h"
-#include "mhvtl_list.h"
-#include "vtlcart.h"
+#include "vtllib.h"
 
 /* The .meta file consists of a MAM structure followed by a meta_header
    structure, followed by a variable-length array of filemark block numbers.
