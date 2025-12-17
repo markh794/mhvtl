@@ -7,6 +7,7 @@
 EXTRA_CFLAGS += -I$(SRC)/../include
 EXTRA_CFLAGS += -DMHVTL_DEBUG
 
+ccflags-y += -I$(M)/../include/common -DMHVTL_DEBUG
 obj-m	:= mhvtl.o
 vtl-objs := mhvtl.o
 

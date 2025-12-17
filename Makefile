@@ -75,7 +75,8 @@ install: all
 	$(MAKE) -C man man
 	$(MAKE) -C man install
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
-	(cd kernel; tar --sort=name --mtime=@1 --format=gnu -czf ../mhvtl_kernel.tgz *)
+	(cd kernel; tar --sort=name --mtime=@1 --format=gnu --transform='s|.*/||' \
+		-czf ../mhvtl_kernel.tgz * ../include/common/*)
 	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
 	install -m 755 mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
 ifeq ($(ROOTUID),YES)
@@ -87,11 +88,12 @@ endif
 		$(MAKE_VTL_MEDIA) \
 			--config-dir=$(DESTDIR)$(MHVTL_CONFIG_PATH) \
 			--home-dir=$(DESTDIR)$(MHVTL_HOME_PATH) \
-			--mktape-path=usr
+			--mktape-path=usr/bin
 
 tar: distclean
 	test -d ../$(PARENTDIR) || ln -s $(TOPDIR) ../$(PARENTDIR)
-	(cd kernel; tar cfz ../mhvtl_kernel.tgz *)
+	(cd kernel; tar --transform='s|.*/||' \
+		-cfz ../mhvtl_kernel.tgz * ../include/common/*)
 	(cd ..;  tar cvzf $(TAR_FILE) --exclude='.git*' \
 		 $(PARENTDIR)/man \
 		 $(PARENTDIR)/doc \
