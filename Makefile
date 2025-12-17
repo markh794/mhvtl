@@ -74,11 +74,7 @@ install: all
 	$(MAKE) -i -C etc install
 	$(MAKE) -C man man
 	$(MAKE) -C man install
-	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
-	(cd kernel; tar --sort=name --mtime=@1 --format=gnu --transform='s|.*/||' \
-		-czf ../mhvtl_kernel.tgz * ../include/common/*)
-	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
-	install -m 755 mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
+	$(MAKE) -C kernel install
 ifeq ($(ROOTUID),YES)
 	systemctl daemon-reload
 endif

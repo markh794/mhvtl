@@ -25,9 +25,12 @@ endif
 
 export KDIR
 
+TOPDIR ?= $(CURDIR)/..
+FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
+
 PWD	:= $(shell pwd)
 
-default:	config.h
+all:	config.h ../mhvtl_kernel.tgz
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 config.h: config.sh
@@ -60,12 +63,18 @@ distclean: clean
 	    config.h
 	$(RM) -r .tmp_versions
 
-install:
-	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/; \
-	depmod -a; \
+install: all
+	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
+	install -m 755 ../mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
+	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/
 	if [ -f "/etc/modprobe.d/unsupported-modules" ]; then \
 		sed -i 's/^allow_unsupported_modules 0/allow_unsupported_modules 1/' /etc/modprobe.d/unsupported-modules; \
 	fi
+	depmod -a
+
+../mhvtl_kernel.tgz:  $(wildcard ./*.c) $(wildcard ./*.h) $(wildcard ../include/common/*.h) \
+					  config.sh Makefile
+	tar --sort=name --mtime=@1 --format=gnu --transform='s|.*/||' -czf $@ $^
 
 install-bkup:
 	cp mhvtl.ko ~/mhvtl-$(V)_`uname -m`.ko
