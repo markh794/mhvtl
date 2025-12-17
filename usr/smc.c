@@ -606,7 +606,7 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 	element_len = element_sz * element_count;
 
 	/* Total number of bytes in all element descriptors */
-	put_unaligned_be32(element_len & 0xffffff, &p[4]);
+	put_unaligned_be24(element_len, &p[5]);
 
 	/* Reserved */
 	p[4] = 0; /* Above mask should have already set this to 0... */
@@ -634,7 +634,7 @@ static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
 	 * valid data.
 	 * The 'allocated length' indicates how much data can be returned.
 	 */
-	put_unaligned_be32(byte_count & 0xffffff, &p[4]);
+	put_unaligned_be24(byte_count, &p[5]);
 
 	MHVTL_DBG(2, " Element Status Data HEADER: "
 				 "%02x %02x %02x %02x %02x %02x %02x %02x",
@@ -840,7 +840,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd) {
 
 	req_start_elem = get_unaligned_be16(&cdb[2]);
 	req_number	   = get_unaligned_be16(&cdb[4]);
-	alloc_len	   = 0xffffff & get_unaligned_be32(&cdb[6]);
+	alloc_len	   = get_unaligned_be24(&cdb[7]);
 
 	MHVTL_DBG(3, " Element type(%d) => %s", type, slot_type_str(type));
 	MHVTL_DBG(3, "  Starting Element Address: %d", req_start_elem);
