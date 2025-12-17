@@ -1298,6 +1298,12 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	src	 = drive2struct(smc_p, src_addr);
 	dest = drive2struct(smc_p, dest_addr);
 
+	if (src_addr == dest_addr) {
+		/* Did not find documentation for this behavior but feels like it should not fail */
+		MHVTL_DBG(1, "Same source and destination address : %d : do nothing", src_addr);
+		return SAM_STAT_GOOD;
+	}
+
 	if (!driveOccupied(src)) {
 		sam_illegal_request(E_MEDIUM_SRC_EMPTY, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
