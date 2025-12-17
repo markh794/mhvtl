@@ -1691,7 +1691,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 				lp->EOP	 = 1;
 			}
 
-			filemarks = filemark_count(c_pos->blk_number);
+			filemarks = count_filemarks(c_pos->blk_number);
 
 			put_unaligned_be32(partition, &buf[4]);
 			put_unaligned_be64(c_pos->blk_number, &buf[8]);
@@ -2017,7 +2017,7 @@ uint8_t ssc_pr_in(struct scsi_cmd *cmd) {
 
 static void update_tape_usage(struct TapeUsage	 *b,
 							  struct priv_lu_ssc *lu_ssc) {
-	uint64_t datasets = filemark_count(-1);
+	uint64_t datasets = count_filemarks(-1);
 	uint64_t load_count;
 
 	/* if we have more than 1 filemark,
