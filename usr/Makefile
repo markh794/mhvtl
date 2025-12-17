@@ -126,6 +126,7 @@ libvtlcart.so: vtllib.o vtlcart.o mhvtl_log.o \
 bin/validate_crc: utils/validate_crc.o utils/crc32c.o utils/reed-solomon.o
 	@$(CC) $(CFLAGS) -o $@ $^ -std=gnu99
 
+.PHONY: validate_crc
 validate_crc: bin/validate_crc
 	@./bin/validate_crc
 
@@ -203,6 +204,7 @@ bin/mhvtl_kernel_mod_build: cmd/mhvtl_kernel_mod_build.in
 	sed -e s'|@FIRMWAREDIR@|${FIRMWAREDIR}|' $< > $@
 	chmod 755 $@
 
+.PHONY:clean
 clean:
 	$(RM) *.d *.o *.so \
 		pm/*.d pm/*.o \
@@ -211,11 +213,14 @@ clean:
 		bin/*
 	$(RM) TAGS
 
+.PHONY:tags
 tags:
 	etags -R *.[ch] ../kernel/*.h
 
+.PHONY:distclean
 distclean: clean
 
+.PHONY:install
 install: all
 	[ -d $(DESTDIR)$(LIBDIR) ] || install -d -m 755 $(DESTDIR)$(LIBDIR)
 	install -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
@@ -235,6 +240,6 @@ install: all
 	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
 	install -m 755 bin/mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
 
-
+.PHONY:tar
 tar:
 	make -C ../ tar
