@@ -354,19 +354,11 @@ static int dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
 		MHVTL_DBG(3, "  Identifier length            : %d", idlen);
 		if (idlen) {
 			if (dvcid_serial_only) {
-				MHVTL_DBG(3,
-						  "  ASCII data                   : %10s",
-						  &p[i + 4]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", idlen, &p[i + 4]);
 			} else {
-				MHVTL_DBG(3,
-						  "  ASCII data                   : %8s",
-						  &p[i + 4]);
-				MHVTL_DBG(3,
-						  "  ASCII data                   : %16s",
-						  &p[i + 12]);
-				MHVTL_DBG(3,
-						  "  ASCII data                   : %10s",
-						  &p[i + 28]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", 8, &p[i + 4]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", 16, &p[i + 12]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", 10, &p[i + 28]);
 			}
 		}
 		i = (j + 1) * len;
