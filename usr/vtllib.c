@@ -1240,47 +1240,37 @@ void log_opcode(char *opcode, struct scsi_cmd *cmd) {
 #define LOCK_PATH "/var/lock/mhvtl"
 #define MAX_WAIT  20
 int check_for_running_daemons(unsigned minor) {
-	char		lck_file[128];
-	struct stat km;
-	int			lck;
-	int			err;
-	int			a;
-	long		rand;
+	char lck_file[128];
+	int	 lck;
+	int	 a;
+	long rand;
 
 	/* Don't really care if this dir exists already */
-	err = mkdir(LOCK_PATH, S_IWUSR | S_IRUSR);
-	if (err < 0) {
+	if (mkdir(LOCK_PATH, S_IWUSR | S_IRUSR) < 0) {
 		MHVTL_DBG(3, "Unable to create lock directory %s", LOCK_PATH);
 	}
 
 	sprintf(lck_file, "%s/mhvtl%d", LOCK_PATH, minor);
-	MHVTL_DBG(1, "Lock file %s", lck_file);
+	MHVTL_DBG(1, "Checking lock file %s", lck_file);
 
 	for (a = 0; a < MAX_WAIT; a++) {
-		MHVTL_DBG(3, "stat %s file %d times", lck_file, a);
-		if (stat(lck_file, &km) == 0) { /* Lock file still exists */
-			rand = 0xffL & random();
-			MHVTL_DBG(3, "sleeping for 0x%lx", rand << 12);
-			usleep((useconds_t)(rand << 12));
-		} else {
-			/* There is a race between stat() and creat() - but should be small for this use case */
-			lck = creat(lck_file, O_CREAT | S_IRWXU);
-			if (lck < 0) { /* Lock file exists */
-				MHVTL_DBG(1, "creat lock file %s failed %s", lck_file, strerror(err));
-			} else {
-				break;
-			}
+		lck = open(lck_file, O_CREAT | O_EXCL | O_WRONLY, S_IRWXU);
+		if (lck >= 0) {
+			MHVTL_DBG(1, "Successfully created lock file %s", lck_file);
+			close(lck);
+			return 0;
+		} else if (errno == EEXIST) { /* Lock file still exists */
+			rand = (0xffL & random()) << 12;
+			MHVTL_DBG(3, "Lock file exists, sleeping for 0x%lxs", rand);
+			usleep((useconds_t)rand);
+		} else { /* Unexpected error */
+			MHVTL_DBG(1, "opening lock file %s failed %s", lck_file, strerror(errno));
+			return 2;
 		}
 	}
-	if (a >= MAX_WAIT) {
-		MHVTL_DBG(1, "Unable to obtain lock file %s - returing error", lck_file);
-		return 1;
-	}
 
-	MHVTL_DBG(1, "Successfully created lock file %s", lck_file);
-
-	close(lck);
-	return 0;
+	MHVTL_DBG(1, "Unable to obtain lock file %s - returing error", lck_file);
+	return 1;
 }
 
 int free_lock(unsigned minor) {
