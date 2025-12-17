@@ -1,3 +1,5 @@
+#ifndef SSC_H
+#define SSC_H
 
 #include <signal.h>
 
@@ -311,3 +313,5 @@ void set_lp11_compression(int flag);	/* Update LogPage 11 compression bit */
 
 extern struct priv_lu_ssc lu_ssc;
 extern struct lu_phy_attr lunit;
+
+#endif 	/* SSC_H */
