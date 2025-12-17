@@ -1,3 +1,5 @@
+#ifndef SMC_H
+#define SMC_H
 
 /* Element type codes */
 #define ANY				 0
@@ -61,3 +63,5 @@ void init_hp_msl_smc(struct lu_phy_attr *lu);
 void init_overland_smc(struct lu_phy_attr *lu);
 void smc_personality_module_register(struct smc_personality_template *pm);
 void setAccessStatus(struct s_info *s, int flg);
+
+#endif /* SMC_H */
