@@ -209,6 +209,7 @@ struct mhvtl_lu_info {
 	unsigned int		   minor;
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct scsi_device	  *sdev;
+	spinlock_t			   sdev_lock;
 
 	char reset;
 
@@ -1037,6 +1038,7 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 	struct Scsi_Host	  *hpnt;
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info  *lu;
+	struct scsi_device	  *tmp_sdev;
 	int					   error = 0;
 
 	if (devp[minor]) {
@@ -1064,7 +1066,6 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 		return -ENOMEM;
 	}
 	memset(lu, 0, sizeof(*lu));
-	list_add_tail(&lu->lu_sibling, &mhvtl_hba->lu_list);
 
 	lu->minor	  = minor;
 	lu->channel	  = ctl->channel;
@@ -1074,8 +1075,10 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 	lu->reset	  = 0;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
 	spin_lock_init(&lu->cmd_list_lock);
+	spin_lock_init(&lu->sdev_lock);
 #else
 	lu->cmd_list_lock = SPIN_LOCK_UNLOCKED;
+	lu->sdev_lock	  = SPIN_LOCK_UNLOCKED;
 #endif
 
 	/* List of queued SCSI op codes associated with this device */
@@ -1084,13 +1087,21 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 	lu->sense_buff[0] = 0x70;
 	lu->sense_buff[7] = 0xa;
 	devp[minor]		  = lu;
+
+	spin_lock(&mhvtl_hba_list_lock);
+	list_add_tail(&lu->lu_sibling, &mhvtl_hba->lu_list);
+	spin_unlock(&mhvtl_hba_list_lock);
+
 	pr_debug("Added lu: %p to devp[%d]\n", lu, minor);
 
-	lu->sdev = __scsi_add_device(hpnt, ctl->channel, ctl->id, ctl->lun, NULL);
-	if (IS_ERR(lu->sdev)) {
-		lu->sdev = NULL;
+	tmp_sdev = __scsi_add_device(hpnt, ctl->channel, ctl->id, ctl->lun, NULL);
+	if (IS_ERR(tmp_sdev)) {
+		tmp_sdev = NULL;
 		error	 = -ENODEV;
 	}
+	spin_lock(&lu->sdev_lock);
+	lu->sdev = tmp_sdev;
+	spin_unlock(&lu->sdev_lock);
 	return error;
 }
 
@@ -1624,16 +1635,28 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 	pr_debug("ioctl to remove device <c t l> <%02d %02d %02d>, hba: %p\n",
 			 ctl.channel, ctl.id, ctl.lun, mhvtl_hba);
 
+	spin_lock(&mhvtl_hba_list_lock);
 	list_for_each_entry_safe(lu, n, &mhvtl_hba->lu_list, lu_sibling) {
 		if ((lu->channel == ctl.channel) && (lu->target == ctl.id) &&
 			(lu->lun == ctl.lun)) {
 			pr_debug("line %d found matching lu\n", __LINE__);
 			list_del(&lu->lu_sibling);
 			devp[minor] = NULL;
-			baksdev		= lu->sdev;
-			scsi_remove_device(lu->sdev);
-			scsi_device_put(baksdev);
+
+			spin_lock(&lu->sdev_lock);
+			if (lu->sdev) {
+				baksdev = lu->sdev;
+				spin_unlock(&lu->sdev_lock);
+				break;
+			}
+			spin_unlock(&lu->sdev_lock);
 		}
+	}
+	spin_unlock(&mhvtl_hba_list_lock);
+
+	if (baksdev) {
+		scsi_remove_device(baksdev);
+		scsi_device_put(baksdev);
 	}
 
 	ret = 0;
