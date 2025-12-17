@@ -25,7 +25,7 @@
 
 #include "vtllib.h"
 
-/* Block type definitations */
+/* Block type definitions */
 #define B_DATA	   11
 #define B_FILEMARK 3
 #define B_EOD	   5 /* End of data */
