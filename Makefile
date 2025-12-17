@@ -49,6 +49,7 @@ patch:
 
 
 install: all
+	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
 	$(MAKE) -C usr install
 	$(MAKE) -C scripts install
 	$(MAKE) -i -C etc install
