@@ -38,12 +38,39 @@ mhvtl.ko:	config.h
 config.h: config.sh
 	./config.sh
 
+install: all
+	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
+	install -m 755 ../mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
+	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/
+	if [ -f "/etc/modprobe.d/unsupported-modules" ]; then \
+		sed -i 's/^allow_unsupported_modules 0/allow_unsupported_modules 1/' /etc/modprobe.d/unsupported-modules; \
+	fi
+	depmod -a
+
+uninstall: distclean
+	rm -f /lib/modules/$(V)/kernel/drivers/scsi/mhvtl.ko $(DESTDIR)$(FIRMWAREDIR)/mhvtl/mhvtl_kernel.tgz
+	depmod -a
+
+../mhvtl_kernel.tgz:  $(wildcard ./*.c) $(wildcard ./*.h) $(wildcard ../include/common/*.h) \
+					  config.sh Makefile
+	tar --sort=name --mtime=@1 --format=gnu --transform='s|.*/||' -czf $@ $^
+
+install-bkup:
+	cp mhvtl.ko ~/mhvtl-$(V)_`uname -m`.ko
+
+tags:
+	ctags -R *
+
+# ========== Cleaning ==========
+
+.PHONY:clean
 clean:
 	$(RM) mhvtl.ko
 	$(RM) *.o
 	$(RM) TAGS
 	$(RM) config.h
 
+.PHONY: distclean
 distclean: clean
 	$(RM) .*.o.d \
 	    mhvtl.mod.c \
@@ -64,22 +91,3 @@ distclean: clean
 	    .mhvtl.ko.unsigned.cmd \
 	    config.h
 	$(RM) -r .tmp_versions
-
-install: all
-	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
-	install -m 755 ../mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
-	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/
-	if [ -f "/etc/modprobe.d/unsupported-modules" ]; then \
-		sed -i 's/^allow_unsupported_modules 0/allow_unsupported_modules 1/' /etc/modprobe.d/unsupported-modules; \
-	fi
-	depmod -a
-
-../mhvtl_kernel.tgz:  $(wildcard ./*.c) $(wildcard ./*.h) $(wildcard ../include/common/*.h) \
-					  config.sh Makefile
-	tar --sort=name --mtime=@1 --format=gnu --transform='s|.*/||' -czf $@ $^
-
-install-bkup:
-	cp mhvtl.ko ~/mhvtl-$(V)_`uname -m`.ko
-
-tags:
-	ctags -R *

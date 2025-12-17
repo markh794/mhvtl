@@ -213,12 +213,7 @@ clean:
 		bin/*
 	$(RM) TAGS
 
-.PHONY:tags
-tags:
-	etags -R *.[ch] ../kernel/*.h
 
-.PHONY:distclean
-distclean: clean
 
 # ========== command targets ==========
 
@@ -246,6 +241,34 @@ ifeq ($(ROOTUID),YES)
 	ldconfig 
 endif
 
+.PHONY: uninstall
+uninstall:
+	rm -f $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
+		  $(addprefix $(DESTDIR)$(LIBDIR)/,$(LIBRARIES)) \
+		  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/mhvtl-device-conf-generator
+	restorecon -R -v  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
+ifeq ($(ROOTUID),YES)
+	ldconfig 
+endif	
+
 .PHONY:tar
 tar:
 	make -C ../ tar
+
+.PHONY:tags
+tags:
+	etags -R *.[ch] ../kernel/*.h
+
+# ========== Cleaning ==========
+
+.PHONY:clean
+clean:
+	$(RM) *.d *.o *.so \
+		pm/*.d pm/*.o \
+		utils/*.d utils/*.o \
+		cmd/*.d cmd/*.o \
+		bin/*
+	$(RM) TAGS
+
+.PHONY:distclean
+distclean: clean

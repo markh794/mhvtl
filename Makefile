@@ -44,29 +44,9 @@ check:	ARCH=$(shell sh scripts/checkarch.sh)
 check:
 	CC=$(CHECK_CC_FLAGS) $(MAKE) all
 
-tags:
-	$(MAKE) -C usr tags
-	$(MAKE) -C kernel tags
 
 patch:
 
-clean:
-	$(MAKE) -C usr clean
-	$(MAKE) -C etc clean
-	$(MAKE) -C scripts clean
-	$(MAKE) -C man clean
-	$(MAKE) -C kernel clean
-	$(RM) -f mhvtl_kernel.tgz
-
-.PHONY: distclean
-distclean:
-	$(MAKE) -C usr distclean
-	$(MAKE) -C etc distclean
-	$(MAKE) -C scripts distclean
-	$(MAKE) -C kernel distclean
-	$(MAKE) -C man clean
-	$(RM) -f mhvtl_kernel.tgz
-	$(RM) ../$(TAR_FILE)
 
 install: all
 	$(MAKE) -C usr install
@@ -84,6 +64,17 @@ endif
 			--config-dir=$(DESTDIR)$(MHVTL_CONFIG_PATH) \
 			--home-dir=$(DESTDIR)$(MHVTL_HOME_PATH) \
 			--mktape-path=usr/bin
+
+.PHONY:uninstall
+uninstall:
+	$(MAKE) -C usr uninstall
+	$(MAKE) -C scripts uninstall
+	$(MAKE) -i -C etc uninstall
+	$(MAKE) -C man uninstall
+	$(MAKE) -C kernel uninstall
+ifeq ($(ROOTUID),YES)
+	systemctl daemon-reload
+endif
 
 tar: distclean
 	test -d ../$(PARENTDIR) || ln -s $(TOPDIR) ../$(PARENTDIR)
@@ -107,3 +98,29 @@ tar: distclean
 		 $(PARENTDIR)/mhvtl_kernel.tgz \
 		 $(PARENTDIR)/mhvtl-utils.spec)
 	$(RM) ../$(PARENTDIR)
+
+.PHONY:tags
+tags:
+	$(MAKE) -C usr tags
+	$(MAKE) -C kernel tags
+
+# ========== Cleaning ==========
+
+.PHONY:clean
+clean:
+	$(MAKE) -C usr clean
+	$(MAKE) -C etc clean
+	$(MAKE) -C scripts clean
+	$(MAKE) -C man clean
+	$(MAKE) -C kernel clean
+	$(RM) mhvtl_kernel.tgz
+
+.PHONY: distclean
+distclean:
+	$(MAKE) -C usr distclean
+	$(MAKE) -C etc distclean
+	$(MAKE) -C scripts distclean
+	$(MAKE) -C kernel distclean
+	$(MAKE) -C man distclean
+	$(RM) mhvtl_kernel.tgz
+	$(RM) ../$(TAR_FILE)

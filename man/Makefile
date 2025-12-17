@@ -52,8 +52,17 @@ $(MAN_PATH)/man5/%.5: %.5 | $(MAN_PATH)/man5
 install: $(addprefix $(MAN_PATH)/man1/,$(MAN1_PAGES)) \
 		 $(addprefix $(MAN_PATH)/man5/,$(MAN5_PAGES))
 
+.PHONY: uninstall
+uninstall:
+	rm -f $(addprefix $(MAN_PATH)/man1/,$(MAN1_PAGES)) \
+		  $(addprefix $(MAN_PATH)/man5/,$(MAN5_PAGES))
+
 # ========== Cleaning ==========
 
 .PHONY:clean
 clean:
+	rm -f *.1 *.5
+
+.PHONY:distclean
+distclean:
 	rm -f *.1 *.5
