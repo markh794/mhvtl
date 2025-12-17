@@ -80,7 +80,6 @@ install: all
 	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
 	install -m 755 mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
 ifeq ($(ROOTUID),YES)
-	ldconfig
 	systemctl daemon-reload
 endif
 	# now ensure VTL media is setup

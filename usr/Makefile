@@ -242,6 +242,9 @@ install: all \
 	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape
 	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
 	install -m 755 bin/mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
+ifeq ($(ROOTUID),YES)
+	ldconfig 
+endif
 
 .PHONY:tar
 tar:
