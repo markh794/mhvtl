@@ -44,7 +44,7 @@
 #include "spc.h"
 #include "q.h"
 #include "ssc.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "mhvtl_log.h"
 #include "mode.h"
 
@@ -66,6 +66,103 @@ static struct allow_overwrite_state {
 	},
 };
 #endif
+
+#define declare_ssc_vars                                                            \
+	struct lu_phy_attr *lu __attribute__((unused))		 = cmd->lu;                 \
+	struct priv_lu_ssc *lu_priv __attribute__((unused))	 = lu->lu_private;          \
+	struct encryption  *encr __attribute__((unused))	 = lu_priv->app_encr_info;  \
+	uint8_t			   *cdb __attribute__((unused))		 = cmd->scb;                \
+	struct mhvtl_ds	   *dbuf_p __attribute__((unused))	 = cmd->dbuf_p;             \
+	uint8_t			   *buf __attribute__((unused))		 = (uint8_t *)dbuf_p->data; \
+	uint8_t			   *sam_stat __attribute__((unused)) = &dbuf_p->sam_stat;       \
+	*sam_stat											 = SAM_STAT_GOOD;
+
+void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len) {
+	declare_ssc_vars;
+
+	memset(buf, 0, min((int)alloc_len, lu_priv->bufsize));
+}
+
+/* FIXME: Add VHF log page stuff here */
+int get_tape_load_status(void) {
+	return lu_ssc.load_status;
+}
+
+void set_tape_load_status(int s) {
+	struct vhf_data_5 *vhf5;
+
+	lu_ssc.load_status = s;
+
+	vhf5 = (struct vhf_data_5 *)get_vhf_byte(&lunit, 5);
+
+	if (vhf5) {
+		switch (s) {
+		case TAPE_UNLOADED:
+			vhf5->INXTN	  = 1; /* In transition */
+			vhf5->MSTD	  = 0; /* Medium seated */
+			vhf5->MTHRD	  = 0; /* Medium threaded */
+			vhf5->MOUNTED = 0; /* Medium mounted */
+			vhf5->MPRSNT  = 0; /* Medium Present */
+			vhf5->RAA	  = 1; /* Robotic access allowed */
+			vhf5->INXTN	  = 0; /* Completed updates */
+			set_lp_11_macc(0); /* MAM Accessible */
+			break;
+		case TAPE_LOADED:
+			vhf5->INXTN	  = 1; /* In transition */
+			vhf5->MSTD	  = 1; /* Medium seated */
+			vhf5->MTHRD	  = 1; /* Medium threaded */
+			vhf5->MOUNTED = 1; /* Medium mounted */
+			vhf5->MPRSNT  = 1; /* Medium Present */
+			vhf5->RAA	  = 1; /* Robotic access allowed */
+			vhf5->INXTN	  = 0; /* Completed updates */
+			set_lp_11_macc(1); /* MAM Accessible */
+			break;
+		case TAPE_LOADING:
+			vhf5->INXTN	  = 1; /* In transition */
+			vhf5->MSTD	  = 1; /* Medium seated */
+			vhf5->MTHRD	  = 0; /* Medium threaded */
+			vhf5->MOUNTED = 0; /* Medium mounted */
+			vhf5->MPRSNT  = 1; /* Medium Present */
+			vhf5->RAA	  = 1; /* Robotic access allowed */
+			vhf5->INXTN	  = 0; /* Completed updates */
+			set_lp_11_macc(0); /* MAM Accessible */
+			break;
+		}
+	}
+}
+
+/* Update MAM Accessible bit in LogPage 0x11 */
+void set_lp_11_macc(int flag) {
+	struct vhf_data_4 *vhf4;
+
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(&lunit, 4);
+	if (!vhf4)
+		return;
+	vhf4->MACC = (flag) ? 1 : 0;
+}
+
+void set_lp11_medium_present(int flag) {
+	struct vhf_data_5 *vhf5;
+
+	vhf5 = (struct vhf_data_5 *)get_vhf_byte(&lunit, 5);
+	if (!vhf5)
+		return;
+	vhf5->MPRSNT = (flag) ? 1 : 0;
+
+	if (!flag) {		   /* Clearing bit - also set state to unloaded */
+		set_lp_11_macc(0); /* MAM Accessible */
+		set_current_state(MHVTL_STATE_UNLOADED);
+	}
+}
+
+void set_lp11_compression(int flag) {
+	struct vhf_data_4 *vhf4;
+
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(&lunit, 4);
+	if (!vhf4)
+		return;
+	vhf4->CMPR = (flag) ? 1 : 0;
+}
 
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd) {
 	uint8_t			   *cdb				= cmd->scb;

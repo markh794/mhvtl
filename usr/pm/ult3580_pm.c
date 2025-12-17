@@ -43,7 +43,7 @@
 #include "q.h"
 #include "ssc.h"
 #include "spc.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "mode.h"
 #include "mhvtl_log.h"
 

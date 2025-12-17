@@ -74,7 +74,7 @@
 #include "q.h"
 #include "logging.h"
 #include "vtllib.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "spc.h"
 #include "ssc.h"
 #include "mhvtl_log.h"
@@ -340,48 +340,6 @@ int lookup_mode_media_type(struct name_to_media_info *media_info, int med) {
 	return media_type_unknown;
 }
 
-void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len) {
-	struct priv_lu_ssc *lu_priv;
-	uint8_t			   *buf = (uint8_t *)cmd->dbuf_p->data;
-
-	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
-
-	memset(buf, 0, min((int)alloc_len, lu_priv->bufsize));
-}
-
-/* Update MAM Accessible bit in LogPage 0x11 */
-static void set_lp_11_macc(int flag) {
-	struct vhf_data_4 *vhf4;
-
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(&lunit, 4);
-	if (!vhf4)
-		return;
-	vhf4->MACC = (flag) ? 1 : 0;
-}
-
-void set_lp11_medium_present(int flag) {
-	struct vhf_data_5 *vhf5;
-
-	vhf5 = (struct vhf_data_5 *)get_vhf_byte(&lunit, 5);
-	if (!vhf5)
-		return;
-	vhf5->MPRSNT = (flag) ? 1 : 0;
-
-	if (!flag) {		   /* Clearing bit - also set state to unloaded */
-		set_lp_11_macc(0); /* MAM Accessible */
-		set_current_state(MHVTL_STATE_UNLOADED);
-	}
-}
-
-void set_lp11_compression(int flag) {
-	struct vhf_data_4 *vhf4;
-
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(&lunit, 4);
-	if (!vhf4)
-		return;
-	vhf4->CMPR = (flag) ? 1 : 0;
-}
-
 /* Update WriteProtect bit in LogPage 0x11 */
 static void set_lp_11_wp(int flag) {
 	struct vhf_data_4 *vhf4;
@@ -390,11 +348,6 @@ static void set_lp_11_wp(int flag) {
 	if (!vhf4)
 		return;
 	vhf4->WRTP = (flag) ? 1 : 0;
-}
-
-/* FIXME: Add VHF log page stuff here */
-int get_tape_load_status(void) {
-	return lu_ssc.load_status;
 }
 
 void set_current_state(int s) {
@@ -454,49 +407,6 @@ void set_current_state(int s) {
 	case MHVTL_STATE_VERIFY:
 		*vhf_device_activity = 0x4;
 		break;
-	}
-}
-
-void set_tape_load_status(int s) {
-	struct vhf_data_5 *vhf5;
-
-	lu_ssc.load_status = s;
-
-	vhf5 = (struct vhf_data_5 *)get_vhf_byte(&lunit, 5);
-
-	if (vhf5) {
-		switch (s) {
-		case TAPE_UNLOADED:
-			vhf5->INXTN	  = 1; /* In transition */
-			vhf5->MSTD	  = 0; /* Medium seated */
-			vhf5->MTHRD	  = 0; /* Medium threaded */
-			vhf5->MOUNTED = 0; /* Medium mounted */
-			vhf5->MPRSNT  = 0; /* Medium Present */
-			vhf5->RAA	  = 1; /* Robotic access allowed */
-			vhf5->INXTN	  = 0; /* Completed updates */
-			set_lp_11_macc(0); /* MAM Accessible */
-			break;
-		case TAPE_LOADED:
-			vhf5->INXTN	  = 1; /* In transition */
-			vhf5->MSTD	  = 1; /* Medium seated */
-			vhf5->MTHRD	  = 1; /* Medium threaded */
-			vhf5->MOUNTED = 1; /* Medium mounted */
-			vhf5->MPRSNT  = 1; /* Medium Present */
-			vhf5->RAA	  = 1; /* Robotic access allowed */
-			vhf5->INXTN	  = 0; /* Completed updates */
-			set_lp_11_macc(1); /* MAM Accessible */
-			break;
-		case TAPE_LOADING:
-			vhf5->INXTN	  = 1; /* In transition */
-			vhf5->MSTD	  = 1; /* Medium seated */
-			vhf5->MTHRD	  = 0; /* Medium threaded */
-			vhf5->MOUNTED = 0; /* Medium mounted */
-			vhf5->MPRSNT  = 1; /* Medium Present */
-			vhf5->RAA	  = 1; /* Robotic access allowed */
-			vhf5->INXTN	  = 0; /* Completed updates */
-			set_lp_11_macc(0); /* MAM Accessible */
-			break;
-		}
 	}
 }
 

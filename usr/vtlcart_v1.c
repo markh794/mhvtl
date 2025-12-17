@@ -37,7 +37,7 @@
 #include <zlib.h>
 
 #include "mhvtl_scsi.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "be_byteshift.h"
 
 #define B_BOT 14 /* Beginning of Tape TAPE_FMT_VERSION 2 */

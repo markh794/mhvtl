@@ -49,7 +49,7 @@
 
 #include "logging.h"
 #include "mhvtl_list.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 
 /* The .meta file consists of a MAM structure followed by a meta_header
    structure, followed by a variable-length array of filemark block numbers.

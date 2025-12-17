@@ -53,7 +53,7 @@
 #include "logging.h"
 #include "vtllib.h"
 #include "smc.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "mode.h"
 #include "q.h"
 #include "ssc.h"

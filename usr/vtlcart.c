@@ -46,7 +46,7 @@
 #include "logging.h"
 #include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "be_byteshift.h"
 
 /* The .indx file consists of an array of one raw_header structure per

@@ -1,7 +1,7 @@
 /*
  * Describes the header layout of each tape 'block'
  *
- * $Id: vtltape.h,v 1.1.2.1 2006-08-06 07:58:44 markh Exp $
+ * $Id: vtlcart.h,v 1.1.2.1 2006-08-06 07:58:44 markh Exp $
  *
  * Copyright (C) 2005 - 2025 Mark Harvey markh794 at gmail dot com
  *
@@ -20,8 +20,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _VTLTAPE_H_
-#define _VTLTAPE_H_
+#ifndef _VTLCART_H_
+#define _VTLCART_H_
 
 #include "vtllib.h"
 
@@ -196,16 +196,8 @@ extern struct blk_header *c_pos;
 extern int				  OK_to_write;
 
 int	 create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat);
-void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len);
-
 int	 load_tape(const char *pcl, uint8_t *sam_stat);
 void unload_tape(uint8_t *sam_stat);
-
-void set_tape_load_status(int s);
-int	 get_tape_load_status(void);
-
-void set_lp11_compression(int flag);	/* Update LogPage 11 compression bit */
-void set_lp11_medium_present(int flag); /* Update LogPage 11 'Medium Present' bit */
 
 int rewind_tape(uint8_t *sam_stat);
 int position_to_eod(uint8_t *sam_stat);
@@ -233,4 +225,4 @@ void print_filemark_count(void);
 void print_metadata(void);
 void cart_deinit(void);
 
-#endif /* _VTLTAPE_H_ */
+#endif /* _VTLCART_H_ */

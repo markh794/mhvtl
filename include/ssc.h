@@ -298,3 +298,15 @@ void	unloadTape(int update_library, uint8_t *sam_stat);
 void	delay_opcode(int what, int value);
 void	set_current_state(int state);
 void	set_timestamp(uint8_t source, uint64_t ts);
+
+void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len);
+
+int	 get_tape_load_status(void);
+void set_tape_load_status(int s);
+
+void set_lp_11_macc(int flag);
+void set_lp11_medium_present(int flag); /* Update LogPage 11 'Medium Present' bit */
+void set_lp11_compression(int flag);	/* Update LogPage 11 compression bit */
+
+extern struct priv_lu_ssc lu_ssc;
+extern struct lu_phy_attr lunit;

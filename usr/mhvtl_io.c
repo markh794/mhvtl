@@ -28,7 +28,7 @@
 #include "q.h"
 #include "logging.h"
 #include "vtllib.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "spc.h"
 #include "ssc.h"
 #include "mhvtl_log.h"
