@@ -92,7 +92,7 @@ uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd) {
 	case 0:
 		break;
 	case 1:				 /* current position */
-		if (partition) { /* Paritions not supported at this stage */
+		if (partition) { /* Partitions not supported at this stage */
 			MHVTL_LOG("Partitions not implemented at this time");
 			sd.byte0		 = SKSV | CD;
 			sd.field_pointer = 3;
@@ -1610,7 +1610,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			memset(buf, 0, READ_POSITION_LEN); /* Clear 'array' */
 
 			if (c_pos->blk_number < 2) {
-				MHVTL_DBG(3, "Setting Beginning of Parition (BOP)");
+				MHVTL_DBG(3, "Setting Beginning of Partition (BOP)");
 				sp->BOP = 1; /* Beginning of partition */
 			}
 
@@ -1665,7 +1665,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 
 			if (c_pos->blk_number < 2) {
 				lp->BOP = 1;
-				MHVTL_DBG(3, "Setting Beginning of Parition (BOP)");
+				MHVTL_DBG(3, "Setting Beginning of Partition (BOP)");
 			}
 
 			lp->LONU = 0; /* Set 'Logical Object Number Unknown' bit valid (block location info is valid) */
