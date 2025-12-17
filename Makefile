@@ -52,7 +52,6 @@ install: all
 	$(MAKE) -C usr install
 	$(MAKE) -C scripts install
 	$(MAKE) -i -C etc install
-	$(MAKE) -C man man
 	$(MAKE) -C man install
 	$(MAKE) -C kernel install
 ifeq ($(ROOTUID),YES)
