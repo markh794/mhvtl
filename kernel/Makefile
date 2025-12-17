@@ -30,7 +30,9 @@ FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-uti
 
 PWD	:= $(shell pwd)
 
-all:	config.h ../mhvtl_kernel.tgz
+all: mhvtl.ko ../mhvtl_kernel.tgz
+
+mhvtl.ko:	config.h
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 config.h: config.sh
