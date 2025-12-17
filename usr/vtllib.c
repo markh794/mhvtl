@@ -1524,11 +1524,12 @@ static int mhvtl_fifo_count(int direction) {
 		if (sem_trywait(mhvtl_sem)) {
 			MHVTL_LOG("Waiting for semaphore: %p", mhvtl_sem);
 			sleep(1);
-			if (i > 8)
+			if (i > 8) {
 				/* Give up.. Clear the semaphore & do it */
 				MHVTL_ERR("waiting for semaphore: %p",
 						  mhvtl_sem);
-			sem_post(mhvtl_sem);
+				sem_post(mhvtl_sem);
+			}
 		} else {
 			retval = mhvtl_shared_mem(direction);
 			sem_post(mhvtl_sem);
