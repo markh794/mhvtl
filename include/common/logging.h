@@ -15,7 +15,7 @@
 #include <syslog.h>
 #include <stdint.h>
 
-#define MHVTL_OPT_NOISE 3
+#define MHVTL_OPT_NOISE 0x11
 
 #ifdef MHVTL_DEBUG
 extern char	   mhvtl_driver_name[];
@@ -27,7 +27,7 @@ extern uint8_t verbose;
 		if (debug)                                        \
 			printf("%s: " format "\n",                    \
 				   mhvtl_driver_name, ##arg);             \
-		else if ((verbose & MHVTL_OPT_NOISE) >= (lvl))    \
+		else if ((verbose) >= (lvl))                      \
 			syslog(LOG_DAEMON | LOG_INFO, format, ##arg); \
 	} while (0)
 
@@ -60,18 +60,18 @@ extern uint8_t verbose;
 		if (debug)                                         \
 			printf("%s: %s(): " format "\n",               \
 				   mhvtl_driver_name, __func__, ##arg);    \
-		else if ((verbose & MHVTL_OPT_NOISE) >= (lvl))     \
+		else if ((verbose) >= (lvl))                       \
 			syslog(LOG_DAEMON | LOG_INFO, "%s(): " format, \
 				   __func__, ##arg);                       \
 	} while (0)
 
-#define MHVTL_DBG_PRT_CDB(lvl, cmd)                        \
-	do {                                                   \
-		if (debug) {                                       \
-			mhvtl_prt_cdb((lvl), (cmd));                   \
-		} else if ((verbose & MHVTL_OPT_NOISE) >= (lvl)) { \
-			mhvtl_prt_cdb((lvl), (cmd));                   \
-		}                                                  \
+#define MHVTL_DBG_PRT_CDB(lvl, cmd)      \
+	do {                                 \
+		if (debug) {                     \
+			mhvtl_prt_cdb((lvl), (cmd)); \
+		} else if ((verbose) >= (lvl)) { \
+			mhvtl_prt_cdb((lvl), (cmd)); \
+		}                                \
 	} while (0)
 
 #else
