@@ -1944,7 +1944,7 @@ void register_ops(struct lu_phy_attr *lu, int op,
 static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl) {
 	struct vpd **lu_vpd = lu->lu_vpd;
 
-	char			*config = MHVTL_CONFIG_PATH "/device.conf";
+	char			*device_conf = MHVTL_CONFIG_PATH "/device.conf";
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
 	char			*s; /* Somewhere for sscanf to store results */
@@ -1985,10 +1985,10 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	put_unaligned_be16(0x0960, &lu->inquiry[60]); /* iSCSI */
 	put_unaligned_be16(0x0200, &lu->inquiry[62]); /* SSC */
 
-	conf = fopen(config, "r");
+	conf = fopen(device_conf, "r");
 	if (!conf) {
 		MHVTL_ERR("Can not open config file %s : %s",
-				  config, strerror(errno));
+				  device_conf, strerror(errno));
 		perror("Can not open config file");
 		exit(1);
 	}

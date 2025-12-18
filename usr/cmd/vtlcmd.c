@@ -395,7 +395,7 @@ int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf) {
 }
 
 int main(int argc, char **argv) {
-	char *config = MHVTL_CONFIG_PATH "/device.conf";
+	char *device_conf = MHVTL_CONFIG_PATH "/device.conf";
 	FILE *conf;
 	char  b[1024];
 	int	  device_type = TYPE_UNKNOWN;
@@ -441,10 +441,10 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	conf = fopen(config, "r");
+	conf = fopen(device_conf, "r");
 	if (!conf) {
 		fprintf(stderr, "Can not open config file %s : %s\n",
-				config, strerror(errno));
+				device_conf, strerror(errno));
 		exit(1);
 	}
 
@@ -469,7 +469,7 @@ int main(int argc, char **argv) {
 	if (device_type == TYPE_UNKNOWN) {
 		fprintf(stderr, "No tape/library (%s) configured with "
 						"device number: %ld\n",
-				config, deviceNo);
+				device_conf, deviceNo);
 		exit(1);
 	}
 

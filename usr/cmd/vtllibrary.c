@@ -594,7 +594,7 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu) {
 /* Open device config file and update device information
  */
 static void update_drive_details(struct lu_phy_attr *lu) {
-	char			*config = MHVTL_CONFIG_PATH "/device.conf";
+	char			*device_conf = MHVTL_CONFIG_PATH "/device.conf";
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
 	char			*s; /* Somewhere for sscanf to store results */
@@ -604,9 +604,9 @@ static void update_drive_details(struct lu_phy_attr *lu) {
 	struct s_info	*sp;
 	struct smc_priv *smc_p = lu->lu_private;
 
-	conf = fopen(config, "r");
+	conf = fopen(device_conf, "r");
 	if (!conf) {
-		MHVTL_DBG(1, "Can not open config file %s : %s", config,
+		MHVTL_DBG(1, "Can not open config file %s : %s", device_conf,
 				  strerror(errno));
 		perror("Can not open config file");
 		exit(1);
@@ -880,7 +880,7 @@ void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode) {
 }
 
 static void __init_slot_info(struct lu_phy_attr *lu, int type) {
-	char		conf[256];
+	char		lib_conf[256];
 	FILE	   *ctrl;
 	char	   *b; /* Read from file into this buffer */
 	char	   *s; /* Somewhere for sscanf to store results */
@@ -894,38 +894,38 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 	filestat = -1; /* Default to .persist file does not exist */
 
 	/* Lets stat each (potential) file and identify the last one modified */
-	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
-																   ".persist",
+	snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
+																		   ".persist",
 			 my_id);
 
 	if (lu->persist) /* If enabled - stat .persist file */
-		filestat = stat(conf, &persiststat);
+		filestat = stat(lib_conf, &persiststat);
 
 	if (filestat < 0) {
 		/* PERSIST is either disabled or .persist file does not exist
 		 * - Update config filename to master 'library_contents.<id>
 		 */
-		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
+		snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
 	} else {
 		/* stat original config file */
-		snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
-		filestat = stat(conf, &configstat);
+		snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
+		filestat = stat(lib_conf, &configstat);
 		if (filestat < 0) { /* Does not exist !! */
 			MHVTL_ERR("Can not stat config file %s: %s",
-					  conf, strerror(errno));
+					  lib_conf, strerror(errno));
 			exit(1);
 		}
 		if (configstat.st_mtime > persiststat.st_mtime) {
 			/* Don't do anything - leave config filename alone */
 			MHVTL_DBG(1, "%s is newer than %s.persist file. "
 						 "Using %s instead",
-					  conf, conf, conf);
+					  lib_conf, lib_conf, lib_conf);
 		} else {
 			/* Update the config file to
 			   library_contents.<id>.persist
 			*/
-			snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
-																		   ".persist",
+			snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
+																				   ".persist",
 					 my_id);
 		}
 	}
@@ -936,9 +936,9 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 	 *     last few millisecs we should be good.
 	 * - Filename will be latest modify date
 	 */
-	ctrl = fopen(conf, "r");
+	ctrl = fopen(lib_conf, "r");
 	if (!ctrl) {
-		MHVTL_ERR("Can not open config file %s : %s", conf,
+		MHVTL_ERR("Can not open config file %s : %s", lib_conf,
 				  strerror(errno));
 		exit(1);
 	}
@@ -946,7 +946,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 	/* Log which config file is being used to read in data */
 	MHVTL_DBG(2, "Reading %s configuration information from %s",
 			  slot_type_str(type),
-			  conf);
+			  lib_conf);
 
 	/* Grab a couple of generic MALLOC_SZ buffers.. */
 	s = zalloc(MALLOC_SZ);
@@ -1058,7 +1058,7 @@ static struct s_info *find_empty_storage_slot(struct s_info	   *s,
 /* Save config on shutdown - Not to be called at other times !! */
 static void save_config(struct lu_phy_attr *lu) {
 	FILE			 *ctrl;
-	char			  conf[256];
+	char			  lib_conf[256];
 	struct smc_priv	 *lu_priv;
 	struct list_head *slot_head;
 	struct list_head *drive_head;
@@ -1067,16 +1067,16 @@ static void save_config(struct lu_phy_attr *lu) {
 	int				  last_element_type = 0;
 
 	if (strlen(MHVTL_CONFIG_PATH LIBCONTENTS) >=
-		ARRAY_SIZE(conf) - sizeof(".persist")) {
-		MHVTL_LOG("Filename length exceeds %d", (int)ARRAY_SIZE(conf));
+		ARRAY_SIZE(lib_conf) - sizeof(".persist")) {
+		MHVTL_LOG("Filename length exceeds %d", (int)ARRAY_SIZE(lib_conf));
 	}
 
-	snprintf(conf, ARRAY_SIZE(conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
-																   ".persist",
+	snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
+																		   ".persist",
 			 my_id);
-	ctrl = fopen(conf, "w");
+	ctrl = fopen(lib_conf, "w");
 	if (!ctrl) {
-		MHVTL_ERR("Can not open file %s to save state : %s", conf,
+		MHVTL_ERR("Can not open file %s to save state : %s", lib_conf,
 				  strerror(errno));
 		return;
 	}
@@ -1164,7 +1164,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 	struct vpd **lu_vpd = lu->lu_vpd;
 
-	char			*config = MHVTL_CONFIG_PATH "/device.conf";
+	char			*device_conf = MHVTL_CONFIG_PATH "/device.conf";
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
 	char			*s; /* Somewhere for sscanf to store results */
@@ -1197,9 +1197,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 	lu->sense_p = &sense[0]; /* Save pointer to sense buffer */
 
-	conf = fopen(config, "r");
+	conf = fopen(device_conf, "r");
 	if (!conf) {
-		MHVTL_ERR("Can not open config file %s : %s", config,
+		MHVTL_ERR("Can not open config file %s : %s", device_conf,
 				  strerror(errno));
 		perror("Can not open config file");
 		exit(1);

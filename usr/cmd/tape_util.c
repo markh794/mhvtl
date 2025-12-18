@@ -430,7 +430,7 @@ int main(int argc, char *argv[]) {
 	int		indx;
 	int		block_size	= 0;
 	int		dump_data	= FALSE;
-	char   *config		= MHVTL_CONFIG_PATH "/device.conf";
+	char   *device_conf		= MHVTL_CONFIG_PATH "/device.conf";
 	char   *source_file = NULL;
 	char   *compression = NULL;
 	FILE   *conf;
@@ -543,9 +543,9 @@ int main(int argc, char *argv[]) {
 	init_lu_ssc(&lu_ssc);
 	init_lunit(&lunit, &lu_ssc);
 
-	conf = fopen(config, "r");
+	conf = fopen(device_conf, "r");
 	if (!conf) {
-		fprintf(stderr, "Cannot open config file %s: %s\n", config,
+		fprintf(stderr, "Cannot open config file %s: %s\n", device_conf,
 				strerror(errno));
 		exit(1);
 	}

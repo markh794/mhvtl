@@ -1506,7 +1506,7 @@ int get_fifo_count(void) {
  * is passed in
  */
 void find_media_home_directory(char *config_directory, long lib_id) {
-	char *config;
+	char *device_conf;
 	FILE *conf;
 	char *b; /* Read from file into this buffer */
 	char *s; /* Somewhere for sscanf to store results */
@@ -1516,14 +1516,14 @@ void find_media_home_directory(char *config_directory, long lib_id) {
 	found			  = 0;
 	home_directory[0] = '\0';
 
-	if (asprintf(&config, "%s/device.conf",
+	if (asprintf(&device_conf, "%s/device.conf",
 				 config_directory ? config_directory : MHVTL_CONFIG_PATH) < 0) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
-	conf = fopen(config, "r");
+	conf = fopen(device_conf, "r");
 	if (!conf) {
-		MHVTL_ERR("Can not open config file %s : %s", config,
+		MHVTL_ERR("Can not open config file %s : %s", device_conf,
 				  strerror(errno));
 		perror("Can not open config file");
 		exit(1);
@@ -1572,7 +1572,7 @@ finished:
 	free(s);
 	free(b);
 	fclose(conf);
-	free(config);
+	free(device_conf);
 }
 
 unsigned int set_media_params(struct MAM *mamp, char *density) {

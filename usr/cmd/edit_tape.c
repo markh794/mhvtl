@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 	int			  libno = 0;
 	int			  indx;
 	int			  rc;
-	char		 *config = MHVTL_CONFIG_PATH "/device.conf";
+	char		 *device_conf = MHVTL_CONFIG_PATH "/device.conf";
 	FILE		 *conf;
 	char		 *b; /* Read from file into this buffer */
 	char		 *s; /* Somewhere for sscanf to store results */
@@ -171,9 +171,9 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	conf = fopen(config, "r");
+	conf = fopen(device_conf, "r");
 	if (!conf) {
-		printf("Can not open config file %s : %s", config,
+		printf("Can not open config file %s : %s", device_conf,
 			   strerror(errno));
 		perror("Can not open config file");
 		exit(1);
