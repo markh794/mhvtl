@@ -1944,7 +1944,7 @@ void register_ops(struct lu_phy_attr *lu, int op,
 static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl) {
 	struct vpd **lu_vpd = lu->lu_vpd;
 
-	char			*device_conf = MHVTL_CONFIG_PATH "/device.conf";
+	char			 device_conf[CONF_FILE_SZ];
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
 	char			*s; /* Somewhere for sscanf to store results */
@@ -1952,6 +1952,10 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	struct mhvtl_ctl tmpctl;
 	int				 found = 0;
 	int				 linecount;
+
+	if (get_config(device_conf, DEVICE_CONF, my_id) < 0) {
+		exit(1);
+	}
 
 	INIT_LIST_HEAD(&lu->den_list);
 	INIT_LIST_HEAD(&lu->log_pg);

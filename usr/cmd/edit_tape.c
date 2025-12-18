@@ -71,6 +71,7 @@ void usage(char *progname) {
 }
 
 int main(int argc, char *argv[]) {
+	char		  device_conf[CONF_FILE_SZ];
 	unsigned char sam_stat;
 	char		 *progname		= argv[0];
 	char		 *pcl			= NULL;
@@ -83,10 +84,12 @@ int main(int argc, char *argv[]) {
 	int			  libno = 0;
 	int			  indx;
 	int			  rc;
-	char		 *device_conf = MHVTL_CONFIG_PATH "/device.conf";
 	FILE		 *conf;
 	char		 *b; /* Read from file into this buffer */
 	char		 *s; /* Somewhere for sscanf to store results */
+
+	if (get_config(device_conf, DEVICE_CONF, my_id) < 0)
+		exit(1);
 
 	if (sizeof(struct MAM) != 1024) {
 		printf("Structure of MAM incorrect size: %d\n",

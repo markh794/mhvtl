@@ -188,8 +188,9 @@ VTLTAPE_OBJ = cmd/vtltape.o \
 bin/vtltape: $(VTLTAPE_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) -lz -L. -lvtlscsi
 
-bin/mhvtl-device-conf-generator: cmd/mhvtl-device-conf-generator.o
-	$(CC) $(CFLAGS) -o $@ $^
+MHVTL_DEVICE_CONF_GENERATOR_OBJ = cmd/mhvtl-device-conf-generator.o
+bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) -L. -lvtlscsi
 
 
 

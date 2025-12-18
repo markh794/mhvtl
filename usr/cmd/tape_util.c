@@ -423,6 +423,7 @@ static void dump_tape_metadata(int dump_data, uint8_t *sam_stat) {
 }
 
 int main(int argc, char *argv[]) {
+	char	device_conf[CONF_FILE_SZ];
 	uint8_t sam_stat;
 	char   *pcl = NULL;
 	int		rc;
@@ -430,12 +431,14 @@ int main(int argc, char *argv[]) {
 	int		indx;
 	int		block_size	= 0;
 	int		dump_data	= FALSE;
-	char   *device_conf		= MHVTL_CONFIG_PATH "/device.conf";
 	char   *source_file = NULL;
 	char   *compression = NULL;
 	FILE   *conf;
 	char   *b; /* Read from file into this buffer */
 	char   *s; /* Somewhere for sscanf to store results */
+
+	if (get_config(device_conf, DEVICE_CONF, my_id) < 0)
+		exit(1);
 
 	progname = argv[0];
 	if (strcasestr(progname, "dump_tape")) {

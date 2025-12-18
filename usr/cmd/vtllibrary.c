@@ -70,8 +70,6 @@ char mhvtl_driver_name[] = "vtllibrary";
 
 #define SMC_BUF_SIZE 1024 * 1024 /* Default size of buffer */
 
-#define LIBCONTENTS "/library_contents."
-
 static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
 static long	   backoff;		   /* Backoff value for polling char device */
 
@@ -594,7 +592,7 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu) {
 /* Open device config file and update device information
  */
 static void update_drive_details(struct lu_phy_attr *lu) {
-	char			*device_conf = MHVTL_CONFIG_PATH "/device.conf";
+	char			 device_conf[CONF_FILE_SZ];
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
 	char			*s; /* Somewhere for sscanf to store results */
@@ -603,6 +601,9 @@ static void update_drive_details(struct lu_phy_attr *lu) {
 	struct d_info	*dp;
 	struct s_info	*sp;
 	struct smc_priv *smc_p = lu->lu_private;
+
+	if (get_config(device_conf, DEVICE_CONF, my_id) < 0)
+		exit(1);
 
 	conf = fopen(device_conf, "r");
 	if (!conf) {
@@ -880,7 +881,7 @@ void init_storage_slot(struct lu_phy_attr *lu, int slt, char *barcode) {
 }
 
 static void __init_slot_info(struct lu_phy_attr *lu, int type) {
-	char		lib_conf[256];
+	char		lib_conf[CONF_FILE_SZ];
 	FILE	   *ctrl;
 	char	   *b; /* Read from file into this buffer */
 	char	   *s; /* Somewhere for sscanf to store results */
@@ -894,9 +895,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 	filestat = -1; /* Default to .persist file does not exist */
 
 	/* Lets stat each (potential) file and identify the last one modified */
-	snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
-																		   ".persist",
-			 my_id);
+	get_config(lib_conf, LIBCONTENTS_PERSIST, my_id);
 
 	if (lu->persist) /* If enabled - stat .persist file */
 		filestat = stat(lib_conf, &persiststat);
@@ -905,10 +904,10 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 		/* PERSIST is either disabled or .persist file does not exist
 		 * - Update config filename to master 'library_contents.<id>
 		 */
-		snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
+		get_config(lib_conf, LIBCONTENTS, my_id);
 	} else {
 		/* stat original config file */
-		snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld", my_id);
+		get_config(lib_conf, LIBCONTENTS, my_id);
 		filestat = stat(lib_conf, &configstat);
 		if (filestat < 0) { /* Does not exist !! */
 			MHVTL_ERR("Can not stat config file %s: %s",
@@ -924,9 +923,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 			/* Update the config file to
 			   library_contents.<id>.persist
 			*/
-			snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
-																				   ".persist",
-					 my_id);
+			get_config(lib_conf, LIBCONTENTS_PERSIST, my_id);
 		}
 	}
 
@@ -1058,7 +1055,7 @@ static struct s_info *find_empty_storage_slot(struct s_info	   *s,
 /* Save config on shutdown - Not to be called at other times !! */
 static void save_config(struct lu_phy_attr *lu) {
 	FILE			 *ctrl;
-	char			  lib_conf[256];
+	char			  lib_conf[CONF_FILE_SZ];
 	struct smc_priv	 *lu_priv;
 	struct list_head *slot_head;
 	struct list_head *drive_head;
@@ -1066,14 +1063,7 @@ static void save_config(struct lu_phy_attr *lu) {
 	struct d_info	 *dp; /* Drive Pointer */
 	int				  last_element_type = 0;
 
-	if (strlen(MHVTL_CONFIG_PATH LIBCONTENTS) >=
-		ARRAY_SIZE(lib_conf) - sizeof(".persist")) {
-		MHVTL_LOG("Filename length exceeds %d", (int)ARRAY_SIZE(lib_conf));
-	}
-
-	snprintf(lib_conf, ARRAY_SIZE(lib_conf), MHVTL_CONFIG_PATH LIBCONTENTS "%ld"
-																		   ".persist",
-			 my_id);
+	get_config(lib_conf, LIBCONTENTS_PERSIST, my_id);
 	ctrl = fopen(lib_conf, "w");
 	if (!ctrl) {
 		MHVTL_ERR("Can not open file %s to save state : %s", lib_conf,
@@ -1164,7 +1154,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 	struct vpd **lu_vpd = lu->lu_vpd;
 
-	char			*device_conf = MHVTL_CONFIG_PATH "/device.conf";
+	char			 device_conf[CONF_FILE_SZ];
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
 	char			*s; /* Somewhere for sscanf to store results */
@@ -1175,6 +1165,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 	backoff		= DEFLT_BACKOFF_VALUE;
 	lu->persist = FALSE;
+
+	if (get_config(device_conf, DEVICE_CONF, my_id) < 0)
+		exit(1);
 
 	/* Set static 'home_directory' var - used for get_cart_type() function */
 	update_home_dir(my_id);

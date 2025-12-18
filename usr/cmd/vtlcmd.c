@@ -395,7 +395,7 @@ int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf) {
 }
 
 int main(int argc, char **argv) {
-	char *device_conf = MHVTL_CONFIG_PATH "/device.conf";
+	char  device_conf[CONF_FILE_SZ];
 	FILE *conf;
 	char  b[1024];
 	int	  device_type = TYPE_UNKNOWN;
@@ -405,6 +405,9 @@ int main(int argc, char **argv) {
 	char *p;
 
 	my_id = VTLCMD_Q;
+
+	if (get_config(device_conf, DEVICE_CONF, my_id) < 0)
+		exit(1);
 
 	if ((argc < 2) || (argc > 6)) {
 		usage(argv[0]);

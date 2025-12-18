@@ -74,6 +74,58 @@ uint8_t			   debug   = 0;
 uint8_t			   verbose = 0;
 long			   my_id   = 0;
 
+int get_config(char *buf, conf_file conf, long id) {
+	char  format[128];
+	char  config_path[CONF_DIR_PATH_SZ] = {0};
+	FILE *fp							= fopen(MHVTL_CONFIG_PATH "/mhvtl.conf", "r");
+
+	snprintf(format, sizeof(format), "%%255[^= \t\r] = %%%u[^\n]", CONF_DIR_PATH_SZ - 1);
+	if (fp) {
+		char  *line = NULL;
+		size_t len	= 0;
+
+		while (getline(&line, &len, fp) != -1) {
+			if (line[0] == '#' || line[0] == '\n')
+				continue;
+			char key[256];
+			char value[CONF_DIR_PATH_SZ - 1];
+			if (sscanf(line, format, key, value) == 2) {
+				if (strcmp(key, "MHVTL_CONFIG_PATH") == 0) {
+					strncpy(config_path, value, sizeof(config_path) - 1);
+					break;
+				}
+			} else {
+				MHVTL_ERR("Error of syntax in configuration file %s :\n%s",
+						  MHVTL_CONFIG_PATH "/mhvtl.conf", line);
+				continue;
+			}
+		}
+		free(line);
+		fclose(fp);
+	}
+
+	switch (conf) {
+	case DEVICE_CONF:
+		snprintf(buf, CONF_FILE_SZ, "%s/device.conf",
+				 (config_path[0] != '\0') ? config_path : MHVTL_CONFIG_PATH);
+		break;
+	case LIBCONTENTS:
+		snprintf(buf, CONF_FILE_SZ, "%s/library_contents.%ld",
+				 (config_path[0] != '\0') ? config_path : MHVTL_CONFIG_PATH, id);
+		break;
+	case LIBCONTENTS_PERSIST:
+		snprintf(buf, CONF_FILE_SZ, "%s/library_contents.%ld.persist",
+				 (config_path[0] != '\0') ? config_path : MHVTL_CONFIG_PATH, id);
+		break;
+
+	default:
+		MHVTL_ERR("Wrong config file requested");
+		return -1;
+	}
+
+	return 0;
+}
+
 static struct state_description {
 	char *state_desc;
 } state_desc[] = {
@@ -1506,7 +1558,7 @@ int get_fifo_count(void) {
  * is passed in
  */
 void find_media_home_directory(char *config_directory, long lib_id) {
-	char *device_conf;
+	char  device_conf[CONF_FILE_SZ];
 	FILE *conf;
 	char *b; /* Read from file into this buffer */
 	char *s; /* Somewhere for sscanf to store results */
@@ -1516,11 +1568,12 @@ void find_media_home_directory(char *config_directory, long lib_id) {
 	found			  = 0;
 	home_directory[0] = '\0';
 
-	if (asprintf(&device_conf, "%s/device.conf",
-				 config_directory ? config_directory : MHVTL_CONFIG_PATH) < 0) {
-		perror("Could not allocate memory");
+	if (config_directory) {
+		snprintf(device_conf, CONF_FILE_SZ, "%s/device.conf", config_directory);
+	} else if (get_config(device_conf, DEVICE_CONF, my_id) < 0) {
 		exit(1);
 	}
+
 	conf = fopen(device_conf, "r");
 	if (!conf) {
 		MHVTL_ERR("Can not open config file %s : %s", device_conf,
@@ -1572,7 +1625,6 @@ finished:
 	free(s);
 	free(b);
 	fclose(conf);
-	free(device_conf);
 }
 
 unsigned int set_media_params(struct MAM *mamp, char *density) {

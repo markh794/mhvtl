@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include "vtllib.h"
 
 #define MAX_LINE_WIDTH 1024
 
@@ -24,8 +25,8 @@
 #endif
 
 extern char *__progname;
-static int	 debug_mode	 = 0;
-static char *device_conf = MHVTL_CONFIG_PATH "/device.conf";
+static int	 debug_mode			 = 0;
+char		 mhvtl_driver_name[] = "";
 
 struct vtl_info {
 	int				 num;
@@ -251,11 +252,15 @@ dun:
 }
 
 int main(int argc, char **argv) {
+	char			 device_conf[CONF_FILE_SZ];
 	char			*working_dir;
 	struct vtl_info *ip;
 	const char		 dirname[] = "mhvtl.target.wants";
 	char			*path;
 	int				 rc;
+
+	if (get_config(device_conf, DEVICE_CONF, my_id) < 0)
+		exit(1);
 
 	working_dir = get_working_dir(argc, argv);
 	if (!working_dir)

@@ -85,6 +85,15 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define DEFLT_BACKOFF_VALUE 400
 
 #define HOME_DIR_PATH_SZ 1024
+#define CONF_DIR_PATH_SZ 1024
+#define CONF_FILE_SZ	 1024 + 256
+
+typedef enum {
+	DEVICE_CONF,
+	LIBCONTENTS,
+	LIBCONTENTS_PERSIST,
+} conf_file;
+
 /*
  * Medium Type Definitions
  */
@@ -589,6 +598,8 @@ enum MHVTL_STATE {
 	MHVTL_STATE_OFFLINE,
 	MHVTL_STATE_UNKNOWN,
 };
+
+int get_config(char *buf, conf_file conf, long my_id);
 
 int	 check_reset(uint8_t *);
 int	 check_inquiry_data_has_changed(uint8_t *);
