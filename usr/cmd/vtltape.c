@@ -1770,15 +1770,13 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	if (!strncmp(msg->text, "debug", 5)) {
 		if (debug > 4) {
 			debug = 1;
-			printf("Debug: %d\n", debug);
 		} else if (debug > 1) {
-			printf("Debug: %d\n", debug);
 			debug++;
 		} else {
-			printf("Debug: %d\n", debug);
 			debug++;
 			verbose = 4;
 		}
+		printf("Debug: %d\n", debug);
 	}
 
 	if (!strncmp(msg->text, "dump", 4))
