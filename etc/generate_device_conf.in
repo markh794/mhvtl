@@ -440,7 +440,7 @@ fi
 # (for use in the device.conf we generate)
 if [[ ! -d "$MHVTL_HOME_PATH" ]] ; then
 	if [[ -z "$OVERRIDE" ]] ; then
-		echo "error: MHVTL_HOME_PATH not a directory" 1>&2
+		echo "error: $MHVTL_HOME_PATH not a directory" 1>&2
 		usage
 		exit 1
 	fi
