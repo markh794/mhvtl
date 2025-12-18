@@ -20,7 +20,7 @@ extern char mhvtl_driver_name[];
 	{                                                         \
 		if (debug)                                            \
 			printf("%s: ERROR %s: " format "\n",              \
-				   "mhvtl_driver_name", __func__, ##arg);     \
+				   mhvtl_driver_name, __func__, ##arg);       \
 		else                                                  \
 			syslog(LOG_DAEMON | LOG_ERR, "ERROR %s: " format, \
 				   __func__, ##arg);                          \
