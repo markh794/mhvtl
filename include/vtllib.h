@@ -695,9 +695,9 @@ extern uint8_t			  sense[SENSE_BUF_SIZE];
 extern uint8_t			  modeBlockDescriptor[8]; /* Used by Mode Sense - if set, return block descriptor */
 extern char				  home_directory[HOME_DIR_PATH_SZ + 1];
 
-extern int	verbose;
-extern int	debug;
-extern long my_id;
+extern uint8_t verbose;
+extern uint8_t debug;
+extern long	   my_id;
 
 /* In vtlcart.c */
 extern struct blk_header *c_pos; /* current position, declared and initialised in vtlcart.c */

@@ -70,8 +70,8 @@ int				   OK_to_write	= 0;
 uint8_t			   sense[SENSE_BUF_SIZE];
 uint8_t			   modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 char			   home_directory[HOME_DIR_PATH_SZ + 1];
-int				   debug   = 0;
-int				   verbose = 0;
+uint8_t			   debug   = 0;
+uint8_t			   verbose = 0;
 long			   my_id   = 0;
 
 static struct state_description {

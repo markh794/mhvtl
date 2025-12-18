@@ -13,13 +13,14 @@
 #define _LOGGING_H_
 
 #include <syslog.h>
+#include <stdint.h>
 
 #define MHVTL_OPT_NOISE 3
 
 #ifdef MHVTL_DEBUG
-extern char mhvtl_driver_name[];
-extern int	debug;
-extern int	verbose;
+extern char	   mhvtl_driver_name[];
+extern uint8_t debug;
+extern uint8_t verbose;
 
 #define MHVTL_DBG_NO_FUNC(lvl, format, arg...)            \
 	do {                                                  \
