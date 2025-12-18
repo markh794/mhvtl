@@ -290,7 +290,7 @@ struct seqAccessDevice {
 
 } __attribute__((packed));
 
-void setTapeAlert(struct TapeAlert_page *, uint64_t);
+void setTapeAlert(struct TapeAlert_page *, uint64_t); /* in vtllib.c, never used */
 void initTapeAlert(struct TapeAlert_page *);
 void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
