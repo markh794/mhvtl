@@ -13,8 +13,8 @@
 #include <string.h>
 #include "q.h"
 
-extern int	 debug;
-extern char *mhvtl_driver_name;
+extern int	debug;
+extern char mhvtl_driver_name[];
 
 #define MHVTL_ERR(format, arg...)                             \
 	{                                                         \

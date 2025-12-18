@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include "q.h"
 
-char *mhvtl_driver_name = "dump_messageQ";
+char mhvtl_driver_name[] = "dump_messageQ";
 
 static void usage(char *prog) {
 	fprintf(stdout, "Usage  : %s [-h|-help]\n", prog);
