@@ -59,6 +59,21 @@
 static int reset				= 0;
 static int inquiry_data_changed = 0;
 
+/* Global variables */
+struct MAM		   mam;
+struct priv_lu_ssc lu_ssc;
+struct lu_phy_attr lunit;
+struct encryption  app_encryption_state;
+int				   current_state;
+int				   lbp_rscrc_be = 1;
+int				   OK_to_write	= 0;
+uint8_t			   sense[SENSE_BUF_SIZE];
+uint8_t			   modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+char			   home_directory[HOME_DIR_PATH_SZ + 1];
+int				   debug   = 0;
+int				   verbose = 0;
+long			   my_id   = 0;
+
 static struct state_description {
 	char *state_desc;
 } state_desc[] = {
@@ -168,9 +183,6 @@ static char *slot_type_string[] = {
 	"MAP",
 	"Drive",
 };
-
-uint8_t sense[SENSE_BUF_SIZE];
-uint8_t modeBlockDescriptor[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 void mhvtl_prt_cdb(int lvl, struct scsi_cmd *cmd) {
 	int		 groupCode;

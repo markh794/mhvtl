@@ -42,18 +42,8 @@
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
 
-char			   mhvtl_driver_name[] = "tape_util";
-int				   dump_tape		   = 0; /* dual personality - dump_tape & preload_tape */
-int				   verbose			   = 0;
-int				   debug			   = 0;
-long			   my_id			   = 0;
-int				   lbp_rscrc_be		   = 1; /* Return RS-CRC in BigEndian format */
-int				   lib_id;
-struct priv_lu_ssc lu_ssc;
-struct lu_phy_attr lunit;
-struct encryption  app_encryption_state; /* Stores the encryption info the application sent us */
-
-extern char home_directory[HOME_DIR_PATH_SZ + 1];
+char	   mhvtl_driver_name[] = "tape_util";
+static int dump_tape		   = 0; /* dual personality - dump_tape & preload_tape */
 
 static char *progname;
 

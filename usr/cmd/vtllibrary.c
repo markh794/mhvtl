@@ -62,7 +62,6 @@
 #include "mhvtl_log.h"
 
 char mhvtl_driver_name[] = "vtllibrary";
-long my_id				 = 0;
 
 #define CAP_CLOSED 1
 #define CAP_OPEN   0
@@ -73,14 +72,8 @@ long my_id				 = 0;
 
 #define LIBCONTENTS "/library_contents."
 
-int			   verbose	  = 0;
-int			   debug	  = 0;
 static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
-long		   backoff;		   /* Backoff value for polling char device */
-
-extern int current_state; /* scope, Global -> Last status sent to fifo */
-
-struct lu_phy_attr lunit;
+static long	   backoff;		   /* Backoff value for polling char device */
 
 static struct smc_priv smc_slots;
 

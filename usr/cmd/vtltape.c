@@ -97,13 +97,7 @@ struct encryption app_encryption_state; /* Stores the encryption info the applic
 #include <zlib.h>
 #include "minilzo.h"
 
-uint8_t last_cmd;
-
-/* scope, Global -> Last status sent to fifo */
-int current_state;
-
-/* user specified home dir for media */
-extern char home_directory[HOME_DIR_PATH_SZ + 1];
+static uint8_t last_cmd;
 
 /* Suppress Incorrect Length Indicator */
 #define SILI 0x2
@@ -121,28 +115,18 @@ loff_t lseek64(int, loff_t, int);
 		MHVTL_DBG(1, "%ld: Replying to snd_id %" PRIu64 " with \"%s\"", my_id, id, s); \
 	}
 
-int	 verbose = 0;
-int	 debug	 = 0;
-long my_id;
-
 /* Backoff algrithm..
  * Each empty poll of kernel module, add backoff to sleep time
  * and call usleep() before polling again.
  */
-long backoff;
-
-int lbp_rscrc_be; /* Logical Block Protection: RS-CRC big-endian */
+static long backoff;
 
 static useconds_t cumul_pollInterval;
 
-int library_id = 0;
+static int library_id = 0;
 
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
-
-struct priv_lu_ssc lu_ssc;
-
-struct lu_phy_attr lunit;
 
 struct MAM_Attributes_table {
 	int	  attribute;

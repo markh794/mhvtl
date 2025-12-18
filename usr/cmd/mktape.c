@@ -21,11 +21,7 @@ static void *largefile_support = "No largefile support";
 
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
 
-char		mhvtl_driver_name[] = "mktape";
-int			verbose				= 0;
-int			debug				= 0;
-long		my_id				= 0;
-extern char home_directory[HOME_DIR_PATH_SZ + 1];
+char mhvtl_driver_name[] = "mktape";
 
 static void usage(char *progname) {
 	printf("Usage: %s [OPTIONS] [REQUIRED-PARAMS]", progname);

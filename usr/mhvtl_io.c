@@ -24,14 +24,6 @@
 #include <zlib.h>
 #include "minilzo.h"
 
-extern int				  verbose;
-extern int				  debug;
-extern long				  my_id;
-extern int				  lbp_rscrc_be;
-extern struct priv_lu_ssc lu_ssc;
-extern struct lu_phy_attr lunit;
-extern struct encryption  app_encryption_state;
-
 uint32_t GenerateRSCRC(uint32_t crc, uint32_t size, const void *buf);
 uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);
 uint32_t BlockProtectRSCRC(uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);

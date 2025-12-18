@@ -62,8 +62,6 @@ struct meta_header {
 static char				  currentPCL[HOME_DIR_PATH_SZ * 2]; /* make room for home_dir plus some */
 static struct meta_header meta;
 
-static char home_directory[HOME_DIR_PATH_SZ + 1];
-
 /*
  * Attempt to open PCL metadata and read cart type
  *

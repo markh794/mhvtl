@@ -41,12 +41,8 @@ static void *largefile_support = "No largefile support";
 
 /* The following variables are needed for the MHVTL_DBG() macro to work. */
 
-char		mhvtl_driver_name[] = "edit_tape";
-int			verbose;
-int			debug;
-int			wp; /* Write protect flag */
-long		my_id;
-extern char home_directory[HOME_DIR_PATH_SZ + 1];
+char	   mhvtl_driver_name[] = "edit_tape";
+static int wp				   = 0; /* Write protect flag */
 
 #define WRITE_PROTECT_OFF 1
 #define WRITE_PROTECT_ON  2
@@ -102,11 +98,6 @@ int main(int argc, char *argv[]) {
 		usage(progname);
 		exit(1);
 	}
-
-	debug	= 0;
-	my_id	= 0;
-	verbose = 0;
-	wp		= 0;
 
 	while (argc > 0) {
 		if (argv[0][0] == '-') {

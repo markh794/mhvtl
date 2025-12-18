@@ -83,12 +83,8 @@ static uint32_t			  eod_blk_number;
 static int		 filemark_alloc = 0;
 static uint32_t *filemarks		= NULL;
 
-/* Globally visible variables. */
-
-struct MAM		   mam;
-struct blk_header *c_pos	   = &raw_pos.hdr;
-int				   OK_to_write = 0;
-char			   home_directory[HOME_DIR_PATH_SZ + 1 + MAX_BARCODE_LEN];
+/* Initialisation of current position (global blk_header) */
+struct blk_header *c_pos = &raw_pos.hdr; 
 
 #ifdef MHVTL_DEBUG
 static char *mhvtl_block_type_desc(int blk_type) {

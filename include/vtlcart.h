@@ -193,10 +193,6 @@ https://github.com/iustin/mt-st/blob/fbfd923faad0d6f613415f4de747833fb6b4a465/mt
    files.
 */
 
-extern struct MAM		  mam;
-extern struct blk_header *c_pos;
-extern int				  OK_to_write;
-
 int	 create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat);
 int	 load_tape(const char *pcl, uint8_t *sam_stat);
 void unload_tape(uint8_t *sam_stat);

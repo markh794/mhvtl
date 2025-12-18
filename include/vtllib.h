@@ -32,6 +32,7 @@
 
 #include "vtl_common.h"
 #include "mhvtl_list.h"
+#include "vtlcart.h"
 
 #ifndef MHVTL_CONFIG_PATH
 #define MHVTL_CONFIG_PATH "/etc/mhvtl"
@@ -680,4 +681,25 @@ void  sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type)
 
 void ymd(int *year, int *month, int *day, int *hh, int *min, int *sec);
 void opcode_6_params(struct scsi_cmd *cmd, int *num, int *sz);
+
+/* ======== Global variables ========*/
+/* In vtllib.c */
+extern struct MAM		  mam;
+extern struct priv_lu_ssc lu_ssc;
+extern struct lu_phy_attr lunit;
+extern struct encryption  app_encryption_state; /* Stores the encryption info the application sent us */
+extern int				  current_state;		/* Last status sent to fifo */
+extern int				  lbp_rscrc_be;			/* Logical Block Protection: RS-CRC big-endian */
+extern int				  OK_to_write;
+extern uint8_t			  sense[SENSE_BUF_SIZE];
+extern uint8_t			  modeBlockDescriptor[8]; /* Used by Mode Sense - if set, return block descriptor */
+extern char				  home_directory[HOME_DIR_PATH_SZ + 1];
+
+extern int	verbose;
+extern int	debug;
+extern long my_id;
+
+/* In vtlcart.c */
+extern struct blk_header *c_pos; /* current position, declared and initialised in vtlcart.c */
+
 #endif /*  _VTLLIB_H_ */

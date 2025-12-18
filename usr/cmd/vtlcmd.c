@@ -47,16 +47,11 @@
 #include "q.h"
 #include "vtllib.h"
 
-long my_id				 = VTLCMD_Q;
 char mhvtl_driver_name[] = "vtlcmd";
-int	 verbose			 = 0;
-int	 debug				 = 0;
 
 #define TYPE_UNKNOWN 0
 #define TYPE_LIBRARY 1
 #define TYPE_DRIVE	 2
-
-extern char home_directory[HOME_DIR_PATH_SZ + 1];
 
 void find_media_home_directory(char *config_directory, char *home_directory, long lib_id);
 
@@ -410,6 +405,8 @@ int main(int argc, char **argv) {
 	int	  count;
 	char  buf[1024];
 	char *p;
+
+	my_id = VTLCMD_Q;
 
 	if ((argc < 2) || (argc > 6)) {
 		usage(argv[0]);

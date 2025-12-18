@@ -38,9 +38,6 @@
 #include "mhvtl_log.h"
 #include "subprocess.h"
 
-int		   current_state;
-extern int verbose;
-
 uint8_t smc_allow_removal(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "%s MEDIUM REMOVAL (%ld) **",
 			  (cmd->scb[4]) ? "PREVENT" : "ALLOW",
