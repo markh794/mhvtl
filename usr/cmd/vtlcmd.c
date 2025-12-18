@@ -53,8 +53,6 @@ char mhvtl_driver_name[] = "vtlcmd";
 #define TYPE_LIBRARY 1
 #define TYPE_DRIVE	 2
 
-void find_media_home_directory(char *config_directory, char *home_directory, long lib_id);
-
 static void usage(char *prog) {
 	fprintf(stderr, "Usage  : %s <DeviceNo> <command> [-h|-help]\n", prog);
 	fprintf(stderr, "Version: %s %s %s\n", MHVTL_VERSION, MHVTL_GITHASH, MHVTL_GITDATE);
@@ -97,7 +95,7 @@ int check_media(int libno, char *barcode) {
 	int	 datafile;
 	int	 path_len;
 
-	find_media_home_directory(NULL, home_directory, libno);
+	find_media_home_directory(NULL, libno);
 	path_len = snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", home_directory, barcode);
 	if (path_len >= ARRAY_SIZE(currentMedia)) {
 		fprintf(stderr, "Warning: path to %s/%s/data truncated to %" PRIu32 " bytes",

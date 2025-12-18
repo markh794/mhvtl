@@ -182,7 +182,7 @@ int main(int argc, char *argv[]) {
 	if (param_home_dir)
 		strncpy(home_directory, param_home_dir, HOME_DIR_PATH_SZ);
 	else
-		find_media_home_directory(param_config_dir, home_directory, libno);
+		find_media_home_directory(param_config_dir, libno);
 
 	if (strlen(pcl) > MAX_BARCODE_LEN) {
 		fprintf(stderr, "error: Max barcode length (%d) exceeded\n\n", MAX_BARCODE_LEN);

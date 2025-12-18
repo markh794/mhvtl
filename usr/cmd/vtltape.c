@@ -1635,7 +1635,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	if (!strncmp(msg->text, "Register", 8)) {
 		lu_ssc.inLibrary = 1;
 		MHVTL_DBG(1, "Notice from Library controller : %s", msg->text);
-		/*		find_media_home_directory(NULL, home_directory, library_id); */
+		/*		find_media_home_directory(NULL, library_id); */
 	}
 
 	if (!strncmp(msg->text, "verbose", 7)) {
@@ -2128,7 +2128,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	update_vpd_83(lu, NULL);
 
 	if (library_id)
-		find_media_home_directory(NULL, home_directory, library_id);
+		find_media_home_directory(NULL, library_id);
 
 	if ((backoff < 10) || (backoff > 10000)) {
 		backoff = DEFLT_BACKOFF_VALUE;

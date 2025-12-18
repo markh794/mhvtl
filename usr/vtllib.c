@@ -1505,7 +1505,7 @@ int get_fifo_count(void) {
  * file from our config directory. Use the default config directory unless one
  * is passed in
  */
-void find_media_home_directory(char *config_directory, char *home_directory, long lib_id) {
+void find_media_home_directory(char *config_directory, long lib_id) {
 	char *config;
 	FILE *conf;
 	char *b; /* Read from file into this buffer */
