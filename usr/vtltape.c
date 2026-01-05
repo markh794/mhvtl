@@ -1728,7 +1728,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat)
 		if (lu_ssc.barcode) {
 			free(lu_ssc.barcode);
 		}
-		lu_ssc.barcode = malloc(strlen(pcl) + 1);
+		lu_ssc.barcode = malloc(pcl_len);
 		if (lu_ssc.barcode) {
 			strncpy(lu_ssc.barcode, pcl, pcl_len);
 			set_lp11_medium_present(1);
