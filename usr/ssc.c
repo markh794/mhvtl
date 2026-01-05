@@ -1631,7 +1631,8 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd)
 	case TAPE_LOADED:
 		switch (service_action) {
 		case 0:
-			sp = (struct read_position_information_short *)&buf[0];
+		case 1:
+		sp = (struct read_position_information_short *)&buf[0];
 
 			memset(buf, 0, READ_POSITION_LEN);	/* Clear 'array' */
 
