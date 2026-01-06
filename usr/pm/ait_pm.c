@@ -80,7 +80,7 @@ static uint8_t clear_ait_WORM(struct list_head *l) {
 
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
 
-	smp = lookup_pcode(l, MODE_AIT_DEVICE_CONFIGURATION, 0);
+	smp = lookup_mode_pg(l, MODE_AIT_DEVICE_CONFIGURATION, 0);
 	if (smp) {
 		smp_dp	  = smp->pcodePointer;
 		smp_dp[4] = 0x0;
@@ -95,7 +95,7 @@ static uint8_t set_ait_WORM(struct list_head *l) {
 
 	MHVTL_DBG(3, "+++ Trace mode pages at %p +++", l);
 
-	smp = lookup_pcode(l, MODE_AIT_DEVICE_CONFIGURATION, 0);
+	smp = lookup_mode_pg(l, MODE_AIT_DEVICE_CONFIGURATION, 0);
 	if (smp) {
 		smp_dp	  = smp->pcodePointer;
 		smp_dp[4] = 0x40;
@@ -305,7 +305,7 @@ static uint8_t ait_media_load(struct lu_phy_attr *lu, int load) {
 
 	MHVTL_DBG(3, "+++ Trace +++");
 
-	smp = lookup_pcode(&lu->mode_pg, MODE_AIT_DEVICE_CONFIGURATION, 0);
+	smp = lookup_mode_pg(&lu->mode_pg, MODE_AIT_DEVICE_CONFIGURATION, 0);
 	if (smp) {
 		smp_dp = smp->pcodePointer;
 		if (load)

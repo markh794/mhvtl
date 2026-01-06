@@ -608,7 +608,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd) {
 		/* Walk thru all possibilities */
 		if (subpcode == 0) {
 			for (i = 1; i < 0x3f; i++) {
-				smp = lookup_pcode(m, i, subpcode);
+				smp = lookup_mode_pg(m, i, subpcode);
 				if (smp)
 					len += add_pcode(smp, pc,
 									 (uint8_t *)ap + len);
@@ -616,7 +616,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd) {
 		} else { /* 0x01 - 0xfe are reserved. Should only be 0xff */
 			for (i = 1; i < 0x3f; i++) {
 				for (j = 0; j < 0xff; j++) {
-					smp = lookup_pcode(m, i, j);
+					smp = lookup_mode_pg(m, i, j);
 					if (smp)
 						len += add_pcode(smp, pc,
 										 (uint8_t *)ap + len);
@@ -627,13 +627,13 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd) {
 	default:
 		if (subpcode == 0xff) { /* All sub-pcodes for this pcode */
 			for (i = 0; i < 0xff; i++) {
-				smp = lookup_pcode(m, pcode, i);
+				smp = lookup_mode_pg(m, pcode, i);
 				if (smp)
 					len += add_pcode(smp, pc,
 									 (uint8_t *)ap + len);
 			}
 		} else {
-			smp = lookup_pcode(m, pcode, subpcode);
+			smp = lookup_mode_pg(m, pcode, subpcode);
 			if (smp)
 				len = add_pcode(smp, pc, (uint8_t *)ap);
 		}

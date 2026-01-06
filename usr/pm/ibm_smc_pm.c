@@ -100,7 +100,7 @@ static void update_ibm_3100_vpd_ff(struct lu_phy_attr *lu) {
 static void update_3573_device_capabilities(struct lu_phy_attr *lu) {
 	struct mode *mp;
 
-	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
 	if (!mp) { /* Can't find page ??? */
 		MHVTL_ERR("Can't find MODE_DEVICE_CAPABILITIES page");
 		return;
@@ -123,7 +123,7 @@ static void update_3573_device_capabilities(struct lu_phy_attr *lu) {
 static void update_3584_device_capabilities(struct lu_phy_attr *lu) {
 	struct mode *mp;
 
-	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
 	if (!mp) { /* Can't find page ??? */
 		MHVTL_ERR("Can't find MODE_DEVICE_CAPABILITIES page");
 		return;

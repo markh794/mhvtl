@@ -1233,7 +1233,7 @@ uint8_t set_compression_mode_pg(struct list_head *l, int lvl) {
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
-	m = lookup_pcode(l, MODE_DATA_COMPRESSION, 0);
+	m = lookup_mode_pg(l, MODE_DATA_COMPRESSION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			  l, m, m->pcodePointer);
 	if (m) {
@@ -1241,7 +1241,7 @@ uint8_t set_compression_mode_pg(struct list_head *l, int lvl) {
 		p[2] |= 0x80; /* Set data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
-	m = lookup_pcode(l, MODE_DEVICE_CONFIGURATION, 0);
+	m = lookup_mode_pg(l, MODE_DEVICE_CONFIGURATION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			  l, m, m->pcodePointer);
 	if (m) {
@@ -1258,7 +1258,7 @@ uint8_t clear_compression_mode_pg(struct list_head *l) {
 	MHVTL_DBG(3, "*** Trace ***");
 
 	/* Find pointer to Data Compression mode Page */
-	m = lookup_pcode(l, MODE_DATA_COMPRESSION, 0);
+	m = lookup_mode_pg(l, MODE_DATA_COMPRESSION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			  l, m, m->pcodePointer);
 	if (m) {
@@ -1266,7 +1266,7 @@ uint8_t clear_compression_mode_pg(struct list_head *l) {
 		p[2] &= 0x7f; /* clear data compression enable */
 	}
 	/* Find pointer to Device Configuration mode Page */
-	m = lookup_pcode(l, MODE_DEVICE_CONFIGURATION, 0);
+	m = lookup_mode_pg(l, MODE_DEVICE_CONFIGURATION, 0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			  l, m, m->pcodePointer);
 	if (m) {
@@ -1280,7 +1280,7 @@ uint8_t clear_WORM(struct list_head *l) {
 	uint8_t		*smp_dp;
 	struct mode *m;
 
-	m = lookup_pcode(l, MODE_MEDIUM_CONFIGURATION, 0);
+	m = lookup_mode_pg(l, MODE_MEDIUM_CONFIGURATION, 0);
 	if (!m) {
 		MHVTL_DBG(3, "Did not find MODE_MEDIUM_CONFIGURATION page");
 	} else {
@@ -1302,7 +1302,7 @@ uint8_t set_WORM(struct list_head *l) {
 
 	MHVTL_DBG(3, "*** Trace ***");
 
-	m = lookup_pcode(l, MODE_MEDIUM_CONFIGURATION, 0);
+	m = lookup_mode_pg(l, MODE_MEDIUM_CONFIGURATION, 0);
 	if (!m) {
 		MHVTL_DBG(3, "Did not find MODE_MEDIUM_CONFIGURATION page");
 	} else {

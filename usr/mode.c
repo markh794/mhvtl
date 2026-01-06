@@ -60,7 +60,7 @@ static char *mode_transport_geometry	   = "Transport Geometry";
 static char *mode_device_capabilities	   = "Device Capabilities";
 static char *drive_configuration_page	   = "STK Vendor-Unique Drive Configuration";
 
-struct mode *lookup_pcode(struct list_head *m, uint8_t pcode, uint8_t subpcode) {
+struct mode *lookup_mode_pg(struct list_head *m, uint8_t pcode, uint8_t subpcode) {
 	struct mode *mp;
 
 	MHVTL_DBG(3, "Looking for: Page/subpage (%02x/%02x)",
@@ -99,7 +99,7 @@ static struct mode *alloc_mode_page(struct list_head *m,
 	MHVTL_DBG(3, "Allocating %d bytes for (%02x/%02x)",
 			  size, pcode, subpcode);
 
-	mp = lookup_pcode(m, pcode, subpcode);
+	mp = lookup_mode_pg(m, pcode, subpcode);
 	if (!mp) { /* Create a new entry */
 		mp = (struct mode *)zalloc(sizeof(struct mode));
 	}
@@ -566,7 +566,7 @@ uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t *p) {
 	int			 write_mode;
 	int			 pews; /* Programable Early Warning Size */
 
-	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CONFIGURATION, 1);
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_DEVICE_CONFIGURATION, 1);
 
 	/* Code error
 	 * Any device supporting this should have this mode page defined */
@@ -1113,7 +1113,7 @@ int update_prog_early_warning(struct lu_phy_attr *lu) {
 	mode_pg = &lu->mode_pg;
 	lu_priv = (struct priv_lu_ssc *)lu->lu_private;
 
-	m = lookup_pcode(mode_pg, MODE_DEVICE_CONFIGURATION, 1);
+	m = lookup_mode_pg(mode_pg, MODE_DEVICE_CONFIGURATION, 1);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			  mode_pg, m, m->pcodePointer);
 	if (m) {
@@ -1137,7 +1137,7 @@ int update_logical_block_protection(struct lu_phy_attr *lu, uint8_t *buf) {
 
 	MHVTL_DBG(3, "+++ entry +++");
 
-	m = lookup_pcode(mode_pg, MODE_CONTROL, 0xf0);
+	m = lookup_mode_pg(mode_pg, MODE_CONTROL, 0xf0);
 	MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 			  mode_pg, m, m->pcodePointer);
 	if (m) {

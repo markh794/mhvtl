@@ -1607,7 +1607,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 		if (lu_ssc.pm->drive_supports_append_only_mode) {
 			struct mode *m;
 
-			m = lookup_pcode(&lu->mode_pg, 0x10, 1);
+			m = lookup_mode_pg(&lu->mode_pg, 0x10, 1);
 			if (!m) {
 				MHVTL_LOG("Can't find Append Only mode page"
 						  ", Drive should support Append Only");

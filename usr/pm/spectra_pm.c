@@ -10,7 +10,7 @@
 static void update_spectra_215_device_capabilities(struct lu_phy_attr *lu) {
 	struct mode *mp;
 
-	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
 	if (!mp) { /* Can't find page ??? */
 		MHVTL_ERR("Can't find MODE_DEVICE_CAPABILITIES page");
 		return;
@@ -27,7 +27,7 @@ static void update_spectra_215_device_capabilities(struct lu_phy_attr *lu) {
 static void update_spectra_gator_device_capabilities(struct lu_phy_attr *lu) {
 	struct mode *mp;
 
-	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
 	if (!mp) { /* Can't find page ??? */
 		MHVTL_ERR("Can't find MODE_DEVICE_CAPABILITIES page");
 		return;
@@ -44,7 +44,7 @@ static void update_spectra_gator_device_capabilities(struct lu_phy_attr *lu) {
 static void update_spectra_t_series_device_capabilities(struct lu_phy_attr *lu) {
 	struct mode *mp;
 
-	mp = lookup_pcode(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_DEVICE_CAPABILITIES, 0);
 	if (!mp) { /* Can't find page ??? */
 		MHVTL_ERR("Can't find MODE_DEVICE_CAPABILITIES page");
 		return;

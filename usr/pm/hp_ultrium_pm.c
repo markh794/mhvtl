@@ -129,7 +129,7 @@ static uint8_t set_ult_WORM(struct list_head *lst) {
 
 	/* Now for the Ultrium unique stuff */
 
-	m = lookup_pcode(lst, MODE_BEHAVIOR_CONFIGURATION, 0);
+	m = lookup_mode_pg(lst, MODE_BEHAVIOR_CONFIGURATION, 0);
 	if (m) {
 		MHVTL_DBG(3, "l: %p, m: %p, m->pcodePointer: %p",
 				  lst, m, m->pcodePointer);
@@ -155,7 +155,7 @@ static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int valu
 
 	MHVTL_DBG(3, "+++ Trace +++");
 
-	smp = lookup_pcode(m, MODE_VENDOR_SPECIFIC_24H, 0);
+	smp = lookup_mode_pg(m, MODE_VENDOR_SPECIFIC_24H, 0);
 	if (smp) {
 		if (value)
 			smp->pcodePointer[5] |= ENCR_E;
