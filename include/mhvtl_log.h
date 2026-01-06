@@ -322,4 +322,6 @@ int add_log_tape_capacity(struct lu_phy_attr *lu);
 int add_log_data_compression(struct lu_phy_attr *lu);
 int add_log_device_status(struct lu_phy_attr *lu);
 
+extern const char *log_page_desc[0x38];
+
 #endif /* MHVTL_LOG_H */
