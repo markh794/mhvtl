@@ -33,15 +33,30 @@
 #include "be_byteshift.h"
 #include "mhvtl_log.h"
 
-static char *write_error_counter	  = "WRITE ERROR Counter";
-static char *read_error_counter		  = "READ ERROR Counter";
-static char *sequential_access_device = "Sequential Access";
-static char *temperature_page		  = "Temperature";
-static char *tape_alert				  = "Tape Alert";
-static char *tape_usage				  = "Tape Usage";
-static char *device_status			  = "Device Status";
-static char *tape_capacity			  = "Tape Capacity";
-static char *data_compression		  = "Data Compression";
+const char *log_page_desc[0x38] = {
+	[0x00 ... 0x37]				 = "Unsupported Log page",
+	[0]							 = "Supported Log pages",
+	[BUFFER_UNDER_OVER_RUN]		 = "Buffer Under/Over Run",
+	[WRITE_ERROR_COUNTER]		 = "Write Error Counter",
+	[READ_ERROR_COUNTER]		 = "Read Error Counter",
+	[READ_REVERSE_ERROR_COUNTER] = "Read Reverse Error Counter",
+	[VERIFY_ERROR_COUNTER]		 = "Verify Error Counter",
+	[NON_MEDIUM_ERROR_COUNTER]	 = "Non-Medium Error Counter",
+	[LAST_n_ERROR]				 = "Last N Error",
+	[FORMAT_STATUS]				 = "Format Status",
+	[LAST_n_DEFERRED_ERROR]		 = "Last N Deferred Error",
+	[SEQUENTIAL_ACCESS_DEVICE]	 = "Sequential Access Device",
+	[TEMPERATURE_PAGE]			 = "Temperature Page",
+	[START_STOP_CYCLE_COUNTER]	 = "Start/Stop Cycle Counter",
+	[APPLICATION_CLIENT]		 = "Application Client",
+	[SELFTEST_RESULTS]			 = "Selftest Results",
+	[DEVICE_STATUS]				 = "VHF Device Status",
+	[TAPE_ALERT]				 = "Tape Alert",
+	[INFORMATIONAL_EXCEPTIONS]	 = "Informational Exceptions",
+	[TAPE_USAGE]				 = "Tape Usage",
+	[TAPE_CAPACITY]				 = "Tape Capacity",
+	[DATA_COMPRESSION]			 = "Data Compression",
+};
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page) {
 	struct log_pg_list *log_pg;
@@ -195,7 +210,7 @@ int add_log_write_err_counter(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = write_error_counter;
+	log_pg->description = log_page_desc[WRITE_ERROR_COUNTER];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 					   &tp.pcode_head.len);
@@ -296,7 +311,7 @@ int add_log_read_err_counter(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = read_error_counter;
+	log_pg->description = log_page_desc[READ_ERROR_COUNTER];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 					   &tp.pcode_head.len);
@@ -412,7 +427,7 @@ int add_log_sequential_access(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = sequential_access_device;
+	log_pg->description = log_page_desc[SEQUENTIAL_ACCESS_DEVICE];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 					   &tp.pcode_head.len);
@@ -443,7 +458,7 @@ int add_log_temperature_page(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = temperature_page;
+	log_pg->description = log_page_desc[TEMPERATURE_PAGE];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 					   &tp.pcode_head.len);
@@ -471,7 +486,7 @@ int add_log_tape_alert(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = tape_alert;
+	log_pg->description = log_page_desc[TAPE_ALERT];
 
 	tp.pcode_head.pcode = TAPE_ALERT;
 	tp.pcode_head.res	= 0;
@@ -581,7 +596,7 @@ int add_log_tape_usage(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = tape_usage;
+	log_pg->description = log_page_desc[TAPE_USAGE];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 					   &tp.pcode_head.len);
@@ -615,7 +630,7 @@ int add_log_device_status(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = device_status;
+	log_pg->description = log_page_desc[DEVICE_STATUS];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head), &tp.pcode_head.len);
 
@@ -666,7 +681,7 @@ int add_log_tape_capacity(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = tape_capacity;
+	log_pg->description = log_page_desc[TAPE_CAPACITY];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 					   &tp.pcode_head.len);
@@ -760,7 +775,7 @@ int add_log_data_compression(struct lu_phy_attr *lu) {
 	if (!log_pg)
 		return -ENOMEM;
 
-	log_pg->description = data_compression;
+	log_pg->description = log_page_desc[DATA_COMPRESSION];
 
 	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
 					   &tp.pcode_head.len);
