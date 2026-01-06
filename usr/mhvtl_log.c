@@ -75,37 +75,43 @@ struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page) {
 	return NULL;
 }
 
-/*
- * Used by log sense/mode select struct.
- *
- * Allocate 'size' bytes & init to 0
- *
- * Return pointer to log structure being init. or NULL if alloc failed
- */
-struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size) {
-	struct log_pg_list *log_page;
+int alloc_log_page(struct lu_phy_attr *lu,
+				   uint8_t			   page,
+				   init_pg_fn		   init_log_pg,
+				   size_t			   pg_size) {
+	struct log_pg_list *log_pg;
+	int					creation = 0;
 
-	MHVTL_DBG(3, "%p : Allocate log page 0x%02x, size %d", l, page, size);
+	MHVTL_DBG(3, "%p : Allocate log page 0x%02x , size %d",
+			  &lu->log_pg, page, (int)pg_size);
 
-	log_page = lookup_log_pg(l, page);
-	if (!log_page) { /* Create a new entry */
-		log_page = zalloc(sizeof(struct log_pg_list));
+	/* Getting the entry, create it if does not exist */
+	log_pg = lookup_log_pg(&lu->log_pg, page);
+	if (!log_pg) {
+		creation = 1;
+		log_pg	 = malloc(sizeof(struct log_pg_list));
 	}
-	if (log_page) {
-		log_page->p = zalloc(size);
-		MHVTL_DBG(3, "log page pointer: %p for log page 0x%02x",
-				  log_page->p, page);
-		if (log_page->p) { /* If ! null, set size of data */
-			log_page->log_page_num = page;
-			log_page->size		   = size;
-			list_add_tail(&log_page->siblings, l);
-			return log_page;
+
+	if (log_pg) {
+		log_pg->log_page_num = page;
+		log_pg->size		 = pg_size;
+		log_pg->p			 = malloc(pg_size);
+		if (log_pg->p) {
+			init_log_pg(log_pg->p);
+			put_unaligned_be16(pg_size - sizeof(struct log_pg_header), /* Setting the real len of the log page */
+							   &((struct log_pg_header *)log_pg->p)->len);
+			if (creation)
+				list_add_tail(&log_pg->siblings, &lu->log_pg);
+			return 0;
 		} else {
-			MHVTL_ERR("Unable to malloc(%d)", size);
-			free(log_page);
+			MHVTL_ERR("Unable to malloc log page buffer (%zu)", pg_size);
+			free(log_pg);
+			return -ENOMEM;
 		}
 	}
-	return NULL;
+
+	MHVTL_ERR("Unable to malloc log page entry (%zu)", pg_size);
+	return -ENOMEM;
 }
 
 void dealloc_all_log_pages(struct lu_phy_attr *lu) {
@@ -119,361 +125,321 @@ void dealloc_all_log_pages(struct lu_phy_attr *lu) {
 	}
 }
 
+static void init_log_write_err_counter(void *log_ptr) {
+	struct ErrorCounter_pg *pg = log_ptr;
+	*pg						   = (struct ErrorCounter_pg){
+		   {
+			   WRITE_ERROR_COUNTER,
+			   0x00,
+			   0x00,
+		   },
+		   {
+			   0x00,
+			   0x00,
+			   0x60,
+			   sizeof(pg->err_correctedWODelay),
+		   },
+		   0x00, /* {02h:0000h} Errors corrected with/o delay */
+		   {
+			   0x00,
+			   0x01,
+			   0x60,
+			   sizeof(pg->err_correctedWDelay),
+		   },
+		   0x00, /* {02h:0001h} Errors corrected with delay */
+		   {
+			   0x00,
+			   0x02,
+			   0x60,
+			   sizeof(pg->totalReTry),
+		   },
+		   0x00, /* {02h:0002h} Total rewrites */
+		   {
+			   0x00,
+			   0x03,
+			   0x60,
+			   sizeof(pg->totalErrorsCorrected),
+		   },
+		   0x00, /* {02h:0003h} Total errors corrected */
+		   {
+			   0x00,
+			   0x04,
+			   0x60,
+			   sizeof(pg->correctAlgorithm),
+		   },
+		   0x00, /* {02h:0004h} total times correct algorithm */
+		   {
+			   0x00,
+			   0x05,
+			   0x60,
+			   sizeof(pg->bytesProcessed),
+		   },
+		   0x00, /* {02h:0005h} Total bytes processed */
+		   {
+			   0x00,
+			   0x06,
+			   0x60,
+			   sizeof(pg->uncorrectedErrors),
+		   },
+		   0x00, /* {02h:0006h} Total uncorrected errors */
+		   {
+			   0x80,
+			   0x00,
+			   0x60,
+			   sizeof(pg->readErrorsSinceLast),
+		   },
+		   0x00, /* {02h:8000h} Write errors since last read */
+		   {
+			   0x80,
+			   0x01,
+			   0x60,
+			   sizeof(pg->totalRawReadError),
+		   },
+		   0x00, /* {02h:8001h} Total raw write error flags */
+		   {
+			   0x80,
+			   0x02,
+			   0x60,
+			   sizeof(pg->totalDropoutError),
+		   },
+		   0x00, /* {02h:8002h} Total dropout error count */
+		   {
+			   0x80,
+			   0x03,
+			   0x60,
+			   sizeof(pg->totalServoTracking),
+		   },
+		   0x00, /* {02h:8003h} Total servo tracking */
+	   };
+}
 int add_log_write_err_counter(struct lu_phy_attr *lu) {
-	struct log_pg_list	  *log_pg;
-	struct ErrorCounter_pg tp = {
-		{
-			WRITE_ERROR_COUNTER,
-			0x00,
-			0x00,
-		},
-		{
-			0x00,
-			0x00,
-			0x60,
-			sizeof(tp.err_correctedWODelay),
-		},
-		0x00, /* {02h:0000h} Errors corrected with/o delay */
-		{
-			0x00,
-			0x01,
-			0x60,
-			sizeof(tp.err_correctedWDelay),
-		},
-		0x00, /* {02h:0001h} Errors corrected with delay */
-		{
-			0x00,
-			0x02,
-			0x60,
-			sizeof(tp.totalReTry),
-		},
-		0x00, /* {02h:0002h} Total rewrites */
-		{
-			0x00,
-			0x03,
-			0x60,
-			sizeof(tp.totalErrorsCorrected),
-		},
-		0x00, /* {02h:0003h} Total errors corrected */
-		{
-			0x00,
-			0x04,
-			0x60,
-			sizeof(tp.correctAlgorithm),
-		},
-		0x00, /* {02h:0004h} total times correct algorithm */
-		{
-			0x00,
-			0x05,
-			0x60,
-			sizeof(tp.bytesProcessed),
-		},
-		0x00, /* {02h:0005h} Total bytes processed */
-		{
-			0x00,
-			0x06,
-			0x60,
-			sizeof(tp.uncorrectedErrors),
-		},
-		0x00, /* {02h:0006h} Total uncorrected errors */
-		{
-			0x80,
-			0x00,
-			0x60,
-			sizeof(tp.readErrorsSinceLast),
-		},
-		0x00, /* {02h:8000h} Write errors since last read */
-		{
-			0x80,
-			0x01,
-			0x60,
-			sizeof(tp.totalRawReadError),
-		},
-		0x00, /* {02h:8001h} Total raw write error flags */
-		{
-			0x80,
-			0x02,
-			0x60,
-			sizeof(tp.totalDropoutError),
-		},
-		0x00, /* {02h:8002h} Total dropout error count */
-		{
-			0x80,
-			0x03,
-			0x60,
-			sizeof(tp.totalServoTracking),
-		},
-		0x00, /* {02h:8003h} Total servo tracking */
-	};
-
-	log_pg = alloc_log_page(&lu->log_pg, WRITE_ERROR_COUNTER, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[WRITE_ERROR_COUNTER];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+	return alloc_log_page(lu, WRITE_ERROR_COUNTER,
+						  init_log_write_err_counter, sizeof(struct ErrorCounter_pg));
 }
 
+static void init_log_read_err_counter(void *log_ptr) {
+	struct ErrorCounter_pg *pg = log_ptr;
+	*pg						   = (struct ErrorCounter_pg){
+		   {
+			   READ_ERROR_COUNTER,
+			   0x00,
+			   0x00,
+		   },
+		   {
+			   0x00,
+			   0x00,
+			   0x60,
+			   sizeof(pg->err_correctedWODelay),
+		   },
+		   0x00, /* (03h:0000h} Errors corrected with/o delay */
+		   {
+			   0x00,
+			   0x01,
+			   0x60,
+			   sizeof(pg->err_correctedWDelay),
+		   },
+		   0x00, /* {03h:0001h} Errors corrected with delay */
+		   {
+			   0x00,
+			   0x02,
+			   0x60,
+			   sizeof(pg->totalReTry),
+		   },
+		   0x00, /* {03h:0002h} Total rewrites/rereads */
+		   {
+			   0x00,
+			   0x03,
+			   0x60,
+			   sizeof(pg->totalErrorsCorrected),
+		   },
+		   0x00, /* {03h:0003h} Total errors corrected */
+		   {
+			   0x00,
+			   0x04,
+			   0x60,
+			   sizeof(pg->correctAlgorithm),
+		   },
+		   0x00, /* {03h:0004h} total times correct algorithm */
+		   {
+			   0x00,
+			   0x05,
+			   0x60,
+			   sizeof(pg->bytesProcessed),
+		   },
+		   0x00, /* {03h:0005h} Total bytes processed */
+		   {
+			   0x00,
+			   0x06,
+			   0x60,
+			   sizeof(pg->uncorrectedErrors),
+		   },
+		   0x00, /* {03h:0006h} Total uncorrected errors */
+		   {
+			   0x80,
+			   0x00,
+			   0x60,
+			   sizeof(pg->readErrorsSinceLast),
+		   },
+		   0x00, /* {03h:8009h} r/w errors since last read */
+		   {
+			   0x80,
+			   0x01,
+			   0x60,
+			   sizeof(pg->totalRawReadError),
+		   },
+		   0x00, /* {03h:8001h} Total raw write error flags */
+		   {
+			   0x80,
+			   0x02,
+			   0x60,
+			   sizeof(pg->totalDropoutError),
+		   },
+		   0x00, /* {03h:8002h} Total dropout error count */
+		   {
+			   0x80,
+			   0x03,
+			   0x60,
+			   sizeof(pg->totalServoTracking),
+		   },
+		   0x00, /* {03h:8003h} Total servo tracking */
+	   };
+}
 int add_log_read_err_counter(struct lu_phy_attr *lu) {
-	struct log_pg_list	  *log_pg;
-	struct ErrorCounter_pg tp = {
-		{
-			READ_ERROR_COUNTER,
-			0x00,
-			0x00,
-		},
-		{
-			0x00,
-			0x00,
-			0x60,
-			sizeof(tp.err_correctedWODelay),
-		},
-		0x00, /* (03h:0000h} Errors corrected with/o delay */
-		{
-			0x00,
-			0x01,
-			0x60,
-			sizeof(tp.err_correctedWDelay),
-		},
-		0x00, /* {03h:0001h} Errors corrected with delay */
-		{
-			0x00,
-			0x02,
-			0x60,
-			sizeof(tp.totalReTry),
-		},
-		0x00, /* {03h:0002h} Total rewrites/rereads */
-		{
-			0x00,
-			0x03,
-			0x60,
-			sizeof(tp.totalErrorsCorrected),
-		},
-		0x00, /* {03h:0003h} Total errors corrected */
-		{
-			0x00,
-			0x04,
-			0x60,
-			sizeof(tp.correctAlgorithm),
-		},
-		0x00, /* {03h:0004h} total times correct algorithm */
-		{
-			0x00,
-			0x05,
-			0x60,
-			sizeof(tp.bytesProcessed),
-		},
-		0x00, /* {03h:0005h} Total bytes processed */
-		{
-			0x00,
-			0x06,
-			0x60,
-			sizeof(tp.uncorrectedErrors),
-		},
-		0x00, /* {03h:0006h} Total uncorrected errors */
-		{
-			0x80,
-			0x00,
-			0x60,
-			sizeof(tp.readErrorsSinceLast),
-		},
-		0x00, /* {03h:8009h} r/w errors since last read */
-		{
-			0x80,
-			0x01,
-			0x60,
-			sizeof(tp.totalRawReadError),
-		},
-		0x00, /* {03h:8001h} Total raw write error flags */
-		{
-			0x80,
-			0x02,
-			0x60,
-			sizeof(tp.totalDropoutError),
-		},
-		0x00, /* {03h:8002h} Total dropout error count */
-		{
-			0x80,
-			0x03,
-			0x60,
-			sizeof(tp.totalServoTracking),
-		},
-		0x00, /* {03h:8003h} Total servo tracking */
-	};
-
-	log_pg = alloc_log_page(&lu->log_pg, READ_ERROR_COUNTER, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[READ_ERROR_COUNTER];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+	return alloc_log_page(lu, READ_ERROR_COUNTER,
+						  init_log_read_err_counter, sizeof(struct ErrorCounter_pg));
 }
 
+static void init_log_sequential_access(void *log_ptr) {
+	struct SequentialAccessDevice_pg *pg = log_ptr;
+	*pg									 = (struct SequentialAccessDevice_pg){
+		 {
+			 SEQUENTIAL_ACCESS_DEVICE,
+			 0x00,
+			 0x54,
+		 },
+		 {
+			 0x00,
+			 0x00,
+			 0x40,
+			 sizeof(pg->writeDataB4Compression),
+		 },
+		 0x00, /* {0C:0000h} Write. Bytes from initiator */
+		 {
+			 0x00,
+			 0x01,
+			 0x40,
+			 sizeof(pg->writeDataAfCompression),
+		 },
+		 0x00, /* {0C:0001h} Write. Bytes written to media */
+		 {
+			 0x00,
+			 0x02,
+			 0x40,
+			 sizeof(pg->readDataB4Compression),
+		 },
+		 0x00, /* {0C:0002h} Read. Bytes read from media */
+		 {
+			 0x00,
+			 0x03,
+			 0x40,
+			 sizeof(pg->readDataAfCompression),
+		 },
+		 0x00, /* {0C:0003h} Read. Bytes to initialtor */
+		 {
+			 0x00,
+			 0x04,
+			 0x40,
+			 sizeof(pg->capacity_bop_eod),
+		 },
+		 0x00, /* {0C:0004h} Native capacity BOT to EOD */
+		 {
+			 0x00,
+			 0x05,
+			 0x40,
+			 sizeof(pg->capacity_bop_ew),
+		 },
+		 0x00, /* {0C:0005h} Native capacity BOP to EW */
+		 {
+			 0x00,
+			 0x06,
+			 0x40,
+			 sizeof(pg->capacity_ew_leop),
+		 },
+		 0x00, /* {0C:0006h} Native capacity EW & LEOP */
+		 {
+			 0x00,
+			 0x07,
+			 0x40,
+			 sizeof(pg->capacity_bop_curr),
+		 },
+		 0x00, /* {0C:0007h} Native capacity BOP to curr pos */
+		 {
+			 0x00,
+			 0x08,
+			 0x40,
+			 sizeof(pg->capacity_buffer),
+		 },
+		 0x00, /* {0C:0008h} Native capacity in buffer */
+		 {
+			 0x01,
+			 0x00,
+			 0x40,
+			 sizeof(pg->TapeAlert),
+		 },
+		 0x00, /* {0C:0100h} Cleaning required (TapeAlert) */
+		 {
+			 0x80,
+			 0x00,
+			 0x40,
+			 sizeof(pg->mbytes_processed),
+		 },
+		 0x00, /* {0C:8000h} MBytes processed since clean */
+		 {
+			 0x80,
+			 0x01,
+			 0x40,
+			 sizeof(pg->load_cycle),
+		 },
+		 0x00, /* {0C:8001h} Lifetime load cycle */
+		 {
+			 0x80,
+			 0x02,
+			 0x40,
+			 sizeof(pg->clean_cycle),
+		 },
+		 0x00, /* {0C:8002h} Lifetime cleaning cycles */
+	 };
+}
 int add_log_sequential_access(struct lu_phy_attr *lu) {
-	struct log_pg_list				*log_pg;
-	struct SequentialAccessDevice_pg tp = {
-		{
-			SEQUENTIAL_ACCESS_DEVICE,
-			0x00,
-			0x54,
-		},
-		{
-			0x00,
-			0x00,
-			0x40,
-			sizeof(tp.writeDataB4Compression),
-		},
-		0x00, /* {0C:0000h} Write. Bytes from initiator */
-		{
-			0x00,
-			0x01,
-			0x40,
-			sizeof(tp.writeDataAfCompression),
-		},
-		0x00, /* {0C:0001h} Write. Bytes written to media */
-		{
-			0x00,
-			0x02,
-			0x40,
-			sizeof(tp.readDataB4Compression),
-		},
-		0x00, /* {0C:0002h} Read. Bytes read from media */
-		{
-			0x00,
-			0x03,
-			0x40,
-			sizeof(tp.readDataAfCompression),
-		},
-		0x00, /* {0C:0003h} Read. Bytes to initialtor */
-		{
-			0x00,
-			0x04,
-			0x40,
-			sizeof(tp.capacity_bop_eod),
-		},
-		0x00, /* {0C:0004h} Native capacity BOT to EOD */
-		{
-			0x00,
-			0x05,
-			0x40,
-			sizeof(tp.capacity_bop_ew),
-		},
-		0x00, /* {0C:0005h} Native capacity BOP to EW */
-		{
-			0x00,
-			0x06,
-			0x40,
-			sizeof(tp.capacity_ew_leop),
-		},
-		0x00, /* {0C:0006h} Native capacity EW & LEOP */
-		{
-			0x00,
-			0x07,
-			0x40,
-			sizeof(tp.capacity_bop_curr),
-		},
-		0x00, /* {0C:0007h} Native capacity BOP to curr pos */
-		{
-			0x00,
-			0x08,
-			0x40,
-			sizeof(tp.capacity_buffer),
-		},
-		0x00, /* {0C:0008h} Native capacity in buffer */
-		{
-			0x01,
-			0x00,
-			0x40,
-			sizeof(tp.TapeAlert),
-		},
-		0x00, /* {0C:0100h} Cleaning required (TapeAlert) */
-		{
-			0x80,
-			0x00,
-			0x40,
-			sizeof(tp.mbytes_processed),
-		},
-		0x00, /* {0C:8000h} MBytes processed since clean */
-		{
-			0x80,
-			0x01,
-			0x40,
-			sizeof(tp.load_cycle),
-		},
-		0x00, /* {0C:8001h} Lifetime load cycle */
-		{
-			0x80,
-			0x02,
-			0x40,
-			sizeof(tp.clean_cycle),
-		},
-		0x00, /* {0C:8002h} Lifetime cleaning cycles */
-	};
-
-	log_pg = alloc_log_page(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE,
-							sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[SEQUENTIAL_ACCESS_DEVICE];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+	return alloc_log_page(lu, SEQUENTIAL_ACCESS_DEVICE,
+						  init_log_sequential_access, sizeof(struct SequentialAccessDevice_pg));
 }
 
+static void init_log_temperature_page(void *log_ptr) {
+	struct Temperature_pg *pg = log_ptr;
+	*pg						  = (struct Temperature_pg){
+		  {
+			  TEMPERATURE_PAGE,
+			  0x00,
+			  0x06,
+		  },
+		  {
+			  0x00,
+			  0x00,
+			  0x60,
+			  0x02,
+		  },
+		  0x00, /* Temperature */
+	  };
+}
 int add_log_temperature_page(struct lu_phy_attr *lu) {
-	struct log_pg_list	 *log_pg;
-	struct Temperature_pg tp = {
-		{
-			TEMPERATURE_PAGE,
-			0x00,
-			0x06,
-		},
-		{
-			0x00,
-			0x00,
-			0x60,
-			0x02,
-		},
-		0x00, /* Temperature */
-	};
-
-	log_pg = alloc_log_page(&lu->log_pg, TEMPERATURE_PAGE, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[TEMPERATURE_PAGE];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	/* Pre-fill temperature at 35C */
-	put_unaligned_be16(35, &tp.temperature);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+	return alloc_log_page(lu, TEMPERATURE_PAGE,
+						  init_log_temperature_page, sizeof(struct Temperature_pg));
 }
 
-int add_log_tape_alert(struct lu_phy_attr *lu) {
-	struct log_pg_list *log_pg;
-	struct TapeAlert_pg tp = {
+static void init_log_tape_alert(void *log_ptr) {
+	struct TapeAlert_pg *pg = log_ptr;
+	*pg						= (struct TapeAlert_pg){
 		{
 			TAPE_ALERT,
 			0x00,
@@ -481,33 +447,22 @@ int add_log_tape_alert(struct lu_phy_attr *lu) {
 		},
 	};
 	int i;
-
-	log_pg = alloc_log_page(&lu->log_pg, TAPE_ALERT, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[TAPE_ALERT];
-
-	tp.pcode_head.pcode = TAPE_ALERT;
-	tp.pcode_head.res	= 0;
 	for (i = 0; i < 64; i++) {
-		tp.TapeAlert[i].flag.head0 = 0;
-		tp.TapeAlert[i].flag.head1 = i + 1;
-		tp.TapeAlert[i].flag.flags = 0xc0;
-		tp.TapeAlert[i].flag.len   = 1;
-		tp.TapeAlert[i].value	   = 0;
+		pg->TapeAlert[i].flag.head0 = 0;
+		pg->TapeAlert[i].flag.head1 = i + 1;
+		pg->TapeAlert[i].flag.flags = 0xc0;
+		pg->TapeAlert[i].flag.len	= 1;
+		pg->TapeAlert[i].value		= 0;
 	}
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+}
+int add_log_tape_alert(struct lu_phy_attr *lu) {
+	return alloc_log_page(lu, TAPE_ALERT,
+						  init_log_tape_alert, sizeof(struct TapeAlert_pg));
 }
 
-int add_log_tape_usage(struct lu_phy_attr *lu) {
-	struct log_pg_list *log_pg;
-	struct TapeUsage_pg tp = {
+static void init_log_tape_usage(void *log_ptr) {
+	struct TapeUsage_pg *pg = log_ptr;
+	*pg						= (struct TapeUsage_pg){
 		{
 			TAPE_USAGE,
 			0x00,
@@ -517,274 +472,239 @@ int add_log_tape_usage(struct lu_phy_attr *lu) {
 			0x00,
 			0x01,
 			0xc0,
-			sizeof(tp.volumeMounts),
+			sizeof(pg->volumeMounts),
 		},
 		0x00, /* {30h:0001h} Thread count */
 		{
 			0x00,
 			0x02,
 			0xc0,
-			sizeof(tp.volumeDatasetsWritten),
+			sizeof(pg->volumeDatasetsWritten),
 		},
 		0x00, /* {30h:0002h} Total data sets written */
 		{
 			0x00,
 			0x03,
 			0xc0,
-			sizeof(tp.volWriteRetries),
+			sizeof(pg->volWriteRetries),
 		},
 		0x00, /* {30h:0003h} Total write retries */
 		{
 			0x00,
 			0x04,
 			0xc0,
-			sizeof(tp.volWritePerms),
+			sizeof(pg->volWritePerms),
 		},
 		0x00, /* {30h:0004h} Total Unrecovered write error */
 		{
 			0x00,
 			0x05,
 			0xc0,
-			sizeof(tp.volSuspendedWrites),
+			sizeof(pg->volSuspendedWrites),
 		},
 		0x00, /* {30h:0005h} Total Suspended writes */
 		{
 			0x00,
 			0x06,
 			0xc0,
-			sizeof(tp.volFatalSuspendedWrites),
+			sizeof(pg->volFatalSuspendedWrites),
 		},
 		0x00, /* {30h:0006h} Total Fatal suspended writes */
 		{
 			0x00,
 			0x07,
 			0xc0,
-			sizeof(tp.volDatasetsRead),
+			sizeof(pg->volDatasetsRead),
 		},
 		0x00, /* {30h:0007h} Total data sets read */
 		{
 			0x00,
 			0x08,
 			0xc0,
-			sizeof(tp.volReadRetries),
+			sizeof(pg->volReadRetries),
 		},
 		0x00, /* {30h:0008h} Total read retries */
 		{
 			0x00,
 			0x09,
 			0xc0,
-			sizeof(tp.volReadPerms),
+			sizeof(pg->volReadPerms),
 		},
 		0x00, /* {30h:0009h} Total unrecovered read errors */
 		{
 			0x00,
 			0x0a,
 			0xc0,
-			sizeof(tp.volSuspendedReads),
+			sizeof(pg->volSuspendedReads),
 		},
 		0x00, /* {30h:000ah} Total suspended reads */
 		{
 			0x00,
 			0x0b,
 			0xc0,
-			sizeof(tp.volFatalSuspendedReads),
+			sizeof(pg->volFatalSuspendedReads),
 		},
 		0x00, /* {30h:000bh} Total Fatal suspended reads */
 	};
-
-	log_pg = alloc_log_page(&lu->log_pg, TAPE_USAGE, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[TAPE_USAGE];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+}
+int add_log_tape_usage(struct lu_phy_attr *lu) {
+	return alloc_log_page(lu, TAPE_USAGE,
+						  init_log_tape_usage, sizeof(struct TapeUsage_pg));
 }
 
+static void init_log_device_status(void *log_ptr) {
+	struct DeviceStatus_pg *pg = log_ptr;
+	*pg						   = (struct DeviceStatus_pg){
+		   {
+			   DEVICE_STATUS,
+			   0x00,
+			   0x08,
+		   },
+		   {
+			   0x00,
+			   0x00,
+			   0x03,
+			   0x04,
+		   },
+		   {
+			   0x00,
+			   0x00,
+			   0x00,
+			   0x01,
+		   } /* {11h:0000h} VHF parameter code  - 0000h */
+	   };
+}
 int add_log_device_status(struct lu_phy_attr *lu) {
-	struct log_pg_list	  *log_pg;
-	struct DeviceStatus_pg tp = {
-		{
-			DEVICE_STATUS,
-			0x00,
-			0x08,
-		},
-		{
-			0x00,
-			0x00,
-			0x03,
-			0x04,
-		},
-		{
-			0x00,
-			0x00,
-			0x00,
-			0x01,
-		} /* {11h:0000h} VHF parameter code  - 0000h */
-	};
-
-	log_pg = alloc_log_page(&lu->log_pg, DEVICE_STATUS, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[DEVICE_STATUS];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head), &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+	return alloc_log_page(lu, DEVICE_STATUS,
+						  init_log_device_status, sizeof(struct DeviceStatus_pg));
 }
 
+static void init_log_tape_capacity(void *log_ptr) {
+	struct TapeCapacity_pg *pg = log_ptr;
+	*pg						   = (struct TapeCapacity_pg){
+		   {
+			   TAPE_CAPACITY,
+			   0x00,
+			   0x54,
+		   },
+		   {
+			   0x00,
+			   0x01,
+			   0xc0,
+			   sizeof(pg->partition0remaining),
+		   },
+		   0x00, /* {31h:0001h} main partition remaining cap */
+		   {
+			   0x00,
+			   0x02,
+			   0xc0,
+			   sizeof(pg->partition1remaining),
+		   },
+		   0x00, /* {31h:0002h} Alt. partition remaining cap */
+		   {
+			   0x00,
+			   0x03,
+			   0xc0,
+			   sizeof(pg->partition0maximum),
+		   },
+		   0x00, /* {31h:0003h} main partition max cap */
+		   {
+			   0x00,
+			   0x04,
+			   0xc0,
+			   sizeof(pg->partition1maximum),
+		   },
+		   0x00, /* {31h:0004h} Alt. partition max cap */
+	   };
+}
 int add_log_tape_capacity(struct lu_phy_attr *lu) {
-	struct log_pg_list	  *log_pg;
-	struct TapeCapacity_pg tp = {
-		{
-			TAPE_CAPACITY,
-			0x00,
-			0x54,
-		},
-		{
-			0x00,
-			0x01,
-			0xc0,
-			sizeof(tp.partition0remaining),
-		},
-		0x00, /* {31h:0001h} main partition remaining cap */
-		{
-			0x00,
-			0x02,
-			0xc0,
-			sizeof(tp.partition1remaining),
-		},
-		0x00, /* {31h:0002h} Alt. partition remaining cap */
-		{
-			0x00,
-			0x03,
-			0xc0,
-			sizeof(tp.partition0maximum),
-		},
-		0x00, /* {31h:0003h} main partition max cap */
-		{
-			0x00,
-			0x04,
-			0xc0,
-			sizeof(tp.partition1maximum),
-		},
-		0x00, /* {31h:0004h} Alt. partition max cap */
-	};
-
-	log_pg = alloc_log_page(&lu->log_pg, TAPE_CAPACITY, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[TAPE_CAPACITY];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+	return alloc_log_page(lu, TAPE_CAPACITY,
+						  init_log_tape_capacity, sizeof(struct TapeCapacity_pg));
 }
 
+static void init_log_data_compression(void *log_ptr) {
+	struct DataCompression_pg *pg = log_ptr;
+	*pg							  = (struct DataCompression_pg){
+		  {
+			  DATA_COMPRESSION,
+			  0x00,
+			  0x54,
+		  },
+		  {
+			  0x00,
+			  0x00,
+			  0x40,
+			  sizeof(pg->ReadCompressionRatio),
+		  },
+		  0x00, /* {32h:0000h} Read Compression Ratio */
+		  {
+			  0x00,
+			  0x01,
+			  0x40,
+			  sizeof(pg->WriteCompressionRatio),
+		  },
+		  0x00, /* {32h:0001h} Write Compression Ratio */
+		  {
+			  0x00,
+			  0x02,
+			  0x40,
+			  sizeof(pg->MBytesToServer),
+		  },
+		  0x00, /* {32h:0002h} MBytes transferred to server */
+		  {
+			  0x00,
+			  0x03,
+			  0x40,
+			  sizeof(pg->BytesToServer),
+		  },
+		  0x00, /* {32h:0003h} Bytes transferred to server */
+		  {
+			  0x00,
+			  0x04,
+			  0x40,
+			  sizeof(pg->MBytesReadFromTape),
+		  },
+		  0x00, /* {32h:0004h} MBytes read from tape */
+		  {
+			  0x00,
+			  0x05,
+			  0x40,
+			  sizeof(pg->BytesReadFromTape),
+		  },
+		  0x00, /* {32h:0005h} Bytes read from tape */
+		  {
+			  0x00,
+			  0x06,
+			  0x40,
+			  sizeof(pg->MBytesFromServer),
+		  },
+		  0x00, /* {32h:0006h} MBytes transferred from server */
+		  {
+			  0x00,
+			  0x07,
+			  0x40,
+			  sizeof(pg->BytesFromServer),
+		  },
+		  0x00, /* {32h:0007h} Bytes transferred from server */
+		  {
+			  0x00,
+			  0x08,
+			  0x40,
+			  sizeof(pg->MBytesWrittenToTape),
+		  },
+		  0x00, /* {32h:0008h} MBytes written to tape */
+		  {
+			  0x00,
+			  0x09,
+			  0x40,
+			  sizeof(pg->BytesWrittenToTape),
+		  },
+		  0x00, /* {32h:0009h} Bytes written to tape */
+	  };
+}
 int add_log_data_compression(struct lu_phy_attr *lu) {
-	struct log_pg_list		 *log_pg;
-	struct DataCompression_pg tp = {
-		{
-			DATA_COMPRESSION,
-			0x00,
-			0x54,
-		},
-		{
-			0x00,
-			0x00,
-			0x40,
-			sizeof(tp.ReadCompressionRatio),
-		},
-		0x00, /* {32h:0000h} Read Compression Ratio */
-		{
-			0x00,
-			0x01,
-			0x40,
-			sizeof(tp.WriteCompressionRatio),
-		},
-		0x00, /* {32h:0001h} Write Compression Ratio */
-		{
-			0x00,
-			0x02,
-			0x40,
-			sizeof(tp.MBytesToServer),
-		},
-		0x00, /* {32h:0002h} MBytes transferred to server */
-		{
-			0x00,
-			0x03,
-			0x40,
-			sizeof(tp.BytesToServer),
-		},
-		0x00, /* {32h:0003h} Bytes transferred to server */
-		{
-			0x00,
-			0x04,
-			0x40,
-			sizeof(tp.MBytesReadFromTape),
-		},
-		0x00, /* {32h:0004h} MBytes read from tape */
-		{
-			0x00,
-			0x05,
-			0x40,
-			sizeof(tp.BytesReadFromTape),
-		},
-		0x00, /* {32h:0005h} Bytes read from tape */
-		{
-			0x00,
-			0x06,
-			0x40,
-			sizeof(tp.MBytesFromServer),
-		},
-		0x00, /* {32h:0006h} MBytes transferred from server */
-		{
-			0x00,
-			0x07,
-			0x40,
-			sizeof(tp.BytesFromServer),
-		},
-		0x00, /* {32h:0007h} Bytes transferred from server */
-		{
-			0x00,
-			0x08,
-			0x40,
-			sizeof(tp.MBytesWrittenToTape),
-		},
-		0x00, /* {32h:0008h} MBytes written to tape */
-		{
-			0x00,
-			0x09,
-			0x40,
-			sizeof(tp.BytesWrittenToTape),
-		},
-		0x00, /* {32h:0009h} Bytes written to tape */
-	};
-
-	log_pg = alloc_log_page(&lu->log_pg, DATA_COMPRESSION, sizeof(tp));
-	if (!log_pg)
-		return -ENOMEM;
-
-	log_pg->description = log_page_desc[DATA_COMPRESSION];
-
-	put_unaligned_be16(sizeof(tp) - sizeof(tp.pcode_head),
-					   &tp.pcode_head.len);
-
-	memcpy(log_pg->p, &tp, sizeof(tp));
-
-	return 0;
+	return alloc_log_page(lu, DATA_COMPRESSION,
+						  init_log_data_compression, sizeof(struct DataCompression_pg));
 }
 
 /* Update MAM Accessible bit in LogPage 0x11 */

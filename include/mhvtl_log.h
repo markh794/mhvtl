@@ -28,6 +28,7 @@
 #include "mhvtl_list.h"
 
 struct lu_phy_attr;
+typedef void (*init_pg_fn)(void *log_ptr);
 
 /*
  * Process the LOG_SENSE page definitions
@@ -310,7 +311,10 @@ void update_TapeCapacity(struct TapeCapacity_pg *pg);
 void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa);
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);
-struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size);
+int					alloc_log_page(struct lu_phy_attr *lu,
+								   uint8_t			   page,
+								   init_pg_fn		   init_log_pg,
+								   size_t			   pg_size);
 
 int add_log_write_err_counter(struct lu_phy_attr *lu);
 int add_log_read_err_counter(struct lu_phy_attr *lu);
