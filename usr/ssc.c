@@ -1850,8 +1850,7 @@ uint8_t ssc_pr_in(struct scsi_cmd *cmd) {
 		return resp_spc_pri(cdb, dbuf_p);
 }
 
-static void update_tape_usage(struct TapeUsage	 *b,
-							  struct priv_lu_ssc *lu_ssc) {
+static void update_tape_usage(struct TapeUsage *b) {
 	uint64_t datasets = count_filemarks(-1);
 	uint64_t load_count;
 
@@ -1863,30 +1862,29 @@ static void update_tape_usage(struct TapeUsage	 *b,
 	if (datasets > 1)
 		datasets--;
 
-	load_count = get_unaligned_be64(&lu_ssc->mamp->LoadCount);
+	load_count = get_unaligned_be64(lu_ssc.mamp->LoadCount);
 	put_unaligned_be32(load_count, &b->volumeMounts);
 
 	put_unaligned_be64(datasets, &b->volumeDatasetsWritten);
 }
 
-static void update_seq_access_counters(struct seqAccessDevice *sa,
-									   struct priv_lu_ssc	  *lu_ssc) {
-	put_unaligned_be64(lu_ssc->bytesWritten_I,
+static void update_seq_access_counters(struct seqAccessDevice *sa) {
+	put_unaligned_be64(lu_ssc.bytesWritten_I,
 					   &sa->writeDataB4Compression);
-	put_unaligned_be64(lu_ssc->bytesWritten_M,
+	put_unaligned_be64(lu_ssc.bytesWritten_M,
 					   &sa->writeDataAfCompression);
-	put_unaligned_be64(lu_ssc->bytesRead_M,
+	put_unaligned_be64(lu_ssc.bytesRead_M,
 					   &sa->readDataB4Compression);
-	put_unaligned_be64(lu_ssc->bytesRead_I,
+	put_unaligned_be64(lu_ssc.bytesRead_I,
 					   &sa->readDataAfCompression);
 
 	/* Values in MBytes */
 	if (get_tape_load_status() == TAPE_LOADED) {
-		put_unaligned_be32(lu_ssc->max_capacity >> 20,
+		put_unaligned_be32(lu_ssc.max_capacity >> 20,
 						   &sa->capacity_bop_eod);
-		put_unaligned_be32(lu_ssc->early_warning_position >> 20,
+		put_unaligned_be32(lu_ssc.early_warning_position >> 20,
 						   &sa->capacity_bop_ew);
-		put_unaligned_be32(lu_ssc->early_warning_sz >> 20,
+		put_unaligned_be32(lu_ssc.early_warning_sz >> 20,
 						   &sa->capacity_ew_leop);
 		put_unaligned_be32(current_tape_offset() >> 20,
 						   &sa->capacity_bop_curr);
@@ -1956,7 +1954,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 			goto log_page_not_found;
 
 		buf = memcpy(buf, l->p, l->size);
-		update_seq_access_counters((struct seqAccessDevice *)buf, lu_priv);
+		update_seq_access_counters((struct seqAccessDevice *)buf);
 		retval = l->size;
 		break;
 	case TEMPERATURE_PAGE: /* Temperature page */
@@ -2001,7 +1999,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 			goto log_page_not_found;
 
 		buf = memcpy(buf, l->p, l->size);
-		update_tape_usage((struct TapeUsage *)buf, lu_priv);
+		update_tape_usage((struct TapeUsage *)buf);
 		retval = l->size;
 		break;
 	case TAPE_CAPACITY: { /* Tape Capacity page */
