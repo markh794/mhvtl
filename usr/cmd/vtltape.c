@@ -328,7 +328,7 @@ int lookup_mode_media_type(struct name_to_media_info *media_info, int med) {
 static void set_lp_11_wp(int flag) {
 	struct vhf_data_4 *vhf4;
 
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(&lunit, 4);
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
 	if (!vhf4)
 		return;
 	vhf4->WRTP = (flag) ? 1 : 0;
@@ -339,7 +339,7 @@ void set_current_state(int s) {
 
 	current_state = s;
 
-	vhf_device_activity = (uint8_t *)get_vhf_byte(&lunit, 6); /* Get DT device activity */
+	vhf_device_activity = (uint8_t *)get_vhf_byte(6); /* Get DT device activity */
 	if (!vhf_device_activity)
 		return;
 
@@ -1241,7 +1241,7 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 		if (rc == 2) {
 			/* TapeAlert - Unsupported format */
 			fg = TA_MEDIA_NOT_SUPPORTED;
-			update_TapeAlert(lu, fg);
+			update_TapeAlert(fg);
 		}
 		MHVTL_LOG("Tape Load (%s) failed with status: %d", PCL, rc);
 		return rc;
@@ -1422,7 +1422,7 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 	}
 
 	/* Update TapeAlert flags */
-	update_TapeAlert(lu, fg);
+	update_TapeAlert(fg);
 
 	MHVTL_DBG(1, "Media is%s writable", (OK_to_write) ? "" : " not");
 
@@ -1442,7 +1442,7 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 mismatchmedia:
 	unload_tape(sam_stat);
 	fg |= TA_MEDIA_NOT_SUPPORTED; /* Unsupported format */
-	update_TapeAlert(lu, fg);
+	update_TapeAlert(fg);
 	MHVTL_ERR("Tape %s failed to load with type '%s' in drive type '%s'",
 			  PCL,
 			  lookup_media_type(lu_ssc.pm->media_handling,
@@ -1566,7 +1566,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 					if (rc == 2) {
 						/* TapeAlert - Unsupported format */
 						fg = TA_MEDIA_NOT_SUPPORTED;
-						update_TapeAlert(lu, fg);
+						update_TapeAlert(fg);
 					}
 				}
 			}
@@ -1653,7 +1653,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = TA_NONE;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
-		update_TapeAlert(lu, flg);
+		update_TapeAlert(flg);
 	}
 
 	if (!strncmp(msg->text, "compression", 11)) {
@@ -1857,7 +1857,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s) {
 		list_add_tail(&m_detail->siblings, den_list);
 	}
 
-	set_TapeAlert(lu, 0);
+	set_TapeAlert(0);
 	return 0;
 }
 

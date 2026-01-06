@@ -294,9 +294,9 @@ void setTapeAlert(struct TapeAlert_page *, uint64_t); /* in vtllib.c, never used
 void initTapeAlert(struct TapeAlert_page *);
 void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
-int	  update_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);
-int	  set_TapeAlert(struct lu_phy_attr *lu, uint64_t flags);
-void *get_vhf_byte(struct lu_phy_attr *lu, int offset);
+int	  update_TapeAlert(uint64_t flags);
+int	  set_TapeAlert(uint64_t flags);
+void *get_vhf_byte(int offset);
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);
 struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size);

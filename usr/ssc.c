@@ -83,7 +83,7 @@ void set_tape_load_status(int s) {
 
 	lu_ssc.load_status = s;
 
-	vhf5 = (struct vhf_data_5 *)get_vhf_byte(&lunit, 5);
+	vhf5 = (struct vhf_data_5 *)get_vhf_byte(5);
 
 	if (vhf5) {
 		switch (s) {
@@ -125,7 +125,7 @@ void set_tape_load_status(int s) {
 void set_lp_11_macc(int flag) {
 	struct vhf_data_4 *vhf4;
 
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(&lunit, 4);
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
 	if (!vhf4)
 		return;
 	vhf4->MACC = (flag) ? 1 : 0;
@@ -134,7 +134,7 @@ void set_lp_11_macc(int flag) {
 void set_lp11_medium_present(int flag) {
 	struct vhf_data_5 *vhf5;
 
-	vhf5 = (struct vhf_data_5 *)get_vhf_byte(&lunit, 5);
+	vhf5 = (struct vhf_data_5 *)get_vhf_byte(5);
 	if (!vhf5)
 		return;
 	vhf5->MPRSNT = (flag) ? 1 : 0;
@@ -148,7 +148,7 @@ void set_lp11_medium_present(int flag) {
 void set_lp11_compression(int flag) {
 	struct vhf_data_4 *vhf4;
 
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(&lunit, 4);
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
 	if (!vhf4)
 		return;
 	vhf4->CMPR = (flag) ? 1 : 0;
@@ -571,7 +571,7 @@ uint8_t check_restrictions(struct scsi_cmd *cmd) {
 			sam_data_protect(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
 			/* And set TapeAlert flg 09 -> WRITE PROTECT */
 			TAflag = TA_WRITE_PROTECT;
-			update_TapeAlert(cmd->lu, TAflag);
+			update_TapeAlert(TAflag);
 		}
 	}
 
@@ -1989,7 +1989,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 
 		/* Clear flags after value read. */
 		if (alloc_len > 4)
-			set_TapeAlert(lu, TA_NONE);
+			set_TapeAlert(TA_NONE);
 		else
 			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
 						 " Not clearing TapeAlert flags.");

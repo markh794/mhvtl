@@ -538,7 +538,7 @@ static int processMessageQ(struct q_msg *msg) {
 	if (!strncmp(msg->text, "TapeAlert", 9)) {
 		uint64_t flg = TA_NONE;
 		sscanf(msg->text, "TapeAlert %" PRIx64, &flg);
-		set_TapeAlert(&lunit, flg);
+		set_TapeAlert(flg);
 	}
 	if (!strncmp(msg->text, "verbose", 7)) {
 		if (verbose)

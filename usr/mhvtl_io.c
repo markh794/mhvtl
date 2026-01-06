@@ -772,7 +772,7 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz) {
 	if (!src_len) {
 		/* Set 'Read/Write error' TapeAlert flag */
 		uint64_t fg = TA_HARD | TA_WRITE;
-		set_TapeAlert(cmd->lu, fg);
+		set_TapeAlert(fg);
 		return 0;
 	}
 
