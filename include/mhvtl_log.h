@@ -54,40 +54,6 @@ struct lu_phy_attr;
 #define TAPE_CAPACITY			   0x31
 #define DATA_COMPRESSION		   0x32
 
-/* VHF (Very High Frequency) data */
-struct vhf_data_4 {
-	uint8_t DINIT : 1; /* Device Initialized - 0 not initialised*/
-	uint8_t CRQRD : 1; /* Cleaning required - before media is mounted (required) */
-	uint8_t CRQST : 1; /* Cleaning required - non urgent (request) */
-	uint8_t WRTP : 1;  /* Physical Write Protect */
-	uint8_t CMPR : 1;  /* Compression enabled */
-	uint8_t MACC : 1;  /* MAM accessible */
-	uint8_t HIU : 1;   /* Host Initiated Unload */
-	uint8_t PAMR : 1;  /* Prevent/Allow Media Removal */
-} __attribute__((packed));
-
-struct vhf_data_5 {
-	uint8_t MOUNTED : 1; /* Medium mounted */
-	uint8_t MTHRD : 1;	 /* Medium Threaded */
-	uint8_t MSTD : 1;	 /* Medium Seated */
-	uint8_t RSVD_2 : 1;
-	uint8_t MPRSNT : 1; /* Medium Present */
-	uint8_t RAA : 1;	/* Robotic access allowed */
-	uint8_t RSVD_1 : 1;
-	uint8_t INXTN : 1; /* In Transition - other bits in byte 5 not stable */
-} __attribute__((packed));
-
-struct vhf_data_7 {
-	uint8_t TAFC : 1;	/* TapeAlert state flag changed */
-	uint8_t INITFC : 1; /* Interface changed */
-	uint8_t RRQST : 1;	/* Recovery requested */
-	uint8_t ESR : 1;	/* Encryption Service Requested */
-	uint8_t EPP : 1;	/* Encryption Parameters Present */
-	uint8_t TDDEC : 1;	/* Tape Diagnostic data entry created */
-	uint8_t RSVD : 1;
-	uint8_t VS : 1; /* Always 0 */
-} __attribute__((packed));
-
 struct log_pg_list {
 	struct list_head siblings;
 	char			*description;
@@ -171,11 +137,45 @@ struct TapeUsage_pg {
 
 struct DeviceStatus_pg {
 	struct log_pg_header pcode_head;
-	struct pc_header	 vhf_data;
-	uint8_t				 byte4;
-	uint8_t				 byte5;
-	uint8_t				 byte6;
-	uint8_t				 byte7;
+
+	struct pc_header h_vhf;
+	struct __attribute__((packed)) {
+		struct __attribute__((packed)) {
+			uint8_t DINIT : 1; /* Device Initialized - 0 not initialised*/
+			uint8_t CRQRD : 1; /* Cleaning required - before media is mounted (required) */
+			uint8_t CRQST : 1; /* Cleaning required - non urgent (request) */
+			uint8_t WRTP : 1;  /* Physical Write Protect */
+			uint8_t CMPR : 1;  /* Compression enabled */
+			uint8_t MACC : 1;  /* MAM accessible */
+			uint8_t HIU : 1;   /* Host Initiated Unload */
+			uint8_t PAMR : 1;  /* Prevent/Allow Media Removal */
+		} b4;
+
+		struct __attribute__((packed)) {
+			uint8_t MOUNTED : 1; /* Medium mounted */
+			uint8_t MTHRD : 1;	 /* Medium Threaded */
+			uint8_t MSTD : 1;	 /* Medium Seated */
+			uint8_t RSVD_2 : 1;
+			uint8_t MPRSNT : 1; /* Medium Present */
+			uint8_t RAA : 1;	/* Robotic access allowed */
+			uint8_t RSVD_1 : 1;
+			uint8_t INXTN : 1; /* In Transition - other bits in byte 5 not stable */
+		} b5;
+
+		uint8_t b6; /* DT Device Activity */
+
+		struct __attribute__((packed)) {
+			uint8_t TAFC : 1;	/* TapeAlert state flag changed */
+			uint8_t INITFC : 1; /* Interface changed */
+			uint8_t RRQST : 1;	/* Recovery requested */
+			uint8_t ESR : 1;	/* Encryption Service Requested */
+			uint8_t EPP : 1;	/* Encryption Parameters Present */
+			uint8_t TDDEC : 1;	/* Tape Diagnostic data entry created */
+			uint8_t RSVD : 1;
+			uint8_t VS : 1; /* Always 0 */
+		} b7;
+
+	} vhf; /* Very High Frequency data */
 } __attribute__((packed));
 
 struct TapeCapacity_pg {
@@ -303,12 +303,11 @@ void setTapeAlert(struct TapeAlert_pg *, uint64_t); /* in vtllib.c, never used *
 void initTapeAlert(struct TapeAlert_pg *);
 void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
-int	  update_TapeAlert(uint64_t flags);
-int	  set_TapeAlert(uint64_t flags);
-void  update_TapeUsage(struct TapeUsage_pg *b);
-void  update_TapeCapacity(struct TapeCapacity_pg *pg);
-void  update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa);
-void *get_vhf_byte(int offset);
+int	 update_TapeAlert(uint64_t flags);
+int	 set_TapeAlert(uint64_t flags);
+void update_TapeUsage(struct TapeUsage_pg *b);
+void update_TapeCapacity(struct TapeCapacity_pg *pg);
+void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa);
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);
 struct log_pg_list *alloc_log_page(struct list_head *l, uint8_t page, int size);

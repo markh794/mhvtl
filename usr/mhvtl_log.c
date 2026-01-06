@@ -620,10 +620,12 @@ int add_log_device_status(struct lu_phy_attr *lu) {
 			0x03,
 			0x04,
 		},
-		0x00,
-		0x00,
-		0x00,
-		0x01, /* {11h:0000h} VHF parameter code  - 0000h */
+		{
+			0x00,
+			0x00,
+			0x00,
+			0x01,
+		} /* {11h:0000h} VHF parameter code  - 0000h */
 	};
 
 	log_pg = alloc_log_page(&lu->log_pg, DEVICE_STATUS, sizeof(tp));
@@ -787,58 +789,42 @@ int add_log_data_compression(struct lu_phy_attr *lu) {
 
 /* Update MAM Accessible bit in LogPage 0x11 */
 void set_lp_11_macc(int flag) {
-	struct vhf_data_4 *vhf4;
-
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
-	if (!vhf4)
-		return;
-	vhf4->MACC = (flag) ? 1 : 0;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	if (lp)
+		lp->vhf.b4.MACC = flag;
 }
 
 void set_lp11_compression(int flag) {
-	struct vhf_data_4 *vhf4;
-
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
-	if (!vhf4)
-		return;
-	vhf4->CMPR = (flag) ? 1 : 0;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	if (lp)
+		lp->vhf.b4.CMPR = flag;
 }
 
 void set_lp_11_crqst(int flag) {
-	struct vhf_data_4 *vhf4;
-
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
-	if (!vhf4)
-		return;
-	vhf4->CRQST = (flag) ? 1 : 0;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	if (lp)
+		lp->vhf.b4.CRQST = flag;
 }
 
 void set_lp_11_crqrd(int flag) {
-	struct vhf_data_4 *vhf4;
-
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
-	if (!vhf4)
-		return;
-	vhf4->CRQRD = (flag) ? 1 : 0;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	if (lp)
+		lp->vhf.b4.CRQRD = flag;
 }
 
 /* Update WriteProtect bit in LogPage 0x11 */
 void set_lp_11_wp(int flag) {
-	struct vhf_data_4 *vhf4;
-
-	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
-	if (!vhf4)
-		return;
-	vhf4->WRTP = (flag) ? 1 : 0;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	if (lp)
+		lp->vhf.b4.WRTP = flag;
 }
 
 void set_lp11_medium_present(int flag) {
-	struct vhf_data_5 *vhf5;
-
-	vhf5 = (struct vhf_data_5 *)get_vhf_byte(5);
-	if (!vhf5)
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	if (!lp)
 		return;
-	vhf5->MPRSNT = (flag) ? 1 : 0;
+
+	lp->vhf.b5.MPRSNT = flag;
 
 	if (!flag) {		   /* Clearing bit - also set state to unloaded */
 		set_lp_11_macc(0); /* MAM Accessible */
@@ -879,21 +865,22 @@ int update_TapeAlert(uint64_t flags) {
 int set_TapeAlert(uint64_t flags) {
 	struct SequentialAccessDevice_pg *sad;
 	struct TapeAlert_pg				 *ta;
+	struct DeviceStatus_pg			 *ds;
 	struct log_pg_list				 *l;
 	int								  i;
 
-	struct vhf_data_7 *p;
-
 	/* Set LP 0x11 'TAFC' bit (TapeAlert Flag Changed) */
-	p = get_vhf_byte(7);
-	if (p) {
-		if (flags) {
-			p->TAFC = 1;
-			MHVTL_DBG(2, "Setting TAFC bit true");
-		} else {
-			p->TAFC = 0;
-			MHVTL_DBG(3, "Not setting TAFC bit as flags is zero");
-		}
+	l = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	if (!l)
+		return -1;
+
+	ds = (struct DeviceStatus_pg *)l->p;
+	if (flags) {
+		ds->vhf.b7.TAFC = 1;
+		MHVTL_DBG(2, "Setting TAFC bit true");
+	} else {
+		ds->vhf.b7.TAFC = 0;
+		MHVTL_DBG(3, "Not setting TAFC bit as flags is zero");
 	}
 
 	l = lookup_log_pg(&lunit.log_pg, TAPE_ALERT);
@@ -992,80 +979,61 @@ void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa) {
 	}
 }
 
-/*
- * offset is the byte offset into the VHF data structure - 4/5/6/7
- */
-void *get_vhf_byte(int offset) {
-	struct log_pg_list *l;
-	uint8_t			   *p;
-	int					pg_header = 4;
-
-	l = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS);
-	if (!l)
-		return NULL;
-
-	p = l->p;
-
-	return p + offset + pg_header;
-}
-
 void set_current_state(int s) {
-	uint8_t *vhf_device_activity;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
 
 	current_state = s;
 
-	vhf_device_activity = (uint8_t *)get_vhf_byte(6); /* Get DT device activity */
-	if (!vhf_device_activity)
-		return;
-
-	/* Now translate the 'mhVTL' state into DT values */
-	switch (s) {
-	case MHVTL_STATE_UNLOADED:
-		*vhf_device_activity = 0;
-		break;
-	case MHVTL_STATE_LOADING:
-		*vhf_device_activity = 2;
-		break;
-	case MHVTL_STATE_LOADING_CLEAN:
-		*vhf_device_activity = 1;
-		break;
-	case MHVTL_STATE_LOADING_WORM:
-		*vhf_device_activity = 2;
-		break;
-	case MHVTL_STATE_LOADED:
-		*vhf_device_activity = 0;
-		break;
-	case MHVTL_STATE_LOADED_IDLE:
-		*vhf_device_activity = 0;
-		break;
-	case MHVTL_STATE_LOAD_FAILED:
-		*vhf_device_activity = 0;
-		set_lp_11_macc(0); /* MAM Accessible - False */
-		break;
-	case MHVTL_STATE_REWIND:
-		*vhf_device_activity = 0x8;
-		break;
-	case MHVTL_STATE_POSITIONING:
-		*vhf_device_activity = 0x7;
-		break;
-	case MHVTL_STATE_LOCATE:
-		*vhf_device_activity = 0x7;
-		break;
-	case MHVTL_STATE_READING:
-		*vhf_device_activity = 0x5;
-		break;
-	case MHVTL_STATE_WRITING:
-		*vhf_device_activity = 0x6;
-		break;
-	case MHVTL_STATE_UNLOADING:
-		*vhf_device_activity = 0x3;
-		break;
-	case MHVTL_STATE_ERASE:
-		*vhf_device_activity = 0x9;
-		break;
-	case MHVTL_STATE_VERIFY:
-		*vhf_device_activity = 0x4;
-		break;
+	/* Now translate the 'mhVTL' state into DT Device Activity values */
+	if (lp) {
+		switch (s) {
+		case MHVTL_STATE_UNLOADED:
+			lp->vhf.b6 = 0;
+			break;
+		case MHVTL_STATE_LOADING:
+			lp->vhf.b6 = 2;
+			break;
+		case MHVTL_STATE_LOADING_CLEAN:
+			lp->vhf.b6 = 1;
+			break;
+		case MHVTL_STATE_LOADING_WORM:
+			lp->vhf.b6 = 2;
+			break;
+		case MHVTL_STATE_LOADED:
+			lp->vhf.b6 = 0;
+			break;
+		case MHVTL_STATE_LOADED_IDLE:
+			lp->vhf.b6 = 0;
+			break;
+		case MHVTL_STATE_LOAD_FAILED:
+			lp->vhf.b6 = 0;
+			set_lp_11_macc(0); /* MAM Accessible - False */
+			break;
+		case MHVTL_STATE_REWIND:
+			lp->vhf.b6 = 0x8;
+			break;
+		case MHVTL_STATE_POSITIONING:
+			lp->vhf.b6 = 0x7;
+			break;
+		case MHVTL_STATE_LOCATE:
+			lp->vhf.b6 = 0x7;
+			break;
+		case MHVTL_STATE_READING:
+			lp->vhf.b6 = 0x5;
+			break;
+		case MHVTL_STATE_WRITING:
+			lp->vhf.b6 = 0x6;
+			break;
+		case MHVTL_STATE_UNLOADING:
+			lp->vhf.b6 = 0x3;
+			break;
+		case MHVTL_STATE_ERASE:
+			lp->vhf.b6 = 0x9;
+			break;
+		case MHVTL_STATE_VERIFY:
+			lp->vhf.b6 = 0x4;
+			break;
+		}
 	}
 }
 
@@ -1075,43 +1043,41 @@ int get_tape_load_status(void) {
 }
 
 void set_tape_load_status(int s) {
-	struct vhf_data_5 *vhf5;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
 
 	lu_ssc.load_status = s;
 
-	vhf5 = (struct vhf_data_5 *)get_vhf_byte(5);
-
-	if (vhf5) {
+	if (lp) {
 		switch (s) {
 		case TAPE_UNLOADED:
-			vhf5->INXTN	  = 1; /* In transition */
-			vhf5->MSTD	  = 0; /* Medium seated */
-			vhf5->MTHRD	  = 0; /* Medium threaded */
-			vhf5->MOUNTED = 0; /* Medium mounted */
-			vhf5->MPRSNT  = 0; /* Medium Present */
-			vhf5->RAA	  = 1; /* Robotic access allowed */
-			vhf5->INXTN	  = 0; /* Completed updates */
-			set_lp_11_macc(0); /* MAM Accessible */
+			lp->vhf.b5.INXTN   = 1; /* In transition */
+			lp->vhf.b5.MSTD	   = 0; /* Medium seated */
+			lp->vhf.b5.MTHRD   = 0; /* Medium threaded */
+			lp->vhf.b5.MOUNTED = 0; /* Medium mounted */
+			lp->vhf.b5.MPRSNT  = 0; /* Medium Present */
+			lp->vhf.b5.RAA	   = 1; /* Robotic access allowed */
+			lp->vhf.b5.INXTN   = 0; /* Completed updates */
+			set_lp_11_macc(0);		/* MAM Accessible */
 			break;
 		case TAPE_LOADED:
-			vhf5->INXTN	  = 1; /* In transition */
-			vhf5->MSTD	  = 1; /* Medium seated */
-			vhf5->MTHRD	  = 1; /* Medium threaded */
-			vhf5->MOUNTED = 1; /* Medium mounted */
-			vhf5->MPRSNT  = 1; /* Medium Present */
-			vhf5->RAA	  = 1; /* Robotic access allowed */
-			vhf5->INXTN	  = 0; /* Completed updates */
-			set_lp_11_macc(1); /* MAM Accessible */
+			lp->vhf.b5.INXTN   = 1; /* In transition */
+			lp->vhf.b5.MSTD	   = 1; /* Medium seated */
+			lp->vhf.b5.MTHRD   = 1; /* Medium threaded */
+			lp->vhf.b5.MOUNTED = 1; /* Medium mounted */
+			lp->vhf.b5.MPRSNT  = 1; /* Medium Present */
+			lp->vhf.b5.RAA	   = 1; /* Robotic access allowed */
+			lp->vhf.b5.INXTN   = 0; /* Completed updates */
+			set_lp_11_macc(1);		/* MAM Accessible */
 			break;
 		case TAPE_LOADING:
-			vhf5->INXTN	  = 1; /* In transition */
-			vhf5->MSTD	  = 1; /* Medium seated */
-			vhf5->MTHRD	  = 0; /* Medium threaded */
-			vhf5->MOUNTED = 0; /* Medium mounted */
-			vhf5->MPRSNT  = 1; /* Medium Present */
-			vhf5->RAA	  = 1; /* Robotic access allowed */
-			vhf5->INXTN	  = 0; /* Completed updates */
-			set_lp_11_macc(0); /* MAM Accessible */
+			lp->vhf.b5.INXTN   = 1; /* In transition */
+			lp->vhf.b5.MSTD	   = 1; /* Medium seated */
+			lp->vhf.b5.MTHRD   = 0; /* Medium threaded */
+			lp->vhf.b5.MOUNTED = 0; /* Medium mounted */
+			lp->vhf.b5.MPRSNT  = 1; /* Medium Present */
+			lp->vhf.b5.RAA	   = 1; /* Robotic access allowed */
+			lp->vhf.b5.INXTN   = 0; /* Completed updates */
+			set_lp_11_macc(0);		/* MAM Accessible */
 			break;
 		}
 	}
