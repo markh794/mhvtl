@@ -1827,7 +1827,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 			goto log_page_not_found;
 
 		buf = memcpy(buf, l->p, l->size);
-		update_seq_access_counters((struct seqAccessDevice *)buf);
+		update_SequentialAccessDevice((struct SequentialAccessDevice_pg *)buf);
 		retval = l->size;
 		break;
 	case TEMPERATURE_PAGE: /* Temperature page */
@@ -1872,12 +1872,12 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 			goto log_page_not_found;
 
 		buf = memcpy(buf, l->p, l->size);
-		update_tape_usage((struct TapeUsage *)buf);
+		update_TapeUsage((struct TapeUsage_pg *)buf);
 		retval = l->size;
 		break;
 	case TAPE_CAPACITY: { /* Tape Capacity page */
 		MHVTL_DBG(1, "%s %s", msg, "Tape Capacity page");
-		struct TapeCapacity *tp;
+		struct TapeCapacity_pg *tp;
 
 		l = lookup_log_pg(&lu->log_pg, TAPE_CAPACITY);
 		if (!l)
@@ -1887,7 +1887,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		retval = l->size;
 
 		/* Point the data structure to return data */
-		tp = (struct TapeCapacity *)buf;
+		tp = (struct TapeCapacity_pg *)buf;
 
 		if (get_tape_load_status() == TAPE_LOADED) {
 			uint64_t cap;

@@ -469,7 +469,7 @@ uint32_t resp_read_media_serial(uint8_t *sno, uint8_t *buf, uint8_t *sam_stat) {
 	return size;
 }
 
-void setTapeAlert(struct TapeAlert_page *ta, uint64_t flg) {
+void setTapeAlert(struct TapeAlert_pg *ta, uint64_t flg) {
 	int a;
 
 	MHVTL_DBG(2, "Setting TapeAlert flags 0x%.8x %.8x",

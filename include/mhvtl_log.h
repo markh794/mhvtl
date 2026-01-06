@@ -111,7 +111,7 @@ struct pc_header {
 } __attribute__((packed));
 
 /* Vendor Specific : 0x32 (Taken from IBM Ultrium doco) */
-struct DataCompression {
+struct DataCompression_pg {
 	struct log_pg_header pcode_head;
 
 	struct pc_header h_ReadCompressionRatio;
@@ -138,11 +138,11 @@ struct DataCompression {
 } __attribute__((packed));
 
 /* Buffer Under/Over Run log page - 0x01 : SPC-3 (7.2.3) */
-struct BufferUnderOverRun {
+struct BufferUnderOverRun_pg {
 	struct log_pg_header pcode_head;
 } __attribute__((packed));
 
-struct TapeUsage {
+struct TapeUsage_pg {
 	struct log_pg_header pcode_head;
 	struct pc_header	 flagNo01;
 	uint32_t			 volumeMounts;
@@ -168,7 +168,7 @@ struct TapeUsage {
 	uint16_t			 volFatalSuspendedReads;
 } __attribute__((packed));
 
-struct DeviceStatus {
+struct DeviceStatus_pg {
 	struct log_pg_header pcode_head;
 	struct pc_header	 vhf_data;
 	uint8_t				 byte4;
@@ -177,7 +177,7 @@ struct DeviceStatus {
 	uint8_t				 byte7;
 } __attribute__((packed));
 
-struct TapeCapacity {
+struct TapeCapacity_pg {
 	struct log_pg_header pcode_head;
 	struct pc_header	 flagNo01;
 	uint32_t			 partition0remaining;
@@ -197,7 +197,7 @@ struct TapeAlert_flag {
 /* Tape Alert Log Page - 0x2E
  * SSC-3 (8.2.3)
  */
-struct TapeAlert_page {
+struct TapeAlert_pg {
 	struct log_pg_header pcode_head;
 
 	struct TapeAlert_flag TapeAlert[64];
@@ -206,7 +206,7 @@ struct TapeAlert_page {
 /* Temperature Log Page - 0x0d
  * SPC-3 (7.2.13)
  */
-struct Temperature_page {
+struct Temperature_pg {
 	struct log_pg_header pcode_head;
 	struct pc_header	 header;
 	uint16_t			 temperature;
@@ -216,7 +216,7 @@ struct Temperature_page {
  * Error Counter log page - 0x02, 0x03, 0x04
  * SPC-3 (7.2.4)
  */
-struct error_counter {
+struct ErrorCounter_pg {
 	struct log_pg_header pcode_head;
 
 	struct pc_header h_err_correctedWODelay;
@@ -247,7 +247,7 @@ struct error_counter {
  * Device log page - 0x0C
  * SSC-3 (Ch 8.2.2)
  */
-struct seqAccessDevice {
+struct SequentialAccessDevice_pg {
 	struct log_pg_header pcode_head;
 
 	struct pc_header h_writeDataB4;
@@ -298,14 +298,14 @@ void set_lp_11_macc(int flag);
 void set_lp11_medium_present(int flag); /* Update LogPage 11 'Medium Present' bit */
 void set_lp11_compression(int flag);	/* Update LogPage 11 compression bit */
 void set_lp_11_wp(int flag);
-void setTapeAlert(struct TapeAlert_page *, uint64_t); /* in vtllib.c, never used */
-void initTapeAlert(struct TapeAlert_page *);
+void setTapeAlert(struct TapeAlert_pg *, uint64_t); /* in vtllib.c, never used */
+void initTapeAlert(struct TapeAlert_pg *);
 void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
 int	  update_TapeAlert(uint64_t flags);
 int	  set_TapeAlert(uint64_t flags);
-void  update_tape_usage(struct TapeUsage *b);
-void  update_seq_access_counters(struct seqAccessDevice *sa);
+void  update_TapeUsage(struct TapeUsage_pg *b);
+void  update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa);
 void *get_vhf_byte(int offset);
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);

@@ -105,8 +105,8 @@ void dealloc_all_log_pages(struct lu_phy_attr *lu) {
 }
 
 int add_log_write_err_counter(struct lu_phy_attr *lu) {
-	struct log_pg_list	*log_pg;
-	struct error_counter tp = {
+	struct log_pg_list	  *log_pg;
+	struct ErrorCounter_pg tp = {
 		{
 			WRITE_ERROR_COUNTER,
 			0x00,
@@ -206,8 +206,8 @@ int add_log_write_err_counter(struct lu_phy_attr *lu) {
 }
 
 int add_log_read_err_counter(struct lu_phy_attr *lu) {
-	struct log_pg_list	*log_pg;
-	struct error_counter tp = {
+	struct log_pg_list	  *log_pg;
+	struct ErrorCounter_pg tp = {
 		{
 			READ_ERROR_COUNTER,
 			0x00,
@@ -307,8 +307,8 @@ int add_log_read_err_counter(struct lu_phy_attr *lu) {
 }
 
 int add_log_sequential_access(struct lu_phy_attr *lu) {
-	struct log_pg_list	  *log_pg;
-	struct seqAccessDevice tp = {
+	struct log_pg_list				*log_pg;
+	struct SequentialAccessDevice_pg tp = {
 		{
 			SEQUENTIAL_ACCESS_DEVICE,
 			0x00,
@@ -423,8 +423,8 @@ int add_log_sequential_access(struct lu_phy_attr *lu) {
 }
 
 int add_log_temperature_page(struct lu_phy_attr *lu) {
-	struct log_pg_list	   *log_pg;
-	struct Temperature_page tp = {
+	struct log_pg_list	 *log_pg;
+	struct Temperature_pg tp = {
 		{
 			TEMPERATURE_PAGE,
 			0x00,
@@ -457,8 +457,8 @@ int add_log_temperature_page(struct lu_phy_attr *lu) {
 }
 
 int add_log_tape_alert(struct lu_phy_attr *lu) {
-	struct log_pg_list	 *log_pg;
-	struct TapeAlert_page tp = {
+	struct log_pg_list *log_pg;
+	struct TapeAlert_pg tp = {
 		{
 			TAPE_ALERT,
 			0x00,
@@ -492,90 +492,90 @@ int add_log_tape_alert(struct lu_phy_attr *lu) {
 
 int add_log_tape_usage(struct lu_phy_attr *lu) {
 	struct log_pg_list *log_pg;
-	struct TapeUsage	tp = {
-		   {
-			   TAPE_USAGE,
-			   0x00,
-			   0x54,
-		   },
-		   {
-			   0x00,
-			   0x01,
-			   0xc0,
-			   sizeof(tp.volumeMounts),
-		   },
-		   0x00, /* {30h:0001h} Thread count */
-		   {
-			   0x00,
-			   0x02,
-			   0xc0,
-			   sizeof(tp.volumeDatasetsWritten),
-		   },
-		   0x00, /* {30h:0002h} Total data sets written */
-		   {
-			   0x00,
-			   0x03,
-			   0xc0,
-			   sizeof(tp.volWriteRetries),
-		   },
-		   0x00, /* {30h:0003h} Total write retries */
-		   {
-			   0x00,
-			   0x04,
-			   0xc0,
-			   sizeof(tp.volWritePerms),
-		   },
-		   0x00, /* {30h:0004h} Total Unrecovered write error */
-		   {
-			   0x00,
-			   0x05,
-			   0xc0,
-			   sizeof(tp.volSuspendedWrites),
-		   },
-		   0x00, /* {30h:0005h} Total Suspended writes */
-		   {
-			   0x00,
-			   0x06,
-			   0xc0,
-			   sizeof(tp.volFatalSuspendedWrites),
-		   },
-		   0x00, /* {30h:0006h} Total Fatal suspended writes */
-		   {
-			   0x00,
-			   0x07,
-			   0xc0,
-			   sizeof(tp.volDatasetsRead),
-		   },
-		   0x00, /* {30h:0007h} Total data sets read */
-		   {
-			   0x00,
-			   0x08,
-			   0xc0,
-			   sizeof(tp.volReadRetries),
-		   },
-		   0x00, /* {30h:0008h} Total read retries */
-		   {
-			   0x00,
-			   0x09,
-			   0xc0,
-			   sizeof(tp.volReadPerms),
-		   },
-		   0x00, /* {30h:0009h} Total unrecovered read errors */
-		   {
-			   0x00,
-			   0x0a,
-			   0xc0,
-			   sizeof(tp.volSuspendedReads),
-		   },
-		   0x00, /* {30h:000ah} Total suspended reads */
-		   {
-			   0x00,
-			   0x0b,
-			   0xc0,
-			   sizeof(tp.volFatalSuspendedReads),
-		   },
-		   0x00, /* {30h:000bh} Total Fatal suspended reads */
-	   };
+	struct TapeUsage_pg tp = {
+		{
+			TAPE_USAGE,
+			0x00,
+			0x54,
+		},
+		{
+			0x00,
+			0x01,
+			0xc0,
+			sizeof(tp.volumeMounts),
+		},
+		0x00, /* {30h:0001h} Thread count */
+		{
+			0x00,
+			0x02,
+			0xc0,
+			sizeof(tp.volumeDatasetsWritten),
+		},
+		0x00, /* {30h:0002h} Total data sets written */
+		{
+			0x00,
+			0x03,
+			0xc0,
+			sizeof(tp.volWriteRetries),
+		},
+		0x00, /* {30h:0003h} Total write retries */
+		{
+			0x00,
+			0x04,
+			0xc0,
+			sizeof(tp.volWritePerms),
+		},
+		0x00, /* {30h:0004h} Total Unrecovered write error */
+		{
+			0x00,
+			0x05,
+			0xc0,
+			sizeof(tp.volSuspendedWrites),
+		},
+		0x00, /* {30h:0005h} Total Suspended writes */
+		{
+			0x00,
+			0x06,
+			0xc0,
+			sizeof(tp.volFatalSuspendedWrites),
+		},
+		0x00, /* {30h:0006h} Total Fatal suspended writes */
+		{
+			0x00,
+			0x07,
+			0xc0,
+			sizeof(tp.volDatasetsRead),
+		},
+		0x00, /* {30h:0007h} Total data sets read */
+		{
+			0x00,
+			0x08,
+			0xc0,
+			sizeof(tp.volReadRetries),
+		},
+		0x00, /* {30h:0008h} Total read retries */
+		{
+			0x00,
+			0x09,
+			0xc0,
+			sizeof(tp.volReadPerms),
+		},
+		0x00, /* {30h:0009h} Total unrecovered read errors */
+		{
+			0x00,
+			0x0a,
+			0xc0,
+			sizeof(tp.volSuspendedReads),
+		},
+		0x00, /* {30h:000ah} Total suspended reads */
+		{
+			0x00,
+			0x0b,
+			0xc0,
+			sizeof(tp.volFatalSuspendedReads),
+		},
+		0x00, /* {30h:000bh} Total Fatal suspended reads */
+	};
 
 	log_pg = alloc_log_page(&lu->log_pg, TAPE_USAGE, sizeof(tp));
 	if (!log_pg)
@@ -592,8 +592,8 @@ int add_log_tape_usage(struct lu_phy_attr *lu) {
 }
 
 int add_log_device_status(struct lu_phy_attr *lu) {
-	struct log_pg_list *log_pg;
-	struct DeviceStatus tp = {
+	struct log_pg_list	  *log_pg;
+	struct DeviceStatus_pg tp = {
 		{
 			DEVICE_STATUS,
 			0x00,
@@ -625,8 +625,8 @@ int add_log_device_status(struct lu_phy_attr *lu) {
 }
 
 int add_log_tape_capacity(struct lu_phy_attr *lu) {
-	struct log_pg_list *log_pg;
-	struct TapeCapacity tp = {
+	struct log_pg_list	  *log_pg;
+	struct TapeCapacity_pg tp = {
 		{
 			TAPE_CAPACITY,
 			0x00,
@@ -677,8 +677,8 @@ int add_log_tape_capacity(struct lu_phy_attr *lu) {
 }
 
 int add_log_data_compression(struct lu_phy_attr *lu) {
-	struct log_pg_list	  *log_pg;
-	struct DataCompression tp = {
+	struct log_pg_list		 *log_pg;
+	struct DataCompression_pg tp = {
 		{
 			DATA_COMPRESSION,
 			0x00,
@@ -833,13 +833,13 @@ void set_lp11_medium_present(int flag) {
 
 /* Only valid for SSC devices */
 int update_TapeAlert(uint64_t flags) {
-	struct seqAccessDevice *sad;
-	struct log_pg_list	   *l;
-	uint64_t				ta;
+	struct SequentialAccessDevice_pg *sad;
+	struct log_pg_list				 *l;
+	uint64_t						  ta;
 
 	l = lookup_log_pg(&lunit.log_pg, SEQUENTIAL_ACCESS_DEVICE);
 	if (l) {
-		sad = (struct seqAccessDevice *)l->p;
+		sad = (struct SequentialAccessDevice_pg *)l->p;
 		ta	= get_unaligned_be64(&sad->TapeAlert);
 		MHVTL_DBG(2, "Adding flags: %.8x %.8x to %.8x %.8x",
 				  (uint32_t)(flags >> 32) & 0xffffffff,
@@ -862,10 +862,10 @@ int update_TapeAlert(uint64_t flags) {
 }
 
 int set_TapeAlert(uint64_t flags) {
-	struct seqAccessDevice *sad;
-	struct TapeAlert_page  *ta;
-	struct log_pg_list	   *l;
-	int						i;
+	struct SequentialAccessDevice_pg *sad;
+	struct TapeAlert_pg				 *ta;
+	struct log_pg_list				 *l;
+	int								  i;
 
 	struct vhf_data_7 *p;
 
@@ -885,7 +885,7 @@ int set_TapeAlert(uint64_t flags) {
 	if (!l)
 		return -1;
 
-	ta = (struct TapeAlert_page *)l->p;
+	ta = (struct TapeAlert_pg *)l->p;
 
 	MHVTL_DBG(2, "Setting TapeAlert flags 0x%.8x %.8x",
 			  (uint32_t)(flags >> 32) & 0xffffffff,
@@ -899,7 +899,7 @@ int set_TapeAlert(uint64_t flags) {
 	 */
 	l = lookup_log_pg(&lunit.log_pg, SEQUENTIAL_ACCESS_DEVICE);
 	if (l) {
-		sad = (struct seqAccessDevice *)l->p;
+		sad = (struct SequentialAccessDevice_pg *)l->p;
 		put_unaligned_be64(flags, &sad->TapeAlert);
 	}
 	if (flags & 1L << 19) /* Clean Now (required) */
@@ -914,7 +914,7 @@ int set_TapeAlert(uint64_t flags) {
 	return 0;
 }
 
-void update_tape_usage(struct TapeUsage *b) {
+void update_TapeUsage(struct TapeUsage_pg *b) {
 	uint64_t datasets = count_filemarks(-1);
 	uint64_t load_count;
 
@@ -932,7 +932,7 @@ void update_tape_usage(struct TapeUsage *b) {
 	put_unaligned_be64(datasets, &b->volumeDatasetsWritten);
 }
 
-void update_seq_access_counters(struct seqAccessDevice *sa) {
+void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa) {
 	put_unaligned_be64(lu_ssc.bytesWritten_I,
 					   &sa->writeDataB4Compression);
 	put_unaligned_be64(lu_ssc.bytesWritten_M,

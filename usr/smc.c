@@ -1574,7 +1574,7 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd) {
 	case TAPE_ALERT: /* TapeAlert page */
 		MHVTL_DBG(1, "LOG SENSE: TapeAlert page");
 		/*		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,
-						get_unaligned_be64(&seqAccessDevice.TapeAlert));
+						get_unaligned_be64(&SequentialAccessDevice_pg.TapeAlert));
 		*/
 
 		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
