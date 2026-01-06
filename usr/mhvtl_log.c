@@ -29,6 +29,7 @@
 #include "mhvtl_list.h"
 #include "logging.h"
 #include "vtllib.h"
+#include "ssc.h"
 #include "be_byteshift.h"
 #include "mhvtl_log.h"
 
@@ -769,6 +770,25 @@ int add_log_data_compression(struct lu_phy_attr *lu) {
 	return 0;
 }
 
+/* Update MAM Accessible bit in LogPage 0x11 */
+void set_lp_11_macc(int flag) {
+	struct vhf_data_4 *vhf4;
+
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
+	if (!vhf4)
+		return;
+	vhf4->MACC = (flag) ? 1 : 0;
+}
+
+void set_lp11_compression(int flag) {
+	struct vhf_data_4 *vhf4;
+
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
+	if (!vhf4)
+		return;
+	vhf4->CMPR = (flag) ? 1 : 0;
+}
+
 void set_lp_11_crqst(int flag) {
 	struct vhf_data_4 *vhf4;
 
@@ -785,6 +805,30 @@ void set_lp_11_crqrd(int flag) {
 	if (!vhf4)
 		return;
 	vhf4->CRQRD = (flag) ? 1 : 0;
+}
+
+/* Update WriteProtect bit in LogPage 0x11 */
+void set_lp_11_wp(int flag) {
+	struct vhf_data_4 *vhf4;
+
+	vhf4 = (struct vhf_data_4 *)get_vhf_byte(4);
+	if (!vhf4)
+		return;
+	vhf4->WRTP = (flag) ? 1 : 0;
+}
+
+void set_lp11_medium_present(int flag) {
+	struct vhf_data_5 *vhf5;
+
+	vhf5 = (struct vhf_data_5 *)get_vhf_byte(5);
+	if (!vhf5)
+		return;
+	vhf5->MPRSNT = (flag) ? 1 : 0;
+
+	if (!flag) {		   /* Clearing bit - also set state to unloaded */
+		set_lp_11_macc(0); /* MAM Accessible */
+		set_current_state(MHVTL_STATE_UNLOADED);
+	}
 }
 
 /* Only valid for SSC devices */
@@ -870,6 +914,52 @@ int set_TapeAlert(uint64_t flags) {
 	return 0;
 }
 
+void update_tape_usage(struct TapeUsage *b) {
+	uint64_t datasets = count_filemarks(-1);
+	uint64_t load_count;
+
+	/* if we have more than 1 filemark,
+	 * most apps write 2 filemarks to flag EOD
+	 * So, lets subtract one from the filemark count to
+	 * present a more accurate 'Data Set' count
+	 */
+	if (datasets > 1)
+		datasets--;
+
+	load_count = get_unaligned_be64(&lu_ssc.mamp->LoadCount);
+	put_unaligned_be32(load_count, &b->volumeMounts);
+
+	put_unaligned_be64(datasets, &b->volumeDatasetsWritten);
+}
+
+void update_seq_access_counters(struct seqAccessDevice *sa) {
+	put_unaligned_be64(lu_ssc.bytesWritten_I,
+					   &sa->writeDataB4Compression);
+	put_unaligned_be64(lu_ssc.bytesWritten_M,
+					   &sa->writeDataAfCompression);
+	put_unaligned_be64(lu_ssc.bytesRead_M,
+					   &sa->readDataB4Compression);
+	put_unaligned_be64(lu_ssc.bytesRead_I,
+					   &sa->readDataAfCompression);
+
+	/* Values in MBytes */
+	if (get_tape_load_status() == TAPE_LOADED) {
+		put_unaligned_be32(lu_ssc.max_capacity >> 20,
+						   &sa->capacity_bop_eod);
+		put_unaligned_be32(lu_ssc.early_warning_position >> 20,
+						   &sa->capacity_bop_ew);
+		put_unaligned_be32(lu_ssc.early_warning_sz >> 20,
+						   &sa->capacity_ew_leop);
+		put_unaligned_be32(current_tape_offset() >> 20,
+						   &sa->capacity_bop_curr);
+	} else {
+		put_unaligned_be32(0xffffffff, &sa->capacity_bop_eod);
+		put_unaligned_be32(0xffffffff, &sa->capacity_bop_ew);
+		put_unaligned_be32(0xffffffff, &sa->capacity_ew_leop);
+		put_unaligned_be32(0xffffffff, &sa->capacity_bop_curr);
+	}
+}
+
 /*
  * offset is the byte offset into the VHF data structure - 4/5/6/7
  */
@@ -885,4 +975,112 @@ void *get_vhf_byte(int offset) {
 	p = l->p;
 
 	return p + offset + pg_header;
+}
+
+void set_current_state(int s) {
+	uint8_t *vhf_device_activity;
+
+	current_state = s;
+
+	vhf_device_activity = (uint8_t *)get_vhf_byte(6); /* Get DT device activity */
+	if (!vhf_device_activity)
+		return;
+
+	/* Now translate the 'mhVTL' state into DT values */
+	switch (s) {
+	case MHVTL_STATE_UNLOADED:
+		*vhf_device_activity = 0;
+		break;
+	case MHVTL_STATE_LOADING:
+		*vhf_device_activity = 2;
+		break;
+	case MHVTL_STATE_LOADING_CLEAN:
+		*vhf_device_activity = 1;
+		break;
+	case MHVTL_STATE_LOADING_WORM:
+		*vhf_device_activity = 2;
+		break;
+	case MHVTL_STATE_LOADED:
+		*vhf_device_activity = 0;
+		break;
+	case MHVTL_STATE_LOADED_IDLE:
+		*vhf_device_activity = 0;
+		break;
+	case MHVTL_STATE_LOAD_FAILED:
+		*vhf_device_activity = 0;
+		set_lp_11_macc(0); /* MAM Accessible - False */
+		break;
+	case MHVTL_STATE_REWIND:
+		*vhf_device_activity = 0x8;
+		break;
+	case MHVTL_STATE_POSITIONING:
+		*vhf_device_activity = 0x7;
+		break;
+	case MHVTL_STATE_LOCATE:
+		*vhf_device_activity = 0x7;
+		break;
+	case MHVTL_STATE_READING:
+		*vhf_device_activity = 0x5;
+		break;
+	case MHVTL_STATE_WRITING:
+		*vhf_device_activity = 0x6;
+		break;
+	case MHVTL_STATE_UNLOADING:
+		*vhf_device_activity = 0x3;
+		break;
+	case MHVTL_STATE_ERASE:
+		*vhf_device_activity = 0x9;
+		break;
+	case MHVTL_STATE_VERIFY:
+		*vhf_device_activity = 0x4;
+		break;
+	}
+}
+
+/* FIXME: Add VHF log page stuff here */
+int get_tape_load_status(void) {
+	return lu_ssc.load_status;
+}
+
+void set_tape_load_status(int s) {
+	struct vhf_data_5 *vhf5;
+
+	lu_ssc.load_status = s;
+
+	vhf5 = (struct vhf_data_5 *)get_vhf_byte(5);
+
+	if (vhf5) {
+		switch (s) {
+		case TAPE_UNLOADED:
+			vhf5->INXTN	  = 1; /* In transition */
+			vhf5->MSTD	  = 0; /* Medium seated */
+			vhf5->MTHRD	  = 0; /* Medium threaded */
+			vhf5->MOUNTED = 0; /* Medium mounted */
+			vhf5->MPRSNT  = 0; /* Medium Present */
+			vhf5->RAA	  = 1; /* Robotic access allowed */
+			vhf5->INXTN	  = 0; /* Completed updates */
+			set_lp_11_macc(0); /* MAM Accessible */
+			break;
+		case TAPE_LOADED:
+			vhf5->INXTN	  = 1; /* In transition */
+			vhf5->MSTD	  = 1; /* Medium seated */
+			vhf5->MTHRD	  = 1; /* Medium threaded */
+			vhf5->MOUNTED = 1; /* Medium mounted */
+			vhf5->MPRSNT  = 1; /* Medium Present */
+			vhf5->RAA	  = 1; /* Robotic access allowed */
+			vhf5->INXTN	  = 0; /* Completed updates */
+			set_lp_11_macc(1); /* MAM Accessible */
+			break;
+		case TAPE_LOADING:
+			vhf5->INXTN	  = 1; /* In transition */
+			vhf5->MSTD	  = 1; /* Medium seated */
+			vhf5->MTHRD	  = 0; /* Medium threaded */
+			vhf5->MOUNTED = 0; /* Medium mounted */
+			vhf5->MPRSNT  = 1; /* Medium Present */
+			vhf5->RAA	  = 1; /* Robotic access allowed */
+			vhf5->INXTN	  = 0; /* Completed updates */
+			set_lp_11_macc(0); /* MAM Accessible */
+			break;
+		}
+	}
 }

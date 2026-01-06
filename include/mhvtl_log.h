@@ -290,12 +290,22 @@ struct seqAccessDevice {
 
 } __attribute__((packed));
 
+void set_current_state(int s);
+int	 get_tape_load_status();
+void set_tape_load_status(int s);
+
+void set_lp_11_macc(int flag);
+void set_lp11_medium_present(int flag); /* Update LogPage 11 'Medium Present' bit */
+void set_lp11_compression(int flag);	/* Update LogPage 11 compression bit */
+void set_lp_11_wp(int flag);
 void setTapeAlert(struct TapeAlert_page *, uint64_t); /* in vtllib.c, never used */
 void initTapeAlert(struct TapeAlert_page *);
 void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
 int	  update_TapeAlert(uint64_t flags);
 int	  set_TapeAlert(uint64_t flags);
+void  update_tape_usage(struct TapeUsage *b);
+void  update_seq_access_counters(struct seqAccessDevice *sa);
 void *get_vhf_byte(int offset);
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);
