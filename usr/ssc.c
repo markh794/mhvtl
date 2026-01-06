@@ -1791,7 +1791,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		i		 = 4;
 		buf[i++] = 0; /* b[0] is log page '0' (this one) */
 		list_for_each_entry(l, l_head, siblings) {
-			MHVTL_DBG(3, "found page 0x%02x", l->log_page_num);
+			MHVTL_DBG(3, "found page 0x%02x : %s", l->log_page_num, log_page_desc[l->log_page_num]);
 			buf[i] = l->log_page_num;
 			i++;
 		}
