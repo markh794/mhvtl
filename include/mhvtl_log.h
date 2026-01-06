@@ -32,6 +32,7 @@ struct lu_phy_attr;
 /*
  * Process the LOG_SENSE page definitions
  */
+#define SUPPORTED_LOG_PAGES		   0x00
 #define BUFFER_UNDER_OVER_RUN	   0x01
 #define WRITE_ERROR_COUNTER		   0x02
 #define READ_ERROR_COUNTER		   0x03

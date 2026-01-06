@@ -35,7 +35,7 @@
 
 const char *log_page_desc[0x38] = {
 	[0x00 ... 0x37]				 = "Unsupported Log page",
-	[0]							 = "Supported Log pages",
+	[SUPPORTED_LOG_PAGES]		 = "Supported Log pages",
 	[BUFFER_UNDER_OVER_RUN]		 = "Buffer Under/Over Run",
 	[WRITE_ERROR_COUNTER]		 = "Write Error Counter",
 	[READ_ERROR_COUNTER]		 = "Read Error Counter",

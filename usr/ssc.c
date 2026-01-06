@@ -1774,117 +1774,61 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 
 	uint8_t				page = cdb[2] & 0x3f;
 	struct log_pg_list *l;
-	struct list_head   *l_head;
-	int					i;
 	struct s_sd			sd;
 
 	MHVTL_DBG(1, "LOG SENSE (%ld) ** %s",
 			  (long)dbuf_p->serialNo, log_page_desc[page]);
 
-	dbuf_p->sz = get_unaligned_be16(&cdb[7]); /* alloc_len */
-
-	l_head = &lu->log_pg;
-
-	switch (cdb[2] & 0x3f) {
-	case 0:				   /* Send supported pages */
+	if (page == SUPPORTED_LOG_PAGES) { /* Send supported pages */
+		int i = 4;
 		memset(buf, 0, 4); /* Clear first few (4) bytes */
-		i		 = 4;
-		buf[i++] = 0; /* b[0] is log page '0' (this one) */
-		list_for_each_entry(l, l_head, siblings) {
+		buf[i++] = 0;	   /* b[0] is log page '0' (this one) */
+		list_for_each_entry(l, &lu->log_pg, siblings) {
 			MHVTL_DBG(3, "found page 0x%02x : %s", l->log_page_num, log_page_desc[l->log_page_num]);
 			buf[i] = l->log_page_num;
 			i++;
 		}
-		put_unaligned_be16(i - 4, &buf[2]);
+		put_unaligned_be16(i - 4, &buf[2]); /* number of entries stored in b*/
 		dbuf_p->sz = i;
-		break;
-	case WRITE_ERROR_COUNTER: /* Write error page */
-		l = lookup_log_pg(l_head, WRITE_ERROR_COUNTER);
+	} else {
+		l = lookup_log_pg(&lu->log_pg, page);
 		if (!l)
 			goto log_page_not_found;
-
-		buf		   = memcpy(buf, l->p, l->size);
 		dbuf_p->sz = l->size;
-		break;
-	case READ_ERROR_COUNTER: /* Read error page */
-		l = lookup_log_pg(&lu->log_pg, READ_ERROR_COUNTER);
-		if (!l)
-			goto log_page_not_found;
-
 		buf		   = memcpy(buf, l->p, l->size);
-		dbuf_p->sz = l->size;
+	}
+
+	switch (page) {
+	case SUPPORTED_LOG_PAGES:
+	case WRITE_ERROR_COUNTER:
+	case READ_ERROR_COUNTER:
 		break;
+
 	case SEQUENTIAL_ACCESS_DEVICE:
-		l = lookup_log_pg(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE);
-		if (!l)
-			goto log_page_not_found;
-
-		buf = memcpy(buf, l->p, l->size);
 		update_SequentialAccessDevice((struct SequentialAccessDevice_pg *)buf);
-		dbuf_p->sz = l->size;
 		break;
-	case TEMPERATURE_PAGE: /* Temperature page */
-		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE);
-		if (!l)
-			goto log_page_not_found;
 
-		buf		   = memcpy(buf, l->p, l->size);
-		dbuf_p->sz = l->size;
-		break;
+	case TEMPERATURE_PAGE:
+	case SELFTEST_RESULTS:
 	case DEVICE_STATUS:
-		l = lookup_log_pg(&lu->log_pg, DEVICE_STATUS);
-		if (!l)
-			goto log_page_not_found;
-
-		buf		   = memcpy(buf, l->p, l->size);
-		dbuf_p->sz = l->size;
 		break;
-	case TAPE_ALERT: /* TapeAlert page */
-		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
-		if (!l)
-			goto log_page_not_found;
 
-		buf		   = memcpy(buf, l->p, l->size);
-		dbuf_p->sz = l->size;
-
-		/* Clear flags after value read. */
+	case TAPE_ALERT:
 		if (get_unaligned_be16(&cdb[7]) > 4) /* Checking Allocation Length */
 			set_TapeAlert(TA_NONE);
 		else
 			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
 						 " Not clearing TapeAlert flags.");
 		break;
-	case TAPE_USAGE: /* Tape Usage Log */
-		l = lookup_log_pg(&lu->log_pg, TAPE_USAGE);
-		if (!l)
-			goto log_page_not_found;
 
-		buf = memcpy(buf, l->p, l->size);
+	case TAPE_USAGE:
 		update_TapeUsage((struct TapeUsage_pg *)buf);
-		dbuf_p->sz = l->size;
 		break;
-	case TAPE_CAPACITY: { /* Tape Capacity page */
-		struct TapeCapacity_pg *tp;
 
-		l = lookup_log_pg(&lu->log_pg, TAPE_CAPACITY);
-		if (!l)
-			goto log_page_not_found;
-
-		buf		   = memcpy(buf, l->p, l->size);
-		dbuf_p->sz = l->size;
-
-		/* Point the data structure to return data */
-		tp = (struct TapeCapacity_pg *)buf;
-		update_TapeCapacity(tp);
-	} break;
-	case DATA_COMPRESSION: /* Data Compression page */
-		l = lookup_log_pg(&lu->log_pg, DATA_COMPRESSION);
-		if (!l)
-			goto log_page_not_found;
-
-		buf		   = memcpy(buf, l->p, l->size);
-		dbuf_p->sz = l->size;
+	case TAPE_CAPACITY:
+	case DATA_COMPRESSION:
 		break;
+
 	default:
 		MHVTL_DBG(1, "Unknown/Unimplemented log page : 0x%02x", page);
 		goto log_page_not_found;
