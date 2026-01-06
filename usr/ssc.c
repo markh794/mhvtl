@@ -1775,7 +1775,6 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 	uint8_t				page = cdb[2] & 0x3f;
 	struct log_pg_list *l;
 	struct list_head   *l_head;
-	int					retval;
 	int					i;
 	struct s_sd			sd;
 
@@ -1786,7 +1785,6 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 	dbuf_p->sz		   = alloc_len;
 
 	l_head = &lu->log_pg;
-	retval = 0;
 
 	switch (cdb[2] & 0x3f) {
 	case 0:				   /* Send supported pages */
@@ -1799,23 +1797,23 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 			i++;
 		}
 		put_unaligned_be16(i - 4, &buf[2]);
-		retval = i;
+		dbuf_p->sz = i;
 		break;
 	case WRITE_ERROR_COUNTER: /* Write error page */
 		l = lookup_log_pg(l_head, WRITE_ERROR_COUNTER);
 		if (!l)
 			goto log_page_not_found;
 
-		buf	   = memcpy(buf, l->p, l->size);
-		retval = l->size;
+		buf		   = memcpy(buf, l->p, l->size);
+		dbuf_p->sz = l->size;
 		break;
 	case READ_ERROR_COUNTER: /* Read error page */
 		l = lookup_log_pg(&lu->log_pg, READ_ERROR_COUNTER);
 		if (!l)
 			goto log_page_not_found;
 
-		buf	   = memcpy(buf, l->p, l->size);
-		retval = l->size;
+		buf		   = memcpy(buf, l->p, l->size);
+		dbuf_p->sz = l->size;
 		break;
 	case SEQUENTIAL_ACCESS_DEVICE:
 		l = lookup_log_pg(&lu->log_pg, SEQUENTIAL_ACCESS_DEVICE);
@@ -1824,31 +1822,31 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 
 		buf = memcpy(buf, l->p, l->size);
 		update_SequentialAccessDevice((struct SequentialAccessDevice_pg *)buf);
-		retval = l->size;
+		dbuf_p->sz = l->size;
 		break;
 	case TEMPERATURE_PAGE: /* Temperature page */
 		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE);
 		if (!l)
 			goto log_page_not_found;
 
-		buf	   = memcpy(buf, l->p, l->size);
-		retval = l->size;
+		buf		   = memcpy(buf, l->p, l->size);
+		dbuf_p->sz = l->size;
 		break;
 	case DEVICE_STATUS:
 		l = lookup_log_pg(&lu->log_pg, DEVICE_STATUS);
 		if (!l)
 			goto log_page_not_found;
 
-		buf	   = memcpy(buf, l->p, l->size);
-		retval = l->size;
+		buf		   = memcpy(buf, l->p, l->size);
+		dbuf_p->sz = l->size;
 		break;
 	case TAPE_ALERT: /* TapeAlert page */
 		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
 		if (!l)
 			goto log_page_not_found;
 
-		buf	   = memcpy(buf, l->p, l->size);
-		retval = l->size;
+		buf		   = memcpy(buf, l->p, l->size);
+		dbuf_p->sz = l->size;
 
 		/* Clear flags after value read. */
 		if (alloc_len > 4)
@@ -1864,7 +1862,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 
 		buf = memcpy(buf, l->p, l->size);
 		update_TapeUsage((struct TapeUsage_pg *)buf);
-		retval = l->size;
+		dbuf_p->sz = l->size;
 		break;
 	case TAPE_CAPACITY: { /* Tape Capacity page */
 		struct TapeCapacity_pg *tp;
@@ -1873,8 +1871,8 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		buf	   = memcpy(buf, l->p, l->size);
-		retval = l->size;
+		buf		   = memcpy(buf, l->p, l->size);
+		dbuf_p->sz = l->size;
 
 		/* Point the data structure to return data */
 		tp = (struct TapeCapacity_pg *)buf;
@@ -1885,15 +1883,14 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		if (!l)
 			goto log_page_not_found;
 
-		buf	   = memcpy(buf, l->p, l->size);
-		retval = l->size;
+		buf		   = memcpy(buf, l->p, l->size);
+		dbuf_p->sz = l->size;
 		break;
 	default:
 		MHVTL_DBG(1, "Unknown/Unimplemented log page : 0x%02x", page);
 		goto log_page_not_found;
 		break;
 	}
-	dbuf_p->sz = retval;
 
 	return SAM_STAT_GOOD;
 
