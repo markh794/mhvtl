@@ -189,7 +189,7 @@ struct TapeCapacity {
 	uint32_t			 partition1maximum;
 } __attribute__((packed));
 
-struct TapeAlert_pg {
+struct TapeAlert_flag {
 	struct pc_header flag;
 	uint8_t			 value;
 } __attribute__((packed));
@@ -200,7 +200,7 @@ struct TapeAlert_pg {
 struct TapeAlert_page {
 	struct log_pg_header pcode_head;
 
-	struct TapeAlert_pg TapeAlert[64];
+	struct TapeAlert_flag TapeAlert[64];
 } __attribute__((packed));
 
 /* Temperature Log Page - 0x0d
