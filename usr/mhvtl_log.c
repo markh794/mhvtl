@@ -947,6 +947,23 @@ void update_TapeUsage(struct TapeUsage_pg *b) {
 	put_unaligned_be64(datasets, &b->volumeDatasetsWritten);
 }
 
+void update_TapeCapacity(struct TapeCapacity_pg *pg) {
+	if (get_tape_load_status() == TAPE_LOADED) {
+		uint64_t cap;
+
+		cap = get_unaligned_be64(&mam.remaining_capacity);
+		cap /= lu_ssc.capacity_unit;
+		put_unaligned_be32(cap, &pg->partition0remaining);
+
+		cap = get_unaligned_be64(&mam.max_capacity);
+		cap /= lu_ssc.capacity_unit;
+		put_unaligned_be32(cap, &pg->partition0maximum);
+	} else {
+		pg->partition0remaining = 0;
+		pg->partition0maximum	= 0;
+	}
+}
+
 void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa) {
 	put_unaligned_be64(lu_ssc.bytesWritten_I,
 					   &sa->writeDataB4Compression);

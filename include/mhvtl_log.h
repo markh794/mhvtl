@@ -305,6 +305,7 @@ void dealloc_all_log_pages(struct lu_phy_attr *lu);
 int	  update_TapeAlert(uint64_t flags);
 int	  set_TapeAlert(uint64_t flags);
 void  update_TapeUsage(struct TapeUsage_pg *b);
+void  update_TapeCapacity(struct TapeCapacity_pg *pg);
 void  update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa);
 void *get_vhf_byte(int offset);
 

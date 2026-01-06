@@ -1888,21 +1888,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 
 		/* Point the data structure to return data */
 		tp = (struct TapeCapacity_pg *)buf;
-
-		if (get_tape_load_status() == TAPE_LOADED) {
-			uint64_t cap;
-
-			cap = get_unaligned_be64(&mam.remaining_capacity);
-			cap /= lu_priv->capacity_unit;
-			put_unaligned_be32(cap, &tp->partition0remaining);
-
-			cap = get_unaligned_be64(&mam.max_capacity);
-			cap /= lu_priv->capacity_unit;
-			put_unaligned_be32(cap, &tp->partition0maximum);
-		} else {
-			tp->partition0remaining = 0;
-			tp->partition0maximum	= 0;
-		}
+		update_TapeCapacity(tp);
 	} break;
 	case DATA_COMPRESSION: /* Data Compression page */
 		MHVTL_DBG(1, "%s %s", msg, "Data Compression page");
