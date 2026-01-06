@@ -446,13 +446,8 @@ static void init_log_tape_alert(void *log_ptr) {
 			0x00,
 		},
 	};
-	int i;
-	for (i = 0; i < 64; i++) {
-		pg->TapeAlert[i].flag.head0 = 0;
-		pg->TapeAlert[i].flag.head1 = i + 1;
-		pg->TapeAlert[i].flag.flags = 0xc0;
-		pg->TapeAlert[i].flag.len	= 1;
-		pg->TapeAlert[i].value		= 0;
+	for (int i = 0; i < 64; i++) {
+		pg->TapeAlert[i] = (struct TapeAlert_flag){{0x00, i + 1, 0xc0, 1}, 0x00};
 	}
 }
 int add_log_tape_alert(struct lu_phy_attr *lu) {
