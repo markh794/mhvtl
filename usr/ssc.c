@@ -1781,8 +1781,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "LOG SENSE (%ld) ** %s",
 			  (long)dbuf_p->serialNo, log_page_desc[page]);
 
-	uint16_t alloc_len = get_unaligned_be16(&cdb[7]);
-	dbuf_p->sz		   = alloc_len;
+	dbuf_p->sz = get_unaligned_be16(&cdb[7]); /* alloc_len */
 
 	l_head = &lu->log_pg;
 
@@ -1849,7 +1848,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		dbuf_p->sz = l->size;
 
 		/* Clear flags after value read. */
-		if (alloc_len > 4)
+		if (get_unaligned_be16(&cdb[7]) > 4) /* Checking Allocation Length */
 			set_TapeAlert(TA_NONE);
 		else
 			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
