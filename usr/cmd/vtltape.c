@@ -132,7 +132,7 @@ struct MAM_Attributes_table {
 	int	  attribute;
 	int	  length;
 	int	  read_only;
-	int	  format;
+	int	  format; /* 0: binary 1: ASCII 2: TEXT */
 	void *value;
 } MAM_Attributes[] = {
 	/* 0x0000 - 0x03ff - Device (subclause 6.4.2.2) */
