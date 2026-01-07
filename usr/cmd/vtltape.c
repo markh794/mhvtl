@@ -129,11 +129,11 @@ static int library_id = 0;
 #define MEDIA_READONLY 1
 
 struct MAM_Attributes_table {
-	int	  attribute;
-	int	  length;
-	int	  read_only;
-	int	  format; /* 0: binary 1: ASCII 2: TEXT */
-	void *value;
+	uint16_t attribute;
+	uint16_t length;
+	uint8_t	 read_only;
+	uint8_t	 format; /* 0: binary 1: ASCII 2: TEXT */
+	void	*value;
 } MAM_Attributes[] = {
 	/* 0x0000 - 0x03ff - Device (subclause 6.4.2.2) */
 	{0x000, 8, 1, 0, &mam.remaining_capacity},
