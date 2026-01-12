@@ -425,7 +425,6 @@ static void dump_tape_metadata(int dump_data, uint8_t *sam_stat) {
 		}
 	}
 	print_raw_header();
-	unload_tape(sam_stat);
 }
 
 int main(int argc, char *argv[]) {
@@ -604,6 +603,7 @@ int main(int argc, char *argv[]) {
 
 	if (dump_tape == 1) {
 		dump_tape_metadata(dump_data, &sam_stat);
+		unload_tape(&sam_stat);
 	} else if (dump_tape == 2) {
 		write_tape(source_file, block_size, compression, &sam_stat);
 	}
