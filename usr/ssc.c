@@ -1347,6 +1347,42 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 #define READ_POSITION_SHORT_LEN		 20
 #define READ_POSITION_LONG_LEN		 32
 
+#define SET_BOP(ptr, blk_number)                                  \
+	do {                                                          \
+		if ((blk_number) < 2) {                                   \
+			(ptr)->BOP = 1;                                       \
+			MHVTL_DBG(3, "Setting Beginning of Partition (BOP)"); \
+		}                                                         \
+	} while (0)
+
+#define SET_BPEW(ptr, offset, lu_priv)                                                                                  \
+	do {                                                                                                                \
+		if ((lu_priv->pm->drive_supports_prog_early_warning) && ((offset) >= (lu_priv->prog_early_warning_position))) { \
+			(ptr)->BPEW = 1;                                                                                            \
+			MHVTL_DBG(3, "Drive supports prog early warning : Setting prog_early_warning of Partition");                \
+		} else {                                                                                                        \
+			(ptr)->BPEW = 0;                                                                                            \
+		}                                                                                                               \
+	} while (0)
+
+#define SET_EOP(ptr, offset, eop_pos)                       \
+	do {                                                    \
+		if ((offset) > (eop_pos)) {                         \
+			(ptr)->EOP = 1;                                 \
+			MHVTL_DBG(3, "Setting End of Partition (EOP)"); \
+		} else {                                            \
+			(ptr)->EOP = 0;                                 \
+		}                                                   \
+	} while (0)
+
+#define SET_PERR(ptr, blk_number)                                                                  \
+	do {                                                                                           \
+		if ((blk_number) > 0xFFFFFFFF) {                                                           \
+			(ptr)->PERR = 1;                                                                       \
+			MHVTL_DBG(1, "More than supported number of blocks - Setting Logical Block overflow"); \
+		}                                                                                          \
+	} while (0)
+
 uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
@@ -1372,19 +1408,14 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 
 			memset(buf, 0, READ_POSITION_SHORT_LEN); /* Clear 'array' */
 
-			if (c_pos->blk_number < 2) {
-				MHVTL_DBG(3, "Setting Beginning of Partition (BOP)");
-				sp->BOP = 1; /* Beginning of partition */
-			}
-
-			sp->LOCU = 0; /* Logical object count unknown - 0: Block count is exact */
-			sp->BYCU = 1; /* Logical byte count unknown - 1: Byte count is estimate */
-			sp->LOLU = 0; /* Logical Object Location Unknown - 0: Count is exact */
-
-			if (c_pos->blk_number > 0xfffffffe) { /* logical block address overflow - currently not possible as blk_number is a uint32_t */
-				sp->PERR = 1;
-				MHVTL_DBG(1, "More than supported number of blocks - Setting Logical Block overflow");
-			}
+			SET_BOP(sp, c_pos->blk_number);	 /* Beginning of partition */
+			sp->LOCU = 0;					 /* Logical object count unknown - 0: Block count is exact */
+			sp->BYCU = 1;					 /* Logical byte count unknown - 1: Byte count is estimate */
+			sp->LOLU = 0;					 /* Logical Object Location Unknown - 0: Count is exact */
+			SET_PERR(sp, c_pos->blk_number); /* logical block address overflow - currently not possible as blk_number is a uint32_t */
+			if (sp->LOLU == 0)
+				SET_BPEW(sp, current_tape_offset(), lu_priv);
+			SET_EOP(sp, current_tape_offset(), lu_priv->early_warning_position);
 
 			buf[1] = partition;
 			put_unaligned_be32(c_pos->blk_number, &buf[4]); /* First Logical Object Location - (current location) */
@@ -1393,43 +1424,19 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			// &buf[16] nb bytes in object buffer
 
 			MHVTL_DBG(1, "Positioned at block %ld", (long)c_pos->blk_number);
-
-			if (current_tape_offset() > lu_priv->early_warning_position) {
-				sp->EOP = 1;
-				MHVTL_DBG(3, "Setting End of Partition (EOP)");
-			}
-			if ((lu_priv->pm->drive_supports_prog_early_warning) && (current_tape_offset() >= lu_priv->prog_early_warning_position)) {
-				MHVTL_DBG(3, "Drive supports prog early warning : Setting prog_early_warning of Partition (BPEW & EOP)");
-				sp->BPEW = 1;
-				sp->EOP	 = 1;
-			} else {
-				sp->BPEW = 0;
-			}
 			dbuf_p->sz = READ_POSITION_SHORT_LEN;
 			break;
+
 		case 6:
 			lp = (struct read_position_information_long *)&buf[0];
 
 			memset(buf, 0, READ_POSITION_LONG_LEN); /* Clear 'array' */
 
-			if (c_pos->blk_number < 2) {
-				lp->BOP = 1;
-				MHVTL_DBG(3, "Setting Beginning of Partition (BOP)");
-			}
-
-			lp->LONU = 0; /* Set 'Logical Object Number Unknown' bit valid (block location info is valid) */
-			lp->MPU	 = 0; /* Mark Position Unknown : 0 = num filemarks is known */
-
-			if (current_tape_offset() > lu_priv->early_warning_position) {
-				MHVTL_DBG(3, "Setting End of Partition (EOP)");
-				lp->BPEW = 0;
-				lp->EOP	 = 1;
-			}
-			if ((lu_priv->pm->drive_supports_prog_early_warning) && (current_tape_offset() >= lu_priv->prog_early_warning_position)) {
-				MHVTL_DBG(3, "Drive supports prog early warning : Setting prog_early_warning of Partition (BPEW & EOP)");
-				lp->BPEW = 1;
-				lp->EOP	 = 1;
-			}
+			SET_BOP(lp, c_pos->blk_number); /* Beginning of partition */
+			lp->LONU = 0;					/* Set 'Logical Object Number Unknown' bit valid (block location info is valid) */
+			lp->MPU	 = 0;					/* Mark Position Unknown : 0 = num filemarks is known */
+			SET_BPEW(lp, current_tape_offset(), lu_priv);
+			SET_EOP(lp, current_tape_offset(), lu_priv->early_warning_position);
 
 			filemarks = count_filemarks(c_pos->blk_number);
 
