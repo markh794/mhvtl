@@ -364,6 +364,10 @@ static int read_data(uint8_t *sam_stat) {
 	}
 	ret = readBlock(p, requested_blk_size, 1, 0, sam_stat);
 
+	if (verbose) { /* put option to display all data */
+		printf("Data:\n%.*sEnd of data\n", requested_blk_size, p);
+	}
+
 	if (ret != requested_blk_size) {
 		printf("Requested %d bytes, received %d\n",
 			   requested_blk_size, ret);
