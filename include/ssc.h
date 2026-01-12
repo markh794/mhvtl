@@ -209,6 +209,54 @@ struct verify_6_bits {
 	uint8_t VTE : 1;	/* Verify To End-of-data */
 };
 
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+
+struct read_position_information_short {
+	uint8_t BPEW : 1;  /* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t PERR : 1;  /* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
+	uint8_t LOLU : 1;  /* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
+	uint8_t resvd : 1; /* Reserved */
+	uint8_t BYCU : 1;  /* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
+	uint8_t LOCU : 1;  /* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
+	uint8_t EOP : 1;   /* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t BOP : 1;   /* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+} __attribute__((packed));
+
+struct read_position_information_long {
+	uint8_t BPEW : 1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+	uint8_t rsvd_1 : 1; /* Reserved 1 bit */
+	uint8_t LONU : 1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
+	uint8_t MPU : 1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
+	uint8_t rsvd_0 : 2; /* Reserved 2 bits */
+	uint8_t EOP : 1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t BOP : 1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+} __attribute__((packed));
+
+#else
+
+struct read_position_information_short {
+	uint8_t BOP : 1;   /* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t EOP : 1;   /* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t LOCU : 1;  /* Logical Object Count Unknown - 0: Block count is exact, 1: Block count is an estimate */
+	uint8_t BYCU : 1;  /* Byte Count Unknown - 0: Byte count is exact, 1: Byte count is an estimate */
+	uint8_t resvd : 1; /* Reserved */
+	uint8_t LOLU : 1;  /* Logical object location is unknown - 0: Block position is exact, 1: Block position is estimate */
+	uint8_t PERR : 1;  /* Position Error - 0: An overflow has not occurred, 1: An overflow has occurred - should use the LONG FORM (06h) instead */
+	uint8_t BPEW : 1;  /* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+} __attribute__((packed));
+
+struct read_position_information_long {
+	uint8_t BOP : 1;	/* Beginning of Partition 0: current logical position is not at beginning, 1: At beginning of partition */
+	uint8_t EOP : 1;	/* End of Partition 0: Not between early warning and end of partition, 1: Positioned between early warning and end of partition */
+	uint8_t rsvd_0 : 2; /* Reserved 2 bits */
+	uint8_t MPU : 1;	/* Mark Position Unknown - 0: Filemark count is exact, 1: Filemark count is an estimate */
+	uint8_t LONU : 1;	/* Logical Object Number Unknown - 0: Logical Object Number and Partition number contains exact info, 1: LON is estimate */
+	uint8_t rsvd_1 : 1; /* Reserved 1 bit */
+	uint8_t BPEW : 1;	/* Beyond Early Warning - 0: The LOCU is set to 1, the PEWS field in MP 0x10:01 is set to 0, 1: logical object location is in a PEWZ or on EOP side of EW */
+} __attribute__((packed));
+
+#endif /* Byte order */
+
 void ssc_personality_module_register(struct ssc_personality_template *pm);
 
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp, uint8_t *sam_stat);
