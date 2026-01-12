@@ -450,6 +450,8 @@ int add_mode_device_configuration(struct lu_phy_attr *lu) {
 	mp->pcodePointer[0] = pcode;
 	mp->pcodePointer[1] = size - sizeof(mp->pcodePointer[0]) - sizeof(mp->pcodePointer[1]);
 
+	mp->pcodePointer[3] = 0; /* Active partition, default = 0 */
+
 	/* And copy pcode/size into bitmap structure */
 	mp->pcodePointerBitMap[0] = mp->pcodePointer[0];
 	mp->pcodePointerBitMap[1] = mp->pcodePointer[1];
