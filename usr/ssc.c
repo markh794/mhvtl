@@ -1344,7 +1344,7 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 }
 
 #define READ_POSITION_SERVICE_ACTION 0b000111111
-#define READ_POSITION_LEN			 20
+#define READ_POSITION_SHORT_LEN		 20
 #define READ_POSITION_LONG_LEN		 32
 
 uint8_t ssc_read_position(struct scsi_cmd *cmd) {
@@ -1370,7 +1370,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 		case 0:
 			sp = (struct read_position_information_short *)&buf[0];
 
-			memset(buf, 0, READ_POSITION_LEN); /* Clear 'array' */
+			memset(buf, 0, READ_POSITION_SHORT_LEN); /* Clear 'array' */
 
 			if (c_pos->blk_number < 2) {
 				MHVTL_DBG(3, "Setting Beginning of Partition (BOP)");
@@ -1403,7 +1403,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			} else {
 				sp->BPEW = 0;
 			}
-			dbuf_p->sz = READ_POSITION_LEN;
+			dbuf_p->sz = READ_POSITION_SHORT_LEN;
 			break;
 		case 6:
 			lp = (struct read_position_information_long *)&buf[0];
