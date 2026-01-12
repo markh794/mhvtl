@@ -84,7 +84,7 @@ static int		 filemark_alloc = 0;
 static uint32_t *filemarks		= NULL;
 
 /* Initialisation of current position (global blk_header) */
-struct blk_header *c_pos = &raw_pos.hdr; 
+struct blk_header *c_pos = &raw_pos.hdr;
 
 #ifdef MHVTL_DEBUG
 static char *mhvtl_block_type_desc(int blk_type) {
@@ -117,8 +117,8 @@ static int mkEODHeader(uint32_t blk_number, uint64_t data_offset) {
 
 	raw_pos.data_offset = data_offset;
 
-	raw_pos.hdr.blk_type   = B_EOD;
-	raw_pos.hdr.blk_number = blk_number;
+	c_pos->blk_type	  = B_EOD;
+	c_pos->blk_number = blk_number;
 
 	eod_blk_number	= blk_number;
 	eod_data_offset = data_offset;
@@ -159,10 +159,10 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 	}
 
 	MHVTL_DBG(3, "Reading header %d at offset %ld, type: %s, size: %d",
-			  raw_pos.hdr.blk_number,
+			  c_pos->blk_number,
 			  (unsigned long)raw_pos.data_offset,
-			  mhvtl_block_type_desc(raw_pos.hdr.blk_type),
-			  raw_pos.hdr.blk_size);
+			  mhvtl_block_type_desc(c_pos->blk_type),
+			  c_pos->blk_size);
 	return 0;
 }
 
@@ -228,16 +228,16 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 	uint64_t	 data_offset;
 	unsigned int i;
 
-	if (raw_pos.hdr.blk_type == B_EOD)
+	if (c_pos->blk_type == B_EOD)
 		return 0;
 
-	MHVTL_DBG(2, "At block %ld", (unsigned long)raw_pos.hdr.blk_number);
+	MHVTL_DBG(2, "At block %ld", (unsigned long)c_pos->blk_number);
 
 	/* We aren't at EOD so we are performing a rewrite.  Truncate
 	   the data and index files back to the current length.
 	*/
 
-	blk_number	= raw_pos.hdr.blk_number;
+	blk_number	= c_pos->blk_number;
 	data_offset = raw_pos.data_offset;
 
 	if (ftruncate(indxfile, blk_number * sizeof(raw_pos))) {
@@ -334,8 +334,8 @@ int rewind_tape(uint8_t *sam_stat) {
 		 *  is End of Data. If it is, we are OK to write
 		 */
 
-		if (raw_pos.hdr.blk_type == B_EOD ||
-			(raw_pos.hdr.blk_type == B_FILEMARK && eod_blk_number == 1))
+		if (c_pos->blk_type == B_EOD ||
+			(c_pos->blk_type == B_FILEMARK && eod_blk_number == 1))
 			OK_to_write = 1;
 		else
 			OK_to_write = 0;
@@ -417,13 +417,13 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
-	blk_target = raw_pos.hdr.blk_number + count;
+	blk_target = c_pos->blk_number + count;
 
 	/* Find the first filemark forward from our current position, if any. */
 
 	for (i = 0; i < meta.filemark_count; i++) {
 		MHVTL_DBG(3, "filemark at %ld", (unsigned long)filemarks[i]);
-		if (filemarks[i] >= raw_pos.hdr.blk_number)
+		if (filemarks[i] >= c_pos->blk_number)
 			break;
 	}
 
@@ -435,7 +435,7 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
 		if (filemarks[i] >= blk_target)
 			return position_to_block(blk_target, sam_stat);
 
-		residual = blk_target - raw_pos.hdr.blk_number + 1;
+		residual = blk_target - c_pos->blk_number + 1;
 		if (read_header(filemarks[i] + 1, sam_stat))
 			return -1;
 
@@ -476,7 +476,7 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
-	MHVTL_DBG(2, "Position before movement: %d", raw_pos.hdr.blk_number);
+	MHVTL_DBG(2, "Position before movement: %d", c_pos->blk_number);
 
 	blk_target = c_pos->blk_number - count;
 
@@ -539,7 +539,7 @@ int position_filemarks_forw(uint64_t count, uint8_t *sam_stat) {
 	*/
 
 	for (i = 0; i < meta.filemark_count; i++)
-		if (filemarks[i] >= raw_pos.hdr.blk_number)
+		if (filemarks[i] >= c_pos->blk_number)
 			break;
 
 	if (i + count - 1 < meta.filemark_count)
@@ -576,7 +576,7 @@ int position_filemarks_back(uint64_t count, uint8_t *sam_stat) {
 	*/
 
 	for (i = meta.filemark_count - 1; i >= 0; i--)
-		if (filemarks[i] < raw_pos.hdr.blk_number)
+		if (filemarks[i] < c_pos->blk_number)
 			break;
 
 	if (i + 1 >= count)
@@ -999,7 +999,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 			goto failed;
 		}
 		eod_data_offset = raw_pos.data_offset +
-						  raw_pos.hdr.disk_blk_size;
+						  c_pos->disk_blk_size;
 	}
 
 	if (null_media_type) {
@@ -1068,7 +1068,7 @@ int format_tape(uint8_t *sam_stat) {
 
 	zero_filemark_count();
 
-	return mkEODHeader(raw_pos.hdr.blk_number, raw_pos.data_offset);
+	return mkEODHeader(c_pos->blk_number, raw_pos.data_offset);
 }
 
 /*
@@ -1108,23 +1108,23 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	   fill it in with new data.
 	*/
 
-	blk_number	= raw_pos.hdr.blk_number;
+	blk_number	= c_pos->blk_number;
 	data_offset = raw_pos.data_offset;
 
 	memset(&raw_pos, 0, sizeof(raw_pos));
 
 	raw_pos.data_offset = data_offset;
 
-	raw_pos.hdr.blk_type	  = B_FILEMARK; /* Header type */
-	raw_pos.hdr.blk_flags	  = 0;
-	raw_pos.hdr.blk_number	  = blk_number;
-	raw_pos.hdr.blk_size	  = 0;
-	raw_pos.hdr.disk_blk_size = 0;
+	c_pos->blk_type		 = B_FILEMARK; /* Header type */
+	c_pos->blk_flags	 = 0;
+	c_pos->blk_number	 = blk_number;
+	c_pos->blk_size		 = 0;
+	c_pos->disk_blk_size = 0;
 
 	/* Now write out one header per filemark. */
 
 	for (; count > 0; count--, blk_number++) {
-		raw_pos.hdr.blk_number = blk_number;
+		c_pos->blk_number = blk_number;
 
 		MHVTL_DBG(3, "Writing filemark: block %d", blk_number);
 
@@ -1171,7 +1171,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	   fill it in with new data.
 	*/
 
-	blk_number	= raw_pos.hdr.blk_number;
+	blk_number	= c_pos->blk_number;
 	data_offset = raw_pos.data_offset;
 
 	if (blk_number > max_blk_number) {
@@ -1183,40 +1183,40 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 
 	raw_pos.data_offset = data_offset;
 
-	raw_pos.hdr.blk_type   = B_DATA; /* Header type */
-	raw_pos.hdr.blk_flags  = 0;
-	raw_pos.hdr.blk_number = blk_number;
-	raw_pos.hdr.blk_size   = blk_size; /* Size of uncompressed data */
+	c_pos->blk_type	  = B_DATA; /* Header type */
+	c_pos->blk_flags  = 0;
+	c_pos->blk_number = blk_number;
+	c_pos->blk_size	  = blk_size; /* Size of uncompressed data */
 
-	raw_pos.hdr.uncomp_crc = crc;
-	raw_pos.hdr.blk_flags |= BLKHDR_FLG_CRC; /* Logical Block Protection */
+	c_pos->uncomp_crc = crc;
+	c_pos->blk_flags |= BLKHDR_FLG_CRC; /* Logical Block Protection */
 
 	MHVTL_DBG(2, "CRC is 0x%08x", crc);
 
 	if (comp_size) {
 		if (comp_type == LZO)
-			raw_pos.hdr.blk_flags |= BLKHDR_FLG_LZO_COMPRESSED;
+			c_pos->blk_flags |= BLKHDR_FLG_LZO_COMPRESSED;
 		else
-			raw_pos.hdr.blk_flags |= BLKHDR_FLG_ZLIB_COMPRESSED;
-		raw_pos.hdr.disk_blk_size = disk_blk_size = comp_size;
+			c_pos->blk_flags |= BLKHDR_FLG_ZLIB_COMPRESSED;
+		c_pos->disk_blk_size = disk_blk_size = comp_size;
 	} else
-		raw_pos.hdr.disk_blk_size = disk_blk_size = blk_size;
+		c_pos->disk_blk_size = disk_blk_size = blk_size;
 
 	if (encryptp != NULL) {
 		unsigned int i;
 
-		raw_pos.hdr.blk_flags |= BLKHDR_FLG_ENCRYPTED;
-		raw_pos.hdr.blk_encryption_info.ukad_length = encryptp->ukad_length;
+		c_pos->blk_flags |= BLKHDR_FLG_ENCRYPTED;
+		c_pos->blk_encryption_info.ukad_length = encryptp->ukad_length;
 		for (i = 0; i < encryptp->ukad_length; ++i)
-			raw_pos.hdr.blk_encryption_info.ukad[i] = encryptp->ukad[i];
+			c_pos->blk_encryption_info.ukad[i] = encryptp->ukad[i];
 
-		raw_pos.hdr.blk_encryption_info.akad_length = encryptp->akad_length;
+		c_pos->blk_encryption_info.akad_length = encryptp->akad_length;
 		for (i = 0; i < encryptp->akad_length; ++i)
-			raw_pos.hdr.blk_encryption_info.akad[i] = encryptp->akad[i];
+			c_pos->blk_encryption_info.akad[i] = encryptp->akad[i];
 
-		raw_pos.hdr.blk_encryption_info.key_length = encryptp->key_length;
+		c_pos->blk_encryption_info.key_length = encryptp->key_length;
 		for (i = 0; i < encryptp->key_length; ++i)
-			raw_pos.hdr.blk_encryption_info.key[i] = encryptp->key[i];
+			c_pos->blk_encryption_info.key[i] = encryptp->key[i];
 	}
 
 	/* Now write out both the data and the header. */
@@ -1301,20 +1301,20 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 		return -1;
 
 	MHVTL_DBG(3, "Reading blk %ld, size: %d",
-			  (unsigned long)raw_pos.hdr.blk_number, buf_size);
+			  (unsigned long)c_pos->blk_number, buf_size);
 
 	/* The caller should have already verified that this is a
 	   B_DATA block before issuing this read, so we shouldn't have to
 	   worry about B_EOD or B_FILEMARK here.
 	*/
 
-	if (raw_pos.hdr.blk_type == B_EOD) {
+	if (c_pos->blk_type == B_EOD) {
 		sam_blank_check(E_END_OF_DATA, sam_stat);
 		MHVTL_ERR("End of data detected while reading");
 		return -1;
 	}
 
-	iosize = raw_pos.hdr.disk_blk_size;
+	iosize = c_pos->disk_blk_size;
 	if (iosize > buf_size)
 		iosize = buf_size;
 
@@ -1326,9 +1326,9 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 
 	/* Now position to the following block. */
 	MHVTL_DBG(3, "Reading data succeeded, now positioning to next header");
-	if (read_header(raw_pos.hdr.blk_number + 1, sam_stat)) {
+	if (read_header(c_pos->blk_number + 1, sam_stat)) {
 		MHVTL_ERR("Failed to read block header %d",
-				  raw_pos.hdr.blk_number + 1);
+				  c_pos->blk_number + 1);
 		return -1;
 	}
 
@@ -1350,7 +1350,7 @@ uint64_t current_tape_block(void) {
 
 /* Return number of filemarks up to 'block' : -1 for all */
 uint64_t count_filemarks(int64_t block) {
-	uint64_t	 count;
+	uint64_t count;
 
 	if (block == -1)
 		return (uint64_t)meta.filemark_count;
@@ -1395,20 +1395,20 @@ void print_raw_header(void) {
 
 	sprintf(f, "%s", "Hdr:");
 
-	switch (raw_pos.hdr.blk_type) {
+	switch (c_pos->blk_type) {
 	case B_DATA:
-		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED) {
+		if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 			strncat(f, "Encrypt/", 9);
 		}
-		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED) {
+		if (c_pos->blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED) {
 			strncat(f, "zlibCompressed", 15);
-		} else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_LZO_COMPRESSED) {
+		} else if (c_pos->blk_flags & BLKHDR_FLG_LZO_COMPRESSED) {
 			strncat(f, "lzoCompressed", 14);
 		} else {
 			strncat(f, "non-compressed", 15);
 		}
 
-		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_CRC) {
+		if (c_pos->blk_flags & BLKHDR_FLG_CRC) {
 			strncat(f, " with crc", 10);
 		} else {
 			strncat(f, " no crc", 10);
@@ -1429,31 +1429,31 @@ void print_raw_header(void) {
 	}
 	printf("%-35s (0x%02x/0x%02x), sz: %6d/%-6d, Blk No.: %7u, data_offset: %10" PRId64 ", CRC: %08x\n",
 		   f,
-		   raw_pos.hdr.blk_type,
-		   raw_pos.hdr.blk_flags,
-		   raw_pos.hdr.disk_blk_size,
-		   raw_pos.hdr.blk_size,
-		   raw_pos.hdr.blk_number,
+		   c_pos->blk_type,
+		   c_pos->blk_flags,
+		   c_pos->disk_blk_size,
+		   c_pos->blk_size,
+		   c_pos->blk_number,
 		   raw_pos.data_offset,
-		   raw_pos.hdr.uncomp_crc);
-	if ((raw_pos.hdr.blk_type == B_DATA) && (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)) {
+		   c_pos->uncomp_crc);
+	if ((c_pos->blk_type == B_DATA) && (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED)) {
 
 		printf("   => Encr key length %d, ukad length %d, "
 			   "akad length %d\n",
-			   raw_pos.hdr.blk_encryption_info.key_length,
-			   raw_pos.hdr.blk_encryption_info.ukad_length,
-			   raw_pos.hdr.blk_encryption_info.akad_length);
+			   c_pos->blk_encryption_info.key_length,
+			   c_pos->blk_encryption_info.ukad_length,
+			   c_pos->blk_encryption_info.akad_length);
 
-		if (raw_pos.hdr.blk_encryption_info.key_length > 0) {
-			enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.key, raw_pos.hdr.blk_encryption_info.key_length);
+		if (c_pos->blk_encryption_info.key_length > 0) {
+			enc_key_to_string(enc, c_pos->blk_encryption_info.key, c_pos->blk_encryption_info.key_length);
 			printf("%12s : %32s\n", "Key", enc);
 		}
-		if (raw_pos.hdr.blk_encryption_info.ukad_length > 0) {
-			enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.ukad, raw_pos.hdr.blk_encryption_info.ukad_length);
+		if (c_pos->blk_encryption_info.ukad_length > 0) {
+			enc_key_to_string(enc, c_pos->blk_encryption_info.ukad, c_pos->blk_encryption_info.ukad_length);
 			printf("%12s : %32s\n", "Ukad", enc);
 		}
-		if (raw_pos.hdr.blk_encryption_info.akad_length > 0) {
-			enc_key_to_string(enc, raw_pos.hdr.blk_encryption_info.akad, raw_pos.hdr.blk_encryption_info.akad_length);
+		if (c_pos->blk_encryption_info.akad_length > 0) {
+			enc_key_to_string(enc, c_pos->blk_encryption_info.akad, c_pos->blk_encryption_info.akad_length);
 			printf("%12s : %32s\n", "Akad", enc);
 		}
 	}
