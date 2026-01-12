@@ -1379,6 +1379,7 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 #define READ_POSITION_SERVICE_ACTION 0b000111111
 #define READ_POSITION_SHORT_LEN		 20
 #define READ_POSITION_LONG_LEN		 32
+#define READ_POSITION_EXTENDED_LEN	 32
 
 #define SET_BOP(ptr, blk_number)                                  \
 	do {                                                          \
@@ -1419,12 +1420,13 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
-	uint8_t									service_action = cdb[1] & READ_POSITION_SERVICE_ACTION;
-	struct s_sd								sd;
-	uint8_t									partition = 0; /* One of these days we'll support multiple partitions - but for now */
-	uint64_t								filemarks = 0;
-	struct read_position_information_short *sp;
-	struct read_position_information_long  *lp;
+	uint8_t									   service_action = cdb[1] & READ_POSITION_SERVICE_ACTION;
+	struct s_sd								   sd;
+	uint8_t									   partition = 0; /* One of these days we'll support multiple partitions - but for now */
+	uint64_t								   filemarks = 0;
+	struct read_position_information_short	  *sp;
+	struct read_position_information_long	  *lp;
+	struct read_position_information_extended *ep;
 
 	MHVTL_DBG(1, "READ POSITION (%ld) ** %s form",
 			  (long)cmd->dbuf_p->serialNo,
@@ -1481,6 +1483,27 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			MHVTL_DBG(1, "Positioned at block %ld, num filemarks: %ld", (long)c_pos->blk_number, filemarks);
 			dbuf_p->sz = READ_POSITION_LONG_LEN;
 			break;
+
+		case 8:
+			ep = (struct read_position_information_extended *)&buf[0];
+
+			memset(buf, 0, READ_POSITION_EXTENDED_LEN); /* Clear 'array' */
+
+			SET_BOP(ep, c_pos->blk_number); /* Beginning of partition */
+			ep->BYCU = 1;					/* Logical byte count unknown - 1: Byte count is estimate */
+			ep->LOLU = 0;					/* Logical Object Location Unknown - 0: Count is exact */
+			if (ep->LOLU == 0)
+				SET_BPEW(ep, current_tape_offset(), lu_priv);
+			SET_EOP(ep, current_tape_offset(), lu_priv->early_warning_position);
+
+			put_unaligned_be16(0x1C, &buf[2]); /* Additional length */
+			// &buf[5] nb logical objects in object buffer
+			put_unaligned_be64(c_pos->blk_number, &buf[8]);	 /* First Logical Object Location - (current location) */
+			put_unaligned_be64(c_pos->blk_number, &buf[16]); /* After a write, Logical Object Location of the new write - If buffer empty: == first logical objecct */
+			// &buf[24] nb bytes in object buffer
+
+			MHVTL_DBG(1, "Positioned at block %ld,", (long)c_pos->blk_number);
+			cmd->dbuf_p->sz = READ_POSITION_EXTENDED_LEN;
 
 		default:
 			MHVTL_DBG(1, "service_action not supported");
