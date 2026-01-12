@@ -582,7 +582,26 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
 		sam_illegal_request(E_POSITION_PAST_BOM, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	format_tape(sam_stat);
+
+	/* 0h = format the volume to a single partition */
+	/* 1h = use medium partition mode page to format the partitions */
+	/* 2h = do 0h then 1h */
+	switch (cmd->scb[2] & 0x0F) /* Format */
+	{
+	case 0x00:
+		mam.num_partitions = 1;
+		format_tape(sam_stat);
+		break;
+	case 0x01: /* TODO : take MODE_MEDIUM_PARTITION into account */
+		format_tape(sam_stat);
+		break;
+	case 0x02: /* TODO : do 0x00 then 0x01 */
+		format_tape(sam_stat);
+		break;
+	default:
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	return SAM_STAT_GOOD;
 }
