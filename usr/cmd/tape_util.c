@@ -349,23 +349,26 @@ abort:
 static int read_data(uint8_t *sam_stat) {
 	uint8_t *p;
 	uint32_t ret;
+	uint32_t requested_blk_size = c_pos->blk_size;
 
 	printf("c_pos->blk_size: %d\n", c_pos->blk_size);
 
-	if (c_pos->blk_size <= 0) {
-		printf("Data size: %d - skipping read\n", c_pos->blk_size);
+	if (requested_blk_size <= 0) {
+		printf("Data size: %d - skipping read\n", requested_blk_size);
 		return 0;
 	}
-	p = malloc(c_pos->blk_size);
+	p = malloc(requested_blk_size);
 	if (!p) {
-		fprintf(stderr, "Unable to allocate %d bytes\n", c_pos->blk_size);
+		fprintf(stderr, "Unable to allocate %d bytes\n", requested_blk_size);
 		return -ENOMEM;
 	}
-	ret = readBlock(p, c_pos->blk_size, 1, 0, sam_stat);
-	if (ret != c_pos->blk_size) {
+	ret = readBlock(p, requested_blk_size, 1, 0, sam_stat);
+
+	if (ret != requested_blk_size) {
 		printf("Requested %d bytes, received %d\n",
-			   c_pos->blk_size, ret);
+			   requested_blk_size, ret);
 	}
+
 	free(p);
 	puts("\n");
 	return ret;
