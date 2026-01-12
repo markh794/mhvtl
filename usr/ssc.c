@@ -1706,10 +1706,13 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 		break;
 
 	case TAPE_LOADED:
-		if (!load_request)
+		if (!load_request) {
 			/* Send library an update status 'true' */
 			unloadTape(TRUE, sam_stat);
-		set_lp11_medium_present(1);
+			set_lp11_medium_present(0);
+		} else {
+			set_lp11_medium_present(1);
+		}
 		break;
 
 	default:
