@@ -419,7 +419,10 @@ static void dump_tape_metadata(int dump_data, uint8_t *sam_stat) {
 		if (dump_data) {
 			read_data(sam_stat);
 		}
-		position_blocks_forw(1, sam_stat);
+		while (c_pos->blk_type == B_FILEMARK) {
+			printf("Filemark at block : %u , skipping\n", c_pos->blk_number);
+			position_blocks_forw(1, sam_stat);
+		}
 	}
 	print_raw_header();
 	unload_tape(sam_stat);
