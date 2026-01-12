@@ -1389,6 +1389,8 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			buf[1] = partition;
 			put_unaligned_be32(c_pos->blk_number, &buf[4]); /* First Logical Object Location - (current location) */
 			put_unaligned_be32(c_pos->blk_number, &buf[8]); /* After a write, Logical Object Location of the new write - If buffer empty: == first logical objecct */
+			// &buf[13] nb logical objects in object buffer
+			// &buf[16] nb bytes in object buffer
 
 			MHVTL_DBG(1, "Positioned at block %ld", (long)c_pos->blk_number);
 
@@ -1407,22 +1409,6 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			break;
 		case 6:
 			lp = (struct read_position_information_long *)&buf[0];
-
-			/* Return tape position - long format
-			 *
-			 * Need to implement.
-			 * [ 4 -  7] Partition No.
-			 *           - The partition number for the current logical position
-			 * [ 8 - 15] Logical Object No.
-			 *           - The number of logical blocks between the beginning of the
-			 *           - partition and the current logical position.
-			 * [16 - 23] Logical File Identifier
-			 *           - Number of Filemarks between the beginning of the partition and
-			 *           - the logical position.
-			 * [24 - 31] Logical Set Identifier - Obsolete... (IBM Ultrium LTO-9)
-			 *           - Number of Setmarks between the beginning of the partition and
-			 *           - the logical position.
-			 */
 
 			memset(buf, 0, READ_POSITION_LONG_LEN); /* Clear 'array' */
 
@@ -1450,6 +1436,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			put_unaligned_be32(partition, &buf[4]);
 			put_unaligned_be64(c_pos->blk_number, &buf[8]);
 			put_unaligned_be64(filemarks, &buf[16]);
+			// &buf[24] Logical Set Identifier - Obsolete...
 
 			MHVTL_DBG(1, "Positioned at block %ld, num filemarks: %ld", (long)c_pos->blk_number, filemarks);
 			dbuf_p->sz = READ_POSITION_LONG_LEN;
