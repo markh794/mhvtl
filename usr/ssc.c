@@ -1956,3 +1956,35 @@ uint8_t ssc_send_diagnostics(struct scsi_cmd *cmd) {
 	}
 	return SAM_STAT_GOOD;
 }
+
+uint8_t ssc_set_capacity(struct scsi_cmd *cmd) {
+	declare_ssc_vars;
+
+	/* TODO : implement medium_for_use_proportion_value */
+	/* uint16_t medium_for_use_proportion_value = get_unaligned_be16(&cmd->scb[3]); */
+
+	if (c_pos->blk_number != 0) { /* not at Beginnning Of Partition (BOP) */
+		sam_illegal_request(E_POSITION_PAST_BOM, NULL, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	/* Check that there is a piece of media loaded.. */
+	switch (get_tape_load_status(lu_priv)) {
+	case TAPE_LOADED:
+		break;
+	case TAPE_LOADING:
+		sam_not_ready(E_BECOMING_READY, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	case TAPE_UNLOADED:
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	default:
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	mam.num_partitions = 1;
+	format_tape(sam_stat);
+
+	return SAM_STAT_GOOD;
+}

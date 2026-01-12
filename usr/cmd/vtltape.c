@@ -1802,6 +1802,7 @@ static struct device_type_template ssc_ops = {
 		SCSI_OP(0x05, ssc_read_block_limits),
 		SCSI_OP(0x08, ssc_read_6),
 		SCSI_OP(0x0a, ssc_write_6),
+		SCSI_OP(0x0b, ssc_set_capacity),
 
 		/* 0x10 -> 0x1f */
 		SCSI_OP(0x10, ssc_write_filemarks),

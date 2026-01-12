@@ -297,6 +297,7 @@ uint8_t ssc_verify_6(struct scsi_cmd *cmd);
 uint8_t ssc_write_6(struct scsi_cmd *cmd);
 uint8_t ssc_write_attributes(struct scsi_cmd *cmd);
 uint8_t ssc_write_filemarks(struct scsi_cmd *cmd);
+uint8_t ssc_set_capacity(struct scsi_cmd *cmd);
 
 /* Initialisation of personality modules */
 void init_ait1_ssc(struct lu_phy_attr *lu);
