@@ -194,6 +194,7 @@ https://github.com/iustin/mt-st/blob/fbfd923faad0d6f613415f4de747833fb6b4a465/mt
 */
 
 int	 create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat);
+int	 load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint8_t partition_number);
 int	 load_tape(const char *pcl, uint8_t *sam_stat);
 void unload_tape(uint8_t *sam_stat);
 
@@ -204,6 +205,7 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat);
 int position_blocks_back(uint64_t count, uint8_t *sam_stat);
 int position_filemarks_forw(uint64_t count, uint8_t *sam_stat);
 int position_filemarks_back(uint64_t count, uint8_t *sam_stat);
+int change_partition(uint8_t partition_number);
 
 uint32_t read_tape_block(uint8_t *buf, uint32_t size, uint8_t *sam_stat);
 
@@ -211,6 +213,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat);
 int write_tape_block(const uint8_t *buf, uint32_t uncomp_size,
 					 uint32_t comp_size, const struct encryption *cp,
 					 uint8_t comp_type, uint8_t null_type, uint32_t crc, uint8_t *sam_stat);
+int format_partition(uint8_t *sam_stat);
 int format_tape(uint8_t *sam_stat);
 
 int		 rewriteMAM(uint8_t *sam_stat);

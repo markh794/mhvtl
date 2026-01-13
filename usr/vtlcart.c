@@ -70,6 +70,8 @@ struct meta_header {
 	char	 pad[512 - sizeof(uint32_t)];
 };
 
+static char *currentPCL = NULL;
+
 static int datafile = -1;
 static int indxfile = -1;
 static int metafile = -1;
@@ -614,6 +616,129 @@ int rewriteMAM(uint8_t *sam_stat) {
 	return nwrite;
 }
 
+static void unlink_partition(int partition_number) {
+	char path[1024];
+
+	if (datafile >= 0) {
+		snprintf(path, sizeof(path), "%s/data", currentPCL);
+		unlink(path);
+	}
+	if (indxfile >= 0) {
+		snprintf(path, sizeof(path), "%s/indx", currentPCL);
+		unlink(path);
+	}
+	if (metafile >= 0) {
+		snprintf(path, sizeof(path), "%s/meta", currentPCL);
+		unlink(path);
+	}
+}
+
+static int open_partition(uint8_t partition_number) {
+	int			 rc = 0;
+	char		 pcl_data[1024], pcl_indx[1024], pcl_meta[1024];
+	const char	*pcl_files[3] = {pcl_data, pcl_indx, pcl_meta};
+	struct stat	 data_stat, indx_stat, meta_stat;
+	struct stat *stats[3]	= {&data_stat, &indx_stat, &meta_stat};
+	int			*fd_open[3] = {&datafile,
+							   &indxfile,
+							   &metafile};
+
+	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
+	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
+	snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
+
+	for (int i = 0; i < 3; i++) {
+		*fd_open[i] = open(pcl_files[i], O_RDWR | O_LARGEFILE);
+		if (*fd_open[i] == -1) {
+			MHVTL_ERR("open of file %s failed: %s", pcl_files[i], strerror(errno));
+			rc = 3;
+		}
+		if (fstat(*fd_open[i], stats[i]) < 0) {
+			MHVTL_ERR("stat of pcl %s file %s failed: %s", currentPCL, pcl_files[i], strerror(errno));
+			rc = 3;
+		}
+	}
+
+	return rc;
+}
+
+static void close_partition(uint8_t partition_number) {
+	int *fd_close[3] = {&datafile,
+						&indxfile,
+						&metafile};
+	for (int i = 0; i < 3; i++) {
+		if (*fd_close[i] >= 0) {
+			close(*fd_close[i]);
+			*fd_close[i] = -1;
+		}
+	}
+}
+
+int change_partition(uint8_t partition_number) {
+	return 0; /* For now, there is only partition 0 so do nothing */
+}
+
+static void erase_partition(uint8_t *sam_stat) {
+
+	/* Erasing all data instead of (ideally) putting Data Set Separator (DSS) from EOD */
+	c_pos->blk_number	= 0;
+	raw_pos.data_offset = 0;
+	format_partition(sam_stat);
+	close_partition(0);
+	unlink_partition(0);
+}
+
+/*
+ * Returns:
+ * == 0, the new partition was successfully created.
+ * == 2, could not create some file(s)
+ * == 1, an error occurred.
+ */
+static int create_partition(struct MAM *mamp, int partition_number) {
+	char		path[1024];
+	int		   *fd[3]		= {&datafile,
+							   &indxfile,
+							   &metafile};
+	const char *file_name[] = {"data", "indx", "meta"};
+
+	for (int k = 0; k < 3; k++) {
+		snprintf(path, ARRAY_SIZE(path), "%s/%s", currentPCL, file_name[k]);
+		if (verbose)
+			printf("Creating new media %s file: %s\n", file_name[k], path);
+		*fd[k] = open(path, O_CREAT | O_TRUNC | O_WRONLY,
+					  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		if (*fd[k] == -1) {
+			MHVTL_ERR("Failed to create file %s: %s", path, strerror(errno));
+			close_partition(partition_number);
+			unlink_partition(partition_number);
+			return 2;
+		}
+	}
+
+	MHVTL_LOG("%s files created", currentPCL);
+
+	/* Write the meta file consisting of the MAM and the meta_header
+	   structure with the filemark count initialized to zero.
+	*/
+
+	mam = *mamp;
+	memset(&meta, 0, sizeof(struct meta_header));
+	meta.filemark_count = 0;
+	if (write(metafile, &mam, sizeof(struct MAM)) != sizeof(struct MAM) ||
+		write(metafile, &meta, sizeof(struct meta_header)) != sizeof(struct meta_header)) {
+		snprintf(path, ARRAY_SIZE(path), "%s/meta", currentPCL);
+		MHVTL_ERR("Failed to initialize file %s: %s", path,
+				  strerror(errno));
+		close_partition(partition_number);
+		unlink_partition(partition_number);
+		return 1;
+	}
+
+	close_partition(partition_number);
+
+	return 0;
+}
+
 /*
  * Returns:
  * == 0, the new PCL was successfully created.
@@ -732,6 +857,207 @@ cleanup:
 free_strings:
 	if (newMedia)
 		free(newMedia);
+	return rc;
+}
+
+int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint8_t partition_number) {
+	int			 rc = 0;
+	char		 pcl_data[1024], pcl_meta[1024];
+	struct stat	 data_stat, indx_stat, meta_stat;
+	struct stat *stats[3] = {&data_stat, &indx_stat, &meta_stat};
+	int			*fd[3]	  = {&datafile,
+							 &indxfile,
+							 &metafile};
+
+	uint64_t exp_size;
+	size_t	 io_size;
+	loff_t	 nread;
+
+	/* Open all three files and stat them to get their current sizes. */
+
+	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
+	if (stat(pcl_data, &data_stat) == -1) {
+		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
+				  pcl_data, MHVTL_HOME_PATH, pcl);
+		free(currentPCL);
+		if (asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl) < 0) {
+			perror("Could not allocate memory");
+			exit(1);
+		}
+	}
+
+	/* Opening files */
+
+	if (open_partition(partition_number) == 3)
+		goto cleanup;
+	for (int i = 0; i < 3; i++) { fstat(*fd[i], stats[i]); }
+
+	/* Verify that the metafile size is at least reasonable. */
+	exp_size = sizeof(struct MAM) + sizeof(struct meta_header);
+	if ((uint32_t)meta_stat.st_size < exp_size) {
+		MHVTL_ERR("sizeof(struct MAM) + sizeof(struct meta_header) - "
+				  "pcl %s file %s is not the correct length, "
+				  "expected at least %" PRId64 ", actual %" PRId64,
+				  pcl, pcl_meta, exp_size, meta_stat.st_size);
+		if (error_check) {
+			rc = 2;
+			goto cleanup;
+		}
+	}
+
+	/* load MAM and sanity-check it. */
+	nread = read(metafile, &mam, sizeof(mam));
+	if (nread < 0) {
+		MHVTL_ERR("Error reading pcl %s MAM from metafile: %s",
+				  pcl, strerror(errno));
+		if (error_check) {
+			rc = 2;
+			goto cleanup;
+		}
+	} else if (nread != sizeof(mam)) {
+		MHVTL_ERR("Error reading pcl %s MAM from metafile: "
+				  "unexpected read length",
+				  pcl);
+		if (error_check) {
+			rc = 2;
+			goto cleanup;
+		}
+	}
+
+	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
+		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		if (error_check) return 2;
+	}
+
+	/* Read in the meta_header structure and sanity-check it. */
+	nread = read(metafile, &meta, sizeof(struct meta_header));
+	if (nread < 0) {
+		MHVTL_ERR("Error reading pcl %s meta_header from "
+				  "metafile: %s",
+				  pcl, strerror(errno));
+		rc = 2;
+		goto cleanup;
+	} else if (nread != sizeof(struct meta_header)) {
+		MHVTL_ERR("Error reading pcl %s meta header from "
+				  "metafile: unexpected read length",
+				  pcl);
+		rc = 2;
+		goto cleanup;
+	}
+
+	/* Now recompute the correct size of the meta file. */
+	exp_size += meta.filemark_count * sizeof(*filemarks);
+	if ((uint32_t)meta_stat.st_size != exp_size) {
+		MHVTL_ERR("sizeof(struct MAM) + sizeof(struct_meta_header) + sizeof(*filemarks) - "
+				  "pcl %s file %s is not the correct length, "
+				  "expected %" PRId64 ", actual %" PRId64,
+				  pcl,
+				  pcl_meta, exp_size, meta_stat.st_size);
+		if (error_check) {
+			rc = 2;
+			goto cleanup;
+		}
+	}
+
+	/* See if we have allocated enough space for the actual number of
+	   filemarks on the tape.  If not, realloc now.
+	*/
+	if (check_filemarks_alloc(meta.filemark_count)) {
+		if (error_check) {
+			rc = 3;
+			goto cleanup;
+		}
+	}
+
+	/* Now read in the filemark map. */
+	io_size = meta.filemark_count * sizeof(*filemarks);
+	if (io_size) {
+		nread = read(metafile, filemarks, io_size);
+		if (nread < 0) {
+			MHVTL_ERR("Error reading pcl %s filemark map from "
+					  "metafile: %s",
+					  pcl, strerror(errno));
+			rc = 2;
+			goto cleanup;
+		} else if ((size_t)nread != io_size) {
+			MHVTL_ERR("Error reading pcl %s filemark map from "
+					  "metafile: unexpected read length",
+					  pcl);
+			if (error_check) {
+				rc = 2;
+				goto cleanup;
+			}
+		}
+	}
+
+	/* Use the size of the indx file to work out where the virtual
+	   B_EOD block resides.
+	*/
+
+	if ((indx_stat.st_size % sizeof(struct raw_header)) != 0) {
+		MHVTL_ERR("pcl %s indx file has improper length, indicating "
+				  "possible file corruption",
+				  pcl);
+		rc = 2;
+		goto cleanup;
+	}
+	eod_blk_number = indx_stat.st_size / sizeof(struct raw_header);
+
+	/* Make sure that the filemark map is consistent with the size of the
+	   indx file.
+	*/
+	if (meta.filemark_count && eod_blk_number &&
+		filemarks[meta.filemark_count - 1] >= eod_blk_number) {
+		MHVTL_ERR("pcl %s indx file has improper length as compared "
+				  "to the meta file, indicating possible file corruption",
+				  pcl);
+		MHVTL_ERR("Filemark count: %u eod_blk_number: %u",
+				  meta.filemark_count, eod_blk_number);
+		rc = 2;
+		goto cleanup;
+	}
+
+	/* Read in the last raw_header struct from the indx file and use that
+	   to validate the correct size of the data file.
+	*/
+
+	if (eod_blk_number == 0)
+		eod_data_offset = 0;
+	else {
+		MHVTL_DBG(3, "Media format sanity check - Reading block before EOD: %u",
+				  eod_blk_number - 1);
+		if (read_header(eod_blk_number - 1, sam_stat)) {
+			rc = 3;
+			goto cleanup;
+		}
+		eod_data_offset = raw_pos.data_offset +
+						  raw_pos.hdr.disk_blk_size;
+	}
+
+	if (mam.MediumType == MEDIA_TYPE_NULL) {
+		MHVTL_LOG("Loaded NULL media type"); /* Skip check */
+	} else if ((uint64_t)data_stat.st_size != eod_data_offset) {
+		MHVTL_ERR("st_size != eod_data_offset - "
+				  "pcl %s file %s is not the correct length, "
+				  "expected %" PRId64 ", actual %" PRId64,
+				  pcl,
+				  pcl_data, eod_data_offset, data_stat.st_size);
+		if (error_check) {
+			rc = 2;
+			goto cleanup;
+		}
+	}
+
+	/* Give a hint to the kernel that data, once written, tends not to be
+	   accessed again immediately.
+	*/
+
+	posix_fadvise(indxfile, 0, 0, POSIX_FADV_DONTNEED);
+	posix_fadvise(datafile, 0, 0, POSIX_FADV_DONTNEED);
+
+cleanup:
+	close_partition(partition_number);
 	return rc;
 }
 
@@ -1057,6 +1383,18 @@ void zero_filemark_count(void) {
 
 	meta.filemark_count = 0;
 	rewrite_meta_file();
+}
+
+int format_partition(uint8_t *sam_stat) {
+	if (!tape_loaded(sam_stat))
+		return -1;
+
+	if (check_for_overwrite(sam_stat))
+		return -1;
+
+	zero_filemark_count();
+
+	return mkEODHeader(c_pos->blk_number, raw_pos.data_offset);
 }
 
 int format_tape(uint8_t *sam_stat) {
