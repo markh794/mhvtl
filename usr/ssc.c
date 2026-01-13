@@ -1555,7 +1555,7 @@ uint8_t ssc_erase(struct scsi_cmd *cmd) {
 	}
 
 	if (OK_to_write)
-		format_tape(sam_stat);
+		format_partition(sam_stat);
 	else {
 		MHVTL_LOG("Attempt to erase Write-protected media");
 		sam_not_ready(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);

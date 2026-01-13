@@ -1065,15 +1065,26 @@ int format_partition(uint8_t *sam_stat) {
 }
 
 int format_tape(uint8_t *sam_stat) {
-	if (!tape_loaded(sam_stat))
-		return -1;
+	char path[1024];
+	int	 partition_number = 0;
 
-	if (check_for_overwrite(sam_stat))
-		return -1;
+	/* Erase all partitions */
+	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
+	while (access(path, F_OK) == 0) {
+		MHVTL_DBG(1, "Erasing partition %d", partition_number);
+		change_partition(partition_number);
+		erase_partition(sam_stat);
+		snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, ++partition_number);
+	}
 
-	zero_filemark_count();
+	/* Create <mam.num_partitions> partitions */
+	for (int j = 0; j < mam.num_partitions; ++j) {
+		create_partition(&mam, j);
+	}
 
-	return mkEODHeader(c_pos->blk_number, raw_pos.data_offset);
+	change_partition(0);
+
+	return 0;
 }
 
 /*
