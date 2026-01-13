@@ -747,117 +747,39 @@ static int create_partition(struct MAM *mamp, int partition_number) {
  */
 int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat) {
 	struct stat data_stat;
-	char	   *newMedia = NULL;
-	char		newMedia_data[1024];
-	char		newMedia_indx[1024];
-	char		newMedia_meta[1024];
-	int			rc = 0;
+	char		path[1024];
 
 	/* Attempt to create the new PCL.  This will fail if the PCL's directory
 	   or any of the PCL's three files already exist, leaving any existing
 	   files as they were.
 	*/
 
-	if (asprintf(&newMedia, "%s/%s", home_directory, pcl) < 0) {
+	if (asprintf(&currentPCL, "%s/%s", home_directory, pcl) < 0) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
 
-	snprintf(newMedia_data, ARRAY_SIZE(newMedia_data), "%s/data", newMedia);
-	snprintf(newMedia_indx, ARRAY_SIZE(newMedia_indx), "%s/indx", newMedia);
-	snprintf(newMedia_meta, ARRAY_SIZE(newMedia_meta), "%s/meta", newMedia);
-
 	/* Check if data file already exists, nothing to create */
-	if (stat(newMedia_data, &data_stat) != -1) {
+	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
+	if (stat(path, &data_stat) != -1) {
 		if (verbose)
 			printf("error: Data file already exists for new media\n");
-		goto free_strings;
+		return 0;
 	}
 
-	if (verbose)
-		printf("Creating new media directory: %s\n", newMedia);
+	if (verbose) printf("Creating new media directory: %s\n", currentPCL);
 
-	rc = mkdir(newMedia, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_ISGID);
-	if (rc) {
+	if (mkdir(currentPCL, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_ISGID)) {
 		/* No need to fail just because the parent dir exists */
 		if (errno != EEXIST) {
 			MHVTL_ERR("Failed to create directory %s: %s",
-					  newMedia, strerror(errno));
-			rc = 2;
-			goto free_strings;
+					  currentPCL, strerror(errno));
+			free(currentPCL);
+			return 2;
 		}
-		rc = 0;
 	}
 
-	if (verbose)
-		printf("Creating new media data file: %s\n", newMedia_data);
-	datafile = open(newMedia_data, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-	if (datafile == -1) {
-		MHVTL_ERR("Failed to create file %s: %s", newMedia_data,
-				  strerror(errno));
-		rc = 2;
-		goto free_strings;
-	}
-	if (verbose)
-		printf("Creating new media index file: %s\n", newMedia_indx);
-	indxfile = open(newMedia_indx, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-	if (indxfile == -1) {
-		MHVTL_ERR("Failed to create file %s: %s", newMedia_indx,
-				  strerror(errno));
-		unlink(newMedia_data);
-		rc = 2;
-		goto cleanup;
-	}
-	if (verbose)
-		printf("Creating new media meta file: %s\n", newMedia_meta);
-	metafile = open(newMedia_meta, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-	if (metafile == -1) {
-		MHVTL_ERR("Failed to create file %s: %s", newMedia_meta,
-				  strerror(errno));
-		unlink(newMedia_data);
-		unlink(newMedia_indx);
-		rc = 2;
-		goto cleanup;
-	}
-
-	MHVTL_LOG("%s files created", newMedia);
-
-	/* Write the meta file consisting of the MAM and the meta_header
-	   structure with the filemark count initialized to zero.
-	*/
-	mam = *mamp;
-
-	memset(&meta, 0, sizeof(meta));
-	meta.filemark_count = 0;
-
-	if (write(metafile, &mam, sizeof(mam)) != sizeof(mam) ||
-		write(metafile, &meta, sizeof(meta)) != sizeof(meta)) {
-		MHVTL_ERR("Failed to initialize file %s: %s", newMedia_meta,
-				  strerror(errno));
-		unlink(newMedia_data);
-		unlink(newMedia_indx);
-		unlink(newMedia_meta);
-		rc = 1;
-	}
-
-cleanup:
-	if (datafile >= 0) {
-		close(datafile);
-		datafile = -1;
-	}
-	if (indxfile >= 0) {
-		close(indxfile);
-		indxfile = -1;
-	}
-	if (metafile >= 0) {
-		close(metafile);
-		metafile = -1;
-	}
-
-free_strings:
-	if (newMedia)
-		free(newMedia);
-	return rc;
+	return create_partition(mamp, 0);
 }
 
 int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint8_t partition_number) {
