@@ -1072,18 +1072,11 @@ cleanup:
  */
 
 int load_tape(const char *pcl, uint8_t *sam_stat) {
-	char		pcl_data[1024], pcl_indx[1024], pcl_meta[1024];
-	char	   *currentPCL = NULL;
-	struct stat data_stat, indx_stat, meta_stat;
-	uint64_t	exp_size;
-	size_t		io_size;
-	loff_t		nread;
-	int			rc = 0;
-	int			null_media_type;
+	char		path[1024];
 	char		touch_file[128];
-	int			ret;
-
-	uint8_t error_check;
+	uint8_t		error_check;
+	struct stat data_stat;
+	loff_t		nread;
 
 	snprintf(touch_file, 127, "%s/bypass_error_check", MHVTL_HOME_PATH);
 	error_check = (stat(touch_file, &data_stat) == -1) ? FALSE : TRUE;
@@ -1098,282 +1091,34 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 	if (datafile >= 0)
 		return 1;
 
-	/* Open all three files and stat them to get their current sizes. */
+	MHVTL_DBG(1, "Opening media: %s", pcl);
 
-	if (strlen(home_directory))
-		ret = asprintf(&currentPCL, "%s/%s", home_directory, pcl);
-	else
-		ret = asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl);
-	if (ret < 0) {
+	/* Determining pcl filepaths */
+	if (!((strlen(home_directory) && asprintf(&currentPCL, "%s/%s", home_directory, pcl) >= 0) || asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl) >= 0)) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
 
-	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
-	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
-	snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
-
-	MHVTL_DBG(2, "Opening media: %s", pcl);
-
-	if (stat(pcl_data, &data_stat) == -1) {
-		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
-				  pcl_data, MHVTL_HOME_PATH, pcl);
-		free(currentPCL);
-		if (asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl) < 0) {
-			perror("Could not allocate memory");
-			exit(1);
-		}
-		snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
-		snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
-		snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
+	/* load all partitions */
+	mam.num_partitions = 0;
+	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
+	while (access(path, F_OK) == 0) {
+		load_partition(pcl, sam_stat, error_check, mam.num_partitions);
+		snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, ++mam.num_partitions);
 	}
 
-	free(currentPCL);
-
-	datafile = open(pcl_data, O_RDWR | O_LARGEFILE);
-	if (datafile == -1) {
-		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
-				  pcl_data, strerror(errno));
-		rc = 3;
-		goto failed;
-	}
-	indxfile = open(pcl_indx, O_RDWR | O_LARGEFILE);
-	if (indxfile == -1) {
-		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
-				  pcl_indx, strerror(errno));
-		rc = 3;
-		goto failed;
-	}
-	metafile = open(pcl_meta, O_RDWR | O_LARGEFILE);
-	if (metafile == -1) {
-		MHVTL_ERR("open of pcl %s file %s failed, %s", pcl,
-				  pcl_meta, strerror(errno));
-		rc = 3;
-		goto failed;
-	}
-
-	if (fstat(datafile, &data_stat) < 0) {
-		MHVTL_ERR("stat of pcl %s file %s failed: %s", pcl,
-				  pcl_data, strerror(errno));
-		rc = 3;
-		goto failed;
-	}
-
-	if (fstat(indxfile, &indx_stat) < 0) {
-		MHVTL_ERR("stat of pcl %s file %s failed: %s", pcl,
-				  pcl_indx, strerror(errno));
-		rc = 3;
-		goto failed;
-	}
-
-	if (fstat(metafile, &meta_stat) < 0) {
-		MHVTL_ERR("stat of pcl %s file %s failed: %s", pcl,
-				  pcl_meta, strerror(errno));
-		rc = 3;
-		goto failed;
-	}
-
-	/* Verify that the metafile size is at least reasonable. */
-
-	exp_size = sizeof(mam) + sizeof(meta);
-	if ((uint32_t)meta_stat.st_size < exp_size) {
-		MHVTL_ERR("sizeof(mam) + sizeof(meta) - "
-				  "pcl %s file %s is not the correct length, "
-				  "expected at least %" PRId64 ", actual %" PRId64,
-				  pcl, pcl_meta, exp_size, meta_stat.st_size);
-		if (error_check) {
-			rc = 2;
-			goto failed;
-		}
-	}
-
-	/* Read in the MAM and sanity-check it. */
-	nread = read(metafile, &mam, sizeof(mam));
-	if (nread < 0) {
-		MHVTL_ERR("Error reading pcl %s MAM from metafile: %s",
-				  pcl, strerror(errno));
-		if (error_check) {
-			rc = 2;
-			goto failed;
-		}
-	} else if (nread != sizeof(mam)) {
-		MHVTL_ERR("Error reading pcl %s MAM from metafile: "
-				  "unexpected read length",
-				  pcl);
-		if (error_check) {
-			rc = 2;
-			goto failed;
-		}
-	}
-
-	null_media_type = mam.MediumType == MEDIA_TYPE_NULL ? 1 : 0;
-
-	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
-		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
-		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		if (error_check) {
-			rc = 2;
-			goto failed;
-		}
-	}
-
-	/* Read in the meta_header structure and sanity-check it. */
-
-	nread = read(metafile, &meta, sizeof(meta));
-	if (nread < 0) {
-		MHVTL_ERR("Error reading pcl %s meta_header from "
-				  "metafile: %s",
-				  pcl, strerror(errno));
-		rc = 2;
-		goto failed;
-	} else if (nread != sizeof(meta)) {
-		MHVTL_ERR("Error reading pcl %s meta header from "
-				  "metafile: unexpected read length",
-				  pcl);
-		rc = 2;
-		goto failed;
-	}
-
-	/* Now recompute the correct size of the meta file. */
-
-	exp_size = sizeof(mam) + sizeof(meta) +
-			   (meta.filemark_count * sizeof(*filemarks));
-
-	if ((uint32_t)meta_stat.st_size != exp_size) {
-		MHVTL_ERR("sizeof(mam) + sizeof(meta) + sizeof(*filemarks) - "
-				  "pcl %s file %s is not the correct length, "
-				  "expected %" PRId64 ", actual %" PRId64,
-				  pcl,
-				  pcl_meta, exp_size, meta_stat.st_size);
-		if (error_check) {
-			rc = 2;
-			goto failed;
-		}
-	}
-
-	/* See if we have allocated enough space for the actual number of
-	   filemarks on the tape.  If not, realloc now.
-	*/
-
-	if (check_filemarks_alloc(meta.filemark_count)) {
-		if (error_check) {
-			rc = 3;
-			goto failed;
-		}
-	}
-
-	/* Now read in the filemark map. */
-
-	io_size = meta.filemark_count * sizeof(*filemarks);
-	if (io_size) {
-		nread = read(metafile, filemarks, io_size);
-		if (nread < 0) {
-			MHVTL_ERR("Error reading pcl %s filemark map from "
-					  "metafile: %s",
-					  pcl, strerror(errno));
-			rc = 2;
-			goto failed;
-		} else if ((size_t)nread != io_size) {
-			MHVTL_ERR("Error reading pcl %s filemark map from "
-					  "metafile: unexpected read length",
-					  pcl);
-			if (error_check) {
-				rc = 2;
-				goto failed;
-			}
-		}
-	}
-
-	/* Use the size of the indx file to work out where the virtual
-	   B_EOD block resides.
-	*/
-
-	if ((indx_stat.st_size % sizeof(struct raw_header)) != 0) {
-		MHVTL_ERR("pcl %s indx file has improper length, indicating "
-				  "possible file corruption",
-				  pcl);
-		rc = 2;
-		goto failed;
-	}
-	eod_blk_number = indx_stat.st_size / sizeof(struct raw_header);
-
-	/* Make sure that the filemark map is consistent with the size of the
-	   indx file.
-	*/
-	if (meta.filemark_count && eod_blk_number &&
-		filemarks[meta.filemark_count - 1] >= eod_blk_number) {
-		MHVTL_ERR("pcl %s indx file has improper length as compared "
-				  "to the meta file, indicating possible file corruption",
-				  pcl);
-		MHVTL_ERR("Filemark count: %d eod_blk_number: %d",
-				  meta.filemark_count, eod_blk_number);
-		rc = 2;
-		goto failed;
-	}
-
-	/* Read in the last raw_header struct from the indx file and use that
-	   to validate the correct size of the data file.
-	*/
-
-	if (eod_blk_number == 0)
-		eod_data_offset = 0;
-	else {
-		MHVTL_DBG(3, "Media format sanity check - Reading block before EOD: %d",
-				  eod_blk_number - 1);
-		if (read_header(eod_blk_number - 1, sam_stat)) {
-			rc = 3;
-			goto failed;
-		}
-		eod_data_offset = raw_pos.data_offset +
-						  c_pos->disk_blk_size;
-	}
-
-	if (null_media_type) {
-		MHVTL_LOG("Loaded NULL media type"); /* Skip check */
-	} else if ((uint64_t)data_stat.st_size != eod_data_offset) {
-		MHVTL_ERR("st_size != eod_data_offset - "
-				  "pcl %s file %s is not the correct length, "
-				  "expected %" PRId64 ", actual %" PRId64,
-				  pcl,
-				  pcl_data, eod_data_offset, data_stat.st_size);
-		if (error_check) {
-			rc = 2;
-			goto failed;
-		}
-	}
-
-	/* Give a hint to the kernel that data, once written, tends not to be
-	   accessed again immediately.
-	*/
-
-	posix_fadvise(indxfile, 0, 0, POSIX_FADV_DONTNEED);
-	posix_fadvise(datafile, 0, 0, POSIX_FADV_DONTNEED);
+	change_partition(0);
 
 	/* Initialise SAM STATUS */
 	*sam_stat = SAM_STAT_GOOD;
 
 	/* Now initialize raw_pos by reading in the first header, if any. */
 	if (read_header(0, sam_stat)) {
-		rc = 3;
-		goto failed;
+		close_partition(0);
+		return 3;
 	}
 
 	return 0;
-
-failed:
-	if (datafile >= 0) {
-		close(datafile);
-		datafile = -1;
-	}
-	if (indxfile >= 0) {
-		close(indxfile);
-		indxfile = -1;
-	}
-	if (metafile >= 0) {
-		close(metafile);
-		metafile = -1;
-	}
-	return rc;
 }
 
 void zero_filemark_count(void) {
