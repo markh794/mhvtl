@@ -1613,22 +1613,20 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 }
 
 void unload_tape(uint8_t *sam_stat) {
-	if (datafile >= 0) {
-		close(datafile);
-		datafile = -1;
-	}
-	if (indxfile >= 0) {
-		close(indxfile);
-		indxfile = -1;
-	}
-	if (metafile >= 0) {
+	for (int j = 0; j < mam.num_partitions; ++j) {
+		MHVTL_DBG(3, "Unloading tape : partition %d", j);
+		change_partition(j);
 		rewrite_meta_file();
-		close(metafile);
-		metafile = -1;
+		close_partition(j);
 	}
-	free(filemarks);
-	filemarks	   = NULL;
-	filemark_alloc = 0;
+
+	if (filemarks) {
+		free(filemarks);
+		filemarks = NULL;
+	}
+	memset(filemark_alloc, 0, sizeof(filemark_alloc));
+
+	free(currentPCL);
 }
 
 uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
