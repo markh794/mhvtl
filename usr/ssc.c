@@ -1274,10 +1274,22 @@ uint8_t ssc_read_attributes(struct scsi_cmd *cmd) {
 		break;
 	}
 
+	if (cdb[7] > mam.num_partitions) {
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
+		MHVTL_DBG(1, "Not enough partitions : requested partition %d over %d ", cdb[7], mam.num_partitions);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
 	switch (service_action) {
 	case 0x00: /* Attribute values */
 	case 0x01: /* Attribute list */
 		dbuf_p->sz = resp_read_attribute(cmd);
+		break;
+	case 0x03:								 /* Partition list */
+		put_unaligned_be16(0x0002, &buf[0]); /* Available data */
+		buf[1]	   = 0;						 /* First partition number */
+		buf[2]	   = mam.num_partitions;	 /* Number of partitions available */
+		dbuf_p->sz = buf[0];
 		break;
 	default:
 		sd.byte0		 = SKSV | CD;
