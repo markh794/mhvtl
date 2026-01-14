@@ -472,7 +472,7 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 			if (found_attribute) {
 				/* calculate available data length */
 				ret_val += MAM_Attributes[indx].length + 5;
-				if (ret_val < alloc_len) {
+				if (ret_val <= alloc_len) {
 					/* add it to output */
 					MHVTL_DBG(2, "Attribute : %02x %02x %02x %02x %02x %02x\n",
 							  buf[byte_index], buf[byte_index + 1],
