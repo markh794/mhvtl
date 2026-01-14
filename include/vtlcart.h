@@ -224,6 +224,8 @@ int		 read_mam(int mam_fd, int mhvtl_fd, struct MAM *mamp);
 int		 rewriteMAM(uint8_t *sam_stat);
 uint64_t current_tape_offset(void);
 uint64_t current_tape_block(void);
+uint64_t last_block(uint8_t partition_number);
+uint64_t block_from_filemark(uint8_t partition_number, uint32_t filemark);
 uint64_t count_filemarks(int64_t count);
 
 void print_raw_header(void);

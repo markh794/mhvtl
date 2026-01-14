@@ -608,21 +608,56 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
 
 uint8_t ssc_locate(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
+
 	uint64_t blk_no;
+	uint8_t	 partition_no = c_pos->partition_id;
 
 	set_current_state(MHVTL_STATE_LOCATE);
 
 	MHVTL_DBG(1, "LOCATE %d (%ld) **", (cdb[0] == LOCATE_16) ? 16 : 10,
 			  (long)dbuf_p->serialNo);
 
-	blk_no = (cdb[0] == LOCATE_16) ? get_unaligned_be64(&cdb[4]) : get_unaligned_be32(&cdb[3]);
+	switch (cdb[0]) {
+	case LOCATE_10:
+		if (cdb[1] & 0b00000010) /* CP - Change Partition */
+			partition_no = cdb[8];
+		blk_no = (uint64_t)get_unaligned_be32(&cdb[3]);
+		break;
+	case LOCATE_16:
+		if (cdb[1] & 0b00000010)
+			partition_no = cdb[3];
+		switch (cdb[1] & 0b00011000) { /* Destination Type */
+		case 0b00:					   /* with logical object identifier */
+			blk_no = get_unaligned_be64(&cdb[4]);
+			/* mhvtl only supports u32 blk_numbers so blk_no will be truncated */
+			break;
+		case 0b01: /* with logical file identifier */
+			blk_no = block_from_filemark(partition_no, get_unaligned_be64(&cdb[4]));
+			break;
+		case 0b11: /* finish with EOD */
+			blk_no = last_block(partition_no);
+		default:
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
+		break;
+	default:
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	if ((cdb[1] & 0b00000010) && partition_no > mam.num_partitions) {
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB,
+							NULL, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	/* If we want to seek closer to beginning of file than
 	 * we currently are, rewind and seek from there
 	 */
-	MHVTL_DBG(2, "Current blk: %d, seek: %d",
-			  c_pos->blk_number, blk_no);
-	position_to_block(blk_no, sam_stat);
+	MHVTL_DBG(2, "Current partition/blk: %u/%u, seek: %u/%u",
+			  c_pos->partition_id, c_pos->blk_number, partition_no, (uint32_t)blk_no);
+	change_partition(partition_no);
+	position_to_block((uint32_t)blk_no, sam_stat);
 
 	return *sam_stat;
 }

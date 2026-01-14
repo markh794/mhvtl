@@ -1593,6 +1593,14 @@ uint64_t current_tape_block(void) {
 	return 0;
 }
 
+uint64_t last_block(uint8_t partition_number) {
+	return eod_blk_number;
+}
+
+uint64_t block_from_filemark(uint8_t partition_number, uint32_t filemark) {
+	return filemarks[filemark];
+}
+
 /* Return number of filemarks up to 'block' : -1 for all */
 uint64_t count_filemarks(int64_t block) {
 	uint64_t count;
