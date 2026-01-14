@@ -560,6 +560,10 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 				ret_val += MAM_Attributes[indx].length + 5;
 				if (ret_val < alloc_len) {
 					/* add it to output */
+					MHVTL_DBG(2, "Attribute : %02x %02x %02x %02x %02x %02x\n",
+							  buf[byte_index], buf[byte_index + 1],
+							  buf[byte_index + 2], buf[byte_index + 3],
+							  buf[byte_index + 4], buf[byte_index + 5]);
 					buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
 					buf[byte_index++] = MAM_Attributes[indx].attribute;
 					buf[byte_index++] = (MAM_Attributes[indx].read_only << 7) | MAM_Attributes[indx].format;
@@ -571,6 +575,7 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 			}
 		}
 		if (!found_attribute) {
+			MHVTL_DBG(2, "Attribute not found");
 			sd.byte0		 = SKSV | CD;
 			sd.field_pointer = 8;
 			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd,
