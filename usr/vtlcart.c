@@ -1010,8 +1010,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 	/* KFRDEBUG - sam_stat needs updates in lots of places here. */
 
 	/* If some other PCL is already open, return. */
-	if (datafile >= 0)
+	if (datafile >= 0) {
+		MHVTL_DBG(1, "Drive already full, cannot open %s", pcl);
 		return 1;
+	}
 
 	MHVTL_DBG(1, "Opening media: %s", pcl);
 
