@@ -446,15 +446,15 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
  * Fill in 'buf' with data and return number of bytes
  */
 int resp_read_attribute(struct scsi_cmd *cmd) {
-	uint16_t	attrib;
-	uint32_t	alloc_len;
-	uint32_t	ret_val	   = 0;
-	int			byte_index = 4;
-	int			indx, found_attribute;
-	uint8_t	   *cdb		 = cmd->scb;
-	uint8_t	   *buf		 = (uint8_t *)cmd->dbuf_p->data;
-	uint8_t	   *sam_stat = &cmd->dbuf_p->sam_stat;
-	struct s_sd sd;
+	uint8_t		*cdb	  = cmd->scb;
+	uint8_t		*buf	  = cmd->dbuf_p->data;
+	uint8_t		*sam_stat = &cmd->dbuf_p->sam_stat;
+	uint16_t	 attrib;
+	uint32_t	 alloc_len;
+	uint32_t	 ret_val	= 4; /* Available data length */
+	unsigned int byte_index = 4;
+	int			 indx, found_attribute;
+	struct s_sd	 sd;
 
 	attrib	  = get_unaligned_be16(&cdb[8]);
 	alloc_len = get_unaligned_be32(&cdb[10]);
@@ -511,8 +511,7 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 
 	put_unaligned_be32(ret_val, &buf[0]);
 
-	/* Add 4 bytes for the AVAILABLE DATA length field. */
-	return min(ret_val + 4, alloc_len);
+	return ret_val;
 }
 
 /*
