@@ -1303,6 +1303,8 @@ void unload_tape(uint8_t *sam_stat) {
 		filemarks = NULL;
 	}
 	memset(filemark_alloc, 0, sizeof(filemark_alloc));
+	memset(eod_blk_number, 0, sizeof(eod_blk_number));
+	memset(eod_data_offset, 0, sizeof(eod_data_offset));
 
 	free(currentPCL);
 }
