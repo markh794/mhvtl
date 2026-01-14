@@ -1274,14 +1274,16 @@ uint8_t ssc_read_attributes(struct scsi_cmd *cmd) {
 		break;
 	}
 
-	/* Only support Service Action - Attribute Values */
-	if (cdb[1] > 1) {
+	switch (service_action) {
+	case 0x00: /* Attribute values */
+	case 0x01: /* Attribute list */
+		dbuf_p->sz = resp_read_attribute(cmd);
+		break;
+	default:
 		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	}
-
-	dbuf_p->sz = resp_read_attribute(cmd);
 
 	return *sam_stat;
 }
