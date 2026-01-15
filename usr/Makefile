@@ -103,7 +103,7 @@ utils/validate_crc.o: \
 utils/minilzo.o: \
 		CFLAGS += $(LZODEBUG)
 
-utils/q.o utils/subprocess.o: \
+utils/q.o utils/subprocess.o utils/mhvtl_update.o: \
 		CFLAGS += -fpic
 
 
@@ -113,7 +113,8 @@ libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
 		vtlcart.o \
 	 	spc.o smc.o \
 	 	utils/q.o \
-	 	utils/subprocess.o
+	 	utils/subprocess.o \
+		utils/mhvtl_update.o
 	$(CC) $(CLFLAGS) -o $@ $^ -lpthread
 
 # ================== Commands and scripts ==================

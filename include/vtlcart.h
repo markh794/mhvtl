@@ -38,7 +38,7 @@ struct MAM;
 #define BLKHDR_FLG_LZO_COMPRESSED  0x04
 #define BLKHDR_FLG_CRC			   0x08
 
-#define TAPE_FMT_VERSION 3
+#define TAPE_FMT_VERSION 4
 
 #define ENCR_KEY_MAX_LEN 32
 struct encryption {

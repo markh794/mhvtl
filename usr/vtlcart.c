@@ -44,6 +44,7 @@
 #include "mhvtl_scsi.h"
 #include "vtlcart.h"
 #include "vtllib.h"
+#include "mhvtl_update.h"
 #include "be_byteshift.h"
 
 /* The .indx file consists of an array of one raw_header structure per
@@ -59,7 +60,7 @@ struct raw_header {
 	char			  pad[512 - sizeof(loff_t) - sizeof(struct blk_header)];
 };
 
-/* The .meta file consists of a MAM structure followed by a meta_header
+/* The .meta file consists of a meta_header
    structure, followed by a variable-length array of filemark block numbers.
    Both the MAM and meta_header structures also contain padding to allow
    for future expansion with backwards compatibility.
@@ -75,6 +76,7 @@ static char *currentPCL = NULL;
 static int datafile = -1;
 static int indxfile = -1;
 static int metafile = -1;
+static int mamfile	= -1;
 
 static struct raw_header  raw_pos;
 static struct meta_header meta;
@@ -180,9 +182,8 @@ static int rewrite_meta_file(void) {
 	ssize_t io_size, nwrite;
 	size_t	io_offset;
 
-	io_size	  = sizeof(meta);
-	io_offset = sizeof(struct MAM);
-	nwrite	  = pwrite(metafile, &meta, io_size, io_offset);
+	io_size = sizeof(struct meta_header);
+	nwrite	= pwrite(metafile, &meta, io_size, 0);
 	if (nwrite < 0) {
 		MHVTL_ERR("Error writing meta_header to metafile: %s",
 				  strerror(errno));
@@ -196,7 +197,7 @@ static int rewrite_meta_file(void) {
 	}
 
 	io_size	  = meta.filemark_count * sizeof(*filemarks);
-	io_offset = sizeof(struct MAM) + sizeof(meta);
+	io_offset = sizeof(struct meta_header);
 
 	if (io_size) {
 		nwrite = pwrite(metafile, filemarks, io_size, io_offset);
@@ -595,7 +596,7 @@ int position_filemarks_back(uint64_t count, uint8_t *sam_stat) {
 }
 
 /*
- * Writes data in struct MAM back to beginning of metafile..
+ * Writes data in struct MAM in mam file
  * Returns 0 if nothing written or -1 on error
  */
 
@@ -607,8 +608,8 @@ int rewriteMAM(uint8_t *sam_stat) {
 
 	/* Rewrite MAM data */
 
-	nwrite = pwrite(metafile, &mam, sizeof(mam), 0);
-	if (nwrite != sizeof(mam)) {
+	nwrite = pwrite(mamfile, &mam, sizeof(struct MAM), 0);
+	if (nwrite != sizeof(struct MAM)) {
 		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	}
@@ -694,7 +695,7 @@ static void erase_partition(uint8_t *sam_stat) {
  * == 2, could not create some file(s)
  * == 1, an error occurred.
  */
-static int create_partition(struct MAM *mamp, int partition_number) {
+static int create_partition(int partition_number) {
 	char		path[1024];
 	int		   *fd[3]		= {&datafile,
 							   &indxfile,
@@ -717,15 +718,12 @@ static int create_partition(struct MAM *mamp, int partition_number) {
 
 	MHVTL_LOG("%s files created", currentPCL);
 
-	/* Write the meta file consisting of the MAM and the meta_header
+	/* Write the meta file consisting of the meta_header
 	   structure with the filemark count initialized to zero.
 	*/
-
-	mam = *mamp;
 	memset(&meta, 0, sizeof(struct meta_header));
 	meta.filemark_count = 0;
-	if (write(metafile, &mam, sizeof(struct MAM)) != sizeof(struct MAM) ||
-		write(metafile, &meta, sizeof(struct meta_header)) != sizeof(struct meta_header)) {
+	if (write(metafile, &meta, sizeof(struct meta_header)) != sizeof(struct meta_header)) {
 		snprintf(path, ARRAY_SIZE(path), "%s/meta", currentPCL);
 		MHVTL_ERR("Failed to initialize file %s: %s", path,
 				  strerror(errno));
@@ -779,7 +777,25 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat) {
 		}
 	}
 
-	return create_partition(mamp, 0);
+	/* create mam file and fill it */
+	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
+	if (verbose) printf("Creating new media mam file: %s\n", path);
+	mamfile = open(path, O_CREAT | O_TRUNC | O_WRONLY,
+				   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+	if (mamfile == -1) {
+		MHVTL_ERR("Failed to create file %s: %s", path, strerror(errno));
+		return 2;
+	}
+
+	mam = *mamp;
+	if (write(mamfile, &mam, sizeof(struct MAM)) != sizeof(struct MAM)) {
+		MHVTL_ERR("Failed to initialize mam file");
+	}
+
+	close(mamfile);
+	mamfile = -1;
+
+	return create_partition(0);
 }
 
 int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint8_t partition_number) {
@@ -815,9 +831,9 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	for (int i = 0; i < 3; i++) { fstat(*fd[i], stats[i]); }
 
 	/* Verify that the metafile size is at least reasonable. */
-	exp_size = sizeof(struct MAM) + sizeof(struct meta_header);
+	exp_size = sizeof(struct meta_header);
 	if ((uint32_t)meta_stat.st_size < exp_size) {
-		MHVTL_ERR("sizeof(struct MAM) + sizeof(struct meta_header) - "
+		MHVTL_ERR("sizeof(struct meta_header) - "
 				  "pcl %s file %s is not the correct length, "
 				  "expected at least %" PRId64 ", actual %" PRId64,
 				  pcl, pcl_meta, exp_size, meta_stat.st_size);
@@ -825,31 +841,6 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 			rc = 2;
 			goto cleanup;
 		}
-	}
-
-	/* load MAM and sanity-check it. */
-	nread = read(metafile, &mam, sizeof(mam));
-	if (nread < 0) {
-		MHVTL_ERR("Error reading pcl %s MAM from metafile: %s",
-				  pcl, strerror(errno));
-		if (error_check) {
-			rc = 2;
-			goto cleanup;
-		}
-	} else if (nread != sizeof(mam)) {
-		MHVTL_ERR("Error reading pcl %s MAM from metafile: "
-				  "unexpected read length",
-				  pcl);
-		if (error_check) {
-			rc = 2;
-			goto cleanup;
-		}
-	}
-
-	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
-		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
-		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		if (error_check) return 2;
 	}
 
 	/* Read in the meta_header structure and sanity-check it. */
@@ -1023,6 +1014,40 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 		exit(1);
 	}
 
+	/* load MAM and sanity-check it. */
+	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
+	printf("mam from %s\n", path);
+	mamfile = open(path, O_RDWR | O_LARGEFILE);
+
+	if (mamfile == -1) { /* Check for MAM location update */
+		MHVTL_ERR("open of file %s failed: %s", path, strerror(errno));
+		MHVTL_LOG("Trying to find mam in the meta file and update tape format...");
+
+		if (try_extract_mam(currentPCL)) {
+			MHVTL_ERR("Could not find or extract mam file : medium corrupted");
+			return 3;
+		};
+		mamfile = open(path, O_RDWR | O_LARGEFILE);
+	}
+
+	nread = read(mamfile, &mam, sizeof(struct MAM));
+	if (nread < 0) {
+		MHVTL_ERR("Error reading pcl %s MAM from mam file: %s",
+				  pcl, strerror(errno));
+		if (error_check) return 2;
+	} else if (nread != sizeof(struct MAM)) {
+		MHVTL_ERR("Error reading pcl %s MAM from mam file: "
+				  "unexpected read length",
+				  pcl);
+		if (error_check) return 2;
+	}
+
+	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
+		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		if (error_check) return 2;
+	}
+
 	/* load all partitions */
 	mam.num_partitions = 0;
 	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
@@ -1081,7 +1106,7 @@ int format_tape(uint8_t *sam_stat) {
 
 	/* Create <mam.num_partitions> partitions */
 	for (int j = 0; j < mam.num_partitions; ++j) {
-		create_partition(&mam, j);
+		create_partition(j);
 	}
 
 	change_partition(0);
@@ -1307,6 +1332,11 @@ void unload_tape(uint8_t *sam_stat) {
 	memset(filemark_alloc, 0, sizeof(filemark_alloc));
 	memset(eod_blk_number, 0, sizeof(eod_blk_number));
 	memset(eod_data_offset, 0, sizeof(eod_data_offset));
+
+	if (mamfile >= 0) {
+		close(mamfile);
+		mamfile = -1;
+	}
 
 	free(currentPCL);
 }
