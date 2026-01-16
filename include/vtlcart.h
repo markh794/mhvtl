@@ -193,7 +193,7 @@ https://github.com/iustin/mt-st/blob/fbfd923faad0d6f613415f4de747833fb6b4a465/mt
    files.
 */
 
-int	 create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat);
+int	 create_tape(const char *pcl, uint8_t *sam_stat);
 int	 load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint8_t partition_number);
 int	 load_tape(const char *pcl, uint8_t *sam_stat);
 void unload_tape(uint8_t *sam_stat);

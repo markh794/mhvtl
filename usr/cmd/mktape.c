@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
 
 	if (verbose)
 		printf("Creating tape data ...\n");
-	res = create_tape(pcl, &mam, &sam_stat);
+	res = create_tape(pcl, &sam_stat);
 
 	exit(res);
 }

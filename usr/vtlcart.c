@@ -743,7 +743,7 @@ static int create_partition(int partition_number) {
  * == 2, could not create the directory or some file(s)
  * == 1, an error occurred.
  */
-int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat) {
+int create_tape(const char *pcl, uint8_t *sam_stat) {
 	struct stat data_stat;
 	char		path[1024];
 
@@ -787,7 +787,6 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat) {
 		return 2;
 	}
 
-	mam = *mamp;
 	if (write(mamfile, &mam, sizeof(struct MAM)) != sizeof(struct MAM)) {
 		MHVTL_ERR("Failed to initialize mam file");
 	}
