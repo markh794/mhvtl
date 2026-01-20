@@ -233,13 +233,16 @@ struct MAM {
 	uint32_t		  tape_fmt_version;
 	uint32_t		  mam_fmt_version;
 
+	/* Device (0x0000 - 0x03ff) */
 	uint64_t remaining_capacity;
 	uint64_t max_capacity;
 	uint64_t TapeAlert;
 	uint64_t LoadCount;
 	uint64_t MAMSpaceRemaining;
 	uint8_t	 AssigningOrganization_1[8];
+	uint8_t	 FormattedDensityCode;
 	uint8_t	 InitializationCount[2];
+
 	uint8_t	 DevMakeSerialLastLoad[40];
 	uint8_t	 DevMakeSerialLastLoad1[40];
 	uint8_t	 DevMakeSerialLastLoad2[40];
@@ -249,19 +252,19 @@ struct MAM {
 	uint64_t WrittenInLastLoad;
 	uint64_t ReadInLastLoad;
 
+	/* Medium (0x0400 - 0x07ff) */
 	uint8_t	 MediumManufacturer[8];
 	uint8_t	 MediumSerialNumber[32];
 	uint32_t MediumLength;
 	uint32_t MediumWidth;
 	uint8_t	 AssigningOrganization_2[8];
-	uint8_t	 MediumManufactureDate[12];
-	uint8_t	 FormattedDensityCode;
 	uint8_t	 MediumDensityCode;
-	uint8_t	 MediumType; /* 0 -> Data, 1 -> WORM, 6 -> Clean */
-	uint8_t	 MediaType;	 /* LTO1, LTO2, AIT etc (Media_Type_list) */
+	uint8_t	 MediumManufactureDate[12];
 	uint64_t MAMCapacity;
+	uint8_t	 MediumType;			/* 0 -> Data, 1 -> WORM, 6 -> Clean */
 	uint16_t MediumTypeInformation; /* If Clean, max mount */
 
+	/* Host (0x0800 - 0x0bff) */
 	uint8_t ApplicationVendor[8];
 	uint8_t ApplicationName[32];
 	uint8_t ApplicationVersion[8];
@@ -272,8 +275,16 @@ struct MAM {
 	uint8_t OwningHostTextualName[80];
 	uint8_t MediaPool[160];
 
+	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
+	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
+	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
+
+	/* mhvtl attributes */
 	uint8_t	 record_dirty; /* 0 = Record clean, non-zero umount failed. */
 	uint16_t Flags;
+	uint8_t	 MediaType; /* LTO1, LTO2, AIT etc (Media_Type_list) */
+	uint8_t	 max_partitions;
+	uint8_t	 num_partitions;
 
 	struct uniq_media_info {
 		uint32_t bits_per_mm;
@@ -281,8 +292,6 @@ struct MAM {
 		char	 density_name[8];
 		char	 description[32];
 	} media_info;
-	uint8_t max_partitions;
-	uint8_t num_partitions;
 };
 
 #define MAM_FLAGS_ENCRYPTION_FORMAT	  0x0001
