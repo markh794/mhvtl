@@ -128,64 +128,6 @@ static int library_id = 0;
 #define MEDIA_WRITABLE 0
 #define MEDIA_READONLY 1
 
-struct MAM_Attributes_table {
-	uint16_t attribute;
-	uint16_t length;
-	uint8_t	 read_only;
-	uint8_t	 format; /* 0: binary 1: ASCII 2: TEXT */
-	void	*value;
-} MAM_Attributes[] = {
-	/* 0x0000 - 0x03ff - Device (subclause 6.4.2.2) */
-	{0x000, 8, 1, 0, &mam.remaining_capacity},
-	{0x001, 8, 1, 0, &mam.max_capacity},
-	{0x002, 8, 1, 0, &mam.TapeAlert},
-	{0x003, 8, 1, 0, &mam.LoadCount},
-	{0x004, 8, 1, 0, &mam.MAMSpaceRemaining},
-	{0x005, 8, 1, 1, &mam.AssigningOrganization_1},
-	{0x006, 1, 1, 0, &mam.FormattedDensityCode},
-	{0x007, 2, 1, 0, &mam.InitializationCount},
-
-	/* 0x008 - Not Supported - Volume Identifier */
-
-	/* 0x009 - Not Supported - Volume Change reference */
-	{0x20a, 40, 1, 1, &mam.DevMakeSerialLastLoad},
-	{0x20b, 40, 1, 1, &mam.DevMakeSerialLastLoad1},
-	{0x20c, 40, 1, 1, &mam.DevMakeSerialLastLoad2},
-	{0x20d, 40, 1, 1, &mam.DevMakeSerialLastLoad3},
-	{0x220, 8, 1, 0, &mam.WrittenInMediumLife},
-	{0x221, 8, 1, 0, &mam.ReadInMediumLife},
-	{0x222, 8, 1, 0, &mam.WrittenInLastLoad},
-	{0x223, 8, 1, 0, &mam.ReadInLastLoad},
-
-	/* 0x400 - 0x07ff - Medium (subclause 6.4.2.3) */
-	{0x400, 8, 1, 1, &mam.MediumManufacturer},
-	{0x401, 32, 1, 1, &mam.MediumSerialNumber},
-	{0x402, 4, 1, 0, &mam.MediumLength},
-	{0x403, 4, 1, 0, &mam.MediumWidth},
-	{0x404, 8, 1, 1, &mam.AssigningOrganization_2},
-	{0x405, 1, 1, 0, &mam.MediumDensityCode},
-	{0x406, 8, 1, 1, &mam.MediumManufactureDate},
-	{0x407, 8, 1, 0, &mam.MAMCapacity},
-	{0x408, 1, 0, 0, &mam.MediumType},
-	{0x409, 2, 1, 0, &mam.MediumTypeInformation},
-
-	/* 0x800 - 0x0bff - Host (subclause 6.4.2.4) */
-	{0x800, 8, 0, 1, &mam.ApplicationVendor},
-	{0x801, 32, 0, 1, &mam.ApplicationName},
-	{0x802, 8, 0, 1, &mam.ApplicationVersion},
-	{0x803, 160, 0, 2, &mam.UserMediumTextLabel},
-	{0x804, 12, 0, 1, &mam.DateTimeLastWritten},
-	{0x805, 1, 0, 0, &mam.LocalizationIdentifier},
-	{0x806, 32, 0, 1, &mam.Barcode},
-	{0x807, 80, 0, 2, &mam.OwningHostTextualName},
-	{0x808, 160, 0, 2, &mam.MediaPool},
-	{0xbff, 0, 1, 0, NULL}
-
-	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
-	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
-	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
-};
-
 static struct tape_drives_table {
 	char *name;
 	void (*init)(struct lu_phy_attr *);
@@ -465,26 +407,26 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 
 	if (cdb[1] == 0) {
 		/* Attribute Values */
-		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
-			if (attrib == MAM_Attributes[indx].attribute)
+		for (indx = found_attribute = 0; mam.attributes[indx].length; indx++) {
+			if (attrib == mam.attributes[indx].attribute_id)
 				found_attribute = 1;
 
 			if (found_attribute) {
 				/* calculate available data length */
-				ret_val += MAM_Attributes[indx].length + 5;
+				ret_val += mam.attributes[indx].length + 5;
 				if (ret_val <= alloc_len) {
 					/* add it to output */
 					MHVTL_DBG(2, "Attribute : %02x %02x %02x %02x %02x %02x\n",
 							  buf[byte_index], buf[byte_index + 1],
 							  buf[byte_index + 2], buf[byte_index + 3],
 							  buf[byte_index + 4], buf[byte_index + 5]);
-					buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
-					buf[byte_index++] = MAM_Attributes[indx].attribute;
-					buf[byte_index++] = (MAM_Attributes[indx].read_only << 7) | MAM_Attributes[indx].format;
-					buf[byte_index++] = MAM_Attributes[indx].length >> 8;
-					buf[byte_index++] = MAM_Attributes[indx].length;
-					memcpy(&buf[byte_index], MAM_Attributes[indx].value, MAM_Attributes[indx].length);
-					byte_index += MAM_Attributes[indx].length;
+					buf[byte_index++] = mam.attributes[indx].attribute_id >> 8;
+					buf[byte_index++] = mam.attributes[indx].attribute_id;
+					buf[byte_index++] = (mam.attributes[indx].read_only << 7) | mam.attributes[indx].format;
+					buf[byte_index++] = mam.attributes[indx].length >> 8;
+					buf[byte_index++] = mam.attributes[indx].length;
+					memcpy(&buf[byte_index], mam.attributes[indx].value, mam.attributes[indx].length);
+					byte_index += mam.attributes[indx].length;
 				}
 			}
 		}
@@ -498,13 +440,13 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 		}
 	} else {
 		/* Attribute List */
-		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
+		for (indx = found_attribute = 0; mam.attributes[indx].length; indx++) {
 			/* calculate available data length */
 			ret_val += 2;
 			if (ret_val <= alloc_len) {
 				/* add it to output */
-				buf[byte_index++] = MAM_Attributes[indx].attribute >> 8;
-				buf[byte_index++] = MAM_Attributes[indx].attribute;
+				buf[byte_index++] = mam.attributes[indx].attribute_id >> 8;
+				buf[byte_index++] = mam.attributes[indx].attribute_id;
 			}
 		}
 	}
@@ -546,8 +488,8 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 	for (byte_index = 4; byte_index < alloc_len;) {
 		attrib = get_unaligned_be16(&buf[byte_index]);
 
-		for (indx = found_attribute = 0; MAM_Attributes[indx].length; indx++) {
-			if (attrib == MAM_Attributes[indx].attribute) {
+		for (indx = found_attribute = 0; mam.attributes[indx].length; indx++) {
+			if (attrib == mam.attributes[indx].attribute_id) {
 				found_attribute	 = 1;
 				attribute_length = get_unaligned_be16(&buf[byte_index + 3]);
 				byte_index += 5;		 /* positioning to the actual value */
@@ -558,9 +500,9 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 					MHVTL_LOG("Converted media to WORM");
 					mamp->MediumType = MEDIA_TYPE_WORM;
 				} else {
-					memcpy(MAM_Attributes[indx].value,
+					memcpy(mam.attributes[indx].value,
 						   &buf[byte_index],
-						   MAM_Attributes[indx].length);
+						   mam.attributes[indx].length);
 				}
 				byte_index += attribute_length; /* Positioning to the next attribute if any */
 				break;
