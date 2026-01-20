@@ -107,6 +107,7 @@ void init_mam(struct MAM *mamp) {
 	INIT_MAM_ATTR(0x006, 1, 1, 0, mamp->FormattedDensityCode, MAM_FORMATTED_DENSITY_CODE);
 	INIT_MAM_ATTR(0x007, 2, 1, 0, mamp->InitializationCount, MAM_INITIALIZATION_COUNT);
 
+	INIT_MAM_ATTR(0x009, 4, 1, 0, mamp->VolumeChangeReference, MAM_VOLUME_CHANGE_REFERENCE);
 	INIT_MAM_ATTR(0x20a, 40, 1, 1, mamp->DevMakeSerialLastLoad, MAM_DEV_MAKE_SERIAL_LAST_LOAD);
 	INIT_MAM_ATTR(0x20b, 40, 1, 1, mamp->DevMakeSerialLastLoad1, MAM_DEV_MAKE_SERIAL_LAST_LOAD1);
 	INIT_MAM_ATTR(0x20c, 40, 1, 1, mamp->DevMakeSerialLastLoad2, MAM_DEV_MAKE_SERIAL_LAST_LOAD2);
@@ -138,9 +139,16 @@ void init_mam(struct MAM *mamp) {
 	INIT_MAM_ATTR(0x806, 32, 0, 1, mamp->Barcode, MAM_BARCODE);
 	INIT_MAM_ATTR(0x807, 80, 0, 2, mamp->OwningHostTextualName, MAM_OWNING_HOST_TEXTUAL_NAME);
 	INIT_MAM_ATTR(0x808, 160, 0, 2, mamp->MediaPool, MAM_MEDIA_POOL);
+	INIT_MAM_ATTR(0x80b, 16, 0, 1, mamp->ApplicationFormatVersion, MAM_APPLICATION_FORMAT_VERSION);
+	INIT_MAM_ATTR(0x80c, 46, 0, 0, mamp->VolumeCoherencyInformation, MAM_VOLUME_COHERENCY_INFORMATION);
 
-	/* 0xbff : end of implemented attributes */
-	mamp->attributes[MAM_ATTRIBUTE_END] = (struct MAM_attr){0x0bff, 0, 1, 0, NULL};
+	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
+	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
+	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
+	INIT_MAM_ATTR(0x1623, 1, 1, 0, mamp->VolumeLock, MAM_VOLUME_LOCK);
+
+	/* 0x1800 : end of implemented attributes */
+	mamp->attributes[MAM_ATTRIBUTE_END] = (struct MAM_attr){0x1800, 0, 1, 0, NULL};
 
 	/* mhvtl attributes */
 	INIT_VTL_ATTR(0x01, 1, mamp->record_dirty, MAM_MHVTL_RECORD_DIRTY);

@@ -160,8 +160,9 @@ enum MAM_attribute_idx {
 	MAM_FORMATTED_DENSITY_CODE,
 	MAM_INITIALIZATION_COUNT,
 
-	/* 0x008 – 0x009 : Not supported */
+	/* 0x008 Not supported */
 
+	MAM_VOLUME_CHANGE_REFERENCE,
 	MAM_DEV_MAKE_SERIAL_LAST_LOAD,
 	MAM_DEV_MAKE_SERIAL_LAST_LOAD1,
 	MAM_DEV_MAKE_SERIAL_LAST_LOAD2,
@@ -193,6 +194,13 @@ enum MAM_attribute_idx {
 	MAM_BARCODE,
 	MAM_OWNING_HOST_TEXTUAL_NAME,
 	MAM_MEDIA_POOL,
+	MAM_APPLICATION_FORMAT_VERSION,
+	MAM_VOLUME_COHERENCY_INFORMATION,
+
+	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
+	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
+	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
+	MAM_VOLUME_LOCK,
 
 	MAM_ATTRIBUTE_END,
 };
@@ -243,6 +251,7 @@ struct MAM {
 	uint8_t	 FormattedDensityCode;
 	uint8_t	 InitializationCount[2];
 
+	uint32_t VolumeChangeReference;
 	uint8_t	 DevMakeSerialLastLoad[40];
 	uint8_t	 DevMakeSerialLastLoad1[40];
 	uint8_t	 DevMakeSerialLastLoad2[40];
@@ -274,10 +283,13 @@ struct MAM {
 	uint8_t Barcode[32];
 	uint8_t OwningHostTextualName[80];
 	uint8_t MediaPool[160];
+	uint8_t ApplicationFormatVersion[16];
+	uint8_t VolumeCoherencyInformation[46];
 
 	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
 	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
 	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
+	uint8_t VolumeLock;
 
 	/* mhvtl attributes */
 	uint8_t	 record_dirty; /* 0 = Record clean, non-zero umount failed. */
