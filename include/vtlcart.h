@@ -38,7 +38,7 @@ struct MAM;
 #define BLKHDR_FLG_LZO_COMPRESSED  0x04
 #define BLKHDR_FLG_CRC			   0x08
 
-#define TAPE_FMT_VERSION 4
+#define TAPE_FMT_VERSION 5
 
 #define ENCR_KEY_MAX_LEN 32
 struct encryption {
@@ -216,6 +216,8 @@ int write_tape_block(const uint8_t *buf, uint32_t uncomp_size,
 int format_partition(uint8_t *sam_stat);
 int format_tape(uint8_t *sam_stat);
 
+int		 write_mam(int mam_fd, int mhvtl_fd);
+int		 read_mam(int mam_fd, int mhvtl_fd, struct MAM *mamp);
 int		 rewriteMAM(uint8_t *sam_stat);
 uint64_t current_tape_offset(void);
 uint64_t current_tape_block(void);

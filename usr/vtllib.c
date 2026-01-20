@@ -74,6 +74,87 @@ uint8_t			   debug   = 0;
 uint8_t			   verbose = 0;
 long			   my_id   = 0;
 
+#define INIT_MAM_ATTR(attr_id, len, ro, fmt, field, enum_id)           \
+	do {                                                               \
+		_Static_assert(sizeof(field) == (len),                         \
+					   "INIT_ATTR: field size does not match length"); \
+		mamp->attributes[(enum_id)] = (struct MAM_attr){               \
+			.attribute_id = (attr_id),                                 \
+			.length		  = (len),                                     \
+			.read_only	  = (ro),                                      \
+			.format		  = (fmt),                                     \
+			.value		  = &(field)};                                        \
+	} while (0)
+
+#define INIT_VTL_ATTR(attr_id, len, field, enum_id)                    \
+	do {                                                               \
+		_Static_assert(sizeof(field) == (len),                         \
+					   "INIT_ATTR: field size does not match length"); \
+		mamp->mhvtl_attr[(enum_id)] = (struct MHVTL_attr){             \
+			.attribute_id = (attr_id),                                 \
+			.length		  = (len),                                     \
+			.value		  = &(field)};                                        \
+	} while (0)
+
+void init_mam(struct MAM *mamp) {
+	/* Device (0x0000 - 0x03ff) */
+	INIT_MAM_ATTR(0x000, 8, 1, 0, mamp->remaining_capacity, MAM_REMAINING_CAPACITY);
+	INIT_MAM_ATTR(0x001, 8, 1, 0, mamp->max_capacity, MAM_MAX_CAPACITY);
+	INIT_MAM_ATTR(0x002, 8, 1, 0, mamp->TapeAlert, MAM_TAPE_ALERT);
+	INIT_MAM_ATTR(0x003, 8, 1, 0, mamp->LoadCount, MAM_LOAD_COUNT);
+	INIT_MAM_ATTR(0x004, 8, 1, 0, mamp->MAMSpaceRemaining, MAM_MAM_SPACE_REMAINING);
+	INIT_MAM_ATTR(0x005, 8, 1, 1, mamp->AssigningOrganization_1, MAM_ASSIGNING_ORG_1);
+	INIT_MAM_ATTR(0x006, 1, 1, 0, mamp->FormattedDensityCode, MAM_FORMATTED_DENSITY_CODE);
+	INIT_MAM_ATTR(0x007, 2, 1, 0, mamp->InitializationCount, MAM_INITIALIZATION_COUNT);
+
+	INIT_MAM_ATTR(0x20a, 40, 1, 1, mamp->DevMakeSerialLastLoad, MAM_DEV_MAKE_SERIAL_LAST_LOAD);
+	INIT_MAM_ATTR(0x20b, 40, 1, 1, mamp->DevMakeSerialLastLoad1, MAM_DEV_MAKE_SERIAL_LAST_LOAD1);
+	INIT_MAM_ATTR(0x20c, 40, 1, 1, mamp->DevMakeSerialLastLoad2, MAM_DEV_MAKE_SERIAL_LAST_LOAD2);
+	INIT_MAM_ATTR(0x20d, 40, 1, 1, mamp->DevMakeSerialLastLoad3, MAM_DEV_MAKE_SERIAL_LAST_LOAD3);
+	INIT_MAM_ATTR(0x220, 8, 1, 0, mamp->WrittenInMediumLife, MAM_WRITTEN_IN_MEDIUM_LIFE);
+	INIT_MAM_ATTR(0x221, 8, 1, 0, mamp->ReadInMediumLife, MAM_READ_IN_MEDIUM_LIFE);
+	INIT_MAM_ATTR(0x222, 8, 1, 0, mamp->WrittenInLastLoad, MAM_WRITTEN_IN_LAST_LOAD);
+	INIT_MAM_ATTR(0x223, 8, 1, 0, mamp->ReadInLastLoad, MAM_READ_IN_LAST_LOAD);
+
+	/* Medium (0x0400 - 0x07ff) */
+	INIT_MAM_ATTR(0x400, 8, 1, 1, mamp->MediumManufacturer, MAM_MEDIUM_MANUFACTURER);
+	INIT_MAM_ATTR(0x401, 32, 1, 1, mamp->MediumSerialNumber, MAM_MEDIUM_SERIAL_NUMBER);
+	INIT_MAM_ATTR(0x402, 4, 1, 0, mamp->MediumLength, MAM_MEDIUM_LENGTH);
+	INIT_MAM_ATTR(0x403, 4, 1, 0, mamp->MediumWidth, MAM_MEDIUM_WIDTH);
+	INIT_MAM_ATTR(0x404, 8, 1, 1, mamp->AssigningOrganization_2, MAM_ASSIGNING_ORG_2);
+	INIT_MAM_ATTR(0x405, 1, 1, 0, mamp->MediumDensityCode, MAM_MEDIUM_DENSITY_CODE);
+	INIT_MAM_ATTR(0x406, 12, 1, 1, mamp->MediumManufactureDate, MAM_MEDIUM_MANUFACTURE_DATE);
+	INIT_MAM_ATTR(0x407, 8, 1, 0, mamp->MAMCapacity, MAM_MAM_CAPACITY);
+	INIT_MAM_ATTR(0x408, 1, 0, 0, mamp->MediumType, MAM_MEDIUM_TYPE);
+	INIT_MAM_ATTR(0x409, 2, 1, 0, mamp->MediumTypeInformation, MAM_MEDIUM_TYPE_INFORMATION);
+
+	/* Host (0x0800 - 0x0bff) */
+	INIT_MAM_ATTR(0x800, 8, 0, 1, mamp->ApplicationVendor, MAM_APPLICATION_VENDOR);
+	INIT_MAM_ATTR(0x801, 32, 0, 1, mamp->ApplicationName, MAM_APPLICATION_NAME);
+	INIT_MAM_ATTR(0x802, 8, 0, 1, mamp->ApplicationVersion, MAM_APPLICATION_VERSION);
+	INIT_MAM_ATTR(0x803, 160, 0, 2, mamp->UserMediumTextLabel, MAM_USER_MEDIUM_TEXT_LABEL);
+	INIT_MAM_ATTR(0x804, 12, 0, 1, mamp->DateTimeLastWritten, MAM_DATE_TIME_LAST_WRITTEN);
+	INIT_MAM_ATTR(0x805, 1, 0, 0, mamp->LocalizationIdentifier, MAM_LOCALIZATION_IDENTIFIER);
+	INIT_MAM_ATTR(0x806, 32, 0, 1, mamp->Barcode, MAM_BARCODE);
+	INIT_MAM_ATTR(0x807, 80, 0, 2, mamp->OwningHostTextualName, MAM_OWNING_HOST_TEXTUAL_NAME);
+	INIT_MAM_ATTR(0x808, 160, 0, 2, mamp->MediaPool, MAM_MEDIA_POOL);
+
+	/* 0xbff : end of implemented attributes */
+	mamp->attributes[MAM_ATTRIBUTE_END] = (struct MAM_attr){0x0bff, 0, 1, 0, NULL};
+
+	/* mhvtl attributes */
+	INIT_VTL_ATTR(0x01, 1, mamp->record_dirty, MAM_MHVTL_RECORD_DIRTY);
+	INIT_VTL_ATTR(0x02, 2, mamp->Flags, MAM_MHVTL_FLAGS);
+	INIT_VTL_ATTR(0x03, 1, mamp->max_partitions, MAM_MHVTL_MAX_PARTITIONS);
+	INIT_VTL_ATTR(0x04, 1, mamp->num_partitions, MAM_MHVTL_NUM_PARTITIONS);
+	INIT_VTL_ATTR(0x05, 1, mamp->MediaType, MAM_MHVTL_NUM_PARTITIONS);
+
+	INIT_VTL_ATTR(0x06, 4, mamp->media_info.bits_per_mm, MAM_MHVTL_MEDIAINFO_BITS_PER_MM);
+	INIT_VTL_ATTR(0x07, 2, mamp->media_info.tracks, MAM_MHVTL_MEDIAINFO_TRACKS);
+	INIT_VTL_ATTR(0x08, 8, mamp->media_info.density_name, MAM_MHVTL_MEDIAINFO_DENSITY_NAME);
+	INIT_VTL_ATTR(0x09, 32, mamp->media_info.description, MAM_MHVTL_MEDIAINFO_DESCRIPTION);
+}
+
 int get_config(char *buf, conf_file conf, long id) {
 	char  format[128];
 	char  config_path[CONF_DIR_PATH_SZ] = {0};
@@ -431,13 +512,6 @@ int check_inquiry_data_has_changed(uint8_t *sam_stat) {
 
 void reset_device(void) {
 	reset = 1;
-
-	/*
-	http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
-
-	If this fails to compile - sizeof MAM != 1024 bytes !
-	*/
-	BUILD_BUG_ON(sizeof(struct MAM) % 1024);
 }
 
 /* Force flag to indicate inquiry data has changed */

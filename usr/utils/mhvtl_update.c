@@ -215,3 +215,159 @@ cleanup:
 
 	return rc;
 }
+
+/*
+ * Assuming mam.mam_fmt_version == 3,
+ * Update mam from mam_fmt_version 3 to 4
+ * Splitting mam into mam/mhvtl_data : updating tape_fmt_version from version 4 to 5
+ * turning mam into an auto-descriptive format
+ *
+ * Returns:
+ * == 0 -> Successfully updated mam
+ * == 1 -> Failed to update mam
+ * == 2 -> could not find mam file : format corrupt
+ */
+int try_update_mam(char *currentPCL) {
+	struct MAM_tapeFmtV3 mam_v3;
+	char				 mam_path[1024];
+	char				 mhvtl_data_path[1024];
+	char				 tmp_path[1024];
+	int					 mamfile   = -1;
+	int					 mhvtlfile = -1;
+	int					 tmpfile   = -1;
+	ssize_t				 nread;
+	int					 rc = 1;
+
+	snprintf(mam_path, sizeof(mam_path), "%s/mam", currentPCL);
+	snprintf(mhvtl_data_path, sizeof(mhvtl_data_path), "%s/mhvtl_data", currentPCL);
+	snprintf(tmp_path, sizeof(tmp_path), "%s/mam.tmp", currentPCL);
+
+	mamfile = open(mam_path, O_RDWR | O_LARGEFILE);
+	if (mamfile < 0) {
+		MHVTL_ERR("open of file %s failed: %s", mam_path, strerror(errno));
+		return 2;
+	}
+
+	nread = read(mamfile, &mam_v3, sizeof(struct MAM_tapeFmtV3));
+	if (nread != sizeof(struct MAM_tapeFmtV3)) {
+		MHVTL_ERR("Error reading pcl %s MAM from mam file: %s",
+				  currentPCL, strerror(errno));
+		goto cleanup;
+	}
+
+	/* Checking MAM Format Version */
+	if (mam_v3.mam_fmt_version != 3) {
+		MHVTL_ERR("Error : MAM Format Version : %d , expected 3.\
+					\nCannot handle conversion of %s MAM format to version 4",
+				  mam_v3.mam_fmt_version, currentPCL);
+		goto cleanup;
+	}
+
+	mam.mam_fmt_version	 = MAM_VERSION;
+	mam.tape_fmt_version = 5;
+
+	/* Copying attributes to new format */
+
+	mam.remaining_capacity = mam_v3.remaining_capacity;
+	mam.max_capacity	   = mam_v3.max_capacity;
+	mam.TapeAlert		   = mam_v3.TapeAlert;
+	mam.LoadCount		   = mam_v3.LoadCount;
+	mam.MAMSpaceRemaining  = mam_v3.MAMSpaceRemaining;
+	memcpy(mam.AssigningOrganization_1, mam_v3.AssigningOrganization_1, sizeof(mam.AssigningOrganization_1));
+	memcpy(mam.InitializationCount, mam_v3.InitializationCount, sizeof(mam.InitializationCount));
+	memcpy(mam.DevMakeSerialLastLoad, mam_v3.DevMakeSerialLastLoad, sizeof(mam.DevMakeSerialLastLoad));
+	memcpy(mam.DevMakeSerialLastLoad1, mam_v3.DevMakeSerialLastLoad1, sizeof(mam.DevMakeSerialLastLoad1));
+	memcpy(mam.DevMakeSerialLastLoad2, mam_v3.DevMakeSerialLastLoad2, sizeof(mam.DevMakeSerialLastLoad2));
+	memcpy(mam.DevMakeSerialLastLoad3, mam_v3.DevMakeSerialLastLoad3, sizeof(mam.DevMakeSerialLastLoad3));
+	mam.WrittenInMediumLife = mam_v3.WrittenInMediumLife;
+	mam.ReadInMediumLife	= mam_v3.ReadInMediumLife;
+	mam.WrittenInLastLoad	= mam_v3.WrittenInLastLoad;
+	mam.ReadInLastLoad		= mam_v3.ReadInLastLoad;
+
+	memcpy(mam.MediumManufacturer, mam_v3.MediumManufacturer, sizeof(mam.MediumManufacturer));
+	memcpy(mam.MediumSerialNumber, mam_v3.MediumSerialNumber, sizeof(mam.MediumSerialNumber));
+	mam.MediumLength = mam_v3.MediumLength;
+	mam.MediumWidth	 = mam_v3.MediumWidth;
+	memcpy(mam.AssigningOrganization_2, mam_v3.AssigningOrganization_2, sizeof(mam.AssigningOrganization_2));
+	memcpy(mam.MediumManufactureDate, mam_v3.MediumManufactureDate, sizeof(mam.MediumManufactureDate));
+	mam.FormattedDensityCode  = mam_v3.FormattedDensityCode;
+	mam.MediumDensityCode	  = mam_v3.MediumDensityCode;
+	mam.MediumType			  = mam_v3.MediumType;
+	mam.MediaType			  = mam_v3.MediaType;
+	mam.MAMCapacity			  = mam_v3.MAMCapacity;
+	mam.MediumTypeInformation = mam_v3.MediumTypeInformation;
+
+	memcpy(mam.ApplicationVendor, mam_v3.ApplicationVendor, sizeof(mam.ApplicationVendor));
+	memcpy(mam.ApplicationName, mam_v3.ApplicationName, sizeof(mam.ApplicationName));
+	memcpy(mam.ApplicationVersion, mam_v3.ApplicationVersion, sizeof(mam.ApplicationVersion));
+	memcpy(mam.UserMediumTextLabel, mam_v3.UserMediumTextLabel, sizeof(mam.UserMediumTextLabel));
+	memcpy(mam.DateTimeLastWritten, mam_v3.DateTimeLastWritten, sizeof(mam.DateTimeLastWritten));
+	mam.LocalizationIdentifier = mam_v3.LocalizationIdentifier;
+	memcpy(mam.Barcode, mam_v3.Barcode, sizeof(mam.Barcode));
+	memcpy(mam.OwningHostTextualName, mam_v3.OwningHostTextualName, sizeof(mam.OwningHostTextualName));
+	memcpy(mam.MediaPool, mam_v3.MediaPool, sizeof(mam.MediaPool));
+
+	mam.record_dirty = mam_v3.record_dirty;
+	mam.Flags		 = mam_v3.Flags;
+
+	mam.media_info.bits_per_mm = mam_v3.media_info.bits_per_mm;
+	mam.media_info.tracks	   = mam_v3.media_info.tracks;
+	memcpy(mam.media_info.density_name, mam_v3.media_info.density_name, sizeof(mam.media_info.density_name));
+	memcpy(mam.media_info.description, mam_v3.media_info.description, sizeof(mam.media_info.description));
+
+	mam.max_partitions = mam_v3.max_partitions;
+	mam.num_partitions = mam_v3.num_partitions;
+
+	/* create mhvtl_data file */
+	mhvtlfile = open(mhvtl_data_path, O_CREAT | O_EXCL | O_WRONLY,
+					 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+	if (mhvtlfile < 0) {
+		MHVTL_ERR("Failed to create mhvtl_data file %s: %s", mhvtl_data_path, strerror(errno));
+		goto cleanup;
+	}
+
+	/* Updating mam :
+	 * - writing content to mam.tmp, then renaming to mam
+	 * - filling mhvtl_data */
+	{
+		tmpfile = open(tmp_path, O_CREAT | O_TRUNC | O_WRONLY,
+					   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		if (tmpfile < 0) {
+			MHVTL_ERR("Failed to create temp mam file %s: %s",
+					  tmp_path, strerror(errno));
+			goto cleanup;
+		}
+
+		write_mam(tmpfile, mhvtlfile);
+
+		if (fsync(tmpfile) < 0) {
+			MHVTL_ERR("Error doing fsync of temp mhvtl_data file %s: %s", mhvtl_data_path, strerror(errno));
+			goto cleanup;
+		}
+
+		if (fsync(tmpfile) < 0) {
+			MHVTL_ERR("Error doing fsync of temp mam file %s: %s", tmp_path, strerror(errno));
+			goto cleanup;
+		}
+
+		if (rename(tmp_path, mam_path) < 0) {
+			MHVTL_ERR("rename %s -> %s failed: %s",
+					  tmp_path, mam_path, strerror(errno));
+			goto cleanup;
+		}
+	}
+
+	rc = 0; /* success */
+
+cleanup:
+	if (mamfile >= 0) close(mamfile);
+	if (mhvtlfile >= 0) close(mhvtlfile);
+	if (tmpfile >= 0) close(tmpfile);
+
+	if (rc != 0) {
+		unlink(tmp_path);
+		unlink(mhvtl_data_path);
+	}
+
+	return rc;
+}

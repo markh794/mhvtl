@@ -1930,13 +1930,6 @@ uint8_t ssc_send_diagnostics(struct scsi_cmd *cmd) {
 
 	MHVTL_DBG(1, "SSC SEND DIAGNOSTICS (%ld) **", (long)cmd->dbuf_p->serialNo);
 
-	/* Sanity check - the MAM should be 1024 bytes in size */
-	if (sizeof(struct MAM) != 1024) {
-		MHVTL_ERR("Structure of MAM should be 1024 bytes, but is %ld", (long)sizeof(struct MAM));
-		sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
 	/* Now check the CRC32C routines pass basic sanity check */
 	computedCRC1 = crc32c(0, block1, sizeof(block1));
 	computedCRC2 = crc32c(~computedCRC1, block2, sizeof(block2));

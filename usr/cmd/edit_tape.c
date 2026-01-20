@@ -91,12 +91,6 @@ int main(int argc, char *argv[]) {
 	if (get_config(device_conf, DEVICE_CONF, my_id) < 0)
 		exit(1);
 
-	if (sizeof(struct MAM) != 1024) {
-		printf("Structure of MAM incorrect size: %d\n",
-			   (int)sizeof(struct MAM));
-		exit(2);
-	}
-
 	if (argc < 2) {
 		usage(progname);
 		exit(1);
@@ -283,7 +277,7 @@ int main(int argc, char *argv[]) {
 		break;
 	}
 
-	put_unaligned_be64(sizeof(mam.pad), &new_mam.MAMSpaceRemaining);
+	put_unaligned_be64(new_mam.max_capacity - sizeof(struct MAM), &new_mam.MAMSpaceRemaining);
 
 	memcpy(&mam, &new_mam, sizeof(mam));
 	rewriteMAM(&sam_stat);

@@ -47,6 +47,7 @@
 #include <unistd.h>
 #include "logging.h"
 #include "vtllib.h"
+#include "vtlcart.h"
 
 static char currentPCL[HOME_DIR_PATH_SZ + MAX_BARCODE_LEN + 3]; /* make room for home_dir plus some */
 
@@ -73,10 +74,12 @@ void update_home_dir(long lib_id) {
 int get_cart_type(const char *barcode) {
 	char	   pcl[MAX_BARCODE_LEN + 1];
 	char	   path[HOME_DIR_PATH_SZ + MAX_BARCODE_LEN + 4 + 10];
-	loff_t	   nread;
 	int		   rc	   = 0;
 	int		   mamfile = -1;
 	struct MAM tmp_mam;
+
+	/* init tmp_mam */
+	init_mam(&tmp_mam);
 
 	/* copy barcode to &pcl and terminate at either ' ' or '\0' */
 	for (int i = 0; i < MAX_BARCODE_LEN; i++) {
@@ -101,20 +104,7 @@ int get_cart_type(const char *barcode) {
 	}
 
 	/* Read in the MAM */
-	nread = read(mamfile, &tmp_mam, sizeof(struct MAM));
-	if (nread < 0) {
-		MHVTL_ERR("Error reading pcl %s MAM from mam file: %s",
-				  pcl, strerror(errno));
-		rc = 0;
-		goto failed;
-
-	} else if (nread != sizeof(struct MAM)) {
-		MHVTL_ERR("Error reading pcl %s MAM from mam file: "
-				  "unexpected read length",
-				  pcl);
-		rc = 0;
-		goto failed;
-	}
+	read_mam(mamfile, -1, &tmp_mam);
 
 	switch (tmp_mam.MediumType) {
 	case MEDIA_TYPE_NULL:

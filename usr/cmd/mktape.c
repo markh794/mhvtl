@@ -79,12 +79,6 @@ int main(int argc, char *argv[]) {
 	int			  major, minor;
 	int			  ret;
 
-	if (sizeof(struct MAM) != 1024) {
-		fprintf(stderr, "error: Structure of MAM incorrect size: %d\n",
-				(int)sizeof(struct MAM));
-		exit(2);
-	}
-
 	if (argc < 2) {
 		fprintf(stderr, "error: not enough arguments\n");
 		usage(progname);
@@ -191,13 +185,13 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Initialize the contents of the MAM to be used for the new PCL. */
-	memset((uint8_t *)&mam, 0, sizeof(mam));
+	init_mam(&mam);
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
 	mam.mam_fmt_version	 = MAM_VERSION;
 	put_unaligned_be64(size * 1048576, &mam.max_capacity);
 	put_unaligned_be64(size * 1048576, &mam.remaining_capacity);
-	put_unaligned_be64(sizeof(mam.pad), &mam.MAMSpaceRemaining);
+	put_unaligned_be64(mam.max_capacity - sizeof(struct MAM), &mam.MAMSpaceRemaining);
 
 	memcpy(&mam.MediumManufacturer, "linuxVTL", 8);
 	memcpy(&mam.ApplicationVendor, &ver, 8);

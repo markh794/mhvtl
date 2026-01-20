@@ -147,10 +147,91 @@ struct mode {
 /* v2 of the tape media
  * Between BOT & blk #1, is the MAM (Medium Auxiliary Memory)
  */
-#define MAM_VERSION 3
+#define MAM_VERSION 4
+
+enum MAM_attribute_idx {
+	/* 0x0000 – 0x03ff : Device */
+	MAM_REMAINING_CAPACITY,
+	MAM_MAX_CAPACITY,
+	MAM_TAPE_ALERT,
+	MAM_LOAD_COUNT,
+	MAM_MAM_SPACE_REMAINING,
+	MAM_ASSIGNING_ORG_1,
+	MAM_FORMATTED_DENSITY_CODE,
+	MAM_INITIALIZATION_COUNT,
+
+	/* 0x008 – 0x009 : Not supported */
+
+	MAM_DEV_MAKE_SERIAL_LAST_LOAD,
+	MAM_DEV_MAKE_SERIAL_LAST_LOAD1,
+	MAM_DEV_MAKE_SERIAL_LAST_LOAD2,
+	MAM_DEV_MAKE_SERIAL_LAST_LOAD3,
+	MAM_WRITTEN_IN_MEDIUM_LIFE,
+	MAM_READ_IN_MEDIUM_LIFE,
+	MAM_WRITTEN_IN_LAST_LOAD,
+	MAM_READ_IN_LAST_LOAD,
+
+	/* 0x0400 – 0x07ff : Medium */
+	MAM_MEDIUM_MANUFACTURER,
+	MAM_MEDIUM_SERIAL_NUMBER,
+	MAM_MEDIUM_LENGTH,
+	MAM_MEDIUM_WIDTH,
+	MAM_ASSIGNING_ORG_2,
+	MAM_MEDIUM_DENSITY_CODE,
+	MAM_MEDIUM_MANUFACTURE_DATE,
+	MAM_MAM_CAPACITY,
+	MAM_MEDIUM_TYPE,
+	MAM_MEDIUM_TYPE_INFORMATION,
+
+	/* 0x0800 – 0x0bff : Host */
+	MAM_APPLICATION_VENDOR,
+	MAM_APPLICATION_NAME,
+	MAM_APPLICATION_VERSION,
+	MAM_USER_MEDIUM_TEXT_LABEL,
+	MAM_DATE_TIME_LAST_WRITTEN,
+	MAM_LOCALIZATION_IDENTIFIER,
+	MAM_BARCODE,
+	MAM_OWNING_HOST_TEXTUAL_NAME,
+	MAM_MEDIA_POOL,
+
+	MAM_ATTRIBUTE_END,
+};
+
+enum MHVTL_attribute_idx {
+	MAM_MHVTL_RECORD_DIRTY,
+	MAM_MHVTL_FLAGS,
+	MAM_MHVTL_MAX_PARTITIONS,
+	MAM_MHVTL_NUM_PARTITIONS,
+	MAM_MHVTL_MEDIA_TYPE,
+
+	/* media_info */
+	MAM_MHVTL_MEDIAINFO_BITS_PER_MM,
+	MAM_MHVTL_MEDIAINFO_TRACKS,
+	MAM_MHVTL_MEDIAINFO_DENSITY_NAME,
+	MAM_MHVTL_MEDIAINFO_DESCRIPTION,
+
+	MAM_MHVTL_ATTRIBUTE_END,
+};
+
+struct MAM_attr {
+	uint16_t attribute_id;
+	uint16_t length;
+	uint8_t	 read_only; /* 0: Not RO 1: RO */
+	uint8_t	 format;	/* 0: binary 1: ASCII 2: TEXT */
+	void	*value;
+};
+
+struct MHVTL_attr {
+	uint16_t attribute_id;
+	uint16_t length;
+	void	*value;
+};
+
 struct MAM {
-	uint32_t tape_fmt_version;
-	uint32_t mam_fmt_version;
+	struct MAM_attr	  attributes[MAM_ATTRIBUTE_END + 1];
+	struct MHVTL_attr mhvtl_attr[MAM_MHVTL_ATTRIBUTE_END + 1];
+	uint32_t		  tape_fmt_version;
+	uint32_t		  mam_fmt_version;
 
 	uint64_t remaining_capacity;
 	uint64_t max_capacity;
@@ -202,10 +283,7 @@ struct MAM {
 	} media_info;
 	uint8_t max_partitions;
 	uint8_t num_partitions;
-
-	/* Pad to keep MAM to 1024 bytes */
-	uint8_t pad[1024 - 878];
-} __attribute__((packed));
+};
 
 #define MAM_FLAGS_ENCRYPTION_FORMAT	  0x0001
 #define MAM_FLAGS_MEDIA_WRITE_PROTECT 0x0002
@@ -551,7 +629,8 @@ enum MHVTL_STATE {
 	MHVTL_STATE_UNKNOWN,
 };
 
-int get_config(char *buf, conf_file conf, long my_id);
+int	 get_config(char *buf, conf_file conf, long my_id);
+void init_mam(struct MAM* mamp);
 
 int	 check_reset(uint8_t *);
 int	 check_inquiry_data_has_changed(uint8_t *);

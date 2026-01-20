@@ -73,10 +73,11 @@ struct meta_header {
 
 static char *currentPCL = NULL;
 
-static int datafile = -1;
-static int indxfile = -1;
-static int metafile = -1;
-static int mamfile	= -1;
+static int datafile	 = -1;
+static int indxfile	 = -1;
+static int metafile	 = -1;
+static int mamfile	 = -1;
+static int mhvtlfile = -1;
 
 static struct raw_header  raw_pos;
 static struct meta_header meta;
@@ -596,25 +597,173 @@ int position_filemarks_back(uint64_t count, uint8_t *sam_stat) {
 }
 
 /*
- * Writes data in struct MAM in mam file
+ * Reads data in mam file to the given mam pointer
+ * if a fd is closed, the file is not read and no error is raised
+ * Returns 0 if successful or -1 on error
+ */
+int read_mam(int mam_fd, int mhvtl_fd, struct MAM *mamp) {
+
+	if (mam_fd >= 0) {
+		struct MAM_attr attr;
+
+		if (lseek(mam_fd, 0, SEEK_SET) != 0) {
+			perror("fseek");
+			return -1;
+		}
+
+		/* versions */
+		if (read(mam_fd, &mamp->tape_fmt_version, sizeof(mamp->tape_fmt_version)) != sizeof(mamp->tape_fmt_version))
+			return -1;
+
+		if (read(mam_fd, &mamp->mam_fmt_version, sizeof(mamp->mam_fmt_version)) != sizeof(mamp->tape_fmt_version))
+			return -1;
+
+		/* mam attributes */
+		while (read(mam_fd, &attr.attribute_id, sizeof(uint16_t)) == sizeof(uint16_t)) {
+			int idx = -1;
+
+			if (read(mam_fd, &attr.length, sizeof(uint16_t)) != sizeof(uint16_t)) {
+				MHVTL_ERR("Error reading attribute %04x length : %s",
+						  attr.attribute_id, strerror(errno));
+				return -1;
+			}
+
+			for (int i = 0; i <= MAM_ATTRIBUTE_END; i++) {
+				if (mamp->attributes[i].attribute_id == attr.attribute_id) {
+					idx = i;
+					break;
+				}
+			}
+
+			/* attribute not known: skip value */
+			if (idx < 0) {
+				if (attr.length) lseek(mam_fd, attr.length, SEEK_CUR);
+				continue;
+			}
+
+			if (read(mam_fd, mamp->attributes[idx].value, attr.length) != attr.length) {
+				MHVTL_ERR("Error reading mam attribute %04x value : %s",
+						  attr.attribute_id, strerror(errno));
+				return -1;
+			}
+		}
+	}
+
+	/* mhvtl attributes */
+	if (mhvtl_fd >= 0) {
+		struct MHVTL_attr attr;
+
+		if (lseek(mhvtl_fd, 0, SEEK_SET) != 0) {
+			perror("fseek");
+			return -1;
+		}
+
+		while (read(mhvtl_fd, &attr.attribute_id, sizeof(uint16_t)) == sizeof(uint16_t)) {
+			int idx = -1;
+
+			if (read(mhvtl_fd, &attr.length, sizeof(uint16_t)) != sizeof(uint16_t)) {
+				MHVTL_ERR("Error reading mhvtl attribute %04x length : %s",
+						  attr.attribute_id, strerror(errno));
+				return -1;
+			}
+
+			for (int i = 0; i <= MAM_MHVTL_ATTRIBUTE_END; i++) {
+				if (mamp->mhvtl_attr[i].attribute_id == attr.attribute_id) {
+					idx = i;
+					break;
+				}
+			}
+
+			/* attribute not known: skip value */
+			if (idx < 0) {
+				if (attr.length) lseek(mhvtl_fd, attr.length, SEEK_CUR);
+				continue;
+			}
+
+			if (read(mhvtl_fd, mamp->mhvtl_attr[idx].value, attr.length) != attr.length) {
+				MHVTL_ERR("Error reading mhvtl attribute %04x value : %s",
+						  attr.attribute_id, strerror(errno));
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Writes data in global struct MAM in mam/mhvtl_data files
+ * Using a Type-Length-Value format to keep mam auto-descriptive
  * Returns 0 if nothing written or -1 on error
  */
+int write_mam(int mam_fd, int mhvtl_fd) {
 
+	if ((lseek(mam_fd, 0, SEEK_SET) != 0) || (lseek(mhvtl_fd, 0, SEEK_SET) != 0)) {
+		perror("fseek");
+		return -1;
+	}
+
+	/* versions */
+	if (write(mam_fd, &mam.tape_fmt_version, sizeof(mam.tape_fmt_version)) != sizeof(mam.tape_fmt_version))
+		return -1;
+
+	if (write(mam_fd, &mam.mam_fmt_version, sizeof(mam.mam_fmt_version)) != sizeof(mam.tape_fmt_version))
+		return -1;
+
+	/* mam attributes */
+	for (int i = 0; i < MAM_ATTRIBUTE_END; i++) {
+		const struct MAM_attr *attr = &mam.attributes[i];
+
+		if (write(mam_fd, &attr->attribute_id, sizeof(uint16_t)) != sizeof(uint16_t))
+			return -1;
+
+		if (write(mam_fd, &attr->length, sizeof(uint16_t)) != sizeof(uint16_t))
+			return -1;
+
+		if (write(mam_fd, attr->value, attr->length) != attr->length)
+			return -1;
+	}
+
+	/* mhvtl attributes */
+	for (int i = 0; i < MAM_MHVTL_ATTRIBUTE_END; i++) {
+		const struct MHVTL_attr *attr = &mam.mhvtl_attr[i];
+
+		if (write(mhvtl_fd, &attr->attribute_id, sizeof(uint16_t)) != sizeof(uint16_t))
+			return -1;
+
+		if (write(mhvtl_fd, &attr->length, sizeof(uint16_t)) != sizeof(uint16_t))
+			return -1;
+
+		if (attr->length == 0)
+			continue;
+
+		if (write(mhvtl_fd, attr->value, attr->length) != attr->length)
+			return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * Writes data in struct MAM in mam and mhvtl_data files if tape is loaded
+ * Returns 0 if nothing written or -1 on error
+ */
 int rewriteMAM(uint8_t *sam_stat) {
-	loff_t nwrite = 0;
+	char mam_path[1024];
+	char mhvtl_data_path[1024];
 
 	if (!tape_loaded(sam_stat))
 		return -1;
 
 	/* Rewrite MAM data */
-
-	nwrite = pwrite(mamfile, &mam, sizeof(struct MAM), 0);
-	if (nwrite != sizeof(struct MAM)) {
+	snprintf(mam_path, sizeof(mam_path), "%s/mam", currentPCL);
+	snprintf(mhvtl_data_path, sizeof(mhvtl_data_path), "%s/mhvtl_data", currentPCL);
+	if (write_mam(mamfile, mhvtlfile) < 0) {
 		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
-	}
+	};
 
-	return nwrite;
+	return 0;
 }
 
 static void unlink_partition(int partition_number) {
@@ -746,6 +895,7 @@ static int create_partition(int partition_number) {
 int create_tape(const char *pcl, uint8_t *sam_stat) {
 	struct stat data_stat;
 	char		path[1024];
+	char		mhvtl_data_path[1024];
 
 	/* Attempt to create the new PCL.  This will fail if the PCL's directory
 	   or any of the PCL's three files already exist, leaving any existing
@@ -777,22 +927,31 @@ int create_tape(const char *pcl, uint8_t *sam_stat) {
 		}
 	}
 
-	/* create mam file and fill it */
+	/* create mam/mhvtl_data files and fill them */
 	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
-	if (verbose) printf("Creating new media mam file: %s\n", path);
+	snprintf(mhvtl_data_path, ARRAY_SIZE(mhvtl_data_path), "%s/mhvtl_data", currentPCL);
+	if (verbose) printf("Creating new media mam files: %s and %s\n", path, mhvtl_data_path);
 	mamfile = open(path, O_CREAT | O_TRUNC | O_WRONLY,
 				   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if (mamfile == -1) {
 		MHVTL_ERR("Failed to create file %s: %s", path, strerror(errno));
 		return 2;
 	}
-
-	if (write(mamfile, &mam, sizeof(struct MAM)) != sizeof(struct MAM)) {
-		MHVTL_ERR("Failed to initialize mam file");
+	mhvtlfile = open(mhvtl_data_path, O_CREAT | O_TRUNC | O_WRONLY,
+					 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+	if (mhvtlfile == -1) {
+		MHVTL_ERR("Failed to create file %s: %s", mhvtl_data_path, strerror(errno));
+		return 2;
 	}
+
+	if (write_mam(mamfile, mhvtlfile) < 0) {
+		MHVTL_ERR("Failed to initialize mam/mhvtl_data files");
+	};
 
 	close(mamfile);
 	mamfile = -1;
+	close(mhvtlfile);
+	mhvtlfile = -1;
 
 	return create_partition(0);
 }
@@ -1013,6 +1172,9 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 		exit(1);
 	}
 
+	/* initialize global mam */
+	init_mam(&mam);
+
 	/* load MAM and sanity-check it. */
 	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
 	printf("mam from %s\n", path);
@@ -1029,23 +1191,33 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 		mamfile = open(path, O_RDWR | O_LARGEFILE);
 	}
 
-	nread = read(mamfile, &mam, sizeof(struct MAM));
+	/* Reading tape/mam versions by reading tape_fmt_version and mam_fmt_version  */
+	nread = read(mamfile, &mam.tape_fmt_version, sizeof(uint32_t));
 	if (nread < 0) {
-		MHVTL_ERR("Error reading pcl %s MAM from mam file: %s",
+		MHVTL_ERR("Error reading pcl %s Tape Format Version from mam file: %s",
 				  pcl, strerror(errno));
 		if (error_check) return 2;
-	} else if (nread != sizeof(struct MAM)) {
-		MHVTL_ERR("Error reading pcl %s MAM from mam file: "
-				  "unexpected read length",
-				  pcl);
+	}
+	nread = read(mamfile, &mam.mam_fmt_version, sizeof(uint32_t));
+	if (nread < 0) {
+		MHVTL_ERR("Error reading pcl %s MAM Format Version from mam file: %s",
+				  pcl, strerror(errno));
 		if (error_check) return 2;
 	}
 
-	if (mam.tape_fmt_version != TAPE_FMT_VERSION) {
+	if (mam.mam_fmt_version != MAM_VERSION) { /* Check for MAM Format Update */
 		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
-		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
-		if (error_check) return 2;
+		MHVTL_LOG("Trying to update mam format...");
+		if (try_update_mam(currentPCL)) {
+			MHVTL_ERR("Error : MAM update failed");
+			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+			if (error_check) return 2;
+		}
 	}
+
+	snprintf(path, ARRAY_SIZE(path), "%s/mhvtl_data", currentPCL);
+	mhvtlfile = open(path, O_RDWR | O_LARGEFILE);
+	read_mam(mamfile, mhvtlfile, &mam);
 
 	/* load all partitions */
 	mam.num_partitions = 0;
@@ -1335,6 +1507,11 @@ void unload_tape(uint8_t *sam_stat) {
 	if (mamfile >= 0) {
 		close(mamfile);
 		mamfile = -1;
+	}
+
+	if (mhvtlfile >= 0) {
+		close(mhvtlfile);
+		mhvtlfile = -1;
 	}
 
 	free(currentPCL);
