@@ -76,6 +76,9 @@ struct blk_header {
 	uint32_t		  uncomp_crc;
 	struct encryption blk_encryption_info;
 
+	uint32_t partition_id;
+	uint32_t reserved; // for 64 bit alignment
+
 	/*
 	 * Add other things right here...
 	 * Be careful to keep data 64bit aligned
