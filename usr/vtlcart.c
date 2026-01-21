@@ -118,12 +118,14 @@ static char *mhvtl_block_type_desc(int blk_type) {
  */
 
 static int mkEODHeader(uint32_t blk_number, uint64_t data_offset) {
+	uint32_t partition_id = c_pos->partition_id;
 	memset(&raw_pos, 0, sizeof(raw_pos));
 
 	raw_pos.data_offset = data_offset;
 
-	c_pos->blk_type	  = B_EOD;
-	c_pos->blk_number = blk_number;
+	c_pos->blk_type		= B_EOD;
+	c_pos->blk_number	= blk_number;
+	c_pos->partition_id = partition_id;
 
 	eod_blk_number	= blk_number;
 	eod_data_offset = data_offset;
@@ -1293,6 +1295,7 @@ int format_tape(uint8_t *sam_stat) {
 
 int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	uint32_t blk_number;
+	uint32_t partition_id;
 	uint64_t data_offset;
 	ssize_t	 nwrite;
 
@@ -1322,8 +1325,9 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	   fill it in with new data.
 	*/
 
-	blk_number	= c_pos->blk_number;
-	data_offset = raw_pos.data_offset;
+	blk_number	 = c_pos->blk_number;
+	partition_id = c_pos->partition_id;
+	data_offset	 = raw_pos.data_offset;
 
 	memset(&raw_pos, 0, sizeof(raw_pos));
 
@@ -1334,6 +1338,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	c_pos->blk_number	 = blk_number;
 	c_pos->blk_size		 = 0;
 	c_pos->disk_blk_size = 0;
+	c_pos->partition_id	 = partition_id;
 
 	/* Now write out one header per filemark. */
 
@@ -1367,7 +1372,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 					 uint32_t comp_size, const struct encryption *encryptp,
 					 uint8_t comp_type, uint8_t null_media_type, uint32_t crc, uint8_t *sam_stat) {
-	uint32_t blk_number, disk_blk_size;
+	uint32_t blk_number, disk_blk_size, partition_id;
 	uint32_t max_blk_number;
 	uint64_t data_offset;
 	ssize_t	 nwrite;
@@ -1385,8 +1390,9 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	   fill it in with new data.
 	*/
 
-	blk_number	= c_pos->blk_number;
-	data_offset = raw_pos.data_offset;
+	blk_number	 = c_pos->blk_number;
+	partition_id = c_pos->partition_id;
+	data_offset	 = raw_pos.data_offset;
 
 	if (blk_number > max_blk_number) {
 		MHVTL_ERR("Too many tape blocks - 32bit overflow");
@@ -1397,10 +1403,11 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 
 	raw_pos.data_offset = data_offset;
 
-	c_pos->blk_type	  = B_DATA; /* Header type */
-	c_pos->blk_flags  = 0;
-	c_pos->blk_number = blk_number;
-	c_pos->blk_size	  = blk_size; /* Size of uncompressed data */
+	c_pos->blk_type		= B_DATA; /* Header type */
+	c_pos->blk_flags	= 0;
+	c_pos->blk_number	= blk_number;
+	c_pos->partition_id = partition_id;
+	c_pos->blk_size		= blk_size; /* Size of uncompressed data */
 
 	c_pos->uncomp_crc = crc;
 	c_pos->blk_flags |= BLKHDR_FLG_CRC; /* Logical Block Protection */
