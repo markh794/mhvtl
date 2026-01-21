@@ -144,7 +144,7 @@ static int mkEODHeader(uint32_t blk_number, uint64_t data_offset) {
 static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 	loff_t nread;
 
-	MHVTL_DBG(3, "Reading header for block %d", blk_number);
+	MHVTL_DBG(3, "Reading header partition/block %d/%d", c_pos->partition_id, blk_number);
 
 	if (blk_number > eod_blk_number[c_pos->partition_id]) {
 		MHVTL_ERR("Attempt to seek [%d] beyond EOD [%d]",
@@ -165,11 +165,12 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 		}
 	}
 
-	MHVTL_DBG(3, "Reading header %d at offset %ld, type: %s, size: %d",
-			  c_pos->blk_number,
+	MHVTL_DBG(3, "Reading header partition/block %u/%u at disk offset %ld, type: %s, size: %d",
+			  c_pos->partition_id,
+			  raw_pos.hdr.blk_number,
 			  (unsigned long)raw_pos.data_offset,
-			  mhvtl_block_type_desc(c_pos->blk_type),
-			  c_pos->blk_size);
+			  mhvtl_block_type_desc(raw_pos.hdr.blk_type),
+			  raw_pos.hdr.blk_size);
 	return 0;
 }
 
@@ -385,7 +386,7 @@ int position_to_block(uint32_t blk_number, uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
-	MHVTL_DBG(2, "Position to block %d", blk_number);
+	MHVTL_DBG(2, "Position to partition/block %u/%u", c_pos->partition_id, blk_number);
 
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
@@ -517,7 +518,7 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 		if (read_header(0, sam_stat))
 			return -1;
 
-		MHVTL_DBG(1, "BOM encountered");
+		MHVTL_DBG(1, "Moving to BOP encountered at block 0");
 		sam_no_sense(SD_EOM, E_BOM, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -1366,7 +1367,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	for (; count > 0; count--, blk_number++) {
 		c_pos->blk_number = blk_number;
 
-		MHVTL_DBG(3, "Writing filemark: block %d", blk_number);
+		MHVTL_DBG(3, "Writing filemark: partition/block %u/%u", partition_id, blk_number);
 
 		nwrite = pwrite(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
 						blk_number * sizeof(raw_pos));
@@ -1559,8 +1560,8 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
-	MHVTL_DBG(3, "Reading blk %ld, size: %d",
-			  (unsigned long)c_pos->blk_number, buf_size);
+	MHVTL_DBG(3, "Reading data partition/block %u/%u, size: %d",
+			  c_pos->partition_id, c_pos->blk_number, buf_size);
 
 	/* The caller should have already verified that this is a
 	   B_DATA block before issuing this read, so we shouldn't have to
@@ -1586,8 +1587,8 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 	/* Now position to the following block. */
 	MHVTL_DBG(3, "Reading data succeeded, now positioning to next header");
 	if (read_header(c_pos->blk_number + 1, sam_stat)) {
-		MHVTL_ERR("Failed to read block header %d",
-				  c_pos->blk_number + 1);
+		MHVTL_ERR("Failed to read next partition/block header %u/%u",
+				  c_pos->partition_id, c_pos->blk_number + 1);
 		return -1;
 	}
 
