@@ -1461,6 +1461,13 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 		return -1;
 	}
 
+	MHVTL_DBG(3, "writing partition/header %d/%u at offset %lu, type: %s, size: %u",
+			  c_pos->partition_id,
+			  c_pos->blk_number,
+			  (unsigned long)raw_pos.data_offset,
+			  mhvtl_block_type_desc(c_pos->blk_type),
+			  c_pos->blk_size);
+
 	nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
 					blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
