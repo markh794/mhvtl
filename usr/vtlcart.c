@@ -843,8 +843,8 @@ static void erase_partition(uint8_t *sam_stat) {
 	c_pos->blk_number	= 0;
 	raw_pos.data_offset = 0;
 	format_partition(sam_stat);
-	close_partition(0);
-	unlink_partition(0);
+	close_partition(c_pos->partition_id);
+	unlink_partition(c_pos->partition_id);
 }
 
 /*
