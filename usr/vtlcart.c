@@ -420,6 +420,8 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
+	MHVTL_DBG(3, "Moving %lu blocks forward from block %u/%u", count, c_pos->partition_id, c_pos->blk_number);
+
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
@@ -479,10 +481,10 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
+	MHVTL_DBG(2, "Moving %lu blocks backward from block %u/%u", count, c_pos->partition_id, c_pos->blk_number);
+
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
-
-	MHVTL_DBG(2, "Position before movement: %d", c_pos->blk_number);
 
 	blk_target = c_pos->blk_number - count;
 
