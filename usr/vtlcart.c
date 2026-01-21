@@ -827,7 +827,14 @@ static void close_partition(uint8_t partition_number) {
 }
 
 int change_partition(uint8_t partition_number) {
-	return 0; /* For now, there is only partition 0 so do nothing */
+	uint8_t *sam_stat = SAM_STAT_GOOD;
+	int		 rc		  = 0;
+
+	close_partition(c_pos->partition_id);
+	c_pos->partition_id = partition_number;
+	rc					= open_partition(partition_number);
+	read_header(0, sam_stat);
+	return rc;
 }
 
 static void erase_partition(uint8_t *sam_stat) {
