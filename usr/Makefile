@@ -42,7 +42,7 @@ LZODEBUG =
 GENERATED_FILES = $(patsubst cmd/%.in,bin/%,$(wildcard cmd/*.in))
 
 BINARIES = $(patsubst cmd/%.c,bin/%,$(wildcard cmd/*.c)) bin/dump_tape
-LIBRARIES = libvtlcart.so libvtlscsi.so
+LIBRARIES = libvtlscsi.so
 
 all: | bin
 all: $(LIBRARIES) $(BINARIES) $(GENERATED_FILES) validate_crc
@@ -110,12 +110,10 @@ utils/q.o utils/subprocess.o: \
 # ================== libs ==================
 
 libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
+		vtlcart.o \
 	 	spc.o smc.o \
 	 	utils/q.o \
 	 	utils/subprocess.o
-	$(CC) $(CLFLAGS) -o $@ $^ -lpthread
-
-libvtlcart.so: vtlcart.o
 	$(CC) $(CLFLAGS) -o $@ $^ -lpthread
 
 # ================== Commands and scripts ==================
@@ -135,8 +133,8 @@ bin/dump_messageQ: $(DUMP_MESSAGEQ_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(DUMP_MESSAGEQ_OBJ) -L. -lvtlscsi
 
 VTLCMD_OBJ = cmd/vtlcmd.o
-bin/vtlcmd:	$(VTLCMD_OBJ) libvtlcart.so libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(VTLCMD_OBJ) -L. -lvtlcart -lvtlscsi
+bin/vtlcmd:	$(VTLCMD_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(VTLCMD_OBJ) -L. -lvtlscsi
 
 bin/preload_tape: bin/dump_tape
 	@rm -f $@
@@ -151,16 +149,16 @@ DUMP_TAPE_OBJ = cmd/tape_util.o \
 		utils/crc32c.o \
 		utils/reed-solomon.o \
 		pm/default_ssc_pm.o
-bin/dump_tape: $(DUMP_TAPE_OBJ) libvtlcart.so libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(DUMP_TAPE_OBJ) -L. -lz -lvtlcart -lvtlscsi
+bin/dump_tape: $(DUMP_TAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(DUMP_TAPE_OBJ) -L. -lz -lvtlscsi
 		
 MKTAPE_OBJ = cmd/mktape.o
-bin/mktape: $(MKTAPE_OBJ) libvtlcart.so libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(MKTAPE_OBJ) -L. -lvtlcart -lvtlscsi
+bin/mktape: $(MKTAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(MKTAPE_OBJ) -L. -lvtlscsi
 
 EDIT_TAPE_OBJ = cmd/edit_tape.o
-bin/edit_tape: $(EDIT_TAPE_OBJ) libvtlcart.so libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(EDIT_TAPE_OBJ) -L. -lvtlcart -lvtlscsi
+bin/edit_tape: $(EDIT_TAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(EDIT_TAPE_OBJ) -L. -lvtlscsi
 
 VTLLIBRARY_OBJ = cmd/vtllibrary.o \
 		vtl_cart_type.o \
@@ -187,8 +185,8 @@ VTLTAPE_OBJ = cmd/vtltape.o \
 		pm/ait_pm.o \
 		pm/t10000_pm.o \
 		pm/ibm_03592_pm.o
-bin/vtltape: $(VTLTAPE_OBJ) libvtlcart.so libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) -lz -L. -lvtlcart -lvtlscsi
+bin/vtltape: $(VTLTAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) -lz -L. -lvtlscsi
 
 bin/mhvtl-device-conf-generator: cmd/mhvtl-device-conf-generator.o
 	$(CC) $(CFLAGS) -o $@ $^
