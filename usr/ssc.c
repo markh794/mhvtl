@@ -1751,6 +1751,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "TAPE %s (%ld) **",
 			  (load_request) ? "LOADING" : "UNLOADING", (long)cmd->dbuf_p->serialNo);
 
+	change_partition(0);
 	media_state = rewind_tape(sam_stat);
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
