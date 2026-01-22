@@ -606,7 +606,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (dump_tape == 1) {
-		dump_tape_metadata(dump_data, &sam_stat);
+		for (int k = 0; k < mam.num_partitions; k++) {
+			printf("Dumping partition %d\n", k);
+			change_partition(k);
+			dump_tape_metadata(dump_data, &sam_stat);
+		}
 		unload_tape(&sam_stat);
 	} else if (dump_tape == 2) {
 		write_tape(source_file, block_size, compression, &sam_stat);
