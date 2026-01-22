@@ -1457,7 +1457,6 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 
 	uint8_t									   service_action = cdb[1] & READ_POSITION_SERVICE_ACTION;
 	struct s_sd								   sd;
-	uint8_t									   partition = 0; /* One of these days we'll support multiple partitions - but for now */
 	uint64_t								   filemarks = 0;
 	struct read_position_information_short	  *sp;
 	struct read_position_information_long	  *lp;
@@ -1487,7 +1486,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 				SET_BPEW(sp, current_tape_offset(), lu_priv);
 			SET_EOP(sp, current_tape_offset(), lu_priv->early_warning_position);
 
-			buf[1] = partition;
+			buf[1] = c_pos->partition_id;
 			put_unaligned_be32(c_pos->blk_number, &buf[4]); /* First Logical Object Location - (current location) */
 			put_unaligned_be32(c_pos->blk_number, &buf[8]); /* After a write, Logical Object Location of the new write - If buffer empty: == first logical objecct */
 			// &buf[13] nb logical objects in object buffer
@@ -1510,7 +1509,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 
 			filemarks = count_filemarks(c_pos->blk_number);
 
-			put_unaligned_be32(partition, &buf[4]);
+			put_unaligned_be32(c_pos->partition_id, &buf[4]);
 			put_unaligned_be64(c_pos->blk_number, &buf[8]);
 			put_unaligned_be64(filemarks, &buf[16]);
 			// &buf[24] Logical Set Identifier - Obsolete...
@@ -1531,6 +1530,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 				SET_BPEW(ep, current_tape_offset(), lu_priv);
 			SET_EOP(ep, current_tape_offset(), lu_priv->early_warning_position);
 
+			buf[1] = (uint8_t)c_pos->partition_id;
 			put_unaligned_be16(0x1C, &buf[2]); /* Additional length */
 			// &buf[5] nb logical objects in object buffer
 			put_unaligned_be64(c_pos->blk_number, &buf[8]);	 /* First Logical Object Location - (current location) */
