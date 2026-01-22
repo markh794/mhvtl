@@ -371,3 +371,43 @@ cleanup:
 
 	return rc;
 }
+
+/*
+ * Assuming mam.tape_fmt_version == 5,
+ * Update from tape_fmt_version 5 to 6
+ * Renaming {data, indx, meta} to {data, indx, meta}.0 as they correspond
+ * to partition 0 instead of the whole tape
+ *
+ * Returns:
+ * == 0 -> Successfully updated tape
+ * == 1 -> Failed to update tape
+ */
+
+int try_update_tape(char *currentPCL) {
+	char		oldpath[1024];
+	char		path[1024 + 2];
+	const char *file_name[] = {"data", "indx", "meta"};
+
+	/* Checking Tape Format Version */
+	if (mam.tape_fmt_version != 5) {
+		MHVTL_ERR("Error : Tape Format Version : %d , expected 5.\
+					\nCannot handle conversion of %s tape format to version 6",
+				  mam.tape_fmt_version, currentPCL);
+		return 1;
+	}
+
+	/* renaming <file> to <file>.0 */
+	for (int k = 0; k < 3; k++) {
+		snprintf(oldpath, sizeof(oldpath), "%s/%s", currentPCL, file_name[k]);
+		snprintf(path, sizeof(path), "%s.0", oldpath);
+		if (rename(oldpath, path) < 0) {
+			MHVTL_ERR("rename %s -> %s failed: %s",
+					  oldpath, path, strerror(errno));
+			return 1;
+		}
+	}
+
+	mam.tape_fmt_version = 6;
+
+	return 0;
+}

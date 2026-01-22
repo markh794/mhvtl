@@ -772,15 +772,15 @@ static void unlink_partition(int partition_number) {
 	char path[1024];
 
 	if (datafile >= 0) {
-		snprintf(path, sizeof(path), "%s/data", currentPCL);
+		snprintf(path, sizeof(path), "%s/data.%d", currentPCL, partition_number);
 		unlink(path);
 	}
 	if (indxfile >= 0) {
-		snprintf(path, sizeof(path), "%s/indx", currentPCL);
+		snprintf(path, sizeof(path), "%s/indx.%d", currentPCL, partition_number);
 		unlink(path);
 	}
 	if (metafile >= 0) {
-		snprintf(path, sizeof(path), "%s/meta", currentPCL);
+		snprintf(path, sizeof(path), "%s/meta.%d", currentPCL, partition_number);
 		unlink(path);
 	}
 }
@@ -795,9 +795,9 @@ static int open_partition(uint8_t partition_number) {
 							   &indxfile[partition_number],
 							   &metafile[partition_number]};
 
-	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
-	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
-	snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta", currentPCL);
+	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data.%d", currentPCL, partition_number);
+	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx.%d", currentPCL, partition_number);
+	snprintf(pcl_meta, ARRAY_SIZE(pcl_meta), "%s/meta.%d", currentPCL, partition_number);
 
 	for (int i = 0; i < 3; i++) {
 		*fd_open[i] = open(pcl_files[i], O_RDWR | O_LARGEFILE);
@@ -861,7 +861,7 @@ static int create_partition(int partition_number) {
 	const char *file_name[] = {"data", "indx", "meta"};
 
 	for (int k = 0; k < 3; k++) {
-		snprintf(path, ARRAY_SIZE(path), "%s/%s", currentPCL, file_name[k]);
+		snprintf(path, ARRAY_SIZE(path), "%s/%s.%d", currentPCL, file_name[k], partition_number);
 		if (verbose)
 			printf("Creating new media %s file: %s\n", file_name[k], path);
 		*fd[k] = open(path, O_CREAT | O_TRUNC | O_WRONLY,
@@ -883,7 +883,7 @@ static int create_partition(int partition_number) {
 	meta[partition_number].filemark_count = 0;
 	if (write(metafile[partition_number], &meta[partition_number],
 			  sizeof(struct meta_header)) != sizeof(struct meta_header)) {
-		snprintf(path, ARRAY_SIZE(path), "%s/meta", currentPCL);
+		snprintf(path, ARRAY_SIZE(path), "%s/meta.%d", currentPCL, partition_number);
 		MHVTL_ERR("Failed to initialize file %s: %s", path,
 				  strerror(errno));
 		close_partition(partition_number);
@@ -918,7 +918,7 @@ int create_tape(const char *pcl, uint8_t *sam_stat) {
 	}
 
 	/* Check if data file already exists, nothing to create */
-	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
+	snprintf(path, ARRAY_SIZE(path), "%s/data.0", currentPCL);
 	if (stat(path, &data_stat) != -1) {
 		if (verbose)
 			printf("error: Data file already exists for new media\n");
@@ -981,7 +981,7 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 
 	/* Open all three files and stat them to get their current sizes. */
 
-	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
+	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data.%d", currentPCL, partition_number);
 	if (stat(pcl_data, &data_stat) == -1) {
 		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
 				  pcl_data, MHVTL_HOME_PATH, pcl);
@@ -1229,9 +1229,19 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 	mhvtlfile = open(path, O_RDWR | O_LARGEFILE);
 	read_mam(mamfile, mhvtlfile, &mam);
 
+	if (mam.tape_fmt_version != TAPE_FMT_VERSION) { /* Check for Tape Format Update */
+		MHVTL_ERR("pcl %s contains incorrect media format", pcl);
+		MHVTL_LOG("Trying to update tape format...");
+		if (try_update_tape(currentPCL)) {
+			MHVTL_ERR("Error : Tape update failed");
+			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+			if (error_check) return 2;
+		}
+	}
+
 	/* load all partitions */
 	mam.num_partitions = 0;
-	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
+	snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, mam.num_partitions);
 	while (access(path, F_OK) == 0) {
 		c_pos->partition_id = mam.num_partitions;
 		load_partition(pcl, sam_stat, error_check, mam.num_partitions);
@@ -1278,7 +1288,7 @@ int format_tape(uint8_t *sam_stat) {
 	int	 partition_number = 0;
 
 	/* Erase all partitions */
-	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
+	snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, partition_number);
 	while (access(path, F_OK) == 0) {
 		MHVTL_DBG(1, "Erasing partition %d", partition_number);
 		change_partition(partition_number);

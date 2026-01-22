@@ -23,5 +23,6 @@
 
 int try_extract_mam(char *currentPCL);
 int try_update_mam(char *currentPCL);
+int try_update_tape(char *currentPCL);
 
 #endif /* MHVTL_UPDATE_H */
