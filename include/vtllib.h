@@ -88,6 +88,8 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 #define CONF_DIR_PATH_SZ 1024
 #define CONF_FILE_SZ	 1024 + 256
 
+#define MAX_PARTITIONS 4
+
 typedef enum {
 	DEVICE_CONF,
 	LIBCONTENTS,

@@ -73,20 +73,20 @@ struct meta_header {
 
 static char *currentPCL = NULL;
 
-static int datafile	 = -1;
-static int indxfile	 = -1;
-static int metafile	 = -1;
-static int mamfile	 = -1;
-static int mhvtlfile = -1;
+static int datafile[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = -1};
+static int indxfile[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = -1};
+static int metafile[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = -1};
+static int mamfile					= -1;
+static int mhvtlfile				= -1;
 
 static struct raw_header  raw_pos;
-static struct meta_header meta;
-static uint64_t			  eod_data_offset;
-static uint32_t			  eod_blk_number;
+static struct meta_header meta[MAX_PARTITIONS];
+static uint64_t			  eod_data_offset[MAX_PARTITIONS];
+static uint32_t			  eod_blk_number[MAX_PARTITIONS];
 
 #define FM_DELTA 500
-static int		 filemark_alloc = 0;
-static uint32_t *filemarks		= NULL;
+static int		 filemark_alloc[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = 0};
+static uint32_t *filemarks[MAX_PARTITIONS]		= {[0 ... MAX_PARTITIONS - 1] = NULL};
 
 /* Initialisation of current position (global blk_header) */
 struct blk_header *c_pos = &raw_pos.hdr;
@@ -127,8 +127,8 @@ static int mkEODHeader(uint32_t blk_number, uint64_t data_offset) {
 	c_pos->blk_number	= blk_number;
 	c_pos->partition_id = partition_id;
 
-	eod_blk_number	= blk_number;
-	eod_data_offset = data_offset;
+	eod_blk_number[c_pos->partition_id]	 = blk_number;
+	eod_data_offset[c_pos->partition_id] = data_offset;
 
 	OK_to_write = 1;
 
@@ -146,13 +146,13 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 
 	MHVTL_DBG(3, "Reading header for block %d", blk_number);
 
-	if (blk_number > eod_blk_number) {
+	if (blk_number > eod_blk_number[c_pos->partition_id]) {
 		MHVTL_ERR("Attempt to seek [%d] beyond EOD [%d]",
-				  blk_number, eod_blk_number);
-	} else if (blk_number == eod_blk_number)
-		mkEODHeader(eod_blk_number, eod_data_offset);
+				  blk_number, eod_blk_number[c_pos->partition_id]);
+	} else if (blk_number == eod_blk_number[c_pos->partition_id])
+		mkEODHeader(eod_blk_number[c_pos->partition_id], eod_data_offset[c_pos->partition_id]);
 	else {
-		nread = pread(indxfile, &raw_pos, sizeof(raw_pos),
+		nread = pread(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
 					  blk_number * sizeof(raw_pos));
 		if (nread < 0) {
 			MHVTL_ERR("Medium format corrupt");
@@ -174,7 +174,7 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 }
 
 static int tape_loaded(uint8_t *sam_stat) {
-	if (datafile != -1)
+	if (datafile[c_pos->partition_id] != -1)
 		return 1;
 
 	sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
@@ -186,7 +186,7 @@ static int rewrite_meta_file(void) {
 	size_t	io_offset;
 
 	io_size = sizeof(struct meta_header);
-	nwrite	= pwrite(metafile, &meta, io_size, 0);
+	nwrite	= pwrite(metafile[c_pos->partition_id], &meta[c_pos->partition_id], io_size, 0);
 	if (nwrite < 0) {
 		MHVTL_ERR("Error writing meta_header to metafile: %s",
 				  strerror(errno));
@@ -199,11 +199,11 @@ static int rewrite_meta_file(void) {
 		return -1;
 	}
 
-	io_size	  = meta.filemark_count * sizeof(*filemarks);
+	io_size	  = meta[c_pos->partition_id].filemark_count * sizeof(*filemarks[c_pos->partition_id]);
 	io_offset = sizeof(struct meta_header);
 
 	if (io_size) {
-		nwrite = pwrite(metafile, filemarks, io_size, io_offset);
+		nwrite = pwrite(metafile[c_pos->partition_id], filemarks[c_pos->partition_id], io_size, io_offset);
 		if (nwrite < 0) {
 			MHVTL_ERR("Error writing filemark map to metafile: %s",
 					  strerror(errno));
@@ -221,7 +221,7 @@ static int rewrite_meta_file(void) {
 	   than before.
 	*/
 
-	if (ftruncate(metafile, io_offset + io_size) < 0) {
+	if (ftruncate(metafile[c_pos->partition_id], io_offset + io_size) < 0) {
 		MHVTL_ERR("Error truncating metafile: %s", strerror(errno));
 		return -1;
 	}
@@ -246,7 +246,7 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 	blk_number	= c_pos->blk_number;
 	data_offset = raw_pos.data_offset;
 
-	if (ftruncate(indxfile, blk_number * sizeof(raw_pos))) {
+	if (ftruncate(indxfile[c_pos->partition_id], blk_number * sizeof(raw_pos))) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Index file ftruncate failure, pos: "
 				  "%" PRId64 ": %s",
@@ -254,7 +254,7 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 				  strerror(errno));
 		return -1;
 	}
-	if (ftruncate(datafile, data_offset)) {
+	if (ftruncate(datafile[c_pos->partition_id], data_offset)) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Data file ftruncate failure, pos: "
 				  "%" PRId64 ": %s",
@@ -268,12 +268,12 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 	   of the map is consistent with the new sizes of the other two files.
 	*/
 
-	for (i = 0; i < meta.filemark_count; i++) {
-		MHVTL_DBG(2, "filemarks[%d] %d", i, filemarks[i]);
-		if (filemarks[i] >= blk_number) {
+	for (i = 0; i < meta[c_pos->partition_id].filemark_count; i++) {
+		MHVTL_DBG(2, "filemarks[c_pos->partition_id][%d] %d", i, filemarks[c_pos->partition_id][i]);
+		if (filemarks[c_pos->partition_id][i] >= blk_number) {
 			MHVTL_DBG(2, "Setting filemark_count from %d to %d",
-					  meta.filemark_count, i);
-			meta.filemark_count = i;
+					  meta[c_pos->partition_id].filemark_count, i);
+			meta[c_pos->partition_id].filemark_count = i;
 			return rewrite_meta_file();
 		}
 	}
@@ -288,17 +288,17 @@ static int check_filemarks_alloc(uint32_t count) {
 	   If not, realloc now.
 	*/
 
-	if (count > (uint32_t)filemark_alloc) {
+	if (count > (uint32_t)filemark_alloc[c_pos->partition_id]) {
 		new_size = ((count + FM_DELTA - 1) / FM_DELTA) * FM_DELTA;
 
-		filemarks = (uint32_t *)realloc(filemarks,
-										new_size * sizeof(*filemarks));
-		if (filemarks == NULL) {
+		filemarks[c_pos->partition_id] = (uint32_t *)realloc(filemarks[c_pos->partition_id],
+															 new_size * sizeof(*filemarks[c_pos->partition_id]));
+		if (filemarks[c_pos->partition_id] == NULL) {
 			MHVTL_ERR("filemark map realloc failed, %s",
 					  strerror(errno));
 			return -1;
 		}
-		filemark_alloc = new_size;
+		filemark_alloc[c_pos->partition_id] = new_size;
 	}
 	return 0;
 }
@@ -308,10 +308,10 @@ static int add_filemark(uint32_t blk_number) {
 	   not, realloc now.
 	*/
 
-	if (check_filemarks_alloc(meta.filemark_count + 1))
+	if (check_filemarks_alloc(meta[c_pos->partition_id].filemark_count + 1))
 		return -1;
 
-	filemarks[meta.filemark_count++] = blk_number;
+	filemarks[c_pos->partition_id][meta[c_pos->partition_id].filemark_count++] = blk_number;
 
 	/* Now rewrite the meta_header structure and the filemark map. */
 
@@ -341,7 +341,7 @@ int rewind_tape(uint8_t *sam_stat) {
 		 */
 
 		if (c_pos->blk_type == B_EOD ||
-			(c_pos->blk_type == B_FILEMARK && eod_blk_number == 1))
+			(c_pos->blk_type == B_FILEMARK && eod_blk_number[c_pos->partition_id] == 1))
 			OK_to_write = 1;
 		else
 			OK_to_write = 0;
@@ -366,7 +366,7 @@ int position_to_eod(uint8_t *sam_stat) {
 	if (!tape_loaded(sam_stat))
 		return -1;
 
-	if (read_header(eod_blk_number, sam_stat))
+	if (read_header(eod_blk_number[c_pos->partition_id], sam_stat))
 		return -1;
 
 	if (mam.MediumType == MEDIA_TYPE_WORM)
@@ -390,7 +390,7 @@ int position_to_block(uint32_t blk_number, uint8_t *sam_stat) {
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
-	if (blk_number > eod_blk_number) {
+	if (blk_number > eod_blk_number[c_pos->partition_id]) {
 		sam_blank_check(E_END_OF_DATA, sam_stat);
 		MHVTL_DBG(1, "End of data detected while positioning");
 		return position_to_eod(sam_stat);
@@ -427,9 +427,9 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
 
 	/* Find the first filemark forward from our current position, if any. */
 
-	for (i = 0; i < meta.filemark_count; i++) {
-		MHVTL_DBG(3, "filemark at %ld", (unsigned long)filemarks[i]);
-		if (filemarks[i] >= c_pos->blk_number)
+	for (i = 0; i < meta[c_pos->partition_id].filemark_count; i++) {
+		MHVTL_DBG(3, "filemark at %ld", (unsigned long)filemarks[c_pos->partition_id][i]);
+		if (filemarks[c_pos->partition_id][i] >= c_pos->blk_number)
 			break;
 	}
 
@@ -437,23 +437,23 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
 	   desired destination.
 	*/
 
-	if (i < meta.filemark_count) {
-		if (filemarks[i] >= blk_target)
+	if (i < meta[c_pos->partition_id].filemark_count) {
+		if (filemarks[c_pos->partition_id][i] >= blk_target)
 			return position_to_block(blk_target, sam_stat);
 
 		residual = blk_target - c_pos->blk_number + 1;
-		if (read_header(filemarks[i] + 1, sam_stat))
+		if (read_header(filemarks[c_pos->partition_id][i] + 1, sam_stat))
 			return -1;
 
-		MHVTL_DBG(1, "Filemark encountered: block %d", filemarks[i]);
+		MHVTL_DBG(1, "Filemark encountered: block %d", filemarks[c_pos->partition_id][i]);
 		sam_no_sense(SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
 	}
 
-	if (blk_target > eod_blk_number) {
-		residual = blk_target - eod_blk_number;
-		if (read_header(eod_blk_number, sam_stat))
+	if (blk_target > eod_blk_number[c_pos->partition_id]) {
+		residual = blk_target - eod_blk_number[c_pos->partition_id];
+		if (read_header(eod_blk_number[c_pos->partition_id], sam_stat))
 			return -1;
 
 		MHVTL_DBG(1, "EOD encountered");
@@ -488,8 +488,8 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 
 	/* Find the first filemark prior to our current position, if any. */
 
-	for (i = meta.filemark_count - 1; i >= 0; i--) {
-		if (filemarks[i] < c_pos->blk_number)
+	for (i = meta[c_pos->partition_id].filemark_count - 1; i >= 0; i--) {
+		if (filemarks[c_pos->partition_id][i] < c_pos->blk_number)
 			break;
 	}
 
@@ -497,14 +497,14 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 	   desired destination.
 	*/
 	if (i >= 0) {
-		if (filemarks[i] < blk_target)
+		if (filemarks[c_pos->partition_id][i] < blk_target)
 			return position_to_block(blk_target, sam_stat);
 
 		residual = c_pos->blk_number - blk_target;
-		if (read_header(filemarks[i], sam_stat))
+		if (read_header(filemarks[c_pos->partition_id][i], sam_stat))
 			return -1;
 
-		MHVTL_DBG(2, "Filemark encountered: block %d", filemarks[i]);
+		MHVTL_DBG(2, "Filemark encountered: block %d", filemarks[c_pos->partition_id][i]);
 		sam_no_sense(SD_FILEMARK, E_MARK, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
@@ -544,15 +544,15 @@ int position_filemarks_forw(uint64_t count, uint8_t *sam_stat) {
 	   current position.
 	*/
 
-	for (i = 0; i < meta.filemark_count; i++)
-		if (filemarks[i] >= c_pos->blk_number)
+	for (i = 0; i < meta[c_pos->partition_id].filemark_count; i++)
+		if (filemarks[c_pos->partition_id][i] >= c_pos->blk_number)
 			break;
 
-	if (i + count - 1 < meta.filemark_count)
-		return position_to_block(filemarks[i + count - 1] + 1, sam_stat);
+	if (i + count - 1 < meta[c_pos->partition_id].filemark_count)
+		return position_to_block(filemarks[c_pos->partition_id][i + count - 1] + 1, sam_stat);
 	else {
-		residual = i + count - meta.filemark_count;
-		if (read_header(eod_blk_number, sam_stat))
+		residual = i + count - meta[c_pos->partition_id].filemark_count;
+		if (read_header(eod_blk_number[c_pos->partition_id], sam_stat))
 			return -1;
 
 		sam_blank_check(E_END_OF_DATA, sam_stat);
@@ -581,12 +581,12 @@ int position_filemarks_back(uint64_t count, uint8_t *sam_stat) {
 	   current position.
 	*/
 
-	for (i = meta.filemark_count - 1; i >= 0; i--)
-		if (filemarks[i] < c_pos->blk_number)
+	for (i = meta[c_pos->partition_id].filemark_count - 1; i >= 0; i--)
+		if (filemarks[c_pos->partition_id][i] < c_pos->blk_number)
 			break;
 
 	if (i + 1 >= count)
-		return position_to_block(filemarks[i - count + 1], sam_stat);
+		return position_to_block(filemarks[c_pos->partition_id][i - count + 1], sam_stat);
 	else {
 		residual = count - i - 1;
 		if (read_header(0, sam_stat))
@@ -791,9 +791,9 @@ static int open_partition(uint8_t partition_number) {
 	const char	*pcl_files[3] = {pcl_data, pcl_indx, pcl_meta};
 	struct stat	 data_stat, indx_stat, meta_stat;
 	struct stat *stats[3]	= {&data_stat, &indx_stat, &meta_stat};
-	int			*fd_open[3] = {&datafile,
-							   &indxfile,
-							   &metafile};
+	int			*fd_open[3] = {&datafile[partition_number],
+							   &indxfile[partition_number],
+							   &metafile[partition_number]};
 
 	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data", currentPCL);
 	snprintf(pcl_indx, ARRAY_SIZE(pcl_indx), "%s/indx", currentPCL);
@@ -815,9 +815,9 @@ static int open_partition(uint8_t partition_number) {
 }
 
 static void close_partition(uint8_t partition_number) {
-	int *fd_close[3] = {&datafile,
-						&indxfile,
-						&metafile};
+	int *fd_close[3] = {&datafile[partition_number],
+						&indxfile[partition_number],
+						&metafile[partition_number]};
 	for (int i = 0; i < 3; i++) {
 		if (*fd_close[i] >= 0) {
 			close(*fd_close[i]);
@@ -855,9 +855,9 @@ static void erase_partition(uint8_t *sam_stat) {
  */
 static int create_partition(int partition_number) {
 	char		path[1024];
-	int		   *fd[3]		= {&datafile,
-							   &indxfile,
-							   &metafile};
+	int		   *fd[3]		= {&datafile[partition_number],
+							   &indxfile[partition_number],
+							   &metafile[partition_number]};
 	const char *file_name[] = {"data", "indx", "meta"};
 
 	for (int k = 0; k < 3; k++) {
@@ -879,9 +879,10 @@ static int create_partition(int partition_number) {
 	/* Write the meta file consisting of the meta_header
 	   structure with the filemark count initialized to zero.
 	*/
-	memset(&meta, 0, sizeof(struct meta_header));
-	meta.filemark_count = 0;
-	if (write(metafile, &meta, sizeof(struct meta_header)) != sizeof(struct meta_header)) {
+	memset(&meta[partition_number], 0, sizeof(struct meta_header));
+	meta[partition_number].filemark_count = 0;
+	if (write(metafile[partition_number], &meta[partition_number],
+			  sizeof(struct meta_header)) != sizeof(struct meta_header)) {
 		snprintf(path, ARRAY_SIZE(path), "%s/meta", currentPCL);
 		MHVTL_ERR("Failed to initialize file %s: %s", path,
 				  strerror(errno));
@@ -970,9 +971,9 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	char		 pcl_data[1024], pcl_meta[1024];
 	struct stat	 data_stat, indx_stat, meta_stat;
 	struct stat *stats[3] = {&data_stat, &indx_stat, &meta_stat};
-	int			*fd[3]	  = {&datafile,
-							 &indxfile,
-							 &metafile};
+	int			*fd[3]	  = {&datafile[partition_number],
+							 &indxfile[partition_number],
+							 &metafile[partition_number]};
 
 	uint64_t exp_size;
 	size_t	 io_size;
@@ -1011,7 +1012,7 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	}
 
 	/* Read in the meta_header structure and sanity-check it. */
-	nread = read(metafile, &meta, sizeof(struct meta_header));
+	nread = read(metafile[partition_number], &meta[partition_number], sizeof(struct meta_header));
 	if (nread < 0) {
 		MHVTL_ERR("Error reading pcl %s meta_header from "
 				  "metafile: %s",
@@ -1027,9 +1028,9 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	}
 
 	/* Now recompute the correct size of the meta file. */
-	exp_size += meta.filemark_count * sizeof(*filemarks);
+	exp_size += meta[partition_number].filemark_count * sizeof(*filemarks[partition_number]);
 	if ((uint32_t)meta_stat.st_size != exp_size) {
-		MHVTL_ERR("sizeof(struct MAM) + sizeof(struct_meta_header) + sizeof(*filemarks) - "
+		MHVTL_ERR("sizeof(struct MAM) + sizeof(struct_meta_header) + sizeof(*filemarks[c_pos->partition_id]) - "
 				  "pcl %s file %s is not the correct length, "
 				  "expected %" PRId64 ", actual %" PRId64,
 				  pcl,
@@ -1043,7 +1044,7 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	/* See if we have allocated enough space for the actual number of
 	   filemarks on the tape.  If not, realloc now.
 	*/
-	if (check_filemarks_alloc(meta.filemark_count)) {
+	if (check_filemarks_alloc(meta[partition_number].filemark_count)) {
 		if (error_check) {
 			rc = 3;
 			goto cleanup;
@@ -1051,9 +1052,9 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	}
 
 	/* Now read in the filemark map. */
-	io_size = meta.filemark_count * sizeof(*filemarks);
+	io_size = meta[partition_number].filemark_count * sizeof(*filemarks[partition_number]);
 	if (io_size) {
-		nread = read(metafile, filemarks, io_size);
+		nread = read(metafile[partition_number], filemarks[partition_number], io_size);
 		if (nread < 0) {
 			MHVTL_ERR("Error reading pcl %s filemark map from "
 					  "metafile: %s",
@@ -1082,18 +1083,18 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 		rc = 2;
 		goto cleanup;
 	}
-	eod_blk_number = indx_stat.st_size / sizeof(struct raw_header);
+	eod_blk_number[partition_number] = indx_stat.st_size / sizeof(struct raw_header);
 
 	/* Make sure that the filemark map is consistent with the size of the
 	   indx file.
 	*/
-	if (meta.filemark_count && eod_blk_number &&
-		filemarks[meta.filemark_count - 1] >= eod_blk_number) {
+	if (meta[partition_number].filemark_count && eod_blk_number[partition_number] &&
+		filemarks[partition_number][meta[partition_number].filemark_count - 1] >= eod_blk_number[partition_number]) {
 		MHVTL_ERR("pcl %s indx file has improper length as compared "
 				  "to the meta file, indicating possible file corruption",
 				  pcl);
 		MHVTL_ERR("Filemark count: %u eod_blk_number: %u",
-				  meta.filemark_count, eod_blk_number);
+				  meta[partition_number].filemark_count, eod_blk_number[partition_number]);
 		rc = 2;
 		goto cleanup;
 	}
@@ -1102,27 +1103,27 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	   to validate the correct size of the data file.
 	*/
 
-	if (eod_blk_number == 0)
-		eod_data_offset = 0;
+	if (eod_blk_number[partition_number] == 0)
+		eod_data_offset[partition_number] = 0;
 	else {
 		MHVTL_DBG(3, "Media format sanity check - Reading block before EOD: %u",
-				  eod_blk_number - 1);
-		if (read_header(eod_blk_number - 1, sam_stat)) {
+				  eod_blk_number[partition_number] - 1);
+		if (read_header(eod_blk_number[partition_number] - 1, sam_stat)) {
 			rc = 3;
 			goto cleanup;
 		}
-		eod_data_offset = raw_pos.data_offset +
-						  raw_pos.hdr.disk_blk_size;
+		eod_data_offset[partition_number] = raw_pos.data_offset +
+											raw_pos.hdr.disk_blk_size;
 	}
 
 	if (mam.MediumType == MEDIA_TYPE_NULL) {
 		MHVTL_LOG("Loaded NULL media type"); /* Skip check */
-	} else if ((uint64_t)data_stat.st_size != eod_data_offset) {
+	} else if ((uint64_t)data_stat.st_size != eod_data_offset[partition_number]) {
 		MHVTL_ERR("st_size != eod_data_offset - "
 				  "pcl %s file %s is not the correct length, "
 				  "expected %" PRId64 ", actual %" PRId64,
 				  pcl,
-				  pcl_data, eod_data_offset, data_stat.st_size);
+				  pcl_data, eod_data_offset[partition_number], data_stat.st_size);
 		if (error_check) {
 			rc = 2;
 			goto cleanup;
@@ -1133,8 +1134,8 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	   accessed again immediately.
 	*/
 
-	posix_fadvise(indxfile, 0, 0, POSIX_FADV_DONTNEED);
-	posix_fadvise(datafile, 0, 0, POSIX_FADV_DONTNEED);
+	posix_fadvise(indxfile[partition_number], 0, 0, POSIX_FADV_DONTNEED);
+	posix_fadvise(datafile[partition_number], 0, 0, POSIX_FADV_DONTNEED);
 
 cleanup:
 	close_partition(partition_number);
@@ -1168,7 +1169,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 	/* KFRDEBUG - sam_stat needs updates in lots of places here. */
 
 	/* If some other PCL is already open, return. */
-	if (datafile >= 0) {
+	if (datafile[c_pos->partition_id] >= 0) {
 		MHVTL_DBG(1, "Drive already full, cannot open %s", pcl);
 		return 1;
 	}
@@ -1243,7 +1244,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 
 	/* Now initialize raw_pos by reading in the first header, if any. */
 	if (read_header(0, sam_stat)) {
-		close_partition(0);
+		close_partition(c_pos->partition_id);
 		return 3;
 	}
 
@@ -1251,11 +1252,11 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 }
 
 void zero_filemark_count(void) {
-	free(filemarks);
-	filemark_alloc = 0;
-	filemarks	   = NULL;
+	free(filemarks[c_pos->partition_id]);
+	filemark_alloc[c_pos->partition_id] = 0;
+	filemarks[c_pos->partition_id]		= NULL;
 
-	meta.filemark_count = 0;
+	meta[c_pos->partition_id].filemark_count = 0;
 	rewrite_meta_file();
 }
 
@@ -1318,9 +1319,9 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 	if (count == 0) {
 		MHVTL_DBG(2, "Flushing data - 0 filemarks written");
-		fsync(datafile);
-		fsync(indxfile);
-		fsync(metafile);
+		fsync(datafile[c_pos->partition_id]);
+		fsync(indxfile[c_pos->partition_id]);
+		fsync(metafile[c_pos->partition_id]);
 
 		return 0;
 	}
@@ -1354,7 +1355,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 		MHVTL_DBG(3, "Writing filemark: block %d", blk_number);
 
-		nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
+		nwrite = pwrite(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
 						blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
 			sam_medium_error(E_WRITE_ERROR, sam_stat);
@@ -1369,9 +1370,9 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 	/* Provide the force-flush guarantee. */
 
-	fsync(datafile);
-	fsync(indxfile);
-	fsync(metafile);
+	fsync(datafile[c_pos->partition_id]);
+	fsync(indxfile[c_pos->partition_id]);
+	fsync(metafile[c_pos->partition_id]);
 
 	return mkEODHeader(blk_number, data_offset);
 }
@@ -1451,7 +1452,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	if (null_media_type) {
 		nwrite = disk_blk_size;
 	} else
-		nwrite = pwrite(datafile, buffer, disk_blk_size, data_offset);
+		nwrite = pwrite(datafile[c_pos->partition_id], buffer, disk_blk_size, data_offset);
 	if (nwrite != disk_blk_size) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
@@ -1460,7 +1461,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 
 		/* Truncate last partital write */
 		MHVTL_DBG(1, "Truncating data file size: %" PRId64, data_offset);
-		if (ftruncate(datafile, data_offset) < 0) {
+		if (ftruncate(datafile[c_pos->partition_id], data_offset) < 0) {
 			MHVTL_ERR("Error truncating data: %s", strerror(errno));
 		}
 
@@ -1475,7 +1476,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 			  mhvtl_block_type_desc(c_pos->blk_type),
 			  c_pos->blk_size);
 
-	nwrite = pwrite(indxfile, &raw_pos, sizeof(raw_pos),
+	nwrite = pwrite(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
 					blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
 		long indxsz = (blk_number - 1) * sizeof(raw_pos);
@@ -1487,14 +1488,14 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 				  strerror(errno));
 
 		MHVTL_DBG(1, "Truncating index file size to: %ld", indxsz);
-		if (ftruncate(indxfile, indxsz) < 0) {
+		if (ftruncate(indxfile[c_pos->partition_id], indxsz) < 0) {
 			MHVTL_ERR("Error truncating indx: %s", strerror(errno));
 		}
 
 		if (!null_media_type) {
 			MHVTL_DBG(1, "Truncating data file size: %" PRId64,
 					  data_offset);
-			if (ftruncate(datafile, data_offset) < 0) {
+			if (ftruncate(datafile[c_pos->partition_id], data_offset) < 0) {
 				MHVTL_ERR("Error truncating data: %s",
 						  strerror(errno));
 			}
@@ -1515,12 +1516,12 @@ void unload_tape(uint8_t *sam_stat) {
 		change_partition(j);
 		rewrite_meta_file();
 		close_partition(j);
+		if (filemarks[j]) {
+			free(filemarks[j]);
+			filemarks[j] = NULL;
+		}
 	}
 
-	if (filemarks) {
-		free(filemarks);
-		filemarks = NULL;
-	}
 	memset(filemark_alloc, 0, sizeof(filemark_alloc));
 	memset(eod_blk_number, 0, sizeof(eod_blk_number));
 	memset(eod_data_offset, 0, sizeof(eod_data_offset));
@@ -1563,7 +1564,7 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 	if (iosize > buf_size)
 		iosize = buf_size;
 
-	nread = pread(datafile, buf, iosize, raw_pos.data_offset);
+	nread = pread(datafile[c_pos->partition_id], buf, iosize, raw_pos.data_offset);
 	if (nread != iosize) {
 		MHVTL_ERR("Failed to read %d bytes", iosize);
 		return -1;
@@ -1581,24 +1582,24 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 }
 
 uint64_t current_tape_offset(void) {
-	if (datafile != -1)
+	if (datafile[c_pos->partition_id] != -1)
 		return raw_pos.data_offset;
 
 	return 0;
 }
 
 uint64_t current_tape_block(void) {
-	if (datafile != -1)
+	if (datafile[c_pos->partition_id] != -1)
 		return (uint64_t)c_pos->blk_number;
 	return 0;
 }
 
 uint64_t last_block(uint8_t partition_number) {
-	return eod_blk_number;
+	return eod_blk_number[c_pos->partition_id];
 }
 
 uint64_t block_from_filemark(uint8_t partition_number, uint32_t filemark) {
-	return filemarks[filemark];
+	return filemarks[partition_number][filemark];
 }
 
 /* Return number of filemarks up to 'block' : -1 for all */
@@ -1606,13 +1607,13 @@ uint64_t count_filemarks(int64_t block) {
 	uint64_t count;
 
 	if (block == -1)
-		return (uint64_t)meta.filemark_count;
+		return (uint64_t)meta[c_pos->partition_id].filemark_count;
 
-	for (count = 0; count < meta.filemark_count; count++) {
-		if (filemarks[count] >= block)
+	for (count = 0; count < meta[c_pos->partition_id].filemark_count; count++) {
+		if (filemarks[c_pos->partition_id][count] >= block)
 			return count;
 	}
-	return (uint64_t)meta.filemark_count;
+	return (uint64_t)meta[c_pos->partition_id].filemark_count;
 }
 
 static void enc_key_to_string(char *dst, uint8_t *key, int len) {
@@ -1716,19 +1717,22 @@ void print_raw_header(void) {
 }
 
 void print_filemark_count(void) {
-	printf("Total num of filemarks: %d\n", meta.filemark_count);
+	printf("Total num of filemarks: %d\n", meta[c_pos->partition_id].filemark_count);
 }
 
 void print_metadata(void) {
 	unsigned int a;
 
-	for (a = 0; a < meta.filemark_count; a++)
-		printf("Filemark: %d\n", filemarks[a]);
+	for (a = 0; a < meta[c_pos->partition_id].filemark_count; a++)
+		printf("Filemark: %d\n", filemarks[c_pos->partition_id][a]);
 }
 
 /*
  * Cleanup entry point
  */
 void cart_deinit(void) {
-	free(filemarks);
+	for (int j = 0; j < mam.num_partitions; j++) {
+		free(filemarks[j]);
+		filemarks[j] = NULL;
+	}
 }
