@@ -374,6 +374,7 @@ void init_9840A_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
@@ -411,6 +412,7 @@ void init_9840B_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
@@ -450,6 +452,7 @@ void init_9840C_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	ssc_pm.native_drive_density = &density_9840C;
 
@@ -492,6 +495,7 @@ void init_9840D_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 
@@ -533,6 +537,7 @@ void init_9940A_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 

@@ -456,6 +456,7 @@ void init_t10kA_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 	register_ops(lu, REQUEST_SENSE, t10k_sense, NULL, NULL);
@@ -494,6 +495,7 @@ void init_t10kB_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 	register_ops(lu, REQUEST_SENSE, t10k_sense, NULL, NULL);
@@ -537,6 +539,7 @@ void init_t10kC_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	register_ops(lu, LOAD_DISPLAY, ssc_load_display, NULL, NULL);
 	register_ops(lu, REQUEST_SENSE, t10k_sense, NULL, NULL);

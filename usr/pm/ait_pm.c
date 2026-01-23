@@ -365,6 +365,7 @@ void init_ait1_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	add_density_support(&lu->den_list, &density_ait1, 1);
 	add_drive_media_list(lu, LOAD_RW, "AIT1");
@@ -401,6 +402,7 @@ void init_ait2_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	add_density_support(&lu->den_list, &density_ait1, 1);
 	add_density_support(&lu->den_list, &density_ait2, 1);
@@ -441,6 +443,7 @@ void init_ait3_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	add_density_support(&lu->den_list, &density_ait1, 0);
 	add_density_support(&lu->den_list, &density_ait2, 1);
@@ -485,6 +488,7 @@ void init_ait4_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	ssc_pm.native_drive_density = &density_ait4;
 

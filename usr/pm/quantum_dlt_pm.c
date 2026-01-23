@@ -397,6 +397,7 @@ void init_dlt7000_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	ssc_pm.native_drive_density = &density_dlt4;
 
@@ -446,6 +447,7 @@ void init_dlt8000_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
@@ -500,6 +502,7 @@ void init_sdlt320_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;
@@ -553,6 +556,7 @@ void init_sdlt600_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	/* Capacity units in MBytes */
 	((struct priv_lu_ssc *)lu->lu_private)->capacity_unit = 1L << 20;

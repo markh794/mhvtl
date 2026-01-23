@@ -432,6 +432,7 @@ void init_default_ssc(struct lu_phy_attr *lu) {
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
+	add_log_performance_characteristics(lu);
 
 	add_density_support(&lu->den_list, &density_default, 1);
 
