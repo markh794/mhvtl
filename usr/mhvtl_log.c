@@ -226,6 +226,37 @@ int add_log_temperature_page(struct lu_phy_attr *lu) {
 						  init_log_temperature_page, sizeof(struct Temperature_pg));
 }
 
+static void init_log_selftest_results(void *log_ptr) {
+	struct SelfTestResults_pg *pg = log_ptr;
+	*pg							  = (struct SelfTestResults_pg){
+		  LOG_PG_HEADER(SELFTEST_RESULTS),
+		  LOG_PARAM(0x0001, 0x00, data01) = {0},
+		  LOG_PARAM(0x0002, 0x00, data02) = {0},
+		  LOG_PARAM(0x0003, 0x00, data03) = {0},
+		  LOG_PARAM(0x0004, 0x00, data04) = {0},
+		  LOG_PARAM(0x0005, 0x00, data05) = {0},
+		  LOG_PARAM(0x0006, 0x00, data06) = {0},
+		  LOG_PARAM(0x0007, 0x00, data07) = {0},
+		  LOG_PARAM(0x0008, 0x00, data08) = {0},
+		  LOG_PARAM(0x0009, 0x00, data09) = {0},
+		  LOG_PARAM(0x000a, 0x00, data0a) = {0},
+		  LOG_PARAM(0x000b, 0x00, data0b) = {0},
+		  LOG_PARAM(0x000c, 0x00, data0c) = {0},
+		  LOG_PARAM(0x000d, 0x00, data0d) = {0},
+		  LOG_PARAM(0x000e, 0x00, data0e) = {0},
+		  LOG_PARAM(0x000f, 0x00, data0f) = {0},
+		  LOG_PARAM(0x0010, 0x00, data10) = {0},
+		  LOG_PARAM(0x0011, 0x00, data11) = {0},
+		  LOG_PARAM(0x0012, 0x00, data12) = {0},
+		  LOG_PARAM(0x0013, 0x00, data13) = {0},
+		  LOG_PARAM(0x0014, 0x00, data14) = {0},
+	  };
+}
+int add_log_selftest_results(struct lu_phy_attr *lu) {
+	return alloc_log_page(lu, SELFTEST_RESULTS, NO_SUBPAGE,
+						  init_log_selftest_results, sizeof(struct SelfTestResults_pg));
+}
+
 static void init_log_volume_statistics(void *log_ptr) {
 	struct VolumeStatistics_pg *pg = log_ptr;
 	*pg							   = (struct VolumeStatistics_pg){

@@ -140,6 +140,87 @@ struct TapeUsage_pg {
 	uint16_t			 volFatalSuspendedReads;
 } __attribute__((packed));
 
+/* Self-Test Results - 0x10
+ *
+ */
+
+struct selfTest_data { /* data in log parameters of selftest results */
+	uint8_t	 self_test_code_results;
+	uint8_t	 self_test_number;
+	uint16_t accumulated_power_on_hours;
+	uint64_t address_of_first_failure;
+	uint8_t	 sense_key;
+	uint8_t	 asc;
+	uint8_t	 ascq;
+	uint8_t	 vendor_specific;
+} __attribute__((packed));
+
+struct SelfTestResults_pg {
+
+	struct log_pg_header pcode_head;
+
+	struct pc_header	 h_result01;
+	struct selfTest_data data01;
+
+	struct pc_header	 h_result02;
+	struct selfTest_data data02;
+
+	struct pc_header	 h_result03;
+	struct selfTest_data data03;
+
+	struct pc_header	 h_result04;
+	struct selfTest_data data04;
+
+	struct pc_header	 h_result05;
+	struct selfTest_data data05;
+
+	struct pc_header	 h_result06;
+	struct selfTest_data data06;
+
+	struct pc_header	 h_result07;
+	struct selfTest_data data07;
+
+	struct pc_header	 h_result08;
+	struct selfTest_data data08;
+
+	struct pc_header	 h_result09;
+	struct selfTest_data data09;
+
+	struct pc_header	 h_result0a;
+	struct selfTest_data data0a;
+
+	struct pc_header	 h_result0b;
+	struct selfTest_data data0b;
+
+	struct pc_header	 h_result0c;
+	struct selfTest_data data0c;
+
+	struct pc_header	 h_result0d;
+	struct selfTest_data data0d;
+
+	struct pc_header	 h_result0e;
+	struct selfTest_data data0e;
+
+	struct pc_header	 h_result0f;
+	struct selfTest_data data0f;
+
+	struct pc_header	 h_result10;
+	struct selfTest_data data10;
+
+	struct pc_header	 h_result11;
+	struct selfTest_data data11;
+
+	struct pc_header	 h_result12;
+	struct selfTest_data data12;
+
+	struct pc_header	 h_result13;
+	struct selfTest_data data13;
+
+	struct pc_header	 h_result14;
+	struct selfTest_data data14;
+
+} __attribute__((packed));
+
 struct DeviceStatus_pg {
 	struct log_pg_header pcode_head;
 
@@ -472,6 +553,7 @@ int add_log_write_err_counter(struct lu_phy_attr *lu);
 int add_log_read_err_counter(struct lu_phy_attr *lu);
 int add_log_sequential_access(struct lu_phy_attr *lu);
 int add_log_temperature_page(struct lu_phy_attr *lu);
+int add_log_selftest_results(struct lu_phy_attr *lu);
 int add_log_volume_statistics(struct lu_phy_attr *lu);
 int add_log_tape_alert(struct lu_phy_attr *lu);
 int add_log_tape_usage(struct lu_phy_attr *lu);
