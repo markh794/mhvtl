@@ -684,6 +684,25 @@ int add_mode_medium_partition(struct lu_phy_attr *lu) {
 	return 0;
 }
 
+void set_medium_partition(struct scsi_cmd *cmd, uint8_t *p) {
+	struct lu_phy_attr *lu = cmd->lu;
+	struct mode		   *mp = lookup_mode_pg(&lu->mode_pg, MODE_MEDIUM_PARTITION, 0);
+
+	/* ADDITIONAL PARTITIONS DEFINED */
+	mp->pcodePointer[3] = p[3];
+	mam.num_partitions	= mp->pcodePointer[3] + 1;
+	MHVTL_DBG(3, "New total number of partitions : %d", mam.num_partitions);
+
+	mp->pcodePointer[4] = p[4]; /* flags */
+	mp->pcodePointer[5] = p[5]; /* MEDIUM FORMAT RECOGNITION */
+	mp->pcodePointer[6] = p[6]; /* PARTITIONING TYPE | PARTITION UNITS */
+
+	/* PARTITION SIZES */
+	for (int k = 0; k < mam.num_partitions; k++) {
+		put_unaligned_be16(p[8 + 2 * k], &mp->pcodePointer[8 + 2 * k]);
+	}
+}
+
 int add_mode_power_condition(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
 	struct mode		 *mp;

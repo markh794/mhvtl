@@ -58,5 +58,6 @@ int		add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu);
 void	set_mode_compression(struct scsi_cmd *cmd, uint8_t *p);
 void	set_device_configuration(struct scsi_cmd *cmd, uint8_t *p);
 uint8_t set_device_configuration_extension(struct scsi_cmd *cmd, uint8_t *p);
+void	set_medium_partition(struct scsi_cmd *cmd, uint8_t *p);
 
 #endif /* MODE_H */

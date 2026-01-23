@@ -1160,6 +1160,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 			}
 			return SAM_STAT_GOOD;
 			break;
+
+		case MODE_MEDIUM_PARTITION:
+			set_medium_partition(cmd, &buf[i]);
+			return SAM_STAT_GOOD;
+
 		default:
 			MHVTL_DBG_PRT_CDB(1, cmd);
 			MHVTL_LOG("Mode page 0x%02x not handled", page);
