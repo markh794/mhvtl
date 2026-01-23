@@ -1124,7 +1124,7 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 				/* Subpage 1 - override default page length */
 				page_len = get_unaligned_be16(&buf[i + 2]);
 				offset	 = 4;
-			} else if (page_len == 0x0e) {
+			} else if (page_len >= 0x0e) {
 				set_device_configuration(cmd, &buf[i]);
 			} else {
 				MHVTL_DBG(2, "Invalid page len: 0x%02x",
