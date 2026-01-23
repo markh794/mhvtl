@@ -1233,6 +1233,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 	mam.num_partitions = 0;
 	snprintf(path, ARRAY_SIZE(path), "%s/data", currentPCL);
 	while (access(path, F_OK) == 0) {
+		c_pos->partition_id = mam.num_partitions;
 		load_partition(pcl, sam_stat, error_check, mam.num_partitions);
 		snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, ++mam.num_partitions);
 	}
