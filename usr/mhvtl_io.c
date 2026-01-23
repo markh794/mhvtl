@@ -250,9 +250,10 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	uint8_t *bounce_buffer;
 	int		 lbp_sz;
 
-	MHVTL_DBG(3, "Request to read: %d bytes, SILI: %d, LBP_method: %s",
-			  request_sz, sili, (lbp_method == 0) ? "None" : (lbp_method == 1) ? "RS-CRC"
-																			   : "CRC32c");
+	MHVTL_DBG(3, "Request to read: %u bytes at partition/header %u/%u, SILI: %d, LBP_method: %s",
+			  request_sz, c_pos->partition_id, c_pos->blk_number, sili,
+			  (lbp_method == 0) ? "None" : (lbp_method == 1) ? "RS-CRC"
+															 : "CRC32c");
 
 	/* check for a zero length read
 	 * This is not an error, and shouldn't change the tape position */
