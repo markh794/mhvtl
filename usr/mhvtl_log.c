@@ -418,6 +418,79 @@ void set_lp11_medium_present(int flag) {
 	}
 }
 
+#define SET_VOLSTAT_PARAM_H(paramCode, paramFlags, paramSize)                                    \
+	do {                                                                                         \
+		put_unaligned_be16((paramCode), header);                                                 \
+		header->flags = (paramFlags);                                                            \
+		header->len	  = mam.num_partitions * (paramSize);                                        \
+		for (i = 0; i < mam.num_partitions; ++i) {                                               \
+			((uint8_t *)header)[4 + i * (paramSize)] = (paramSize) - 1;		  /* Len */          \
+			put_unaligned_be16(i, &((uint8_t *)header)[6 + i * (paramSize)]); /* partition_no */ \
+		}                                                                                        \
+	} while (0)
+#define SET_VOLSTAT_PARAM_H4(paramCode, paramFlags) \
+	SET_VOLSTAT_PARAM_H((paramCode), (paramFlags), sizeof(struct partition_record_size4))
+#define SET_VOLSTAT_PARAM_H6(paramCode, paramFlags) \
+	SET_VOLSTAT_PARAM_H((paramCode), (paramFlags), sizeof(struct partition_record_size6))
+
+/* Rewriting the page with the real number of partitions */
+void update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
+	struct pc_header *header;
+	uint64_t		  cap __attribute__((unused)); /* fixme : should be used instead of telling max cap */
+	int				  i;
+
+	/* First partition dependant parameter */
+	memset(&pg->h_FirstEncryptedLogicalObj, 0,
+		   sizeof(struct VolumeStatistics_pg) - offsetof(struct VolumeStatistics_pg, h_FirstEncryptedLogicalObj));
+
+	/* h_FirstEncryptedLogicalObj */
+	header = &pg->h_FirstEncryptedLogicalObj;
+	SET_VOLSTAT_PARAM_H6(0x0200, 0x03);
+	for (i = 0; i < mam.num_partitions; ++i) {
+		put_unaligned_be48(0, &((uint8_t *)header)[8 + i * sizeof(struct partition_record_size6)]);
+	}
+
+	/* h_FirstUnencryptedLogicalObj */
+	header = (struct pc_header *)((uint8_t *)header + sizeof(struct pc_header) + header->len);
+	SET_VOLSTAT_PARAM_H6(0x0201, 0x03);
+	for (i = 0; i < mam.num_partitions; ++i) {
+		put_unaligned_be48(0, &((uint8_t *)header)[8 + i * sizeof(struct partition_record_size6)]);
+	}
+
+	/* h_ApproxNativeCapacityPartition */
+	header = (struct pc_header *)((uint8_t *)header + sizeof(struct pc_header) + header->len);
+	SET_VOLSTAT_PARAM_H4(0x0202, 0x03);
+	if (get_tape_load_status() == TAPE_LOADED) {
+		for (i = 0; i < mam.num_partitions; ++i) {
+			cap = get_unaligned_be64(&mam.max_capacity) / lu_priv->capacity_unit;
+			put_unaligned_be32(0xfffffffe, &((uint8_t *)header)[8 + i * sizeof(struct partition_record_size4)]);
+			MHVTL_DBG(1, "approx native capacity for partition %d : %u",
+					  i, get_unaligned_be32(&((uint8_t *)header)[8 + i * sizeof(struct partition_record_size4)]));
+		}
+	}
+
+	/* h_ApproxUsedNativeCapacityPartition */
+	header = (struct pc_header *)((uint8_t *)header + sizeof(struct pc_header) + header->len);
+	SET_VOLSTAT_PARAM_H4(0x0203, 0x03);
+	for (i = 0; i < mam.num_partitions; ++i) {
+		put_unaligned_be32(0xfffffffe, &((uint8_t *)header)[8 + i * sizeof(struct partition_record_size4)]);
+		MHVTL_DBG(1, "approx used native capacity for partition %d : %u",
+				  i, get_unaligned_be32(&((uint8_t *)header)[8 + i * sizeof(struct partition_record_size4)]));
+	}
+
+	/* h_RemainingCapacityToEWPartition */
+	header = (struct pc_header *)((uint8_t *)header + sizeof(struct pc_header) + header->len);
+	SET_VOLSTAT_PARAM_H4(0x0204, 0x03);
+	if (get_tape_load_status() == TAPE_LOADED) {
+		for (i = 0; i < mam.num_partitions; ++i) {
+			cap = get_unaligned_be64(&mam.remaining_capacity) / lu_priv->capacity_unit;
+			put_unaligned_be32(0xfffffffe, &((uint8_t *)header)[8 + i * sizeof(struct partition_record_size4)]);
+			MHVTL_DBG(1, "remaining capacity to EW for partition %d : %u",
+					  i, get_unaligned_be32(&((uint8_t *)header)[8 + i * sizeof(struct partition_record_size4)]));
+		}
+	}
+}
+
 /* Only valid for SSC devices */
 int update_TapeAlert(uint64_t flags) {
 	struct SequentialAccessDevice_pg *sad;

@@ -455,6 +455,7 @@ void setTapeAlert(struct TapeAlert_pg *, uint64_t); /* in vtllib.c, never used *
 void initTapeAlert(struct TapeAlert_pg *);
 void dealloc_all_log_pages(struct lu_phy_attr *lu);
 
+void update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv);
 int	 update_TapeAlert(uint64_t flags);
 int	 set_TapeAlert(uint64_t flags);
 void update_TapeUsage(struct TapeUsage_pg *b);

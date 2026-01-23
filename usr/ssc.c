@@ -1908,6 +1908,10 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 	case DEVICE_STATUS:
 		break;
 
+	case VOLUME_STATISTICS:
+		update_VolumeStatistics((struct VolumeStatistics_pg *)buf, lu_priv);
+		break;
+
 	case TAPE_ALERT:
 		if (get_unaligned_be16(&cdb[7]) > 4) /* Checking Allocation Length */
 			set_TapeAlert(TA_NONE);
