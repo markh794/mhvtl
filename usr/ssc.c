@@ -1492,7 +1492,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			// &buf[13] nb logical objects in object buffer
 			// &buf[16] nb bytes in object buffer
 
-			MHVTL_DBG(1, "Positioned at block %ld", (long)c_pos->blk_number);
+			MHVTL_DBG(1, "Positioned at partition/block %u/%u", c_pos->partition_id, c_pos->blk_number);
 			dbuf_p->sz = READ_POSITION_SHORT_LEN;
 			break;
 
@@ -1514,7 +1514,8 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			put_unaligned_be64(filemarks, &buf[16]);
 			// &buf[24] Logical Set Identifier - Obsolete...
 
-			MHVTL_DBG(1, "Positioned at block %ld, num filemarks: %ld", (long)c_pos->blk_number, filemarks);
+			MHVTL_DBG(1, "Positioned at partition/block %u/%u, %lu filemarks after BOP",
+					  c_pos->partition_id, c_pos->blk_number, filemarks);
 			dbuf_p->sz = READ_POSITION_LONG_LEN;
 			break;
 
@@ -1537,7 +1538,7 @@ uint8_t ssc_read_position(struct scsi_cmd *cmd) {
 			put_unaligned_be64(c_pos->blk_number, &buf[16]); /* After a write, Logical Object Location of the new write - If buffer empty: == first logical objecct */
 			// &buf[24] nb bytes in object buffer
 
-			MHVTL_DBG(1, "Positioned at block %ld,", (long)c_pos->blk_number);
+			MHVTL_DBG(1, "Positioned at partition/block %u/%u", c_pos->partition_id, c_pos->blk_number);
 			cmd->dbuf_p->sz = READ_POSITION_EXTENDED_LEN;
 
 		default:
