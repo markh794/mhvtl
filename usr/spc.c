@@ -752,3 +752,15 @@ uint8_t spc_recv_diagnostics(struct scsi_cmd *cmd) {
 	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
+
+uint8_t spc_read_buffer(struct scsi_cmd *cmd) {
+	/* 	uint8_t *cdb = cmd->scb;
+		uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
+
+		uint8_t mode = cdb[1] & 0x11111;
+		uint8_t buf_id = cdb[2];
+		uint16_t buf_offset = get_unaligned_be16(&cdb[3]);
+		uint16_t alloc_length = get_unaligned_be16(&cdb[6]); */
+
+	return SAM_STAT_GOOD;
+}

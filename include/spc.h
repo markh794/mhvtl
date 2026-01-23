@@ -27,5 +27,6 @@ uint8_t spc_request_sense(struct scsi_cmd *cmd);
 uint8_t spc_reserve(struct scsi_cmd *cmd);
 uint8_t spc_send_diagnostics(struct scsi_cmd *cmd);
 uint8_t spc_tur(struct scsi_cmd *cmd);
+uint8_t spc_read_buffer(struct scsi_cmd *cmd);
 
 #endif /* SPC_H */

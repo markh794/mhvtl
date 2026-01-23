@@ -1766,6 +1766,7 @@ static struct device_type_template ssc_ops = {
 
 		/* 0x30 -> 0x3f */
 		SCSI_OP(0x34, ssc_read_position),
+		SCSI_OP(0x3c, spc_read_buffer),
 
 		/* 0x40 -> 0x4f */
 		SCSI_OP(0x44, ssc_report_density_support),
