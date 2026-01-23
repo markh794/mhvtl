@@ -33,28 +33,29 @@ typedef void (*init_pg_fn)(void *log_ptr);
 /*
  * Process the LOG_SENSE page definitions
  */
-#define SUPPORTED_LOG_PAGES		   0x00
-#define BUFFER_UNDER_OVER_RUN	   0x01
-#define WRITE_ERROR_COUNTER		   0x02
-#define READ_ERROR_COUNTER		   0x03
-#define READ_REVERSE_ERROR_COUNTER 0x04
-#define VERIFY_ERROR_COUNTER	   0x05
-#define NON_MEDIUM_ERROR_COUNTER   0x06
-#define LAST_n_ERROR			   0x07
-#define FORMAT_STATUS			   0x08
-#define LAST_n_DEFERRED_ERROR	   0x0b
-#define SEQUENTIAL_ACCESS_DEVICE   0x0c
-#define TEMPERATURE_PAGE		   0x0d
-#define START_STOP_CYCLE_COUNTER   0x0e
-#define APPLICATION_CLIENT		   0x0f
-#define SELFTEST_RESULTS		   0x10
-#define DEVICE_STATUS			   0x11
-#define VOLUME_STATISTICS		   0x17
-#define TAPE_ALERT				   0x2e
-#define INFORMATIONAL_EXCEPTIONS   0x2f
-#define TAPE_USAGE				   0x30
-#define TAPE_CAPACITY			   0x31
-#define DATA_COMPRESSION		   0x32
+#define SUPPORTED_LOG_PAGES			0x00
+#define BUFFER_UNDER_OVER_RUN		0x01
+#define WRITE_ERROR_COUNTER			0x02
+#define READ_ERROR_COUNTER			0x03
+#define READ_REVERSE_ERROR_COUNTER	0x04
+#define VERIFY_ERROR_COUNTER		0x05
+#define NON_MEDIUM_ERROR_COUNTER	0x06
+#define LAST_n_ERROR				0x07
+#define FORMAT_STATUS				0x08
+#define LAST_n_DEFERRED_ERROR		0x0b
+#define SEQUENTIAL_ACCESS_DEVICE	0x0c
+#define TEMPERATURE_PAGE			0x0d
+#define START_STOP_CYCLE_COUNTER	0x0e
+#define APPLICATION_CLIENT			0x0f
+#define SELFTEST_RESULTS			0x10
+#define DEVICE_STATUS				0x11
+#define VOLUME_STATISTICS			0x17
+#define TAPE_ALERT					0x2e
+#define INFORMATIONAL_EXCEPTIONS	0x2f
+#define TAPE_USAGE					0x30
+#define TAPE_CAPACITY				0x31
+#define DATA_COMPRESSION			0x32
+#define PERFORMANCE_CHARACTERISTICS 0x37
 
 #define NO_SUBPAGE 0x00
 
@@ -524,6 +525,17 @@ struct SequentialAccessDevice_pg {
 
 } __attribute__((packed));
 
+/* Performance Characteristics Log Page - 0x37
+ * Sample
+ */
+struct PerformanceCharacteristics_pg {
+	struct log_pg_header pcode_head;
+
+	struct pc_header h_DriveEfficiency;
+	uint8_t			 DriveEfficiency;
+
+} __attribute__((packed));
+
 void set_current_state(int s);
 int	 get_tape_load_status();
 void set_tape_load_status(int s);
@@ -560,6 +572,7 @@ int add_log_tape_usage(struct lu_phy_attr *lu);
 int add_log_tape_capacity(struct lu_phy_attr *lu);
 int add_log_data_compression(struct lu_phy_attr *lu);
 int add_log_device_status(struct lu_phy_attr *lu);
+int add_log_performance_characteristics(struct lu_phy_attr *lu);
 
 extern const char *log_page_desc[0x38];
 

@@ -1928,6 +1928,9 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 	case DATA_COMPRESSION:
 		break;
 
+	case PERFORMANCE_CHARACTERISTICS:
+		break;
+
 	default:
 		MHVTL_DBG(1, "Unknown/Unimplemented log page : 0x%02x", page);
 		goto log_page_not_found;

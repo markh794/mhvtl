@@ -45,29 +45,30 @@
 		.name
 
 const char *log_page_desc[0x38] = {
-	[0x00 ... 0x37]				 = "Unsupported Log page",
-	[SUPPORTED_LOG_PAGES]		 = "Supported Log pages",
-	[BUFFER_UNDER_OVER_RUN]		 = "Buffer Under/Over Run",
-	[WRITE_ERROR_COUNTER]		 = "Write Error Counter",
-	[READ_ERROR_COUNTER]		 = "Read Error Counter",
-	[READ_REVERSE_ERROR_COUNTER] = "Read Reverse Error Counter",
-	[VERIFY_ERROR_COUNTER]		 = "Verify Error Counter",
-	[NON_MEDIUM_ERROR_COUNTER]	 = "Non-Medium Error Counter",
-	[LAST_n_ERROR]				 = "Last N Error",
-	[FORMAT_STATUS]				 = "Format Status",
-	[LAST_n_DEFERRED_ERROR]		 = "Last N Deferred Error",
-	[SEQUENTIAL_ACCESS_DEVICE]	 = "Sequential Access Device",
-	[TEMPERATURE_PAGE]			 = "Temperature Page",
-	[START_STOP_CYCLE_COUNTER]	 = "Start/Stop Cycle Counter",
-	[APPLICATION_CLIENT]		 = "Application Client",
-	[SELFTEST_RESULTS]			 = "Selftest Results",
-	[VOLUME_STATISTICS]			 = "Volume Statistics",
-	[DEVICE_STATUS]				 = "VHF Device Status",
-	[TAPE_ALERT]				 = "Tape Alert",
-	[INFORMATIONAL_EXCEPTIONS]	 = "Informational Exceptions",
-	[TAPE_USAGE]				 = "Tape Usage",
-	[TAPE_CAPACITY]				 = "Tape Capacity",
-	[DATA_COMPRESSION]			 = "Data Compression",
+	[0x00 ... 0x37]				  = "Unsupported Log page",
+	[SUPPORTED_LOG_PAGES]		  = "Supported Log pages",
+	[BUFFER_UNDER_OVER_RUN]		  = "Buffer Under/Over Run",
+	[WRITE_ERROR_COUNTER]		  = "Write Error Counter",
+	[READ_ERROR_COUNTER]		  = "Read Error Counter",
+	[READ_REVERSE_ERROR_COUNTER]  = "Read Reverse Error Counter",
+	[VERIFY_ERROR_COUNTER]		  = "Verify Error Counter",
+	[NON_MEDIUM_ERROR_COUNTER]	  = "Non-Medium Error Counter",
+	[LAST_n_ERROR]				  = "Last N Error",
+	[FORMAT_STATUS]				  = "Format Status",
+	[LAST_n_DEFERRED_ERROR]		  = "Last N Deferred Error",
+	[SEQUENTIAL_ACCESS_DEVICE]	  = "Sequential Access Device",
+	[TEMPERATURE_PAGE]			  = "Temperature Page",
+	[START_STOP_CYCLE_COUNTER]	  = "Start/Stop Cycle Counter",
+	[APPLICATION_CLIENT]		  = "Application Client",
+	[SELFTEST_RESULTS]			  = "Selftest Results",
+	[VOLUME_STATISTICS]			  = "Volume Statistics",
+	[DEVICE_STATUS]				  = "VHF Device Status",
+	[TAPE_ALERT]				  = "Tape Alert",
+	[INFORMATIONAL_EXCEPTIONS]	  = "Informational Exceptions",
+	[TAPE_USAGE]				  = "Tape Usage",
+	[TAPE_CAPACITY]				  = "Tape Capacity",
+	[DATA_COMPRESSION]			  = "Data Compression",
+	[PERFORMANCE_CHARACTERISTICS] = "Performance Characteristics",
 };
 
 struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page, uint8_t subpage) {
@@ -402,6 +403,18 @@ static void init_log_data_compression(void *log_ptr) {
 int add_log_data_compression(struct lu_phy_attr *lu) {
 	return alloc_log_page(lu, DATA_COMPRESSION, NO_SUBPAGE,
 						  init_log_data_compression, sizeof(struct DataCompression_pg));
+}
+
+static void init_log_performance_characteristics(void *log_ptr) {
+	struct PerformanceCharacteristics_pg *pg = log_ptr;
+	*pg										 = (struct PerformanceCharacteristics_pg){
+		 LOG_PG_HEADER(PERFORMANCE_CHARACTERISTICS),
+		 LOG_PARAM(0x0000, 0x00, DriveEfficiency) = 0x00,
+	 };
+}
+int add_log_performance_characteristics(struct lu_phy_attr *lu) {
+	return alloc_log_page(lu, PERFORMANCE_CHARACTERISTICS, NO_SUBPAGE,
+						  init_log_performance_characteristics, sizeof(struct PerformanceCharacteristics_pg));
 }
 
 /* Update MAM Accessible bit in LogPage 0x11 */
