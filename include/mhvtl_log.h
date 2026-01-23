@@ -49,6 +49,7 @@ typedef void (*init_pg_fn)(void *log_ptr);
 #define APPLICATION_CLIENT		   0x0f
 #define SELFTEST_RESULTS		   0x10
 #define DEVICE_STATUS			   0x11
+#define VOLUME_STATISTICS		   0x17
 #define TAPE_ALERT				   0x2e
 #define INFORMATIONAL_EXCEPTIONS   0x2f
 #define TAPE_USAGE				   0x30
@@ -194,6 +195,153 @@ struct TapeCapacity_pg {
 	uint32_t			 partition1maximum;
 } __attribute__((packed));
 
+/* Volume Statistics - 0x17
+ * SSC-4
+ */
+struct partition_record_header {
+	uint8_t	 len;
+	uint8_t	 reserved;
+	uint16_t partition_no;
+
+} __attribute__((packed));
+
+struct partition_record_size4 {
+	struct partition_record_header header;
+	uint32_t					   data;
+} __attribute__((packed));
+
+struct partition_record_size6 {
+	struct partition_record_header header;
+	uint8_t						   data[6];
+} __attribute__((packed));
+
+struct VolumeStatistics_pg {
+	struct log_pg_header pcode_head;
+
+	struct pc_header h_PageValid;
+	uint8_t			 PageValid;
+
+	struct pc_header h_VolumeMounts;
+	uint32_t		 VolumeMounts;
+
+	struct pc_header h_VolumeDatasetsWritten;
+	uint64_t		 VolumeDatasetsWritten;
+
+	struct pc_header h_RecoveredWriteDataErrors;
+	uint32_t		 RecoveredWriteDataErrors;
+
+	struct pc_header h_UnrecoveredWriteDataErrors;
+	uint16_t		 UnrecoveredWriteDataErrors;
+
+	struct pc_header h_WriteServoErrors;
+	uint16_t		 WriteServoErrors;
+
+	struct pc_header h_UnrecoveredWriteServoErrors;
+	uint16_t		 UnrecoveredWriteServoErrors;
+
+	struct pc_header h_VolumeDatasetsRead;
+	uint64_t		 VolumeDatasetsRead;
+
+	struct pc_header h_RecoveredReadErrors;
+	uint32_t		 RecoveredReadErrors;
+
+	struct pc_header h_UnrecoveredReadErrors;
+	uint16_t		 UnrecoveredReadErrors;
+
+	struct pc_header h_LastMountUnrecoveredWriteErrors;
+	uint16_t		 LastMountUnrecoveredWriteErrors;
+
+	struct pc_header h_LastMountUnrecoveredReadErrors;
+	uint16_t		 LastMountUnrecoveredReadErrors;
+
+	struct pc_header h_LastMountMBWritten;
+	uint32_t		 LastMountMBWritten;
+
+	struct pc_header h_LastMountMBRead;
+	uint32_t		 LastMountMBRead;
+
+	struct pc_header h_LifetimeMBWritten;
+	uint64_t		 LifetimeMBWritten;
+
+	struct pc_header h_LifetimeMBRead;
+	uint64_t		 LifetimeMBRead;
+
+	struct pc_header h_LastLoadWriteCompressionRatio;
+	uint16_t		 LastLoadWriteCompressionRatio;
+
+	struct pc_header h_LastLoadReadCompressionRatio;
+	uint16_t		 LastLoadReadCompressionRatio;
+
+	struct pc_header h_MediumMountTime;
+	uint8_t			 MediumMountTime[6];
+
+	struct pc_header h_MediumReadyTime;
+	uint8_t			 MediumReadyTime[6];
+
+	struct pc_header h_TotalNativeCapacity;
+	uint32_t		 TotalNativeCapacity;
+
+	struct pc_header h_TotalUsedNativeCapacity;
+	uint32_t		 TotalUsedNativeCapacity;
+
+	struct pc_header h_AppDesignCapacity;
+	uint32_t		 AppDesignCapacity;
+
+	struct pc_header h_VolumeLifetimeRemaining;
+	uint8_t			 VolumeLifetimeRemaining;
+
+	struct pc_header h_VolumeSerialNumber;
+	uint8_t			 VolumeSerialNumber[32];
+
+	struct pc_header h_TapeLotIdentifier;
+	uint8_t			 TapeLotIdentifier[8];
+
+	struct pc_header h_VolumeBarcode;
+	uint8_t			 VolumeBarcode[32];
+
+	struct pc_header h_VolumeManufacturer;
+	uint8_t			 VolumeManufacturer[8];
+
+	struct pc_header h_VolumeLicenseCode;
+	uint8_t			 VolumeLicenseCode[4];
+
+	struct pc_header h_VolumePersonality;
+	uint8_t			 VolumePersonality[9];
+
+	struct pc_header h_WriteProtect;
+	uint8_t			 WriteProtect;
+
+	struct pc_header h_WORM;
+	uint8_t			 WORM;
+
+	struct pc_header h_TempExceeded;
+	uint8_t			 TempExceeded;
+
+	struct pc_header h_BOMPasses;
+	uint32_t		 BOMPasses;
+
+	struct pc_header h_MOTPasses;
+	uint32_t		 MOTPasses;
+
+	/* size depends on actual nb of partitions
+	=> we put max size by default and adapt dynamically later */
+	struct pc_header			  h_FirstEncryptedLogicalObj;
+	struct partition_record_size6 FirstEncryptedLogicalObj[MAX_PARTITIONS];
+
+	struct pc_header			  h_FirstUnencryptedLogicalObj;
+	struct partition_record_size6 FirstUnencryptedLogicalObj[MAX_PARTITIONS];
+
+	struct pc_header			  h_ApproxNativeCapacityPartition;
+	struct partition_record_size4 ApproxNativeCapacityPartition[MAX_PARTITIONS];
+
+	struct pc_header			  h_ApproxUsedNativeCapacityPartition;
+	struct partition_record_size4 ApproxUsedNativeCapacityPartition[MAX_PARTITIONS];
+
+	struct pc_header			  h_RemainingCapacityToEWPartition;
+	struct partition_record_size4 RemainingCapacityToEWPartition[MAX_PARTITIONS];
+
+} __attribute__((packed));
+
 struct TapeAlert_flag {
 	struct pc_header flag;
 	uint8_t			 value;
@@ -323,6 +471,7 @@ int add_log_write_err_counter(struct lu_phy_attr *lu);
 int add_log_read_err_counter(struct lu_phy_attr *lu);
 int add_log_sequential_access(struct lu_phy_attr *lu);
 int add_log_temperature_page(struct lu_phy_attr *lu);
+int add_log_volume_statistics(struct lu_phy_attr *lu);
 int add_log_tape_alert(struct lu_phy_attr *lu);
 int add_log_tape_usage(struct lu_phy_attr *lu);
 int add_log_tape_capacity(struct lu_phy_attr *lu);

@@ -61,6 +61,7 @@ const char *log_page_desc[0x38] = {
 	[START_STOP_CYCLE_COUNTER]	 = "Start/Stop Cycle Counter",
 	[APPLICATION_CLIENT]		 = "Application Client",
 	[SELFTEST_RESULTS]			 = "Selftest Results",
+	[VOLUME_STATISTICS]			 = "Volume Statistics",
 	[DEVICE_STATUS]				 = "VHF Device Status",
 	[TAPE_ALERT]				 = "Tape Alert",
 	[INFORMATIONAL_EXCEPTIONS]	 = "Informational Exceptions",
@@ -223,6 +224,69 @@ static void init_log_temperature_page(void *log_ptr) {
 int add_log_temperature_page(struct lu_phy_attr *lu) {
 	return alloc_log_page(lu, TEMPERATURE_PAGE, NO_SUBPAGE,
 						  init_log_temperature_page, sizeof(struct Temperature_pg));
+}
+
+static void init_log_volume_statistics(void *log_ptr) {
+	struct VolumeStatistics_pg *pg = log_ptr;
+	*pg							   = (struct VolumeStatistics_pg){
+		   LOG_PG_HEADER(VOLUME_STATISTICS),
+		   LOG_PARAM(0x0000, 0x03, PageValid)						  = 0x01,
+		   LOG_PARAM(0x0001, 0x03, VolumeMounts)					  = 0x00,
+		   LOG_PARAM(0x0002, 0x03, VolumeDatasetsWritten)			  = 0x00,
+		   LOG_PARAM(0x0003, 0x03, RecoveredWriteDataErrors)		  = 0x00,
+		   LOG_PARAM(0x0004, 0x03, UnrecoveredWriteDataErrors)		  = 0x00,
+		   LOG_PARAM(0x0005, 0x03, WriteServoErrors)				  = 0x00,
+		   LOG_PARAM(0x0006, 0x03, UnrecoveredWriteServoErrors)		  = 0x00,
+		   LOG_PARAM(0x0007, 0x03, VolumeDatasetsRead)				  = 0x00,
+		   LOG_PARAM(0x0008, 0x03, RecoveredReadErrors)				  = 0x00,
+		   LOG_PARAM(0x0009, 0x03, UnrecoveredReadErrors)			  = 0x00,
+		   LOG_PARAM(0x000C, 0x03, LastMountUnrecoveredWriteErrors)	  = 0x00,
+		   LOG_PARAM(0x000D, 0x03, LastMountUnrecoveredReadErrors)	  = 0x00,
+		   LOG_PARAM(0x000E, 0x03, LastMountMBWritten)				  = 0x00,
+		   LOG_PARAM(0x000F, 0x03, LastMountMBRead)					  = 0x00,
+		   LOG_PARAM(0x0010, 0x03, LifetimeMBWritten)				  = 0x00,
+		   LOG_PARAM(0x0011, 0x03, LifetimeMBRead)					  = 0x00,
+		   LOG_PARAM(0x0012, 0x03, LastLoadWriteCompressionRatio)	  = 0x00,
+		   LOG_PARAM(0x0013, 0x03, LastLoadReadCompressionRatio)	  = 0x00,
+		   LOG_PARAM(0x0014, 0x03, MediumMountTime)					  = {0},
+		   LOG_PARAM(0x0015, 0x03, MediumReadyTime)					  = {0},
+		   LOG_PARAM(0x0016, 0x03, TotalNativeCapacity)				  = 0xfffffffe,
+		   LOG_PARAM(0x0017, 0x03, TotalUsedNativeCapacity)			  = 0xfffffffe,
+		   LOG_PARAM(0x0018, 0x03, AppDesignCapacity)				  = 0x00,
+		   LOG_PARAM(0x0019, 0x03, VolumeLifetimeRemaining)			  = 0x00,
+		   LOG_PARAM(0x0040, 0x01, VolumeSerialNumber)				  = {0},
+		   LOG_PARAM(0x0041, 0x01, TapeLotIdentifier)				  = {0},
+		   LOG_PARAM(0x0042, 0x01, VolumeBarcode)					  = {0},
+		   LOG_PARAM(0x0043, 0x01, VolumeManufacturer)				  = {0},
+		   LOG_PARAM(0x0044, 0x01, VolumeLicenseCode)				  = {0},
+		   LOG_PARAM(0x0045, 0x01, VolumePersonality)				  = {0},
+		   LOG_PARAM(0x0080, 0x03, WriteProtect)					  = 0x00,
+		   LOG_PARAM(0x0081, 0x03, WORM)							  = 0x00,
+		   LOG_PARAM(0x0082, 0x03, TempExceeded)					  = 0x00,
+		   LOG_PARAM(0x0101, 0x03, BOMPasses)						  = 0x00,
+		   LOG_PARAM(0x0102, 0x03, MOTPasses)						  = 0x00,
+		   LOG_PARAM(0x0200, 0x03, FirstEncryptedLogicalObj)		  = {{{0}}},
+		   LOG_PARAM(0x0201, 0x03, FirstUnencryptedLogicalObj)		  = {{{0}}},
+		   LOG_PARAM(0x0202, 0x03, ApproxNativeCapacityPartition)	  = {{{0}}},
+		   LOG_PARAM(0x0203, 0x03, ApproxUsedNativeCapacityPartition) = {{{0}}},
+		   LOG_PARAM(0x0204, 0x03, RemainingCapacityToEWPartition)	  = {{{0}}},
+	   };
+	for (int k = 0; k < MAX_PARTITIONS; k++) {
+		pg->FirstEncryptedLogicalObj[k].header.len = sizeof(struct partition_record_size6) - 1;
+		put_unaligned_be16(k, &pg->FirstEncryptedLogicalObj[k].header.partition_no);
+		pg->FirstUnencryptedLogicalObj[k].header.len = sizeof(struct partition_record_size6) - 1;
+		put_unaligned_be16(k, &pg->FirstUnencryptedLogicalObj[k].header.partition_no);
+		pg->ApproxNativeCapacityPartition[k].header.len = sizeof(struct partition_record_size4) - 1;
+		put_unaligned_be16(k, &pg->ApproxNativeCapacityPartition[k].header.partition_no);
+		pg->ApproxUsedNativeCapacityPartition[k].header.len = sizeof(struct partition_record_size4) - 1;
+		put_unaligned_be16(k, &pg->ApproxUsedNativeCapacityPartition[k].header.partition_no);
+		pg->RemainingCapacityToEWPartition[k].header.len = sizeof(struct partition_record_size4) - 1;
+		put_unaligned_be16(k, &pg->RemainingCapacityToEWPartition[k].header.partition_no);
+	};
+}
+int add_log_volume_statistics(struct lu_phy_attr *lu) {
+	return alloc_log_page(lu, VOLUME_STATISTICS, NO_SUBPAGE,
+						  init_log_volume_statistics, sizeof(struct VolumeStatistics_pg));
 }
 
 static void init_log_tape_alert(void *log_ptr) {
