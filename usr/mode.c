@@ -665,6 +665,12 @@ int add_mode_medium_partition(struct lu_phy_attr *lu) {
 	mp->pcodePointer[6] = 0x09; /* Partitioning Type |
 								 * Partition Units	 */
 
+	/* Partition size descriptors - sizes in GB*/
+	put_unaligned_be16(0x0002, &mp->pcodePointer[8]);
+	put_unaligned_be16(0x0002, &mp->pcodePointer[10]);
+	put_unaligned_be16(0x0002, &mp->pcodePointer[12]);
+	put_unaligned_be16(0x0002, &mp->pcodePointer[14]);
+
 	/* Changeable fields */
 	mp->pcodePointerBitMap[3] = 0xff;
 	mp->pcodePointerBitMap[4] = 0xf8;
