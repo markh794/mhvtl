@@ -456,7 +456,7 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
 		if (read_header(eod_blk_number[c_pos->partition_id], sam_stat))
 			return -1;
 
-		MHVTL_DBG(1, "EOD encountered");
+		MHVTL_DBG(1, "Moving to EOD encountered at block %u", eod_blk_number[c_pos->partition_id]);
 		sam_blank_check(E_END_OF_DATA, sam_stat);
 		put_unaligned_be32(residual, &sense[3]);
 		return -1;
