@@ -546,6 +546,7 @@ void init_ult3580_td1(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -590,6 +591,7 @@ void init_ult3580_td2(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -642,6 +644,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu) {
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
 	add_log_device_status(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -705,6 +708,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu) {
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
 	add_log_device_status(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -775,6 +779,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu) {
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
 	add_log_device_status(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -847,6 +852,7 @@ void init_ult3580_td6(struct lu_phy_attr *lu) {
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
 	add_log_device_status(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -919,6 +925,7 @@ void init_ult3580_td7(struct lu_phy_attr *lu) {
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
 	add_log_device_status(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -992,6 +999,7 @@ void init_ult3580_td8(struct lu_phy_attr *lu) {
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
 	add_log_device_status(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -1066,6 +1074,7 @@ void init_ult3580_td9(struct lu_phy_attr *lu) {
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
 	add_log_device_status(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);

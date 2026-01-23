@@ -493,6 +493,7 @@ void init_hp_ult_1(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -537,6 +538,7 @@ void init_hp_ult_2(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -588,6 +590,7 @@ void init_hp_ult_3(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -649,6 +652,7 @@ void init_hp_ult_4(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -717,6 +721,7 @@ void init_hp_ult_5(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -787,6 +792,7 @@ void init_hp_ult_6(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -858,6 +864,7 @@ void init_hp_ult_7(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -928,6 +935,7 @@ void init_hp_ult_8(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);

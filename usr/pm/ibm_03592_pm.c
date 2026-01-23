@@ -410,6 +410,7 @@ void init_3592_j1a(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -442,6 +443,7 @@ void init_3592_E05(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -480,6 +482,7 @@ void init_3592_E06(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
@@ -523,6 +526,7 @@ void init_3592_E07(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
 	add_log_tape_capacity(lu);
