@@ -69,44 +69,53 @@ const char *log_page_desc[0x38] = {
 	[DATA_COMPRESSION]			 = "Data Compression",
 };
 
-struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page) {
+struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page, uint8_t subpage) {
 	struct log_pg_list *log_pg;
 
-	MHVTL_DBG(3, "Looking for: log page 0x%02x", page);
+	MHVTL_DBG(3, "fetching log page (0x%02x - 0x%02x)", page, subpage);
 
 	list_for_each_entry(log_pg, l, siblings) {
-		if (log_pg->log_page_num == page) {
-			MHVTL_DBG(2, "%s (0x%02x)", log_pg->description, page);
+		if (log_pg->log_page_num == page && log_pg->log_subpage_num == subpage) {
+			MHVTL_DBG(2, "log page (0x%02x - 0x%02x) found : %s", page, subpage, log_page_desc[page]);
 			return log_pg;
 		}
 	}
 
-	MHVTL_DBG(3, "Log page 0x%02x not found", page);
+	/* If no page found, ignore subpage */
+	list_for_each_entry(log_pg, l, siblings) {
+		if (log_pg->log_page_num == page) {
+			MHVTL_DBG(2, "log page (0x%02x - 0x%02x) found but wrong supbage: %s", page, subpage, log_page_desc[page]);
+			return log_pg;
+		}
+	}
+
+	MHVTL_DBG(3, "log page (0x%02x - 0x%02x) not found", page, subpage);
 
 	return NULL;
 }
 
 int alloc_log_page(struct lu_phy_attr *lu,
-				   uint8_t			   page,
-				   init_pg_fn		   init_log_pg,
-				   size_t			   pg_size) {
+				   uint8_t page, uint8_t subpage,
+				   init_pg_fn init_log_pg,
+				   size_t	  pg_size) {
 	struct log_pg_list *log_pg;
 	int					creation = 0;
 
-	MHVTL_DBG(3, "%p : Allocate log page 0x%02x , size %d",
-			  &lu->log_pg, page, (int)pg_size);
+	MHVTL_DBG(3, "%p : Allocate log page (0x%02x - 0x%02x), size %d",
+			  &lu->log_pg, page, subpage, (int)pg_size);
 
 	/* Getting the entry, create it if does not exist */
-	log_pg = lookup_log_pg(&lu->log_pg, page);
+	log_pg = lookup_log_pg(&lu->log_pg, page, subpage);
 	if (!log_pg) {
 		creation = 1;
 		log_pg	 = malloc(sizeof(struct log_pg_list));
 	}
 
 	if (log_pg) {
-		log_pg->log_page_num = page;
-		log_pg->size		 = pg_size;
-		log_pg->p			 = malloc(pg_size);
+		log_pg->log_page_num	= page;
+		log_pg->log_subpage_num = subpage;
+		log_pg->size			= pg_size;
+		log_pg->p				= malloc(pg_size);
 		if (log_pg->p) {
 			init_log_pg(log_pg->p);
 			put_unaligned_be16(pg_size - sizeof(struct log_pg_header), /* Setting the real len of the log page */
@@ -154,7 +163,7 @@ static void init_log_write_err_counter(void *log_ptr) {
 	   };
 }
 int add_log_write_err_counter(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, WRITE_ERROR_COUNTER,
+	return alloc_log_page(lu, WRITE_ERROR_COUNTER, NO_SUBPAGE,
 						  init_log_write_err_counter, sizeof(struct ErrorCounter_pg));
 }
 
@@ -176,7 +185,7 @@ static void init_log_read_err_counter(void *log_ptr) {
 	   };
 }
 int add_log_read_err_counter(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, READ_ERROR_COUNTER,
+	return alloc_log_page(lu, READ_ERROR_COUNTER, NO_SUBPAGE,
 						  init_log_read_err_counter, sizeof(struct ErrorCounter_pg));
 }
 
@@ -200,7 +209,7 @@ static void init_log_sequential_access(void *log_ptr) {
 	 };
 }
 int add_log_sequential_access(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, SEQUENTIAL_ACCESS_DEVICE,
+	return alloc_log_page(lu, SEQUENTIAL_ACCESS_DEVICE, NO_SUBPAGE,
 						  init_log_sequential_access, sizeof(struct SequentialAccessDevice_pg));
 }
 
@@ -212,7 +221,7 @@ static void init_log_temperature_page(void *log_ptr) {
 	  };
 }
 int add_log_temperature_page(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, TEMPERATURE_PAGE,
+	return alloc_log_page(lu, TEMPERATURE_PAGE, NO_SUBPAGE,
 						  init_log_temperature_page, sizeof(struct Temperature_pg));
 }
 
@@ -226,7 +235,7 @@ static void init_log_tape_alert(void *log_ptr) {
 	}
 }
 int add_log_tape_alert(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, TAPE_ALERT,
+	return alloc_log_page(lu, TAPE_ALERT, NO_SUBPAGE,
 						  init_log_tape_alert, sizeof(struct TapeAlert_pg));
 }
 
@@ -248,7 +257,7 @@ static void init_log_tape_usage(void *log_ptr) {
 	};
 }
 int add_log_tape_usage(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, TAPE_USAGE,
+	return alloc_log_page(lu, TAPE_USAGE, NO_SUBPAGE,
 						  init_log_tape_usage, sizeof(struct TapeUsage_pg));
 }
 
@@ -260,7 +269,7 @@ static void init_log_device_status(void *log_ptr) {
 	   };
 }
 int add_log_device_status(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, DEVICE_STATUS,
+	return alloc_log_page(lu, DEVICE_STATUS, NO_SUBPAGE,
 						  init_log_device_status, sizeof(struct DeviceStatus_pg));
 }
 
@@ -275,7 +284,7 @@ static void init_log_tape_capacity(void *log_ptr) {
 	   };
 }
 int add_log_tape_capacity(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, TAPE_CAPACITY,
+	return alloc_log_page(lu, TAPE_CAPACITY, NO_SUBPAGE,
 						  init_log_tape_capacity, sizeof(struct TapeCapacity_pg));
 }
 
@@ -296,44 +305,44 @@ static void init_log_data_compression(void *log_ptr) {
 	  };
 }
 int add_log_data_compression(struct lu_phy_attr *lu) {
-	return alloc_log_page(lu, DATA_COMPRESSION,
+	return alloc_log_page(lu, DATA_COMPRESSION, NO_SUBPAGE,
 						  init_log_data_compression, sizeof(struct DataCompression_pg));
 }
 
 /* Update MAM Accessible bit in LogPage 0x11 */
 void set_lp_11_macc(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 	if (lp)
 		lp->vhf.b4.MACC = flag;
 }
 
 void set_lp11_compression(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 	if (lp)
 		lp->vhf.b4.CMPR = flag;
 }
 
 void set_lp_11_crqst(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 	if (lp)
 		lp->vhf.b4.CRQST = flag;
 }
 
 void set_lp_11_crqrd(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 	if (lp)
 		lp->vhf.b4.CRQRD = flag;
 }
 
 /* Update WriteProtect bit in LogPage 0x11 */
 void set_lp_11_wp(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 	if (lp)
 		lp->vhf.b4.WRTP = flag;
 }
 
 void set_lp11_medium_present(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 	if (!lp)
 		return;
 
@@ -351,7 +360,7 @@ int update_TapeAlert(uint64_t flags) {
 	struct log_pg_list				 *l;
 	uint64_t						  ta;
 
-	l = lookup_log_pg(&lunit.log_pg, SEQUENTIAL_ACCESS_DEVICE);
+	l = lookup_log_pg(&lunit.log_pg, SEQUENTIAL_ACCESS_DEVICE, NO_SUBPAGE);
 	if (l) {
 		sad = (struct SequentialAccessDevice_pg *)l->p;
 		ta	= get_unaligned_be64(&sad->TapeAlert);
@@ -383,7 +392,7 @@ int set_TapeAlert(uint64_t flags) {
 	int								  i;
 
 	/* Set LP 0x11 'TAFC' bit (TapeAlert Flag Changed) */
-	l = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	l = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 	if (!l)
 		return -1;
 
@@ -396,7 +405,7 @@ int set_TapeAlert(uint64_t flags) {
 		MHVTL_DBG(3, "Not setting TAFC bit as flags is zero");
 	}
 
-	l = lookup_log_pg(&lunit.log_pg, TAPE_ALERT);
+	l = lookup_log_pg(&lunit.log_pg, TAPE_ALERT, NO_SUBPAGE);
 	if (!l)
 		return -1;
 
@@ -412,7 +421,7 @@ int set_TapeAlert(uint64_t flags) {
 	/* Don't treat not having a SEQUENTIAL ACCESS DEVICE log page
 	 * as fatal (e.g. SMC devices)
 	 */
-	l = lookup_log_pg(&lunit.log_pg, SEQUENTIAL_ACCESS_DEVICE);
+	l = lookup_log_pg(&lunit.log_pg, SEQUENTIAL_ACCESS_DEVICE, NO_SUBPAGE);
 	if (l) {
 		sad = (struct SequentialAccessDevice_pg *)l->p;
 		put_unaligned_be64(flags, &sad->TapeAlert);
@@ -493,7 +502,7 @@ void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa) {
 }
 
 void set_current_state(int s) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 
 	current_state = s;
 
@@ -556,7 +565,7 @@ int get_tape_load_status(void) {
 }
 
 void set_tape_load_status(int s) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS)->p;
+	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
 
 	lu_ssc.load_status = s;
 

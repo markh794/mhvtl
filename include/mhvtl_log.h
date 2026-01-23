@@ -55,10 +55,13 @@ typedef void (*init_pg_fn)(void *log_ptr);
 #define TAPE_CAPACITY			   0x31
 #define DATA_COMPRESSION		   0x32
 
+#define NO_SUBPAGE 0x00
+
 struct log_pg_list {
 	struct list_head siblings;
 	char			*description;
 	int				 log_page_num;
+	int				 log_subpage_num;
 	int				 size;
 	void			*p;
 };
@@ -310,11 +313,11 @@ void update_TapeUsage(struct TapeUsage_pg *b);
 void update_TapeCapacity(struct TapeCapacity_pg *pg);
 void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa);
 
-struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page);
+struct log_pg_list *lookup_log_pg(struct list_head *l, uint8_t page, uint8_t subpage);
 int					alloc_log_page(struct lu_phy_attr *lu,
-								   uint8_t			   page,
-								   init_pg_fn		   init_log_pg,
-								   size_t			   pg_size);
+								   uint8_t page, uint8_t subpage,
+								   init_pg_fn init_log_pg,
+								   size_t	  pg_size);
 
 int add_log_write_err_counter(struct lu_phy_attr *lu);
 int add_log_read_err_counter(struct lu_phy_attr *lu);

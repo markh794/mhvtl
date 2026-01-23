@@ -1886,7 +1886,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		put_unaligned_be16(i - 4, &buf[2]); /* number of entries stored in b*/
 		dbuf_p->sz = i;
 	} else {
-		l = lookup_log_pg(&lu->log_pg, page);
+		l = lookup_log_pg(&lu->log_pg, page, NO_SUBPAGE);
 		if (!l)
 			goto log_page_not_found;
 		dbuf_p->sz = l->size;

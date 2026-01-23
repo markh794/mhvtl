@@ -1556,7 +1556,7 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd) {
 		break;
 	case TEMPERATURE_PAGE: /* Temperature page */
 		MHVTL_DBG(1, "LOG SENSE: Temperature page");
-		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE);
+		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE, NO_SUBPAGE);
 		if (!l)
 			goto log_page_not_found;
 
@@ -1569,7 +1569,7 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd) {
 						get_unaligned_be64(&SequentialAccessDevice_pg.TapeAlert));
 		*/
 
-		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
+		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT, NO_SUBPAGE);
 		if (!l)
 			goto log_page_not_found;
 
