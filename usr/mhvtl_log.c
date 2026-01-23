@@ -373,10 +373,10 @@ static void init_log_tape_capacity(void *log_ptr) {
 	struct TapeCapacity_pg *pg = log_ptr;
 	*pg						   = (struct TapeCapacity_pg){
 		   LOG_PG_HEADER(TAPE_CAPACITY),
-		   LOG_PARAM(0x0001, 0xc0, partition0remaining) = 0x00,
-		   LOG_PARAM(0x0002, 0xc0, partition1remaining) = 0x00,
-		   LOG_PARAM(0x0003, 0xc0, partition0maximum)	= 0x00,
-		   LOG_PARAM(0x0004, 0xc0, partition1maximum)	= 0x00,
+		   LOG_PARAM(0x0001, 0xc0, partition0remaining) = 0xfffffffe,
+		   LOG_PARAM(0x0002, 0xc0, partition1remaining) = 0xfffffffe,
+		   LOG_PARAM(0x0003, 0xc0, partition0maximum)	= 0xfffffffe,
+		   LOG_PARAM(0x0004, 0xc0, partition1maximum)	= 0xfffffffe,
 	   };
 }
 int add_log_tape_capacity(struct lu_phy_attr *lu) {
@@ -638,19 +638,20 @@ void update_TapeUsage(struct TapeUsage_pg *b) {
 }
 
 void update_TapeCapacity(struct TapeCapacity_pg *pg) {
+	uint64_t cap __attribute__((unused)); /* fixme : should be used instead of telling max cap */
 	if (get_tape_load_status() == TAPE_LOADED) {
-		uint64_t cap;
+		cap = get_unaligned_be64(&mam.remaining_capacity) / lu_ssc.capacity_unit;
+		put_unaligned_be32(0xfffffffe, &pg->partition0remaining);
+		put_unaligned_be32(0xfffffffe, &pg->partition1remaining);
 
-		cap = get_unaligned_be64(&mam.remaining_capacity);
-		cap /= lu_ssc.capacity_unit;
-		put_unaligned_be32(cap, &pg->partition0remaining);
-
-		cap = get_unaligned_be64(&mam.max_capacity);
-		cap /= lu_ssc.capacity_unit;
-		put_unaligned_be32(cap, &pg->partition0maximum);
+		cap = get_unaligned_be64(&mam.max_capacity) / lu_ssc.capacity_unit;
+		put_unaligned_be32(0xfffffffe, &pg->partition0maximum);
+		put_unaligned_be32(0xfffffffe, &pg->partition1maximum);
 	} else {
 		pg->partition0remaining = 0;
 		pg->partition0maximum	= 0;
+		pg->partition1remaining = 0;
+		pg->partition1maximum	= 0;
 	}
 }
 
