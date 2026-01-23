@@ -60,24 +60,19 @@ static char *mode_transport_geometry	   = "Transport Geometry";
 static char *mode_device_capabilities	   = "Device Capabilities";
 static char *drive_configuration_page	   = "STK Vendor-Unique Drive Configuration";
 
-struct mode *lookup_mode_pg(struct list_head *m, uint8_t pcode, uint8_t subpcode) {
+struct mode *lookup_mode_pg(struct list_head *m, uint8_t page, uint8_t subpage) {
 	struct mode *mp;
 
-	MHVTL_DBG(3, "Looking for: Page/subpage (%02x/%02x)",
-			  pcode, subpcode);
+	MHVTL_DBG(3, "fetching mode page (0x%02x - 0x%02x)", page, subpage);
 
 	list_for_each_entry(mp, m, siblings) {
-		if (mp->pcode == pcode && mp->subpcode == subpcode) {
-			MHVTL_DBG(3, "Found \"%s\" -> "
-						 "Page/subpage (%02x/%02x)",
-					  mp->description,
-					  mp->pcode, mp->subpcode);
+		if (mp->pcode == page && mp->subpcode == subpage) {
+			MHVTL_DBG(3, "mode page (0x%02x - 0x%02x) found : %s", page, subpage, mp->description);
 			return mp;
 		}
 	}
 
-	MHVTL_DBG(3, "Page/subpage code 0x%02x/0x%02x not found",
-			  pcode, subpcode);
+	MHVTL_DBG(3, "mode page (0x%02x - 0x%02x) not found", page, subpage);
 
 	return NULL;
 }
