@@ -103,378 +103,54 @@ int ioctl(int, int, void *);
 
 struct device_type_template smc_template = {
 	.ops = {
-		/* 0x00 -> 0x0f */
-		{
-			spc_tur,
-		},
-		{
-			smc_rezero,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_request_sense,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			smc_initialize_element_status,
-		},
+		SCSI_OP_RANGE(0x00, 0xff, spc_illegal_op),
 
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
+		/* 0x00 -> 0x0f */
+		SCSI_OP(0x00, spc_tur),
+		SCSI_OP(0x01, smc_rezero),
+		SCSI_OP(0x03, spc_request_sense),
+		SCSI_OP(0x07, smc_initialize_element_status),
 
 		/* 0x10 -> 0x1f */
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_inquiry,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_mode_select,
-		},
-		{
-			spc_reserve,
-		},
-		{
-			spc_release,
-		},
+		SCSI_OP(0x12, spc_inquiry),
+		SCSI_OP(0x15, spc_mode_select),
+		SCSI_OP(0x16, spc_reserve),
+		SCSI_OP(0x17, spc_release),
+		SCSI_OP(0x1a, spc_mode_sense),
+		SCSI_OP(0x1b, smc_open_close_import_export_element),
+		SCSI_OP(0x1c, spc_recv_diagnostics),
+		SCSI_OP(0x1d, spc_send_diagnostics),
+		SCSI_OP(0x1e, smc_allow_removal),
 
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_mode_sense,
-		},
-		{
-			smc_open_close_import_export_element,
-		},
-		{
-			spc_recv_diagnostics,
-		},
-		{
-			spc_send_diagnostics,
-		},
-		{
-			smc_allow_removal,
-		},
-		{
-			spc_illegal_op,
-		},
-
-		[0x20 ... 0x3f] = {
-			spc_illegal_op,
-		},
-
+		/* 0x20 -> 0x2f */
+		/* 0x30 -> 0x3f */
 		/* 0x40 -> 0x4f */
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_log_select,
-		},
-		{
-			smc_log_sense,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
+		SCSI_OP(0x4c, spc_log_select),
+		SCSI_OP(0x4d, smc_log_sense),
 
 		/* 0x50 -> 0x5f */
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_mode_select,
-		},
-		{
-			spc_reserve,
-		},
-		{
-			spc_release,
-		},
+		SCSI_OP(0x55, spc_mode_select),
+		SCSI_OP(0x56, spc_reserve),
+		SCSI_OP(0x57, spc_release),
+		SCSI_OP(0x5a, spc_mode_sense),
 
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_mode_sense,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-
-		[0x60 ... 0x9f] = {
-			spc_illegal_op,
-		},
-
+		/* 0x60 -> 0x6f */
+		/* 0x70 -> 0x7f */
+		/* 0x80 -> 0x8f */
+		/* 0x90 -> 0x9f */
 		/* 0xa0 -> 0xaf */
-		{
-			spc_illegal_op,
-		}, /* processed in the kernel module */
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			smc_move_medium,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
+		SCSI_OP(0xa0, spc_illegal_op), /* processed in the kernel module */
+		SCSI_OP(0xa5, smc_move_medium),
 
 		/* 0xb0 -> 0xbf */
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
+		SCSI_OP(0xb8, smc_read_element_status),
 
-		{
-			smc_read_element_status,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-
-		[0xc0 ... 0xdf] = {
-			spc_illegal_op,
-		},
-
+		/* 0xc0 -> 0xcf */
+		/* 0xd0 -> 0xdf */
 		/* 0xe0 -> 0xef */
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			smc_initialize_element_status_with_range,
-		},
+		SCSI_OP(0xe7, smc_initialize_element_status_with_range),
 
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-		{
-			spc_illegal_op,
-		},
-
-		[0xf0 ... 0xff] = {
-			spc_illegal_op,
-		},
+		/* 0xf0 -> 0xff */
 	}};
 
 __attribute__((constructor)) static void smc_init(void) {

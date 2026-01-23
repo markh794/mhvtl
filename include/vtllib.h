@@ -360,6 +360,16 @@ struct scsi_cmd {
 	struct lu_phy_attr *lu;
 };
 
+#define SCSI_OP(opcode, fn) \
+	[opcode] = {            \
+		.cmd_perform = fn,  \
+	}
+
+#define SCSI_OP_RANGE(lo_op, hi_op, fn) \
+	[lo_op... hi_op] = {                \
+		.cmd_perform = fn,              \
+	}
+
 struct device_type_operations {
 	uint8_t (*cmd_perform)(struct scsi_cmd *cmd);
 	int (*pre_cmd_perform)(struct scsi_cmd *cmd, void *p);
