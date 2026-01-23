@@ -359,6 +359,7 @@ void init_ait1_ssc(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_selftest_results(lu);
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
@@ -394,6 +395,7 @@ void init_ait2_ssc(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_selftest_results(lu);
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
@@ -433,6 +435,7 @@ void init_ait3_ssc(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_selftest_results(lu);
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
@@ -476,6 +479,7 @@ void init_ait4_ssc(struct lu_phy_attr *lu) {
 	add_log_read_err_counter(lu);
 	add_log_sequential_access(lu);
 	add_log_temperature_page(lu);
+	add_log_selftest_results(lu);
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
