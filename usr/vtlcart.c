@@ -1617,6 +1617,9 @@ uint64_t block_from_filemark(uint8_t partition_number, uint32_t filemark) {
 uint64_t count_filemarks(int64_t block) {
 	uint64_t count;
 
+	MHVTL_DBG(3, "counting filemarks till partition/block %d/%ld (total = %d)",
+			  c_pos->partition_id, (unsigned long)block, meta[c_pos->partition_id].filemark_count);
+
 	if (block == -1)
 		return (uint64_t)meta[c_pos->partition_id].filemark_count;
 
