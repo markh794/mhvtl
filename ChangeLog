@@ -1,3 +1,8 @@
+* Tue Mar 10 16:30:00 AEST 2026 Mark Harvey <markh794@gmail.com>
+- mhvtl.ko: Various updates to keep track of recent mainline changes
+- add GET/SET TIMESTAMP OP code support
+- fix for Logical Block Protection
+
 * Mon Mar 10 12:11:00 AEST 2025 Mark Harvey <markh794@gmail.com>
 - Remove reference to Nutanix as I no longer work there
 - Implement Logical Block Protection for LTO emulations
