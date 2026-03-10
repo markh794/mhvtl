@@ -5,7 +5,7 @@
 #include "config.h"
 
 #ifndef SG_SEGMENT_SZ
-#define SG_SEGMENT_SZ	65536
+#define SG_SEGMENT_SZ 65536
 #endif
 
 #ifndef slab_flags_t
@@ -17,21 +17,19 @@ typedef unsigned __bitwise slab_flags_t;
  */
 #if !defined(HAVE_KMEM_CACHE_CREATE_USERCOPY)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 23)
-static inline struct kmem_cache *kmem_cache_create_usercopy(const char *name,
-			unsigned int size, unsigned int align,
-			slab_flags_t flags,
-			unsigned int useroffset, unsigned int usersize,
-			void (*ctor)(void *))
-{
+static inline struct kmem_cache *kmem_cache_create_usercopy(const char	*name,
+															unsigned int size, unsigned int align,
+															slab_flags_t flags,
+															unsigned int useroffset, unsigned int usersize,
+															void (*ctor)(void *)) {
 	return kmem_cache_create(name, size, align, flags, ctor, NULL);
 }
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4, 16, 0)
-static inline struct kmem_cache *kmem_cache_create_usercopy(const char *name,
-			unsigned int size, unsigned int align,
-			slab_flags_t flags,
-			unsigned int useroffset, unsigned int usersize,
-			void (*ctor)(void *))
-{
+static inline struct kmem_cache *kmem_cache_create_usercopy(const char	*name,
+															unsigned int size, unsigned int align,
+															slab_flags_t flags,
+															unsigned int useroffset, unsigned int usersize,
+															void (*ctor)(void *)) {
 	return kmem_cache_create(name, size, align, flags, ctor);
 }
 #endif
@@ -42,8 +40,7 @@ static inline struct kmem_cache *kmem_cache_create_usercopy(const char *name,
  * See also patch "new helper: file_inode(file)" (commit ID
  * 496ad9aa8ef448058e36ca7a787c61f2e63f0f54).
  */
-static inline struct inode *file_inode(struct file *f)
-{
+static inline struct inode *file_inode(struct file *f) {
 	return f->f_path.dentry->d_inode;
 }
 #endif
@@ -59,13 +56,12 @@ static inline struct inode *file_inode(struct file *f)
  *
  * Returns number of characters written to @buf.
  */
-static int sysfs_emit(char *buf, const char *fmt, ...)
-{
+static int sysfs_emit(char *buf, const char *fmt, ...) {
 	va_list args;
-	int len;
+	int		len;
 
 	if (WARN(!buf || offset_in_page(buf),
-		 "invalid sysfs_emit: buf:%p\n", buf))
+			 "invalid sysfs_emit: buf:%p\n", buf))
 		return 0;
 
 	va_start(args, fmt);
@@ -84,5 +80,5 @@ static int sysfs_emit(char *buf, const char *fmt, ...)
  * 6.16 kernel change, from "from_timer()" to "timer_container_of()" in timer.h.
  */
 #if !defined(FROM_TIMER_NOW_TIMER_CONTAINER_OF)
-#define timer_container_of	from_timer
+#define timer_container_of from_timer
 #endif

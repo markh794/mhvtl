@@ -5,29 +5,20 @@
 CURDIR = "../"
 include ../config.mk
 
-TAPE_SERVICE_FILE = vtltape@.service
-LIB_SERVICE_FILE = vtllibrary@.service
-MHVTL_TARGET_FILE = mhvtl.target
-MHVTL_LOAD_MODULES_SERVICE_FILE = mhvtl-load-modules.service
 MHVTL_CONF_FILE = mhvtl.conf
 DEVICE_CONF_FILE = device.conf
 LIB_CONTENTS_FILES = library_contents.10 library_contents.30
+CONFIGS = $(MHVTL_CONF_FILE) $(DEVICE_CONF_FILE) $(LIB_CONTENTS_FILES)
 
 GENERATE_DEVICE_CONF = generate_device_conf
 GENERATE_LIB_CONTENTS = generate_library_contents
+GENERATORS = $(GENERATE_DEVICE_CONF) $(GENERATE_LIB_CONTENTS)
 
-# files that need to be generated
-GENERATOR_FILES=$(MHVTL_CONF_FILE).in \
-		$(TAPE_SERVICE_FILE).in \
-		$(LIB_SERVICE_FILE).in \
-		$(MHVTL_LOAD_MODULES_SERVICE_FILE).in \
-		$(GENERATE_DEVICE_CONF).in \
-		$(GENERATE_LIB_CONTENTS).in
-GENERATED_FILES=$(GENERATOR_FILES:.in=)
+SERVICES = $(patsubst %.in,%,$(wildcard *.service*))
+MHVTL_TARGET = mhvtl.target
 
-ALL_FILES = $(GENERATED_FILES) $(DEVICE_CONF_FILE) $(LIB_CONTENTS_FILES)
 
-all: $(ALL_FILES)
+all: $(SERVICES) $(CONFIGS)
 
 %: %.in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
@@ -57,22 +48,28 @@ clean:
 	$(RM) $(GENERATED_FILES)
 	$(RM) $(DEVICE_CONF_FILE) $(LIB_CONTENTS_FILES)
 
+$(DESTDIR)$(SYSTEMD_SERVICE_DIR):
+	install -d -m 755 $@
+$(DESTDIR)$(MHVTL_CONFIG_PATH):
+	install -d -m 755 $@
+
+# Installing services
+$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/%.service: %.service | $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	install -m 644 $< $@
+	semanage fcontext -a -t systemd_unit_file_t \'$@\'
+$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/%.target: %.target | $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
+	install -m 644 $< $@
+	semanage fcontext -a -t systemd_unit_file_t \'$@\'
+# Installing generator of config files
+$(DESTDIR)/usr/bin/generate_%: generate_%
+	install -m 755 $< $@
+# save backup copies of config files
+$(DESTDIR)$(MHVTL_CONFIG_PATH)/%: % | $(DESTDIR)$(MHVTL_CONFIG_PATH)
+	install -m 644 -b -S .orig $< $@
+
 .PHONY: install
-install: all
-	[ -d $(DESTDIR)$(SYSTEMD_SERVICE_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
-	install -m 644 $(LIB_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
-	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(LIB_SERVICE_FILE)\'
-	install -m 644 $(TAPE_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
-	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(TAPE_SERVICE_FILE)\'
-	install -m 644 $(MHVTL_TARGET_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
-	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(MHVTL_TARGET_FILE)\'
-	install -m 644 $(MHVTL_LOAD_MODULES_SERVICE_FILE) $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
-	semanage fcontext -a -t systemd_unit_file_t \'$(DESTDIR)$(SYSTEMD_SERVICE_DIR)/$(MHVTL_LOAD_MODULES_SERVICE_FILE)\'
+install: all \
+		 $(addprefix $(DESTDIR)$(SYSTEMD_SERVICE_DIR)/,$(SERVICES) $(MHVTL_TARGET)) \
+		 $(addprefix $(DESTDIR)$(MHVTL_CONFIG_PATH)/,$(CONFIGS)) \
+		 $(addprefix $(DESTDIR)/usr/bin/,$(GENERATORS))
 	restorecon -R -v  $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
-	[ -d $(DESTDIR)$(MHVTL_CONFIG_PATH) ] || install -d -m 755 $(DESTDIR)$(MHVTL_CONFIG_PATH)
-	install -m 755 $(GENERATE_DEVICE_CONF) $(DESTDIR)/usr/bin
-	install -m 755 $(GENERATE_LIB_CONTENTS) $(DESTDIR)/usr/bin
-	# save backup copies of config files
-	install -m 644 -b -S .orig $(MHVTL_CONF_FILE) $(DESTDIR)$(MHVTL_CONFIG_PATH)
-	install -m 644 -b -S .orig $(DEVICE_CONF_FILE) $(DESTDIR)$(MHVTL_CONFIG_PATH)
-	install -m 644 -b -S .orig $(LIB_CONTENTS_FILES) $(DESTDIR)$(MHVTL_CONFIG_PATH)

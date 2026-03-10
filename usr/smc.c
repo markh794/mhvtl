@@ -22,18 +22,11 @@
  */
 
 #include <unistd.h>
+#include <sys/msg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <string.h>
-#include <dirent.h>
-#include <syslog.h>
-#include <ctype.h>
 #include <inttypes.h>
-#include <assert.h>
 #include "be_byteshift.h"
 #include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
@@ -45,25 +38,20 @@
 #include "mhvtl_log.h"
 #include "subprocess.h"
 
-int current_state;
-extern int verbose;
-
-uint8_t smc_allow_removal(struct scsi_cmd *cmd)
-{
+uint8_t smc_allow_removal(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "%s MEDIUM REMOVAL (%ld) **",
-				(cmd->scb[4]) ? "PREVENT" : "ALLOW",
-				(long)cmd->dbuf_p->serialNo);
+			  (cmd->scb[4]) ? "PREVENT" : "ALLOW",
+			  (long)cmd->dbuf_p->serialNo);
 	return SAM_STAT_GOOD;
 }
 
-uint8_t smc_initialize_element_status(struct scsi_cmd *cmd)
-{
+uint8_t smc_initialize_element_status(struct scsi_cmd *cmd) {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	current_state = MHVTL_STATE_INITIALISE_ELEMENTS;
 
 	MHVTL_DBG(1, "%s (%ld) **", "INITIALIZE ELEMENT",
-				(long)cmd->dbuf_p->serialNo);
+			  (long)cmd->dbuf_p->serialNo);
 	if (!cmd->lu->online) {
 		sam_not_ready(NO_ADDITIONAL_SENSE, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -72,14 +60,13 @@ uint8_t smc_initialize_element_status(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd)
-{
+uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd) {
 	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
 
 	current_state = MHVTL_STATE_INITIALISE_ELEMENTS;
 
 	MHVTL_DBG(1, "%s (%ld) **", "INITIALIZE ELEMENT RANGE",
-				(long)cmd->dbuf_p->serialNo);
+			  (long)cmd->dbuf_p->serialNo);
 
 	if (!cmd->lu->online) {
 		sam_not_ready(NO_ADDITIONAL_SENSE, sam_stat);
@@ -90,19 +77,18 @@ uint8_t smc_initialize_element_status_with_range(struct scsi_cmd *cmd)
 }
 
 /* Return the element type of a particular element address */
-static int slot_type(struct smc_priv *smc_p, int addr)
-{
+static int slot_type(struct smc_priv *smc_p, int addr) {
 	if ((addr >= smc_p->pm->start_drive) &&
-			(addr < smc_p->pm->start_drive + smc_p->num_drives))
+		(addr < smc_p->pm->start_drive + smc_p->num_drives))
 		return DATA_TRANSFER;
 	if ((addr >= smc_p->pm->start_picker) &&
-			(addr < smc_p->pm->start_picker + smc_p->num_picker))
+		(addr < smc_p->pm->start_picker + smc_p->num_picker))
 		return MEDIUM_TRANSPORT;
 	if ((addr >= smc_p->pm->start_map) &&
-			(addr < smc_p->pm->start_map + smc_p->num_map))
+		(addr < smc_p->pm->start_map + smc_p->num_map))
 		return MAP_ELEMENT;
 	if ((addr >= smc_p->pm->start_storage) &&
-			(addr < smc_p->pm->start_storage + smc_p->num_storage))
+		(addr < smc_p->pm->start_storage + smc_p->num_storage))
 		return STORAGE_ELEMENT;
 	return 0;
 }
@@ -111,8 +97,7 @@ static int slot_type(struct smc_priv *smc_p, int addr)
  * Returns a 'human frendly' slot number
  * i.e. One with the internal offset removed (start counting at 1).
  */
-static int slot_number(struct smc_personality_template *pm, struct s_info *sp)
-{
+static int slot_number(struct smc_personality_template *pm, struct s_info *sp) {
 	switch (sp->element_type) {
 	case MEDIUM_TRANSPORT:
 		return sp->slot_location - pm->start_picker + 1;
@@ -129,10 +114,9 @@ static int slot_number(struct smc_personality_template *pm, struct s_info *sp)
 /*
  * Takes a slot number and returns a struct pointer to the slot
  */
-static struct s_info *slot2struct(struct smc_priv *smc_p, int addr)
-{
+static struct s_info *slot2struct(struct smc_priv *smc_p, int addr) {
 	struct list_head *slot_head;
-	struct s_info *sp;
+	struct s_info	 *sp;
 
 	slot_head = &smc_p->slot_list;
 
@@ -143,14 +127,13 @@ static struct s_info *slot2struct(struct smc_priv *smc_p, int addr)
 
 	MHVTL_DBG(1, "Arrr... Could not find slot %d", addr);
 
-return NULL;
+	return NULL;
 }
 
 /*
  * Takes a Drive number and returns a struct pointer to the drive
  */
-static struct d_info *drive2struct(struct smc_priv *smc_p, int addr)
-{
+static struct d_info *drive2struct(struct smc_priv *smc_p, int addr) {
 	struct s_info *s;
 
 	s = slot2struct(smc_p, addr);
@@ -161,9 +144,8 @@ static struct d_info *drive2struct(struct smc_priv *smc_p, int addr)
 }
 
 /* Query the drive to check if it thinks it is empty */
-static int is_drive_empty(struct d_info *drv)
-{
-	int mlen, r_qid;
+static int is_drive_empty(struct d_info *drv) {
+	int			   mlen, r_qid;
 	struct q_entry q;
 
 	/* Initialise message queue as necessary */
@@ -174,35 +156,32 @@ static int is_drive_empty(struct d_info *drv)
 	}
 
 	MHVTL_DBG(1, "%ld: Sending \"%s\" to snd_id %ld",
-				my_id, msg_mount_state, drv->drv_id);
+			  my_id, msg_mount_state, drv->drv_id);
 	send_msg(msg_mount_state, drv->drv_id);
 
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
 		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
-					my_id,
-					q.msg.text,
-					q.msg.snd_id);
+				  my_id,
+				  q.msg.text,
+				  q.msg.snd_id);
 
 	/* string defined in q.h */
 	return strncmp(msg_not_occupied, q.msg.text, 12);
 }
 
 /* returns true if medium transport access to slot is OK */
-int slotAccess(struct s_info *s)
-{
+int slotAccess(struct s_info *s) {
 	return s->status & STATUS_Access;
 }
 
 /* Returns true if slot has media in it */
-int slotOccupied(struct s_info *s)
-{
+int slotOccupied(struct s_info *s) {
 	return s->status & STATUS_Full;
 }
 
 /* Returns true if drive has media in it */
-static int driveOccupied(struct d_info *d)
-{
+static int driveOccupied(struct d_info *d) {
 	int ret;
 
 	ret = slotOccupied(d->slot);
@@ -211,9 +190,8 @@ static int driveOccupied(struct d_info *d)
 	return ret;
 }
 
-static int check_tape_unload(void)
-{
-	int mlen, r_qid;
+static int check_tape_unload(void) {
+	int			   mlen, r_qid;
 	struct q_entry q;
 
 	/* Initialise message queue as necessary */
@@ -226,9 +204,9 @@ static int check_tape_unload(void)
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
 		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
-					my_id,
-					q.msg.text,
-					q.msg.snd_id);
+				  my_id,
+				  q.msg.text,
+				  q.msg.snd_id);
 
 	/* msg defined in q.h */
 	return strncmp(msg_unload_ok, q.msg.text, 11);
@@ -267,8 +245,7 @@ static void setExEnableStatus(struct s_info *s, int flg)
  * 1 / 0 Set/Clear the Access bit.
  * Access bit when set, indicates the medium transport can access media
  */
-void setAccessStatus(struct s_info *s, int flg)
-{
+void setAccessStatus(struct s_info *s, int flg) {
 	if (flg)
 		s->status |= STATUS_Access;
 	else
@@ -294,8 +271,7 @@ static void setExceptStatus(struct s_info *s, int flg)
  * If set(1) then cartridge placed by operator
  * If clear(0), placed there by handler.
  */
-void setImpExpStatus(struct s_info *s, int flg)
-{
+void setImpExpStatus(struct s_info *s, int flg) {
 	if (flg)
 		s->status |= STATUS_ImpExp;
 	else
@@ -305,47 +281,40 @@ void setImpExpStatus(struct s_info *s, int flg)
 /*
  * Sets the 'Full' bit true/false in the status field
  */
-void setFullStatus(struct s_info *s, int flg)
-{
+void setFullStatus(struct s_info *s, int flg) {
 	if (flg)
 		s->status |= STATUS_Full;
 	else
 		s->status &= ~STATUS_Full;
 }
 
-void setSlotEmpty(struct s_info *s)
-{
+void setSlotEmpty(struct s_info *s) {
 	setFullStatus(s, 0);
 }
 
-static void setDriveEmpty(struct d_info *d)
-{
+static void setDriveEmpty(struct d_info *d) {
 	setFullStatus(d->slot, 0);
 	send_msg(msg_set_empty, d->drv_id);
 	/* Wait for ack from drive */
 	check_tape_unload();
 }
 
-void setSlotFull(struct s_info *s)
-{
+void setSlotFull(struct s_info *s) {
 	setFullStatus(s, 1);
 }
 
-void setDriveFull(struct d_info *d)
-{
+void setDriveFull(struct d_info *d) {
 	setFullStatus(d->slot, 1);
 }
 
 /* Returns 1 (true) if slot is MAP slot */
-static int is_map_slot(struct s_info *s)
-{
+static int is_map_slot(struct s_info *s) {
 	MHVTL_DBG(2, "slot type %d: %s", s->element_type,
-			(s->element_type == MAP_ELEMENT) ? "MAP" : "NOT A MAP");
+			  (s->element_type == MAP_ELEMENT) ? "MAP" : "NOT A MAP");
 	return s->element_type == MAP_ELEMENT;
 }
 
-static int map_access_ok(struct smc_priv *smc_p, struct s_info *s)
-{
+static int map_access_ok(struct smc_priv *smc_p, struct s_info *s) {
 	if (is_map_slot(s)) {
 		MHVTL_DBG(3, "Returning status of %d", smc_p->cap_closed);
 		return smc_p->cap_closed;
@@ -355,22 +324,21 @@ static int map_access_ok(struct smc_priv *smc_p, struct s_info *s)
 }
 
 static int dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
-				char dvcid_serial_only)
-{
+							 char dvcid_serial_only) {
 	int i, j, idlen;
 
 	i = 0;
 	for (j = 0; j < num_elem; j++) {
 		MHVTL_DBG(3, " Debug.... i = %d, len = %d", i, len);
 		MHVTL_DBG(3, "  Element Address             : %d",
-					get_unaligned_be16(&p[i]));
+				  get_unaligned_be16(&p[i]));
 		MHVTL_DBG(3, "  Status                      : 0x%02x",
-					p[i + 2]);
+				  p[i + 2]);
 		MHVTL_DBG(3, "  Medium type                 : %d",
-					p[i + 9] & 0x7);
+				  p[i + 9] & 0x7);
 		if (p[i + 9] & 0x80)
 			MHVTL_DBG(3, "  Source Address              : %d",
-					get_unaligned_be16(&p[i + 10]));
+					  get_unaligned_be16(&p[i + 10]));
 		i += 12;
 		if (voltag) {
 			i += VOLTAG_LEN;
@@ -379,26 +347,18 @@ static int dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
 
 		MHVTL_DBG(3, " Identification Descriptor");
 		MHVTL_DBG(3, "  Code Set                     : 0x%02x",
-					p[i] & 0xf);
+				  p[i] & 0xf);
 		MHVTL_DBG(3, "  Identifier type              : 0x%02x",
-					p[i + 1] & 0xf);
+				  p[i + 1] & 0xf);
 		idlen = p[i + 3];
 		MHVTL_DBG(3, "  Identifier length            : %d", idlen);
 		if (idlen) {
 			if (dvcid_serial_only) {
-				MHVTL_DBG(3,
-					"  ASCII data                   : %10s",
-							&p[i + 4]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", idlen, &p[i + 4]);
 			} else {
-				MHVTL_DBG(3,
-					"  ASCII data                   : %8s",
-							&p[i + 4]);
-				MHVTL_DBG(3,
-					"  ASCII data                   : %16s",
-							&p[i + 12]);
-				MHVTL_DBG(3,
-					"  ASCII data                   : %10s",
-							&p[i + 28]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", 8, &p[i + 4]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", 16, &p[i + 12]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", 10, &p[i + 28]);
 			}
 		}
 		i = (j + 1) * len;
@@ -406,8 +366,7 @@ static int dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
 	return i;
 }
 
-static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
-{
+static void decode_element_status(struct smc_priv *smc_p, uint8_t *p) {
 	int voltag;
 	int elem_len;
 	int page_elements, page_bytes;
@@ -418,11 +377,11 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 
 	MHVTL_DBG(3, "Element Status Data");
 	MHVTL_DBG(3, "  First element reported       : %d",
-					get_unaligned_be16(&p[0]));
+			  get_unaligned_be16(&p[0]));
 	MHVTL_DBG(3, "  Number of elements available : %d",
-					get_unaligned_be16(&p[2]));
+			  get_unaligned_be16(&p[2]));
 	MHVTL_DBG(3, "  Byte count of report         : %d",
-					get_unaligned_be24(&p[5]));
+			  get_unaligned_be24(&p[5]));
 
 	p += 8;
 	total_count -= 8;
@@ -430,13 +389,13 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 	while (total_count > 0) {
 		MHVTL_DBG(3, "Element Status Page");
 		MHVTL_DBG(3, "  Element Type code            : %d (%s)",
-					p[0], slot_type_str(p[0]));
+				  p[0], slot_type_str(p[0]));
 
 		voltag = (p[1] & 0x80) ? 1 : 0;
 		MHVTL_DBG(3, "  Primary Vol Tag              : %s",
-					voltag ? "Yes" : "No");
+				  voltag ? "Yes" : "No");
 		MHVTL_DBG(3, "  Alt Vol Tag                  : %s",
-					(p[1] & 0x40) ? "Yes" : "No");
+				  (p[1] & 0x40) ? "Yes" : "No");
 		elem_len = get_unaligned_be16(&p[2]);
 		MHVTL_DBG(3, "  Element descriptor length    : %d", elem_len);
 		page_bytes = get_unaligned_be24(&p[5]);
@@ -446,10 +405,10 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 		total_count -= 8;
 
 		MHVTL_DBG(3, "Element Descriptor(s) : Num of Elements %d",
-					page_elements);
+				  page_elements);
 
 		i = dump_element_desc(p, voltag, page_elements, elem_len,
-					smc_p->pm->dvcid_serial_only);
+							  smc_p->pm->dvcid_serial_only);
 		p += i;
 		total_count -= i;
 	}
@@ -461,20 +420,19 @@ static void decode_element_status(struct smc_priv *smc_p, uint8_t *p)
 /*
  * Calculate length of one element
  */
-static int sizeof_element(struct scsi_cmd *cmd, int type)
-{
+static int sizeof_element(struct scsi_cmd *cmd, int type) {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
-	int dvcid;
-	int voltag;
+	int				 dvcid;
+	int				 voltag;
 
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 	if (smc_p->pm->no_dvcid_flag)
 		dvcid = 1;
 	else
-		dvcid = cmd->scb[6] & 0x01;	/* Device ID */
+		dvcid = cmd->scb[6] & 0x01; /* Device ID */
 
 	return 16 + (voltag ? VOLTAG_LEN : 0) +
-		(dvcid && (type == DATA_TRANSFER) ? smc_p->pm->dvcid_len : 0);
+		   (dvcid && (type == DATA_TRANSFER) ? smc_p->pm->dvcid_len : 0);
 }
 
 /*
@@ -482,19 +440,18 @@ static int sizeof_element(struct scsi_cmd *cmd, int type)
  *
  * Returns number of bytes in element data.
  */
-static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
-{
+static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s) {
 	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
-	struct d_info *d = NULL;
-	int j = 0;
-	uint8_t voltag;
-	uint8_t dvcid;
+	struct d_info	*d	   = NULL;
+	int				 j	   = 0;
+	uint8_t			 voltag;
+	uint8_t			 dvcid;
 
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 	if (smc_p->pm->no_dvcid_flag)
 		dvcid = 1;
 	else
-		dvcid = cmd->scb[6] & 0x01;	/* Device ID */
+		dvcid = cmd->scb[6] & 0x01; /* Device ID */
 
 	/* Should never occur, but better to trap then core */
 	if (!s) {
@@ -517,29 +474,29 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 	}
 	j++;
 
-	p[j++] = 0;	/* Reserved */
+	p[j++] = 0; /* Reserved */
 
-/* Possible values for ASC/ASCQ for data transfer elements
- * 0x30/0x03 Cleaner cartridge present
- * 0x83/0x00 Barcode not scanned
- * 0x83/0x02 No magazine installed
- * 0x83/0x04 Tape drive not installed
- * 0x83/0x09 Unable to read bar code
- * 0x80/0x5d Drive operating in overheated state
- * 0x80/0x5e Drive being shutdown due to overheat condition
- * 0x80/0x63 Drive operating with low module fan speed
- * 0x80/0x5f Drive being shutdown due to low module fan speed
- */
-	p[j++] = (s->asc_ascq >> 8) & 0xff;  /* Additional Sense Code */
-	p[j++] = s->asc_ascq & 0xff; /* Additional Sense Code Qualifer */
+	/* Possible values for ASC/ASCQ for data transfer elements
+	 * 0x30/0x03 Cleaner cartridge present
+	 * 0x83/0x00 Barcode not scanned
+	 * 0x83/0x02 No magazine installed
+	 * 0x83/0x04 Tape drive not installed
+	 * 0x83/0x09 Unable to read bar code
+	 * 0x80/0x5d Drive operating in overheated state
+	 * 0x80/0x5e Drive being shutdown due to overheat condition
+	 * 0x80/0x63 Drive operating with low module fan speed
+	 * 0x80/0x5f Drive being shutdown due to low module fan speed
+	 */
+	p[j++] = (s->asc_ascq >> 8) & 0xff; /* Additional Sense Code */
+	p[j++] = s->asc_ascq & 0xff;		/* Additional Sense Code Qualifer */
 
-	p[j++] = 0;		/* Reserved */
+	p[j++] = 0; /* Reserved */
 	if (s->element_type == DATA_TRANSFER)
 		p[j++] = d->SCSI_ID;
 	else
-		p[j++] = 0;	/* Reserved */
+		p[j++] = 0; /* Reserved */
 
-	p[j++] = 0;	/* Reserved */
+	p[j++] = 0; /* Reserved */
 
 	/* bit 8 set if Source Storage Element is valid | s->occupied */
 	if (s->media)
@@ -565,7 +522,7 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 	j += 2;
 
 	MHVTL_DBG(2, "Slot location: %d, DVCID: %d, VOLTAG: %d, status: 0x%02x",
-			s->slot_location, dvcid, voltag, s->status);
+			  s->slot_location, dvcid, voltag, s->status);
 
 	if (voltag) {
 		/* Barcode with trailing space(s) */
@@ -577,18 +534,18 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 		} else
 			memset(&p[j], 0, VOLTAG_LEN);
 
-		j += VOLTAG_LEN;	/* Account for barcode */
+		j += VOLTAG_LEN; /* Account for barcode */
 	}
 
 	if (dvcid && s->element_type == DATA_TRANSFER) {
-		p[j++] = 2;	/* Code set 2 = ASCII */
+		p[j++] = 2; /* Code set 2 = ASCII */
 		/* Identifier type - If serial number only - 0, otherwise 1 */
 		p[j++] = smc_p->pm->dvcid_serial_only ? 0 : 1;
-		p[j++] = 0;	/* Reserved */
-		p[j++] = smc_p->pm->dvcid_len;	/* Identifier Length */
+		p[j++] = 0;					   /* Reserved */
+		p[j++] = smc_p->pm->dvcid_len; /* Identifier Length */
 		if (smc_p->pm->dvcid_serial_only) {
 			blank_fill(&p[j], d->inq_product_sno,
-							smc_p->pm->dvcid_len);
+					   smc_p->pm->dvcid_len);
 			j += smc_p->pm->dvcid_len;
 		} else {
 			blank_fill(&p[j], d->inq_vendor_id, 8);
@@ -599,39 +556,38 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s)
 			j += 10;
 		}
 	} else {
-		p[j++] = 0;	/* Reserved */
-		p[j++] = 0;	/* Reserved */
-		p[j++] = 0;	/* Reserved */
-		p[j++] = 0;	/* Reserved */
+		p[j++] = 0; /* Reserved */
+		p[j++] = 0; /* Reserved */
+		p[j++] = 0; /* Reserved */
+		p[j++] = 0; /* Reserved */
 	}
 	MHVTL_DBG(3, "Element Descriptor - Returning %d (0x%02x) bytes", j, j);
 
-return j;
+	return j;
 }
 
 /*
  * Fill in element status page Header (8 bytes)
  */
 static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
-					uint16_t element_count,
-					uint8_t type)
-{
+										 uint16_t element_count,
+										 uint8_t  type) {
 	struct smc_priv *smc_p;
-	int element_sz;
-	uint32_t element_len;
-	uint8_t voltag;
+	int				 element_sz;
+	uint32_t		 element_len;
+	uint8_t			 voltag;
 
-	smc_p = (struct smc_priv *)cmd->lu->lu_private;
+	smc_p  = (struct smc_priv *)cmd->lu->lu_private;
 	voltag = (cmd->scb[1] & 0x10) >> 4;
 
 	element_sz = sizeof_element(cmd, type);
 
-	p[0] = type;	/* Element type Code */
+	p[0] = type; /* Element type Code */
 
 	/* Primary Volume Tag set - Returning Barcode info */
 	p[1] = (voltag == 0) ? 0 : 0x80;
 	if (smc_p->pm->dvcid_serial_only && type == DATA_TRANSFER)
-		p[1] |= 0x40;	/* Set AVolTag */
+		p[1] |= 0x40; /* Set AVolTag */
 
 	/* Number of bytes per element */
 	put_unaligned_be16(element_sz, &p[2]);
@@ -639,14 +595,14 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
 	element_len = element_sz * element_count;
 
 	/* Total number of bytes in all element descriptors */
-	put_unaligned_be32(element_len & 0xffffff, &p[4]);
+	put_unaligned_be24(element_len, &p[5]);
 
 	/* Reserved */
-	p[4] = 0;	/* Above mask should have already set this to 0... */
+	p[4] = 0; /* Above mask should have already set this to 0... */
 
 	MHVTL_DBG(2, "Element Status Page Header: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x",
-			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+				 "%02x %02x %02x %02x %02x %02x %02x %02x",
+			  p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 }
 
 /*
@@ -654,11 +610,10 @@ static void fill_element_status_page_hdr(struct scsi_cmd *cmd, uint8_t *p,
  *
  */
 static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
-					uint32_t byte_count)
-{
+										uint32_t byte_count) {
 	MHVTL_DBG(2, "Building READ ELEMENT STATUS Header struct");
 	MHVTL_DBG(2, " Starting slot: %d, number of configured slots: %d",
-					start, count);
+			  start, count);
 
 	/* Start of ELEMENT STATUS DATA */
 	put_unaligned_be16(start, &p[0]);
@@ -668,37 +623,36 @@ static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
 	 * valid data.
 	 * The 'allocated length' indicates how much data can be returned.
 	 */
-	put_unaligned_be32(byte_count & 0xffffff, &p[4]);
+	put_unaligned_be24(byte_count, &p[5]);
 
 	MHVTL_DBG(2, " Element Status Data HEADER: "
-			"%02x %02x %02x %02x %02x %02x %02x %02x",
-			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+				 "%02x %02x %02x %02x %02x %02x %02x %02x",
+			  p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 	MHVTL_DBG(3, " Decoded:");
 	MHVTL_DBG(3, "  First element Address    : %d (0x%02x)",
-					get_unaligned_be16(&p[0]),
-					get_unaligned_be16(&p[0]));
+			  get_unaligned_be16(&p[0]),
+			  get_unaligned_be16(&p[0]));
 	MHVTL_DBG(3, "  Number elements reported : %d (0x%02x)",
-					get_unaligned_be16(&p[2]),
-					get_unaligned_be16(&p[2]));
+			  get_unaligned_be16(&p[2]),
+			  get_unaligned_be16(&p[2]));
 	MHVTL_DBG(3, "  Total byte count         : %d (0x%04x)",
-					get_unaligned_be32(&p[4]),
-					get_unaligned_be32(&p[4]));
+			  get_unaligned_be32(&p[4]),
+			  get_unaligned_be32(&p[4]));
 
-return 8;	/* Header is 8 bytes in size.. */
+	return 8; /* Header is 8 bytes in size.. */
 }
 
 /* Returns address of first available elements from starting number */
 static uint32_t find_first_matching_element(struct smc_priv *priv,
-						uint32_t start,
-						uint8_t type)
-{
+											uint32_t		 start,
+											uint8_t			 type) {
 	struct list_head *slot_head;
-	struct s_info *sp;
+	struct s_info	 *sp;
 
 	slot_head = &priv->slot_list;
 
 	list_for_each_entry(sp, slot_head, siblings) {
-		if (!type) {	/* Element type not defined */
+		if (!type) { /* Element type not defined */
 			if (sp->slot_location >= start)
 				return sp->slot_location;
 		} else if (sp->element_type == type) {
@@ -711,11 +665,10 @@ static uint32_t find_first_matching_element(struct smc_priv *priv,
 
 /* Returns number of available elements left from starting number */
 static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
-					uint32_t start, uint32_t max)
-{
+									   uint32_t start, uint32_t max) {
 	struct list_head *slot_head;
-	struct s_info *sp;
-	unsigned int counted = 0;
+	struct s_info	 *sp;
+	unsigned int	  counted = 0;
 
 	slot_head = &priv->slot_list;
 
@@ -732,10 +685,10 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
 	}
 
 	MHVTL_DBG(2, "Determining %d element%s of type %s starting at %d"
-			", returning %d",
-				max, max == 1 ? "" : "s",
-				slot_type_str(type),
-				start, counted);
+				 ", returning %d",
+			  max, max == 1 ? "" : "s",
+			  slot_type_str(type),
+			  start, counted);
 
 	return counted;
 }
@@ -751,19 +704,18 @@ static uint32_t num_available_elements(struct smc_priv *priv, uint8_t type,
  * Returns number of bytes in element page(s)
  */
 static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
-				uint16_t start, uint8_t type,
-				uint16_t residual)
-{
+								  uint16_t start, uint8_t type,
+								  uint16_t residual) {
 	struct smc_priv *smc_p;
-	int j;
-	uint8_t *cdb = cmd->scb;
-	struct s_info *sp;
+	int				 j;
+	uint8_t			*cdb = cmd->scb;
+	struct s_info	*sp;
 
-	uint16_t max_count;	/* Max element count */
+	uint16_t max_count; /* Max element count */
 	uint32_t avail_count;
 	uint32_t element_sz;
 	uint16_t begin_element;
-	int slot_count;
+	int		 slot_count;
 
 	max_count = get_unaligned_be16(&cdb[4]);
 	if (max_count == 0)
@@ -771,7 +723,7 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 
 	slot_count = max_count - residual;
 	if (slot_count <= 0)
-		return 0;	/* No more slots to report on */
+		return 0; /* No more slots to report on */
 
 	/* Update max_count to reflect 'sum' value */
 	max_count = (uint16_t)slot_count;
@@ -779,11 +731,11 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 	smc_p = (struct smc_priv *)cmd->lu->lu_private;
 
 	MHVTL_DBG(2, "Query %d element%s starting from addr: %d"
-			" of type: (%d) %s",
-				max_count,
-				(max_count == 1) ? "" : "s",
-				start,
-				type, slot_type_str(type));
+				 " of type: (%d) %s",
+			  max_count,
+			  (max_count == 1) ? "" : "s",
+			  start,
+			  type, slot_type_str(type));
 
 	/* Find first valid slot. */
 	begin_element = find_first_matching_element(smc_p, start, type);
@@ -792,10 +744,10 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 		return 0;
 	}
 
-	avail_count =  num_available_elements(smc_p, type, start, max_count);
+	avail_count = num_available_elements(smc_p, type, start, max_count);
 
 	MHVTL_DBG(3, "Available count: %d, type: (%d) %s",
-				avail_count, type, slot_type_str(type));
+			  avail_count, type, slot_type_str(type));
 
 	/* Create Element Status Page Header. */
 	fill_element_status_page_hdr(cmd, p, avail_count, type);
@@ -811,27 +763,27 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 			continue;
 		if (type) {
 			if (sp->element_type != type)
-				continue;	/* Don't report on this one */
+				continue; /* Don't report on this one */
 		} else {
 			/* Any type.. Need to fill in one type at a time */
 			if (sp->slot_location == start)
 				type = sp->element_type;
 		}
 		element_sz = fill_ed(cmd, p, sp);
-		avail_count += element_sz;	/* inc byte count */
+		avail_count += element_sz; /* inc byte count */
 		MHVTL_DBG(3, "Count: %d, max_count: %d, slot: %d, "
-				"byte_count: 0x%04x (%d)",
-				j, max_count, sp->slot_location,
-				avail_count, avail_count);
+					 "byte_count: 0x%04x (%d)",
+				  j, max_count, sp->slot_location,
+				  avail_count, avail_count);
 		if (debug)
 			hex_dump(p, element_sz);
-		p += element_sz;		/* inc pointer into dest buf */
+		p += element_sz; /* inc pointer into dest buf */
 		j++;
 		if (j > max_count)
 			break;
 	}
 
-return avail_count;
+	return avail_count;
 }
 
 /*
@@ -840,54 +792,53 @@ return avail_count;
  * Returns number of bytes to xfer back to host.
  */
 
-#define NUM_SLOT	4	/* 4 Element types */
+#define NUM_SLOT 4 /* 4 Element types */
 
-uint8_t smc_read_element_status(struct scsi_cmd *cmd)
-{
-	struct smc_priv *smc_p = (struct smc_priv *)cmd->lu->lu_private;
-	struct lu_phy_attr *lu = cmd->lu;
-	uint8_t *cdb = cmd->scb;
-	uint8_t *p;
-	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	uint8_t	type = cdb[1] & 0x0f;
-	uint16_t sum;
-	uint16_t req_start_elem;
-	uint16_t req_number;	/* Num of elements initiator requested */
-	uint32_t alloc_len;	/* Amount of space initiator has pre alloc */
-	uint16_t start;		/* First valid slot location */
-	uint16_t start_any;	/* First valid slot location - temp count */
-	uint32_t elem_byte_count;
-	uint32_t byte_count;
-	uint32_t cur_count;
-	struct s_sd sd;
+uint8_t smc_read_element_status(struct scsi_cmd *cmd) {
+	struct smc_priv		*smc_p = (struct smc_priv *)cmd->lu->lu_private;
+	struct lu_phy_attr	*lu	   = cmd->lu;
+	uint8_t				*cdb   = cmd->scb;
+	uint8_t				*p;
+	uint8_t				*sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t				 type	  = cdb[1] & 0x0f;
+	uint16_t			 sum;
+	uint16_t			 req_start_elem;
+	uint16_t			 req_number; /* Num of elements initiator requested */
+	uint32_t			 alloc_len;	 /* Amount of space initiator has pre alloc */
+	uint16_t			 start;		 /* First valid slot location */
+	uint16_t			 start_any;	 /* First valid slot location - temp count */
+	uint32_t			 elem_byte_count;
+	uint32_t			 byte_count;
+	uint32_t			 cur_count;
+	struct s_sd			 sd;
 	struct smc_type_slot type_arr[NUM_SLOT]; /* Hold sorted slot type */
-	char start_slot_type;
-	int i;
+	char				 start_slot_type;
+	int					 i;
 
 #ifdef MHVTL_DEBUG
-	uint8_t	voltag = (cdb[1] & 0x10) >> 4;
-	uint8_t dvcid;	/* Device ID */
+	uint8_t voltag = (cdb[1] & 0x10) >> 4;
+	uint8_t dvcid; /* Device ID */
 	if (smc_p->pm->no_dvcid_flag)
 		dvcid = 1;
 	else
-		dvcid = cmd->scb[6] & 0x01;	/* Device ID */
+		dvcid = cmd->scb[6] & 0x01; /* Device ID */
 #endif
 
 	MHVTL_DBG(1, "READ ELEMENT STATUS (%ld) **",
-				(long)cmd->dbuf_p->serialNo);
+			  (long)cmd->dbuf_p->serialNo);
 
 	req_start_elem = get_unaligned_be16(&cdb[2]);
-	req_number = get_unaligned_be16(&cdb[4]);
-	alloc_len = 0xffffff & get_unaligned_be32(&cdb[6]);
+	req_number	   = get_unaligned_be16(&cdb[4]);
+	alloc_len	   = get_unaligned_be24(&cdb[7]);
 
 	MHVTL_DBG(3, " Element type(%d) => %s", type, slot_type_str(type));
 	MHVTL_DBG(3, "  Starting Element Address: %d", req_start_elem);
 	MHVTL_DBG(3, "  Number of Elements      : %d", req_number);
 	MHVTL_DBG(3, "  Allocation length       : %d (0x%04x)",
-						 alloc_len, alloc_len);
+			  alloc_len, alloc_len);
 	MHVTL_DBG(3, "  Device ID: %s, voltag: %s",
-					(dvcid == 0) ? "No" :  "Yes",
-					(voltag == 0) ? "No" :  "Yes");
+			  (dvcid == 0) ? "No" : "Yes",
+			  (voltag == 0) ? "No" : "Yes");
 
 	p = (uint8_t *)cmd->dbuf_p->data;
 
@@ -899,9 +850,9 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	/* Init buffer */
 	memset(p, 0, alloc_len);
 
-	if (cdb[11] != 0x0) {	/* Reserved byte.. */
+	if (cdb[11] != 0x0) { /* Reserved byte.. */
 		MHVTL_DBG(2, "cdb[11] : Illegal value of %02x", cdb[11]);
-		sd.byte0 = SKSV | CD;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 11;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -909,7 +860,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
 	/* Find first matching slot number which matches the type. */
 	start = find_first_matching_element(smc_p, req_start_elem, type);
-	if (start == 0) {	/* Nothing found.. */
+	if (start == 0) { /* Nothing found.. */
 		MHVTL_DBG(1, "Start element is still 0, line %d", __LINE__);
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -937,20 +888,20 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		break;
 	case ANY:
 		/* Don't modify 'start' value as it is needed later */
-		start_any = start;
+		start_any		= start;
 		start_slot_type = slot_type(smc_p, start_any);
 		sort_library_slot_type(lu, &type_arr[0]);
 
 		/* Find out where we are up to */
 		for (i = 0; i < NUM_SLOT; i++) {
 			MHVTL_DBG(2, "Testing type %d with %d",
-					type_arr[i].type, start_slot_type);
+					  type_arr[i].type, start_slot_type);
 			if (type_arr[i].type == start_slot_type)
 				break;
 		}
 		if (i >= NUM_SLOT) { /* Not found in above for loop */
 			MHVTL_ERR("Couldn't find starting slot type !!");
-			sd.byte0 = SKSV | CD;
+			sd.byte0		 = SKSV | CD;
 			sd.field_pointer = 3;
 			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd,
 								sam_stat);
@@ -960,24 +911,24 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 		MHVTL_DBG(3, "All element type: Starting at %d", start_any);
 		for (; i < NUM_SLOT; i++) {
 			MHVTL_DBG(3, "i: %d, type_arr[i].type: (%d) %s, "
-					"type_arr[i].start: %d",
-					i, type_arr[i].type,
-					slot_type_str(type_arr[i].type),
-					type_arr[i].start);
+						 "type_arr[i].start: %d",
+					  i, type_arr[i].type,
+					  slot_type_str(type_arr[i].type),
+					  type_arr[i].start);
 
 			byte_count = fill_element_page(cmd, p, start_any,
-							type_arr[i].type, sum);
+										   type_arr[i].type, sum);
 			elem_byte_count += byte_count;
 			p += byte_count;
 			sum += byte_count /
-				sizeof_element(cmd, type_arr[i].type);
+				   sizeof_element(cmd, type_arr[i].type);
 
-			if (i < NUM_SLOT - 1)	/* Next slot type number */
+			if (i < NUM_SLOT - 1) /* Next slot type number */
 				start_any = type_arr[i + 1].start;
 		}
 		break;
-	default:	/* Illegal descriptor type. */
-		sd.byte0 = SKSV | CD;
+	default: /* Illegal descriptor type. */
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -988,7 +939,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
 	/* Now populate the 'main' header structure with byte count.. */
 	fill_element_status_data_hdr(cmd->dbuf_p->data, start, cur_count,
-					elem_byte_count);
+								 elem_byte_count);
 
 #ifdef MHVTL_DEBUG
 	if (debug)
@@ -1001,10 +952,10 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 	cmd->dbuf_p->sz = min(elem_byte_count + 8, alloc_len);
 
 	MHVTL_DBG(2, "Element count: %d, Elem byte count: %d (0x%04x),"
-				" alloc_len: %d, returning %d",
-					cur_count,
-					elem_byte_count, elem_byte_count,
-					alloc_len, cmd->dbuf_p->sz);
+				 " alloc_len: %d, returning %d",
+			  cur_count,
+			  elem_byte_count, elem_byte_count,
+			  alloc_len, cmd->dbuf_p->sz);
 
 	return SAM_STAT_GOOD;
 }
@@ -1015,9 +966,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd)
 
  * FIXME: I really need a timeout here..
  */
-static int check_tape_load(void)
-{
-	int mlen, r_qid;
+static int check_tape_load(void) {
+	int			   mlen, r_qid;
 	struct q_entry q;
 
 	/* Initialise message queue as necessary */
@@ -1030,9 +980,9 @@ static int check_tape_load(void)
 	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
 	if (mlen > 0)
 		MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
-					my_id,
-					q.msg.text,
-					q.msg.snd_id);
+				  my_id,
+				  q.msg.text,
+				  q.msg.snd_id);
 
 	/* msg defined in q.h */
 	return strncmp(msg_load_ok, q.msg.text, strlen(msg_load_ok));
@@ -1041,39 +991,37 @@ static int check_tape_load(void)
 /*
  * Logically move information from 'src' address to 'dest' address
  */
-static void move_cart(struct s_info *src, struct s_info *dest)
-{
+static void move_cart(struct s_info *src, struct s_info *dest) {
 
 	dest->media = src->media;
 
-	dest->last_location = src->slot_location;
+	dest->last_location		   = src->slot_location;
 	dest->media->last_location = src->slot_location;
 
 	setSlotFull(dest);
 	if (is_map_slot(dest))
 		setImpExpStatus(dest, ROBOT_ARM); /* Placed by robot arm */
 
-	src->media = NULL;
-	src->last_location = 0;		/* Forget where the old media was */
+	src->media		   = NULL;
+	src->last_location = 0; /* Forget where the old media was */
 	setSlotEmpty(src);		/* Clear Full bit */
 	MHVTL_DBG(1, "Setting src slot access true");
-	setAccessStatus(src, 1);	/* Set the access bit now it's empty */
+	setAccessStatus(src, 1); /* Set the access bit now it's empty */
 }
 
 static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
-			struct s_info *dest, uint8_t *sam_stat)
-{
+							struct s_info *dest, uint8_t *sam_stat) {
 	char *movecommand;
-	char barcode[MAX_BARCODE_LEN + 1];
-	int res = 0;
-	int cmdlen;
+	char  barcode[MAX_BARCODE_LEN + 1];
+	int	  res = 0;
+	int	  cmdlen;
 
 	if (!smc_p->movecommand) {
 		/* no command: do nothing */
 		return SAM_STAT_GOOD;
 	}
 
-	cmdlen = strlen(smc_p->movecommand)+MAX_BARCODE_LEN+4*10;
+	cmdlen		= strlen(smc_p->movecommand) + MAX_BARCODE_LEN + 4 * 10;
 	movecommand = zalloc(cmdlen + 1);
 
 	if (!movecommand) {
@@ -1085,13 +1033,12 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 	sprintf(barcode, "%s", src->media->barcode);
 	truncate_spaces(&barcode[0], MAX_BARCODE_LEN + 1);
 	snprintf(movecommand, cmdlen, "%s %s %d %s %d %s",
-			smc_p->movecommand,
-			slot_type_str(src->element_type),
-			slot_number(smc_p->pm, src),
-			slot_type_str(dest->element_type),
-			slot_number(smc_p->pm, dest),
-			barcode
-	);
+			 smc_p->movecommand,
+			 slot_type_str(src->element_type),
+			 slot_number(smc_p->pm, src),
+			 slot_type_str(dest->element_type),
+			 slot_number(smc_p->pm, dest),
+			 barcode);
 	MHVTL_DBG(3, "Calling external script: %s", movecommand);
 	res = run_command(movecommand, smc_p->commandtimeout);
 	if (res) {
@@ -1103,16 +1050,15 @@ static int run_move_command(struct smc_priv *smc_p, struct s_info *src,
 }
 
 static int move_slot2drive(struct smc_priv *smc_p,
-		 int src_addr, int dest_addr, uint8_t *sam_stat)
-{
+						   int src_addr, int dest_addr, uint8_t *sam_stat) {
 	struct s_info *src;
 	struct d_info *dest;
-	char cmd[MAX_BARCODE_LEN + 12];
-	int retval;
+	char		   cmd[MAX_BARCODE_LEN + 12];
+	int			   retval;
 
 	current_state = MHVTL_STATE_MOVING_SLOT_2_DRIVE;
 
-	src  = slot2struct(smc_p, src_addr);
+	src	 = slot2struct(smc_p, src_addr);
 	dest = drive2struct(smc_p, dest_addr);
 
 	if (!slotOccupied(src)) {
@@ -1146,7 +1092,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	 */
 
 	MHVTL_DBG(1, "About to send cmd: \'%s\' to drive %d",
-					cmd, slot_number(smc_p->pm, dest->slot));
+			  cmd, slot_number(smc_p->pm, dest->slot));
 
 	send_msg(cmd, dest->drv_id);
 
@@ -1158,16 +1104,16 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
 
 		sprintf(smc_p->state_msg,
-			"Moving %s from %s slot %d to drive %d",
-					cmd,
-					slot_type_str(src->element_type),
-					slot_number(smc_p->pm, src),
-					slot_number(smc_p->pm, dest->slot));
+				"Moving %s from %s slot %d to drive %d",
+				cmd,
+				slot_type_str(src->element_type),
+				slot_number(smc_p->pm, src),
+				slot_number(smc_p->pm, dest->slot));
 	}
 
 	if (check_tape_load()) {
 		MHVTL_ERR("Load of %s into drive %d failed",
-					cmd, slot_number(smc_p->pm, dest->slot));
+				  cmd, slot_number(smc_p->pm, dest->slot));
 		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1181,23 +1127,22 @@ static int move_slot2drive(struct smc_priv *smc_p,
 }
 
 static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
-			int dest_addr, uint8_t *sam_stat)
-{
+						  int dest_addr, uint8_t *sam_stat) {
 	struct s_info *src;
 	struct s_info *dest;
-	char cmd[MAX_BARCODE_LEN + 1];
-	int retval;
+	char		   cmd[MAX_BARCODE_LEN + 1];
+	int			   retval;
 
 	current_state = MHVTL_STATE_MOVING_SLOT_2_SLOT;
 
-	src  = slot2struct(smc_p, src_addr);
+	src	 = slot2struct(smc_p, src_addr);
 	dest = slot2struct(smc_p, dest_addr);
 
 	MHVTL_DBG(1, "Moving from %s slot %d to %s slot %d",
-				slot_type_str(src->element_type),
-				src->slot_location,
-				slot_type_str(dest->element_type),
-				dest->slot_location);
+			  slot_type_str(src->element_type),
+			  src->slot_location,
+			  slot_type_str(dest->element_type),
+			  dest->slot_location);
 
 	if (!slotOccupied(src)) {
 		sam_illegal_request(E_MEDIUM_SRC_EMPTY, NULL, sam_stat);
@@ -1230,12 +1175,12 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 		sprintf(cmd, "%s", src->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
 		sprintf(smc_p->state_msg,
-			"Moving %s from %s slot %d to %s slot %d",
-					cmd,
-					slot_type_str(src->element_type),
-					slot_number(smc_p->pm, src),
-					slot_type_str(dest->element_type),
-					slot_number(smc_p->pm, dest));
+				"Moving %s from %s slot %d to %s slot %d",
+				cmd,
+				slot_type_str(src->element_type),
+				slot_number(smc_p->pm, src),
+				slot_type_str(dest->element_type),
+				slot_number(smc_p->pm, dest));
 	}
 
 	retval = run_move_command(smc_p, src, dest, sam_stat);
@@ -1246,8 +1191,7 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 }
 
 /* Return OK if 'addr' is within either a MAP, Drive or Storage slot */
-static int valid_slot(struct smc_priv *smc_p, int addr)
-{
+static int valid_slot(struct smc_priv *smc_p, int addr) {
 	struct s_info *slt;
 	struct d_info *drv;
 
@@ -1255,19 +1199,19 @@ static int valid_slot(struct smc_priv *smc_p, int addr)
 	switch (slot_type(smc_p, addr)) {
 	case STORAGE_ELEMENT:
 	case MAP_ELEMENT:
-		slt  = slot2struct(smc_p, addr);
+		slt = slot2struct(smc_p, addr);
 		if (slt)
-			return TRUE;	/* slot, return true */
+			return TRUE; /* slot, return true */
 		break;
 	case DATA_TRANSFER:
-		drv  = drive2struct(smc_p, addr);
+		drv = drive2struct(smc_p, addr);
 		if (!drv) {
 			MHVTL_DBG(1, "No target drive %d in device.conf", addr);
-			return FALSE;	/* No drive, return false */
+			return FALSE; /* No drive, return false */
 		}
 		if (drv->drv_id) {
 			MHVTL_DBG(3, "Found drive id: %d", (int)drv->drv_id);
-			return TRUE;	/* Found a drive ID */
+			return TRUE; /* Found a drive ID */
 		} else {
 			MHVTL_ERR("No drive in slot: %d", addr);
 		}
@@ -1277,16 +1221,15 @@ static int valid_slot(struct smc_priv *smc_p, int addr)
 }
 
 static int move_drive2slot(struct smc_priv *smc_p,
-			int src_addr, int dest_addr, uint8_t *sam_stat)
-{
-	char cmd[MAX_BARCODE_LEN + 1 + 12];	/* 12 being the longest msg string */
+						   int src_addr, int dest_addr, uint8_t *sam_stat) {
+	char		   cmd[MAX_BARCODE_LEN + 1 + 12]; /* 12 being the longest msg string */
 	struct d_info *src;
 	struct s_info *dest;
-	int retval;
+	int			   retval;
 
 	current_state = MHVTL_STATE_MOVING_DRIVE_2_SLOT;
 
-	src  = drive2struct(smc_p, src_addr);
+	src	 = drive2struct(smc_p, src_addr);
 	dest = slot2struct(smc_p, dest_addr);
 
 	if (!driveOccupied(src)) {
@@ -1317,7 +1260,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 		/* Now we wait for the tape device to respond with status of unload */
 		if (check_tape_unload()) {
 			MHVTL_ERR("Unload of %s from drive %d failed",
-					cmd, slot_number(smc_p->pm, src->slot));
+					  cmd, slot_number(smc_p->pm, src->slot));
 			sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
 		}
@@ -1329,32 +1272,37 @@ static int move_drive2slot(struct smc_priv *smc_p,
 		sprintf(cmd, "%s", src->slot->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
 		sprintf(smc_p->state_msg,
-			"Moving %s from drive %d to %s slot %d",
-					cmd,
-					slot_number(smc_p->pm, src->slot),
-					slot_type_str(dest->element_type),
-					slot_number(smc_p->pm, dest));
+				"Moving %s from drive %d to %s slot %d",
+				cmd,
+				slot_number(smc_p->pm, src->slot),
+				slot_type_str(dest->element_type),
+				slot_number(smc_p->pm, dest));
 	}
 
 	move_cart(src->slot, dest);
 	setDriveEmpty(src);
 
-return retval;
+	return retval;
 }
 
 /* Move media in drive 'src_addr' to drive 'dest_addr' */
 static int move_drive2drive(struct smc_priv *smc_p,
-			int src_addr, int dest_addr, uint8_t *sam_stat)
-{
+							int src_addr, int dest_addr, uint8_t *sam_stat) {
 	struct d_info *src;
 	struct d_info *dest;
-	char cmd[MAX_BARCODE_LEN + 12];
-	int retval;
+	char		   cmd[MAX_BARCODE_LEN + 12];
+	int			   retval;
 
 	current_state = MHVTL_STATE_MOVING_DRIVE_2_DRIVE;
 
-	src  = drive2struct(smc_p, src_addr);
+	src	 = drive2struct(smc_p, src_addr);
 	dest = drive2struct(smc_p, dest_addr);
+
+	if (src_addr == dest_addr) {
+		/* Did not find documentation for this behavior but feels like it should not fail */
+		MHVTL_DBG(1, "Same source and destination address : %d : do nothing", src_addr);
+		return SAM_STAT_GOOD;
+	}
 
 	if (!driveOccupied(src)) {
 		sam_illegal_request(E_MEDIUM_SRC_EMPTY, NULL, sam_stat);
@@ -1372,15 +1320,15 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	/* Send 'unload' message to drive b4 the move.. */
 	MHVTL_DBG(2, "Unloading %s from drive %d",
-				src->slot->media->barcode,
-				slot_number(smc_p->pm, src->slot));
+			  src->slot->media->barcode,
+			  slot_number(smc_p->pm, src->slot));
 
 	sprintf(cmd, "unload %s", src->slot->media->barcode);
 	send_msg(cmd, src->drv_id);
 	/* Now we wait for the tape device to respond with status of unload */
 	if (check_tape_unload()) {
 		MHVTL_ERR("Failed to unload tape from drive %d",
-				slot_number(smc_p->pm, src->slot));
+				  slot_number(smc_p->pm, src->slot));
 		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1392,16 +1340,16 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 	MHVTL_DBG(2, "Sending cmd: \'%s\' to drive %d",
-				cmd, slot_number(smc_p->pm, dest->slot));
+			  cmd, slot_number(smc_p->pm, dest->slot));
 
 	send_msg(cmd, dest->drv_id);
 
 	if (check_tape_load()) {
 		/* Failed, so put the tape back where it came from */
 		MHVTL_ERR("Failed to move to drive %d, "
-				"placing back into drive %d",
-				slot_number(smc_p->pm, dest->slot),
-				slot_number(smc_p->pm, src->slot));
+				  "placing back into drive %d",
+				  slot_number(smc_p->pm, dest->slot),
+				  slot_number(smc_p->pm, src->slot));
 		move_cart(dest->slot, src->slot);
 		sprintf(cmd, "lload %s", src->slot->media->barcode);
 		truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
@@ -1418,59 +1366,57 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		sprintf(cmd, "%s", dest->slot->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
 		sprintf(smc_p->state_msg,
-			"Moving %s from drive %d to drive %d",
-					cmd,
-					slot_number(smc_p->pm, src->slot),
-					slot_number(smc_p->pm, dest->slot));
+				"Moving %s from drive %d to drive %d",
+				cmd,
+				slot_number(smc_p->pm, src->slot),
+				slot_number(smc_p->pm, dest->slot));
 	}
 
 	/* Set the 'Access bit' to zero - i.e. the picker arm can't access it */
 	setAccessStatus(dest->slot, 0);
 
-return retval;
+	return retval;
 }
 
 /* Move a piece of medium from one slot to another */
-uint8_t smc_move_medium(struct scsi_cmd *cmd)
-{
-	uint8_t *cdb = cmd->scb;
-	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	int transport_addr;
-	int src_addr, src_type;
-	int dest_addr, dest_type;
-	int retval = SAM_STAT_GOOD;
-	struct smc_priv *smc_p = cmd->lu->lu_private;
-	struct s_sd sd;
+uint8_t smc_move_medium(struct scsi_cmd *cmd) {
+	uint8_t			*cdb	  = cmd->scb;
+	uint8_t			*sam_stat = &cmd->dbuf_p->sam_stat;
+	int				 transport_addr;
+	int				 src_addr, src_type;
+	int				 dest_addr, dest_type;
+	int				 retval = SAM_STAT_GOOD;
+	struct smc_priv *smc_p	= cmd->lu->lu_private;
+	struct s_sd		 sd;
 
 	MHVTL_DBG(1, "MOVE MEDIUM (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	transport_addr = get_unaligned_be16(&cdb[2]);
-	src_addr  = get_unaligned_be16(&cdb[4]);
-	dest_addr = get_unaligned_be16(&cdb[6]);
-	src_type = slot_type(smc_p, src_addr);
-	dest_type = slot_type(smc_p, dest_addr);
+	src_addr	   = get_unaligned_be16(&cdb[4]);
+	dest_addr	   = get_unaligned_be16(&cdb[6]);
+	src_type	   = slot_type(smc_p, src_addr);
+	dest_type	   = slot_type(smc_p, dest_addr);
 
 	if (cdb[11] & 0xc0) {
 		MHVTL_DBG(1, "%s",
-			(cdb[11] & 0x80) ? "  Retract I/O port" :
-					   "  Extend I/O port");
+				  (cdb[11] & 0x80) ? "  Retract I/O port" : "  Extend I/O port");
 	} else {
 		MHVTL_DBG(1,
-	 "Moving from slot %d to slot %d using transport %d, Invert media: %s",
-				src_addr, dest_addr, transport_addr,
-				(cdb[10]) ? "yes" : "no");
+				  "Moving from slot %d to slot %d using transport %d, Invert media: %s",
+				  src_addr, dest_addr, transport_addr,
+				  (cdb[10]) ? "yes" : "no");
 	}
 
-	if (cdb[10] != 0) {	/* Can not Invert media */
+	if (cdb[10] != 0) { /* Can not Invert media */
 		MHVTL_ERR("Can not invert media");
-		sd.byte0 = SKSV | CD;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 10;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	if (cdb[11] == 0xc0) {	/* Invalid combo of Extend/retract I/O port */
+	if (cdb[11] == 0xc0) { /* Invalid combo of Extend/retract I/O port */
 		MHVTL_ERR("Extend/retract I/O port invalid");
-		sd.byte0 = SKSV | CD;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 11;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -1482,22 +1428,22 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 		transport_addr = smc_p->pm->start_picker;
 	if (slot_type(smc_p, transport_addr) != MEDIUM_TRANSPORT) {
 		MHVTL_ERR("Can't move media using slot type %d",
-				slot_type(smc_p, transport_addr));
-		sd.byte0 = SKSV | CD;
+				  slot_type(smc_p, transport_addr));
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 2;
 		sam_illegal_request(E_INVALID_ELEMENT_ADDR, &sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, src_addr)) {
 		MHVTL_ERR("Invalid source slot: %d", src_addr);
-		sd.byte0 = SKSV | CD;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 4;
 		sam_illegal_request(E_INVALID_ELEMENT_ADDR, &sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
 	}
 	if (!valid_slot(smc_p, dest_addr)) {
 		MHVTL_ERR("Invalid dest slot: %d", dest_addr);
-		sd.byte0 = SKSV | CD;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 6;
 		sam_illegal_request(E_INVALID_ELEMENT_ADDR, &sd, sam_stat);
 		retval = SAM_STAT_CHECK_CONDITION;
@@ -1507,24 +1453,23 @@ uint8_t smc_move_medium(struct scsi_cmd *cmd)
 		if (src_type == DATA_TRANSFER && dest_type == DATA_TRANSFER) {
 			/* Move between drives */
 			retval = move_drive2drive(smc_p, src_addr, dest_addr,
-						sam_stat);
+									  sam_stat);
 		} else if (src_type == DATA_TRANSFER) {
 			retval = move_drive2slot(smc_p, src_addr, dest_addr,
-						sam_stat);
+									 sam_stat);
 		} else if (dest_type == DATA_TRANSFER) {
 			retval = move_slot2drive(smc_p, src_addr, dest_addr,
-						sam_stat);
-		} else {   /* Move between (non-drive) slots */
+									 sam_stat);
+		} else { /* Move between (non-drive) slots */
 			retval = move_slot2slot(smc_p, src_addr, dest_addr,
-						sam_stat);
+									sam_stat);
 		}
 	}
 
-return retval;
+	return retval;
 }
 
-uint8_t smc_rezero(struct scsi_cmd *cmd)
-{
+uint8_t smc_rezero(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "REZERO (%ld) **", (long)cmd->dbuf_p->serialNo);
 
 	if (!cmd->lu->online) {
@@ -1535,19 +1480,18 @@ uint8_t smc_rezero(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
-{
-	uint8_t *cdb = cmd->scb;
-	struct smc_priv *smc_p = cmd->lu->lu_private;
-	uint8_t *sam_stat = &cmd->dbuf_p->sam_stat;
-	int addr;
-	int action_code;
-	struct s_sd sd;
+uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd) {
+	uint8_t			*cdb	  = cmd->scb;
+	struct smc_priv *smc_p	  = cmd->lu->lu_private;
+	uint8_t			*sam_stat = &cmd->dbuf_p->sam_stat;
+	int				 addr;
+	int				 action_code;
+	struct s_sd		 sd;
 
 	MHVTL_DBG(1, "OPEN/CLOSE IMPORT/EXPORT ELEMENT (%ld) **",
-					(long)cmd->dbuf_p->serialNo);
+			  (long)cmd->dbuf_p->serialNo);
 
-	addr = get_unaligned_be16(&cdb[2]);
+	addr		= get_unaligned_be16(&cdb[2]);
 	action_code = cdb[4] & 0x1f;
 	MHVTL_DBG(2, "addr: %d action_code: %d", addr, action_code);
 
@@ -1570,7 +1514,7 @@ uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
 		break;
 	default:
 		MHVTL_DBG(1, "unknown action code: %d", action_code);
-		sd.byte0 = SKSV | CD;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 4;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -1580,35 +1524,34 @@ uint8_t smc_open_close_import_export_element(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 }
 
-uint8_t smc_log_sense(struct scsi_cmd *cmd)
-{
+uint8_t smc_log_sense(struct scsi_cmd *cmd) {
 	struct lu_phy_attr *lu;
-	uint8_t	*b = cmd->dbuf_p->data;
-	uint8_t *cdb = cmd->scb;
-	uint8_t *sam_stat;
-	int retval;
-	int i;
-	uint16_t alloc_len;
-	struct list_head *l_head;
+	uint8_t			   *b	= cmd->dbuf_p->data;
+	uint8_t			   *cdb = cmd->scb;
+	uint8_t			   *sam_stat;
+	int					retval;
+	int					i;
+	uint16_t			alloc_len;
+	struct list_head   *l_head;
 	struct log_pg_list *l;
-	struct s_sd sd;
+	struct s_sd			sd;
 
 	MHVTL_DBG(1, "LOG SENSE (%ld) **", (long)cmd->dbuf_p->serialNo);
 
-	alloc_len = get_unaligned_be16(&cdb[7]);
+	alloc_len		= get_unaligned_be16(&cdb[7]);
 	cmd->dbuf_p->sz = alloc_len;
 
-	lu = cmd->lu;
+	lu		 = cmd->lu;
 	sam_stat = &cmd->dbuf_p->sam_stat;
-	l_head = &lu->log_pg;
-	retval = 0;
+	l_head	 = &lu->log_pg;
+	retval	 = 0;
 
 	switch (cdb[2] & 0x3f) {
-	case 0:	/* Send supported pages */
+	case 0: /* Send supported pages */
 		MHVTL_DBG(1, "LOG SENSE: Sending supported pages");
-		memset(b, 0, 4);	/* Clear first few (4) bytes */
-		i = 4;
-		b[i++] = 0;	/* b[0] is log page '0' (this one) */
+		memset(b, 0, 4); /* Clear first few (4) bytes */
+		i	   = 4;
+		b[i++] = 0; /* b[0] is log page '0' (this one) */
 		list_for_each_entry(l, l_head, siblings) {
 			MHVTL_DBG(3, "found page 0x%02x", l->log_page_num);
 			b[i] = l->log_page_num;
@@ -1617,34 +1560,34 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd)
 		put_unaligned_be16(i - 4, &b[2]);
 		retval = i;
 		break;
-	case TEMPERATURE_PAGE:	/* Temperature page */
+	case TEMPERATURE_PAGE: /* Temperature page */
 		MHVTL_DBG(1, "LOG SENSE: Temperature page");
-		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE);
+		l = lookup_log_pg(&lu->log_pg, TEMPERATURE_PAGE, NO_SUBPAGE);
 		if (!l)
 			goto log_page_not_found;
 
-		b = memcpy(b, l->p, l->size);
+		b	   = memcpy(b, l->p, l->size);
 		retval = l->size;
 		break;
-	case TAPE_ALERT:	/* TapeAlert page */
+	case TAPE_ALERT: /* TapeAlert page */
 		MHVTL_DBG(1, "LOG SENSE: TapeAlert page");
-/*		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,
-				get_unaligned_be64(&seqAccessDevice.TapeAlert));
-*/
+		/*		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,
+						get_unaligned_be64(&SequentialAccessDevice_pg.TapeAlert));
+		*/
 
-		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT);
+		l = lookup_log_pg(&lu->log_pg, TAPE_ALERT, NO_SUBPAGE);
 		if (!l)
 			goto log_page_not_found;
 
-		b = memcpy(b, l->p, l->size);
+		b	   = memcpy(b, l->p, l->size);
 		retval = l->size;
 
 		/* Clear flags after value read. */
 		if (alloc_len > 4)
-			update_TapeAlert(lu, TA_NONE);
+			update_TapeAlert(TA_NONE);
 		else
 			MHVTL_DBG(1, "TapeAlert : Alloc len short -"
-				" Not clearing TapeAlert flags.");
+						 " Not clearing TapeAlert flags.");
 		break;
 	default:
 		MHVTL_DBG(1, "LOG SENSE: Unknown code: 0x%x", cdb[2] & 0x3f);
@@ -1656,19 +1599,18 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd)
 	return SAM_STAT_GOOD;
 
 log_page_not_found:
-	cmd->dbuf_p->sz = 0;
-	sd.byte0 = SKSV | CD;
+	cmd->dbuf_p->sz	 = 0;
+	sd.byte0		 = SKSV | CD;
 	sd.field_pointer = 2;
 	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 	return SAM_STAT_CHECK_CONDITION;
 }
 
-void unload_drive_on_shutdown(struct s_info *src, struct s_info *dest)
-{
+void unload_drive_on_shutdown(struct s_info *src, struct s_info *dest) {
 	if (!dest)
 		return;
 
 	MHVTL_DBG(1, "Force unload of media %s to slot %d",
-				src->media->barcode, dest->slot_location);
+			  src->media->barcode, dest->slot_location);
 	move_cart(src, dest);
 }

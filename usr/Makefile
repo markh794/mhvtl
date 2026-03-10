@@ -11,7 +11,7 @@
 #
 # Makefile magic
 # $@ is a variable that expands to the name of the file being built
-# $< is a variable that expands to the naem of the source file
+# $< is a variable that expands to the name of the source file
 # @ at the beginning of the first line tell make not to echo the commands as it run it.
 #
 
@@ -19,7 +19,11 @@ CURDIR = "../"
 
 include ../config.mk
 
-CFLAGS=-Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) -I../kernel -I../ccan
+IFLAGS = -I ../include -I ../include/utils -I ../include/common -I ../ccan
+
+CFLAGS = -Wall -Wshadow -g -O2 -D_LARGEFILE64_SOURCE $(RPM_OPT_FLAGS) $(IFLAGS)
+CFLAGS += -MMD -MP # create header dependencies dynamically (.d files)
+CFLAGS += -std=gnu99
 CFLAGS += -DMHVTL_VERSION=\"$(VERSION).$(EXTRAVERSION)\"
 CFLAGS += -DMHVTL_GITDATE=\"$(GITDATE)\"
 CFLAGS += -DMHVTL_GITHASH=\"$(GITHASH)\"
@@ -29,215 +33,235 @@ CFLAGS += -DMHVTL_HOME_PATH=\"$(MHVTL_HOME_PATH)\"
 CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 CFLAGS += -DSYSTEMD_SERVICE_DIR=\"$(SYSTEMD_SERVICE_DIR)\"
 
-CLFLAGS=-shared ${RPM_OPT_FLAGS}
+CLFLAGS = -shared ${RPM_OPT_FLAGS}
 
 # Enable LZODEBUG
 #LZODEBUG = -DLZO_DEBUG
 LZODEBUG =
 
 # files that need to be generated
-GENERATOR_FILES=make_vtl_media.in mhvtl_kernel_mod_build.in
-GENERATED_FILES=$(GENERATOR_FILES:.in=)
+GENERATED_FILES = $(patsubst cmd/%.in,bin/%,$(wildcard cmd/*.in))
 
-all:	libvtlscsi.so libvtlcart.so vtltape dump_tape vtlcmd dump_messageQ \
-	mktape edit_tape vtllibrary tapeexerciser $(GENERATED_FILES) \
-	preload_tape \
-	validate_crc \
-	mhvtl-device-conf-generator
+BINARIES = $(patsubst cmd/%.c,bin/%,$(wildcard cmd/*.c)) bin/dump_tape
+LIBRARIES = libvtlscsi.so
 
-libvtlscsi.so:	vtllib.c spc.c vtllib.h mhvtl_scsi.h smc.c spc.c q.c \
-		subprocess.c subprocess.h \
-		mode.c mhvtl_log.h log.c be_byteshift.h \
-		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -c -fpic log.c
-	$(CC) $(CFLAGS) -c -fpic mode.c
-	$(CC) $(CFLAGS) -c -fpic vtllib.c
-	$(CC) $(CFLAGS) -c -fpic spc.c
-	$(CC) $(CFLAGS) -c -fpic smc.c
-	$(CC) $(CFLAGS) -c -fpic q.c
-	$(CC) $(CFLAGS) -c -fpic subprocess.c
-	$(CC) $(CLFLAGS) -o libvtlscsi.so vtllib.o spc.o smc.o q.o \
-		mode.o log.o subprocess.o -lpthread
+all: | bin
+all: $(LIBRARIES) $(BINARIES) $(GENERATED_FILES) validate_crc
 
-libvtlcart.so: vtlcart.c vtllib.h vtllib.c mhvtl_scsi.h mhvtl_log.h log.c q.c \
-		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -c -fpic log.c
-	$(CC) $(CFLAGS) -c -fpic q.c
-	$(CC) $(CFLAGS) -c -fpic -o vtlcart.o vtlcart.c
-	$(CC) $(CFLAGS) -c -fpic vtllib.c
-	$(CC) $(CLFLAGS) -o libvtlcart.so vtllib.o vtlcart.o q.o log.o \
-				-lpthread
+bin :
+	install -d -m 755 $@
+	
+# ================== objects ==================
 
-tapeexerciser:	tapeexerciser.c
-	$(CC) $(CFLAGS) -o tapeexerciser tapeexerciser.c
+# ------------ VTL objects
+VTL_SRC = $(wildcard ./*.c)
+VTL_DEP = $(VTL_SRC:.c=.d)
+-include $(VTL_DEP)
+%.o: %.c
+	$(CC) $(CFLAGS) -o $@ -c $<
 
-dump_messageQ:	libvtlscsi.so dump_messageQ.o
-	$(CC) $(CFLAGS) -o dump_messageQ dump_messageQ.o -L. -lvtlscsi
-
-vtlcmd:	vtlcmd.o
-	$(CC) $(CFLAGS) -o vtlcmd vtlcmd.o -L. -lvtlcart -lvtlscsi
-
-minilzo.o:	minilzo.c lzoconf.h lzodefs.h
-	$(CC) $(CFLAGS) $(LZODEBUG) -o minilzo.o -c minilzo.c
-
-tape_util.o:	tape_util.c
-	$(CC) $(CFLAGS) -fPIC -std=gnu99 -o tape_util.o -c tape_util.c
-
-mhvtl_io.o:	mhvtl_io.c
-	$(CC) $(CFLAGS) -std=gnu99 -o mhvtl_io.o -c mhvtl_io.c
-
-reed-solomon.o:	reed-solomon.c
-	$(CC) $(CFLAGS) -std=gnu99 -o reed-solomon.o -c reed-solomon.c
-
-crc32c.o:	crc32c.c
-	$(CC) $(CFLAGS) -std=gnu99 -o crc32c.o -c crc32c.c
-
-validate_crc:	crc32c.c reed-solomon.c validate_crc.c
-	@$(CC) $(CFLAGS) -std=gnu99 -o validate_crc crc32c.o reed-solomon.o validate_crc.c
-	@./validate_crc
-	@rm -f ./validate_crc
+mhvtl_log.o mode.o \
+smc.o spc.o \
+vtlcart.o vtllib.o: \
+	CFLAGS += -fpic
 
 
-preload_tape:	dump_tape
-		@rm -f $@
-		ln -s $? $@
+# ------------ personality modules
+PM_SRC = $(wildcard pm/*.c)
+PM_DEP = $(PM_SRC:.c=.d)
+-include $(PM_DEP)
+pm/%.o: pm/%.c
+	$(CC) $(CFLAGS) -o $@ -c $<
 
-dump_tape:	tape_util.o vtlcart.o libvtlscsi.so vtltape.h mhvtl_scsi.h \
-		../kernel/vtl_common.h minilzo.c minilzo.h minilzo.o \
-		crc32c.o crc32c.c mhvtl_io.o mhvtl_io.c \
-		reed-solomon.o reed-solomon.c
-	$(CC) $(CFLAGS) -o dump_tape crc32c.o mhvtl_io.o reed-solomon.o tape_util.o minilzo.o default_ssc_pm.o -L. \
-		-lz -L. -lvtlcart -lvtlscsi
 
-mktape:		mktape.c mktape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
-		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o mktape mktape.o -L. -lvtlcart -lvtlscsi
+# ------------ cmds
+CMD_SRC = $(wildcard cmd/*.c)
+CMD_DEP = $(CMD_SRC:.c=.d)
+-include $(CMD_DEP)
+cmd/%.o: cmd/%.c
+	$(CC) $(CFLAGS) -o $@ -c $<
 
-edit_tape:	edit_tape.o vtlcart.o libvtlscsi.so vtltape.h vtllib.h \
-		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o edit_tape edit_tape.o -L. -lvtlcart -lvtlscsi
+cmd/tape_util.o: \
+	CFLAGS += -fPIC
 
-vtllibrary:	vtllibrary.o vtllib.h mhvtl_scsi.h \
-		libvtlscsi.so \
-		vtl_cart_type.o \
-		be_byteshift.h \
-		stklxx_pm.o \
-		hp_smc_pm.o \
-		overland_pm.o \
-		spectra_pm.o \
-		scalar_pm.o \
-		ibm_smc_pm.o \
-		default_smc_pm.o \
-		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtllibrary vtllibrary.o -L. -lvtlscsi \
-		vtl_cart_type.o \
-		stklxx_pm.o \
-		hp_smc_pm.o \
-		overland_pm.o \
-		spectra_pm.o \
-		scalar_pm.o \
-		ibm_smc_pm.o \
-		default_smc_pm.o
 
-vtltape:	vtltape.o vtlcart.o vtllib.h vtltape.h mhvtl_scsi.h \
-		libvtlscsi.so ssc.o default_ssc_pm.o \
-		ult3580_pm.o \
-		hp_ultrium_pm.o \
-		stk9x40_pm.o \
-		quantum_dlt_pm.o \
-		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		minilzo.o \
-		crc32c.o \
-		reed-solomon.o \
-		be_byteshift.h \
+# ------------ utils
+UTILS_SRC = $(wildcard utils/*.c)
+UTILS_DEP = $(UTILS_SRC:.c=.d)
+-include $(UTILS_DEP)
+utils/%.o: utils/%.c
+	$(CC) $(CFLAGS) -o $@ -c $< 
+
+utils/minilzo.o: \
+		CFLAGS += $(LZODEBUG)
+
+utils/q.o utils/subprocess.o utils/mhvtl_update.o: \
+		CFLAGS += -fpic
+
+
+# ================== libs ==================
+
+libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
+		vtlcart.o \
+	 	spc.o smc.o \
+	 	utils/q.o \
+	 	utils/subprocess.o \
+		utils/mhvtl_update.o
+	$(CC) $(CLFLAGS) -o $@ $^ -lpthread
+
+# ================== Commands and scripts ==================
+
+bin/validate_crc: utils/validate_crc.o utils/crc32c.o utils/reed-solomon.o
+	@$(CC) $(CFLAGS) -o $@ $^
+
+.PHONY: validate_crc
+validate_crc: bin/validate_crc
+	@./bin/validate_crc
+
+bin/tapeexerciser: cmd/tapeexerciser.o
+	$(CC) $(CFLAGS) -o $@ $^
+
+DUMP_MESSAGEQ_OBJ = cmd/dump_messageQ.o
+bin/dump_messageQ: $(DUMP_MESSAGEQ_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(DUMP_MESSAGEQ_OBJ) -L. -lvtlscsi
+
+VTLCMD_OBJ = cmd/vtlcmd.o
+bin/vtlcmd:	$(VTLCMD_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(VTLCMD_OBJ) -L. -lvtlscsi
+
+bin/preload_tape: bin/dump_tape
+	@rm -f $@
+	ln -s $? $@
+
+bin/tape_util:
+	@true
+
+DUMP_TAPE_OBJ = cmd/tape_util.o \
 		mhvtl_io.o \
-		../kernel/vtl_common.h
-	$(CC) $(CFLAGS) -o vtltape vtltape.o ssc.o \
-		default_ssc_pm.o \
-		ult3580_pm.o \
-		hp_ultrium_pm.o \
-		stk9x40_pm.o \
-		quantum_dlt_pm.o \
-		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		minilzo.o \
-		crc32c.o \
-		reed-solomon.o \
-		mhvtl_io.o \
-		-lz -L. -lvtlcart -lvtlscsi
+		utils/minilzo.o \
+		utils/crc32c.o \
+		utils/reed-solomon.o \
+		pm/default_ssc_pm.o
+bin/dump_tape: $(DUMP_TAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(DUMP_TAPE_OBJ) -L. -lz -lvtlscsi
+		
+MKTAPE_OBJ = cmd/mktape.o
+bin/mktape: $(MKTAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(MKTAPE_OBJ) -L. -lvtlscsi
 
-mhvtl-device-conf-generator: mhvtl-device-conf-generator.c
+EDIT_TAPE_OBJ = cmd/edit_tape.o
+bin/edit_tape: $(EDIT_TAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(EDIT_TAPE_OBJ) -L. -lvtlscsi
 
-make_vtl_media: make_vtl_media.in
+VTLLIBRARY_OBJ = cmd/vtllibrary.o \
+		vtl_cart_type.o \
+		pm/stklxx_pm.o \
+		pm/hp_smc_pm.o \
+		pm/overland_pm.o \
+		pm/spectra_pm.o \
+		pm/scalar_pm.o \
+		pm/ibm_smc_pm.o \
+		pm/default_smc_pm.o
+bin/vtllibrary:	$(VTLLIBRARY_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(VTLLIBRARY_OBJ) -L. -lvtlscsi
+
+VTLTAPE_OBJ = cmd/vtltape.o \
+		mhvtl_io.o ssc.o \
+		utils/minilzo.o \
+		utils/crc32c.o \
+		utils/reed-solomon.o \
+		pm/default_ssc_pm.o \
+		pm/ult3580_pm.o \
+		pm/hp_ultrium_pm.o \
+		pm/stk9x40_pm.o \
+		pm/quantum_dlt_pm.o \
+		pm/ait_pm.o \
+		pm/t10000_pm.o \
+		pm/ibm_03592_pm.o
+bin/vtltape: $(VTLTAPE_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) -lz -L. -lvtlscsi
+
+MHVTL_DEVICE_CONF_GENERATOR_OBJ = cmd/mhvtl-device-conf-generator.o
+bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) -L. -lvtlscsi
+
+
+
+bin/make_vtl_media: cmd/make_vtl_media.in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
 	    -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
 	chmod 755 $@
 
-mhvtl_kernel_mod_build: mhvtl_kernel_mod_build.in
+bin/mhvtl_kernel_mod_build: cmd/mhvtl_kernel_mod_build.in
 	sed -e s'|@FIRMWAREDIR@|${FIRMWAREDIR}|' $< > $@
 	chmod 755 $@
 
+.PHONY:clean
 clean:
-	rm -f vtltape.o dump_tape.o q.o \
-		vtlcmd.o dump_messageQ.o core mktape.o vtllib.o \
-		libvtlscsi.o libvtlscsi.so libvtlcart.o libvtlcart.so \
-		vtllibrary.o \
-		vtl_cart_type.o \
-		vtlcart.o spc.o smc.o ssc.o tapeexerciser.o \
-		default_ssc_pm.o \
-		ult3580_pm.o \
-		hp_ultrium_pm.o \
-		mode.o \
-		log.o \
-		tape_util.o \
-		subprocess.o \
-		stk9x40_pm.o \
-		stklxx_pm.o \
-		hp_smc_pm.o \
-		overland_pm.o \
-		spectra_pm.o \
-		scalar_pm.o \
-		ibm_smc_pm.o \
-		default_smc_pm.o \
-		quantum_dlt_pm.o \
-		ait_pm.o t10000_pm.o ibm_03592_pm.o \
-		minilzo.o \
-		edit_tape.o \
-		tape_util.o \
-		dump_messageQ \
-		dump_tape edit_tape \
-		mktape vtlcmd vtllibrary vtltape tapeexerciser \
-		mhvtl-device-conf-generator \
-		mhvtl_io.o \
-		preload_tape preload_tape.o \
-		crc32c.o \
-		reed-solomon.o \
-		validate_crc.o validate_crc \
-		$(GENERATED_FILES)
+	$(RM) *.d *.o *.so \
+		pm/*.d pm/*.o \
+		utils/*.d utils/*.o \
+		cmd/*.d cmd/*.o \
+		bin/*
 	$(RM) TAGS
 
+
+
+# ========== command targets ==========
+
+$(DESTDIR)$(PREFIX)/bin:
+	install -d -m 755 $@
+$(DESTDIR)$(LIBDIR):
+	install -d -m 755 $@
+
+$(DESTDIR)$(LIBDIR)/%.so: %.so | $(DESTDIR)$(LIBDIR)
+	install -m 755 $< $@
+$(DESTDIR)$(PREFIX)/bin/%: bin/% | $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $< $@
+$(DESTDIR)$(PREFIX)/bin/tape_util: bin/tape_util
+	@true
+
+.PHONY:install
+install: all \
+		 $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
+		 $(addprefix $(DESTDIR)$(LIBDIR)/,$(LIBRARIES)) 
+	@rm -f $(DESTDIR)$(PREFIX)/bin/preload_tape
+	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape
+	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
+	install -m 755 bin/mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
+	restorecon -R -v  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
+ifeq ($(ROOTUID),YES)
+	ldconfig 
+endif
+
+.PHONY: uninstall
+uninstall:
+	rm -f $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
+		  $(addprefix $(DESTDIR)$(LIBDIR)/,$(LIBRARIES)) \
+		  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/mhvtl-device-conf-generator
+	restorecon -R -v  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
+ifeq ($(ROOTUID),YES)
+	ldconfig 
+endif	
+
+.PHONY:tar
+tar:
+	make -C ../ tar
+
+.PHONY:tags
 tags:
 	etags -R *.[ch] ../kernel/*.h
 
+# ========== Cleaning ==========
+
+.PHONY:clean
+clean:
+	$(RM) *.d *.o *.so \
+		pm/*.d pm/*.o \
+		utils/*.d utils/*.o \
+		cmd/*.d cmd/*.o \
+		bin/*
+	$(RM) TAGS
+
+.PHONY:distclean
 distclean: clean
-
-install: all
-	[ -d $(DESTDIR)$(LIBDIR) ] || install -d -m 755 $(DESTDIR)$(LIBDIR)
-	install -m 755 libvtlscsi.so $(DESTDIR)$(LIBDIR)/
-	install -m 755 libvtlcart.so $(DESTDIR)$(LIBDIR)/
-	[ -d $(DESTDIR)$(PREFIX)/bin ] || install -d -m 755 $(DESTDIR)$(PREFIX)/bin
-	install -m 755 vtltape $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 vtllibrary $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 vtlcmd $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 mktape $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 dump_tape $(DESTDIR)$(PREFIX)/bin/
-	@rm -f $(DESTDIR)$(PREFIX)/bin/preload_tape
-	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape 
-	install -m 755 edit_tape $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 tapeexerciser $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 make_vtl_media $(DESTDIR)$(PREFIX)/bin/
-	install -m 755 mhvtl_kernel_mod_build $(DESTDIR)$(PREFIX)/bin/
-	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
-	install -m 755 mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
-
-tar:
-	make -C ../ tar

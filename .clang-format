@@ -1,0 +1,23 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Always
+TabWidth: 4
+ColumnLimit: 0
+
+# --- Includes ---
+IncludeBlocks: Preserve
+SortIncludes: false
+
+# --- Initializers ---
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+
+# --- Alignement ---
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveMacros: true
+BinPackArguments: true
+BinPackParameters: true

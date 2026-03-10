@@ -16,17 +16,16 @@
  *
  **/
 static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
-				__user void *buf, size_t buflen, int to_buffer)
-{
+								 __user void *buf, size_t buflen, int to_buffer) {
 	struct scatterlist *sg;
-	size_t buf_off = 0;
-	int i;
-	int ret;
+	size_t				buf_off = 0;
+	int					i;
+	int					ret;
 
 	for_each_sg(sgl, sg, nents, i) {
 		struct page *page;
-		int n = 0;
-		unsigned int sg_off = sg->offset;
+		int			 n		 = 0;
+		unsigned int sg_off	 = sg->offset;
 		unsigned int sg_copy = sg->length;
 
 		if (sg_copy > buflen)
@@ -35,14 +34,14 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 
 		while (sg_copy > 0) {
 			unsigned int page_copy;
-			void *p;
+			void		*p;
 
 			page_copy = PAGE_SIZE - sg_off;
 			if (page_copy > sg_copy)
 				page_copy = sg_copy;
 
 			page = nth_page(sg_page(sg), n);
-			p = kmap_atomic(page, KM_BIO_SRC_IRQ);
+			p	 = kmap_atomic(page, KM_BIO_SRC_IRQ);
 
 			if (to_buffer)
 				ret = copy_to_user(buf + buf_off, p + sg_off, page_copy);
@@ -70,14 +69,12 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 }
 
 size_t mhvtl_copy_from_user(struct scatterlist *sgl, unsigned int nents,
-			char __user *buf, size_t buflen)
-{
+							char __user *buf, size_t buflen) {
 	return mhvtl_sg_copy_user(sgl, nents, buf, buflen, 0);
 }
 
 size_t mhvtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
-			char __user *buf, size_t buflen)
-{
+						  char __user *buf, size_t buflen) {
 	return mhvtl_sg_copy_user(sgl, nents, buf, buflen, 1);
 }
 
@@ -87,8 +84,7 @@ size_t mhvtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
  *
  * Returns number of bytes fetched into 'arr' or -1 if error.
  */
-static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len)
-{
+static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len) {
 	struct scsi_data_buffer *sdb = scsi_out(scp);
 
 	if (!scsi_bufflen(scp))
@@ -106,9 +102,8 @@ static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, in
  Returns 0 if ok else (DID_ERROR << 16). Sets scp->resid .
  */
 static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
-				int arr_len)
-{
-	int act_len;
+									   int arr_len) {
+	int						 act_len;
 	struct scsi_data_buffer *sdb = scsi_in(scp);
 
 	if (!sdb->length)
@@ -117,21 +112,19 @@ static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 		return DID_ERROR << 16;
 
 	act_len = mhvtl_copy_from_user(sdb->table.sgl, sdb->table.nents,
-					arr, arr_len);
+								   arr, arr_len);
 	if (sdb->resid)
 		sdb->resid -= act_len;
 	else
 		sdb->resid = scsi_bufflen(scp) - act_len;
 
 	return 0;
-
 }
 
 /* Returns 0 if ok else (DID_ERROR << 16). Sets scp->resid . */
 static int mhvtl_fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
-				int arr_len)
-{
-	int act_len;
+									  int arr_len) {
+	int						 act_len;
 	struct scsi_data_buffer *sdb = scsi_in(scp);
 
 	if (!sdb->length)
@@ -140,7 +133,7 @@ static int mhvtl_fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 		return DID_ERROR << 16;
 
 	act_len = sg_copy_from_buffer(sdb->table.sgl, sdb->table.nents,
-					arr, arr_len);
+								  arr, arr_len);
 	if (sdb->resid)
 		sdb->resid -= act_len;
 	else
@@ -148,4 +141,3 @@ static int mhvtl_fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 
 	return 0;
 }
-

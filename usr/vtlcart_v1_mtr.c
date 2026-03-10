@@ -23,7 +23,7 @@
  */
 
 /* for unistd.h pread() and pwrite() prototypes */
-#define	_XOPEN_SOURCE	500
+#define _XOPEN_SOURCE 500
 
 #include <sys/syslog.h>
 #include <sys/stat.h>
@@ -38,45 +38,43 @@
 
 #include "mhvtl_scsi.h"
 #include "mhvtl_list.h"
-#include "vtltape.h"
+#include "vtlcart.h"
 #include "be_byteshift.h"
 
-#define B_BOT           14      /* Beginning of Tape TAPE_FMT_VERSION 2 */
+#define B_BOT 14 /* Beginning of Tape TAPE_FMT_VERSION 2 */
 
 #ifndef MHVTL_DEBUG
 #error DEBUG use only !
 #endif
 
 struct raw_header {
-	loff_t		prev_blk;
-	loff_t		curr_blk;
-	loff_t		next_blk;
+	loff_t			  prev_blk;
+	loff_t			  curr_blk;
+	loff_t			  next_blk;
 	struct blk_header hdr;
-	char		pad[512 - (3 * sizeof(loff_t)) -
-					sizeof(struct blk_header)];
+	char			  pad[512 - (3 * sizeof(loff_t)) -
+			  sizeof(struct blk_header)];
 };
 
 static struct raw_header raw_pos;
-static int datafile = -1;
-static uint8_t MediumType;
-static char currentMedia[1024];
+static int				 datafile = -1;
+static uint8_t			 MediumType;
+static char				 currentMedia[1024];
 
 /* GLobally visible variables. */
 
-struct MAM mam;
+struct MAM		   mam;
 struct blk_header *c_pos = &raw_pos.hdr;
 
 int OK_to_write;
-
 
 /*
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-static int read_header(struct raw_header *h, uint8_t *sam_stat)
-{
+static int read_header(struct raw_header *h, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "read_header");
 
 	loff_t nread;
@@ -92,14 +90,12 @@ static int read_header(struct raw_header *h, uint8_t *sam_stat)
 	return 0;
 }
 
-static loff_t position_to_curr_header(uint8_t *sam_stat)
-{
+static loff_t position_to_curr_header(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_to_curr_header");
 	return (lseek64(datafile, raw_pos.curr_blk, SEEK_SET));
 }
 
-static int skip_to_next_header(uint8_t *sam_stat)
-{
+static int skip_to_next_header(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "skip_to_next_header");
 	if (raw_pos.hdr.blk_type == B_EOD) {
 		sam_blank_check(E_END_OF_DATA, sam_stat);
@@ -121,18 +117,17 @@ static int skip_to_next_header(uint8_t *sam_stat)
 	if (raw_pos.curr_blk != position_to_curr_header(sam_stat)) {
 		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		MHVTL_DBG(1, "Error position in datafile. Offset: %" PRId64,
-				raw_pos.curr_blk);
+				  raw_pos.curr_blk);
 		return -1;
 	}
 	return 0;
 }
 
-static int skip_to_prev_header(uint8_t *sam_stat)
-{
+static int skip_to_prev_header(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "skip_to_prev_header");
 	/* Position to previous header */
 	MHVTL_DBG(3, "Positioning to raw_pos.prev_blk: %" PRId64,
-				raw_pos.prev_blk);
+			  raw_pos.prev_blk);
 	if (raw_pos.prev_blk != lseek64(datafile, raw_pos.prev_blk, SEEK_SET)) {
 		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		MHVTL_DBG(1, "Error position in datafile !!");
@@ -147,7 +142,7 @@ static int skip_to_prev_header(uint8_t *sam_stat)
 	}
 	if (raw_pos.hdr.blk_type == B_BOT) {
 		MHVTL_DBG(3, "Found Beginning Of Tape, "
-				"Skipping to next header..");
+					 "Skipping to next header..");
 		skip_to_next_header(sam_stat);
 		sam_medium_error(E_BOM, sam_stat);
 		MHVTL_DBG(3, "Found BOT!!");
@@ -161,7 +156,8 @@ static int skip_to_prev_header(uint8_t *sam_stat)
 		return -1;
 	}
 	MHVTL_DBG(3, "Rewinding over header just read in: "
-			"curr_position: %" PRId64, raw_pos.curr_blk);
+				 "curr_position: %" PRId64,
+			  raw_pos.curr_blk);
 	return 0;
 }
 
@@ -171,25 +167,24 @@ static int skip_to_prev_header(uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
 static int mkNewHeader(uint32_t type, int blk_size, int comp_size,
-	const struct encryption *cp, uint8_t *sam_stat)
-{
+					   const struct encryption *cp, uint8_t *sam_stat) {
 	struct raw_header h;
 	MHVTL_DBG(1, "mkNewHeader");
 
 	memset(&h, 0, sizeof(h));
 
-	h.hdr.blk_type = type;	/* Header type */
-	h.hdr.blk_flags = 0;
+	h.hdr.blk_type	 = type; /* Header type */
+	h.hdr.blk_flags	 = 0;
 	h.hdr.blk_number = raw_pos.hdr.blk_number;
 
 	if (type != B_DATA) {
-		h.hdr.blk_size = 0;
+		h.hdr.blk_size		= 0;
 		h.hdr.disk_blk_size = 0;
 	} else {
-		h.hdr.blk_size = blk_size;	/* Size of uncompressed data */
+		h.hdr.blk_size = blk_size; /* Size of uncompressed data */
 
 		if (comp_size) {
 			h.hdr.blk_flags |= BLKHDR_FLG_COMPRESSED;
@@ -230,19 +225,18 @@ static int mkNewHeader(uint32_t type, int blk_size, int comp_size,
 		h.next_blk = h.curr_blk + h.hdr.disk_blk_size + sizeof(h);
 
 	if (h.curr_blk == raw_pos.curr_blk) {
-	/* If current pos == last header read in we are about to overwrite the
-	 * current header block
-	 */
-		h.prev_blk = raw_pos.prev_blk;
+		/* If current pos == last header read in we are about to overwrite the
+		 * current header block
+		 */
+		h.prev_blk		 = raw_pos.prev_blk;
 		h.hdr.blk_number = raw_pos.hdr.blk_number;
 	} else if (h.curr_blk == raw_pos.next_blk) {
-	/* New header block at end of data file.. */
-		h.prev_blk = raw_pos.curr_blk;
+		/* New header block at end of data file.. */
+		h.prev_blk		 = raw_pos.curr_blk;
 		h.hdr.blk_number = raw_pos.hdr.blk_number + 1;
 	} else {
-		MHVTL_DBG(1, "Position error blk No: %d, Pos: %" PRId64
-			", Exp: %" PRId64,
-				h.hdr.blk_number, h.curr_blk, raw_pos.curr_blk);
+		MHVTL_DBG(1, "Position error blk No: %d, Pos: %" PRId64 ", Exp: %" PRId64,
+				  h.hdr.blk_number, h.curr_blk, raw_pos.curr_blk);
 		sam_medium_error(E_SEQUENTIAL_POSITION_ERR, sam_stat);
 		return -1;
 	}
@@ -250,7 +244,7 @@ static int mkNewHeader(uint32_t type, int blk_size, int comp_size,
 	if (write(datafile, &h, sizeof(h)) != sizeof(h)) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_DBG(1, "Write failure, pos: %" PRId64 ": %s",
-						h.curr_blk, strerror(errno));
+				  h.curr_blk, strerror(errno));
 		return -1;
 	}
 
@@ -267,10 +261,9 @@ static int mkNewHeader(uint32_t type, int blk_size, int comp_size,
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-static int mkEODHeader(uint8_t *sam_stat)
-{
+static int mkEODHeader(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "mkEODHeader");
 	if (mkNewHeader(B_EOD, 0, 0, NULL, sam_stat))
 		return -1;
@@ -293,8 +286,7 @@ static int mkEODHeader(uint8_t *sam_stat)
  *
  */
 
-static int skip_prev_filemark(uint8_t *sam_stat)
-{
+static int skip_prev_filemark(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "skip_prev_filemark");
 
 	if (raw_pos.hdr.blk_type == B_FILEMARK)
@@ -314,8 +306,7 @@ static int skip_prev_filemark(uint8_t *sam_stat)
 /*
  *
  */
-static int skip_next_filemark(uint8_t *sam_stat)
-{
+static int skip_next_filemark(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "skip_next_filemark");
 	/* While blk header is NOT a filemark, keep skipping to next header */
 	while (raw_pos.hdr.blk_type != B_FILEMARK) {
@@ -328,7 +319,7 @@ static int skip_next_filemark(uint8_t *sam_stat)
 			return -1;
 		}
 		if (skip_to_next_header(sam_stat))
-			return -1;	/* On error */
+			return -1; /* On error */
 	}
 	/* Position to header AFTER the FILEMARK.. */
 	if (skip_to_next_header(sam_stat))
@@ -337,8 +328,7 @@ static int skip_next_filemark(uint8_t *sam_stat)
 	return 0;
 }
 
-static int tape_loaded(uint8_t *sam_stat)
-{
+static int tape_loaded(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "tape_loaded");
 	switch (datafile != -1) {
 		return 1;
@@ -351,10 +341,9 @@ static int tape_loaded(uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_to_eod(uint8_t *sam_stat)
-{
+int position_to_eod(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_to_eod");
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -372,8 +361,7 @@ int position_to_eod(uint8_t *sam_stat)
 /*
  * Rewind 'tape'.
  */
-static int rawRewind(uint8_t *sam_stat)
-{
+static int rawRewind(uint8_t *sam_stat) {
 	off64_t retval;
 
 	MHVTL_DBG(1, "rawRewind");
@@ -381,7 +369,7 @@ static int rawRewind(uint8_t *sam_stat)
 	retval = lseek64(datafile, 0L, SEEK_SET);
 	if (retval < 0) {
 		MHVTL_DBG(1, "Can't seek to beginning of file: %s",
-			strerror(errno));
+				  strerror(errno));
 		return -1;
 	}
 
@@ -402,8 +390,7 @@ static int rawRewind(uint8_t *sam_stat)
  *        1 -> Load OK
  *        2 -> format corrupt.
  */
-int rewind_tape(uint8_t *sam_stat)
-{
+int rewind_tape(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "rewind_tape");
 	if (rawRewind(sam_stat)) {
 		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
@@ -424,12 +411,12 @@ int rewind_tape(uint8_t *sam_stat)
 		break;
 	case MEDIA_TYPE_WORM:
 		/* Special condition...
-		* If we
-		* - rewind,
-		* - write filemark
-		* - EOD
-		* We set this as writable media as the tape is blank.
-		*/
+		 * If we
+		 * - rewind,
+		 * - write filemark
+		 * - EOD
+		 * We set this as writable media as the tape is blank.
+		 */
 		if (raw_pos.hdr.blk_type != B_EOD)
 			OK_to_write = 0;
 
@@ -444,7 +431,7 @@ int rewind_tape(uint8_t *sam_stat)
 		/* Now we have to go thru thru the rewind again.. */
 		if (rawRewind(sam_stat)) {
 			sam_medium_error(E_MEDIUM_FMT_CORRUPT,
-								sam_stat);
+							 sam_stat);
 			return 2;
 		}
 
@@ -452,12 +439,12 @@ int rewind_tape(uint8_t *sam_stat)
 		skip_to_next_header(sam_stat);
 		break;
 	case MEDIA_TYPE_DATA:
-		OK_to_write = 1;	/* Reset flag to OK. */
+		OK_to_write = 1; /* Reset flag to OK. */
 		break;
 	}
 
 	MHVTL_DBG(1, "Media is %s",
-				(OK_to_write) ? "writable" : "not writable");
+			  (OK_to_write) ? "writable" : "not writable");
 
 	return 1;
 }
@@ -466,10 +453,9 @@ int rewind_tape(uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_to_block(uint32_t blk_no, uint8_t *sam_stat)
-{
+int position_to_block(uint32_t blk_no, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_to_block");
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -478,7 +464,7 @@ int position_to_block(uint32_t blk_no, uint8_t *sam_stat)
 		OK_to_write = 0;
 
 	if (blk_no < raw_pos.hdr.blk_number &&
-				raw_pos.hdr.blk_number - blk_no > blk_no) {
+		raw_pos.hdr.blk_number - blk_no > blk_no) {
 		if (rewind_tape(sam_stat))
 			return -1;
 	}
@@ -500,10 +486,9 @@ int position_to_block(uint32_t blk_no, uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_blocks(int32_t count, uint8_t *sam_stat)
-{
+int position_blocks(int32_t count, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_blocks");
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -537,10 +522,9 @@ int position_blocks(int32_t count, uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int position_filemarks(int32_t count, uint8_t *sam_stat)
-{
+int position_filemarks(int32_t count, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_filemarks");
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -560,39 +544,31 @@ int position_filemarks(int32_t count, uint8_t *sam_stat)
 	return 0;
 }
 
-int position_blocks_forw(uint32_t count, uint8_t *sam_stat)
-{
+int position_blocks_forw(uint32_t count, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_blks_forw");
 	return position_blocks(count, sam_stat);
 }
 
-int position_blocks_back(uint32_t count, uint8_t *sam_stat)
-{
+int position_blocks_back(uint32_t count, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_blks_back");
 	return position_blocks(count > 0 ? -count : count, sam_stat);
 }
 
-int position_filemarks_forw(uint32_t count, uint8_t *sam_stat)
-{
+int position_filemarks_forw(uint32_t count, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_filemarks_forw");
 	return position_filemarks(count, sam_stat);
 }
 
-
-int position_filemarks_back(uint32_t count, uint8_t *sam_stat)
-{
+int position_filemarks_back(uint32_t count, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "position_filemarks_back");
 	return position_filemarks(count > 0 ? -count : count, sam_stat);
 }
-
-
 
 /*
  * Writes data in struct MAM back to beginning of datafile..
  * Returns 0 if nothing written or -1 on error
  */
-int rewriteMAM(uint8_t *sam_stat)
-{
+int rewriteMAM(uint8_t *sam_stat) {
 	loff_t nwrite = 0;
 
 	MHVTL_DBG(1, "rewriteMAM");
@@ -612,11 +588,10 @@ int rewriteMAM(uint8_t *sam_stat)
  * == 0, the new PCL was successfully created.
  * == 2, the PCL (probably) already existed.
  * == 1, an error occurred.
-*/
+ */
 
-int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
-{
-	char newMedia[1024];
+int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat) {
+	char			  newMedia[1024];
 	struct raw_header h;
 
 	MHVTL_DBG(1, "create_tape");
@@ -625,8 +600,8 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	 * It will fail if the PCL already exists.
 	 */
 	sprintf((char *)newMedia, "%s/%s", MHVTL_HOME_PATH, pcl);
-	syslog(LOG_DAEMON|LOG_INFO, "%s being created", newMedia);
-	datafile = open((char *)newMedia, O_CREAT|O_TRUNC|O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+	syslog(LOG_DAEMON | LOG_INFO, "%s being created", newMedia);
+	datafile = open((char *)newMedia, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 	if (datafile == -1) {
 		perror("Failed creating file");
 		return 2;
@@ -634,7 +609,7 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 
 	/* Write a B_BOT record consisting of the B_BOT header plus the MAM. */
 	memset(&h, 0, sizeof(h));
-	h.next_blk = sizeof(*mamp) + sizeof(h);
+	h.next_blk	   = sizeof(*mamp) + sizeof(h);
 	h.hdr.blk_type = B_BOT;
 	h.hdr.blk_size = ntohl(mamp->max_capacity) / 1048576;
 
@@ -653,8 +628,8 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
 	/* Write a B_EOD record. */
 
 	memset(&h, 0, sizeof(h));
-	h.curr_blk = lseek64(datafile, 0, SEEK_CUR);
-	h.next_blk = h.curr_blk;
+	h.curr_blk	   = lseek64(datafile, 0, SEEK_CUR);
+	h.next_blk	   = h.curr_blk;
 	h.hdr.blk_type = B_EOD;
 
 	if (write(datafile, &h, sizeof(h)) != sizeof(h)) {
@@ -678,77 +653,76 @@ int create_tape(const char *pcl, const struct MAM *mamp, uint8_t *sam_stat)
  * == 3 -> cartridge does not exist or cannot be opened.
  */
 
-int load_tape(const char *pcl, uint8_t *sam_stat)
-{
-	loff_t nread;
+int load_tape(const char *pcl, uint8_t *sam_stat) {
+	loff_t	 nread;
 	uint32_t version = 0;
 
 	MHVTL_DBG(1, "load_tape");
 /* KFRDEBUG - sam_stat needs updates in lots of places here. */
 #if NOTDEF
 	if (datafile == -1)
-		/* return 1; */	/* don't return 1 here */
+		/* return 1; */ /* don't return 1 here */
 		return 0;
 #endif
 
 	sprintf(currentMedia, "%s/%s", MHVTL_HOME_PATH, pcl);
 	/* MHVTL_DBG(2, "Opening file/media %s", currentMedia); */
 	MHVTL_LOG("Opening file/media %s", currentMedia);
-	datafile = open(currentMedia, O_RDWR|O_LARGEFILE);
+	datafile = open(currentMedia, O_RDWR | O_LARGEFILE);
 	if (datafile == -1) {
 		MHVTL_DBG(1, "%s: open file/media failed, %s", currentMedia,
-			strerror(errno));
-		return 3;	/* Unsuccessful load */
+				  strerror(errno));
+		return 3; /* Unsuccessful load */
 	}
 
 	/* Now read in header information from just opened datafile */
 	nread = read(datafile, &raw_pos, sizeof(raw_pos));
 	if (nread < 0) {
 		MHVTL_LOG("%s: %s",
-			 "Error reading header in datafile, load failed",
-			strerror(errno));
+				  "Error reading header in datafile, load failed",
+				  strerror(errno));
 		close(datafile);
 		datafile = -1;
-		return 4;	/* Unsuccessful load */
-	} else if (nread < sizeof(raw_pos)) {	/* Did not read anything... */
+		return 4;						  /* Unsuccessful load */
+	} else if (nread < sizeof(raw_pos)) { /* Did not read anything... */
 		MHVTL_LOG("%s: %s",
-				 "Error: Not a tape format, load failed",
-				strerror(errno));
+				  "Error: Not a tape format, load failed",
+				  strerror(errno));
 		close(datafile);
 		datafile = -1;
 		return 5;
 	}
 	if (raw_pos.hdr.blk_type != B_BOT) {
 		MHVTL_LOG("Header type: %d not valid, load failed",
-							raw_pos.hdr.blk_type);
+				  raw_pos.hdr.blk_type);
 		close(datafile);
 		datafile = -1;
 		return 6;
 	}
 	/* FIXME: Need better validation checking here !! */
-	 if (raw_pos.next_blk != (sizeof(raw_pos) + sizeof(mam))) {
+	if (raw_pos.next_blk != (sizeof(raw_pos) + sizeof(mam))) {
 		MHVTL_LOG("MAM size incorrect, load failed"
-			" - Expected size: %d, size found: %" PRId64,
-			(int)(sizeof(raw_pos) + sizeof(mam)),
-				raw_pos.next_blk);
+				  " - Expected size: %d, size found: %" PRId64,
+				  (int)(sizeof(raw_pos) + sizeof(mam)),
+				  raw_pos.next_blk);
 		close(datafile);
 		datafile = -1;
-		return 7;	/* Unsuccessful load */
+		return 7; /* Unsuccessful load */
 	}
 	nread = read(datafile, &mam, sizeof(mam));
 	if (nread < 0) {
 		MHVTL_LOG("Can not read MAM from mounted media, %s",
-							strerror(errno));
+				  strerror(errno));
 		close(datafile);
 		datafile = -1;
-		return 8;	/* Unsuccessful load */
+		return 8; /* Unsuccessful load */
 	}
 	if (nread != sizeof(mam)) {
 		MHVTL_LOG("Can not read MAM from mounted media, "
-				"insufficient data");
+				  "insufficient data");
 		close(datafile);
 		datafile = -1;
-		return 9;	/* Unsuccessful load */
+		return 9; /* Unsuccessful load */
 	}
 
 	version = mam.tape_fmt_version;
@@ -761,7 +735,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
 	}
 
 	MediumType = mam.MediumType;
-	c_pos = &raw_pos.hdr;
+	c_pos	   = &raw_pos.hdr;
 	return 0;
 }
 
@@ -769,10 +743,9 @@ int load_tape(const char *pcl, uint8_t *sam_stat)
  * Returns:
  * == 0, success
  * != 0, failure
-*/
+ */
 
-int write_filemarks(uint32_t count, uint8_t *sam_stat)
-{
+int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "write_filemarks");
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -789,9 +762,8 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat)
 }
 
 int write_tape_block(const uint8_t *buf, uint32_t blk_size,
-	uint32_t comp_size, const struct encryption *cp, uint8_t *sam_stat)
-{
-	loff_t	nwrite;
+					 uint32_t comp_size, const struct encryption *cp, uint8_t *sam_stat) {
+	loff_t	 nwrite;
 	uint32_t iosize;
 
 	MHVTL_DBG(1, "write_tape_block");
@@ -815,7 +787,7 @@ int write_tape_block(const uint8_t *buf, uint32_t blk_size,
 	nwrite = write(datafile, buf, iosize);
 	if (nwrite <= 0) {
 		MHVTL_DBG(1, "failed to write %d bytes, %s", iosize,
-			strerror(errno));
+				  strerror(errno));
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		return -1;
 	} else if (nwrite != iosize) {
@@ -833,8 +805,7 @@ int write_tape_block(const uint8_t *buf, uint32_t blk_size,
 	return 0;
 }
 
-void unload_tape(uint8_t *sam_stat)
-{
+void unload_tape(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "unload_tape");
 	if (datafile >= 0) {
 		close(datafile);
@@ -842,9 +813,8 @@ void unload_tape(uint8_t *sam_stat)
 	}
 }
 
-uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
-{
-	loff_t nread;
+uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
+	loff_t	 nread;
 	uint32_t size;
 
 	MHVTL_DBG(1, "read_tape_block");
@@ -863,80 +833,78 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat)
 	return nread;
 }
 
-uint64_t current_tape_offset(void)
-{
+uint64_t current_tape_offset(void) {
 	if (datafile != -1)
 		return raw_pos.curr_blk;
 
 	return 0;
 }
 
-void print_raw_header(void)
-{
+void print_raw_header(void) {
 	printf("Hdr:");
 	switch (raw_pos.hdr.blk_type) {
 	case B_DATA:
 		if ((raw_pos.hdr.blk_flags &&
-			(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
-				(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
+			 (BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED)) ==
+			(BLKHDR_FLG_COMPRESSED | BLKHDR_FLG_ENCRYPTED))
 			printf(" Encrypt/Comp data");
 		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)
 			printf("    Encrypted data");
 		else if (raw_pos.hdr.blk_flags & BLKHDR_FLG_COMPRESSED)
 			printf("   Compressed data");
-			else
-		printf("             data");
+		else
+			printf("             data");
 
 		printf("(%02x), sz %6d/%-6d, Blk No.: %u, prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.disk_blk_size,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.prev_blk,
-			raw_pos.curr_blk,
-			raw_pos.next_blk);
+			   ", cur %" PRId64 ", next %" PRId64 "\n",
+			   raw_pos.hdr.blk_type,
+			   raw_pos.hdr.disk_blk_size,
+			   raw_pos.hdr.blk_size,
+			   raw_pos.hdr.blk_number,
+			   raw_pos.prev_blk,
+			   raw_pos.curr_blk,
+			   raw_pos.next_blk);
 		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_ENCRYPTED)
 			printf("   => Encr key length %d, ukad length %d, "
-				"akad length %d\n",
-				raw_pos.hdr.encryption.key_length,
-				raw_pos.hdr.encryption.ukad_length,
-				raw_pos.hdr.encryption.akad_length);
+				   "akad length %d\n",
+				   raw_pos.hdr.encryption.key_length,
+				   raw_pos.hdr.encryption.ukad_length,
+				   raw_pos.hdr.encryption.akad_length);
 		break;
 	case B_FILEMARK:
 		printf("          Filemark");
 		printf("(%02x), sz %13d, Blk No.: %u, prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.prev_blk,
-			raw_pos.curr_blk,
-			raw_pos.next_blk);
+			   ", cur %" PRId64 ", next %" PRId64 "\n",
+			   raw_pos.hdr.blk_type,
+			   raw_pos.hdr.blk_size,
+			   raw_pos.hdr.blk_number,
+			   raw_pos.prev_blk,
+			   raw_pos.curr_blk,
+			   raw_pos.next_blk);
 		break;
 	case B_BOT:
 		printf(" Beginning of Tape");
 		printf("(%02x), Capacity %6d Mbytes"
-			", prev %" PRId64
-			", cur %" PRId64
-			", next %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.blk_size,
-			raw_pos.prev_blk,
-			raw_pos.curr_blk,
-			raw_pos.next_blk);
+			   ", prev %" PRId64
+			   ", cur %" PRId64
+			   ", next %" PRId64 "\n",
+			   raw_pos.hdr.blk_type,
+			   raw_pos.hdr.blk_size,
+			   raw_pos.prev_blk,
+			   raw_pos.curr_blk,
+			   raw_pos.next_blk);
 		return;
 		break;
 	case B_EOD:
 		printf("       End of Data");
 		printf("(%02x), sz %13d, Blk No.: %u, prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.prev_blk,
-			raw_pos.curr_blk,
-			raw_pos.next_blk);
+			   ", cur %" PRId64 ", next %" PRId64 "\n",
+			   raw_pos.hdr.blk_type,
+			   raw_pos.hdr.blk_size,
+			   raw_pos.hdr.blk_number,
+			   raw_pos.prev_blk,
+			   raw_pos.curr_blk,
+			   raw_pos.next_blk);
 		break;
 	case B_NOOP:
 		printf("      No Operation");
@@ -944,25 +912,24 @@ void print_raw_header(void)
 	default:
 		printf("      Unknown type");
 		printf("(%02x), %6d/%-6d, Blk No.: %u, prev %" PRId64
-			", cur %" PRId64 ", next %" PRId64 "\n",
-			raw_pos.hdr.blk_type,
-			raw_pos.hdr.disk_blk_size,
-			raw_pos.hdr.blk_size,
-			raw_pos.hdr.blk_number,
-			raw_pos.prev_blk,
-			raw_pos.curr_blk,
-			raw_pos.next_blk);
+			   ", cur %" PRId64 ", next %" PRId64 "\n",
+			   raw_pos.hdr.blk_type,
+			   raw_pos.hdr.disk_blk_size,
+			   raw_pos.hdr.blk_size,
+			   raw_pos.hdr.blk_number,
+			   raw_pos.prev_blk,
+			   raw_pos.curr_blk,
+			   raw_pos.next_blk);
 		break;
 	}
 }
 
-static int check_for_overwrite(uint8_t *sam_stat)
-{
+static int check_for_overwrite(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "check_for_overwrite");
 #if NOTDEF
 	uint32_t blk_number;
 	uint64_t data_offset;
-	int i;
+	int		 i;
 
 	if (raw_pos.hdr.blk_type == B_EOD)
 		return 0;
@@ -973,22 +940,23 @@ static int check_for_overwrite(uint8_t *sam_stat)
 	 * the data and index files back to the current length.
 	 */
 
-	blk_number = raw_pos.hdr.blk_number;
+	blk_number	= raw_pos.hdr.blk_number;
 	data_offset = raw_pos.data_offset;
 
 	if (ftruncate(indxfile, blk_number * sizeof(raw_pos))) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_LOG("Index file ftruncate failure, pos: "
-				"%" PRId64 ": %s",
-				(uint64_t)blk_number * sizeof(raw_pos),
-		strerror(errno));
+				  "%" PRId64 ": %s",
+				  (uint64_t)blk_number * sizeof(raw_pos),
+				  strerror(errno));
 		return -1;
 	}
 	if (ftruncate(datafile, data_offset)) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_LOG("Data file ftruncate failure, pos: "
-				"%" PRId64 ": %s", data_offset,
-				strerror(errno));
+				  "%" PRId64 ": %s",
+				  data_offset,
+				  strerror(errno));
 		return -1;
 	}
 
@@ -1001,7 +969,7 @@ static int check_for_overwrite(uint8_t *sam_stat)
 		MHVTL_DBG(2, "filemarks[%d] %d", i, filemarks[i]);
 		if (filemarks[i] >= blk_number) {
 			MHVTL_DBG(2, "Setting filemark_count from %d to %d",
-					meta.filemark_count, i);
+					  meta.filemark_count, i);
 			meta.filemark_count = i;
 			return rewrite_meta_file();
 		}
@@ -1010,21 +978,19 @@ static int check_for_overwrite(uint8_t *sam_stat)
 	return 0;
 }
 
-void zero_filemark_count(void)
-{
+void zero_filemark_count(void) {
 	MHVTL_DBG(1, "zero_filemark_count");
-/*
-	free(filemarks);
-	filemark_alloc = 0;
-	filemarks = NULL;
+	/*
+		free(filemarks);
+		filemark_alloc = 0;
+		filemarks = NULL;
 
-	meta.filemark_count = 0;
-	rewrite_meta_file();
-*/
+		meta.filemark_count = 0;
+		rewrite_meta_file();
+	*/
 }
 
-int format_tape(uint8_t *sam_stat)
-{
+int format_tape(uint8_t *sam_stat) {
 	MHVTL_DBG(1, "format_tape");
 	if (!tape_loaded(sam_stat))
 		return -1;
@@ -1037,18 +1003,15 @@ int format_tape(uint8_t *sam_stat)
 	return mkEODHeader(raw_pos.hdr.blk_number);
 }
 
-void print_filemark_count(void)
-{
-/*	printf("Total num of filemarks: %d\n", meta.filemark_count); */
+void print_filemark_count(void) {
+	/*	printf("Total num of filemarks: %d\n", meta.filemark_count); */
 }
 
-void print_metadata(void)
-{
-/*
-	int a;
+void print_metadata(void) {
+	/*
+		int a;
 
-	for (a = 0; a < meta.filemark_count; a++)
-		printf("Filemark: %d\n", filemarks[a]);
-*/
+		for (a = 0; a < meta.filemark_count; a++)
+			printf("Filemark: %d\n", filemarks[a]);
+	*/
 }
-
