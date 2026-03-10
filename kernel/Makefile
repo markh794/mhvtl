@@ -7,6 +7,7 @@
 EXTRA_CFLAGS += -I$(SRC)/../include
 EXTRA_CFLAGS += -DMHVTL_DEBUG
 
+ccflags-y += -I$(M)/../include/common -DMHVTL_DEBUG
 obj-m	:= mhvtl.o
 vtl-objs := mhvtl.o
 
@@ -24,20 +25,49 @@ endif
 
 export KDIR
 
+TOPDIR ?= $(CURDIR)/..
+FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
+
 PWD	:= $(shell pwd)
 
-default:	config.h
+all: mhvtl.ko ../mhvtl_kernel.tgz
+
+mhvtl.ko:	config.h
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 config.h: config.sh
 	./config.sh
 
+install: all
+	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
+	install -m 755 ../mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
+	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/
+	depmod -a
+
+uninstall: distclean
+	rm -f /lib/modules/$(V)/kernel/drivers/scsi/mhvtl.ko $(DESTDIR)$(FIRMWAREDIR)/mhvtl/mhvtl_kernel.tgz
+	depmod -a
+
+../mhvtl_kernel.tgz:  $(wildcard ./*.c) $(wildcard ./*.h) $(wildcard ../include/common/*.h) \
+					  config.sh Makefile
+	tar --sort=name --mtime=@1 --format=gnu --transform='s|.*/||' -czf $@ $^
+
+install-bkup:
+	cp mhvtl.ko ~/mhvtl-$(V)_`uname -m`.ko
+
+tags:
+	ctags -R *
+
+# ========== Cleaning ==========
+
+.PHONY: clean
 clean:
 	$(RM) mhvtl.ko
 	$(RM) *.o
 	$(RM) TAGS
 	$(RM) config.h
 
+.PHONY: distclean
 distclean: clean
 	$(RM) .*.o.d \
 	    mhvtl.mod.c \
@@ -58,16 +88,3 @@ distclean: clean
 	    .mhvtl.ko.unsigned.cmd \
 	    config.h
 	$(RM) -r .tmp_versions
-
-install:
-	install -o root -g root -m 644 mhvtl.ko /lib/modules/$(V)/kernel/drivers/scsi/; \
-	depmod -a; \
-	if [ -f "/etc/modprobe.d/unsupported-modules" ]; then \
-		sed -i 's/^allow_unsupported_modules 0/allow_unsupported_modules 1/' /etc/modprobe.d/unsupported-modules; \
-	fi
-
-install-bkup:
-	cp mhvtl.ko ~/mhvtl-$(V)_`uname -m`.ko
-
-tags:
-	ctags -R *

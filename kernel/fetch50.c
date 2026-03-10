@@ -15,16 +15,15 @@
  */
 
 static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
-				__user void *buf, size_t buflen, int to_buffer)
-{
-	unsigned int offset = 0;
+								 __user void *buf, size_t buflen, int to_buffer) {
+	unsigned int		   offset = 0;
 	struct sg_mapping_iter miter;
 	/* Do not use SG_MITER_ATOMIC flag on the sg_miter_start() call */
 	unsigned int sg_flags = 0;
 	unsigned int rem;
-	void *kmem_user;
+	void		*kmem_user;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 30)
 	if (to_buffer)
 		sg_flags |= SG_MITER_FROM_SG;
 	else
@@ -43,7 +42,7 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		len = min(miter.length, buflen - offset);
 		if (unlikely(len > SG_SEGMENT_SZ)) {
 			pr_warn("scatter-gather segment size larger than SG_SEGMENT_SZ (%d > %d)",
-						len, SG_SEGMENT_SZ);
+					len, SG_SEGMENT_SZ);
 			goto abort_early;
 		}
 
@@ -58,13 +57,13 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		}
 		if (rem)
 			pr_warn("mhvtl: %s(): "
-				"copy_%s_user() failed, rem %ld, buf 0x%pS, "
-				"miter.addr 0x%pS, len %d\n",
-				__func__, (to_buffer) ? "to" : "from",
-				(long)rem,
-				(buf + offset),
-				miter.addr,
-				len);
+					"copy_%s_user() failed, rem %ld, buf 0x%pS, "
+					"miter.addr 0x%pS, len %d\n",
+					__func__, (to_buffer) ? "to" : "from",
+					(long)rem,
+					(buf + offset),
+					miter.addr,
+					len);
 
 		offset += len;
 	}
@@ -77,14 +76,12 @@ abort_early:
 }
 
 static size_t mhvtl_copy_from_user(struct scatterlist *sgl, unsigned int nents,
-			char __user *buf, size_t buflen)
-{
+								   char __user *buf, size_t buflen) {
 	return mhvtl_sg_copy_user(sgl, nents, buf, buflen, 0);
 }
 
 static size_t mhvtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
-			char __user *buf, size_t buflen)
-{
+								 char __user *buf, size_t buflen) {
 	return mhvtl_sg_copy_user(sgl, nents, buf, buflen, 1);
 }
 
@@ -94,8 +91,7 @@ static size_t mhvtl_copy_to_user(struct scatterlist *sgl, unsigned int nents,
  *
  * Returns number of bytes fetched into 'arr' or -1 if error.
  */
-static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len)
-{
+static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, int len) {
 	if (!scsi_bufflen(scp))
 		return 0;
 	if (scp->sc_data_direction != DMA_TO_DEVICE)
@@ -111,9 +107,8 @@ static int mhvtl_fetch_to_dev_buffer(struct scsi_cmnd *scp, char __user *arr, in
  Returns 0 if ok else (DID_ERROR << 16). Sets scp->resid .
  */
 static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
-				int arr_len)
-{
-	int act_len;
+									   int arr_len) {
+	int						 act_len;
 	struct scsi_data_buffer *sdb = &scp->sdb;
 
 	if (!sdb->length)
@@ -122,7 +117,7 @@ static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 		return DID_ERROR << 16;
 
 	act_len = mhvtl_copy_from_user(sdb->table.sgl, sdb->table.nents,
-					arr, arr_len);
+								   arr, arr_len);
 	scsi_set_resid(scp, scsi_bufflen(scp) - act_len);
 
 	return 0;
@@ -130,9 +125,8 @@ static int mhvtl_fill_from_user_buffer(struct scsi_cmnd *scp, char __user *arr,
 
 /* Build SCSI "data-in" buffer. Returns 0 if ok else (DID_ERROR << 16). */
 static int mhvtl_fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
-					int arr_len)
-{
-	int act_len;
+									  int arr_len) {
+	int						 act_len;
 	struct scsi_data_buffer *sdb = &scp->sdb;
 
 	if (!sdb->length)
@@ -141,9 +135,8 @@ static int mhvtl_fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 		return DID_ERROR << 16;
 
 	act_len = sg_copy_from_buffer(sdb->table.sgl, sdb->table.nents,
-					arr, arr_len);
+								  arr, arr_len);
 	scsi_set_resid(scp, scsi_bufflen(scp) - act_len);
 
 	return 0;
 }
-

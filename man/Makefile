@@ -22,12 +22,13 @@ include ../config.mk
 MONTH = $(shell date -r ../ChangeLog +%B)
 YEAR = $(shell date -r ../ChangeLog +%Y)
 
-objects = $(patsubst %.in,%,$(wildcard *.in))
+MAN_PATH = $(DESTDIR)$(PREFIX)$(MANDIR)
+MAN1_PAGES = $(patsubst %.1.in,%.1,$(wildcard *.1.in))
+MAN5_PAGES = $(patsubst %.5.in,%.5,$(wildcard *.5.in))
 
-man: $(objects)
+all: $(MAN1_PAGES) $(MAN5_PAGES)
 
-all: $(objects)
-
+# Create man pages in local folder
 %: %.in
 	sed -e s'/@VERSION@/$(VERSION)/' \
 		-e s'/@MONTH@/$(MONTH)/' \
@@ -35,25 +36,33 @@ all: $(objects)
 		-e s'/@CONFIG_PATH@/$(CONFIG_PATH)/' \
 		-e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
 
-install:
-	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man1
-	install -d -m 755 $(DESTDIR)$(PREFIX)$(MANDIR)/man5
-	install mktape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install vtlcmd.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install vtltape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install edit_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install vtllibrary.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install make_vtl_media.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install mhvtl_kernel_mod_build.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install dump_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install preload_tape.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install tapeexerciser.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install update_device.conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install generate_device_conf.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install generate_library_contents.1 $(DESTDIR)$(PREFIX)$(MANDIR)/man1/
-	install mhvtl.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
-	install device.conf.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
-	install library_contents.5 $(DESTDIR)$(PREFIX)$(MANDIR)/man5/
+# Directories
+$(MAN_PATH)/man1:
+	install -d -m 755 $@
+$(MAN_PATH)/man5:
+	install -d -m 755 $@
 
+# installation
+$(MAN_PATH)/man1/%.1: %.1 | $(MAN_PATH)/man1
+	install $< $@
+$(MAN_PATH)/man5/%.5: %.5 | $(MAN_PATH)/man5
+	install $< $@
+
+.PHONY:install
+install: $(addprefix $(MAN_PATH)/man1/,$(MAN1_PAGES)) \
+		 $(addprefix $(MAN_PATH)/man5/,$(MAN5_PAGES))
+
+.PHONY: uninstall
+uninstall:
+	rm -f $(addprefix $(MAN_PATH)/man1/,$(MAN1_PAGES)) \
+		  $(addprefix $(MAN_PATH)/man5/,$(MAN5_PAGES))
+
+# ========== Cleaning ==========
+
+.PHONY:clean
 clean:
+	rm -f *.1 *.5
+
+.PHONY:distclean
+distclean:
 	rm -f *.1 *.5
