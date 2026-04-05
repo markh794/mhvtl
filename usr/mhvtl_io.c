@@ -101,8 +101,13 @@ static int uncompress_lzo_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_sta
 			return 0;
 		}
 		z = lzo1x_decompress_safe(cbuf, disk_blk_size, c2buf, &uncompress_sz, NULL);
-		/* Now copy 'requested size' of data into buffer */
-		memcpy(buf, c2buf, tgtsize);
+		/* Only copy out decompressed data on success; otherwise c2buf
+		 * contains uninitialized / partial data and would silently
+		 * corrupt the caller's read buffer. The switch (z) below will
+		 * set the appropriate sense for failure cases.
+		 */
+		if (z == LZO_E_OK)
+			memcpy(buf, c2buf, tgtsize);
 		free(c2buf);
 	}
 
@@ -197,8 +202,13 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 			return 0;
 		}
 		z = uncompress(c2buf, &uncompress_sz, cbuf, disk_blk_size);
-		/* Now copy 'requested size' of data into buffer */
-		memcpy(buf, c2buf, tgtsize);
+		/* Only copy out decompressed data on success; otherwise c2buf
+		 * contains uninitialized / partial data and would silently
+		 * corrupt the caller's read buffer. The switch (z) below will
+		 * set the appropriate sense for failure cases.
+		 */
+		if (z == Z_OK)
+			memcpy(buf, c2buf, tgtsize);
 		free(c2buf);
 	}
 
