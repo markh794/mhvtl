@@ -1415,7 +1415,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 		if (lu_ssc.barcode) {
 			MHVTL_ERR("%ld: snd_id %ld: Tape \"%s\" already in mouth of drive",
 					  my_id, msg->snd_id, lu_ssc.barcode);
-			sprintf(s, "Load failed - %s is already in mouth of drive", lu_ssc.barcode);
+			snprintf(s, sizeof(s), "Load failed - %s is already in mouth of drive", lu_ssc.barcode);
 		} else {
 			/* 'lload ' => offset of 6 */
 			pcl		= strip_PCL(msg->text, 6);
@@ -1424,11 +1424,11 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 			lu_ssc.barcode = malloc(pcl_len);
 			if (!lu_ssc.barcode) {
 				MHVTL_ERR("Ugghhh... out of memory allocating buffer for barcode: %s", pcl);
-				sprintf(s, "%s: %s", msg_load_failed, pcl);
+				snprintf(s, sizeof(s), "%s: %s", msg_load_failed, pcl);
 			} else {
 				rc = loadTape(pcl, sam_stat);
 				strncpy(lu_ssc.barcode, pcl, pcl_len);
-				sprintf(s, "%s: %s", (get_tape_load_status() == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok, pcl);
+				snprintf(s, sizeof(s), "%s: %s", (get_tape_load_status() == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok, pcl);
 				/* If load fails - clean up 'barcode' */
 				if (rc) {
 					MHVTL_LOG("Mount of %s failed, return code: %d", pcl, rc);
@@ -1906,24 +1906,24 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 			if (sscanf(b, " Unit serial number: %s", s)) {
 				checkstrlen(s, SCSI_SN_LEN, linecount);
-				sprintf(lu->lu_serial_no, "%-10s", s);
+				snprintf(lu->lu_serial_no, sizeof(lu->lu_serial_no), "%-10s", s);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
 				checkstrlen(s, VENDOR_ID_LEN, linecount);
-				sprintf(lu->vendor_id, "%-8s", s);
-				sprintf(&lu->inquiry[8], "%-8s", s);
+				snprintf(lu->vendor_id, VENDOR_ID_LEN + 1, "%-8s", s);
+				snprintf(&lu->inquiry[8], VENDOR_ID_LEN + 1, "%-8s", s);
 			}
 			if (sscanf(b, " Product identification: %16c", s)) {
 				/* sscanf does not NULL terminate */
 				/* 25 is len of ' Product identification: ' */
 				s[strlen(b) - 25] = '\0';
 				checkstrlen(s, PRODUCT_ID_LEN, linecount);
-				sprintf(lu->product_id, "%-16s", s);
-				sprintf(&lu->inquiry[16], "%-16s", s);
+				snprintf(lu->product_id, PRODUCT_ID_LEN + 1, "%-16s", s);
+				snprintf(&lu->inquiry[16], PRODUCT_ID_LEN + 1, "%-16s", s);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN, linecount);
-				sprintf(&lu->inquiry[32], "%-4s", s);
+				snprintf(&lu->inquiry[32], PRODUCT_REV_LEN + 1, "%-4s", s);
 			}
 			if (sscanf(b, " Library ID: %d", &library_id)) {
 				MHVTL_DBG(2, "Library ID: %d", library_id);
@@ -1992,7 +1992,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 		/* Default rev with mhvtl release info */
 		v = get_version();
 		MHVTL_DBG(1, "Adding default vers info: %s", v);
-		sprintf(&lu->inquiry[32], "%-4s", v);
+		snprintf(&lu->inquiry[32], PRODUCT_REV_LEN + 1, "%-4s", v);
 		free(v);
 	}
 

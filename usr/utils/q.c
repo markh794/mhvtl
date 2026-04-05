@@ -65,6 +65,16 @@ int send_msg(char *cmd, long rcv_id) {
 	int			   len, s_qid;
 	struct q_entry s_entry;
 
+	/* Match enter()'s length guard: refuse messages that would not
+	 * fit into s_entry.msg.text[MAXTEXTLEN + 1] and prevent an
+	 * unbounded strcpy into the fixed-size queue message slot.
+	 */
+	if (strlen(cmd) > MAXTEXTLEN) {
+		MHVTL_ERR("send_msg: command too long (%zu > %d)",
+				  strlen(cmd), MAXTEXTLEN);
+		return -1;
+	}
+
 	memset(&s_entry, 0, sizeof(struct q_entry));
 
 	s_qid = init_queue();
@@ -73,7 +83,8 @@ int send_msg(char *cmd, long rcv_id) {
 
 	s_entry.rcv_id	   = rcv_id;
 	s_entry.msg.snd_id = my_id;
-	strcpy(s_entry.msg.text, cmd);
+	strncpy(s_entry.msg.text, cmd, MAXTEXTLEN);
+	s_entry.msg.text[MAXTEXTLEN] = '\0';
 	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_entry, msg.text);
 
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
