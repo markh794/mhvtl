@@ -1246,16 +1246,16 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 				i	 = strlen(b) - 25; /* len of ' Product identification: ' */
 				s[i] = '\0';
 				snprintf(lu->product_id, PRODUCT_ID_LEN + 1, "%-16s", s);
-				sprintf(&lu->inquiry[16], "%-16s", s);
+				snprintf(&lu->inquiry[16], PRODUCT_ID_LEN + 1, "%-16s", s);
 			}
 			if (sscanf(b, " Product revision level: %s", s)) {
 				checkstrlen(s, PRODUCT_REV_LEN, linecount);
-				sprintf(&lu->inquiry[32], "%-4s", s);
+				snprintf(&lu->inquiry[32], PRODUCT_REV_LEN + 1, "%-4s", s);
 			}
 			if (sscanf(b, " Vendor identification: %s", s)) {
 				checkstrlen(s, VENDOR_ID_LEN, linecount);
-				sprintf(lu->vendor_id, "%-8s", s);
-				sprintf(&lu->inquiry[8], "%-8s", s);
+				snprintf(lu->vendor_id, VENDOR_ID_LEN + 1, "%-8s", s);
+				snprintf(&lu->inquiry[8], VENDOR_ID_LEN + 1, "%-8s", s);
 			}
 			if (sscanf(b, " fifo: %s", s))
 				process_fifoname(lu, s, 0);

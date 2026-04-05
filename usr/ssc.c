@@ -1221,25 +1221,34 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd) {
 uint8_t ssc_tur(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
-	char str[64];
+	char		 str[128];
+	const char	*suffix;
+	size_t		 prefix_len;
 
-	sprintf(str, "TEST UNIT READY (%ld) ** : ",
-			(long)dbuf_p->serialNo);
+	/* Large serial numbers + longest suffix ("No, Media format
+	 * corrupt") can exceed the original 64-byte buffer. Use a 128-byte
+	 * buffer with snprintf for both the prefix and the suffix append.
+	 */
+	prefix_len = snprintf(str, sizeof(str), "TEST UNIT READY (%ld) ** : ",
+						  (long)dbuf_p->serialNo);
+	if (prefix_len >= sizeof(str))
+		prefix_len = sizeof(str) - 1;
 
+	suffix = NULL;
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
-		strcat(str, "No, No tape loaded");
+		suffix = "No, No tape loaded";
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 		break;
 	case TAPE_LOADING:
-		strcat(str, "No, Tape loading");
+		suffix = "No, Tape loading";
 		sam_not_ready(E_BECOMING_READY, sam_stat);
 		break;
 	case TAPE_LOADED:
 		if (mam.MediumType == MEDIA_TYPE_CLEAN) {
 			int state;
 
-			strcat(str, "No, Cleaning cart loaded");
+			suffix = "No, Cleaning cart loaded";
 
 			if (lu_priv->cleaning_media_state)
 				state = *lu_priv->cleaning_media_state;
@@ -1262,13 +1271,16 @@ uint8_t ssc_tur(struct scsi_cmd *cmd) {
 				break;
 			}
 		} else
-			strcat(str, "Yes");
+			suffix = "Yes";
 		break;
 	default:
-		strcat(str, "No, Media format corrupt");
+		suffix = "No, Media format corrupt";
 		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		break;
 	}
+
+	if (suffix)
+		snprintf(str + prefix_len, sizeof(str) - prefix_len, "%s", suffix);
 
 	MHVTL_DBG(1, "%s", str);
 
