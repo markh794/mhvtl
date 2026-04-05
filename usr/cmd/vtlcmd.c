@@ -284,7 +284,7 @@ void Check_Params(int argc, char **argv) {
 					return;
 				PrintErrorExit(argv[0], "exit");
 			}
-			if (!strncasecmp(argv[2], "InquriyDataChange", 17)) {
+			if (!strncasecmp(argv[2], "InquiryDataChange", 17)) {
 				return;
 			}
 			if (!strncasecmp(argv[2], "TapeAlert", 9)) {
@@ -476,15 +476,26 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	/* Concat all args into one string */
-	p	   = buf;
-	buf[0] = '\0';
-
-	for (count = 2; count < argc; count++) {
-		strcat(p, argv[count]);
-		p += strlen(argv[count]);
-		strcat(p, " ");
-		p += strlen(" ");
+	/* Concat all args into one string.
+	 * Bound each write by remaining buffer space so an oversized argv
+	 * cannot overflow buf[] (the outgoing message queue slot is
+	 * sizeof(buf) bytes).
+	 */
+	{
+		size_t remaining = sizeof(buf);
+		p				 = buf;
+		buf[0]			 = '\0';
+		for (count = 2; count < argc; count++) {
+			int n = snprintf(p, remaining, "%s ", argv[count]);
+			if (n < 0 || (size_t)n >= remaining) {
+				fprintf(stderr, "Command line too long "
+								"(max %zu bytes)\n",
+						sizeof(buf) - 1);
+				exit(1);
+			}
+			p += n;
+			remaining -= n;
+		}
 	}
 
 	/* check if command to the specific device is allowed */

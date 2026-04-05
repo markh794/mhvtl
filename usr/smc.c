@@ -1100,15 +1100,15 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		smc_p->state_msg = (char *)zalloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */
-		sprintf(cmd, "%s", src->media->barcode);
+		snprintf(cmd, sizeof(cmd), "%s", src->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
 
-		sprintf(smc_p->state_msg,
-				"Moving %s from %s slot %d to drive %d",
-				cmd,
-				slot_type_str(src->element_type),
-				slot_number(smc_p->pm, src),
-				slot_number(smc_p->pm, dest->slot));
+		snprintf(smc_p->state_msg, DEF_SMC_PRIV_STATE_MSG_LENGTH,
+				 "Moving %s from %s slot %d to drive %d",
+				 cmd,
+				 slot_type_str(src->element_type),
+				 slot_number(smc_p->pm, src),
+				 slot_number(smc_p->pm, dest->slot));
 	}
 
 	if (check_tape_load()) {
@@ -1170,17 +1170,17 @@ static int move_slot2slot(struct smc_priv *smc_p, int src_addr,
 	}
 
 	if (!smc_p->state_msg)
-		smc_p->state_msg = zalloc(64);
+		smc_p->state_msg = zalloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
 	if (smc_p->state_msg) {
-		sprintf(cmd, "%s", src->media->barcode);
+		snprintf(cmd, sizeof(cmd), "%s", src->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
-		sprintf(smc_p->state_msg,
-				"Moving %s from %s slot %d to %s slot %d",
-				cmd,
-				slot_type_str(src->element_type),
-				slot_number(smc_p->pm, src),
-				slot_type_str(dest->element_type),
-				slot_number(smc_p->pm, dest));
+		snprintf(smc_p->state_msg, DEF_SMC_PRIV_STATE_MSG_LENGTH,
+				 "Moving %s from %s slot %d to %s slot %d",
+				 cmd,
+				 slot_type_str(src->element_type),
+				 slot_number(smc_p->pm, src),
+				 slot_type_str(dest->element_type),
+				 slot_number(smc_p->pm, dest));
 	}
 
 	retval = run_move_command(smc_p, src, dest, sam_stat);
@@ -1267,16 +1267,16 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	}
 
 	if (!smc_p->state_msg)
-		smc_p->state_msg = zalloc(64);
+		smc_p->state_msg = zalloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
 	if (smc_p->state_msg) {
-		sprintf(cmd, "%s", src->slot->media->barcode);
+		snprintf(cmd, sizeof(cmd), "%s", src->slot->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
-		sprintf(smc_p->state_msg,
-				"Moving %s from drive %d to %s slot %d",
-				cmd,
-				slot_number(smc_p->pm, src->slot),
-				slot_type_str(dest->element_type),
-				slot_number(smc_p->pm, dest));
+		snprintf(smc_p->state_msg, DEF_SMC_PRIV_STATE_MSG_LENGTH,
+				 "Moving %s from drive %d to %s slot %d",
+				 cmd,
+				 slot_number(smc_p->pm, src->slot),
+				 slot_type_str(dest->element_type),
+				 slot_number(smc_p->pm, dest));
 	}
 
 	move_cart(src->slot, dest);
@@ -1360,16 +1360,16 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	}
 
 	if (!smc_p->state_msg)
-		smc_p->state_msg = zalloc(64);
+		smc_p->state_msg = zalloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
 	if (smc_p->state_msg) {
 		/* Re-use 'cmd[]' var */
-		sprintf(cmd, "%s", dest->slot->media->barcode);
+		snprintf(cmd, sizeof(cmd), "%s", dest->slot->media->barcode);
 		truncate_spaces(&cmd[0], MAX_BARCODE_LEN + 1);
-		sprintf(smc_p->state_msg,
-				"Moving %s from drive %d to drive %d",
-				cmd,
-				slot_number(smc_p->pm, src->slot),
-				slot_number(smc_p->pm, dest->slot));
+		snprintf(smc_p->state_msg, DEF_SMC_PRIV_STATE_MSG_LENGTH,
+				 "Moving %s from drive %d to drive %d",
+				 cmd,
+				 slot_number(smc_p->pm, src->slot),
+				 slot_number(smc_p->pm, dest->slot));
 	}
 
 	/* Set the 'Access bit' to zero - i.e. the picker arm can't access it */
