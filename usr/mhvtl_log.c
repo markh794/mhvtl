@@ -478,8 +478,9 @@ void set_lp11_medium_present(int flag) {
 #define SET_VOLSTAT_PARAM_H6(paramCode, paramFlags) \
 	SET_VOLSTAT_PARAM_H((paramCode), (paramFlags), struct partition_record_size6)
 
-/* Rewriting the page with the real number of partitions */
-void update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
+/* Rewriting the page with the real number of partitions.
+ * Returns the total packed page size in bytes. */
+size_t update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
 	uint8_t *header;
 	uint64_t cap __attribute__((unused)); /* fixme : should be used instead of telling max cap */
 	int		 i;
@@ -544,6 +545,10 @@ void update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc 
 					  i, get_unaligned_be32(&p_header->data));
 		}
 	}
+
+	/* Return total packed page size */
+	header += sizeof(struct pc_header) + ((struct pc_header *)header)->len;
+	return (size_t)(header - (uint8_t *)pg);
 }
 
 /* Only valid for SSC devices */
