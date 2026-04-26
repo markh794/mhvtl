@@ -369,6 +369,16 @@ int add_log_device_status(struct lu_phy_attr *lu) {
 						  init_log_device_status, sizeof(struct DeviceStatus_pg));
 }
 
+static struct DeviceStatus_pg *lookup_device_status_pg(void) {
+	struct log_pg_list *log_pg;
+
+	log_pg = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE);
+	if (!log_pg)
+		return NULL;
+
+	return (struct DeviceStatus_pg *)log_pg->p;
+}
+
 static void init_log_tape_capacity(void *log_ptr) {
 	struct TapeCapacity_pg *pg = log_ptr;
 	*pg						   = (struct TapeCapacity_pg){
@@ -419,38 +429,38 @@ int add_log_performance_characteristics(struct lu_phy_attr *lu) {
 
 /* Update MAM Accessible bit in LogPage 0x11 */
 void set_lp_11_macc(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 	if (lp)
 		lp->vhf.b4.MACC = flag;
 }
 
 void set_lp11_compression(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 	if (lp)
 		lp->vhf.b4.CMPR = flag;
 }
 
 void set_lp_11_crqst(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 	if (lp)
 		lp->vhf.b4.CRQST = flag;
 }
 
 void set_lp_11_crqrd(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 	if (lp)
 		lp->vhf.b4.CRQRD = flag;
 }
 
 /* Update WriteProtect bit in LogPage 0x11 */
 void set_lp_11_wp(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 	if (lp)
 		lp->vhf.b4.WRTP = flag;
 }
 
 void set_lp11_medium_present(int flag) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 	if (!lp)
 		return;
 
@@ -589,17 +599,15 @@ int set_TapeAlert(uint64_t flags) {
 	int								  i;
 
 	/* Set LP 0x11 'TAFC' bit (TapeAlert Flag Changed) */
-	l = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
-	if (!l)
-		return -1;
-
-	ds = (struct DeviceStatus_pg *)l->p;
-	if (flags) {
-		ds->vhf.b7.TAFC = 1;
-		MHVTL_DBG(2, "Setting TAFC bit true");
-	} else {
-		ds->vhf.b7.TAFC = 0;
-		MHVTL_DBG(3, "Not setting TAFC bit as flags is zero");
+	ds = lookup_device_status_pg();
+	if (ds) {
+		if (flags) {
+			ds->vhf.b7.TAFC = 1;
+			MHVTL_DBG(2, "Setting TAFC bit true");
+		} else {
+			ds->vhf.b7.TAFC = 0;
+			MHVTL_DBG(3, "Not setting TAFC bit as flags is zero");
+		}
 	}
 
 	l = lookup_log_pg(&lunit.log_pg, TAPE_ALERT, NO_SUBPAGE);
@@ -700,7 +708,7 @@ void update_SequentialAccessDevice(struct SequentialAccessDevice_pg *sa) {
 }
 
 void set_current_state(int s) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 
 	current_state = s;
 
@@ -763,7 +771,7 @@ int get_tape_load_status(void) {
 }
 
 void set_tape_load_status(int s) {
-	struct DeviceStatus_pg *lp = lookup_log_pg(&lunit.log_pg, DEVICE_STATUS, NO_SUBPAGE)->p;
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 
 	lu_ssc.load_status = s;
 

@@ -272,8 +272,11 @@ const char *Check_Params(int argc, char **argv) {
 			}
 			if (!strcmp(argv[2], "exit")) {
 				if (argc == 3)
-					return NULL;
-				return "exit";
+					return;
+				PrintErrorExit(argv[0], "exit");
+			}
+			if (!strncasecmp(argv[2], "InquiryDataChange", 17)) {
+				return;
 			}
 			if (!strncasecmp(argv[2], "InquiryDataChange", 17))
 				return NULL;
@@ -534,6 +537,27 @@ int main(int argc, char **argv) {
 			}
 			p += n;
 			remaining -= n;
+		}
+	}
+
+	/* check if command to the specific device is allowed */
+	if (device_type == TYPE_LIBRARY) {
+		if (!strncmp(buf, "online", 6)) {
+		} else if (!strncmp(buf, "add slot", 8)) {
+		} else if (!strncmp(buf, "offline", 7)) {
+		} else if (!strncmp(buf, "open map", 8)) {
+		} else if (!strncmp(buf, "close map", 9)) {
+		} else if (!strncmp(buf, "empty map", 9)) {
+		} else if (!strncmp(buf, "list map", 8)) {
+		} else if (!strncmp(buf, "load map", 8)) {
+		} else if (!strncmp(buf, "verbose", 7)) {
+		} else if (!strncmp(buf, "debug", 5)) {
+		} else if (!strncmp(buf, "exit", 4)) {
+		} else if (!strncmp(buf, "TapeAlert", 9)) {
+		} else if (!strncmp(buf, "InquiryDataChange", 17)) {
+		} else {
+			fprintf(stderr, "Command for library not allowed\n");
+			exit(1);
 		}
 	}
 
