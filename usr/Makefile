@@ -44,6 +44,9 @@ GENERATED_FILES = $(patsubst cmd/%.in,bin/%,$(wildcard cmd/*.in))
 
 # Exclude TCMU handler from default build (needs -ltcmu, built under ifdef TCMU)
 BINARIES = $(patsubst cmd/%.c,bin/%,$(filter-out cmd/mhvtl_tcmu_handler.c,$(wildcard cmd/*.c))) bin/dump_tape
+ifdef TCMU
+BINARIES += bin/mhvtl_tcmu_handler
+endif
 LIBRARIES = libvtlscsi.so
 
 all: | bin
@@ -64,7 +67,8 @@ VTL_DEP = $(VTL_SRC:.c=.d)
 mhvtl_log.o mode.o \
 smc.o spc.o \
 vtlcart.o vtllib.o \
-transport.o transport_mhvtl.o: \
+transport.o transport_mhvtl.o \
+transport_userland.o: \
 	CFLAGS += -fpic
 
 
@@ -104,7 +108,14 @@ utils/q.o utils/subprocess.o utils/mhvtl_update.o: \
 # ================== libs ==================
 
 # Transport backend objects
-TRANSPORT_OBJ = transport.o transport_mhvtl.o
+CFLAGS += -DMHVTL_USERLAND_BACKEND
+TRANSPORT_OBJ = transport.o transport_mhvtl.o transport_userland.o
+
+ifdef TCMU
+CFLAGS += -DMHVTL_TCMU_BACKEND
+TRANSPORT_OBJ += transport_tcmu.o
+transport_tcmu.o: CFLAGS += -fpic
+endif
 
 libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
 		vtlcart.o \
@@ -191,7 +202,11 @@ MHVTL_DEVICE_CONF_GENERATOR_OBJ = cmd/mhvtl-device-conf-generator.o
 bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) -L. -lvtlscsi
 
-
+ifdef TCMU
+MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o
+bin/mhvtl_tcmu_handler: $(MHVTL_TCMU_HANDLER_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi -ltcmu -lpthread
+endif
 
 bin/make_vtl_media: cmd/make_vtl_media.in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \

@@ -29,9 +29,12 @@ CRC_SRC  = ../usr/utils/crc32c.c
 # All test binaries
 TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing
 
+# Integration tests via userland transport (no kernel modules or root needed)
+INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io
+
 .PHONY: all test clean
 
-all: $(TESTS)
+all: $(TESTS) $(INTEGRATION_TESTS)
 
 test_byteshift: test_byteshift.c acutest.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
@@ -62,6 +65,22 @@ vtlcmd_testobj.o: $(VTLCMD_SRC)
 test_vtlcmd_parsing: test_vtlcmd_parsing.c acutest.h vtlcmd_testobj.o
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_vtlcmd_parsing.c vtlcmd_testobj.o
 
+test_userland_transport: test_userland_transport.c acutest.h helpers/scsi_harness.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_drive_types: test_drive_types.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_tape_io: test_tape_io.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+integration: $(INTEGRATION_TESTS)
+	@echo "=== Running integration tests (userland transport) ==="
+	@for t in $(INTEGRATION_TESTS); do \
+		echo "--- $$t ---"; \
+		./$$t; \
+	done
+
 test: $(TESTS)
 	@echo "=== Running unit tests ==="
 	@failed=0; \
@@ -79,4 +98,4 @@ test: $(TESTS)
 	fi
 
 clean:
-	rm -f $(TESTS) vtlcmd_testobj.o
+	rm -f $(TESTS) $(INTEGRATION_TESTS) vtlcmd_testobj.o
