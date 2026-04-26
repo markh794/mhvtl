@@ -42,7 +42,8 @@ LZODEBUG =
 # files that need to be generated
 GENERATED_FILES = $(patsubst cmd/%.in,bin/%,$(wildcard cmd/*.in))
 
-BINARIES = $(patsubst cmd/%.c,bin/%,$(wildcard cmd/*.c)) bin/dump_tape
+# Exclude TCMU handler from default build (needs -ltcmu, built under ifdef TCMU)
+BINARIES = $(patsubst cmd/%.c,bin/%,$(filter-out cmd/mhvtl_tcmu_handler.c,$(wildcard cmd/*.c))) bin/dump_tape
 LIBRARIES = libvtlscsi.so
 
 all: | bin
@@ -62,7 +63,8 @@ VTL_DEP = $(VTL_SRC:.c=.d)
 
 mhvtl_log.o mode.o \
 smc.o spc.o \
-vtlcart.o vtllib.o: \
+vtlcart.o vtllib.o \
+transport.o transport_mhvtl.o: \
 	CFLAGS += -fpic
 
 
@@ -101,12 +103,16 @@ utils/q.o utils/subprocess.o utils/mhvtl_update.o: \
 
 # ================== libs ==================
 
+# Transport backend objects
+TRANSPORT_OBJ = transport.o transport_mhvtl.o
+
 libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
 		vtlcart.o \
 	 	spc.o smc.o \
 	 	utils/q.o \
 	 	utils/subprocess.o \
-		utils/mhvtl_update.o
+		utils/mhvtl_update.o \
+		$(TRANSPORT_OBJ)
 	$(CC) $(CLFLAGS) -o $@ $^ -lpthread
 
 # ================== Commands and scripts ==================
@@ -229,7 +235,7 @@ install: all \
 	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape
 	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
 	install -m 755 bin/mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
-	restorecon -R -v  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
+	restorecon -R -v  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) 2>/dev/null || true
 ifeq ($(ROOTUID),YES)
 	ldconfig 
 endif
@@ -239,10 +245,10 @@ uninstall:
 	rm -f $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
 		  $(addprefix $(DESTDIR)$(LIBDIR)/,$(LIBRARIES)) \
 		  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/mhvtl-device-conf-generator
-	restorecon -R -v  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
+	restorecon -R -v  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) 2>/dev/null || true
 ifeq ($(ROOTUID),YES)
-	ldconfig 
-endif	
+	ldconfig
+endif
 
 .PHONY:tar
 tar:

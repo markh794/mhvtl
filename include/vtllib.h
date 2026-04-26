@@ -685,9 +685,6 @@ int			 resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz);
 
 void  hex_dump(uint8_t *, int);
 void *zalloc(int sz);
-int	  chrdev_open(const char *name, unsigned minor);
-int	  chrdev_create(unsigned minor);
-void  chrdev_delete(unsigned minor);
 int	  oom_adjust(void);
 int	  open_fifo(FILE **fifo_fd, char *fifoname);
 void  status_change(FILE *fifo_fd, int current_status, int my_id, char **msg);
@@ -700,8 +697,6 @@ void log_opcode(char *opcode, struct scsi_cmd *cmd);
 struct vpd *alloc_vpd(uint16_t sz);
 void		dealloc_vpd(struct vpd *pg);
 void		cleanup_density_support(struct list_head *l);
-
-pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl);
 
 void completeSCSICommand(int, struct mhvtl_ds *ds);
 int	 retrieve_CDB_data(int cdev, struct mhvtl_ds *dbuf_p);
