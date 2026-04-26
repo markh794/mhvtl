@@ -3,7 +3,7 @@ Documentation=man:vtltape(1) man:vtlcmd(1)
 Description=Tape Daemon for Virtual Tape & Robot Library
 Before=mhvtl.target
 Requires=mhvtl-load-modules.service
-After=mhvtl-load-modules.service
+After=mhvtl-load-modules.service mhvtl-tcmu-handler.service
 PartOf=mhvtl.target
 
 [Service]
@@ -13,7 +13,9 @@ Environment=DAEMON_DEBUG=
 EnvironmentFile=-@CONF_PATH@/mhvtl.conf
 ExecStart=/usr/bin/vtltape -F -q%i -v${VERBOSE} ${DAEMON_DEBUG}
 ExecStop=/usr/bin/vtlcmd %i exit
-KillMode=none
+KillMode=mixed
+TimeoutStopSec=10
+ExecStopPost=-/bin/rm -f /var/lock/mhvtl/mhvtl%i
 
 [Install]
 WantedBy=mhvtl.target
