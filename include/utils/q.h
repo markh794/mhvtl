@@ -23,6 +23,8 @@
 #ifndef _Q_H_
 #define _Q_H_
 
+#include <stdlib.h>
+
 #define MAXTEXTLEN 1024
 
 struct q_msg {
@@ -30,7 +32,19 @@ struct q_msg {
 	char text[MAXTEXTLEN + 1];
 };
 
-#define QKEY	 (key_t)0x4d61726b	  /* Identifying key for queue */
+/* Default SysV IPC queue key — ASCII "Mark" (0x4d61726b) */
+#define MHVTL_DEFAULT_QKEY	((key_t)0x4d61726b)
+/* Base key for per-instance test isolation (high bits of "Mark") */
+#define MHVTL_QKEY_BASE	((unsigned)0x4d000000)
+
+/* Queue key: use MHVTL_QKEY env var if set, else default.
+ * Allows multiple instances (e.g. tests) to run in parallel
+ * without conflicting on the same system-wide queue. */
+static inline key_t mhvtl_qkey(void) {
+	const char *env = getenv("MHVTL_QKEY");
+	return (env && env[0]) ? (key_t)strtoul(env, NULL, 0) : MHVTL_DEFAULT_QKEY;
+}
+#define QKEY	 mhvtl_qkey()
 #define QPERM	 0660				  /* Permissions for queue */
 #define MAXOBN	 sizeof(struct q_msg) /* Maximum length of message for Q. */
 #define MAXPRIOR 1024				  /* max priority level */

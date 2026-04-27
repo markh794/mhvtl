@@ -55,6 +55,7 @@
 #include "q.h"
 #include "ssc.h"
 #include "mhvtl_log.h"
+#include "transport.h"
 
 static int reset				= 0;
 static int inquiry_data_changed = 0;
@@ -166,7 +167,21 @@ void init_mam(struct MAM *mamp) {
 int get_config(char *buf, conf_file conf, long id) {
 	char  format[128];
 	char  config_path[CONF_DIR_PATH_SZ] = {0};
-	FILE *fp							= fopen(MHVTL_CONFIG_PATH "/mhvtl.conf", "r");
+	const char *env_conf;
+	char  conf_file_path[CONF_DIR_PATH_SZ + 32];
+	FILE *fp;
+
+	/* Environment variable takes precedence over compiled-in default.
+	 * This allows tests to run without root and in parallel by pointing
+	 * each daemon instance to its own config directory. */
+	env_conf = getenv("MHVTL_CONFIG_PATH");
+	if (env_conf && env_conf[0]) {
+		strncpy(config_path, env_conf, sizeof(config_path) - 1);
+	}
+
+	snprintf(conf_file_path, sizeof(conf_file_path), "%s/mhvtl.conf",
+		 config_path[0] ? config_path : MHVTL_CONFIG_PATH);
+	fp = fopen(conf_file_path, "r");
 
 	snprintf(format, sizeof(format), "%%255[^= \t\r] = %%%u[^\n]", CONF_DIR_PATH_SZ - 1);
 	if (fp) {
@@ -563,47 +578,19 @@ void setTapeAlert(struct TapeAlert_pg *ta, uint64_t flg) {
 }
 
 /*
- * Simple function to read 'count' bytes from the chardev into 'buf'.
+ * Retrieve SCSI write data (DATA-OUT) for the current command.
+ * Delegates to the active transport backend.
  */
 int retrieve_CDB_data(int cdev, struct mhvtl_ds *ds) {
-	int ioctl_err;
-
-	MHVTL_DBG(3, "retrieving %d bytes from kernel", ds->sz);
-	ioctl_err = ioctl(cdev, VTL_GET_DATA, ds);
-	if (ioctl_err < 0) {
-		MHVTL_ERR("Failed retrieving data via ioctl(): %s",
-				  strerror(errno));
-		return 0;
-	}
-	return ds->sz;
+	return vtl_transport->get_data(cdev, ds);
 }
 
 /*
- * Passes struct mhvtl_ds to kernel module.
- *   struct contains amount of data, status and pointer to data struct.
- *
- * Returns nothing.
+ * Complete the current SCSI command with response data and SAM status.
+ * Delegates to the active transport backend.
  */
 void completeSCSICommand(int cdev, struct mhvtl_ds *ds) {
-	uint8_t *s;
-
-	ioctl(cdev, VTL_PUT_DATA, ds);
-
-	s = (uint8_t *)ds->sense_buf;
-
-	if (ds->sam_stat == SAM_STAT_CHECK_CONDITION) {
-		MHVTL_DBG(2, "s/n: (%ld), sz: %d, sam_status: %d"
-					 " [%02x %02x %02x]",
-				  (unsigned long)ds->serialNo,
-				  ds->sz, ds->sam_stat,
-				  s[2], s[12], s[13]);
-	} else {
-		MHVTL_DBG(2, "OP s/n: (%ld), sz: %d, sam_status: %d",
-				  (unsigned long)ds->serialNo,
-				  ds->sz, ds->sam_stat);
-	}
-
-	ds->sam_stat = 0;
+	vtl_transport->put_data(cdev, ds);
 }
 
 /* Hex dump 'count' bytes at p  */
@@ -866,212 +853,6 @@ void hex_dump(uint8_t *p, int count) {
 	}
 }
 
-static int mhvtl_access(char *p, int len, char *entry) {
-	int			fstat;
-	struct stat km;
-	char		filename[256];
-
-	snprintf(filename, ARRAY_SIZE(filename),
-			 "/sys/bus/mhvtl/drivers/mhvtl/%s", entry);
-	MHVTL_DBG(1, "Testing %s", filename);
-	fstat = stat(filename, &km);
-	if (fstat >= 0) {
-		strncpy(p, filename, len);
-		return 0;
-	}
-	snprintf(filename, ARRAY_SIZE(filename),
-			 "/sys/bus/pseudo9/drivers/mhvtl/%s", entry);
-	MHVTL_DBG(1, "Testing %s", filename);
-	fstat = stat(filename, &km);
-	if (fstat >= 0) {
-		strncpy(p, filename, len);
-		return 0;
-	}
-	snprintf(filename, ARRAY_SIZE(filename),
-			 "/sys/bus/pseudo/drivers/mhvtl/%s", entry);
-	MHVTL_DBG(1, "Testing %s", filename);
-	fstat = stat(filename, &km);
-	if (fstat >= 0) {
-		strncpy(p, filename, len);
-		return 0;
-	}
-	return -1;
-}
-
-/* Writing to the kernel module will block until the device is created.
- * Unfortunately, we need to be polling the device and process the
- * SCSI op code before the lu can be created.
- * Chicken & Egg.
- * So spawn child process and don't wait for return.
- * Let the child process write to the kernel module
- */
-pid_t add_lu(unsigned minor, struct mhvtl_ctl *ctl) {
-	char	str[1024];
-	pid_t	ppid, pid, mypid;
-	ssize_t retval;
-	FILE   *pseudo;
-	char	pseudo_filename[256];
-	char	errmsg[512];
-
-	sprintf(str, "add %u %d %d %d",
-			minor, ctl->channel, ctl->id, ctl->lun);
-
-	if (mhvtl_access(pseudo_filename, ARRAY_SIZE(pseudo_filename), "add_lu") < 0) {
-		sprintf(str, "Could not find mhvtl kernel module");
-		MHVTL_ERR("%s: %s", mhvtl_driver_name, str);
-		printf("%s: %s\n", mhvtl_driver_name, str);
-		exit(EIO);
-	}
-
-	/* Parent PID */
-	ppid = getpid();
-
-	switch (pid = fork()) {
-	case 0: /* Child */
-		mypid  = getpid();
-		pseudo = fopen(pseudo_filename, "w");
-		if (!pseudo) {
-			snprintf(errmsg, ARRAY_SIZE(errmsg),
-					 "Could not open %s: %s", pseudo_filename, strerror(errno));
-			MHVTL_ERR("Parent PID: %ld -> %s : %s", (long)ppid, errmsg, strerror(errno));
-			perror("Could not open 'add_lu'");
-			exit(-1);
-		}
-
-		retval = fprintf(pseudo, "%s\n", str);
-		MHVTL_DBG(2, "Wrote '%s' (%d bytes) to %s",
-				  str, (int)retval, pseudo_filename);
-
-		fclose(pseudo);
-		MHVTL_DBG(1, "Parent PID: [%ld] -> Child [%ld] anounces 'lu [%d:%d:%d] created'.",
-				  (long)ppid, (long)mypid, ctl->channel, ctl->id, ctl->lun);
-		exit(0);
-		break;
-	case -1:
-		perror("Failed to fork()");
-		MHVTL_ERR("Parent PID: %ld -> Fail to fork() %s", (long)ppid, strerror(errno));
-		return 0;
-		break;
-	default: /* Parent */
-		MHVTL_DBG(2, "[%ld] Child PID [%ld] will start logical unit [%d:%d:%d]",
-				  (long)ppid, (long)pid, ctl->channel,
-				  ctl->id, ctl->lun);
-
-		return pid;
-		break;
-	}
-
-	return 0;
-}
-
-static int chrdev_get_major(void) {
-	FILE	  *f;
-	char	   filename[256];
-	const char str[] = "Could not locate mhvtl kernel module";
-	int		   rc	 = 0;
-	int		   x;
-	int		   majno;
-
-	if (mhvtl_access(filename, ARRAY_SIZE(filename), "major") < 0) {
-		MHVTL_ERR("%s: %s", mhvtl_driver_name, str);
-		printf("%s: %s\n", mhvtl_driver_name, str);
-		exit(EIO);
-	}
-
-	f = fopen(filename, "r");
-	if (!f) {
-		MHVTL_DBG(1, "Can't open %s: %s", filename, strerror(errno));
-		return -ENOENT;
-	}
-	x = fscanf(f, "%d", &majno);
-	if (!x) {
-		MHVTL_DBG(1, "Cant identify major number for mhvtl");
-		rc = -1;
-	} else
-		rc = majno;
-
-	fclose(f);
-	return rc;
-}
-
-int chrdev_create(unsigned minor) {
-	int	  majno;
-	int	  x;
-	int	  ret = 0;
-	dev_t dev;
-	char  pathname[64];
-
-	snprintf(pathname, sizeof(pathname), "/dev/mhvtl%u", minor);
-
-	majno = chrdev_get_major();
-	if (majno == -ENOENT) {
-		MHVTL_DBG(1, "** Incorrect version of kernel module loaded **");
-		ret = -1;
-		goto err;
-	}
-
-	dev = makedev(majno, minor);
-	MHVTL_DBG(2, "Major number: %d, minor number: %u",
-			  major(dev), minor(dev));
-	MHVTL_DBG(3, "mknod(%s, %02o, major: %d minor: %d",
-			  pathname, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
-			  major(dev), minor(dev));
-	x = mknod(pathname, S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP, dev);
-	if (x < 0) {
-		if (errno == EEXIST) /* Success if node already exists */
-			return 0;
-
-		MHVTL_DBG(1, "Error creating device node for mhvtl: %s",
-				  strerror(errno));
-		ret = -1;
-	}
-
-err:
-	return ret;
-}
-
-int chrdev_open(const char *name, unsigned minor) {
-	FILE *f;
-	char  devname[256];
-	char  buf[256];
-	int	  devn;
-	int	  ctlfd;
-
-	f = fopen("/proc/devices", "r");
-	if (!f) {
-		printf("Cannot open control path to the driver: %s\n",
-			   strerror(errno));
-		return -1;
-	}
-
-	devn = 0;
-	while (!feof(f)) {
-		if (!fgets(buf, sizeof(buf), f))
-			break;
-		if (sscanf(buf, "%d %s", &devn, devname) != 2)
-			continue;
-		if (!strcmp(devname, name))
-			break;
-		devn = 0;
-	}
-	fclose(f);
-	if (!devn) {
-		printf("Cannot find %s in /proc/devices - "
-			   "make sure the module is loaded\n",
-			   name);
-		return -1;
-	}
-	snprintf(devname, sizeof(devname), "/dev/%s%u", name, minor);
-	ctlfd = open(devname, O_RDWR | O_NONBLOCK | O_EXCL);
-	if (ctlfd < 0) {
-		printf("Cannot open %s %s\n", devname, strerror(errno));
-		fflush(NULL);
-		printf("\n\n");
-		return -1;
-	}
-	return ctlfd;
-}
-
 /* Create the fifo and open it for writing (appending)
  * Return 0 on success,
  * Return errno on failure
@@ -1237,7 +1018,13 @@ void log_opcode(char *opcode, struct scsi_cmd *cmd) {
 	MHVTL_DBG_PRT_CDB(1, cmd);
 }
 
-#define LOCK_PATH "/var/lock/mhvtl"
+/* Lock path: use MHVTL_LOCK_PATH env var if set, else default.
+ * This allows tests to run without root and in parallel. */
+static const char *get_lock_path(void) {
+	const char *p = getenv("MHVTL_LOCK_PATH");
+	return (p && p[0]) ? p : "/var/lock/mhvtl";
+}
+#define LOCK_PATH get_lock_path()
 #define MAX_WAIT  20
 int check_for_running_daemons(unsigned minor) {
 	char lck_file[128];
@@ -1687,12 +1474,14 @@ void find_media_home_directory(char *config_directory, long lib_id) {
 		}
 	}
 
-	/* Not found, then append the library id to default path */
-	snprintf(home_directory, HOME_DIR_PATH_SZ, "%s/%ld",
-			 MHVTL_HOME_PATH, lib_id);
-	MHVTL_DBG(1, "Append library id %ld to default path %s: %s",
-			  lib_id, MHVTL_HOME_PATH,
-			  home_directory);
+	/* Not found, then use env or compiled-in default + library id */
+	{
+		const char *hp = getenv("MHVTL_HOME_PATH");
+		if (!hp || !hp[0]) hp = MHVTL_HOME_PATH;
+		snprintf(home_directory, HOME_DIR_PATH_SZ, "%s", hp);
+	}
+	MHVTL_DBG(1, "Using home directory %s for library %ld",
+			  home_directory, lib_id);
 
 finished:
 	free(s);

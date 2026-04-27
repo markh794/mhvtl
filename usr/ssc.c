@@ -1922,7 +1922,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		break;
 
 	case VOLUME_STATISTICS:
-		update_VolumeStatistics((struct VolumeStatistics_pg *)buf, lu_priv);
+		dbuf_p->sz = update_VolumeStatistics((struct VolumeStatistics_pg *)buf, lu_priv);
 		break;
 
 	case TAPE_ALERT:
