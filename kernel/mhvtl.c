@@ -1619,6 +1619,8 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 	struct scsi_device	  *baksdev;
 	int					   ret = -ENODEV;
 
+	baksdev = NULL;
+
 	down(&tmp_mutex);
 
 	if (copy_from_user((u8 *)&ctl, (u8 *)arg, sizeof(ctl))) {
