@@ -361,7 +361,7 @@ static void init_log_device_status(void *log_ptr) {
 	struct DeviceStatus_pg *pg = log_ptr;
 	*pg						   = (struct DeviceStatus_pg){
 		   LOG_PG_HEADER(DEVICE_STATUS),
-		   LOG_PARAM(0x0000, 0x03, vhf) = {{0x00, 0x00, 0x00, 0x01}},
+		   LOG_PARAM(0x0000, 0x03, vhf) = {{0x01, 0x00, 0x00, 0x01}},
 	   };
 }
 int add_log_device_status(struct lu_phy_attr *lu) {
