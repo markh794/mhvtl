@@ -80,6 +80,7 @@
 #include "ssc.h"
 #include "mhvtl_log.h"
 #include "mode.h"
+#include "transport.h"
 
 char mhvtl_driver_name[] = "vtltape";
 
@@ -2144,7 +2145,6 @@ int main(int argc, char *argv[]) {
 
 	char	   *progname = argv[0];
 	char	   *fifoname = NULL;
-	const char *name	 = "mhvtl";
 	unsigned	minor	 = 0;
 
 	struct mhvtl_header	 mhvtl_cmd;
@@ -2246,10 +2246,8 @@ int main(int argc, char *argv[]) {
 	 */
 	config_lu(&lunit);
 
-	if (chrdev_create(minor)) {
-		MHVTL_DBG(1, "Unable to create device node mhvtl%u", minor);
-		exit(1);
-	}
+	/* Select and initialize the transport backend */
+	transport_select();
 
 	/* Initialise message queue as necessary */
 	if ((r_qid = init_queue()) == -1) {
@@ -2257,9 +2255,10 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	cdev = chrdev_open(name, minor);
+	cdev = vtl_transport->open(minor, &ctl);
 	if (cdev == -1) {
-		MHVTL_ERR("Could not open /dev/%s%u: %s", name, minor, strerror(errno));
+		MHVTL_ERR("Could not open transport for minor %u: %s",
+			   minor, strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}
@@ -2270,9 +2269,14 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	if ((chdir(MHVTL_HOME_PATH)) < 0) {
-		perror("Unable to change directory to " MHVTL_HOME_PATH);
-		exit(-1);
+	{
+		const char *hp = getenv("MHVTL_HOME_PATH");
+		if (!hp || !hp[0]) hp = MHVTL_HOME_PATH;
+		if ((chdir(hp)) < 0) {
+			fprintf(stderr, "Unable to change directory to %s: %s\n",
+				hp, strerror(errno));
+			exit(-1);
+		}
 	}
 
 	/* If debug or 'F' specified don't fork/run in background */
@@ -2360,19 +2364,19 @@ int main(int argc, char *argv[]) {
 						  strerror(errno));
 			}
 		}
-		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &mhvtl_cmd);
+		ret = vtl_transport->poll_cmd(cdev, &mhvtl_cmd);
 		if (ret < 0) {
 			MHVTL_DBG(2,
-					  "ioctl(VTL_POLL_AND_GET_HEADER): %d : %s",
+					  "poll_cmd: %d : %s",
 					  ret, strerror(errno));
 		} else {
 			if (debug)
-				printf("ioctl(VX_TAPE_POLL_STATUS) "
+				printf("poll_cmd "
 					   "returned: %d, interval: %ld\n",
 					   ret, (long)sleep_time);
 			if (child_cleanup) {
 				if (child_cleanup == not_started) {
-					child_cleanup = add_lu(my_id, &ctl);
+					child_cleanup = vtl_transport->add_lu(my_id, &ctl);
 					if (!child_cleanup) {
 						MHVTL_ERR("Failed to create logical unit - exiting...");
 						goto exit;
@@ -2417,8 +2421,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			default:
-				MHVTL_LOG("ioctl(0x%x) returned %d",
-						  VTL_POLL_AND_GET_HEADER, ret);
+				MHVTL_LOG("poll_cmd returned %d", ret);
 				sleep(1);
 				break;
 			}
@@ -2443,9 +2446,9 @@ int main(int argc, char *argv[]) {
 	}
 
 exit:
-	ioctl(cdev, VTL_REMOVE_LU, &ctl);
+	vtl_transport->remove_lu(cdev, &ctl);
 	cleanup_lu(&lunit);
-	close(cdev);
+	vtl_transport->close(cdev);
 	free(buf);
 	dec_fifo_count();
 	if (lunit.fifo_fd) {

@@ -10,9 +10,9 @@ Before=shutdown.target
 Type=oneshot
 RemainAfterExit=yes
 Environment=VTL_DEBUG="0"
+Environment=MHVTL_BACKEND="mhvtl"
 EnvironmentFile=-@CONF_PATH@/mhvtl.conf
-ExecStart=/sbin/modprobe mhvtl opts=${VTL_DEBUG}
-ExecStart=/sbin/modprobe sg
+ExecStart=/bin/sh -c 'case "$MHVTL_BACKEND" in tcmu*) modprobe target_core_user; modprobe tcm_loop;; *) modprobe mhvtl opts=$VTL_DEBUG;; esac; modprobe sg'
 
 [Install]
 WantedBy=mhvtl.target

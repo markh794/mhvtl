@@ -1,0 +1,19 @@
+[Unit]
+Description=mhvtl TCMU handler daemon
+Documentation=man:vtltape(1) man:vtllibrary(1)
+Before=mhvtl.target
+After=mhvtl-load-modules.service
+PartOf=mhvtl.target
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+Environment=MHVTL_BACKEND=mhvtl
+EnvironmentFile=-@CONF_PATH@/mhvtl.conf
+ExecStart=/usr/bin/mhvtl_tcmu_handler -F
+KillMode=mixed
+TimeoutStopSec=10
+
+[Install]
+WantedBy=mhvtl.target

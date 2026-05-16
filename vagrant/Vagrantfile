@@ -34,11 +34,16 @@ Vagrant.configure("2") do |config|
     instance.vm.network "private_network", ip: "192.168.56.24"
   end
 
-  config.vm.define "alma" do |instance|
-    instance.vm.hostname = "alma"
-    instance.vm.box = "almalinux/9"
+  config.vm.define "almalinux8" do |instance|
+    instance.vm.hostname = "almalinux8"
+    instance.vm.box = "almalinux/8"
     instance.vm.network "private_network", ip: "192.168.56.25"
-    config.vbguest.auto_update = false
+  end
+
+  config.vm.define "almalinux9" do |instance|
+    instance.vm.hostname = "almalinux9"
+    instance.vm.box = "almalinux/9"
+    instance.vm.network "private_network", ip: "192.168.56.26"
   end
 
   config.vm.provider "virtualbox" do |vb|
