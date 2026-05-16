@@ -565,7 +565,13 @@ struct s_info { /* Slot Info */
 	uint8_t media_type;	  /* L700 */
 };
 
-#define DEF_SMC_PRIV_STATE_MSG_LENGTH 64
+/* Large enough to hold any formatted state message produced by
+ * move_slot2drive / move_slot2slot / move_drive2slot / move_drive2drive.
+ * A 12-byte barcode + ~20-byte slot type name + two slot numbers fit
+ * comfortably in 128 bytes; all formatters use snprintf() bounded by
+ * this length.
+ */
+#define DEF_SMC_PRIV_STATE_MSG_LENGTH 128
 
 struct smc_priv {
 	uint32_t		 bufsize;
