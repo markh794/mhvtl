@@ -34,6 +34,8 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#include <sys/uio.h>
+#define __LINUX_UIO_H
 #include <linux/target_core_user.h>
 #include <libtcmu.h>
 #include <libtcmu_common.h>
