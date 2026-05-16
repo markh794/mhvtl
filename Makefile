@@ -18,7 +18,7 @@ CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 
 TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION).$(EXTRAVERSION).tgz
 
-MAKE_VTL_MEDIA = usr/make_vtl_media
+MAKE_VTL_MEDIA = usr/bin/make_vtl_media
 
 export PREFIX DESTDIR TOPDIR
 
