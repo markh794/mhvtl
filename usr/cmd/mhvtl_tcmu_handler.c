@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#include <linux/target_core_user.h>
 #include <libtcmu.h>
 #include <libtcmu_common.h>
 
@@ -161,6 +162,50 @@ static void *lun_map_thread(void *arg)
 }
 
 /*
+ * Set read_len on the current TCMU ring buffer entry before completion.
+ *
+ * libtcmu's tcmulib_command_complete() never sets rsp.read_len, so the
+ * kernel assumes the full iovec was transferred. For tape short-block
+ * reads this is wrong — only a portion of the buffer has valid data.
+ *
+ * We access the ring buffer directly via dev->map to set read_len
+ * BEFORE calling tcmulib_command_complete() (which updates cmd_tail
+ * and signals the kernel).
+ *
+ * struct tcmu_device is opaque from the public libtcmu API, but its
+ * first member after fd is the map pointer. We use an ABI-compatible
+ * partial struct to access it.
+ */
+struct tcmu_device_abi {
+	int fd;
+	struct tcmu_mailbox *map;
+	/* remaining fields omitted — we only need map */
+};
+
+static void set_read_len_on_current_entry(struct tcmu_device *dev,
+					  struct tcmulib_cmd *cmd,
+					  uint32_t read_len)
+{
+	struct tcmu_device_abi *d = (struct tcmu_device_abi *)dev;
+	struct tcmu_mailbox *mb = d->map;
+	struct tcmu_cmd_entry *ent;
+	uint32_t tail = mb->cmd_tail;
+
+	ent = (void *)mb + mb->cmdr_off + tail;
+
+	/* Walk past any PAD entries to find the CMD entry (read-only peek) */
+	while (ent != (void *)mb + mb->cmdr_off + mb->cmd_head) {
+		if (tcmu_hdr_get_op(ent->hdr.len_op) == TCMU_OP_CMD)
+			break;
+		tail = (tail + tcmu_hdr_get_len(ent->hdr.len_op)) %
+		       mb->cmdr_size;
+		ent = (void *)mb + mb->cmdr_off + tail;
+	}
+
+	ent->rsp.read_len = read_len;
+}
+
+/*
  * Relay one batch of CDBs from the UIO ring to the daemon socket.
  * Handles DATA-OUT (write) and DATA-IN (read) transfers.
  */
@@ -248,6 +293,13 @@ static void relay_one_batch(struct handler_device *d)
 				tcmu_status = TCMU_STS_PASSTHROUGH_ERR;
 			}
 
+			/*
+			 * Set read_len before completion so the kernel
+			 * knows actual DATA-IN transfer size (for short
+			 * block reads where sz < requested).
+			 */
+			set_read_len_on_current_entry(d->tcmu_dev, cmd,
+						      resp.data_len);
 			tcmulib_command_complete(d->tcmu_dev, cmd, tcmu_status);
 		}
 	}

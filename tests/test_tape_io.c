@@ -274,8 +274,95 @@ void test_multi_block(void)
 	teardown_all();
 }
 
+/*
+ * Test short block read: write a 1k block, then read with a 64k request.
+ * The daemon must return only 1k of actual data with CHECK CONDITION
+ * (ILI bit set, residual = 64k - 1k = 63488).
+ *
+ * This is the exact scenario that broke NetBackup tape header reads
+ * when using the TCMU backend: dd if=/dev/st0 bs=64k count=1 returned
+ * 64k of zeros instead of 1k of tape data.
+ */
+#define SHORT_WRITE_SZ 1024
+#define SHORT_READ_SZ  65536
+
+void test_short_block_read(void)
+{
+	setup_all();
+
+	uint8_t write_buf[SHORT_WRITE_SZ];
+	uint8_t read_buf[SHORT_READ_SZ];
+
+	/* Fill with recognizable pattern (mimics a NetBackup tape header) */
+	memset(write_buf, 0, sizeof(write_buf));
+	memcpy(write_buf, "VOL1F01039", 10);
+	write_buf[0x70] = 'T'; write_buf[0x71] = 'h';
+	write_buf[0x72] = 'I'; write_buf[0x73] = 's';
+
+	const char *drives[] = { "LTO-8", "LTO-5", "SDLT600", "3592-E06", NULL };
+
+	for (const char **name = drives; *name; name++) {
+		struct drive_slot *s = find_slot(*name);
+		if (!s || !s->ready) continue;
+		TEST_CASE(s->dt->name);
+		struct scsi_result r;
+
+		/* WRITE 1k block */
+		int rc = harness_tape_write(&s->daemon, write_buf,
+					    SHORT_WRITE_SZ, &r);
+		TEST_CHECK_(rc == 0 && r.sam_stat == SAM_STAT_GOOD,
+			    "%s: WRITE 1k", *name);
+		if (r.sam_stat != SAM_STAT_GOOD) continue;
+
+		/* WRITE FILEMARK */
+		harness_tape_write_fm(&s->daemon, 1, &r);
+
+		/* REWIND */
+		harness_tape_rewind(&s->daemon, &r);
+
+		/* READ with 64k buffer (short block read) */
+		memset(read_buf, 0xde, sizeof(read_buf));  /* fill with sentinel */
+		rc = harness_tape_read(&s->daemon, read_buf, SHORT_READ_SZ, &r);
+		TEST_CHECK_(rc == 0, "%s: READ transport ok", *name);
+
+		/*
+		 * Verify: daemon returns exactly 1k of data, not 64k.
+		 * The SAM status must be CHECK CONDITION with ILI bit.
+		 */
+		TEST_CHECK_(r.data_len == SHORT_WRITE_SZ,
+			    "%s: data_len=%u (expected %u)",
+			    *name, r.data_len, SHORT_WRITE_SZ);
+
+		TEST_CHECK_(r.sam_stat == SAM_STAT_CHECK_CONDITION,
+			    "%s: sam_stat=%d (expected CHECK_CONDITION=2)",
+			    *name, r.sam_stat);
+
+		/* Sense key should be NO SENSE (0x00) with ILI bit (0x20) */
+		TEST_CHECK_((r.sense[2] & 0x2f) == 0x20,
+			    "%s: sense[2]=0x%02x (expected ILI=0x20)",
+			    *name, r.sense[2]);
+
+		/* Verify actual data matches what was written */
+		TEST_CHECK_(memcmp(read_buf, write_buf, SHORT_WRITE_SZ) == 0,
+			    "%s: data content mismatch in first 1k", *name);
+
+		/* Verify bytes beyond 1k were NOT filled with tape data
+		 * (they should still be our sentinel 0xde pattern) */
+		int clean = 1;
+		for (int i = SHORT_WRITE_SZ; i < SHORT_READ_SZ && clean; i++) {
+			if (read_buf[i] != 0xde) clean = 0;
+		}
+		TEST_CHECK_(clean,
+			    "%s: bytes beyond block size should be untouched",
+			    *name);
+	}
+
+	teardown_all();
+}
+
 TEST_LIST = {
-	{ "write_read_verify", test_write_read_verify },
-	{ "multi_block",       test_multi_block },
+	{ "write_read_verify",   test_write_read_verify },
+	{ "multi_block",         test_multi_block },
+	{ "short_block_read",    test_short_block_read },
 	{ NULL, NULL }
 };
