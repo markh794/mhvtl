@@ -80,7 +80,7 @@ endif
 tar: distclean
 	test -d ../$(PARENTDIR) || ln -s $(TOPDIR) ../$(PARENTDIR)
 	(cd kernel; tar --transform='s|.*/||' \
-		-cfz ../mhvtl_kernel.tgz * ../include/common/*)
+		-czf ../mhvtl_kernel.tgz * ../include/common/*)
 	(cd ..;  tar cvzf $(TAR_FILE) --exclude='.git*' \
 		 $(PARENTDIR)/man \
 		 $(PARENTDIR)/doc \
