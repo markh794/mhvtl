@@ -29,7 +29,7 @@ static size_t mhvtl_sg_copy_user(struct scatterlist *sgl, unsigned int nents,
 		sg_flags |= SG_MITER_TO_SG;
 #endif
 
-	kmem_user = kmem_cache_alloc(sgp, 0);
+	kmem_user = kmem_cache_alloc(sgp, GFP_KERNEL);
 	if (!kmem_user)
 		return offset;
 

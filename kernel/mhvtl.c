@@ -1487,7 +1487,7 @@ static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
 	unsigned char __user	*up;
 	size_t					 sz;
 
-	ds = kmem_cache_alloc(dsp, 0);
+	ds = kmem_cache_alloc(dsp, GFP_KERNEL);
 	if (!ds)
 		return -EFAULT;
 
@@ -1522,7 +1522,7 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 	int						 ret = 0;
 	uint8_t					*s;
 
-	ds = kmem_cache_alloc(dsp, 0);
+	ds = kmem_cache_alloc(dsp, GFP_KERNEL);
 	if (!ds) {
 		pr_err("Failed to allocate kmem_cache\n");
 		ret = -EFAULT;
