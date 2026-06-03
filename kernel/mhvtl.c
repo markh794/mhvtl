@@ -1714,8 +1714,11 @@ static int mhvtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 
 	case VTL_POLL_AND_GET_HEADER:
 		if (!devp[minor]) {
-			put_user(0, (unsigned int *)arg);
-			ret = 0;
+			struct mhvtl_header idle_hdr;
+
+			memset(&idle_hdr, 0, sizeof(idle_hdr));
+			if (copy_to_user((u8 *)arg, (u8 *)&idle_hdr, sizeof(idle_hdr)))
+				ret = -EFAULT;
 			break;
 		}
 		ret = send_mhvtl_header(minor, (char __user *)arg);
