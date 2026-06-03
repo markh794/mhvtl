@@ -1643,7 +1643,7 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 			(lu->lun == ctl.lun)) {
 			pr_debug("line %d found matching lu\n", __LINE__);
 			list_del(&lu->lu_sibling);
-			devp[minor] = NULL;
+			devp[lu->minor] = NULL;
 
 			spin_lock(&lu->sdev_lock);
 			if (lu->sdev) {
