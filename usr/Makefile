@@ -196,17 +196,6 @@ bin/mhvtl_kernel_mod_build: cmd/mhvtl_kernel_mod_build.in
 	sed -e s'|@FIRMWAREDIR@|${FIRMWAREDIR}|' $< > $@
 	chmod 755 $@
 
-.PHONY:clean
-clean:
-	$(RM) *.d *.o *.so \
-		pm/*.d pm/*.o \
-		utils/*.d utils/*.o \
-		cmd/*.d cmd/*.o \
-		bin/*
-	$(RM) TAGS
-
-
-
 # ========== command targets ==========
 
 $(DESTDIR)$(PREFIX)/bin:
