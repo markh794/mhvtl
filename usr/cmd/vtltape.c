@@ -451,7 +451,8 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 		}
 	}
 
-	put_unaligned_be32(ret_val, &buf[0]);
+	/* Available data length excludes its own 4-byte field (see SPC). */
+	put_unaligned_be32(ret_val - 4, &buf[0]);
 
 	return ret_val;
 }
