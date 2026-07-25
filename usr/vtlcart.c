@@ -646,11 +646,23 @@ int read_mam(int mam_fd, int mhvtl_fd, struct MAM *mamp) {
 				continue;
 			}
 
-			if (read(mam_fd, mamp->attributes[idx].value, attr.length) != attr.length) {
+			/* The length stored on the medium need not match the length
+			 * this build expects - an attribute may have grown or shrunk
+			 * between mhvtl versions. Take only what fits the field and
+			 * step over whatever is left of the stored value.
+			 */
+			uint16_t len = attr.length;
+			if (len > mamp->attributes[idx].length)
+				len = mamp->attributes[idx].length;
+
+			if (read(mam_fd, mamp->attributes[idx].value, len) != len) {
 				MHVTL_ERR("Error reading mam attribute %04x value : %s",
 						  attr.attribute_id, strerror(errno));
 				return -1;
 			}
+
+			if (attr.length > len)
+				lseek(mam_fd, attr.length - len, SEEK_CUR);
 		}
 	}
 
@@ -685,11 +697,18 @@ int read_mam(int mam_fd, int mhvtl_fd, struct MAM *mamp) {
 				continue;
 			}
 
-			if (read(mhvtl_fd, mamp->mhvtl_attr[idx].value, attr.length) != attr.length) {
+			uint16_t len = attr.length;
+			if (len > mamp->mhvtl_attr[idx].length)
+				len = mamp->mhvtl_attr[idx].length;
+
+			if (read(mhvtl_fd, mamp->mhvtl_attr[idx].value, len) != len) {
 				MHVTL_ERR("Error reading mhvtl attribute %04x value : %s",
 						  attr.attribute_id, strerror(errno));
 				return -1;
 			}
+
+			if (attr.length > len)
+				lseek(mhvtl_fd, attr.length - len, SEEK_CUR);
 		}
 	}
 
