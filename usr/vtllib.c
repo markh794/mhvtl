@@ -167,6 +167,12 @@ void init_mam(struct MAM *mamp) {
 	INIT_VTL_ATTR(0x0b, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[2], MAM_MHVTL_VOLUME_COHERENCY_P2);
 	INIT_VTL_ATTR(0x0c, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[3], MAM_MHVTL_VOLUME_COHERENCY_P3);
 
+	/* Partition geometry, so that it survives the drive it was formatted in */
+	INIT_VTL_ATTR(0x0d, 8, mamp->partition_capacity[0], MAM_MHVTL_PARTITION_CAPACITY_P0);
+	INIT_VTL_ATTR(0x0e, 8, mamp->partition_capacity[1], MAM_MHVTL_PARTITION_CAPACITY_P1);
+	INIT_VTL_ATTR(0x0f, 8, mamp->partition_capacity[2], MAM_MHVTL_PARTITION_CAPACITY_P2);
+	INIT_VTL_ATTR(0x10, 8, mamp->partition_capacity[3], MAM_MHVTL_PARTITION_CAPACITY_P3);
+
 	INIT_VTL_ATTR(0x06, 4, mamp->media_info.bits_per_mm, MAM_MHVTL_MEDIAINFO_BITS_PER_MM);
 	INIT_VTL_ATTR(0x07, 2, mamp->media_info.tracks, MAM_MHVTL_MEDIAINFO_TRACKS);
 	INIT_VTL_ATTR(0x08, 8, mamp->media_info.density_name, MAM_MHVTL_MEDIAINFO_DENSITY_NAME);

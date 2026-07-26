@@ -644,6 +644,13 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
+	/* Formatting is the only thing which changes the geometry, so record it on
+	 * the medium now: the partition layout has to be readable by whichever
+	 * drive loads this cartridge next, exactly as it would be on real tape.
+	 */
+	set_medium_partition_capacity(lu);
+	rewriteMAM(sam_stat);
+
 	return SAM_STAT_GOOD;
 }
 

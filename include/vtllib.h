@@ -231,6 +231,12 @@ enum MHVTL_attribute_idx {
 	MAM_MHVTL_VOLUME_COHERENCY_P2,
 	MAM_MHVTL_VOLUME_COHERENCY_P3,
 
+	/* Size of each partition, written at format time */
+	MAM_MHVTL_PARTITION_CAPACITY_P0,
+	MAM_MHVTL_PARTITION_CAPACITY_P1,
+	MAM_MHVTL_PARTITION_CAPACITY_P2,
+	MAM_MHVTL_PARTITION_CAPACITY_P3,
+
 	/* media_info */
 	MAM_MHVTL_MEDIAINFO_BITS_PER_MM,
 	MAM_MHVTL_MEDIAINFO_TRACKS,
@@ -316,6 +322,14 @@ struct MAM {
 	uint8_t	 MediaType; /* LTO1, LTO2, AIT etc (Media_Type_list) */
 	uint8_t	 max_partitions;
 	uint8_t	 num_partitions;
+
+	/* Capacity of each partition in bytes, as laid down when the medium was
+	 * formatted. Partitioning belongs to the medium - a real drive reads the
+	 * geometry back off the tape when a cartridge is loaded - so it has to
+	 * outlive the drive it was formatted in. Zero for media formatted before
+	 * this was recorded, or never partitioned.
+	 */
+	uint64_t partition_capacity[MAX_PARTITIONS];
 
 	struct uniq_media_info {
 		uint32_t bits_per_mm;
@@ -693,6 +707,8 @@ uint32_t	 resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int			 resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
 struct mode *lookup_mode_pg(struct list_head *l, uint8_t pcode, uint8_t subpcode);
 uint64_t	 medium_partition_capacity(struct lu_phy_attr *lu, int partition);
+uint64_t	 medium_partition_capacity_from_mode_page(struct lu_phy_attr *lu, int partition);
+void		 set_medium_partition_capacity(struct lu_phy_attr *lu);
 int			 resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz);
 
 void  hex_dump(uint8_t *, int);

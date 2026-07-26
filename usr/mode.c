@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <inttypes.h>
 #include <errno.h>
 #include "mhvtl_scsi.h"
@@ -721,7 +722,51 @@ void set_medium_partition(struct scsi_cmd *cmd, uint8_t *p) {
  * down if they do not fit, and never take more than half of a medium which also
  * has a partition asking for the remainder.
  */
+/*
+ * Size of 'partition' in bytes as recorded on the medium, or zero if this
+ * cartridge carries no geometry - it predates the geometry being written, or
+ * has never been partitioned.
+ */
+static uint64_t recorded_partition_capacity(int partition) {
+	if ((partition < 0) || (partition >= MAX_PARTITIONS))
+		return 0;
+
+	return get_unaligned_be64(&mam.partition_capacity[partition]);
+}
+
+/*
+ * Work out the partition sizes the initiator has asked for and record them on
+ * the medium. Called when the medium is formatted, which is the only point at
+ * which the geometry changes.
+ */
+void set_medium_partition_capacity(struct lu_phy_attr *lu) {
+	int num = mam.num_partitions ? mam.num_partitions : 1;
+	int k;
+
+	memset(mam.partition_capacity, 0, sizeof(mam.partition_capacity));
+
+	for (k = 0; k < num; k++)
+		put_unaligned_be64(medium_partition_capacity_from_mode_page(lu, k),
+						   &mam.partition_capacity[k]);
+
+	for (k = 0; k < num; k++)
+		MHVTL_DBG(2, "Partition %d formatted to %" PRIu64 " bytes", k,
+				  get_unaligned_be64(&mam.partition_capacity[k]));
+}
+
 uint64_t medium_partition_capacity(struct lu_phy_attr *lu, int partition) {
+	uint64_t recorded = recorded_partition_capacity(partition);
+
+	/* What the medium says it was formatted to wins: the mode page belongs to
+	 * the drive and says nothing about the cartridge currently loaded.
+	 */
+	if (recorded)
+		return recorded;
+
+	return medium_partition_capacity_from_mode_page(lu, partition);
+}
+
+uint64_t medium_partition_capacity_from_mode_page(struct lu_phy_attr *lu, int partition) {
 	struct mode *mp;
 	uint64_t	 medium = get_unaligned_be64(&mam.max_capacity);
 	uint64_t	 size[MAX_PARTITIONS]	   = {0};
