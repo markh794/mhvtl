@@ -811,7 +811,13 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz) {
 	if ((lu_priv->pm->drive_supports_early_warning) &&
 		(current_position >= early_warning_position)) {
 		MHVTL_DBG(1, "End of Medium - Early Warning");
-		sam_no_sense(SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
+		/* Early warning is reported as END-OF-PARTITION/MEDIUM DETECTED with
+		 * the EOM bit, not as an EOM bit on its own: an initiator reading
+		 * ASC/ASCQ 00/00 is told there is nothing to report, and writes on
+		 * until the medium is refused outright - too late to close out a
+		 * filesystem which needs room for a final index.
+		 */
+		sam_no_sense(SD_EOM, E_EOM, sam_stat);
 	} else if ((lu_priv->pm->drive_supports_prog_early_warning) &&
 			   (current_position >= prog_early_warning_position)) {
 		/* FIXME: Need to implement REW bit in Device Configuration Mode Page

@@ -1903,7 +1903,7 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd) {
 			medium_partition_capacity(lu, c_pos->partition_id)) {
 			mam.remaining_capacity = 0L;
 			MHVTL_DBG(2, "Setting EOM flag");
-			sam_no_sense(SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
+			sam_no_sense(SD_EOM, E_EOM, sam_stat);
 		}
 	}
 
