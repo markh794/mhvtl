@@ -772,6 +772,7 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);
 
 void		 find_media_home_directory(char *config_directory, long lib_id);
 unsigned int set_media_params(struct MAM *mamp, char *density);
+uint8_t		 media_max_partitions(uint8_t media_type);
 uint64_t	 media_native_capacity(uint8_t media_type);
 uint64_t	 media_mam_capacity(uint8_t media_type);
 void		 mam_space_remaining(struct MAM *mamp);

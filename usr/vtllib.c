@@ -1724,6 +1724,26 @@ finished:
  * holds. Cartridge data files are sparse, so a large capacity here costs
  * nothing until it is written to.
  */
+/*
+ * How many partitions a cartridge of this media type can hold.
+ *
+ * LTO-5 and LTO-6 hold two partitions, LTO-7 raised that to four and LTO-8 and
+ * LTO-9 kept it. Everything else is described as a single partition.
+ */
+uint8_t media_max_partitions(uint8_t media_type) {
+	switch (media_type) {
+	case Media_LTO5:
+	case Media_LTO6:
+		return 2;
+	case Media_LTO7:
+	case Media_LTO8:
+	case Media_LTO9:
+		return 4;
+	default:
+		return 1;
+	}
+}
+
 uint64_t media_native_capacity(uint8_t media_type) {
 	const uint64_t GB = 1000000000ULL; /* Capacities are quoted in SI units */
 
@@ -1900,7 +1920,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-516  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(15142, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO6", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto6;
@@ -1911,7 +1930,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-616  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(18441, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO7", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto7;
@@ -1922,7 +1940,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-732  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 4;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO8", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto8;
@@ -1933,7 +1950,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-832  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 4;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO9", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto9;
@@ -1944,7 +1960,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-932  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 4;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "AIT1", 4))) {
 		/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
@@ -2167,6 +2182,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		return 1;
 	}
 	mamp->FormattedDensityCode = mamp->MediumDensityCode;
+	mamp->max_partitions	   = media_max_partitions(mamp->MediaType);
 
 	/* Cartridge memory size, so that the MAM capacity attributes describe the
 	 * memory in the cartridge rather than the length of the tape.

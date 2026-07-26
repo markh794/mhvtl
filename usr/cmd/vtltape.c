@@ -1036,6 +1036,12 @@ static void updateMAM(uint8_t *sam_stat, int load) {
 		 */
 		mam_space_remaining(&mam);
 
+		/* How many partitions a cartridge can hold follows from its media
+		 * type, so take it from there rather than from whatever was recorded
+		 * when the medium was created.
+		 */
+		mam.max_partitions = media_max_partitions(mam.MediaType);
+
 		load_count = get_unaligned_be64(&mam.LoadCount);
 		load_count++;
 		put_unaligned_be64(load_count, &mam.LoadCount);
