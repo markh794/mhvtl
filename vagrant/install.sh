@@ -41,6 +41,36 @@ install_ubuntu_pre_req()
 {
 	echo "Ubuntu"
 	sudo apt-get update && sudo apt-get install ntp sysstat mtx mt-st sg3-utils zlib1g-dev git lsscsi build-essential gawk alien fakeroot linux-headers-$(uname -r) linux-modules-extra-$(uname -r) targetcli-fb -y
+	# TCMU backend dependencies
+	sudo apt-get install -y libtcmu-dev tcmu-runner || true
+}
+
+# TCMU backend: libtcmu is not packaged for EL8/EL9 — build from source.
+# Called from install_alma_pre_req and install_rocky_pre_req.
+install_libtcmu_from_source()
+{
+	sudo dnf install -y glib2-devel libnl3-devel
+	if [ -f /usr/lib64/libtcmu.so ]; then
+		echo "libtcmu already installed, skipping build"
+		return
+	fi
+	echo "Building libtcmu from source..."
+	pushd /tmp
+	rm -rf tcmu-runner
+	git clone --depth 1 https://github.com/open-iscsi/tcmu-runner.git
+	cd tcmu-runner
+	gcc -shared -fPIC -o libtcmu.so \
+		libtcmu.c libtcmu_log.c libtcmu_time.c libtcmu_config.c \
+		api.c scsi.c configfs.c strlcpy.c \
+		-I. -Iccan -I/usr/include/libnl3 \
+		-I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include \
+		-lnl-3 -lnl-genl-3 -lglib-2.0 -lgio-2.0 -lgobject-2.0 \
+		-lpthread -DLIBTCMU_API_VERSION=2 -Wno-deprecated-declarations
+	sudo install -m 755 libtcmu.so /usr/lib64/
+	sudo ln -sf libtcmu.so /usr/lib64/libtcmu.so.2
+	sudo install -m 644 libtcmu.h libtcmu_common.h libtcmu_priv.h /usr/include/
+	sudo ldconfig
+	popd
 }
 
 install_alma_pre_req()
@@ -50,6 +80,7 @@ install_alma_pre_req()
 #	sudo dnf install -y deltarpm
 	sudo dnf update -y && sudo yum install -y git mc gcc gcc-c++ make kernel-devel-$(uname -r) zlib-devel sg3_utils lsscsi mt-st mtx targetcli vim chrony policycoreutils-python-utils policycoreutils
 	sudo dnf upgrade -y
+	install_libtcmu_from_source
 	# Rebuild VBox guest tools for any new kernel(s) installed
 #	/sbin/rcvboxadd quicksetup all
 }
@@ -61,6 +92,7 @@ install_rocky_pre_req()
 #	sudo yum install -y deltarpm
 	sudo yum update -y && sudo yum install -y git mc gcc gcc-c++ make kernel-devel-$(uname -r) zlib-devel sg3_utils lsscsi mt-st mtx targetcli vim policycoreutils-python-utils policycoreutils
 	sudo yum upgrade -y
+	install_libtcmu_from_source
 	# Rebuild VBox guest tools for any new kernel(s) installed
 	/sbin/rcvboxadd quicksetup all
 }
@@ -197,7 +229,16 @@ install_mhvtl_kernel_module
 
 # Now make user-space binaries and install
 cd ..
-make
+
+# Build with TCMU support if libtcmu headers are available
+if pkg-config --exists libtcmu 2>/dev/null || [ -f /usr/include/libtcmu.h ]; then
+	echo "libtcmu found — building with TCMU=1"
+	make TCMU=1
+else
+	echo "libtcmu not found — building without TCMU support"
+	make
+fi
+
 echo "placing SYSTEMD_GENERATOR_DIR : ${SYSTEMD_GENERATOR_DIR}"
 sudo make install SYSTEMD_GENERATOR_DIR=${SYSTEMD_GENERATOR_DIR}
 

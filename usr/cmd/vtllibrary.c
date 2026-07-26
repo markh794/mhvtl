@@ -60,6 +60,7 @@
 #include "mode.h"
 #include "be_byteshift.h"
 #include "mhvtl_log.h"
+#include "transport.h"
 
 char mhvtl_driver_name[] = "vtllibrary";
 
@@ -87,10 +88,6 @@ static void usage(char *progname) {
 	printf("       '-f FIFO'  use FIFO to report real-time data\n");
 	printf("       '-F'       run in the foreground\n");
 }
-
-#ifndef Solaris
-int ioctl(int, int, void *);
-#endif
 
 struct device_type_template smc_template = {
 	.ops = {
@@ -1561,7 +1558,6 @@ int main(int argc, char *argv[]) {
 	struct sigaction new_action, old_action;
 
 	char *progname = argv[0];
-	char *name	   = "mhvtl";
 	char *fifoname = NULL;
 
 	memset(&mhvtl_cmd, 0, sizeof(struct mhvtl_header));
@@ -1634,10 +1630,8 @@ int main(int argc, char *argv[]) {
 
 	lunit.online = 1; /* Mark unit online */
 
-	if (chrdev_create(my_id)) {
-		MHVTL_DBG(1, "Error creating device node mhvtl%d", (int)my_id);
-		exit(1);
-	}
+	/* Select and initialize the transport backend */
+	transport_select();
 
 	new_action.sa_handler = caught_signal;
 	new_action.sa_flags	  = 0;
@@ -1671,10 +1665,10 @@ int main(int argc, char *argv[]) {
 		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
 	}
 
-	cdev = chrdev_open(name, my_id);
+	cdev = vtl_transport->open(my_id, &ctl);
 	if (cdev == -1) {
-		MHVTL_ERR("Could not open /dev/%s%ld: %s",
-				  name, my_id, strerror(errno));
+		MHVTL_ERR("Could not open transport for minor %ld: %s",
+			   my_id, strerror(errno));
 		fflush(NULL);
 		exit(1);
 	}
@@ -1785,7 +1779,7 @@ int main(int argc, char *argv[]) {
 		MHVTL_ERR("Failed to set fifo count()...");
 	}
 
-	child_cleanup = add_lu(my_id, &ctl);
+	child_cleanup = vtl_transport->add_lu(my_id, &ctl);
 	if (!child_cleanup) {
 		fprintf(stderr, "error: Could not create logical unit\n");
 		exit(1);
@@ -1804,9 +1798,9 @@ int main(int argc, char *argv[]) {
 						  strerror(errno));
 		}
 
-		ret = ioctl(cdev, VTL_POLL_AND_GET_HEADER, &mhvtl_cmd);
+		ret = vtl_transport->poll_cmd(cdev, &mhvtl_cmd);
 		if (ret < 0) {
-			MHVTL_LOG("ret: %d : %s", ret, strerror(errno));
+			MHVTL_LOG("poll_cmd: %d : %s", ret, strerror(errno));
 		} else {
 			if (child_cleanup) {
 				if (waitpid(child_cleanup, NULL, WNOHANG)) {
@@ -1843,8 +1837,7 @@ int main(int argc, char *argv[]) {
 				break;
 
 			default:
-				MHVTL_LOG("ioctl(0x%x) returned %d",
-						  VTL_POLL_AND_GET_HEADER, ret);
+				MHVTL_LOG("poll_cmd returned %d", ret);
 				sleep(1);
 				break;
 			}
@@ -1864,11 +1857,11 @@ int main(int argc, char *argv[]) {
 		}
 	}
 exit:
-	ioctl(cdev, VTL_REMOVE_LU, &ctl);
+	vtl_transport->remove_lu(cdev, &ctl);
 	if (lunit.persist)
 		save_config(&lunit);
 	cleanup_lu(&lunit);
-	close(cdev);
+	vtl_transport->close(cdev);
 	free(buf);
 	dec_fifo_count();
 	if (lunit.fifo_fd) {
