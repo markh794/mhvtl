@@ -385,15 +385,42 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 /*
  * Where the value of a MAM attribute lives for a given partition.
  *
- * Almost every attribute describes the whole medium, so the partition number
- * in the CDB makes no difference. The volume coherency information (0x080c) is
- * the exception - it records where the last index was written, which is per
- * partition - so it is kept as one record per partition and selected here.
+ * Most attributes describe the whole medium, so the partition number in the CDB
+ * makes no difference and the value is returned straight out of the MAM.
+ *
+ * Two kinds of attribute are per-partition and handled here:
+ *
+ * - The volume coherency information (0x080c) records where the last index was
+ *   written, so one record is kept per partition.
+ *
+ * - The remaining and maximum capacity (0x0000 and 0x0001) describe one
+ *   partition each, and SSC specifies them in megabytes where the MAM holds
+ *   capacities in bytes. Both are built into 'scratch', which the caller
+ *   supplies and which must be at least eight bytes.
  */
-static void *mam_attr_value(int indx, uint8_t partition) {
-	if ((mam.attributes[indx].attribute_id == 0x80c) &&
-		(partition < MAX_PARTITIONS))
-		return mam.VolumeCoherencyInformation[partition];
+static void *mam_attr_value(struct lu_phy_attr *lu, int indx, uint8_t partition,
+							uint8_t *scratch) {
+	uint64_t cap, used;
+
+	switch (mam.attributes[indx].attribute_id) {
+	case 0x000: /* Remaining capacity in partition */
+		cap	 = medium_partition_capacity(lu, partition);
+		used = partition_data_offset(partition);
+		put_unaligned_be64((used < cap) ? (cap - used) >> 20 : 0, scratch);
+		return scratch;
+
+	case 0x001: /* Maximum capacity in partition */
+		put_unaligned_be64(medium_partition_capacity(lu, partition) >> 20, scratch);
+		return scratch;
+
+	case 0x80c: /* Volume coherency information */
+		if (partition < MAX_PARTITIONS)
+			return mam.VolumeCoherencyInformation[partition];
+		break;
+
+	default:
+		break;
+	}
 
 	return mam.attributes[indx].value;
 }
@@ -413,6 +440,7 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 	unsigned int byte_index = 4;
 	int			 indx, found_attribute;
 	struct s_sd	 sd;
+	uint8_t		 scratch[8]; /* Holds values which are computed per partition */
 
 	attrib	  = get_unaligned_be16(&cdb[8]);
 	alloc_len = get_unaligned_be32(&cdb[10]);
@@ -441,7 +469,8 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 					buf[byte_index++] = (mam.attributes[indx].read_only << 7) | mam.attributes[indx].format;
 					buf[byte_index++] = mam.attributes[indx].length >> 8;
 					buf[byte_index++] = mam.attributes[indx].length;
-					memcpy(&buf[byte_index], mam_attr_value(indx, cdb[7]),
+					memcpy(&buf[byte_index],
+						   mam_attr_value(cmd->lu, indx, cdb[7], scratch),
 						   mam.attributes[indx].length);
 					byte_index += mam.attributes[indx].length;
 				}
@@ -494,6 +523,7 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 	unsigned int byte_index = 4;
 	int			 indx, found_attribute;
 	struct s_sd	 sd;
+	uint8_t		 scratch[8];
 
 	alloc_len = get_unaligned_be32(&cdb[10]);
 	attrib	  = get_unaligned_be16(&buf[byte_index]);
@@ -517,6 +547,17 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 					/* set media to worm */
 					MHVTL_LOG("Converted media to WORM");
 					mamp->MediumType = MEDIA_TYPE_WORM;
+				} else if (mam.attributes[indx].read_only) {
+					/* Device and medium attributes belong to the drive and
+					 * the cartridge, and cannot be written by an initiator.
+					 */
+					MHVTL_DBG(1, "Attribute 0x%04x is read only", attrib);
+					memcpy(mamp, &mam_backup, sizeof(struct MAM));
+					sd.byte0		 = SKSV;
+					sd.field_pointer = byte_index - 5;
+					sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd,
+										sam_stat);
+					return 0;
 				} else {
 					/* Never take more than the initiator sent, nor more
 					 * than the field can hold.
@@ -525,7 +566,7 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 					if (len > attribute_length)
 						len = attribute_length;
 
-					memcpy(mam_attr_value(indx, cdb[7]),
+					memcpy(mam_attr_value(cmd->lu, indx, cdb[7], scratch),
 						   &buf[byte_index],
 						   len);
 				}
@@ -537,7 +578,7 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 			}
 		}
 		if (!found_attribute) {
-			memcpy(&mamp, &mam_backup, sizeof(mamp));
+			memcpy(mamp, &mam_backup, sizeof(struct MAM));
 			sd.byte0 = SKSV;
 			sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd,
 								sam_stat);
@@ -989,7 +1030,13 @@ static void updateMAM(uint8_t *sam_stat, int load) {
 		 * command which modifies the medium.
 		 */
 		lu_ssc.vcr_updated = 0;
-		load_count		   = get_unaligned_be64(&mam.LoadCount);
+
+		/* Recalculate the cartridge memory usage, which also fills in the
+		 * memory size for media created before it was recorded.
+		 */
+		mam_space_remaining(&mam);
+
+		load_count = get_unaligned_be64(&mam.LoadCount);
 		load_count++;
 		put_unaligned_be64(load_count, &mam.LoadCount);
 

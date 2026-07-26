@@ -692,6 +692,7 @@ int			 resp_read_position(loff_t, uint8_t *, uint8_t *);
 uint32_t	 resp_read_media_serial(uint8_t *, uint8_t *, uint8_t *);
 int			 resp_mode_sense(uint8_t *, uint8_t *, struct mode *, uint8_t, uint8_t *);
 struct mode *lookup_mode_pg(struct list_head *l, uint8_t pcode, uint8_t subpcode);
+uint64_t	 medium_partition_capacity(struct lu_phy_attr *lu, int partition);
 int			 resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz);
 
 void  hex_dump(uint8_t *, int);
@@ -754,6 +755,9 @@ int add_drive_media_list(struct lu_phy_attr *lu, int status, char *s);
 
 void		 find_media_home_directory(char *config_directory, long lib_id);
 unsigned int set_media_params(struct MAM *mamp, char *density);
+uint64_t	 media_native_capacity(uint8_t media_type);
+uint64_t	 media_mam_capacity(uint8_t media_type);
+void		 mam_space_remaining(struct MAM *mamp);
 
 char *slot_type_str(int type);
 void  init_smc_log_pages(struct lu_phy_attr *lu);

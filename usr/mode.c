@@ -698,10 +698,82 @@ void set_medium_partition(struct scsi_cmd *cmd, uint8_t *p) {
 	mp->pcodePointer[5] = p[5]; /* MEDIUM FORMAT RECOGNITION */
 	mp->pcodePointer[6] = p[6]; /* PARTITIONING TYPE | PARTITION UNITS */
 
-	/* PARTITION SIZES */
+	/* PARTITION SIZES - two bytes each, not one */
 	for (int k = 0; k < mam.num_partitions; k++) {
-		put_unaligned_be16(p[8 + 2 * k], &mp->pcodePointer[8 + 2 * k]);
+		put_unaligned_be16(get_unaligned_be16(&p[8 + (2 * k)]),
+						   &mp->pcodePointer[8 + (2 * k)]);
 	}
+}
+
+/*
+ * Size of 'partition' in bytes, according to the medium partition mode page.
+ *
+ * The page carries one size descriptor per partition, in units of 10^n bytes
+ * where n is the PARTITION UNITS field. A descriptor of 0xffff means "whatever
+ * is left of the medium" and is how an initiator asks for a partition which
+ * fills the tape: LTFS asks for a one gigabyte index partition and gives the
+ * remainder to the data partition.
+ *
+ * What the initiator asks for is capped so the partitions always add up to the
+ * medium rather than each believing it has the whole tape. Since the request is
+ * made without knowing the size of the cartridge - LTFS asks for its index
+ * partition in gigabytes whatever the medium - fixed size partitions are scaled
+ * down if they do not fit, and never take more than half of a medium which also
+ * has a partition asking for the remainder.
+ */
+uint64_t medium_partition_capacity(struct lu_phy_attr *lu, int partition) {
+	struct mode *mp;
+	uint64_t	 medium = get_unaligned_be64(&mam.max_capacity);
+	uint64_t	 size[MAX_PARTITIONS]	   = {0};
+	int			 remainder[MAX_PARTITIONS] = {0};
+	uint64_t	 unit					   = 1;
+	uint64_t	 fixed					   = 0;
+	uint64_t	 budget;
+	int			 num			 = mam.num_partitions ? mam.num_partitions : 1;
+	int			 remainder_count = 0;
+	int			 units, k;
+
+	if ((partition < 0) || (partition >= num))
+		return 0;
+
+	if (num == 1)
+		return medium;
+
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_MEDIUM_PARTITION, 0);
+	if (!mp) /* Nothing to go on - share the medium out evenly */
+		return medium / num;
+
+	units = mp->pcodePointer[6] & 0x0f;
+	while (units--)
+		unit *= 10;
+
+	for (k = 0; k < num; k++) {
+		uint16_t descriptor = get_unaligned_be16(&mp->pcodePointer[8 + (2 * k)]);
+
+		if (descriptor == 0xffff) {
+			remainder[k] = 1;
+			remainder_count++;
+		} else {
+			size[k] = (uint64_t)descriptor * unit;
+			fixed += size[k];
+		}
+	}
+
+	budget = remainder_count ? medium / 2 : medium;
+	if (fixed > budget) {
+		/* Scaled in floating point - the product of two capacities does not
+		 * fit in 64 bits, and a byte of rounding either way is immaterial.
+		 */
+		for (k = 0; k < num; k++)
+			if (!remainder[k])
+				size[k] = (uint64_t)((double)size[k] * budget / fixed);
+		fixed = budget;
+	}
+
+	if (remainder[partition])
+		return (medium - fixed) / remainder_count;
+
+	return size[partition];
 }
 
 int add_mode_power_condition(struct lu_phy_attr *lu) {

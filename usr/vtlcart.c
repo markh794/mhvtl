@@ -1621,6 +1621,20 @@ uint64_t current_tape_offset(void) {
 	return 0;
 }
 
+/*
+ * Bytes written in 'partition' - the data offset of its end of data.
+ *
+ * Unlike current_tape_offset() this works for any partition, not just the one
+ * the drive is positioned in, so capacity reporting can describe the whole
+ * medium.
+ */
+uint64_t partition_data_offset(int partition) {
+	if ((partition < 0) || (partition >= MAX_PARTITIONS))
+		return 0;
+
+	return eod_data_offset[partition];
+}
+
 uint64_t current_tape_block(void) {
 	if (datafile[c_pos->partition_id] != -1)
 		return (uint64_t)c_pos->blk_number;

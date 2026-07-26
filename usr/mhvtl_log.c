@@ -523,8 +523,8 @@ void update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc 
 		for (i = 0; i < mam.num_partitions; ++i) {
 			struct partition_record_size4 *p_header =
 				((struct partition_record_size4 *)(header + sizeof(struct pc_header))) + i;
-			cap = get_unaligned_be64(&mam.max_capacity) / lu_priv->capacity_unit;
-			put_unaligned_be32(0xfffffffe, &p_header->data);
+			cap = medium_partition_capacity(lu_priv->pm->lu, i) / lu_priv->capacity_unit;
+			put_unaligned_be32(cap, &p_header->data);
 			MHVTL_DBG(1, "approx native capacity for partition %d : %u",
 					  i, get_unaligned_be32(&p_header->data));
 		}
@@ -536,7 +536,8 @@ void update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc 
 	for (i = 0; i < mam.num_partitions; ++i) {
 		struct partition_record_size4 *p_header =
 			((struct partition_record_size4 *)(header + sizeof(struct pc_header))) + i;
-		put_unaligned_be32(0xfffffffe, &p_header->data);
+		cap = partition_data_offset(i) / lu_priv->capacity_unit;
+		put_unaligned_be32(cap, &p_header->data);
 		MHVTL_DBG(1, "approx used native capacity for partition %d : %u",
 				  i, get_unaligned_be32(&p_header->data));
 	}
@@ -548,8 +549,11 @@ void update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc 
 		for (i = 0; i < mam.num_partitions; ++i) {
 			struct partition_record_size4 *p_header =
 				((struct partition_record_size4 *)(header + sizeof(struct pc_header))) + i;
-			cap = get_unaligned_be64(&mam.remaining_capacity) / lu_priv->capacity_unit;
-			put_unaligned_be32(0xfffffffe, &p_header->data);
+			uint64_t part = medium_partition_capacity(lu_priv->pm->lu, i);
+			uint64_t used = partition_data_offset(i) + lu_priv->early_warning_sz;
+
+			cap = (used < part) ? (part - used) / lu_priv->capacity_unit : 0;
+			put_unaligned_be32(cap, &p_header->data);
 			MHVTL_DBG(1, "remaining capacity to EW for partition %d : %u",
 					  i, get_unaligned_be32(&p_header->data));
 		}
@@ -656,16 +660,37 @@ void update_TapeUsage(struct TapeUsage_pg *b) {
 	put_unaligned_be64(datasets, &b->volumeDatasetsWritten);
 }
 
-void update_TapeCapacity(struct TapeCapacity_pg *pg) {
-	uint64_t cap __attribute__((unused)); /* fixme : should be used instead of telling max cap */
-	if (get_tape_load_status() == TAPE_LOADED) {
-		cap = get_unaligned_be64(&mam.remaining_capacity) / lu_ssc.capacity_unit;
-		put_unaligned_be32(0xfffffffe, &pg->partition0remaining);
-		put_unaligned_be32(0xfffffffe, &pg->partition1remaining);
+/*
+ * Capacity of 'partition' in the units this drive reports capacities in.
+ * Zero for a partition which does not exist on the loaded medium.
+ */
+static uint32_t partition_capacity_units(int partition) {
+	uint64_t cap = medium_partition_capacity(lu_ssc.pm->lu, partition);
 
-		cap = get_unaligned_be64(&mam.max_capacity) / lu_ssc.capacity_unit;
-		put_unaligned_be32(0xfffffffe, &pg->partition0maximum);
-		put_unaligned_be32(0xfffffffe, &pg->partition1maximum);
+	return (uint32_t)(cap / lu_ssc.capacity_unit);
+}
+
+/*
+ * How much of 'partition' is still free, in the same units. Subtracting what
+ * has been written to that partition, not to the medium as a whole.
+ */
+static uint32_t partition_remaining_units(int partition) {
+	uint64_t cap  = medium_partition_capacity(lu_ssc.pm->lu, partition);
+	uint64_t used = partition_data_offset(partition);
+
+	if (used >= cap)
+		return 0;
+
+	return (uint32_t)((cap - used) / lu_ssc.capacity_unit);
+}
+
+void update_TapeCapacity(struct TapeCapacity_pg *pg) {
+	if (get_tape_load_status() == TAPE_LOADED) {
+		put_unaligned_be32(partition_remaining_units(0), &pg->partition0remaining);
+		put_unaligned_be32(partition_remaining_units(1), &pg->partition1remaining);
+
+		put_unaligned_be32(partition_capacity_units(0), &pg->partition0maximum);
+		put_unaligned_be32(partition_capacity_units(1), &pg->partition1maximum);
 	} else {
 		pg->partition0remaining = 0;
 		pg->partition0maximum	= 0;

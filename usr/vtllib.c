@@ -1707,6 +1707,134 @@ finished:
 	fclose(conf);
 }
 
+/*
+ * Native (uncompressed) capacity of a media type, in bytes.
+ *
+ * Used when media is created without an explicit capacity, so that a cartridge
+ * claiming to be a given generation reports the size that generation actually
+ * holds. Cartridge data files are sparse, so a large capacity here costs
+ * nothing until it is written to.
+ */
+uint64_t media_native_capacity(uint8_t media_type) {
+	const uint64_t GB = 1000000000ULL; /* Capacities are quoted in SI units */
+
+	switch (media_type) {
+	case Media_LTO1:
+		return 100 * GB;
+	case Media_LTO2:
+		return 200 * GB;
+	case Media_LTO3:
+		return 400 * GB;
+	case Media_LTO4:
+		return 800 * GB;
+	case Media_LTO5:
+		return 1500 * GB;
+	case Media_LTO6:
+		return 2500 * GB;
+	case Media_LTO7:
+		return 6000 * GB;
+	case Media_LTO8:
+		return 12000 * GB;
+	case Media_LTO9:
+		return 18000 * GB;
+	/* set_media_params() uses these media types to stand for the 3592 format
+	 * generations rather than for the WORM cartridges their names suggest:
+	 * J1A -> JA, E05 -> JB, E06 -> JX, E07 -> JK. Each gets the headline
+	 * native capacity of that generation.
+	 */
+	case Media_3592_JA:
+		return 300 * GB;
+	case Media_3592_JB:
+		return 700 * GB;
+	case Media_3592_JX:
+		return 1000 * GB;
+	case Media_3592_JK:
+		return 4000 * GB;
+	case Media_T10KA:
+		return 500 * GB;
+	case Media_T10KB:
+		return 1000 * GB;
+	case Media_T10KC:
+		return 5000 * GB;
+	case Media_AIT1:
+		return 35 * GB;
+	case Media_AIT2:
+		return 50 * GB;
+	case Media_AIT3:
+		return 100 * GB;
+	case Media_AIT4:
+		return 200 * GB;
+	case Media_DLT3:
+		return 10 * GB;
+	case Media_DLT4:
+		return 20 * GB;
+	case Media_SDLT:
+		return 100 * GB;
+	case Media_SDLT220:
+		return 110 * GB;
+	case Media_SDLT320:
+		return 160 * GB;
+	case Media_SDLT600:
+		return 300 * GB;
+	case Media_DDS1:
+		return 2 * GB;
+	case Media_DDS2:
+		return 4 * GB;
+	case Media_DDS3:
+		return 12 * GB;
+	case Media_DDS4:
+		return 20 * GB;
+	default:
+		/* Cleaning cartridges and anything unrecognised. Small, but not zero,
+		 * since zero means "use the native capacity" to the caller.
+		 */
+		return GB;
+	}
+}
+
+/*
+ * Size of the medium auxiliary memory in a cartridge of this media type, in
+ * bytes. LTO cartridge memory grew from 4KB to 8KB with LTO-5 and to 16KB with
+ * LTO-9; other formats are given the same 8KB as a reasonable default.
+ */
+uint64_t media_mam_capacity(uint8_t media_type) {
+	switch (media_type) {
+	case Media_LTO1:
+	case Media_LTO2:
+	case Media_LTO3:
+	case Media_LTO4:
+		return 4096;
+	case Media_LTO9:
+		return 16384;
+	default:
+		return 8192;
+	}
+}
+
+/*
+ * Recalculate the MAM space remaining attribute: the cartridge memory less what
+ * the attributes held in it occupy, each costing its value plus the five byte
+ * identifier, format and length header.
+ */
+void mam_space_remaining(struct MAM *mamp) {
+	uint64_t capacity = get_unaligned_be64(&mamp->MAMCapacity);
+	uint64_t used	  = 0;
+	int		 i;
+
+	if (!capacity) {
+		/* Media created before the cartridge memory size was recorded */
+		capacity = media_mam_capacity(mamp->MediaType);
+		put_unaligned_be64(capacity, &mamp->MAMCapacity);
+	}
+
+	for (i = 0; i < MAM_ATTRIBUTE_END; i++)
+		if (mamp->attributes[i].length)
+			used += mamp->attributes[i].length + 5;
+
+	put_unaligned_be64((used < capacity) ? capacity - used : 0,
+					   &mamp->MAMSpaceRemaining);
+}
+
 unsigned int set_media_params(struct MAM *mamp, char *density) {
 	/* Invent some defaults */
 	mamp->MediaType = Media_undefined;
@@ -2030,6 +2158,20 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		return 1;
 	}
 	mamp->FormattedDensityCode = mamp->MediumDensityCode;
+
+	/* Cartridge memory size, so that the MAM capacity attributes describe the
+	 * memory in the cartridge rather than the length of the tape.
+	 */
+	put_unaligned_be64(media_mam_capacity(mamp->MediaType), &mamp->MAMCapacity);
+
+	/* A capacity of zero means "whatever this media type natively holds" */
+	if (!get_unaligned_be64(&mamp->max_capacity)) {
+		uint64_t native = media_native_capacity(mamp->MediaType);
+
+		put_unaligned_be64(native, &mamp->max_capacity);
+		put_unaligned_be64(native, &mamp->remaining_capacity);
+	}
+
 	return 0;
 }
 
