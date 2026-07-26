@@ -1,0 +1,14 @@
+services:
+
+  server:
+    build:
+      context: .. # to go back to /mhvtl
+      dockerfile: docker/Dockerfile
+    container_name: mhvtl
+    hostname: mhvtl
+    command: /sbin/init
+    tty: true
+    stdin_open: true
+    privileged: true
+    volumes:
+      - /lib/modules:/lib/modules:ro # to access the kernel module
