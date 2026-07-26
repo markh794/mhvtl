@@ -1922,7 +1922,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-732  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
+		mamp->max_partitions = 4;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO8", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto8;
@@ -1933,7 +1933,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-832  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
+		mamp->max_partitions = 4;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO9", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto9;
@@ -1944,7 +1944,7 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-932  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
+		mamp->max_partitions = 4;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "AIT1", 4))) {
 		/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
