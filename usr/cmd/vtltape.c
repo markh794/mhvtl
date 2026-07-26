@@ -1383,6 +1383,12 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 			  (uint8_t)lu->mode_media_type);
 
 	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
+	/* The medium has gone from demounted to mounted, which is where SSC has
+	 * the drive set the partition fields of the medium partition mode page
+	 * from the volume now loaded.
+	 */
+	update_medium_partition_page(lu);
+
 	set_current_state(MHVTL_STATE_LOADED);
 	return 0; /* Return successful load */
 

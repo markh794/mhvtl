@@ -709,6 +709,7 @@ struct mode *lookup_mode_pg(struct list_head *l, uint8_t pcode, uint8_t subpcode
 uint64_t	 medium_partition_capacity(struct lu_phy_attr *lu, int partition);
 uint64_t	 medium_partition_capacity_from_mode_page(struct lu_phy_attr *lu, int partition);
 void		 set_medium_partition_capacity(struct lu_phy_attr *lu);
+void		 update_medium_partition_page(struct lu_phy_attr *lu);
 int			 resp_read_block_limits(struct mhvtl_ds *dbuf_p, int sz);
 
 void  hex_dump(uint8_t *, int);
