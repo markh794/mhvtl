@@ -1990,6 +1990,9 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 		break;
 
 	case TAPE_CAPACITY:
+		update_TapeCapacity((struct TapeCapacity_pg *)buf);
+		break;
+
 	case DATA_COMPRESSION:
 		break;
 
