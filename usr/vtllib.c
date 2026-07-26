@@ -145,7 +145,10 @@ void init_mam(struct MAM *mamp) {
 	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
 	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
 	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
-	INIT_MAM_ATTR(0x1623, 1, 1, 0, mamp->VolumeLock, MAM_VOLUME_LOCK);
+	/* Host vendor specific, and written by the application - LTFS keeps the
+	 * volume lock state here - so not read only.
+	 */
+	INIT_MAM_ATTR(0x1623, 1, 0, 0, mamp->VolumeLock, MAM_VOLUME_LOCK);
 
 	/* 0x1800 : end of implemented attributes */
 	mamp->attributes[MAM_ATTRIBUTE_END] = (struct MAM_attr){0x1800, 0, 1, 0, NULL};
