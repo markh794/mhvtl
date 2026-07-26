@@ -73,6 +73,43 @@ void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len) {
 	memset(buf, 0, min((int)alloc_len, lu_priv->bufsize));
 }
 
+/*
+ * Update the Volume Change Reference (MAM attribute 0x0009)
+ *
+ * SSC has the drive change this value whenever the contents of the medium
+ * change. Applications which cache index information in the MAM coherency
+ * attribute (0x080c) - LTFS being the obvious one - store the VCR next to the
+ * position of the last index they wrote, then compare it against the current
+ * VCR when the medium is mounted again. Same value means nothing has written
+ * to the medium since, so the recorded index position can be trusted and a
+ * full scan of the medium skipped.
+ *
+ * A VCR of zero, or of all ones, means 'not available' and makes every
+ * coherency record on the medium worthless.
+ *
+ * The value is bumped once per load, by the first command which modifies the
+ * medium, and then left alone for the rest of the session. That ordering
+ * matters: the coherency record is written after the data it describes, so the
+ * VCR it captures has to be the one still in place at the next load.
+ */
+static void update_volume_change_reference(struct priv_lu_ssc *lu_priv, uint8_t *sam_stat) {
+	uint32_t vcr;
+
+	if (lu_priv->vcr_updated)
+		return;
+
+	vcr = get_unaligned_be32(&lu_priv->mamp->VolumeChangeReference) + 1;
+	if (!vcr) /* zero is reserved for 'not available' */
+		vcr = 1;
+
+	put_unaligned_be32(vcr, &lu_priv->mamp->VolumeChangeReference);
+	lu_priv->vcr_updated = 1;
+
+	MHVTL_DBG(2, "Volume change reference is now %u", vcr);
+
+	rewriteMAM(sam_stat);
+}
+
 uint8_t ssc_allow_overwrite(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
@@ -396,6 +433,8 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 
 	if (OK_to_write) {
+		update_volume_change_reference(lu_priv, sam_stat);
+
 		for (k = 0; k < count; k++) {
 			retval = writeBlock(cmd, sz);
 			buf += retval;
@@ -582,6 +621,8 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
 		sam_illegal_request(E_POSITION_PAST_BOM, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
+
+	update_volume_change_reference(lu_priv, sam_stat);
 
 	/* 0h = format the volume to a single partition */
 	/* 1h = use medium partition mode page to format the partitions */
@@ -1650,9 +1691,10 @@ uint8_t ssc_erase(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	if (OK_to_write)
+	if (OK_to_write) {
+		update_volume_change_reference(lu_priv, sam_stat);
 		format_partition(sam_stat);
-	else {
+	} else {
 		MHVTL_LOG("Attempt to erase Write-protected media");
 		sam_not_ready(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
 	}
@@ -1851,6 +1893,9 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd) {
 		} else
 			return SAM_STAT_CHECK_CONDITION;
 	}
+
+	if (count) /* A count of zero is a buffer flush, not a change of content */
+		update_volume_change_reference(lu_priv, sam_stat);
 
 	write_filemarks(count, sam_stat);
 	if (count) {

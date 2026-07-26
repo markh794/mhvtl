@@ -151,6 +151,15 @@ struct mode {
  */
 #define MAM_VERSION 4
 
+/* Length of the VOLUME COHERENCY INFORMATION attribute (0x080c).
+ * SSC defines this as 0x46 bytes: a one byte VCR length, the 8 byte volume
+ * change reference, an 8 byte coherency count, an 8 byte coherency set
+ * identifier, a two byte application client specific information length
+ * followed by 43 bytes of that information (LTFS stores "LTFS", the volume
+ * uuid and a format version byte there).
+ */
+#define MAM_COHERENCY_LEN 0x46
+
 enum MAM_attribute_idx {
 	/* 0x0000 – 0x03ff : Device */
 	MAM_REMAINING_CAPACITY,
@@ -213,6 +222,14 @@ enum MHVTL_attribute_idx {
 	MAM_MHVTL_MAX_PARTITIONS,
 	MAM_MHVTL_NUM_PARTITIONS,
 	MAM_MHVTL_MEDIA_TYPE,
+
+	/* Volume coherency information for partitions 1 and up. Partition 0 is
+	 * carried by the standard 0x080c attribute, but the coherency record is
+	 * per-partition and only one of them fits in the SSC attribute space.
+	 */
+	MAM_MHVTL_VOLUME_COHERENCY_P1,
+	MAM_MHVTL_VOLUME_COHERENCY_P2,
+	MAM_MHVTL_VOLUME_COHERENCY_P3,
 
 	/* media_info */
 	MAM_MHVTL_MEDIAINFO_BITS_PER_MM,
@@ -286,7 +303,7 @@ struct MAM {
 	uint8_t OwningHostTextualName[80];
 	uint8_t MediaPool[160];
 	uint8_t ApplicationFormatVersion[16];
-	uint8_t VolumeCoherencyInformation[46];
+	uint8_t VolumeCoherencyInformation[MAX_PARTITIONS][MAM_COHERENCY_LEN];
 
 	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
 	/* 0x1000 - 0x13ff - Medium - Vendor Specific */

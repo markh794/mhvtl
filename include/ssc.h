@@ -159,6 +159,9 @@ struct priv_lu_ssc {
 	int		   *OK_2_write;
 	struct MAM *mamp;
 
+	/* Set once the volume change reference has been bumped for this load */
+	uint8_t vcr_updated;
+
 	uint64_t allow_overwrite_block; /* Used by 'allow overwrite' op code */
 	uint64_t max_capacity;			/* save MAM.max_capacity here for quick access */
 	uint64_t bytesRead_M;			/* Bytes read from media */

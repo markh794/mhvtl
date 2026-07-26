@@ -140,7 +140,7 @@ void init_mam(struct MAM *mamp) {
 	INIT_MAM_ATTR(0x807, 80, 0, 2, mamp->OwningHostTextualName, MAM_OWNING_HOST_TEXTUAL_NAME);
 	INIT_MAM_ATTR(0x808, 160, 0, 2, mamp->MediaPool, MAM_MEDIA_POOL);
 	INIT_MAM_ATTR(0x80b, 16, 0, 1, mamp->ApplicationFormatVersion, MAM_APPLICATION_FORMAT_VERSION);
-	INIT_MAM_ATTR(0x80c, 46, 0, 0, mamp->VolumeCoherencyInformation, MAM_VOLUME_COHERENCY_INFORMATION);
+	INIT_MAM_ATTR(0x80c, MAM_COHERENCY_LEN, 0, 0, mamp->VolumeCoherencyInformation[0], MAM_VOLUME_COHERENCY_INFORMATION);
 
 	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
 	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
@@ -155,7 +155,14 @@ void init_mam(struct MAM *mamp) {
 	INIT_VTL_ATTR(0x02, 2, mamp->Flags, MAM_MHVTL_FLAGS);
 	INIT_VTL_ATTR(0x03, 1, mamp->max_partitions, MAM_MHVTL_MAX_PARTITIONS);
 	INIT_VTL_ATTR(0x04, 1, mamp->num_partitions, MAM_MHVTL_NUM_PARTITIONS);
-	INIT_VTL_ATTR(0x05, 1, mamp->MediaType, MAM_MHVTL_NUM_PARTITIONS);
+	INIT_VTL_ATTR(0x05, 1, mamp->MediaType, MAM_MHVTL_MEDIA_TYPE);
+
+	/* Coherency information for the remaining partitions. Kept as mhvtl
+	 * private attributes so each partition gets its own record.
+	 */
+	INIT_VTL_ATTR(0x0a, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[1], MAM_MHVTL_VOLUME_COHERENCY_P1);
+	INIT_VTL_ATTR(0x0b, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[2], MAM_MHVTL_VOLUME_COHERENCY_P2);
+	INIT_VTL_ATTR(0x0c, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[3], MAM_MHVTL_VOLUME_COHERENCY_P3);
 
 	INIT_VTL_ATTR(0x06, 4, mamp->media_info.bits_per_mm, MAM_MHVTL_MEDIAINFO_BITS_PER_MM);
 	INIT_VTL_ATTR(0x07, 2, mamp->media_info.tracks, MAM_MHVTL_MEDIAINFO_TRACKS);

@@ -383,6 +383,22 @@ int resp_report_density(struct priv_lu_ssc *lu_priv, uint8_t media,
 }
 
 /*
+ * Where the value of a MAM attribute lives for a given partition.
+ *
+ * Almost every attribute describes the whole medium, so the partition number
+ * in the CDB makes no difference. The volume coherency information (0x080c) is
+ * the exception - it records where the last index was written, which is per
+ * partition - so it is kept as one record per partition and selected here.
+ */
+static void *mam_attr_value(int indx, uint8_t partition) {
+	if ((mam.attributes[indx].attribute_id == 0x80c) &&
+		(partition < MAX_PARTITIONS))
+		return mam.VolumeCoherencyInformation[partition];
+
+	return mam.attributes[indx].value;
+}
+
+/*
  * Read Attribute
  *
  * Fill in 'buf' with data and return number of bytes
@@ -425,7 +441,8 @@ int resp_read_attribute(struct scsi_cmd *cmd) {
 					buf[byte_index++] = (mam.attributes[indx].read_only << 7) | mam.attributes[indx].format;
 					buf[byte_index++] = mam.attributes[indx].length >> 8;
 					buf[byte_index++] = mam.attributes[indx].length;
-					memcpy(&buf[byte_index], mam.attributes[indx].value, mam.attributes[indx].length);
+					memcpy(&buf[byte_index], mam_attr_value(indx, cdb[7]),
+						   mam.attributes[indx].length);
 					byte_index += mam.attributes[indx].length;
 				}
 			}
@@ -500,9 +517,16 @@ int resp_write_attribute(struct scsi_cmd *cmd) {
 					MHVTL_LOG("Converted media to WORM");
 					mamp->MediumType = MEDIA_TYPE_WORM;
 				} else {
-					memcpy(mam.attributes[indx].value,
+					/* Never take more than the initiator sent, nor more
+					 * than the field can hold.
+					 */
+					uint16_t len = mam.attributes[indx].length;
+					if (len > attribute_length)
+						len = attribute_length;
+
+					memcpy(mam_attr_value(indx, cdb[7]),
 						   &buf[byte_index],
-						   mam.attributes[indx].length);
+						   len);
 				}
 				byte_index += attribute_length; /* Positioning to the next attribute if any */
 				break;
@@ -960,7 +984,11 @@ static void updateMAM(uint8_t *sam_stat, int load) {
 	/* Update on load */
 	if (load) {
 		mam.record_dirty = 1;
-		load_count		 = get_unaligned_be64(&mam.LoadCount);
+		/* The volume change reference is bumped once per load, by the first
+		 * command which modifies the medium.
+		 */
+		lu_ssc.vcr_updated = 0;
+		load_count		   = get_unaligned_be64(&mam.LoadCount);
 		load_count++;
 		put_unaligned_be64(load_count, &mam.LoadCount);
 
