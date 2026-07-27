@@ -722,6 +722,9 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz) {
 	struct priv_lu_ssc *lu_priv;
 	int					src_len;
 	uint64_t			current_position;
+	uint64_t			partition_capacity;
+	uint64_t			early_warning_position;
+	uint64_t			prog_early_warning_position;
 	int64_t				remaining_capacity;
 	uint8_t			   *sam_stat   = &cmd->dbuf_p->sam_stat;
 	uint32_t			lbp_sz	   = src_sz;
@@ -751,9 +754,16 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz) {
 		}
 	}
 
-	/* Check if we hit EOT and fail before attempting to write */
-	current_position = current_tape_offset();
-	if (current_position >= lu_priv->max_capacity) {
+	/* Check if we hit EOT and fail before attempting to write.
+	 *
+	 * The limit is the capacity of the partition being written, not of the
+	 * whole medium - otherwise every partition of a partitioned tape believes
+	 * it can hold the entire cartridge.
+	 */
+	partition_capacity = medium_partition_capacity(lu_priv->pm->lu,
+												   c_pos->partition_id);
+	current_position   = current_tape_offset();
+	if (current_position >= partition_capacity) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
 		sam_no_sense(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
@@ -789,19 +799,34 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz) {
 
 	current_position = current_tape_offset();
 
+	/* Early warning sits a fixed distance from the end of the partition */
+	early_warning_position = (partition_capacity > (uint64_t)lu_priv->early_warning_sz)
+								 ? partition_capacity - lu_priv->early_warning_sz
+								 : 0;
+	prog_early_warning_position =
+		(early_warning_position > (uint64_t)lu_priv->prog_early_warning_sz)
+			? early_warning_position - lu_priv->prog_early_warning_sz
+			: 0;
+
 	if ((lu_priv->pm->drive_supports_early_warning) &&
-		(current_position >= (uint64_t)lu_priv->early_warning_position)) {
+		(current_position >= early_warning_position)) {
 		MHVTL_DBG(1, "End of Medium - Early Warning");
-		sam_no_sense(SD_EOM, NO_ADDITIONAL_SENSE, sam_stat);
+		/* Early warning is reported as END-OF-PARTITION/MEDIUM DETECTED with
+		 * the EOM bit, not as an EOM bit on its own: an initiator reading
+		 * ASC/ASCQ 00/00 is told there is nothing to report, and writes on
+		 * until the medium is refused outright - too late to close out a
+		 * filesystem which needs room for a final index.
+		 */
+		sam_no_sense(SD_EOM, E_EOM, sam_stat);
 	} else if ((lu_priv->pm->drive_supports_prog_early_warning) &&
-			   (current_position >= (uint64_t)lu_priv->prog_early_warning_position)) {
+			   (current_position >= prog_early_warning_position)) {
 		/* FIXME: Need to implement REW bit in Device Configuration Mode Page
 		 *	  REW == Report Early Warning
 		 */
 		MHVTL_DBG(1, "End of Medium - Programmable Early Warning");
 		sam_no_sense(SD_EOM, E_PROGRAMMABLE_EARLY_WARNING, sam_stat);
 	}
-	remaining_capacity = lu_priv->max_capacity - current_position;
+	remaining_capacity = partition_capacity - current_position;
 	if (remaining_capacity < 0)
 		remaining_capacity = 0L;
 

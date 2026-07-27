@@ -265,6 +265,14 @@ int main(int argc, char *argv[]) {
 		 * Usage, this will be recalculated correctly
 		 */
 		put_unaligned_be64(size * 1048576, &new_mam.remaining_capacity);
+	} else if (mediaCapacity) {
+		/* '-s 0' asks for the native capacity of the media type */
+		uint64_t native = media_native_capacity(new_mam.MediaType);
+
+		printf("Using native capacity for %s: %" PRIu64 "MB\n",
+			   pcl, native >> 20);
+		put_unaligned_be64(native, &new_mam.max_capacity);
+		put_unaligned_be64(native, &new_mam.remaining_capacity);
 	}
 	switch (wp) {
 	case WRITE_PROTECT_ON:
@@ -277,7 +285,7 @@ int main(int argc, char *argv[]) {
 		break;
 	}
 
-	put_unaligned_be64(new_mam.max_capacity - sizeof(struct MAM), &new_mam.MAMSpaceRemaining);
+	mam_space_remaining(&new_mam);
 
 	memcpy(&mam, &new_mam, sizeof(mam));
 	rewriteMAM(&sam_stat);

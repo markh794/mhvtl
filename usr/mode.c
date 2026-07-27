@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <inttypes.h>
 #include <errno.h>
 #include "mhvtl_scsi.h"
@@ -698,10 +699,187 @@ void set_medium_partition(struct scsi_cmd *cmd, uint8_t *p) {
 	mp->pcodePointer[5] = p[5]; /* MEDIUM FORMAT RECOGNITION */
 	mp->pcodePointer[6] = p[6]; /* PARTITIONING TYPE | PARTITION UNITS */
 
-	/* PARTITION SIZES */
+	/* PARTITION SIZES - two bytes each, not one */
 	for (int k = 0; k < mam.num_partitions; k++) {
-		put_unaligned_be16(p[8 + 2 * k], &mp->pcodePointer[8 + 2 * k]);
+		put_unaligned_be16(get_unaligned_be16(&p[8 + (2 * k)]),
+						   &mp->pcodePointer[8 + (2 * k)]);
 	}
+}
+
+/*
+ * Size of 'partition' in bytes, according to the medium partition mode page.
+ *
+ * The page carries one size descriptor per partition, in units of 10^n bytes
+ * where n is the PARTITION UNITS field. A descriptor of 0xffff means "whatever
+ * is left of the medium" and is how an initiator asks for a partition which
+ * fills the tape: LTFS asks for a one gigabyte index partition and gives the
+ * remainder to the data partition.
+ *
+ * What the initiator asks for is capped so the partitions always add up to the
+ * medium rather than each believing it has the whole tape. Since the request is
+ * made without knowing the size of the cartridge - LTFS asks for its index
+ * partition in gigabytes whatever the medium - fixed size partitions are scaled
+ * down if they do not fit, and never take more than half of a medium which also
+ * has a partition asking for the remainder.
+ */
+/*
+ * Size of 'partition' in bytes as recorded on the medium, or zero if this
+ * cartridge carries no geometry - it predates the geometry being written, or
+ * has never been partitioned.
+ */
+static uint64_t recorded_partition_capacity(int partition) {
+	if ((partition < 0) || (partition >= MAX_PARTITIONS))
+		return 0;
+
+	return get_unaligned_be64(&mam.partition_capacity[partition]);
+}
+
+/*
+ * Work out the partition sizes the initiator has asked for and record them on
+ * the medium. Called when the medium is formatted, which is the only point at
+ * which the geometry changes.
+ */
+void set_medium_partition_capacity(struct lu_phy_attr *lu) {
+	int num = mam.num_partitions ? mam.num_partitions : 1;
+	int k;
+
+	memset(mam.partition_capacity, 0, sizeof(mam.partition_capacity));
+
+	for (k = 0; k < num; k++)
+		put_unaligned_be64(medium_partition_capacity_from_mode_page(lu, k),
+						   &mam.partition_capacity[k]);
+
+	for (k = 0; k < num; k++)
+		MHVTL_DBG(2, "Partition %d formatted to %" PRIu64 " bytes", k,
+				  get_unaligned_be64(&mam.partition_capacity[k]));
+}
+
+/*
+ * Bring the medium partition mode page into line with the loaded volume.
+ *
+ * SSC has the device server do this when the medium goes from demounted to
+ * mounted: the fields describing the current state of the partitions are set
+ * from the medium, so that an initiator reading the page back learns how the
+ * cartridge in the drive is actually laid out rather than how some earlier
+ * MODE SELECT asked for a cartridge to be formatted.
+ *
+ * The units a volume was partitioned with are explicitly not retained, so the
+ * finest unit which still lets every partition fit a sixteen bit descriptor is
+ * used for reporting.
+ */
+void update_medium_partition_page(struct lu_phy_attr *lu) {
+	struct mode *mp		 = lookup_mode_pg(&lu->mode_pg, MODE_MEDIUM_PARTITION, 0);
+	uint64_t	 largest = 0;
+	uint64_t	 unit	 = 1;
+	int			 num	 = mam.num_partitions ? mam.num_partitions : 1;
+	int			 units, k;
+
+	if (!mp)
+		return;
+
+	if (num > MAX_PARTITIONS)
+		num = MAX_PARTITIONS;
+
+	for (k = 0; k < num; k++) {
+		uint64_t sz = medium_partition_capacity(lu, k);
+
+		if (sz > largest)
+			largest = sz;
+	}
+
+	for (units = 0; units < 15; units++, unit *= 10)
+		if (largest / unit <= 0xfffe)
+			break;
+
+	/* Maximum additional partitions and additional partitions defined both
+	 * describe the loaded volume, as N-1.
+	 */
+	mp->pcodePointer[2] = mam.max_partitions ? mam.max_partitions - 1 : 0;
+	mp->pcodePointer[3] = num - 1;
+
+	/* Partitioning type stays in the top nibble, units go in the bottom */
+	mp->pcodePointer[6] = (mp->pcodePointer[6] & 0xf0) | (units & 0x0f);
+
+	for (k = 0; k < MAX_PARTITIONS; k++) {
+		uint64_t sz = (k < num) ? medium_partition_capacity(lu, k) : 0;
+		uint16_t descriptor = sz / unit;
+
+		/* The descriptor for a partition which exists has to be non-zero */
+		if (!descriptor && sz)
+			descriptor = 1;
+
+		put_unaligned_be16(descriptor, &mp->pcodePointer[8 + (2 * k)]);
+	}
+
+	MHVTL_DBG(2, "Medium partition page: %d partition(s), sizes in 10^%d bytes",
+			  num, units);
+}
+
+uint64_t medium_partition_capacity(struct lu_phy_attr *lu, int partition) {
+	uint64_t recorded = recorded_partition_capacity(partition);
+
+	/* What the medium says it was formatted to wins: the mode page belongs to
+	 * the drive and says nothing about the cartridge currently loaded.
+	 */
+	if (recorded)
+		return recorded;
+
+	return medium_partition_capacity_from_mode_page(lu, partition);
+}
+
+uint64_t medium_partition_capacity_from_mode_page(struct lu_phy_attr *lu, int partition) {
+	struct mode *mp;
+	uint64_t	 medium = get_unaligned_be64(&mam.max_capacity);
+	uint64_t	 size[MAX_PARTITIONS]	   = {0};
+	int			 remainder[MAX_PARTITIONS] = {0};
+	uint64_t	 unit					   = 1;
+	uint64_t	 fixed					   = 0;
+	uint64_t	 budget;
+	int			 num			 = mam.num_partitions ? mam.num_partitions : 1;
+	int			 remainder_count = 0;
+	int			 units, k;
+
+	if ((partition < 0) || (partition >= num))
+		return 0;
+
+	if (num == 1)
+		return medium;
+
+	mp = lookup_mode_pg(&lu->mode_pg, MODE_MEDIUM_PARTITION, 0);
+	if (!mp) /* Nothing to go on - share the medium out evenly */
+		return medium / num;
+
+	units = mp->pcodePointer[6] & 0x0f;
+	while (units--)
+		unit *= 10;
+
+	for (k = 0; k < num; k++) {
+		uint16_t descriptor = get_unaligned_be16(&mp->pcodePointer[8 + (2 * k)]);
+
+		if (descriptor == 0xffff) {
+			remainder[k] = 1;
+			remainder_count++;
+		} else {
+			size[k] = (uint64_t)descriptor * unit;
+			fixed += size[k];
+		}
+	}
+
+	budget = remainder_count ? medium / 2 : medium;
+	if (fixed > budget) {
+		/* Scaled in floating point - the product of two capacities does not
+		 * fit in 64 bits, and a byte of rounding either way is immaterial.
+		 */
+		for (k = 0; k < num; k++)
+			if (!remainder[k])
+				size[k] = (uint64_t)((double)size[k] * budget / fixed);
+		fixed = budget;
+	}
+
+	if (remainder[partition])
+		return (medium - fixed) / remainder_count;
+
+	return size[partition];
 }
 
 int add_mode_power_condition(struct lu_phy_attr *lu) {

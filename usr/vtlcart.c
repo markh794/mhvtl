@@ -849,13 +849,20 @@ static void close_partition(uint8_t partition_number) {
 }
 
 int change_partition(uint8_t partition_number) {
-	uint8_t *sam_stat = SAM_STAT_GOOD;
-	int		 rc		  = 0;
+	/* Somewhere for read_header() to report a failure. This used to be a
+	 * pointer initialised to SAM_STAT_GOOD, which is zero - so the moment
+	 * read_header() failed, on a medium whose header could not be read, it
+	 * wrote through a null pointer.
+	 */
+	uint8_t sam_stat = SAM_STAT_GOOD;
+	int		rc		 = 0;
 
 	close_partition(c_pos->partition_id);
 	c_pos->partition_id = partition_number;
 	rc					= open_partition(partition_number);
-	read_header(0, sam_stat);
+	if (read_header(0, &sam_stat))
+		MHVTL_ERR("Could not read the first header of partition %d",
+				  partition_number);
 	return rc;
 }
 
@@ -1619,6 +1626,20 @@ uint64_t current_tape_offset(void) {
 		return raw_pos.data_offset;
 
 	return 0;
+}
+
+/*
+ * Bytes written in 'partition' - the data offset of its end of data.
+ *
+ * Unlike current_tape_offset() this works for any partition, not just the one
+ * the drive is positioned in, so capacity reporting can describe the whole
+ * medium.
+ */
+uint64_t partition_data_offset(int partition) {
+	if ((partition < 0) || (partition >= MAX_PARTITIONS))
+		return 0;
+
+	return eod_data_offset[partition];
 }
 
 uint64_t current_tape_block(void) {

@@ -145,7 +145,10 @@ void init_mam(struct MAM *mamp) {
 	/* 0x0c00 - 0x0fff - Device - Vendor Specific */
 	/* 0x1000 - 0x13ff - Medium - Vendor Specific */
 	/* 0x1400 - 0x17ff -  Host  - Vendor Specific */
-	INIT_MAM_ATTR(0x1623, 1, 1, 0, mamp->VolumeLock, MAM_VOLUME_LOCK);
+	/* Host vendor specific, and written by the application - LTFS keeps the
+	 * volume lock state here - so not read only.
+	 */
+	INIT_MAM_ATTR(0x1623, 1, 0, 0, mamp->VolumeLock, MAM_VOLUME_LOCK);
 
 	/* 0x1800 : end of implemented attributes */
 	mamp->attributes[MAM_ATTRIBUTE_END] = (struct MAM_attr){0x1800, 0, 1, 0, NULL};
@@ -163,6 +166,12 @@ void init_mam(struct MAM *mamp) {
 	INIT_VTL_ATTR(0x0a, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[1], MAM_MHVTL_VOLUME_COHERENCY_P1);
 	INIT_VTL_ATTR(0x0b, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[2], MAM_MHVTL_VOLUME_COHERENCY_P2);
 	INIT_VTL_ATTR(0x0c, MAM_COHERENCY_LEN, mamp->VolumeCoherencyInformation[3], MAM_MHVTL_VOLUME_COHERENCY_P3);
+
+	/* Partition geometry, so that it survives the drive it was formatted in */
+	INIT_VTL_ATTR(0x0d, 8, mamp->partition_capacity[0], MAM_MHVTL_PARTITION_CAPACITY_P0);
+	INIT_VTL_ATTR(0x0e, 8, mamp->partition_capacity[1], MAM_MHVTL_PARTITION_CAPACITY_P1);
+	INIT_VTL_ATTR(0x0f, 8, mamp->partition_capacity[2], MAM_MHVTL_PARTITION_CAPACITY_P2);
+	INIT_VTL_ATTR(0x10, 8, mamp->partition_capacity[3], MAM_MHVTL_PARTITION_CAPACITY_P3);
 
 	INIT_VTL_ATTR(0x06, 4, mamp->media_info.bits_per_mm, MAM_MHVTL_MEDIAINFO_BITS_PER_MM);
 	INIT_VTL_ATTR(0x07, 2, mamp->media_info.tracks, MAM_MHVTL_MEDIAINFO_TRACKS);
@@ -1707,6 +1716,154 @@ finished:
 	fclose(conf);
 }
 
+/*
+ * Native (uncompressed) capacity of a media type, in bytes.
+ *
+ * Used when media is created without an explicit capacity, so that a cartridge
+ * claiming to be a given generation reports the size that generation actually
+ * holds. Cartridge data files are sparse, so a large capacity here costs
+ * nothing until it is written to.
+ */
+/*
+ * How many partitions a cartridge of this media type can hold.
+ *
+ * LTO-5 and LTO-6 hold two partitions, LTO-7 raised that to four and LTO-8 and
+ * LTO-9 kept it. Everything else is described as a single partition.
+ */
+uint8_t media_max_partitions(uint8_t media_type) {
+	switch (media_type) {
+	case Media_LTO5:
+	case Media_LTO6:
+		return 2;
+	case Media_LTO7:
+	case Media_LTO8:
+	case Media_LTO9:
+		return 4;
+	default:
+		return 1;
+	}
+}
+
+uint64_t media_native_capacity(uint8_t media_type) {
+	const uint64_t GB = 1000000000ULL; /* Capacities are quoted in SI units */
+
+	switch (media_type) {
+	case Media_LTO1:
+		return 100 * GB;
+	case Media_LTO2:
+		return 200 * GB;
+	case Media_LTO3:
+		return 400 * GB;
+	case Media_LTO4:
+		return 800 * GB;
+	case Media_LTO5:
+		return 1500 * GB;
+	case Media_LTO6:
+		return 2500 * GB;
+	case Media_LTO7:
+		return 6000 * GB;
+	case Media_LTO8:
+		return 12000 * GB;
+	case Media_LTO9:
+		return 18000 * GB;
+	/* set_media_params() uses these media types to stand for the 3592 format
+	 * generations rather than for the WORM cartridges their names suggest:
+	 * J1A -> JA, E05 -> JB, E06 -> JX, E07 -> JK. Each gets the headline
+	 * native capacity of that generation.
+	 */
+	case Media_3592_JA:
+		return 300 * GB;
+	case Media_3592_JB:
+		return 700 * GB;
+	case Media_3592_JX:
+		return 1000 * GB;
+	case Media_3592_JK:
+		return 4000 * GB;
+	case Media_T10KA:
+		return 500 * GB;
+	case Media_T10KB:
+		return 1000 * GB;
+	case Media_T10KC:
+		return 5000 * GB;
+	case Media_AIT1:
+		return 35 * GB;
+	case Media_AIT2:
+		return 50 * GB;
+	case Media_AIT3:
+		return 100 * GB;
+	case Media_AIT4:
+		return 200 * GB;
+	case Media_DLT3:
+		return 10 * GB;
+	case Media_DLT4:
+		return 20 * GB;
+	case Media_SDLT:
+		return 100 * GB;
+	case Media_SDLT220:
+		return 110 * GB;
+	case Media_SDLT320:
+		return 160 * GB;
+	case Media_SDLT600:
+		return 300 * GB;
+	case Media_DDS1:
+		return 2 * GB;
+	case Media_DDS2:
+		return 4 * GB;
+	case Media_DDS3:
+		return 12 * GB;
+	case Media_DDS4:
+		return 20 * GB;
+	default:
+		/* Cleaning cartridges and anything unrecognised. Small, but not zero,
+		 * since zero means "use the native capacity" to the caller.
+		 */
+		return GB;
+	}
+}
+
+/*
+ * Size of the medium auxiliary memory in a cartridge of this media type, in
+ * bytes. LTO cartridge memory grew from 4KB to 8KB with LTO-5 and to 16KB with
+ * LTO-9; other formats are given the same 8KB as a reasonable default.
+ */
+uint64_t media_mam_capacity(uint8_t media_type) {
+	switch (media_type) {
+	case Media_LTO1:
+	case Media_LTO2:
+	case Media_LTO3:
+	case Media_LTO4:
+		return 4096;
+	case Media_LTO9:
+		return 16384;
+	default:
+		return 8192;
+	}
+}
+
+/*
+ * Recalculate the MAM space remaining attribute: the cartridge memory less what
+ * the attributes held in it occupy, each costing its value plus the five byte
+ * identifier, format and length header.
+ */
+void mam_space_remaining(struct MAM *mamp) {
+	uint64_t capacity = get_unaligned_be64(&mamp->MAMCapacity);
+	uint64_t used	  = 0;
+	int		 i;
+
+	if (!capacity) {
+		/* Media created before the cartridge memory size was recorded */
+		capacity = media_mam_capacity(mamp->MediaType);
+		put_unaligned_be64(capacity, &mamp->MAMCapacity);
+	}
+
+	for (i = 0; i < MAM_ATTRIBUTE_END; i++)
+		if (mamp->attributes[i].length)
+			used += mamp->attributes[i].length + 5;
+
+	put_unaligned_be64((used < capacity) ? capacity - used : 0,
+					   &mamp->MAMSpaceRemaining);
+}
+
 unsigned int set_media_params(struct MAM *mamp, char *density) {
 	/* Invent some defaults */
 	mamp->MediaType = Media_undefined;
@@ -1763,7 +1920,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-516  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(15142, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO6", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto6;
@@ -1774,7 +1930,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-616  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(18441, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO7", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto7;
@@ -1785,7 +1940,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-732  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO8", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto8;
@@ -1796,7 +1950,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-832  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "LTO9", 4))) {
 		mamp->MediumDensityCode = medium_density_code_lto9;
@@ -1807,7 +1960,6 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		memcpy(&mamp->media_info.density_name, "U-932  ", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
-		mamp->max_partitions = 2;
 		mamp->num_partitions = 2;
 	} else if (!(strncmp(density, "AIT1", 4))) {
 		/* Vaules for AIT taken from "Product Manual SDX-900V v1.0" */
@@ -2030,6 +2182,21 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		return 1;
 	}
 	mamp->FormattedDensityCode = mamp->MediumDensityCode;
+	mamp->max_partitions	   = media_max_partitions(mamp->MediaType);
+
+	/* Cartridge memory size, so that the MAM capacity attributes describe the
+	 * memory in the cartridge rather than the length of the tape.
+	 */
+	put_unaligned_be64(media_mam_capacity(mamp->MediaType), &mamp->MAMCapacity);
+
+	/* A capacity of zero means "whatever this media type natively holds" */
+	if (!get_unaligned_be64(&mamp->max_capacity)) {
+		uint64_t native = media_native_capacity(mamp->MediaType);
+
+		put_unaligned_be64(native, &mamp->max_capacity);
+		put_unaligned_be64(native, &mamp->remaining_capacity);
+	}
+
 	return 0;
 }
 

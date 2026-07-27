@@ -157,9 +157,10 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	/* A size of zero asks for the native capacity of the media type, which
+	 * set_media_params() fills in once the density is known.
+	 */
 	sscanf(mediaCapacity, "%" PRId64, &size);
-	if (size == 0)
-		size = 8000;
 
 	sscanf(lib, "%d", &libno);
 	if (!libno) {
@@ -189,9 +190,12 @@ int main(int argc, char *argv[]) {
 
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
 	mam.mam_fmt_version	 = MAM_VERSION;
+
+	/* A size of zero leaves the capacity to set_media_params(), which fills in
+	 * whatever the media type natively holds.
+	 */
 	put_unaligned_be64(size * 1048576, &mam.max_capacity);
 	put_unaligned_be64(size * 1048576, &mam.remaining_capacity);
-	put_unaligned_be64(mam.max_capacity - sizeof(struct MAM), &mam.MAMSpaceRemaining);
 
 	memcpy(&mam.MediumManufacturer, "linuxVTL", 8);
 	memcpy(&mam.ApplicationVendor, &ver, 8);
@@ -207,7 +211,19 @@ int main(int argc, char *argv[]) {
 	} else {
 		mam.MediumType = MEDIA_TYPE_DATA; /* Normal data cart */
 	}
-	set_media_params(&mam, density);
+	/* Without a recognised density there is no media type, and so no capacity
+	 * to give the cartridge - refuse rather than write out unusable media.
+	 */
+	if (set_media_params(&mam, density)) {
+		fprintf(stderr, "error: '%s' is not a density this build knows\n",
+				density);
+		exit(1);
+	}
+
+	/* Space left in the cartridge memory, being what the attributes stored in
+	 * it do not already take up.
+	 */
+	mam_space_remaining(&mam);
 
 	sprintf((char *)mam.MediumSerialNumber, "%s_%d", pcl, (int)gettime());
 	sprintf((char *)mam.MediumManufactureDate, "%d", (int)gettime());
