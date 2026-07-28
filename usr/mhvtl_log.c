@@ -63,6 +63,7 @@ const char *log_page_desc[LOG_PAGE_DESC_SZ] = {
 	[SELFTEST_RESULTS]			  = "Selftest Results",
 	[VOLUME_STATISTICS]			  = "Volume Statistics",
 	[DEVICE_STATUS]				  = "VHF Device Status",
+	[DEVICE_STATISTICS]			  = "Device Statistics",
 	[TAPE_ALERT]				  = "Tape Alert",
 	[INFORMATIONAL_EXCEPTIONS]	  = "Informational Exceptions",
 	[TAPE_USAGE]				  = "Tape Usage",
@@ -333,6 +334,42 @@ static void init_log_tape_alert(void *log_ptr) {
 int add_log_tape_alert(struct lu_phy_attr *lu) {
 	return alloc_log_page(lu, TAPE_ALERT, NO_SUBPAGE,
 						  init_log_tape_alert, sizeof(struct TapeAlert_pg));
+}
+
+static void init_log_library_statistics(void *log_ptr) {
+	struct LibraryStatistics_pg *pg = log_ptr;
+	*pg								= (struct LibraryStatistics_pg){
+		   LOG_PG_HEADER(TAPE_USAGE),
+		   LOG_PARAM(0x0001, 0xc0, loaderMoves)		  = 0x00,
+		   LOG_PARAM(0x0002, 0xc0, powerOns)		  = 0x00,
+		   LOG_PARAM(0x0003, 0xc0, minutesOfOperation) = 0x00,
+	   };
+}
+int add_log_library_statistics(struct lu_phy_attr *lu) {
+	return alloc_log_page(lu, TAPE_USAGE, NO_SUBPAGE,
+						  init_log_library_statistics, sizeof(struct LibraryStatistics_pg));
+}
+
+static void init_log_device_statistics(void *log_ptr) {
+	struct DeviceStatistics_pg *pg = log_ptr;
+	*pg							   = (struct DeviceStatistics_pg){
+		  LOG_PG_HEADER(DEVICE_STATISTICS),
+		  LOG_PARAM(0x0000, 0xc0, lifetimeVolumeLoads)		   = 0x00,
+		  LOG_PARAM(0x0001, 0xc0, lifetimeCleaningOperations)  = 0x00,
+		  LOG_PARAM(0x0002, 0xc0, lifetimePowerOnHours)		   = 0x00,
+		  LOG_PARAM(0x0003, 0xc0, lifetimeMediumMotionHours)   = 0x00,
+		  LOG_PARAM(0x0004, 0xc0, lifetimeMetresProcessed)	   = 0x00,
+		  LOG_PARAM(0x0008, 0xc0, motionHoursSinceLastClean)   = 0x00,
+		  LOG_PARAM(0x0009, 0xc0, motionHoursSince2ndClean)	   = 0x00,
+		  LOG_PARAM(0x000a, 0xc0, motionHoursSince3rdClean)	   = 0x00,
+		  LOG_PARAM(0x0040, 0xc0, driveManufacturerSerial)	   = {0},
+		  LOG_PARAM(0x0041, 0xc0, driveProductSerial)		   = {0},
+		  LOG_PARAM(0x0081, 0xc0, mechanismOverTemperature)	   = 0x00,
+	  };
+}
+int add_log_device_statistics(struct lu_phy_attr *lu) {
+	return alloc_log_page(lu, DEVICE_STATISTICS, NO_SUBPAGE,
+						  init_log_device_statistics, sizeof(struct DeviceStatistics_pg));
 }
 
 static void init_log_tape_usage(void *log_ptr) {

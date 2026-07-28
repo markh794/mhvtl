@@ -566,6 +566,7 @@ void init_ult3580_td1(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -613,6 +614,7 @@ void init_ult3580_td2(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -668,6 +670,7 @@ void init_ult3580_td3(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -734,6 +737,7 @@ void init_ult3580_td4(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -807,6 +811,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -882,6 +887,7 @@ void init_ult3580_td6(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -980,6 +986,7 @@ static void init_ult3580_lbp(struct lu_phy_attr *lu, char *name,
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);

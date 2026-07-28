@@ -49,6 +49,7 @@ typedef void (*init_pg_fn)(void *log_ptr);
 #define APPLICATION_CLIENT			0x0f
 #define SELFTEST_RESULTS			0x10
 #define DEVICE_STATUS				0x11
+#define DEVICE_STATISTICS			0x14
 #define VOLUME_STATISTICS			0x17
 #define TAPE_ALERT					0x2e
 #define INFORMATIONAL_EXCEPTIONS	0x2f
@@ -112,6 +113,53 @@ struct DataCompression_pg {
 /* Buffer Under/Over Run log page - 0x01 : SPC-3 (7.2.3) */
 struct BufferUnderOverRun_pg {
 	struct log_pg_header pcode_head;
+} __attribute__((packed));
+
+/* Device Statistics - 0x14
+ *
+ * Lifetime drive odometers and cleaning history. Parameter codes and
+ * field widths per the IBM LTO SCSI Reference, LP 14h (table 261).
+ */
+struct DeviceStatistics_pg {
+	struct log_pg_header pcode_head;
+
+	struct pc_header h_lifetimeVolumeLoads;
+	uint32_t		 lifetimeVolumeLoads;
+	struct pc_header h_lifetimeCleaningOperations;
+	uint32_t		 lifetimeCleaningOperations;
+	struct pc_header h_lifetimePowerOnHours;
+	uint32_t		 lifetimePowerOnHours;
+	struct pc_header h_lifetimeMediumMotionHours;
+	uint32_t		 lifetimeMediumMotionHours;
+	struct pc_header h_lifetimeMetresProcessed;
+	uint32_t		 lifetimeMetresProcessed;
+	struct pc_header h_motionHoursSinceLastClean;
+	uint32_t		 motionHoursSinceLastClean;
+	struct pc_header h_motionHoursSince2ndClean;
+	uint32_t		 motionHoursSince2ndClean;
+	struct pc_header h_motionHoursSince3rdClean;
+	uint32_t		 motionHoursSince3rdClean;
+	struct pc_header h_driveManufacturerSerial;
+	uint8_t			 driveManufacturerSerial[12];
+	struct pc_header h_driveProductSerial;
+	uint8_t			 driveProductSerial[12];
+	struct pc_header h_mechanismOverTemperature;
+	uint8_t			 mechanismOverTemperature;
+} __attribute__((packed));
+
+/* Library Statistics - 0x30 (medium changer)
+ *
+ * Robot odometers, as reported by library controllers such as the TS4300.
+ */
+struct LibraryStatistics_pg {
+	struct log_pg_header pcode_head;
+
+	struct pc_header h_loaderMoves;
+	uint32_t		 loaderMoves;
+	struct pc_header h_powerOns;
+	uint32_t		 powerOns;
+	struct pc_header h_minutesOfOperation;
+	uint32_t		 minutesOfOperation;
 } __attribute__((packed));
 
 struct TapeUsage_pg {
@@ -568,6 +616,8 @@ int add_log_selftest_results(struct lu_phy_attr *lu);
 int add_log_volume_statistics(struct lu_phy_attr *lu);
 int add_log_tape_alert(struct lu_phy_attr *lu);
 int add_log_tape_usage(struct lu_phy_attr *lu);
+int add_log_device_statistics(struct lu_phy_attr *lu);
+int add_log_library_statistics(struct lu_phy_attr *lu);
 int add_log_tape_capacity(struct lu_phy_attr *lu);
 int add_log_data_compression(struct lu_phy_attr *lu);
 int add_log_device_status(struct lu_phy_attr *lu);
