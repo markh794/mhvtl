@@ -94,6 +94,12 @@ static void update_eml_vpd_83(struct lu_phy_attr *lu) {
 	d[num + 4] |= 0x50;
 }
 
+/* The element addresses below are inherited from stklxx_pm.c, where they
+ * come from the StorageTek L20 reference. They are not taken from any HP
+ * document and are unverified: the HPE Storage Tape Library SCSI
+ * Reference documents mode page 1Dh as a format only and publishes no
+ * default addresses for any model. init_hp_msl_smc() overrides all four.
+ */
 static struct smc_personality_template smc_pm = {
 	.library_has_map			= TRUE,
 	.library_has_barcode_reader = TRUE,
