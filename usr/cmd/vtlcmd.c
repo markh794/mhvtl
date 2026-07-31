@@ -137,147 +137,138 @@ int isnumeric(char *str) {
 	return 1;
 }
 
-void PrintErrorExit(char *prog, char *s) {
-	fprintf(stderr, "Please check command, parameter \'%s\' wrong.\n\n", s);
-	usage(prog);
-	exit(1);
-}
+/*
+ * Validation functions return NULL on success, or an error message string
+ * describing the problem. The caller (main) handles printing and exit.
+ */
 
-void Check_TapeAlert(int argc, char **argv) {
+const char *Check_TapeAlert(int argc, char **argv) {
 	if (argc > 3) {
-		if (!ishex(argv[3])) {
-			fprintf(stderr, "Value not hexadecimal: %s\n", argv[3]);
-			exit(1);
-		}
+		if (!ishex(argv[3]))
+			return "TapeAlert: value not hexadecimal";
 		if (argc == 4)
-			return;
-
-		PrintErrorExit(argv[0], "TapeAlert");
+			return NULL;
+		return "TapeAlert";
 	}
-	PrintErrorExit(argv[0], "TapeAlert");
+	return "TapeAlert";
 }
 
-void Check_Load(int argc, char **argv) {
+const char *Check_Load(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 5)
-				return;
-
-			PrintErrorExit(argv[0], "load map");
+				return NULL;
+			return "load map";
 		}
-
 		if (argc == 4)
-			return;
-
-		PrintErrorExit(argv[0], "load");
+			return NULL;
+		return "load";
 	}
-	PrintErrorExit(argv[0], "load");
+	return "load";
 }
 
-void Check_delay(int argc, char **argv) {
+const char *Check_delay(int argc, char **argv) {
 	if (argc > 4) {
 		if (argc == 5) {
 			if (atoi(argv[4]) >= 0)
-				return;
-			PrintErrorExit(argv[0], "delay: Negative value");
+				return NULL;
+			return "delay: Negative value";
 		}
-		PrintErrorExit(argv[0], "delay");
+		return "delay";
 	}
-	PrintErrorExit(argv[0], "delay");
+	return "delay";
 }
 
-void Check_Unload(int argc, char **argv) {
+const char *Check_Unload(int argc, char **argv) {
 	if (argc > 3) {
 		if (argc == 4)
-			return;
-
-		PrintErrorExit(argv[0], "unload");
+			return NULL;
+		return "unload";
 	}
-	PrintErrorExit(argv[0], "unload");
+	return "unload";
 }
 
-void Check_Compression(int argc, char **argv) {
+const char *Check_Compression(int argc, char **argv) {
 	if (argc > 3) {
 		if (argc == 4)
-			return;
-
-		PrintErrorExit(argv[0], "compression");
+			return NULL;
+		return "compression";
 	}
-	PrintErrorExit(argv[0], "compression : missing lzo or zlib");
+	return "compression : missing lzo or zlib";
 }
 
-void Check_append_only(int argc, char **argv) {
+const char *Check_append_only(int argc, char **argv) {
 	if (argc > 4) {
 		if (argc == 5)
-			return;
-
-		PrintErrorExit(argv[0], "Append Only");
+			return NULL;
+		return "Append Only";
 	}
-	PrintErrorExit(argv[0], "Append Only : missing Yes / No");
+	return "Append Only : missing Yes / No";
 }
 
-void Check_List(int argc, char **argv) {
+const char *Check_List(int argc, char **argv) {
 	if (argc != 4)
-		PrintErrorExit(argv[0], "list map : too many args");
-	else if (strcmp(argv[3], "map"))
-		PrintErrorExit(argv[0], "list map : Can only list map");
+		return "list map : too many args";
+	if (strcmp(argv[3], "map"))
+		return "list map : Can only list map";
+	return NULL;
 }
 
-void Check_Empty(int argc, char **argv) {
+const char *Check_Empty(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
-				return;
+				return NULL;
 		}
-		PrintErrorExit(argv[0], "empty map");
+		return "empty map";
 	}
-	PrintErrorExit(argv[0], "empty map");
+	return "empty map";
 }
 
-void Check_Open(int argc, char **argv) {
+const char *Check_Open(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
-				return;
+				return NULL;
 		}
-		PrintErrorExit(argv[0], "open map");
+		return "open map";
 	}
-	PrintErrorExit(argv[0], "open map");
+	return "open map";
 }
 
-void Check_Close(int argc, char **argv) {
+const char *Check_Close(int argc, char **argv) {
 	if (argc > 3) {
 		if (!strcmp(argv[3], "map")) {
 			if (argc == 4)
-				return;
+				return NULL;
 		}
-		PrintErrorExit(argv[0], "close map");
+		return "close map";
 	}
-	PrintErrorExit(argv[0], "close map");
+	return "close map";
 }
 
-void Check_Params(int argc, char **argv) {
+const char *Check_Params(int argc, char **argv) {
+	const char *err;
+
 	if (argc > 1) {
-		if (!isnumeric(argv[1])) {
-			fprintf(stderr, "DeviceNo not numeric: %s\n", argv[1]);
-			exit(1);
-		}
+		if (!isnumeric(argv[1]))
+			return "DeviceNo not numeric";
 		if (argc > 2) {
 			/* global commands */
 			if (!strcmp(argv[2], "verbose")) {
 				if (argc == 3)
-					return;
-				PrintErrorExit(argv[0], "verbose");
+					return NULL;
+				return "verbose";
 			}
 			if (!strcmp(argv[2], "dump")) {
 				if (argc == 3)
-					return;
-				PrintErrorExit(argv[0], "dump");
+					return NULL;
+				return "dump";
 			}
 			if (!strcmp(argv[2], "debug")) {
 				if (argc == 3)
-					return;
-				PrintErrorExit(argv[0], "debug");
+					return NULL;
+				return "debug";
 			}
 			if (!strcmp(argv[2], "exit")) {
 				if (argc == 3)
@@ -287,70 +278,113 @@ void Check_Params(int argc, char **argv) {
 			if (!strncasecmp(argv[2], "InquiryDataChange", 17)) {
 				return;
 			}
+			if (!strncasecmp(argv[2], "InquiryDataChange", 17))
+				return NULL;
 			if (!strncasecmp(argv[2], "TapeAlert", 9)) {
-				Check_TapeAlert(argc, argv);
-				return;
+				err = Check_TapeAlert(argc, argv);
+				return err;
 			}
 
 			/* Tape commands */
 			if (!strncasecmp(argv[2], "load", 4)) {
-				Check_Load(argc, argv);
-				return;
+				err = Check_Load(argc, argv);
+				return err;
 			}
 			if (!strncasecmp(argv[2], "unload", 6)) {
-				Check_Unload(argc, argv);
-				return;
+				err = Check_Unload(argc, argv);
+				return err;
 			}
 			if (!strncasecmp(argv[2], "delay", 5)) {
-				Check_delay(argc, argv);
-				return;
+				err = Check_delay(argc, argv);
+				return err;
 			}
 			if (!strncasecmp(argv[2], "compression", 11)) {
-				Check_Compression(argc, argv);
-				return;
+				err = Check_Compression(argc, argv);
+				return err;
 			}
 			if (!strncasecmp(argv[2], "Append", 6)) {
-				Check_append_only(argc, argv);
-				return;
+				err = Check_append_only(argc, argv);
+				return err;
 			}
 
 			/* Library commands */
 			if (!strcmp(argv[2], "add")) {
 				if (argc == 4)
-					return;
-				PrintErrorExit(argv[0], "add slot");
+					return NULL;
+				return "add slot";
 			}
 			if (!strcmp(argv[2], "online")) {
 				if (argc == 3)
-					return;
-				PrintErrorExit(argv[0], "online");
+					return NULL;
+				return "online";
 			}
 			if (!strcmp(argv[2], "offline")) {
 				if (argc == 3)
-					return;
-				PrintErrorExit(argv[0], "offline");
+					return NULL;
+				return "offline";
 			}
-			if (!strcmp(argv[2], "list")) {
-				Check_List(argc, argv);
-				return;
-			}
-			if (!strcmp(argv[2], "empty")) {
-				Check_Empty(argc, argv);
-				return;
-			}
-			if (!strcmp(argv[2], "open")) {
-				Check_Open(argc, argv);
-				return;
-			}
-			if (!strcmp(argv[2], "close")) {
-				Check_Close(argc, argv);
-				return;
-			}
-			PrintErrorExit(argv[0], "check param");
+			if (!strcmp(argv[2], "list"))
+				return Check_List(argc, argv);
+			if (!strcmp(argv[2], "empty"))
+				return Check_Empty(argc, argv);
+			if (!strcmp(argv[2], "open"))
+				return Check_Open(argc, argv);
+			if (!strcmp(argv[2], "close"))
+				return Check_Close(argc, argv);
+
+			return "check param";
 		}
-		PrintErrorExit(argv[0], "");
+		return "missing command";
 	}
-	PrintErrorExit(argv[0], "");
+	return "missing arguments";
+}
+
+/*
+ * Validate command for a specific device type.
+ * Returns NULL if the command is allowed, or an error message if not.
+ */
+const char *Check_DeviceCommand(const char *buf, int device_type) {
+	if (device_type == TYPE_LIBRARY) {
+		if (!strncmp(buf, "online", 6)) {
+		} else if (!strncmp(buf, "add slot", 8)) {
+		} else if (!strncmp(buf, "offline", 7)) {
+		} else if (!strncmp(buf, "open map", 8)) {
+		} else if (!strncmp(buf, "close map", 9)) {
+		} else if (!strncmp(buf, "empty map", 9)) {
+		} else if (!strncmp(buf, "list map", 8)) {
+		} else if (!strncmp(buf, "load map", 8)) {
+		} else if (!strncmp(buf, "verbose", 7)) {
+		} else if (!strncmp(buf, "debug", 5)) {
+		} else if (!strncmp(buf, "exit", 4)) {
+		} else if (!strncmp(buf, "TapeAlert", 9)) {
+		} else if (!strncmp(buf, "InquiryDataChange", 17)) {
+		} else {
+			return "Command for library not allowed";
+		}
+	}
+
+	if (device_type == TYPE_DRIVE) {
+		if (!strncmp(buf, "load", 4)) {
+		} else if (!strncmp(buf, "unload", 6)) {
+		} else if (!strncmp(buf, "verbose", 7)) {
+		} else if (!strncmp(buf, "debug", 5)) {
+		} else if (!strncmp(buf, "dump", 4)) {
+		} else if (!strncmp(buf, "exit", 4)) {
+		} else if (!strncmp(buf, "compression", 11)) {
+		} else if (!strncmp(buf, "TapeAlert", 9)) {
+		} else if (!strncmp(buf, "InquiryDataChange", 17)) {
+		} else if (!strncasecmp(buf, "append", 6)) {
+		} else if (!strncasecmp(buf, "delay load", 10)) {
+		} else if (!strncasecmp(buf, "delay unload", 12)) {
+		} else if (!strncasecmp(buf, "delay rewind", 12)) {
+		} else if (!strncasecmp(buf, "delay position", 14)) {
+		} else if (!strncasecmp(buf, "delay thread", 12)) {
+		} else {
+			return "Command for tape not allowed";
+		}
+	}
+
+	return NULL;
 }
 
 /* Open a new queue (for answers from server) */
@@ -434,7 +468,15 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	Check_Params(argc, argv);
+	{
+		const char *param_err = Check_Params(argc, argv);
+		if (param_err) {
+			fprintf(stderr, "Please check command, parameter \'%s\' wrong.\n\n",
+					param_err);
+			usage(argv[0]);
+			exit(1);
+		}
+	}
 
 	deviceNo = atol(argv[1]);
 	if ((deviceNo < 0) || (deviceNo >= VTLCMD_Q)) {
@@ -519,24 +561,11 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if (device_type == TYPE_DRIVE) {
-		if (!strncmp(buf, "load", 4)) {
-		} else if (!strncmp(buf, "unload", 6)) {
-		} else if (!strncmp(buf, "verbose", 7)) {
-		} else if (!strncmp(buf, "debug", 5)) {
-		} else if (!strncmp(buf, "dump", 4)) {
-		} else if (!strncmp(buf, "exit", 4)) {
-		} else if (!strncmp(buf, "compression", 11)) {
-		} else if (!strncmp(buf, "TapeAlert", 9)) {
-		} else if (!strncmp(buf, "InquiryDataChange", 17)) {
-		} else if (!strncasecmp(buf, "append", 6)) {
-		} else if (!strncasecmp(buf, "delay load", 10)) {
-		} else if (!strncasecmp(buf, "delay unload", 12)) {
-		} else if (!strncasecmp(buf, "delay rewind", 12)) {
-		} else if (!strncasecmp(buf, "delay position", 14)) {
-		} else if (!strncasecmp(buf, "delay thread", 12)) {
-		} else {
-			fprintf(stderr, "Command for tape not allowed\n");
+	/* check if command to the specific device is allowed */
+	{
+		const char *cmd_err = Check_DeviceCommand(buf, device_type);
+		if (cmd_err) {
+			fprintf(stderr, "%s\n", cmd_err);
 			exit(1);
 		}
 	}
