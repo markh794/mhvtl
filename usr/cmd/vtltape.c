@@ -1869,6 +1869,20 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 		printf("Debug: %d\n", debug);
 	}
 
+	if (!strncmp(msg->text, "stats", 5)) {
+		char stats_buf[256];
+
+		snprintf(stats_buf, sizeof(stats_buf),
+				 "Tape: %s Loaded: %s Written: %" PRIu64 " Read: %" PRIu64
+				 " WMedia: %" PRIu64 " RMedia: %" PRIu64 " Capacity: %" PRIu64,
+				 lu_ssc.barcode ? lu_ssc.barcode : "N/A",
+				 (get_tape_load_status() == TAPE_LOADED) ? "Yes" : "No",
+				 lu_ssc.bytesWritten_I, lu_ssc.bytesRead_I,
+				 lu_ssc.bytesWritten_M, lu_ssc.bytesRead_M,
+				 lu_ssc.max_capacity);
+		send_msg(stats_buf, msg->snd_id);
+	}
+
 	if (!strncmp(msg->text, "dump", 4))
 		dump_linked_list();
 

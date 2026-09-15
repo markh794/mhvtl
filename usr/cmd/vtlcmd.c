@@ -78,6 +78,7 @@ static void usage(char *prog) {
 	fprintf(stderr, "   delay rewind n -> Set rewind delay to n seconds\n");
 	fprintf(stderr, "   delay position n -> Set position delay to n seconds\n");
 	fprintf(stderr, "   delay thread n -> Set thread delay to n seconds\n");
+	fprintf(stderr, "   stats          -> Show tape I/O statistics\n");
 	fprintf(stderr, "\nLibrary specific commands:\n");
 	fprintf(stderr, "   add slot     -> Add a slot to library\n");
 	fprintf(stderr, "   online       -> To enable library\n");
@@ -303,6 +304,11 @@ const char *Check_Params(int argc, char **argv) {
 				err = Check_append_only(argc, argv);
 				return err;
 			}
+			if (!strcmp(argv[2], "stats")) {
+				if (argc == 3)
+					return NULL;
+				return "stats";
+			}
 
 			/* Library commands */
 			if (!strcmp(argv[2], "add")) {
@@ -376,6 +382,7 @@ const char *Check_DeviceCommand(const char *buf, int device_type) {
 		} else if (!strncasecmp(buf, "delay rewind", 12)) {
 		} else if (!strncasecmp(buf, "delay position", 14)) {
 		} else if (!strncasecmp(buf, "delay thread", 12)) {
+		} else if (!strncmp(buf, "stats", 5)) {
 		} else {
 			return "Command for tape not allowed";
 		}
@@ -592,6 +599,9 @@ int main(int argc, char **argv) {
 		if (!strcmp(argv[2], "load") && !strcmp(argv[3], "map"))
 			DisplayResponse(ReceiverQid, "");
 	}
+
+	if (device_type == TYPE_DRIVE && !strcmp(argv[2], "stats"))
+		DisplayResponse(ReceiverQid, "");
 
 	exit(0);
 }

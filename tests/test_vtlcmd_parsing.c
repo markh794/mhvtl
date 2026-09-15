@@ -165,6 +165,19 @@ void test_params_append_only(void) {
 	}
 }
 
+void test_params_stats(void) {
+	/* stats — valid */
+	{
+		char *argv[] = {"vtlcmd", "11", "stats"};
+		TEST_CHECK(Check_Params(3, argv) == NULL);
+	}
+	/* stats with extra args — invalid */
+	{
+		char *argv[] = {"vtlcmd", "11", "stats", "now"};
+		TEST_CHECK(Check_Params(4, argv) != NULL);
+	}
+}
+
 void test_params_library_commands(void) {
 	struct { int argc; char *argv[6]; } cases[] = {
 		{4, {"vtlcmd", "10", "add", "slot"}},
@@ -261,6 +274,7 @@ void test_devcmd_library_invalid(void) {
 		"append Only Yes ",
 		"delay load 5 ",
 		"bogus ",
+		"stats ",
 	};
 
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); i++) {
@@ -290,6 +304,7 @@ void test_devcmd_drive_valid(void) {
 		"delay position 1 ",
 		"delay thread 4 ",
 		"Delay Load 10 ",
+		"stats ",
 	};
 
 	for (size_t i = 0; i < sizeof(valid) / sizeof(valid[0]); i++) {
@@ -386,6 +401,7 @@ TEST_LIST = {
 	{"params_compression", test_params_compression},
 	{"params_delay", test_params_delay},
 	{"params_append_only", test_params_append_only},
+	{"params_stats", test_params_stats},
 	{"params_library_commands", test_params_library_commands},
 	{"params_unknown_command", test_params_unknown_command},
 	{"params_tapealert_hex_validation", test_params_tapealert_hex_validation},
