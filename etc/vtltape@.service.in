@@ -25,7 +25,10 @@ CapabilityBoundingSet=CAP_MKNOD CAP_SYS_RESOURCE CAP_DAC_OVERRIDE
 ProtectSystem=full
 ProtectHome=yes
 ProtectKernelModules=yes
-ProtectKernelTunables=yes
+# ProtectKernelTunables must stay off: it remounts /sys read-only, and the
+# daemon registers its logical unit by writing the queue id to
+# /sys/bus/mhvtl/drivers/mhvtl/add_lu. With /sys read-only that write fails
+# with EROFS, no SCSI device is ever created, and the library comes up empty.
 ProtectKernelLogs=yes
 ProtectControlGroups=yes
 ProtectClock=yes
