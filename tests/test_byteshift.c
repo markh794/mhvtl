@@ -67,44 +67,32 @@ void test_be32_round_trip(void) {
 void test_be48_round_trip(void) {
 	uint8_t buf[8] = {0};
 
-	/* NOTE: put_unaligned_be48 has a known bug — it writes
-	 * __put_unaligned_be32(val >> 32) to buf[0..3] (bits [63:32])
-	 * and __put_unaligned_be16(val) to buf[4..5] (bits [15:0]),
-	 * LOSING bits [31:16]. This test documents the actual behavior.
-	 *
-	 * Values that only use bits [63:32] and [15:0] round-trip OK;
-	 * any bits in [31:16] are silently dropped.
-	 *
-	 * Current usage in the project is safe (timestamps, or zeroing)
-	 * but the function should be fixed for correctness.
+	/* put_unaligned_be48() writes bits [47:16] as a big endian 32 bit
+	 * value at buf[0..3] and bits [15:0] at buf[4..5];
+	 * get_unaligned_be48() reads them back the same way. Every 48 bit
+	 * value therefore round-trips exactly.
 	 */
 	put_unaligned_be48(0x000000000000ULL, buf);
 	TEST_CHECK(get_unaligned_be48(buf) == 0x000000000000ULL);
 
-	/* BUG: put_unaligned_be48 drops bits [31:16] of the input value.
-	 * It writes __put_unaligned_be32(val >> 32) (bits [63:32]) to
-	 * buf[0..3] and __put_unaligned_be16(val) (bits [15:0]) to
-	 * buf[4..5]. Bits [31:16] are silently lost.
-	 *
-	 * The correct implementation should be:
-	 *   __put_unaligned_be32(val >> 16, p);
-	 *   __put_unaligned_be16(val, p + 4);
-	 *
-	 * Current project usage (timestamps, zeroing) happens to be safe
-	 * because affected values stay within the preserved bit ranges.
-	 *
-	 * This test documents the ACTUAL (buggy) behavior.
+	/* Bits [31:16] must survive: they were dropped by an earlier
+	 * implementation that shifted by 32 instead of 16.
 	 */
 	put_unaligned_be48(0x0000AABB00DDULL, buf);
-	TEST_CHECK(get_unaligned_be48(buf) == 0x0000000000DDULL);
+	TEST_CHECK(get_unaligned_be48(buf) == 0x0000AABB00DDULL);
 
-	/* 0xFFFFFFFFFFFF: high32 = 0xFFFF, low16 = 0xFFFF, but readback
-	 * via get_unaligned_be48 reads [0..3] as be32 (=0x0000FFFF) << 32
-	 * plus [4..5] as be16 (=0xFFFF) = 0x0000FFFF0000FFFF — which is
-	 * truncated to the lower 48 bits = 0xFFFF0000FFFF (NOT 0xFFFFFFFFFFFF).
-	 */
 	put_unaligned_be48(0xFFFFFFFFFFFFULL, buf);
-	TEST_CHECK(get_unaligned_be48(buf) == 0xFFFF0000FFFFULL);
+	TEST_CHECK(get_unaligned_be48(buf) == 0xFFFFFFFFFFFFULL);
+
+	put_unaligned_be48(0x123456789ABCULL, buf);
+	TEST_CHECK(get_unaligned_be48(buf) == 0x123456789ABCULL);
+
+	/* ... and land in the byte order SCSI expects, most significant
+	 * byte first.
+	 */
+	put_unaligned_be48(0x123456789ABCULL, buf);
+	TEST_CHECK(buf[0] == 0x12 && buf[1] == 0x34 && buf[2] == 0x56 &&
+			   buf[3] == 0x78 && buf[4] == 0x9A && buf[5] == 0xBC);
 }
 
 void test_be64_round_trip(void) {
