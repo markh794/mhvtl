@@ -88,7 +88,9 @@ set_density()
 
 	# I'm sure there is a better method then this...
 	# There is.. Thanks to Gavin Barnard.
-	regex='[A-Z0-9]{6,8}([SLXTJDP])([123456789ABHKUVWXYZ])$'
+	# The second character is every one a branch below handles: C is T10KC
+	# and E06 (JC), T is LTO-3 WORM (LT).
+	regex='[A-Z0-9]{6,8}([SLXTJDP])([123456789ABCHKTUVWXYZ])$'
 	#regex='[A-Z0-9]{4,6}([SLXTJ])([123456ABWX])[0-9]*$' # for bacula
 	DENSITY=UNKNOWN
 
@@ -132,6 +134,8 @@ set_density()
 				DENSITY="J1A"
 			elif [ ${BASH_REMATCH[2]} = 'B' ]; then
 				DENSITY="E05"
+			elif [ ${BASH_REMATCH[2]} = 'C' ]; then
+				DENSITY="E06"
 			elif [ ${BASH_REMATCH[2]} = 'W' ]; then
 				DENSITY="E05"
 			elif [ ${BASH_REMATCH[2]} = 'X' ]; then
