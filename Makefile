@@ -16,7 +16,9 @@ PARENTDIR = mhvtl-$(VER)
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 
-TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION).$(EXTRAVERSION).tgz
+# rpmbuild -ta takes the name from Source: in the spec, which is derived from
+# real_version there.
+TAR_FILE := mhvtl-$(REAL_VERSION).tgz
 
 MAKE_VTL_MEDIA = usr/bin/make_vtl_media
 

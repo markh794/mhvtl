@@ -3,6 +3,7 @@ TOPDIR ?= $(CURDIR)
 VER ?= $(shell awk '/Version/ {print $$2}'  $(TOPDIR)/mhvtl-utils.spec)
 REL ?= $(shell awk -F'[ %]' '/Release/ {print $$2}' $(TOPDIR)/mhvtl-utils.spec)
 EXTRAVERSION ?= $(shell awk '/define minor/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
+REAL_VERSION ?= $(shell awk '/define real_version/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
 
 FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
 
