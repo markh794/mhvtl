@@ -677,6 +677,14 @@ static int fill_element_status_data_hdr(uint8_t *p, int start, int count,
 }
 
 /* Returns address of first available elements from starting number */
+/* No element matched. Not zero: an element may legitimately live at
+ * address 0 - the Overland personality puts its MAP there - and an
+ * initiator asking for "starting element address 0" means "from the
+ * lowest", so returning 0 for "nothing found" made that element
+ * unreportable and READ ELEMENT STATUS failed for the whole library.
+ */
+#define NO_ELEMENT ((uint32_t)~0)
+
 static uint32_t find_first_matching_element(struct smc_priv *priv,
 											uint32_t		 start,
 											uint8_t			 type) {
@@ -694,7 +702,7 @@ static uint32_t find_first_matching_element(struct smc_priv *priv,
 				return sp->slot_location;
 		}
 	}
-	return 0;
+	return NO_ELEMENT;
 }
 
 /* Returns number of available elements left from starting number */
@@ -774,8 +782,9 @@ static uint32_t fill_element_page(struct scsi_cmd *cmd, uint8_t *p,
 
 	/* Find first valid slot. */
 	begin_element = find_first_matching_element(smc_p, start, type);
-	if (begin_element == 0) {
-		MHVTL_DBG(1, "Start element is still 0, line %d", __LINE__);
+	if (begin_element == NO_ELEMENT) {
+		MHVTL_DBG(1, "No element of this type at or above the start "
+					 "address, line %d", __LINE__);
 		return 0;
 	}
 
@@ -947,8 +956,9 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd) {
 
 	/* Find first matching slot number which matches the type. */
 	start = find_first_matching_element(smc_p, req_start_elem, type);
-	if (start == 0) { /* Nothing found.. */
-		MHVTL_DBG(1, "Start element is still 0, line %d", __LINE__);
+	if (start == NO_ELEMENT) { /* Nothing found.. */
+		MHVTL_DBG(1, "No element of this type at or above the start "
+					 "address, line %d", __LINE__);
 		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 2; /* Starting element address */
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
