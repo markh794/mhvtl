@@ -1746,7 +1746,7 @@ int main(int argc, char *argv[]) {
 				MHVTL_DBG(3, "Drive location: %d",
 						  dp->slot->slot_location);
 				MHVTL_DBG(3, "Drive occupied: %s",
-						  (dp->slot->status & STATUS_Full) ? "No" : "Yes");
+						  (dp->slot->status & STATUS_Full) ? "Yes" : "No");
 			}
 		}
 	}
