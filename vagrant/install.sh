@@ -128,15 +128,15 @@ install_sles_pre_req()
 install_pre_req()
 {
 	if [ ${OS_NAME} == 'ubuntu' ]; then
-		SYSTEMD_GENERATOR_DIR="/lib/systemd/system-generators"
+		SYSTEMD_GENERATOR_DIR="/usr/lib/systemd/system-generators"
 		install_ubuntu_pre_req
 
 	elif [ ${OS_NAME} == 'rockylinux' ]; then
-		SYSTEMD_GENERATOR_DIR="/lib/systemd/system-generators"
+		SYSTEMD_GENERATOR_DIR="/usr/lib/systemd/system-generators"
 		install_rocky_pre_req
 
 	elif [ ${OS_NAME} == 'centos' ]; then
-		SYSTEMD_GENERATOR_DIR="/lib/systemd/system-generators"
+		SYSTEMD_GENERATOR_DIR="/usr/lib/systemd/system-generators"
 		install_centos_pre_req
 
 	elif [ ${OS_NAME} == 'almalinux' ]; then

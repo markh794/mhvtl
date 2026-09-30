@@ -16,8 +16,8 @@ MANDIR ?= /share/man
 
 MHVTL_HOME_PATH ?= /opt/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
-SYSTEMD_GENERATOR_DIR ?= /lib/systemd/system-generators
-SYSTEMD_SERVICE_DIR ?= /lib/systemd/system
+SYSTEMD_GENERATOR_DIR ?= /usr/lib/systemd/system-generators
+SYSTEMD_SERVICE_DIR ?= /usr/lib/systemd/system
 
 ifeq ($(shell whoami),root)
 ROOTUID = YES
