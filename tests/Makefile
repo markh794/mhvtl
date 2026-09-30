@@ -29,6 +29,9 @@ CRC_SRC  = ../usr/utils/crc32c.c
 # All test binaries
 TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing
 
+# Shell checks of the helper scripts; nothing to build
+SCRIPT_TESTS = check_make_vtl_media.sh
+
 # Integration tests via userland transport (no kernel modules or root needed)
 INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io
 
@@ -87,6 +90,11 @@ test: $(TESTS)
 	for t in $(TESTS); do \
 		echo "--- $$t ---"; \
 		./$$t; \
+		if [ $$? -ne 0 ]; then failed=$$((failed + 1)); fi; \
+	done; \
+	for t in $(SCRIPT_TESTS); do \
+		echo "--- $$t ---"; \
+		bash ./$$t; \
 		if [ $$? -ne 0 ]; then failed=$$((failed + 1)); fi; \
 	done; \
 	echo ""; \
