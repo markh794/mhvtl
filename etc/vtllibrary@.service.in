@@ -23,10 +23,10 @@ ExecReload=/usr/bin/kill -HUP $MAINPID
 # for is dropped. PrivateDevices must stay off - it would hide that node.
 NoNewPrivileges=yes
 CapabilityBoundingSet=CAP_MKNOD CAP_SYS_RESOURCE CAP_DAC_OVERRIDE
-ProtectSystem=full
+ProtectSystem=yes
 ProtectHome=yes
 ProtectKernelModules=yes
-ProtectKernelTunables=yes
+ProtectKernelTunables=no
 ProtectKernelLogs=yes
 ProtectControlGroups=yes
 ProtectClock=yes
