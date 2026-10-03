@@ -492,12 +492,56 @@ void set_lp11_medium_present(int flag) {
 #define SET_VOLSTAT_PARAM_H6(paramCode, paramFlags) \
 	SET_VOLSTAT_PARAM_H((paramCode), (paramFlags), struct partition_record_size6)
 
+/* The volume statistics page reports its megabyte counters as 10^6 bytes,
+ * rounded up to the next megabyte - SSC parameter codes 000Eh through 0011h.
+ * That is deliberately NOT the 2^20 that the capacity parameters in this same
+ * page use through lu_priv->capacity_unit: the specification is explicit about
+ * the unit for these four, and about the rounding, so it wins over the local
+ * convention. One page, two senses of "MB", on the specification's say-so.
+ */
+static uint64_t volstat_megabytes(uint64_t bytes) {
+	return (bytes + 999999) / 1000000;
+}
+
 /* Rewriting the page with the real number of partitions.
  * Returns the total packed page size in bytes. */
 size_t update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
 	uint8_t *header;
 	uint64_t cap __attribute__((unused)); /* fixme : should be used instead of telling max cap */
 	int		 i;
+
+	/* How many times this volume has been mounted, and how much has moved
+	 * through it - the four counters a backup application asks for and which
+	 * this page reported as zero from an empty cartridge to a full one.
+	 *
+	 * The MAM holds its own copies, but vtltape only writes them back when the
+	 * cartridge is unloaded (see "Update on unload" in vtltape.c), so a
+	 * reading taken while a job is running would be a whole mount behind - the
+	 * staleness this is here to remove. So the last-mount figures are taken
+	 * from the drive's own live counters, and the lifetime figures are what
+	 * the MAM already holds plus what this load has added to it.
+	 *
+	 * One deviation, flagged rather than hidden: the specification defines
+	 * both the last-mount and the lifetime counters as bytes written to the
+	 * medium AFTER compression, which is bytesWritten_M. The last-mount
+	 * figures below use it. The MAM's lifetime totals, however, accumulate
+	 * bytesWritten_I - before compression - so the lifetime figures carry
+	 * MHVTL's existing accounting rather than the specification's. Making
+	 * them agree means changing what vtltape writes into the MAM, which
+	 * changes the meaning of a field already on every cartridge, and that is
+	 * not a decision to take inside this function.
+	 */
+	put_unaligned_be32(get_unaligned_be64(&mam.LoadCount), &pg->VolumeMounts);
+
+	put_unaligned_be32(volstat_megabytes(lu_priv->bytesWritten_M),
+					   &pg->LastMountMBWritten);
+	put_unaligned_be32(volstat_megabytes(lu_priv->bytesRead_M),
+					   &pg->LastMountMBRead);
+
+	put_unaligned_be64(volstat_megabytes(get_unaligned_be64(&mam.WrittenInMediumLife) + lu_priv->bytesWritten_I),
+					   &pg->LifetimeMBWritten);
+	put_unaligned_be64(volstat_megabytes(get_unaligned_be64(&mam.ReadInMediumLife) + lu_priv->bytesRead_I),
+					   &pg->LifetimeMBRead);
 
 	/* First partition dependant parameter */
 	memset(&pg->h_FirstEncryptedLogicalObj, 0,

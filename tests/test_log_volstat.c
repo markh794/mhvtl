@@ -66,11 +66,49 @@ int get_tape_load_status(void) { return fake_tape_status; }
 #define SET_VOLSTAT_PARAM_H6(paramCode, paramFlags) \
 	SET_VOLSTAT_PARAM_H((paramCode), (paramFlags), struct partition_record_size6)
 
+/* 10^6 bytes, rounded up - see usr/mhvtl_log.c */
+static uint64_t volstat_megabytes(uint64_t bytes) {
+	return (bytes + 999999) / 1000000;
+}
+
 /* Exact copy of update_VolumeStatistics from usr/mhvtl_log.c (after fix) */
 static size_t test_update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
 	uint8_t *header;
 	uint64_t cap __attribute__((unused));
 	int      i;
+
+	/* How many times this volume has been mounted, and how much has moved
+	 * through it - the four counters a backup application asks for and which
+	 * this page reported as zero from an empty cartridge to a full one.
+	 *
+	 * The MAM holds its own copies, but vtltape only writes them back when the
+	 * cartridge is unloaded (see "Update on unload" in vtltape.c), so a
+	 * reading taken while a job is running would be a whole mount behind - the
+	 * staleness this is here to remove. So the last-mount figures are taken
+	 * from the drive's own live counters, and the lifetime figures are what
+	 * the MAM already holds plus what this load has added to it.
+	 *
+	 * One deviation, flagged rather than hidden: the specification defines
+	 * both the last-mount and the lifetime counters as bytes written to the
+	 * medium AFTER compression, which is bytesWritten_M. The last-mount
+	 * figures below use it. The MAM's lifetime totals, however, accumulate
+	 * bytesWritten_I - before compression - so the lifetime figures carry
+	 * MHVTL's existing accounting rather than the specification's. Making
+	 * them agree means changing what vtltape writes into the MAM, which
+	 * changes the meaning of a field already on every cartridge, and that is
+	 * not a decision to take inside this function.
+	 */
+	put_unaligned_be32(get_unaligned_be64(&mam.LoadCount), &pg->VolumeMounts);
+
+	put_unaligned_be32(volstat_megabytes(lu_priv->bytesWritten_M),
+					   &pg->LastMountMBWritten);
+	put_unaligned_be32(volstat_megabytes(lu_priv->bytesRead_M),
+					   &pg->LastMountMBRead);
+
+	put_unaligned_be64(volstat_megabytes(get_unaligned_be64(&mam.WrittenInMediumLife) + lu_priv->bytesWritten_I),
+					   &pg->LifetimeMBWritten);
+	put_unaligned_be64(volstat_megabytes(get_unaligned_be64(&mam.ReadInMediumLife) + lu_priv->bytesRead_I),
+					   &pg->LifetimeMBRead);
 
 	memset(&pg->h_FirstEncryptedLogicalObj, 0,
 		   sizeof(struct VolumeStatistics_pg) - offsetof(struct VolumeStatistics_pg, h_FirstEncryptedLogicalObj));
@@ -407,11 +445,144 @@ void test_volstat_struct_access_broken(void) {
 			 "(expected NOT 0x0202 — proves struct access is broken)", struct_pcode2);
 }
 
+/*
+ * The megabyte counters and the mount count: parameters 0x0001, 0x000E,
+ * 0x000F, 0x0010 and 0x0011.
+ *
+ * Every one of these read zero from an empty cartridge to a full one, because
+ * update_VolumeStatistics never touched them. These tests pin what they now
+ * report, and - more importantly - WHERE each one comes from: the last-mount
+ * figures from the drive's live counters, so a reading taken mid-job is
+ * current, and the lifetime figures from the MAM plus the current load, so
+ * they do not sit a mount behind.
+ */
+void test_volstat_megabyte_counters(void) {
+	struct VolumeStatistics_pg pg;
+	struct priv_lu_ssc priv;
+
+	memset(&pg, 0, sizeof(pg));
+	memset(&priv, 0, sizeof(priv));
+	memset(&mam, 0, sizeof(mam));
+
+	mam.num_partitions = 1;
+	priv.capacity_unit = 1;
+	fake_tape_status = TAPE_LOADED;
+	pg.pcode_head.pcode = VOLUME_STATISTICS;
+
+	put_unaligned_be64(7, &mam.LoadCount);
+
+	/* This load: 300 MB to the medium after compression, 5 MB read back. */
+	priv.bytesWritten_M = 300000000;
+	priv.bytesRead_M = 5000000;
+	/* Before compression, which is what the MAM accumulates. */
+	priv.bytesWritten_I = 314572800;
+	priv.bytesRead_I = 6000000;
+
+	/* What previous loads already put on the cartridge. */
+	put_unaligned_be64(1000000000, &mam.WrittenInMediumLife);
+	put_unaligned_be64(2000000000, &mam.ReadInMediumLife);
+
+	test_update_VolumeStatistics(&pg, &priv);
+
+	TEST_CHECK(get_unaligned_be32(&pg.VolumeMounts) == 7);
+	TEST_MSG("VolumeMounts: expected 7, got %u",
+			 get_unaligned_be32(&pg.VolumeMounts));
+
+	/* 300000000 / 10^6 exactly */
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBWritten) == 300);
+	TEST_MSG("LastMountMBWritten: expected 300, got %u",
+			 get_unaligned_be32(&pg.LastMountMBWritten));
+
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBRead) == 5);
+	TEST_MSG("LastMountMBRead: expected 5, got %u",
+			 get_unaligned_be32(&pg.LastMountMBRead));
+
+	/* (1000000000 + 314572800) / 10^6, rounded up = 1315 */
+	TEST_CHECK(get_unaligned_be64(&pg.LifetimeMBWritten) == 1315);
+	TEST_MSG("LifetimeMBWritten: expected 1315, got %" PRIu64,
+			 get_unaligned_be64(&pg.LifetimeMBWritten));
+
+	/* (2000000000 + 6000000) / 10^6 = 2006 exactly */
+	TEST_CHECK(get_unaligned_be64(&pg.LifetimeMBRead) == 2006);
+	TEST_MSG("LifetimeMBRead: expected 2006, got %" PRIu64,
+			 get_unaligned_be64(&pg.LifetimeMBRead));
+}
+
+/*
+ * Megabytes are 10^6 bytes rounded UP to the next megabyte, which is what the
+ * specification says for these parameter codes - not 2^20, and not truncated.
+ * One byte written must report 1 MB, not 0: a cartridge that has been written
+ * to is not a cartridge that has not.
+ */
+void test_volstat_megabytes_round_up(void) {
+	struct VolumeStatistics_pg pg;
+	struct priv_lu_ssc priv;
+
+	memset(&pg, 0, sizeof(pg));
+	memset(&priv, 0, sizeof(priv));
+	memset(&mam, 0, sizeof(mam));
+	mam.num_partitions = 1;
+	priv.capacity_unit = 1;
+	fake_tape_status = TAPE_LOADED;
+	pg.pcode_head.pcode = VOLUME_STATISTICS;
+
+	priv.bytesWritten_M = 1;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBWritten) == 1);
+	TEST_MSG("1 byte should round up to 1 MB, got %u",
+			 get_unaligned_be32(&pg.LastMountMBWritten));
+
+	priv.bytesWritten_M = 1000000;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBWritten) == 1);
+
+	priv.bytesWritten_M = 1000001;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBWritten) == 2);
+	TEST_MSG("1000001 bytes should round up to 2 MB, got %u",
+			 get_unaligned_be32(&pg.LastMountMBWritten));
+
+	/* And 2^20 is not the unit: 1048576 bytes is 2 MB here, not 1. */
+	priv.bytesWritten_M = 1048576;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBWritten) == 2);
+	TEST_MSG("10^6 is the unit, not 2^20: expected 2, got %u",
+			 get_unaligned_be32(&pg.LastMountMBWritten));
+}
+
+/*
+ * Nothing written yet reports zero, and an unloaded drive does not invent
+ * figures for a cartridge that is not there.
+ */
+void test_volstat_counters_empty_drive(void) {
+	struct VolumeStatistics_pg pg;
+	struct priv_lu_ssc priv;
+
+	memset(&pg, 0, sizeof(pg));
+	memset(&priv, 0, sizeof(priv));
+	memset(&mam, 0, sizeof(mam));
+	mam.num_partitions = 1;
+	priv.capacity_unit = 1;
+	fake_tape_status = TAPE_LOADED;
+	pg.pcode_head.pcode = VOLUME_STATISTICS;
+
+	test_update_VolumeStatistics(&pg, &priv);
+
+	TEST_CHECK(get_unaligned_be32(&pg.VolumeMounts) == 0);
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBWritten) == 0);
+	TEST_CHECK(get_unaligned_be32(&pg.LastMountMBRead) == 0);
+	TEST_CHECK(get_unaligned_be64(&pg.LifetimeMBWritten) == 0);
+	TEST_CHECK(get_unaligned_be64(&pg.LifetimeMBRead) == 0);
+}
+
 TEST_LIST = {
 	{"volstat_struct_access_broken", test_volstat_struct_access_broken},
 	{"volstat_packing_1_partition", test_volstat_packing_1_partition},
 	{"volstat_packing_4_partitions", test_volstat_packing_4_partitions},
 	{"volstat_packed_size_differs", test_volstat_packed_size_differs},
 	{"volstat_returned_size", test_volstat_returned_size},
+	{"volstat_megabyte_counters", test_volstat_megabyte_counters},
+	{"volstat_megabytes_round_up", test_volstat_megabytes_round_up},
+	{"volstat_counters_empty_drive", test_volstat_counters_empty_drive},
 	{NULL, NULL}
 };
