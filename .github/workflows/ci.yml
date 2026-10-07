@@ -1,0 +1,49 @@
+name: build
+
+# Phase 0/1 CI: reproduce the clean baseline build and enforce the Phase-1
+# warning budget on every push/PR. Kernel module build is best-effort (hosted
+# runners do not always ship matching headers). Multi-distro package builds are
+# a later phase (run on dedicated VMs), not here.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  userspace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential meson ninja-build pkg-config \
+            zlib1g-dev liblzo2-dev liblz4-dev libzstd-dev
+
+      - name: Build (canonical Makefile)
+        run: make
+
+      - name: Build (Meson) + enforce warning budget
+        run: |
+          meson setup builddir
+          meson compile -C builddir 2>&1 | tee /tmp/meson-build.log
+          warn=$(grep -cE "warning:" /tmp/meson-build.log || true)
+          budget=22
+          echo "meson -Wall -Wextra warnings: $warn (budget: $budget)"
+          if [ "$warn" -gt "$budget" ]; then
+            echo "::error::warning count $warn exceeds budget $budget (Phase 1: non-increasing)"
+            exit 1
+          fi
+
+      - name: Verify lz4/zstd are linkable
+        run: |
+          pkg-config --exists liblz4 && pkg-config --modversion liblz4
+          pkg-config --exists libzstd && pkg-config --modversion libzstd
+
+      - name: Kernel module (best effort)
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y "linux-headers-$(uname -r)" || true
+          make kernel && ls -l kernel/mhvtl.ko || echo "kernel module build skipped (no matching headers on runner)"
