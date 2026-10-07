@@ -19,6 +19,15 @@ MHVTL_CONFIG_PATH ?= /etc/mhvtl
 SYSTEMD_GENERATOR_DIR ?= /usr/lib/systemd/system-generators
 SYSTEMD_SERVICE_DIR ?= /usr/lib/systemd/system
 
+# Phase 1 modernization: detect modern high-throughput compression libraries
+# via pkg-config (fallback for the Makefile path; the Meson build detects these
+# with dependency()). These are wired into the tape daemon's codec path in
+# Phase 3; defined here so the detection/flags are ready and overridable.
+LZ4_CFLAGS  ?= $(shell pkg-config --cflags liblz4 2>/dev/null)
+LZ4_LIBS    ?= $(shell pkg-config --libs liblz4 2>/dev/null)
+ZSTD_CFLAGS ?= $(shell pkg-config --cflags libzstd 2>/dev/null)
+ZSTD_LIBS   ?= $(shell pkg-config --libs libzstd 2>/dev/null)
+
 ifeq ($(shell whoami),root)
 ROOTUID = YES
 endif

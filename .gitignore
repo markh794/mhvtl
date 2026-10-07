@@ -34,3 +34,6 @@ tests/test_*
 /debian/*.substvars
 /debian/*.debhelper
 /debian/debhelper-build-stamp
+
+# Meson build directory (Phase 1)
+builddir/
