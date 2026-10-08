@@ -43,6 +43,7 @@
 #include "logging.h"
 #include "mhvtl_scsi.h"
 #include "vtlcart.h"
+#include "cart_backend.h"
 #include "vtllib.h"
 #include "mhvtl_update.h"
 #include "be_byteshift.h"
@@ -78,6 +79,60 @@ static int indxfile[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = -1};
 static int metafile[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = -1};
 static int mamfile					= -1;
 static int mhvtlfile				= -1;
+
+/*
+ * Phase 2 storage-backend seam: the file backend maps a (stream, partition)
+ * to one of the fd arrays above and performs the identical syscall the code
+ * used to call directly. Behaviour-preserving by construction.
+ */
+static int cart_stream_fd(enum cart_stream s, int partition)
+{
+	switch (s) {
+	case CART_STREAM_DATA: return datafile[partition];
+	case CART_STREAM_INDX: return indxfile[partition];
+	case CART_STREAM_META: return metafile[partition];
+	}
+	return -1;
+}
+
+static ssize_t file_be_pread(enum cart_stream s, int partition,
+			     void *buf, size_t len, off_t off)
+{
+	return pread(cart_stream_fd(s, partition), buf, len, off);
+}
+
+static ssize_t file_be_pwrite(enum cart_stream s, int partition,
+			      const void *buf, size_t len, off_t off)
+{
+	return pwrite(cart_stream_fd(s, partition), buf, len, off);
+}
+
+static int file_be_truncate(enum cart_stream s, int partition, off_t len)
+{
+	return ftruncate(cart_stream_fd(s, partition), len);
+}
+
+static int file_be_sync(enum cart_stream s, int partition)
+{
+	return fsync(cart_stream_fd(s, partition));
+}
+
+static int file_be_fadvise_dontneed(enum cart_stream s, int partition)
+{
+	return posix_fadvise(cart_stream_fd(s, partition), 0, 0,
+			     POSIX_FADV_DONTNEED);
+}
+
+static struct cart_backend cart_backend_file = {
+	.name			= "file",
+	.pread			= file_be_pread,
+	.pwrite			= file_be_pwrite,
+	.truncate		= file_be_truncate,
+	.sync			= file_be_sync,
+	.fadvise_dontneed	= file_be_fadvise_dontneed,
+};
+
+struct cart_backend *cart_be = &cart_backend_file;
 
 static struct raw_header  raw_pos;
 static struct meta_header meta[MAX_PARTITIONS];
@@ -152,7 +207,7 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 	} else if (blk_number == eod_blk_number[c_pos->partition_id])
 		mkEODHeader(eod_blk_number[c_pos->partition_id], eod_data_offset[c_pos->partition_id]);
 	else {
-		nread = pread(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
+		nread = cart_be->pread(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 					  blk_number * sizeof(raw_pos));
 		if (nread < 0) {
 			MHVTL_ERR("Medium format corrupt");
@@ -188,7 +243,7 @@ static int rewrite_meta_file(void) {
 	size_t	io_offset;
 
 	io_size = sizeof(struct meta_header);
-	nwrite	= pwrite(metafile[c_pos->partition_id], &meta[c_pos->partition_id], io_size, 0);
+	nwrite	= cart_be->pwrite(CART_STREAM_META, c_pos->partition_id, &meta[c_pos->partition_id], io_size, 0);
 	if (nwrite < 0) {
 		MHVTL_ERR("Error writing meta_header to metafile: %s",
 				  strerror(errno));
@@ -205,7 +260,7 @@ static int rewrite_meta_file(void) {
 	io_offset = sizeof(struct meta_header);
 
 	if (io_size) {
-		nwrite = pwrite(metafile[c_pos->partition_id], filemarks[c_pos->partition_id], io_size, io_offset);
+		nwrite = cart_be->pwrite(CART_STREAM_META, c_pos->partition_id, filemarks[c_pos->partition_id], io_size, io_offset);
 		if (nwrite < 0) {
 			MHVTL_ERR("Error writing filemark map to metafile: %s",
 					  strerror(errno));
@@ -223,7 +278,7 @@ static int rewrite_meta_file(void) {
 	   than before.
 	*/
 
-	if (ftruncate(metafile[c_pos->partition_id], io_offset + io_size) < 0) {
+	if (cart_be->truncate(CART_STREAM_META, c_pos->partition_id, io_offset + io_size) < 0) {
 		MHVTL_ERR("Error truncating metafile: %s", strerror(errno));
 		return -1;
 	}
@@ -248,7 +303,7 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 	blk_number	= c_pos->blk_number;
 	data_offset = raw_pos.data_offset;
 
-	if (ftruncate(indxfile[c_pos->partition_id], blk_number * sizeof(raw_pos))) {
+	if (cart_be->truncate(CART_STREAM_INDX, c_pos->partition_id, blk_number * sizeof(raw_pos))) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Index file ftruncate failure, pos: "
 				  "%" PRId64 ": %s",
@@ -256,7 +311,7 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 				  strerror(errno));
 		return -1;
 	}
-	if (ftruncate(datafile[c_pos->partition_id], data_offset)) {
+	if (cart_be->truncate(CART_STREAM_DATA, c_pos->partition_id, data_offset)) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Data file ftruncate failure, pos: "
 				  "%" PRId64 ": %s",
@@ -1240,8 +1295,8 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	   accessed again immediately.
 	*/
 
-	posix_fadvise(indxfile[partition_number], 0, 0, POSIX_FADV_DONTNEED);
-	posix_fadvise(datafile[partition_number], 0, 0, POSIX_FADV_DONTNEED);
+	cart_be->fadvise_dontneed(CART_STREAM_INDX, partition_number);
+	cart_be->fadvise_dontneed(CART_STREAM_DATA, partition_number);
 
 cleanup:
 	close_partition(partition_number);
@@ -1448,9 +1503,9 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 	if (count == 0) {
 		MHVTL_DBG(2, "Flushing data - 0 filemarks written");
-		fsync(datafile[c_pos->partition_id]);
-		fsync(indxfile[c_pos->partition_id]);
-		fsync(metafile[c_pos->partition_id]);
+		cart_be->sync(CART_STREAM_DATA, c_pos->partition_id);
+		cart_be->sync(CART_STREAM_INDX, c_pos->partition_id);
+		cart_be->sync(CART_STREAM_META, c_pos->partition_id);
 
 		return 0;
 	}
@@ -1484,7 +1539,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 		MHVTL_DBG(3, "Writing filemark: partition/block %u/%u", partition_id, blk_number);
 
-		nwrite = pwrite(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
+		nwrite = cart_be->pwrite(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 						blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
 			sam_medium_error(E_WRITE_ERROR, sam_stat);
@@ -1504,9 +1559,9 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 	/* Provide the force-flush guarantee. */
 
-	fsync(datafile[c_pos->partition_id]);
-	fsync(indxfile[c_pos->partition_id]);
-	fsync(metafile[c_pos->partition_id]);
+	cart_be->sync(CART_STREAM_DATA, c_pos->partition_id);
+	cart_be->sync(CART_STREAM_INDX, c_pos->partition_id);
+	cart_be->sync(CART_STREAM_META, c_pos->partition_id);
 
 	return mkEODHeader(blk_number, data_offset);
 }
@@ -1586,7 +1641,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	if (null_media_type) {
 		nwrite = disk_blk_size;
 	} else
-		nwrite = pwrite(datafile[c_pos->partition_id], buffer, disk_blk_size, data_offset);
+		nwrite = cart_be->pwrite(CART_STREAM_DATA, c_pos->partition_id, buffer, disk_blk_size, data_offset);
 	if (nwrite != disk_blk_size) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
@@ -1595,7 +1650,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 
 		/* Truncate last partital write */
 		MHVTL_DBG(1, "Truncating data file size: %" PRId64, data_offset);
-		if (ftruncate(datafile[c_pos->partition_id], data_offset) < 0) {
+		if (cart_be->truncate(CART_STREAM_DATA, c_pos->partition_id, data_offset) < 0) {
 			MHVTL_ERR("Error truncating data: %s", strerror(errno));
 		}
 
@@ -1610,7 +1665,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 			  mhvtl_block_type_desc(c_pos->blk_type),
 			  c_pos->blk_size);
 
-	nwrite = pwrite(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
+	nwrite = cart_be->pwrite(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 					blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
 		long indxsz = (blk_number - 1) * sizeof(raw_pos);
@@ -1622,14 +1677,14 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 				  strerror(errno));
 
 		MHVTL_DBG(1, "Truncating index file size to: %ld", indxsz);
-		if (ftruncate(indxfile[c_pos->partition_id], indxsz) < 0) {
+		if (cart_be->truncate(CART_STREAM_INDX, c_pos->partition_id, indxsz) < 0) {
 			MHVTL_ERR("Error truncating indx: %s", strerror(errno));
 		}
 
 		if (!null_media_type) {
 			MHVTL_DBG(1, "Truncating data file size: %" PRId64,
 					  data_offset);
-			if (ftruncate(datafile[c_pos->partition_id], data_offset) < 0) {
+			if (cart_be->truncate(CART_STREAM_DATA, c_pos->partition_id, data_offset) < 0) {
 				MHVTL_ERR("Error truncating data: %s",
 						  strerror(errno));
 			}
@@ -1698,7 +1753,7 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 	if (iosize > buf_size)
 		iosize = buf_size;
 
-	nread = pread(datafile[c_pos->partition_id], buf, iosize, raw_pos.data_offset);
+	nread = cart_be->pread(CART_STREAM_DATA, c_pos->partition_id, buf, iosize, raw_pos.data_offset);
 	if (nread != iosize) {
 		MHVTL_ERR("Failed to read %d bytes", iosize);
 		return -1;
