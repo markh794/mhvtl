@@ -1,0 +1,27 @@
+# mhvtl raw-disk bay map (Phase 2, Stage A).
+#
+# Binds a library Import/Export (MAP) slot to a physical disk bay. Inserting a
+# formatted raw-disk cartridge into a bay makes it appear in that MAP slot; a
+# normal SCSI MOVE MEDIUM then loads it into a drive. The cartridge barcode is
+# NOT configured here -- it is discovered from the disk's MVTL superblock.
+#
+# Format (one bay per line; '#' comments and blank lines are ignored):
+#
+#   <library_id>  <map_slot>  <by-path-device>  [by-id=<identifier>]
+#
+#   library_id       mhvtl library instance id (the systemd vtllibrary@<id>)
+#   map_slot         1-based MAP / Import-Export slot index within that library.
+#                    NOTE (Stage A): recorded as the operator's intended binding,
+#                    but the current load path lets the library assign the first
+#                    free MAP slot -- a cartridge is not guaranteed to land in
+#                    exactly this slot yet. Deterministic slot placement is a
+#                    Stage B enhancement (needs a library-protocol extension).
+#   by-path-device   stable /dev/disk/by-path/... node for the bay -- THE binding.
+#                    Never use /dev/sdX (not stable across reboots/hotplug).
+#   by-id=...        optional /dev/disk/by-id/... recorded for audit only;
+#                    it is never used to resolve the device.
+#
+# Examples:
+#
+# 10  1  /dev/disk/by-path/pci-0000:01:00.0-sas-phy0-lun-0
+# 10  2  /dev/disk/by-path/pci-0000:01:00.0-sas-phy1-lun-0  by-id=wwn-0x5000c500aabbccdd

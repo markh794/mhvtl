@@ -66,7 +66,7 @@ VTL_DEP = $(VTL_SRC:.c=.d)
 
 mhvtl_log.o mode.o \
 smc.o spc.o \
-vtlcart.o vtlcart_raw.o vtllib.o \
+vtlcart.o vtlcart_raw.o raw_bay_conf.o vtllib.o \
 transport.o transport_mhvtl.o \
 transport_userland.o: \
 	CFLAGS += -fpic
@@ -118,7 +118,7 @@ transport_tcmu.o: CFLAGS += -fpic
 endif
 
 libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
-		vtlcart.o vtlcart_raw.o \
+		vtlcart.o vtlcart_raw.o raw_bay_conf.o \
 	 	spc.o smc.o \
 	 	utils/q.o \
 	 	utils/subprocess.o \
@@ -170,6 +170,10 @@ bin/mktape: $(MKTAPE_OBJ) libvtlscsi.so
 RAW_FORMAT_OBJ = cmd/mhvtl-raw-format.o
 bin/mhvtl-raw-format: $(RAW_FORMAT_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(RAW_FORMAT_OBJ) -L. -lvtlscsi
+
+RAW_PROVISION_OBJ = cmd/mhvtl-raw-provision.o
+bin/mhvtl-raw-provision: $(RAW_PROVISION_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(RAW_PROVISION_OBJ) -L. -lvtlscsi
 
 EDIT_TAPE_OBJ = cmd/edit_tape.o
 bin/edit_tape: $(EDIT_TAPE_OBJ) libvtlscsi.so

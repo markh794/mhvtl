@@ -64,6 +64,7 @@ assert(cc.has_function('ZSTD_versionNumber', dependencies : zstd,
 libvtlscsi = shared_library('vtlscsi',
   files(
     'vtllib.c', 'mhvtl_log.c', 'mode.c', 'vtlcart.c', 'vtlcart_raw.c',
+    'raw_bay_conf.c',
     'spc.c', 'smc.c',
     'utils/q.c', 'utils/subprocess.c', 'utils/mhvtl_update.c',
     'utils/crc32c.c',
@@ -106,6 +107,8 @@ executable('vtlcmd', files('cmd/vtlcmd.c'),
 executable('mktape', files('cmd/mktape.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
 executable('mhvtl-raw-format', files('cmd/mhvtl-raw-format.c'),
+  include_directories : inc, link_with : libvtlscsi, install : false)
+executable('mhvtl-raw-provision', files('cmd/mhvtl-raw-provision.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
 executable('edit_tape', files('cmd/edit_tape.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
