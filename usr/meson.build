@@ -63,8 +63,10 @@ assert(cc.has_function('ZSTD_versionNumber', dependencies : zstd,
 # permit undefined symbols: disable meson's default -Wl,--no-undefined.
 libvtlscsi = shared_library('vtlscsi',
   files(
-    'vtllib.c', 'mhvtl_log.c', 'mode.c', 'vtlcart.c', 'spc.c', 'smc.c',
+    'vtllib.c', 'mhvtl_log.c', 'mode.c', 'vtlcart.c', 'vtlcart_raw.c',
+    'spc.c', 'smc.c',
     'utils/q.c', 'utils/subprocess.c', 'utils/mhvtl_update.c',
+    'utils/crc32c.c',
     'transport.c', 'transport_mhvtl.c', 'transport_userland.c',
   ),
   include_directories : inc,
@@ -102,6 +104,8 @@ executable('vtllibrary',
 executable('vtlcmd', files('cmd/vtlcmd.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
 executable('mktape', files('cmd/mktape.c'),
+  include_directories : inc, link_with : libvtlscsi, install : false)
+executable('mhvtl-raw-format', files('cmd/mhvtl-raw-format.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
 executable('edit_tape', files('cmd/edit_tape.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
