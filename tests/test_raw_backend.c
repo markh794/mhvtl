@@ -19,7 +19,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "vtllib.h"		/* MAX_PARTITIONS */
+#include "vtllib.h"		/* MAX_PARTITIONS, struct MAM, init_mam, mam */
+#include "vtlcart.h"		/* TAPE_FMT_VERSION */
 #include "cart_backend_raw.h"
 #include "mhvtl_raw.h"
 
@@ -111,6 +112,81 @@ int main(int argc, char **argv)
 	CHECK(read_sb(dev, MVTL_SB_MIRROR_OFF, &sbm) == 0 &&
 	      sbm.generation_id == sb1.generation_id,
 	      "mirror superblock matches primary generation");
+
+	/* 7. num_partitions reflects the formatted layout. */
+	CHECK(cart_backend_raw.num_partitions() == (int)sb0.num_partitions,
+	      "num_partitions matches superblock");
+
+	/*
+	 * 8. MAM round-trips through the superblock region. Initialise the global
+	 * MAM, save it, snapshot the serialized region bytes, reload into a second
+	 * MAM (versions must survive), promote the reload to the global MAM and
+	 * re-save: a stable serialize->deserialize->serialize leaves the region
+	 * byte-identical. Proves the region is live (not the mam_len==0 stub).
+	 */
+	init_mam(&mam);
+	/* init_mam() leaves the format versions at 0; the creating code stamps
+	 * them. Set them so the round-trip has recognisable version words. */
+	mam.mam_fmt_version = MAM_VERSION;
+	mam.tape_fmt_version = TAPE_FMT_VERSION;
+	CHECK(cart_backend_raw.save_mam(&mam) == 0, "save_mam succeeds");
+	{
+		struct mhvtl_raw_superblock sbx;
+		struct MAM mam2;
+		uint8_t ss = 0;
+		uint8_t *a = NULL, *b = NULL;
+		int fd = -1, ok = 0;
+
+		if (read_sb(dev, MVTL_SB_PRIMARY_OFF, &sbx) == 0 &&
+		    sbx.mam_len > 8 && sbx.mam_len <= MVTL_MAM_RESERVE) {
+			uint64_t len = sbx.mam_len;
+			struct mhvtl_raw_superblock sby;
+
+			a = malloc(len);
+			b = malloc(len);
+			fd = open(dev, O_RDONLY);
+			if (a && b && fd >= 0 &&
+			    pread(fd, a, len, (off_t)sbx.mam_off) == (ssize_t)len) {
+				/* Seed the attribute table (ids/lengths) the way
+				 * load_tape() does before load_mam(): read_mam()
+				 * fills values only for attribute ids already
+				 * present in the target MAM. */
+				init_mam(&mam2);
+				if (cart_backend_raw.load_mam(&mam2, &ss) == 0 &&
+				    mam2.mam_fmt_version == MAM_VERSION &&
+				    mam2.tape_fmt_version == TAPE_FMT_VERSION) {
+					memcpy(&mam, &mam2, sizeof(mam));
+					if (cart_backend_raw.save_mam(&mam) == 0 &&
+					    read_sb(dev, MVTL_SB_PRIMARY_OFF, &sby) == 0 &&
+					    sby.mam_len == len &&
+					    pread(fd, b, len, (off_t)sbx.mam_off) ==
+						    (ssize_t)len &&
+					    memcmp(a, b, len) == 0)
+						ok = 1;
+				}
+			}
+		}
+		if (fd >= 0)
+			close(fd);
+		free(a);
+		free(b);
+		CHECK(ok, "MAM save/load/save round-trip byte-identical");
+	}
+
+	/* 9. raw_probe reads the cartridge identity off the device without
+	 *    disturbing the open cartridge (barcode/uuid/partition count match
+	 *    the on-disk superblock; immutable across the writes above). */
+	{
+		struct mhvtl_raw_probe pr;
+		CHECK(raw_probe(dev, &pr) == 0, "raw_probe finds a valid cartridge");
+		CHECK(strncmp(pr.barcode, sb0.barcode, sizeof(sb0.barcode)) == 0,
+		      "raw_probe barcode matches superblock");
+		CHECK(pr.num_partitions == sb0.num_partitions,
+		      "raw_probe num_partitions matches superblock");
+		CHECK(memcmp(pr.cartridge_uuid, sb0.cartridge_uuid,
+			     sizeof(pr.cartridge_uuid)) == 0,
+		      "raw_probe cartridge_uuid matches superblock");
+	}
 
 	raw_close();
 

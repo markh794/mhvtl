@@ -29,6 +29,24 @@ int raw_open(const char *devpath);
 /* Release the open device fd. No-op if no device is open. */
 void raw_close(void);
 
+/* Cartridge identity read off a device by raw_probe() (below). */
+struct mhvtl_raw_probe {
+	char	 barcode[33];		/* superblock barcode[32] + NUL */
+	uint8_t	 cartridge_uuid[16];	/* immutable identity */
+	uint32_t num_partitions;
+	uint64_t generation_id;
+	uint64_t total_capacity_bytes;
+};
+
+/*
+ * Probe a block device for a valid MVTL cartridge WITHOUT making it the active
+ * cartridge (does not touch the open-cartridge backend state). Reads+validates
+ * both superblocks and reports the identity of the highest valid generation.
+ * Returns 0 if a valid cartridge is present, -1 otherwise (errno set). Used by
+ * the bay provisioner and hot-plug monitor to learn a disk's barcode/uuid.
+ */
+int raw_probe(const char *devpath, struct mhvtl_raw_probe *out);
+
 /*
  * Format a block device with a static multi-partition raw cartridge layout.
  *

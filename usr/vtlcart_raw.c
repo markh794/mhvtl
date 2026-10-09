@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>		/* memfd_create */
 #include <linux/fs.h>		/* BLKGETSIZE64, BLKSSZGET, BLKFLSBUF */
 #include <errno.h>
 #include <fcntl.h>
@@ -37,6 +38,9 @@
 #include <unistd.h>
 
 #include "logging.h"
+#include "mhvtl_scsi.h"
+#include "vtlcart.h"		/* read_mam/write_mam, TAPE_FMT_VERSION */
+#include "vtllib.h"		/* struct MAM, global mam, MAM_VERSION */
 #include "mhvtl_raw.h"
 #include "cart_backend.h"
 #include "cart_backend_raw.h"
@@ -100,6 +104,18 @@ static uint64_t region_cap(enum cart_stream s, int partition)
 	case CART_STREAM_DATA: return p->data_cap;
 	case CART_STREAM_INDX: return p->indx_cap;
 	case CART_STREAM_META: return p->meta_cap;
+	}
+	return 0;
+}
+
+static uint64_t region_used(enum cart_stream s, int partition)
+{
+	const struct mhvtl_raw_partition *p = &sb.part[partition];
+
+	switch (s) {
+	case CART_STREAM_DATA: return p->data_used;
+	case CART_STREAM_INDX: return p->indx_used;
+	case CART_STREAM_META: return p->meta_used;
 	}
 	return 0;
 }
@@ -263,6 +279,55 @@ void raw_close(void)
 	sb_loaded = 0;
 }
 
+/*
+ * Probe a block device for an MVTL cartridge WITHOUT loading it as the active
+ * cartridge (leaves the devfd/sb backend state untouched — safe to call on a
+ * device while another cartridge is open). Reads + validates both superblocks,
+ * takes the highest valid generation, and reports the cartridge identity. Used
+ * by the bay provisioner / hot-plug monitor to learn a disk's barcode before
+ * deciding whether/where to place it. Returns 0 if a valid MVTL cartridge is
+ * present, -1 otherwise (errno set).
+ */
+int raw_probe(const char *devpath, struct mhvtl_raw_probe *out)
+{
+	int fd;
+	struct mhvtl_raw_superblock primary, mirror;
+	const struct mhvtl_raw_superblock *pick;
+	int vp, vm;
+
+	if (!devpath || !out) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	fd = open(devpath, O_RDONLY | O_LARGEFILE);
+	if (fd < 0)
+		return -1;
+
+	vp = sb_read_at(fd, MVTL_SB_PRIMARY_OFF, &primary);
+	vm = sb_read_at(fd, MVTL_SB_MIRROR_OFF, &mirror);
+	close(fd);
+
+	if (!vp && !vm) {
+		errno = EINVAL;
+		return -1;
+	}
+	if (vp && (!vm || primary.generation_id >= mirror.generation_id))
+		pick = &primary;
+	else
+		pick = &mirror;
+
+	memset(out, 0, sizeof(*out));
+	memcpy(out->barcode, pick->barcode, sizeof(pick->barcode));
+	out->barcode[sizeof(pick->barcode)] = '\0';
+	memcpy(out->cartridge_uuid, pick->cartridge_uuid,
+	       sizeof(out->cartridge_uuid));
+	out->num_partitions = pick->num_partitions;
+	out->generation_id = pick->generation_id;
+	out->total_capacity_bytes = pick->total_capacity_bytes;
+	return 0;
+}
+
 /* ------------------------------------------------------ cart_backend ops */
 
 static int raw_be_open_partition(uint8_t partition)
@@ -350,7 +415,18 @@ static ssize_t raw_be_pwrite(enum cart_stream s, int partition,
 		errno = ENOSPC;
 		return -1;
 	}
-	return pwrite(devfd, buf, len, (off_t)region_off(s, partition) + off);
+	ssize_t n = pwrite(devfd, buf, len, (off_t)region_off(s, partition) + off);
+	/*
+	 * A file stream grows implicitly when written past its end; the raw
+	 * backend records the same growth in the partition table so EOD/index
+	 * length survive a reload. truncate() may still shrink it explicitly.
+	 */
+	if (n > 0) {
+		uint64_t end = (uint64_t)off + (uint64_t)n;
+		if (end > region_used(s, partition))
+			region_set_used(s, partition, end);
+	}
+	return n;
 }
 
 static int raw_be_truncate(enum cart_stream s, int partition, off_t len)
@@ -394,6 +470,273 @@ static int raw_be_fadvise_dontneed(enum cart_stream s, int partition)
 			     POSIX_FADV_DONTNEED);
 }
 
+/* --------------------------------------------- cartridge-level ops + MAM */
+
+/* pread the whole region [off, off+len) into buf (loops over short reads). */
+static int read_exact_at(int fd, void *buf, size_t len, off_t off)
+{
+	uint8_t *p = buf;
+
+	while (len) {
+		ssize_t n = pread(fd, p, len, off);
+		if (n < 0) {
+			if (errno == EINTR)
+				continue;
+			return -1;
+		}
+		if (n == 0) {
+			errno = EIO;
+			return -1;
+		}
+		p += n;
+		off += n;
+		len -= (size_t)n;
+	}
+	return 0;
+}
+
+/* write the whole buffer to fd at its current offset (loops over short writes). */
+static int write_exact(int fd, const void *buf, size_t len)
+{
+	const uint8_t *p = buf;
+
+	while (len) {
+		ssize_t n = write(fd, p, len);
+		if (n < 0) {
+			if (errno == EINTR)
+				continue;
+			return -1;
+		}
+		p += n;
+		len -= (size_t)n;
+	}
+	return 0;
+}
+
+/*
+ * Open (create==0) or validate (create!=0) the raw cartridge. The argument is
+ * the resolved cartridge path (currentPCL) — for the raw backend a block-device
+ * node, not the bare barcode. A raw cartridge is formatted out of band by
+ * mhvtl-raw-format, so a create request that finds a valid superblock reports
+ * CART_OPEN_EXISTS (nothing to initialise) and leaves the device closed; an
+ * unformatted device cannot be "created" here.
+ */
+static int raw_be_open_cartridge(const char *path, int create)
+{
+	if (raw_open(path) != 0)
+		return create ? 2 : 3;
+
+	if (create) {
+		raw_close();
+		return CART_OPEN_EXISTS;
+	}
+	return 0;
+}
+
+static void raw_be_close_cartridge(void)
+{
+	/* UNLOAD commits the superblock (design §6): flush payload/index and
+	 * write the partition table so stream growth from writes is durable,
+	 * then release the device. */
+	if (sb_loaded && devfd >= 0)
+		sb_persist(0);
+	raw_close();
+}
+
+static int raw_be_num_partitions(void)
+{
+	if (!sb_loaded)
+		return 0;
+	return (int)sb.num_partitions;
+}
+
+static off_t raw_be_used_size(enum cart_stream s, int partition)
+{
+	if (!sb_loaded || partition < 0 || partition >= (int)sb.num_partitions) {
+		errno = EBADF;
+		return -1;
+	}
+	switch (s) {
+	case CART_STREAM_DATA: return (off_t)sb.part[partition].data_used;
+	case CART_STREAM_INDX: return (off_t)sb.part[partition].indx_used;
+	case CART_STREAM_META: return (off_t)sb.part[partition].meta_used;
+	}
+	errno = EINVAL;
+	return -1;
+}
+
+static int raw_be_partition_loaded(int partition)
+{
+	/* The whole cartridge opens at once (one device fd), so every valid
+	 * partition is accessible while the superblock is loaded. */
+	return sb_loaded && devfd >= 0 &&
+	       partition >= 0 && partition < (int)sb.num_partitions;
+}
+
+/*
+ * The MAM region holds two length-delimited sub-streams, matching the file
+ * backend's two files (mam, mhvtl_data):
+ *   [u32 mam_len][u32 mhvtl_len][mam bytes][mhvtl bytes]
+ * The same read_mam()/write_mam() serializers the file backend uses are driven
+ * over in-memory fds so the on-disk encoding is byte-compatible. sb.mam_len is
+ * the total container length; 0 means "no MAM written yet" (fresh format).
+ */
+static int raw_be_save_mam(struct MAM *mamp)
+{
+	int mfd = -1, hfd = -1, ret = -1;
+	off_t mlen, hlen;
+	uint32_t hdr[2];
+	uint8_t *buf = NULL;
+	uint64_t total;
+
+	(void)mamp;	/* write_mam serializes the global mam */
+
+	if (!sb_loaded || devfd < 0) {
+		errno = EBADF;
+		return -1;
+	}
+
+	mfd = memfd_create("mhvtl-mam", 0);
+	hfd = memfd_create("mhvtl-mhvtl", 0);
+	if (mfd < 0 || hfd < 0) {
+		MHVTL_ERR("raw save_mam: memfd_create failed: %s", strerror(errno));
+		goto out;
+	}
+
+	if (write_mam(mfd, hfd) < 0) {
+		MHVTL_ERR("raw save_mam: write_mam failed");
+		goto out;
+	}
+
+	mlen = lseek(mfd, 0, SEEK_END);
+	hlen = lseek(hfd, 0, SEEK_END);
+	if (mlen < 0 || hlen < 0) {
+		MHVTL_ERR("raw save_mam: lseek failed: %s", strerror(errno));
+		goto out;
+	}
+
+	total = sizeof(hdr) + (uint64_t)mlen + (uint64_t)hlen;
+	if (total > MVTL_MAM_RESERVE) {
+		MHVTL_ERR("raw save_mam: serialized MAM %llu exceeds region %llu",
+			  (unsigned long long)total,
+			  (unsigned long long)MVTL_MAM_RESERVE);
+		errno = ENOSPC;
+		goto out;
+	}
+
+	buf = malloc((size_t)total);
+	if (!buf) {
+		errno = ENOMEM;
+		goto out;
+	}
+	hdr[0] = (uint32_t)mlen;
+	hdr[1] = (uint32_t)hlen;
+	memcpy(buf, hdr, sizeof(hdr));
+	if (read_exact_at(mfd, buf + sizeof(hdr), (size_t)mlen, 0) < 0 ||
+	    read_exact_at(hfd, buf + sizeof(hdr) + mlen, (size_t)hlen, 0) < 0) {
+		MHVTL_ERR("raw save_mam: reading back serialized MAM failed: %s",
+			  strerror(errno));
+		goto out;
+	}
+
+	if (pwrite(devfd, buf, (size_t)total, (off_t)sb.mam_off) !=
+	    (ssize_t)total) {
+		MHVTL_ERR("raw save_mam: MAM region write failed: %s",
+			  strerror(errno));
+		goto out;
+	}
+
+	sb.mam_len = total;
+	if (sb_persist(0) < 0)
+		goto out;
+
+	ret = 0;
+out:
+	free(buf);
+	if (mfd >= 0)
+		close(mfd);
+	if (hfd >= 0)
+		close(hfd);
+	return ret;
+}
+
+static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
+{
+	int mfd = -1, hfd = -1, ret = -1;
+	uint32_t hdr[2];
+	uint8_t *buf = NULL;
+	uint64_t mlen, hlen;
+
+	(void)sam_stat;
+
+	if (!sb_loaded || devfd < 0) {
+		errno = EBADF;
+		return -1;
+	}
+
+	if (sb.mam_len == 0) {
+		/* Freshly formatted cartridge: no MAM yet. Present a current,
+		 * empty MAM so load proceeds without legacy-format migration. */
+		mamp->mam_fmt_version = MAM_VERSION;
+		mamp->tape_fmt_version = TAPE_FMT_VERSION;
+		return 0;
+	}
+	if (sb.mam_len < sizeof(hdr) || sb.mam_len > MVTL_MAM_RESERVE) {
+		MHVTL_ERR("raw load_mam: implausible mam_len %llu",
+			  (unsigned long long)sb.mam_len);
+		errno = EINVAL;
+		return -1;
+	}
+
+	buf = malloc((size_t)sb.mam_len);
+	if (!buf) {
+		errno = ENOMEM;
+		return -1;
+	}
+	if (read_exact_at(devfd, buf, (size_t)sb.mam_len,
+			  (off_t)sb.mam_off) < 0) {
+		MHVTL_ERR("raw load_mam: MAM region read failed: %s",
+			  strerror(errno));
+		goto out;
+	}
+	memcpy(hdr, buf, sizeof(hdr));
+	mlen = hdr[0];
+	hlen = hdr[1];
+	if (sizeof(hdr) + mlen + hlen > sb.mam_len) {
+		MHVTL_ERR("raw load_mam: MAM sub-stream lengths overflow region");
+		errno = EINVAL;
+		goto out;
+	}
+
+	mfd = memfd_create("mhvtl-mam", 0);
+	hfd = memfd_create("mhvtl-mhvtl", 0);
+	if (mfd < 0 || hfd < 0) {
+		MHVTL_ERR("raw load_mam: memfd_create failed: %s", strerror(errno));
+		goto out;
+	}
+	if (write_exact(mfd, buf + sizeof(hdr), (size_t)mlen) < 0 ||
+	    write_exact(hfd, buf + sizeof(hdr) + mlen, (size_t)hlen) < 0) {
+		MHVTL_ERR("raw load_mam: staging MAM sub-streams failed: %s",
+			  strerror(errno));
+		goto out;
+	}
+	lseek(mfd, 0, SEEK_SET);
+	lseek(hfd, 0, SEEK_SET);
+
+	if (read_mam(mfd, hfd, mamp) < 0) {
+		MHVTL_ERR("raw load_mam: read_mam failed");
+		goto out;
+	}
+	ret = 0;
+out:
+	free(buf);
+	if (mfd >= 0)
+		close(mfd);
+	if (hfd >= 0)
+		close(hfd);
+	return ret;
+}
+
 struct cart_backend cart_backend_raw = {
 	.name			= "raw",
 	.open_partition		= raw_be_open_partition,
@@ -404,6 +747,13 @@ struct cart_backend cart_backend_raw = {
 	.truncate		= raw_be_truncate,
 	.sync			= raw_be_sync,
 	.fadvise_dontneed	= raw_be_fadvise_dontneed,
+	.open_cartridge		= raw_be_open_cartridge,
+	.close_cartridge	= raw_be_close_cartridge,
+	.load_mam		= raw_be_load_mam,
+	.save_mam		= raw_be_save_mam,
+	.num_partitions		= raw_be_num_partitions,
+	.used_size		= raw_be_used_size,
+	.partition_loaded	= raw_be_partition_loaded,
 };
 
 /* ------------------------------------------------------------- format */
