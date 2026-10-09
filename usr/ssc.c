@@ -1215,7 +1215,11 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 			if (!subpage) {							  /* Control mode page */
 				MHVTL_DBG(3, "Setting Mode Control"); /* Silently accept this worked, but really did not change anything */
 			} else {
-				if (subpage == 0xf0) {
+				if (subpage == 0x01) {
+					/* Control Extension (advertised by MODE SENSE): accept it like the
+					 * base control page. Windows HPE LTO drivers write it before use. */
+					MHVTL_DBG(3, "Setting Mode Control Extension");
+				} else if (subpage == 0xf0) {
 					/* Logical Block Protection */
 					MHVTL_DBG(2, "Setting LBP method: %d, LBP length: %d, LBP_W: %s, LBP_R: %s",
 							  buf[4 + i], buf[5 + i],
