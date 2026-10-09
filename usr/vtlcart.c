@@ -85,9 +85,10 @@ static int mhvtlfile				= -1;
  * to one of the fd arrays above and performs the identical syscall the code
  * used to call directly. Behaviour-preserving by construction.
  */
-/* file-backend open/create helpers, defined later in this file */
+/* file-backend open/create/close helpers, defined later in this file */
 static int open_partition(uint8_t partition_number);
 static int create_partition(int partition_number);
+static void close_partition(uint8_t partition_number);
 
 static int cart_stream_fd(enum cart_stream s, int partition)
 {
@@ -131,6 +132,7 @@ static struct cart_backend cart_backend_file = {
 	.name			= "file",
 	.open_partition		= open_partition,
 	.create_partition	= create_partition,
+	.close_partition	= close_partition,
 	.pread			= file_be_pread,
 	.pwrite			= file_be_pwrite,
 	.truncate		= file_be_truncate,
@@ -139,6 +141,25 @@ static struct cart_backend cart_backend_file = {
 };
 
 struct cart_backend *cart_be = &cart_backend_file;
+
+/*
+ * Choose the cartridge backend for the resolved cartridge path. A block device
+ * is the future home of the raw adapter; until vtlcart_raw.c exists, every
+ * cartridge (directory-based today) uses the file backend, so behaviour is
+ * unchanged. The S_ISBLK branch is the reserved integration point.
+ */
+static void cart_select_backend(const char *pcl)
+{
+	struct stat st;
+
+	if (pcl && stat(pcl, &st) == 0 && S_ISBLK(st.st_mode)) {
+		/* TODO(phase2-raw): select &cart_backend_raw here once the raw
+		 * block-device adapter (vtlcart_raw.c) is implemented. */
+		MHVTL_ERR("raw block-device backend not yet implemented for %s; "
+				  "using file backend", pcl);
+	}
+	cart_be = &cart_backend_file;
+}
 
 static struct raw_header  raw_pos;
 static struct meta_header meta[MAX_PARTITIONS];
@@ -995,7 +1016,7 @@ int change_partition(uint8_t partition_number) {
 		return 1;
 	}
 
-	close_partition(c_pos->partition_id);
+	cart_be->close_partition(c_pos->partition_id);
 	c_pos->partition_id = partition_number;
 	rc					= cart_be->open_partition(partition_number);
 	if (read_header(0, &sam_stat))
@@ -1010,7 +1031,7 @@ static void erase_partition(uint8_t *sam_stat) {
 	c_pos->blk_number	= 0;
 	raw_pos.data_offset = 0;
 	format_partition(sam_stat);
-	close_partition(c_pos->partition_id);
+	cart_be->close_partition(c_pos->partition_id);
 	unlink_partition(c_pos->partition_id);
 }
 
@@ -1083,6 +1104,8 @@ int create_tape(const char *pcl, uint8_t *sam_stat) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
+
+	cart_select_backend(currentPCL);
 
 	/* Check if data file already exists, nothing to create */
 	snprintf(path, ARRAY_SIZE(path), "%s/data.0", currentPCL);
@@ -1305,7 +1328,7 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	cart_be->fadvise_dontneed(CART_STREAM_DATA, partition_number);
 
 cleanup:
-	close_partition(partition_number);
+	cart_be->close_partition(partition_number);
 	return rc;
 }
 
@@ -1348,6 +1371,8 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 		perror("Could not allocate memory");
 		exit(1);
 	}
+
+	cart_select_backend(currentPCL);
 
 	/* initialize global mam */
 	init_mam(&mam);
@@ -1429,7 +1454,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 
 	/* Now initialize raw_pos by reading in the first header, if any. */
 	if (read_header(0, sam_stat)) {
-		close_partition(c_pos->partition_id);
+		cart_be->close_partition(c_pos->partition_id);
 		return 3;
 	}
 
@@ -1710,7 +1735,7 @@ void unload_tape(uint8_t *sam_stat) {
 		MHVTL_DBG(3, "Unloading tape : partition %d", j);
 		change_partition(j);
 		rewrite_meta_file();
-		close_partition(j);
+		cart_be->close_partition(j);
 		if (filemarks[j]) {
 			free(filemarks[j]);
 			filemarks[j] = NULL;

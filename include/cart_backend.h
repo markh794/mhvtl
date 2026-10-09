@@ -27,11 +27,12 @@ enum cart_stream {
 
 struct cart_backend {
 	const char *name;
-	/* Open/create the storage for one partition. The file backend opens
-	 * data.N/indx.N/meta.N; a raw adapter maps the partition to device
-	 * regions. (close is handled by a later increment.) */
+	/* Open/create/close the storage for one partition. The file backend
+	 * opens data.N/indx.N/meta.N; a raw adapter maps the partition to
+	 * device regions. */
 	int	(*open_partition)(uint8_t partition);
 	int	(*create_partition)(int partition);
+	void	(*close_partition)(uint8_t partition);
 	ssize_t (*pread)(enum cart_stream s, int partition,
 			 void *buf, size_t len, off_t off);
 	ssize_t (*pwrite)(enum cart_stream s, int partition,
