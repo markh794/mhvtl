@@ -85,6 +85,10 @@ static int mhvtlfile				= -1;
  * to one of the fd arrays above and performs the identical syscall the code
  * used to call directly. Behaviour-preserving by construction.
  */
+/* file-backend open/create helpers, defined later in this file */
+static int open_partition(uint8_t partition_number);
+static int create_partition(int partition_number);
+
 static int cart_stream_fd(enum cart_stream s, int partition)
 {
 	switch (s) {
@@ -125,6 +129,8 @@ static int file_be_fadvise_dontneed(enum cart_stream s, int partition)
 
 static struct cart_backend cart_backend_file = {
 	.name			= "file",
+	.open_partition		= open_partition,
+	.create_partition	= create_partition,
 	.pread			= file_be_pread,
 	.pwrite			= file_be_pwrite,
 	.truncate		= file_be_truncate,
@@ -991,7 +997,7 @@ int change_partition(uint8_t partition_number) {
 
 	close_partition(c_pos->partition_id);
 	c_pos->partition_id = partition_number;
-	rc					= open_partition(partition_number);
+	rc					= cart_be->open_partition(partition_number);
 	if (read_header(0, &sam_stat))
 		MHVTL_ERR("Could not read the first header of partition %d",
 				  partition_number);
@@ -1124,7 +1130,7 @@ int create_tape(const char *pcl, uint8_t *sam_stat) {
 	close(mhvtlfile);
 	mhvtlfile = -1;
 
-	return create_partition(0);
+	return cart_be->create_partition(0);
 }
 
 int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint8_t partition_number) {
@@ -1155,7 +1161,7 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 
 	/* Opening files */
 
-	if (open_partition(partition_number) == 3)
+	if (cart_be->open_partition(partition_number) == 3)
 		goto cleanup;
 	for (int i = 0; i < 3; i++) { fstat(*fd[i], stats[i]); }
 
@@ -1471,7 +1477,7 @@ int format_tape(uint8_t *sam_stat) {
 		mam.num_partitions = MAX_PARTITIONS;
 	}
 	for (int j = 0; j < mam.num_partitions; ++j) {
-		create_partition(j);
+		cart_be->create_partition(j);
 	}
 
 	change_partition(0);
