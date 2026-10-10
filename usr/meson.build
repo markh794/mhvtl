@@ -50,6 +50,9 @@ zlib    = dependency('zlib')
 lz4  = dependency('liblz4')
 zstd = dependency('libzstd')
 
+# Phase 2 (Stage B): libudev for the raw-disk hot-plug monitor only.
+udev = dependency('libudev')
+
 # Acceptance (Phase 1): verify lz4/zstd are actually linkable (symbol-link test).
 assert(cc.has_function('LZ4_versionNumber',  dependencies : lz4,
        prefix : '#include <lz4.h>'),  'liblz4 present but not linkable')
@@ -64,7 +67,7 @@ assert(cc.has_function('ZSTD_versionNumber', dependencies : zstd,
 libvtlscsi = shared_library('vtlscsi',
   files(
     'vtllib.c', 'mhvtl_log.c', 'mode.c', 'vtlcart.c', 'vtlcart_raw.c',
-    'raw_bay_conf.c',
+    'raw_bay_conf.c', 'raw_bay_ops.c',
     'spc.c', 'smc.c',
     'utils/q.c', 'utils/subprocess.c', 'utils/mhvtl_update.c',
     'utils/crc32c.c',
@@ -110,6 +113,9 @@ executable('mhvtl-raw-format', files('cmd/mhvtl-raw-format.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
 executable('mhvtl-raw-provision', files('cmd/mhvtl-raw-provision.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
+executable('mhvtl-bay-monitor', files('cmd/mhvtl-bay-monitor.c'),
+  include_directories : inc, link_with : libvtlscsi, dependencies : [udev],
+  install : false)
 executable('edit_tape', files('cmd/edit_tape.c'),
   include_directories : inc, link_with : libvtlscsi, install : false)
 executable('dump_messageQ', files('cmd/dump_messageQ.c'),

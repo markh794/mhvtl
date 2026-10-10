@@ -35,6 +35,10 @@ CFLAGS += -DSYSTEMD_SERVICE_DIR=\"$(SYSTEMD_SERVICE_DIR)\"
 
 CLFLAGS = -shared ${RPM_OPT_FLAGS}
 
+# libudev: used only by the raw-disk hot-plug monitor (bin/mhvtl-bay-monitor).
+UDEV_CFLAGS := $(shell pkg-config --cflags libudev)
+UDEV_LIBS := $(shell pkg-config --libs libudev)
+
 # Enable LZODEBUG
 #LZODEBUG = -DLZO_DEBUG
 LZODEBUG =
@@ -66,7 +70,7 @@ VTL_DEP = $(VTL_SRC:.c=.d)
 
 mhvtl_log.o mode.o \
 smc.o spc.o \
-vtlcart.o vtlcart_raw.o raw_bay_conf.o vtllib.o \
+vtlcart.o vtlcart_raw.o raw_bay_conf.o raw_bay_ops.o vtllib.o \
 transport.o transport_mhvtl.o \
 transport_userland.o: \
 	CFLAGS += -fpic
@@ -89,6 +93,9 @@ cmd/%.o: cmd/%.c
 
 cmd/tape_util.o: \
 	CFLAGS += -fPIC
+
+cmd/mhvtl-bay-monitor.o: \
+	CFLAGS += $(UDEV_CFLAGS)
 
 
 # ------------ utils
@@ -118,7 +125,7 @@ transport_tcmu.o: CFLAGS += -fpic
 endif
 
 libvtlscsi.so: vtllib.o mhvtl_log.o mode.o \
-		vtlcart.o vtlcart_raw.o raw_bay_conf.o \
+		vtlcart.o vtlcart_raw.o raw_bay_conf.o raw_bay_ops.o \
 	 	spc.o smc.o \
 	 	utils/q.o \
 	 	utils/subprocess.o \
@@ -174,6 +181,10 @@ bin/mhvtl-raw-format: $(RAW_FORMAT_OBJ) libvtlscsi.so
 RAW_PROVISION_OBJ = cmd/mhvtl-raw-provision.o
 bin/mhvtl-raw-provision: $(RAW_PROVISION_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(RAW_PROVISION_OBJ) -L. -lvtlscsi
+
+BAY_MONITOR_OBJ = cmd/mhvtl-bay-monitor.o
+bin/mhvtl-bay-monitor: $(BAY_MONITOR_OBJ) libvtlscsi.so
+	$(CC) $(CFLAGS) -o $@ $(BAY_MONITOR_OBJ) -L. -lvtlscsi $(UDEV_LIBS)
 
 EDIT_TAPE_OBJ = cmd/edit_tape.o
 bin/edit_tape: $(EDIT_TAPE_OBJ) libvtlscsi.so
