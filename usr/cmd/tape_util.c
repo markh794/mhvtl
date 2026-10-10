@@ -269,6 +269,14 @@ static void set_compression(struct priv_lu_ssc *lu_priv, char *compression) {
 		if (verbose)
 			printf("Setting compression to ZLIB\n");
 		lu_priv->compressionType = ZLIB;
+	} else if (!strcasecmp(compression, "LZ4")) {
+		if (verbose)
+			printf("Setting compression to LZ4\n");
+		lu_priv->compressionType = LZ4;
+	} else if (!strcasecmp(compression, "ZSTD")) {
+		if (verbose)
+			printf("Setting compression to ZSTD\n");
+		lu_priv->compressionType = ZSTD;
 	} else {
 		if (verbose)
 			printf("Setting compression to NONE\n");

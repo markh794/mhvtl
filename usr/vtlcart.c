@@ -1778,6 +1778,10 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	if (comp_size) {
 		if (comp_type == LZO)
 			c_pos->blk_flags |= BLKHDR_FLG_LZO_COMPRESSED;
+		else if (comp_type == LZ4)
+			c_pos->blk_flags |= BLKHDR_FLG_LZ4_COMPRESSED;
+		else if (comp_type == ZSTD)
+			c_pos->blk_flags |= BLKHDR_FLG_ZSTD_COMPRESSED;
 		else
 			c_pos->blk_flags |= BLKHDR_FLG_ZLIB_COMPRESSED;
 		c_pos->disk_blk_size = disk_blk_size = comp_size;
@@ -2020,6 +2024,10 @@ void print_raw_header(void) {
 			strncat(f, "zlibCompressed", 15);
 		} else if (c_pos->blk_flags & BLKHDR_FLG_LZO_COMPRESSED) {
 			strncat(f, "lzoCompressed", 14);
+		} else if (c_pos->blk_flags & BLKHDR_FLG_LZ4_COMPRESSED) {
+			strncat(f, "lz4Compressed", 14);
+		} else if (c_pos->blk_flags & BLKHDR_FLG_ZSTD_COMPRESSED) {
+			strncat(f, "zstdCompressed", 15);
 		} else {
 			strncat(f, "non-compressed", 15);
 		}

@@ -37,6 +37,8 @@ struct MAM;
 #define BLKHDR_FLG_ENCRYPTED	   0x02
 #define BLKHDR_FLG_LZO_COMPRESSED  0x04
 #define BLKHDR_FLG_CRC			   0x08
+#define BLKHDR_FLG_LZ4_COMPRESSED  0x10
+#define BLKHDR_FLG_ZSTD_COMPRESSED 0x20
 
 #define TAPE_FMT_VERSION 6
 
@@ -194,6 +196,19 @@ https://github.com/iustin/mt-st/blob/fbfd923faad0d6f613415f4de747833fb6b4a465/mt
 
 #define LZO	 1 /* Using lzo compression libraries */
 #define ZLIB 2 /* Using zlib compression libraries */
+#define LZ4	 3 /* Using lz4 compression libraries */
+#define ZSTD 4 /* Using zstandard compression libraries */
+
+/* Data Compression mode page (0x0F) "Compression Algorithm" identifiers.
+ * 0x10 is the legacy default historically reported for LZO/ZLIB; distinct
+ * codes identify LZ4/ZSTD so MODE SENSE reports the active codec back and
+ * MODE SELECT can pick it at runtime. These are the on-the-wire values of the
+ * 32-bit (de)compression algorithm fields, not the comp_type values above.
+ */
+#define MHVTL_COMP_ALGO_NONE	0x00 /* no compression selected */
+#define MHVTL_COMP_ALGO_DEFAULT 0x10 /* legacy LZO/ZLIB default */
+#define MHVTL_COMP_ALGO_LZ4		0x14 /* LZ4 */
+#define MHVTL_COMP_ALGO_ZSTD	0x15 /* Zstandard */
 
 /* The remainder of this file defines the interface between the tape drive
    software and the implementation of a tape cartridge as one or more disk

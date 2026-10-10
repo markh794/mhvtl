@@ -23,6 +23,9 @@
 #include "ccan/crc32c/crc32c.h"
 #include <zlib.h>
 #include "minilzo.h"
+#include <lz4.h>
+#include <zstd.h>
+#include "mhvtl_compress.h"
 
 uint32_t GenerateRSCRC(uint32_t crc, uint32_t size, const void *buf);
 uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);
@@ -240,6 +243,160 @@ static int uncompress_zlib_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_st
 	return rc;
 }
 
+static int uncompress_lz4_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat) {
+	uint8_t *cbuf, *c2buf;
+	uint32_t disk_blk_size, blk_size;
+	int		 rc, d;
+	loff_t	 nread = 0;
+
+	/* The tape block is compressed.
+	   Save field values we will need after the read which
+	   causes the tape block to advance.
+	*/
+	blk_size	  = c_pos->blk_size;
+	disk_blk_size = c_pos->disk_blk_size;
+
+	/* Malloc a buffer to hold the compressed data, and read the
+	   data into it.
+	*/
+	cbuf = (uint8_t *)malloc(disk_blk_size);
+	if (!cbuf) {
+		MHVTL_ERR("Out of memory: %d", __LINE__);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+		return 0;
+	}
+
+	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
+	if (nread != disk_blk_size) {
+		MHVTL_ERR("read failed, %s", strerror(errno));
+		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
+		free(cbuf);
+		return 0;
+	}
+
+	rc = tgtsize;
+
+	/* If the scsi read buffer is at least as big as the size of
+	   the uncompressed data then we can uncompress directly into
+	   the read buffer.  If not, then we need an extra buffer to
+	   uncompress into, then memcpy the subrange we need to the
+	   read buffer.
+	*/
+
+	if (tgtsize >= blk_size) {
+		/* block sizes match, uncompress directly into buf */
+		d = mhvtl_decompress_block(LZ4, cbuf, disk_blk_size, buf, blk_size, blk_size);
+	} else {
+		/* Initiator hasn't requested same size as data block */
+		c2buf = (uint8_t *)malloc(blk_size);
+		if (c2buf == NULL) {
+			MHVTL_ERR("Out of memory: %d", __LINE__);
+			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+			free(cbuf);
+			return 0;
+		}
+		d = mhvtl_decompress_block(LZ4, cbuf, disk_blk_size, c2buf, blk_size, blk_size);
+		/* Only copy out decompressed data on success; otherwise c2buf
+		 * contains uninitialized / partial data and would silently
+		 * corrupt the caller's read buffer.
+		 */
+		if (d >= 0)
+			memcpy(buf, c2buf, tgtsize);
+		free(c2buf);
+	}
+
+	if (d < 0) {
+		MHVTL_ERR("LZ4 decompression failed for block of %u bytes", blk_size);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+	} else {
+		MHVTL_DBG(2, "Read %u bytes of lz4 compressed"
+					 " data, have %u bytes for result",
+				  (uint32_t)nread, blk_size);
+	}
+
+	free(cbuf);
+
+	return rc;
+}
+
+static int uncompress_zstd_block(uint8_t *buf, uint32_t tgtsize, uint8_t *sam_stat) {
+	uint8_t *cbuf, *c2buf;
+	uint32_t disk_blk_size, blk_size;
+	int		 rc, d;
+	loff_t	 nread = 0;
+
+	/* The tape block is compressed.
+	   Save field values we will need after the read which
+	   causes the tape block to advance.
+	*/
+	blk_size	  = c_pos->blk_size;
+	disk_blk_size = c_pos->disk_blk_size;
+
+	/* Malloc a buffer to hold the compressed data, and read the
+	   data into it.
+	*/
+	cbuf = (uint8_t *)malloc(disk_blk_size);
+	if (!cbuf) {
+		MHVTL_ERR("Out of memory: %d", __LINE__);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+		return 0;
+	}
+
+	nread = read_tape_block(cbuf, disk_blk_size, sam_stat);
+	if (nread != disk_blk_size) {
+		MHVTL_ERR("read failed, %s", strerror(errno));
+		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
+		free(cbuf);
+		return 0;
+	}
+
+	rc = tgtsize;
+
+	/* If the scsi read buffer is at least as big as the size of
+	   the uncompressed data then we can uncompress directly into
+	   the read buffer.  If not, then we need an extra buffer to
+	   uncompress into, then memcpy the subrange we need to the
+	   read buffer.
+	*/
+
+	if (tgtsize >= blk_size) {
+		/* block sizes match, uncompress directly into buf */
+		d = mhvtl_decompress_block(ZSTD, cbuf, disk_blk_size, buf, blk_size, blk_size);
+	} else {
+		/* Initiator hasn't requested same size as data block */
+		c2buf = (uint8_t *)malloc(blk_size);
+		if (c2buf == NULL) {
+			MHVTL_ERR("Out of memory: %d", __LINE__);
+			sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+			free(cbuf);
+			return 0;
+		}
+		d = mhvtl_decompress_block(ZSTD, cbuf, disk_blk_size, c2buf, blk_size, blk_size);
+		/* Only copy out decompressed data on success; otherwise c2buf
+		 * contains uninitialized / partial data and would silently
+		 * corrupt the caller's read buffer.
+		 */
+		if (d >= 0)
+			memcpy(buf, c2buf, tgtsize);
+		free(c2buf);
+	}
+
+	if (d < 0) {
+		MHVTL_ERR("ZSTD decompression failed for block of %u bytes", blk_size);
+		sam_medium_error(E_DECOMPRESSION_CRC, sam_stat);
+		rc = 0;
+	} else {
+		MHVTL_DBG(2, "Read %u bytes of zstd compressed"
+					 " data, have %u bytes for result",
+				  (uint32_t)nread, blk_size);
+	}
+
+	free(cbuf);
+
+	return rc;
+}
+
 /* CRC32C */
 static uint32_t mhvtl_crc32c(unsigned char const *buf, size_t size) {
 	return crc32c(0, buf, size);
@@ -330,6 +487,10 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		rc = uncompress_lzo_block(bounce_buffer, blk_size, sam_stat);
 	else if (blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED)
 		rc = uncompress_zlib_block(bounce_buffer, blk_size, sam_stat);
+	else if (blk_flags & BLKHDR_FLG_LZ4_COMPRESSED)
+		rc = uncompress_lz4_block(bounce_buffer, blk_size, sam_stat);
+	else if (blk_flags & BLKHDR_FLG_ZSTD_COMPRESSED)
+		rc = uncompress_zstd_block(bounce_buffer, blk_size, sam_stat);
 	else {
 		/* If the tape block is uncompressed, we can read the number of bytes
 		   we need directly into the scsi read buffer and we are done.
@@ -719,6 +880,144 @@ static int writeBlock_zlib(struct scsi_cmd *cmd, uint32_t src_sz, uint32_t src_o
 	return src_len;
 }
 
+/*
+ * Return number of bytes written to 'file'
+ *
+ * Zero on error with sense buffer already filled in
+ */
+static int writeBlock_lz4(struct scsi_cmd *cmd, uint32_t src_sz, uint32_t src_offset, uint8_t null_wr, int lbp_method) {
+	uint8_t			   *dest_buf;
+	uint32_t			dest_len;
+	uint32_t			src_len	 = src_sz;
+	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t			   *src_buf	 = (uint8_t *)cmd->dbuf_p->data + src_offset;
+	struct priv_lu_ssc *lu_priv;
+	uint32_t			crc;
+	int					rc;
+	int					comp_len;
+
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+
+	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
+	setup_crypto(cmd, lu_priv);
+
+	dest_len = mhvtl_lz4_compress_bound(src_sz);
+	dest_buf = (uint8_t *)malloc(dest_len);
+	if (!dest_buf) {
+		MHVTL_ERR("malloc(%d) failed", (int)dest_len);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
+		return 0;
+	}
+
+	comp_len = mhvtl_compress_block(LZ4, src_buf, src_sz, dest_buf, dest_len, 0);
+	if (comp_len < 0) {
+		MHVTL_ERR("LZ4 compression error");
+		sam_hardware_error(E_COMPRESSION_CHECK, sam_stat);
+		free(dest_buf);
+		return 0;
+	}
+
+	if (comp_len == 0) {
+		/* STORE-RAW fallback: compression did not shrink the block, so
+		 * store it uncompressed (comp_type none). */
+		MHVTL_DBG(2, "LZ4: block incompressible (%d bytes), storing raw", src_sz);
+		rc = write_tape_block(src_buf, src_sz, 0, lu_priv->app_encr_info, 0, null_wr, crc, sam_stat);
+		lu_priv->bytesWritten_M += src_sz;
+	} else {
+		MHVTL_DBG(2, "Compression: Orig %d, after comp: %d", src_sz, comp_len);
+		rc = write_tape_block(dest_buf, src_len, (uint32_t)comp_len, lu_priv->app_encr_info, LZ4, null_wr, crc, sam_stat);
+		lu_priv->bytesWritten_M += comp_len;
+	}
+
+	free(dest_buf);
+	lu_priv->bytesWritten_I += src_len;
+
+	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
+		log_lbp_method(lbp_method);
+		if (verify_lbp_crc(lbp_method, src_buf, src_sz, crc) < 0) {
+			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			log_crc_options(lbp_method, src_buf, src_sz, crc);
+			return 0;
+		}
+	}
+
+	if (rc < 0)
+		return 0;
+
+	return src_len;
+}
+
+/*
+ * Return number of bytes written to 'file'
+ *
+ * Zero on error with sense buffer already filled in
+ */
+static int writeBlock_zstd(struct scsi_cmd *cmd, uint32_t src_sz, uint32_t src_offset, uint8_t null_wr, int lbp_method) {
+	uint8_t			   *dest_buf;
+	uint32_t			dest_len;
+	uint32_t			src_len	 = src_sz;
+	uint8_t			   *sam_stat = &cmd->dbuf_p->sam_stat;
+	uint8_t			   *src_buf	 = (uint8_t *)cmd->dbuf_p->data + src_offset;
+	struct priv_lu_ssc *lu_priv;
+	uint32_t			crc;
+	int					rc;
+	int					comp_len;
+	int					level;
+
+	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+
+	crc = mhvtl_crc32c((unsigned char const *)src_buf, (size_t)src_sz);
+	setup_crypto(cmd, lu_priv);
+
+	dest_len = mhvtl_zstd_compress_bound(src_sz);
+	dest_buf = (uint8_t *)malloc(dest_len);
+	if (!dest_buf) {
+		MHVTL_ERR("malloc(%d) failed", (int)dest_len);
+		sam_medium_error(E_WRITE_ERROR, sam_stat);
+		return 0;
+	}
+
+	level	 = (int)*lu_priv->compressionFactor;
+	comp_len = mhvtl_compress_block(ZSTD, src_buf, src_sz, dest_buf, dest_len, level);
+	if (comp_len < 0) {
+		MHVTL_ERR("ZSTD compression error");
+		sam_hardware_error(E_COMPRESSION_CHECK, sam_stat);
+		free(dest_buf);
+		return 0;
+	}
+
+	if (comp_len == 0) {
+		/* STORE-RAW fallback: compression did not shrink the block, so
+		 * store it uncompressed (comp_type none). */
+		MHVTL_DBG(2, "ZSTD: block incompressible (%d bytes), storing raw", src_sz);
+		rc = write_tape_block(src_buf, src_sz, 0, lu_priv->app_encr_info, 0, null_wr, crc, sam_stat);
+		lu_priv->bytesWritten_M += src_sz;
+	} else {
+		MHVTL_DBG(2, "Compression: Orig %d, after comp: %d, level: %d", src_sz, comp_len, level);
+		rc = write_tape_block(dest_buf, src_len, (uint32_t)comp_len, lu_priv->app_encr_info, ZSTD, null_wr, crc, sam_stat);
+		lu_priv->bytesWritten_M += comp_len;
+	}
+
+	free(dest_buf);
+	lu_priv->bytesWritten_I += src_len;
+
+	if (lu_priv->pm->drive_supports_LBP && lbp_method) {
+		log_lbp_method(lbp_method);
+		if (verify_lbp_crc(lbp_method, src_buf, src_sz, crc) < 0) {
+			MHVTL_ERR("LBP mis-compare on write : Returning E_LOGICAL_BLOCK_GUARD_FAILED");
+			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
+			log_crc_options(lbp_method, src_buf, src_sz, crc);
+			return 0;
+		}
+	}
+
+	if (rc < 0)
+		return 0;
+
+	return src_len;
+}
+
 int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz, uint32_t src_offset) {
 	struct priv_lu_ssc *lu_priv;
 	int					src_len;
@@ -784,6 +1083,12 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz, uint32_t src_offset) {
 			break;
 		case ZLIB:
 			src_len = writeBlock_zlib(cmd, lbp_sz, src_offset, FALSE, lbp_method);
+			break;
+		case LZ4:
+			src_len = writeBlock_lz4(cmd, lbp_sz, src_offset, FALSE, lbp_method);
+			break;
+		case ZSTD:
+			src_len = writeBlock_zstd(cmd, lbp_sz, src_offset, FALSE, lbp_method);
 			break;
 		default:
 			src_len = writeBlock_nocomp(cmd, lbp_sz, src_offset, FALSE, lbp_method);

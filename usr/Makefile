@@ -75,6 +75,11 @@ transport.o transport_mhvtl.o \
 transport_userland.o: \
 	CFLAGS += -fpic
 
+# mhvtl_io and the streaming codecs need the lz4/zstd headers (linked into
+# vtltape and dump_tape, not libvtlscsi).
+mhvtl_io.o mhvtl_compress.o: \
+	CFLAGS += $(LZ4_CFLAGS) $(ZSTD_CFLAGS)
+
 
 # ------------ personality modules
 PM_SRC = $(wildcard pm/*.c)
@@ -163,12 +168,13 @@ bin/tape_util:
 
 DUMP_TAPE_OBJ = cmd/tape_util.o \
 		mhvtl_io.o \
+		mhvtl_compress.o \
 		utils/minilzo.o \
 		utils/crc32c.o \
 		utils/reed-solomon.o \
 		pm/default_ssc_pm.o
 bin/dump_tape: $(DUMP_TAPE_OBJ) libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(DUMP_TAPE_OBJ) -L. -lz -lvtlscsi
+	$(CC) $(CFLAGS) -o $@ $(DUMP_TAPE_OBJ) -L. -lz $(LZ4_LIBS) $(ZSTD_LIBS) -lvtlscsi
 		
 MKTAPE_OBJ = cmd/mktape.o
 bin/mktape: $(MKTAPE_OBJ) libvtlscsi.so
@@ -204,6 +210,7 @@ bin/vtllibrary:	$(VTLLIBRARY_OBJ) libvtlscsi.so
 
 VTLTAPE_OBJ = cmd/vtltape.o \
 		mhvtl_io.o ssc.o \
+		mhvtl_compress.o \
 		utils/minilzo.o \
 		utils/crc32c.o \
 		utils/reed-solomon.o \
@@ -216,7 +223,7 @@ VTLTAPE_OBJ = cmd/vtltape.o \
 		pm/t10000_pm.o \
 		pm/ibm_03592_pm.o
 bin/vtltape: $(VTLTAPE_OBJ) libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) -lz -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) -lz $(LZ4_LIBS) $(ZSTD_LIBS) -L. -lvtlscsi
 
 MHVTL_DEVICE_CONF_GENERATOR_OBJ = cmd/mhvtl-device-conf-generator.o
 bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.so
