@@ -538,6 +538,31 @@ void test_overlong_serial_clamped(void)
 	stop();
 }
 
+/* The Scalar standard INQUIRY carries BarC, the full firmware revision and
+ * version descriptors past byte 36; the additional length must cover them.
+ */
+void test_scalar_inquiry_length(void)
+{
+	uint8_t cdb[6] = { 0x12, 0x00, 0x00, 0x00, 96, 0x00 };
+	struct scsi_result r;
+	uint8_t buf[96];
+
+	TEST_ASSERT(start(&scalar_conf, LIB_MINOR, "library") == 0);
+
+	memset(buf, 0, sizeof(buf));
+	TEST_ASSERT(harness_send_cdb(&daemon_ctx, cdb, 6, &r, buf,
+				     sizeof(buf)) == 0);
+	TEST_CHECK(r.sam_stat == SAM_STAT_GOOD);
+	TEST_CHECK(r.data_len == 66);
+	TEST_CHECK(buf[4] + 5 == 66);
+	TEST_MSG("data_len %u, additional length %u", r.data_len, buf[4]);
+	TEST_CHECK(memcmp(&buf[8], "QUANTUM ", 8) == 0);
+	TEST_CHECK(buf[55] & 0x01);			/* BarC */
+	TEST_CHECK(get_unaligned_be16(&buf[64]) == 0x02fe); /* SMC-2 */
+
+	stop();
+}
+
 TEST_LIST = {
 	{ "scalar_selected_by_vendor",      test_scalar_selected_by_vendor },
 	{ "default_personality_consistent", test_default_personality_consistent },
@@ -550,5 +575,6 @@ TEST_LIST = {
 	{ "hp_msl_serial_only_unchanged",   test_hp_msl_serial_only_unchanged },
 	{ "spectra_serial_nul_terminated",  test_spectra_serial_nul_terminated },
 	{ "overlong_serial_clamped",        test_overlong_serial_clamped },
+	{ "scalar_inquiry_length",          test_scalar_inquiry_length },
 	{ NULL, NULL }
 };
