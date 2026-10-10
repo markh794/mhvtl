@@ -21,7 +21,7 @@ static struct smc_personality_template smc_pm = {
 	.library_has_barcode_reader = TRUE,
 	.library_has_playground		= FALSE,
 
-	.dvcid_len = 34,
+	.dvcid_len = 64, /* Identifier area: always 64 bytes, space filled */
 };
 
 static void init_scalar_inquiry(struct lu_phy_attr *lu) {

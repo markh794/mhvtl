@@ -372,10 +372,10 @@ static int dump_element_desc(uint8_t *p, int voltag, int num_elem, int len,
 		if (idlen) {
 			if (dvcid_serial_only) {
 				MHVTL_DBG(3, "  ASCII data                   : %.*s", idlen, &p[i + 4]);
-			} else {
+			} else if (idlen > 24) {
 				MHVTL_DBG(3, "  ASCII data                   : %.*s", 8, &p[i + 4]);
 				MHVTL_DBG(3, "  ASCII data                   : %.*s", 16, &p[i + 12]);
-				MHVTL_DBG(3, "  ASCII data                   : %.*s", 10, &p[i + 28]);
+				MHVTL_DBG(3, "  ASCII data                   : %.*s", idlen - 24, &p[i + 28]);
 			}
 		}
 		i = (j + 1) * len;
@@ -573,19 +573,38 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s) {
 		p[j++] = 2; /* Code set 2 = ASCII */
 		/* Identifier type - If serial number only - 0, otherwise 1 */
 		p[j++] = smc_p->pm->dvcid_serial_only ? 0 : 1;
-		p[j++] = 0;					   /* Reserved */
-		p[j++] = smc_p->pm->dvcid_len; /* Identifier Length */
+		p[j++] = 0; /* Reserved */
 		if (smc_p->pm->dvcid_serial_only) {
-			blank_fill(&p[j], d->inq_product_sno,
-					   smc_p->pm->dvcid_len);
-			j += smc_p->pm->dvcid_len;
+			int area = smc_p->pm->dvcid_len;
+
+			p[j++] = area; /* Identifier Length */
+			if (smc_p->pm->dvcid_nul_terminated && area) {
+				int sn_len = min((int)strlen(d->inq_product_sno),
+								 area - 1);
+
+				memset(&p[j], 0, area);
+				memcpy(&p[j], d->inq_product_sno, sn_len);
+			} else {
+				blank_fill(&p[j], d->inq_product_sno, area);
+			}
+			j += area;
 		} else {
+			/* Vendor, product and the serial number padded to at
+			 * least 10 characters, as the drive reports in VPD page
+			 * 0x83. The identifier length counts only these bytes;
+			 * any room left in the personality's identifier area
+			 * is space filled (Quantum Scalar: 64 bytes).
+			 */
+			int area   = smc_p->pm->dvcid_len;
+			int sn_len = max(10, (int)strlen(d->inq_product_sno));
+			int id_len = min(24 + sn_len, area);
+
+			p[j++] = id_len; /* Identifier Length */
+			memset(&p[j], ' ', area);
 			blank_fill(&p[j], d->inq_vendor_id, 8);
-			j += 8;
-			blank_fill(&p[j], d->inq_product_id, 16);
-			j += 16;
-			blank_fill(&p[j], d->inq_product_sno, 10);
-			j += 10;
+			blank_fill(&p[j + 8], d->inq_product_id, 16);
+			blank_fill(&p[j + 24], d->inq_product_sno, id_len - 24);
+			j += area;
 		}
 	} else {
 		p[j++] = 0; /* Reserved */

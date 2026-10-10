@@ -2124,7 +2124,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 
 			v = conf_value(b, "Unit serial number");
 			if (v) {
-				conf_clamp_string(v, SCSI_SN_LEN, linecount);
+				conf_clamp_string(v, MAX_DRIVE_SN_LEN, linecount);
 				snprintf(lu->lu_serial_no, sizeof(lu->lu_serial_no), "%-10s", v);
 			}
 			v = conf_value(b, "Vendor identification");
@@ -2224,7 +2224,7 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	update_vpd_80(lu, lu->lu_serial_no);
 
 	/* Device Identification */
-	lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(VPD_83_SZ);
+	lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(vpd_83_size(lu));
 	update_vpd_83(lu, NULL);
 
 	if (library_id)

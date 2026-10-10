@@ -2292,26 +2292,46 @@ void update_vpd_80(struct lu_phy_attr *lu, void *p) {
 	memcpy(vpd_pg->data, p, strlen((const char *)p));
 }
 
+/* Serial number width in the T10 vendor ID based designator of VPD page
+ * 0x83: the serial without its trailing blank padding, but at least 10
+ * characters, which is what a library reports for the drive in READ
+ * ELEMENT STATUS.
+ */
+static int vpd_83_sn_len(struct lu_phy_attr *lu) {
+	int len = (int)strlen(lu->lu_serial_no);
+
+	while (len > 10 && lu->lu_serial_no[len - 1] == ' ')
+		len--;
+	return max(10, len);
+}
+
+/* VPD page 0x83 size: T10 vendor ID and NAA designators */
+uint16_t vpd_83_size(struct lu_phy_attr *lu) {
+	return 4 + VENDOR_ID_LEN + PRODUCT_ID_LEN + vpd_83_sn_len(lu) + 12;
+}
+
 void update_vpd_83(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x83)];
 	uint8_t	   *d;
 	char	   *ptr;
 	int			num;
 	int			len, j;
+	int			sn_len = vpd_83_sn_len(lu);
 
 	assert(vpd_pg); /* space should have been pre-allocated */
+	assert(vpd_pg->sz >= vpd_83_size(lu));
 
 	d = vpd_pg->data;
 
 	d[0] = 2;
 	d[1] = 1;
 	d[2] = 0;
-	num	 = VENDOR_ID_LEN + PRODUCT_ID_LEN + 10;
+	num	 = VENDOR_ID_LEN + PRODUCT_ID_LEN + sn_len;
 	d[3] = num;
 
 	memcpy(&d[4], &lu->vendor_id, VENDOR_ID_LEN);
 	memcpy(&d[12], &lu->product_id, PRODUCT_ID_LEN);
-	memcpy(&d[28], &lu->lu_serial_no, 10);
+	blank_fill(&d[28], lu->lu_serial_no, sn_len);
 	len = (int)strlen(lu->lu_serial_no);
 	ptr = &lu->lu_serial_no[len];
 

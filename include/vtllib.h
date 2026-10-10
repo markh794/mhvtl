@@ -71,6 +71,12 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
 
 #define SCSI_SN_LEN 16
 
+/* Longest drive serial number kept: a T10 vendor ID based identifier is
+ * vendor (8) + product (16) + serial, and the widest identifier area a
+ * library reports in READ ELEMENT STATUS is 64 bytes (Quantum Scalar).
+ */
+#define MAX_DRIVE_SN_LEN 40
+
 #define MAX_BARCODE_LEN	 16
 #define LEFT_JUST_16_STR "%-16.16s"
 
@@ -135,7 +141,6 @@ typedef enum {
  */
 #define SVT_TEMPLATE_LEN 32
 
-#define VPD_83_SZ 50
 #define VPD_86_SZ 0x3c
 #define VPD_B0_SZ 4
 #define VPD_B1_SZ SCSI_SN_LEN
@@ -601,7 +606,7 @@ struct lu_phy_attr {
 	char inquiry[MAX_INQUIRY_SZ];
 	char vendor_id[VENDOR_ID_LEN + 1];
 	char product_id[PRODUCT_ID_LEN + 1];
-	char lu_serial_no[SCSI_SN_LEN];
+	char lu_serial_no[MAX_DRIVE_SN_LEN + 1];
 
 	struct list_head den_list;
 
@@ -630,7 +635,7 @@ struct d_info {
 	char			 inq_vendor_id[10];
 	char			 inq_product_id[18];
 	char			 inq_product_rev[6];
-	char			 inq_product_sno[12];
+	char			 inq_product_sno[MAX_DRIVE_SN_LEN + 1];
 	long			 drv_id; /* drive's send_msg queue ID */
 	char			 online; /* Physical status of drive */
 	int				 SCSI_BUS;
@@ -841,6 +846,7 @@ void  truncate_spaces(char *s, int maxlen);
 char *get_version(void);
 
 void update_vpd_80(struct lu_phy_attr *lu, void *p);
+uint16_t vpd_83_size(struct lu_phy_attr *lu);
 void update_vpd_83(struct lu_phy_attr *lu, void *p);
 void update_vpd_86(struct lu_phy_attr *lu, void *p);
 void update_vpd_b0(struct lu_phy_attr *lu, void *p);

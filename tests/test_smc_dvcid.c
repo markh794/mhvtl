@@ -20,6 +20,7 @@
 #define LIB_MINOR  10
 #define TAPE_MINOR 11
 
+#define LONG_SERIAL "QTMSN0123456789ABCDEFGHIJ" /* 25 characters */
 
 static struct harness_daemon daemon_ctx;
 static struct test_env test_env;
@@ -297,9 +298,257 @@ void test_ibm_layout_unchanged(void)
 	stop();
 }
 
+void test_scalar_dvcid_area(void)
+{
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&scalar_conf, LIB_MINOR, "library") == 0);
+
+	len = read_element_status(1, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 116);
+	TEST_MSG("voltag=1 desc_len %d", pg.desc_len);
+
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 80);
+	TEST_MSG("voltag=0 desc_len %d", pg.desc_len);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[3] == 34);
+	TEST_CHECK(memcmp(&id[4],
+			  "IBM     ULTRIUM-TD7     F0027BE0F1", 34) == 0);
+	for (int i = 34; i < 64; i++)
+		TEST_CHECK_(id[4 + i] == ' ', "pad byte %d is space", i);
+
+	/* Without DVCID the identifier area is omitted */
+	len = read_element_status(0, 0);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 16);
+
+	stop();
+}
+
+static const struct lib_conf scalar_long_conf = {
+	"QUANTUM", "Scalar i6000", "IBM", "ULTRIUM-TD7", LONG_SERIAL
+};
+
+static const char long_identifier[] =
+	"IBM     ULTRIUM-TD7     " LONG_SERIAL;
+
+void test_scalar_long_serial(void)
+{
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&scalar_long_conf, LIB_MINOR, "library") == 0);
+
+	len = read_element_status(1, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	id = &pg.desc[id_offset(1)];
+	TEST_CHECK(id[3] == 49);
+	TEST_CHECK(memcmp(&id[4], long_identifier, 49) == 0);
+	TEST_MSG("identifier: '%.64s'", &id[4]);
+	for (int i = 49; i < 64; i++)
+		TEST_CHECK_(id[4 + i] == ' ', "pad byte %d is space", i);
+
+	stop();
+}
+
+static int inquiry_vpd(uint8_t page, uint8_t *buf, int bufsz)
+{
+	uint8_t cdb[6] = { 0x12, 0x01, page, 0x00, (uint8_t)bufsz, 0x00 };
+	struct scsi_result r;
+
+	memset(buf, 0, bufsz);
+	if (harness_send_cdb(&daemon_ctx, cdb, 6, &r, buf, bufsz) != 0)
+		return -1;
+	if (r.sam_stat != SAM_STAT_GOOD)
+		return -1;
+	return (int)r.data_len;
+}
+
+void test_tape_vpd_matches_dte(void)
+{
+	uint8_t buf[255];
+	int len;
+
+	TEST_ASSERT(start(&scalar_long_conf, TAPE_MINOR, "tape") == 0);
+
+	len = inquiry_vpd(0x80, buf, sizeof(buf));
+	TEST_CHECK(len >= 4 + 25);
+	TEST_CHECK(buf[3] >= 25);
+	TEST_CHECK(memcmp(&buf[4], LONG_SERIAL, 25) == 0);
+	TEST_MSG("VPD 80h: '%.*s'", buf[3], &buf[4]);
+
+	len = inquiry_vpd(0x83, buf, sizeof(buf));
+	TEST_CHECK(len >= 4 + 4 + 49);
+	/* First descriptor: ASCII, T10 vendor ID based */
+	TEST_CHECK((buf[4] & 0x0f) == 2);
+	TEST_CHECK((buf[5] & 0x0f) == 1);
+	TEST_CHECK(buf[7] == 49);
+	TEST_CHECK(memcmp(&buf[8], long_identifier, 49) == 0);
+	TEST_MSG("VPD 83h T10 id: '%.*s'", buf[7], &buf[8]);
+	/* NAA descriptor follows the T10 one */
+	TEST_CHECK(buf[8 + 49 + 1] == 0x03);
+	TEST_CHECK(get_unaligned_be16(&buf[2]) == 4 + 49 + 12);
+
+	stop();
+}
+
+void test_tape_vpd_short_serial_unchanged(void)
+{
+	uint8_t buf[255];
+	int len;
+
+	TEST_ASSERT(start(&scalar_conf, TAPE_MINOR, "tape") == 0);
+
+	len = inquiry_vpd(0x83, buf, sizeof(buf));
+	TEST_CHECK(len >= 4 + 50);
+	TEST_CHECK(buf[7] == 34);
+	TEST_CHECK(memcmp(&buf[8],
+			  "IBM     ULTRIUM-TD7     F0027BE0F1", 34) == 0);
+	TEST_CHECK(get_unaligned_be16(&buf[2]) == 4 + 34 + 12);
+
+	stop();
+}
+
+/* Personalities with a 34 byte identifier still report the first 10
+ * characters of a longer serial. On the 3573 the identifier is the
+ * drive's VPD 0x83 T10 designator, 22h bytes with a 10 character serial
+ * for IBM LTO drives (GA32-0928-06 table 202).
+ */
+void test_ibm_long_serial_truncated(void)
+{
+	struct lib_conf c = {
+		"IBM", "3573-TL", "IBM", "ULT3580-TD8", LONG_SERIAL
+	};
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+
+	len = read_element_status(1, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 86);
+	id = &pg.desc[id_offset(1)];
+	TEST_CHECK(id[3] == 34);
+	TEST_CHECK(memcmp(&id[4], "IBM     ULT3580-TD8     QTMSN01234", 34) == 0);
+	TEST_MSG("identifier: '%.34s'", &id[4]);
+
+	stop();
+}
+
+/* HP MSL reports the serial number alone in a 20 byte identifier */
+void test_hp_msl_serial_only_unchanged(void)
+{
+	struct lib_conf c = {
+		"HP", "MSL6000 Series", "HP", "Ultrium 4-SCSI", "723R6KN000"
+	};
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+
+	/* MSL returns the identifier whether or not DVCID is set */
+	len = read_element_status(0, 0);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 36);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[0] == 2 && id[1] == 0 && id[3] == 20);
+	TEST_CHECK(memcmp(&id[4], "723R6KN000          ", 20) == 0);
+	TEST_MSG("identifier: '%.20s'", &id[4]);
+
+	stop();
+}
+
+/* Spectra T-Series reports the serial alone, NUL terminated, in 32 bytes */
+void test_spectra_serial_nul_terminated(void)
+{
+	struct lib_conf c = {
+		"SPECTRA", "PYTHON", "IBM", "ULT3580-TD8", LONG_SERIAL
+	};
+	static const char sn33[] = "SPX0123456789ABCDEFGHIJKLMNOPQRST"; /* 33 */
+	struct elem_page pg;
+	uint8_t pad[32] = { 0 };
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 16 + 32);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[0] == 2 && id[1] == 0 && id[3] == 32);
+	TEST_CHECK(memcmp(&id[4], LONG_SERIAL, 25) == 0);
+	TEST_CHECK(memcmp(&id[4 + 25], pad, 32 - 25) == 0);
+	TEST_MSG("identifier: '%.32s'", &id[4]);
+	stop();
+
+	c.drive_serial = sn33;
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 16 + 32);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[3] == 32);
+	TEST_CHECK(memcmp(&id[4], sn33, 31) == 0);
+	TEST_CHECK(id[4 + 31] == 0);
+	TEST_MSG("identifier: '%.32s'", &id[4]);
+	stop();
+}
+
+#define OVERLONG_SERIAL "SN0123456789012345678901234567890123456789XYZ" /* 45 */
+
+/* Serials past MAX_DRIVE_SN_LEN are cut to 40 characters on both sides */
+void test_overlong_serial_clamped(void)
+{
+	struct lib_conf c = scalar_long_conf;
+	struct elem_page pg;
+	uint8_t buf[255];
+	uint8_t *id;
+	int len;
+
+	c.drive_serial = OVERLONG_SERIAL;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 80);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[3] == 64);
+	TEST_CHECK(memcmp(&id[4 + 24], OVERLONG_SERIAL, 40) == 0);
+	TEST_MSG("identifier: '%.64s'", &id[4]);
+	stop();
+
+	TEST_ASSERT(start(&c, TAPE_MINOR, "tape") == 0);
+	len = inquiry_vpd(0x80, buf, sizeof(buf));
+	TEST_CHECK(len >= 4 + 40);
+	TEST_CHECK(buf[3] == 40);
+	TEST_CHECK(memcmp(&buf[4], OVERLONG_SERIAL, 40) == 0);
+	len = inquiry_vpd(0x83, buf, sizeof(buf));
+	TEST_CHECK(len >= 4 + 4 + 64 + 12);
+	TEST_CHECK(buf[7] == 64);
+	TEST_CHECK(memcmp(&buf[8], &id[4], 64) == 0);
+	TEST_MSG("VPD 83h T10 id: '%.*s'", buf[7], &buf[8]);
+	stop();
+}
+
 TEST_LIST = {
 	{ "scalar_selected_by_vendor",      test_scalar_selected_by_vendor },
 	{ "default_personality_consistent", test_default_personality_consistent },
 	{ "ibm_layout_unchanged",           test_ibm_layout_unchanged },
+	{ "scalar_dvcid_area",              test_scalar_dvcid_area },
+	{ "scalar_long_serial",             test_scalar_long_serial },
+	{ "tape_vpd_matches_dte",           test_tape_vpd_matches_dte },
+	{ "tape_vpd_short_serial_unchanged",test_tape_vpd_short_serial_unchanged },
+	{ "ibm_long_serial_truncated",      test_ibm_long_serial_truncated },
+	{ "hp_msl_serial_only_unchanged",   test_hp_msl_serial_only_unchanged },
+	{ "spectra_serial_nul_terminated",  test_spectra_serial_nul_terminated },
+	{ "overlong_serial_clamped",        test_overlong_serial_clamped },
 	{ NULL, NULL }
 };

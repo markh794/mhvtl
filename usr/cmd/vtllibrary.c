@@ -613,6 +613,31 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu) {
 
 /* Open device config file and update device information
  */
+
+/* Store a drive serial number, saying so if it is longer than the device
+ * identifier this personality reports in READ ELEMENT STATUS can carry.
+ */
+static void set_drive_serial(struct smc_priv *smc_p, struct d_info *dp,
+							 long id, char *v) {
+	unsigned int room;
+
+	if (strlen(v) > MAX_DRIVE_SN_LEN)
+		MHVTL_LOG("Drive %ld: serial number truncated to %d characters: %s",
+				  id, MAX_DRIVE_SN_LEN, v);
+	snprintf(dp->inq_product_sno, sizeof(dp->inq_product_sno), "%s", v);
+
+	room = smc_p->pm->dvcid_len;
+	if (!room) /* Personality reports no device identifier */
+		return;
+	if (!smc_p->pm->dvcid_serial_only)
+		room = (room > 24) ? room - 24 : 0;
+	else if (smc_p->pm->dvcid_nul_terminated)
+		room--;
+	if (strlen(dp->inq_product_sno) > room)
+		MHVTL_LOG("Drive %ld: %s reports only the first %u characters"
+				  " of serial number %s",
+				  id, smc_p->pm->name, room, dp->inq_product_sno);
+}
 static void update_drive_details(struct lu_phy_attr *lu) {
 	char			 device_conf[CONF_FILE_SZ];
 	FILE			*conf;
@@ -689,10 +714,8 @@ static void update_drive_details(struct lu_phy_attr *lu) {
 			char *v;
 
 			v = conf_value(b, "Unit serial number");
-			if (v) {
-				strncpy(dp->inq_product_sno, v, 10);
-				rmnl(dp->inq_product_sno, ' ', 10);
-			}
+			if (v)
+				set_drive_serial(smc_p, dp, drv_id, v);
 			v = conf_value(b, "Product identification");
 			if (v) {
 				strncpy(dp->inq_product_id, v, 16);
@@ -840,7 +863,7 @@ void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s) {
 	dp->slot->status		= STATUS_Access;
 	smc_p->num_drives++;
 	if (strlen(s)) {
-		strncpy(dp->inq_product_sno, s, 10);
+		set_drive_serial(smc_p, dp, slt, s);
 		MHVTL_DBG(2, "Drive s/no: %s", s);
 	}
 	MHVTL_DBG(3, "Slot: %d, start_drive: %d, slot_location: %d",
@@ -1753,10 +1776,8 @@ int main(int argc, char *argv[]) {
 				s[4] = '\0';
 				MHVTL_DBG(3, "Revision Level: \"%s\"", s);
 
-				strncpy(s, dp->inq_product_sno, 10 + 2);
-				rmnl(s, ' ', 10);
-				s[10] = '\0';
-				MHVTL_DBG(3, "Product S/No  : \"%s\"", s);
+				MHVTL_DBG(3, "Product S/No  : \"%s\"",
+						  dp->inq_product_sno);
 
 				MHVTL_DBG(3, "Drive location: %d",
 						  dp->slot->slot_location);
