@@ -90,6 +90,11 @@ static double now_sec(void)
 static lzo_align_t lzo_wrkmem[((LZO1X_1_MEM_COMPRESS) + (sizeof(lzo_align_t) - 1)) /
 			      sizeof(lzo_align_t)];
 
+/* Persistent ZSTD contexts, reused per block — mirrors the tape write path
+ * (usr/mhvtl_compress.c) so the benchmark reflects real mhVTL ZSTD throughput. */
+static ZSTD_CCtx *zstd_cctx;
+static ZSTD_DCtx *zstd_dctx;
+
 /* Compress one block. Returns compressed length, or 0 on codec error. */
 static uint32_t compress_one(enum codec c, int level, const uint8_t *src,
 			     uint32_t blk, uint8_t *dst, uint32_t dst_cap)
@@ -116,7 +121,8 @@ static uint32_t compress_one(enum codec c, int level, const uint8_t *src,
 		return n > 0 ? (uint32_t)n : 0;
 	}
 	case C_ZSTD: {
-		size_t n = ZSTD_compress(dst, dst_cap, src, blk, level);
+		size_t n = ZSTD_compressCCtx(zstd_cctx, dst, dst_cap, src, blk,
+					     level);
 		return ZSTD_isError(n) ? 0 : (uint32_t)n;
 	}
 	}
@@ -149,7 +155,8 @@ static uint32_t decompress_one(enum codec c, const uint8_t *src, uint32_t comp,
 		return n > 0 ? (uint32_t)n : 0;
 	}
 	case C_ZSTD: {
-		size_t n = ZSTD_decompress(dst, dst_cap, src, comp);
+		size_t n = ZSTD_decompressDCtx(zstd_dctx, dst, dst_cap, src,
+					       comp);
 		return ZSTD_isError(n) ? 0 : (uint32_t)n;
 	}
 	}
@@ -228,6 +235,12 @@ int main(int argc, char **argv)
 		fprintf(stderr, "lzo_init failed\n");
 		return 1;
 	}
+	zstd_cctx = ZSTD_createCCtx();
+	zstd_dctx = ZSTD_createDCtx();
+	if (!zstd_cctx || !zstd_dctx) {
+		fprintf(stderr, "ZSTD context alloc failed\n");
+		return 1;
+	}
 	if (!blocks)
 		blocks = 1;
 
@@ -259,5 +272,7 @@ int main(int argc, char **argv)
 	free(rand_buf);
 	free(dst);
 	free(chk);
+	ZSTD_freeCCtx(zstd_cctx);
+	ZSTD_freeDCtx(zstd_dctx);
 	return 0;
 }

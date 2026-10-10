@@ -20,6 +20,19 @@
 #include "vtlcart.h"		/* LZ4, ZSTD comp_type values */
 #include "mhvtl_compress.h"
 
+/*
+ * Persistent ZSTD contexts, created on first use and reused for every block.
+ * One-shot ZSTD_compress()/ZSTD_decompress() allocate and free an internal
+ * context per call, which caps per-block throughput on the tape write/read
+ * path; reusing a context avoids that. The tape daemon is single-threaded (same
+ * assumption the LZO scratch buffer in mhvtl_io.c relies on), so a module-static
+ * context needs no locking. ZSTD_compressCCtx/ZSTD_decompressDCtx produce output
+ * byte-identical to the one-shot calls, so the on-disk format is unchanged. The
+ * contexts live for the life of the process (like the LZO scratch buffer).
+ */
+static ZSTD_CCtx *zstd_cctx;
+static ZSTD_DCtx *zstd_dctx;
+
 uint32_t mhvtl_lz4_compress_bound(uint32_t src_sz)
 {
 	return (uint32_t)LZ4_compressBound((int)src_sz);
@@ -54,7 +67,12 @@ int mhvtl_compress_block(uint8_t comp_type, const uint8_t *src, uint32_t src_sz,
 		if (level > hi)
 			level = hi;
 
-		z = ZSTD_compress(dst, dst_cap, src, src_sz, level);
+		if (!zstd_cctx) {
+			zstd_cctx = ZSTD_createCCtx();
+			if (!zstd_cctx)
+				return -1;
+		}
+		z = ZSTD_compressCCtx(zstd_cctx, dst, dst_cap, src, src_sz, level);
 		if (ZSTD_isError(z))
 			return -1;
 		comp_len = (uint32_t)z;
@@ -88,7 +106,14 @@ int mhvtl_decompress_block(uint8_t comp_type, const uint8_t *src,
 		break;
 	}
 	case ZSTD: {
-		size_t d = ZSTD_decompress(dst, dst_cap, src, comp_sz);
+		size_t d;
+
+		if (!zstd_dctx) {
+			zstd_dctx = ZSTD_createDCtx();
+			if (!zstd_dctx)
+				return -1;
+		}
+		d = ZSTD_decompressDCtx(zstd_dctx, dst, dst_cap, src, comp_sz);
 		if (ZSTD_isError(d))
 			return -1;
 		out_len = (uint32_t)d;

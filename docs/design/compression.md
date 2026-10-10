@@ -121,6 +121,15 @@ Observations:
   fallback** fires (never expands); the codecs also reject fast (many GB/s),
   except ZLIB which pays its full CPU cost even when it cannot compress.
 - Against AGENTS.md §10's ≥ 400 MB/s target: LZ4 and ZSTD level 1 clear it on
-  compressible data; ZSTD level 3 trades a little throughput for ratio. (A known
-  follow-up — reusing a persistent `ZSTD_CCtx`/`ZSTD_DCtx` instead of the current
-  per-block one-shot calls — would lift ZSTD further.)
+  compressible data; ZSTD level 3 trades a little throughput for ratio.
+
+The ZSTD path reuses a persistent `ZSTD_CCtx`/`ZSTD_DCtx` (created on first use,
+kept for the life of the process; the daemon is single-threaded) instead of the
+per-block one-shot `ZSTD_compress`/`ZSTD_decompress`, which allocate and free a
+context on every call. The compressed output is byte-identical, so the on-disk
+format is unchanged. A controlled same-run A/B measured the benefit at roughly
+**+5% at 4-64 KiB blocks and ~+1% at 256 KiB** — the per-block allocation is a
+larger fraction of the work for smaller blocks; at tape block sizes the dominant
+cost is the codec itself, not the context. It is a free win and avoids per-block
+malloc/free churn on the hot path. (Throughput figures above are per-core and
+host-load-dependent — treat them as relative, not absolute.)
