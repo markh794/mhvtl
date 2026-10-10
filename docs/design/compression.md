@@ -61,43 +61,66 @@ own stored `blk_flags`, so a cartridge may freely mix codecs.
 
 ## Benchmark
 
-`tests/bench_compression.c` measures sequential write throughput and achieved
-ratio for none / LZ4 / ZSTD on a synthetic compressible stream and a synthetic
-uncompressible (random) stream, driving the same `mhvtl_compress_block()` helper
-the tape write path uses.
+`tests/bench_compression.c` compares **all** supported codecs — none, LZO,
+ZLIB, LZ4, and ZSTD (two levels) — on a synthetic compressible stream and a
+synthetic uncompressible (random) stream, driving each codec through its own
+library exactly as the tape write path does. For every codec it reports the
+achieved ratio and both the compression and decompression throughput.
 
 ```
-make -C tests bench                      # defaults: 256 MiB, 256 KiB blocks, zstd level 1
-make -C tests bench BENCH_ARGS="512 64 3"  # total_MiB block_KiB zstd_level
+make -C tests bench                       # defaults: 256 MiB, 256 KiB blocks, zstd level 1
+make -C tests bench BENCH_ARGS="512 64 3" # total_MiB block_KiB zstd_level
 ```
 
-Throughput is reported over the uncompressed input (MB/s a backup stream sees);
-ratio is uncompressed/stored. The figures are single-threaded, CPU-bound, and
-operate on an in-cache buffer, so they isolate codec cost rather than disk I/O.
+Throughput is reported over the uncompressed size (the MB/s a backup stream
+sees); ratio is uncompressed/stored. Each codec is round-tripped bit-identically
+before timing. The figures are single-threaded, CPU-bound, and operate on an
+in-cache block, so they isolate codec cost rather than disk I/O; `none` is a
+plain `memcpy` (the raw-store ceiling). Numbers are per-core and strongly
+data-dependent — treat them as relative, not absolute.
 
-### Captured run
+### Compression ratio and processing speed (as tested)
 
-Host: openSUSE Tumbleweed, Linux 6.18 x86_64; 256 MiB in 256 KiB blocks,
-ZSTD level 1 (and level 3):
+Host: openSUSE Tumbleweed, Linux 6.18 x86_64; 256 MiB in 256 KiB blocks, ZLIB at
+its default level 6, ZSTD at levels 1 and 3. `comp` = compression throughput,
+`decomp` = decompression (restore) throughput.
 
-| stream | codec | MB/s | ratio |
-|--------|-------|-----:|------:|
-| compressible   | none (raw) | ~51000 | 1.00 |
-| compressible   | LZ4        | 533 | 2.27 |
-| compressible   | ZSTD lvl1  | 389 | 3.52 |
-| compressible   | ZSTD lvl3  | 364 | 3.82 |
-| uncompressible | none (raw) | ~56000 | 1.00 |
-| uncompressible | LZ4        | 19544 | 1.00 |
-| uncompressible | ZSTD lvl1  | 9228 | 1.00 |
-| uncompressible | ZSTD lvl3  | 6334 | 1.00 |
+**Compressible stream** (≈2-4× reducible, representative of typical backup data):
+
+| codec       | ratio | comp MB/s | decomp MB/s |
+|-------------|------:|----------:|------------:|
+| none (raw)  |  1.00 |     50536 |       49083 |
+| LZO         |  2.15 |       515 |         618 |
+| ZLIB lvl6   |  3.70 |        53 |         487 |
+| LZ4         |  2.27 |       595 |        3666 |
+| ZSTD lvl1   |  3.52 |       417 |        1501 |
+| ZSTD lvl3   |  3.82 |       370 |        1354 |
+
+**Uncompressible stream** (random):
+
+| codec       | ratio | comp MB/s | decomp MB/s |
+|-------------|------:|----------:|------------:|
+| none (raw)  |  1.00 |     56380 |       57548 |
+| LZO         |  1.00 |     18392 |       26885 |
+| ZLIB lvl6   |  1.00 |        55 |        3754 |
+| LZ4         |  1.00 |     19769 |       50368 |
+| ZSTD lvl1   |  1.00 |      9267 |       54323 |
+| ZSTD lvl3   |  1.00 |      6434 |       55457 |
 
 Observations:
-- On compressible data, ZSTD gives the better ratio (≈3.5-3.8×) at lower
-  throughput; LZ4 gives a lower ratio (≈2.3×) but is faster — the expected
-  speed/ratio trade-off.
-- On random data every codec reports ratio 1.00: the **store-raw fallback**
-  fires and the cartridge does not grow; LZ4/ZSTD reject fast (many GB/s).
-- `none` is a plain `memcpy`, i.e. the raw-store ceiling (memory bandwidth).
-- All codecs clear the AGENTS.md §10 ≥ 400 MB/s target on compressible data
-  except ZSTD level 3, which trades throughput for ratio; numbers are per-core
-  and data-dependent (genuinely compressible payloads run several GB/s).
+- **ZLIB is the bottleneck the modern codecs replace**: at its default level it
+  compresses at only ~53 MB/s regardless of data — ~8-11× slower than LZ4/ZSTD
+  for a similar or worse ratio.
+- **LZ4** is the throughput choice: fastest compression (~595 MB/s) and very fast
+  decompression (~3.7 GB/s), at a modest ~2.3× ratio.
+- **ZSTD** is the ratio choice: best ratio (≈3.5-3.8×) at ~370-420 MB/s, still far
+  above the legacy ZLIB and decompressing at 1.3-1.5 GB/s. Level 3 buys a little
+  ratio for a little speed.
+- **LZO** sits between — ~2.15× at ~515 MB/s — and LZ4 beats it on both axes.
+- On random data every codec reports ratio 1.00: for LZ4/ZSTD the **store-raw
+  fallback** fires (never expands); the codecs also reject fast (many GB/s),
+  except ZLIB which pays its full CPU cost even when it cannot compress.
+- Against AGENTS.md §10's ≥ 400 MB/s target: LZ4 and ZSTD level 1 clear it on
+  compressible data; ZSTD level 3 trades a little throughput for ratio. (A known
+  follow-up — reusing a persistent `ZSTD_CCtx`/`ZSTD_DCtx` instead of the current
+  per-block one-shot calls — would lift ZSTD further.)

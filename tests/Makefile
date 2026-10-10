@@ -71,8 +71,8 @@ test_compression: test_compression.c ../include/mhvtl_compress.h $(COMPRESS_SRC)
 # build + run it with `make bench` (optionally `make bench BENCH_ARGS="512 256 1"`
 # = total_MiB block_KiB zstd_level). Uses the same shared codec path as the
 # write path; the file backend here, no root needed.
-bench_compression: bench_compression.c ../include/mhvtl_compress.h $(COMPRESS_SRC)
-	$(CC) $(CFLAGS) $(IFLAGS) -o $@ bench_compression.c $(COMPRESS_SRC) -llz4 -lzstd
+bench_compression: bench_compression.c
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ bench_compression.c -llzo2 -lz -llz4 -lzstd
 
 .PHONY: bench
 bench: bench_compression
