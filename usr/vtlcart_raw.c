@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>		/* memfd_create */
-#include <linux/fs.h>		/* BLKGETSIZE64, BLKSSZGET, BLKFLSBUF */
+#include <linux/fs.h>		/* BLKGETSIZE64, BLKSSZGET, BLKPBSZGET, BLKFLSBUF */
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -69,6 +69,7 @@
 static int devfd = -1;
 static int sb_loaded;
 static unsigned dev_logical_sector = 512;
+static unsigned dev_physical_sector = 512;
 static struct mhvtl_raw_superblock sb;
 
 /* ------------------------------------------------------- small utilities */
@@ -261,11 +262,22 @@ int raw_open(const char *devpath)
 
 	devfd = fd;
 	dev_logical_sector = (unsigned)sector;
+	/* Physical sector is informational here (region alignment was fixed at
+	 * format time); query it best-effort and fall back to the logical size. */
+	{
+		int pbsz = 0;
+
+		dev_physical_sector =
+			(ioctl(fd, BLKPBSZGET, &pbsz) == 0 && pbsz > 0)
+				? (unsigned)pbsz : (unsigned)sector;
+	}
 	sb_loaded = 1;
 
 	MHVTL_DBG(1, "Opened raw cartridge %s: barcode '%s', %u partition(s), "
-		  "generation %llu", devpath, sb.barcode, sb.num_partitions,
-		  (unsigned long long)sb.generation_id);
+		  "generation %llu (sector logical/physical %u/%u)",
+		  devpath, sb.barcode, sb.num_partitions,
+		  (unsigned long long)sb.generation_id,
+		  dev_logical_sector, dev_physical_sector);
 	return 0;
 }
 
@@ -445,8 +457,28 @@ static int raw_be_truncate(enum cart_stream s, int partition, off_t len)
 	return sb_persist(0);
 }
 
+/*
+ * Force the drive's own write cache to stable media. fdatasync() in sb_persist()
+ * already issues a cache-flush (REQ_OP_FLUSH) to the device, so data is durable
+ * once sb_persist() returns; BLKFLSBUF is the explicit device-cache flush the
+ * design mandates on SYNCHRONIZE CACHE / WRITE FILEMARKS / LOAD UNLOAD
+ * (AGENTS.md §3.3) and additionally drops the block device's buffer cache.
+ * Best-effort: durability is already guaranteed by the preceding fdatasync, so a
+ * BLKFLSBUF failure (e.g. insufficient privilege) is logged, not fatal.
+ */
+static void raw_dev_cache_flush(void)
+{
+	if (devfd < 0)
+		return;
+	if (ioctl(devfd, BLKFLSBUF) < 0)
+		MHVTL_DBG(1, "BLKFLSBUF (device cache flush) failed: %s",
+			  strerror(errno));
+}
+
 static int raw_be_sync(enum cart_stream s, int partition)
 {
+	int rc;
+
 	(void)s;
 	(void)partition;
 
@@ -456,7 +488,10 @@ static int raw_be_sync(enum cart_stream s, int partition)
 	}
 	/* Single device: a durable commit flushes payload+index, then writes a
 	 * freshly-generationed superblock. sb_persist() does the ordering. */
-	return sb_persist(1);
+	rc = sb_persist(1);
+	if (rc == 0)
+		raw_dev_cache_flush();
+	return rc;
 }
 
 static int raw_be_fadvise_dontneed(enum cart_stream s, int partition)
@@ -536,10 +571,12 @@ static int raw_be_open_cartridge(const char *path, int create)
 static void raw_be_close_cartridge(void)
 {
 	/* UNLOAD commits the superblock (design §6): flush payload/index and
-	 * write the partition table so stream growth from writes is durable,
-	 * then release the device. */
-	if (sb_loaded && devfd >= 0)
-		sb_persist(0);
+	 * write the partition table so stream growth from writes is durable, force
+	 * the drive's write cache to media (AGENTS.md §3.3), then release it. */
+	if (sb_loaded && devfd >= 0) {
+		if (sb_persist(0) == 0)
+			raw_dev_cache_flush();
+	}
 	raw_close();
 }
 
@@ -826,7 +863,7 @@ int raw_format(const char *devpath, const char *barcode,
 {
 	int fd, nparts, rc = -1;
 	uint64_t dev_bytes = 0, usable, alignment, part_base, consumed = 0;
-	int sector = 0;
+	int sector = 0, psector = 0;
 	unsigned pct[MVTL_MAX_PARTITIONS];
 	void *zbuf = NULL;
 	struct mhvtl_raw_superblock newsb;
@@ -861,9 +898,19 @@ int raw_format(const char *devpath, const char *barcode,
 			  devpath, strerror(errno));
 		goto out;
 	}
+	/* Physical sector can exceed the logical one (e.g. 4Kn / 512e drives);
+	 * query it best-effort and fall back to the logical size if unsupported. */
+	if (ioctl(fd, BLKPBSZGET, &psector) < 0 || psector <= 0)
+		psector = sector;
 
-	/* All region offsets/sizes are aligned to max(logical_sector, 4096). */
-	alignment = (uint64_t)sector > 4096ull ? (uint64_t)sector : 4096ull;
+	/* Align every region to max(physical_sector, logical_sector, 4096) so no
+	 * region boundary can straddle a physical sector and force the drive into
+	 * a read-modify-write. */
+	alignment = 4096ull;
+	if ((uint64_t)sector > alignment)
+		alignment = (uint64_t)sector;
+	if ((uint64_t)psector > alignment)
+		alignment = (uint64_t)psector;
 
 	if (dev_bytes <= MVTL_DATA_START + alignment) {
 		MHVTL_ERR("raw_format: %s too small (%llu bytes)",
