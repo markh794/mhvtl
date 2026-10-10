@@ -18,7 +18,7 @@ static struct smc_personality_template smc_pm = {
 	 */
 	.report_scsi_bus_address = TRUE,
 
-	.dvcid_len = 32,
+	.dvcid_len = 34,
 };
 
 static void update_default_inquiry(struct lu_phy_attr *lu) {

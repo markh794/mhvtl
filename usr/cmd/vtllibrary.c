@@ -78,6 +78,31 @@ static struct smc_priv smc_slots;
 
 struct s_info *add_new_slot(struct lu_phy_attr *lu);
 
+/* Worst case READ ELEMENT STATUS response: the data header, a page header
+ * per element type and every descriptor carrying a volume tag, plus the
+ * device identifier area for data transfer elements. The personality must
+ * already be registered, as it sets the identifier width.
+ */
+static int smc_buffer_size(struct smc_priv *smc_p) {
+	struct d_info *dp;
+	int			   drives = 0;
+	int			   sz;
+
+	/* Drives only listed in device.conf are not in num_drives */
+	list_for_each_entry(dp, &smc_p->drive_list, siblings)
+		drives++;
+	drives = max(drives, smc_p->num_drives);
+
+	/* A trailing drive page can follow the storage page, hence five */
+	sz = 8 + 5 * 8;
+	sz += (drives + smc_p->num_picker +
+		   smc_p->num_map + smc_p->num_storage) *
+		  (16 + VOLTAG_LEN);
+	sz += drives * smc_p->pm->dvcid_len;
+
+	return max(SMC_BUF_SIZE, sz);
+}
+
 static void usage(char *progname) {
 	printf("Usage: %s [OPTIONS] -q <Q-number>\n", progname);
 	printf("Where:\n");
@@ -437,8 +462,7 @@ static void add_storage_slot(struct q_msg *msg) {
 	MHVTL_DBG(1, "add slot && init smc");
 
 	/* malloc a big enough buffer to fit worst case read element status */
-	buffer_size		  = (smc_slots.num_drives + smc_slots.num_picker + smc_slots.num_map + smc_slots.num_storage) * 80;
-	buffer_size		  = max(SMC_BUF_SIZE, buffer_size);
+	buffer_size		  = smc_buffer_size(&smc_slots);
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
 
@@ -1467,9 +1491,9 @@ static void customise_lu(struct lu_phy_attr *lu) {
 		customise_hp_lu(lu);
 	else if (!strncasecmp(lu->product_id, "OVERLAND", 8))
 		init_overland_smc(lu);
-	else if (!strncasecmp(lu->product_id, "ADIC", 4))
-		init_scalar_smc(lu);
-	else if (!strncasecmp(lu->product_id, "QUANTUM", 7))
+	else if (!strncasecmp(lu->vendor_id, "ADIC", 4) ||
+			 !strncasecmp(lu->vendor_id, "QUANTUM", 7) ||
+			 !strncasecmp(lu->product_id, "Scalar", 6))
 		init_scalar_smc(lu);
 	else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7))
 		customise_spectra_lu(lu);
@@ -1517,11 +1541,7 @@ static void do_rereadconfig(void) {
 	update_drive_details(&lunit);
 
 	/* malloc a big enough buffer to fit worst case read element status */
-	buffer_size = (smc_slots.num_drives +
-				   smc_slots.num_picker +
-				   smc_slots.num_map +
-				   smc_slots.num_storage) *
-				  80;
+	buffer_size = smc_buffer_size(&smc_slots);
 	reset_device(); /* Force a POWER-ON/RESET sense code */
 	if (buffer_size > smc_slots.bufsize) {
 		MHVTL_LOG("Too many slots configured"
@@ -1696,12 +1716,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* malloc a big enough buffer to fit worst case read element status */
-	buffer_size = (smc_slots.num_drives +
-				   smc_slots.num_picker +
-				   smc_slots.num_map +
-				   smc_slots.num_storage) *
-				  80;
-	buffer_size		  = max(SMC_BUF_SIZE, buffer_size);
+	buffer_size		  = smc_buffer_size(&smc_slots);
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
 	buf = (uint8_t *)zalloc(buffer_size);
