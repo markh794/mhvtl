@@ -7,3 +7,15 @@ mhvtl: systemd-service-file-refers-to-unusual-wantedby-target mhvtl.target *
 mhvtl: no-manual-page [usr/bin/dump_messageQ]
 mhvtl: no-manual-page [usr/bin/mhvtl-raw-format]
 mhvtl: no-manual-page [usr/bin/mhvtl-raw-provision]
+
+# /etc/init.d/mhvtl is for non-systemd init systems only. Under systemd the
+# native owner is mhvtl.target plus the generated vtltape@/vtllibrary@
+# instances, not a plain mhvtl.service, and the init script bails out when
+# /run/systemd/system exists. Shipping a dummy mhvtl.service solely to satisfy
+# this tag would be misleading, so there is intentionally no counterpart unit.
+mhvtl: omitted-systemd-service-for-init.d-script mhvtl [etc/init.d/mhvtl]
+
+# The init script is intentionally portable (it also targets non-Debian sysV /
+# OpenRC systems such as Devuan and Slackware), so it does not source the
+# Debian-specific /lib/lsb/init-functions.
+mhvtl: init.d-script-does-not-source-init-functions [etc/init.d/mhvtl]

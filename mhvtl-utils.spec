@@ -239,6 +239,9 @@ done
 # The kernel module is built out of band from the packaged mhvtl_kernel.tgz;
 # discard the module the recursive install staged for the build host's kernel.
 %{__rm} -rf %{buildroot}/lib/modules
+# The LSB init script is for non-systemd systems; every distribution this spec
+# targets uses systemd, where the native units own mhVTL.
+%{__rm} -f %{buildroot}/etc/init.d/mhvtl
 %if 0%{?buildkmp}
 export INSTALL_MOD_PATH=%{buildroot}
 export INSTALL_MOD_DIR=updates

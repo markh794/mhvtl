@@ -31,6 +31,8 @@ MHVTL_CONFIG_PATH ?= /etc/mhvtl
 SYSTEMD_GENERATOR_DIR ?= /usr/lib/systemd/system-generators
 SYSTEMD_SERVICE_DIR ?= /usr/lib/systemd/system
 TMPFILES_DIR ?= /usr/lib/tmpfiles.d
+# SysV / LSB init script location (non-systemd systems).
+INITDIR ?= /etc/init.d
 
 # Phase 1 modernization: detect modern high-throughput compression libraries
 # via pkg-config (fallback for the Makefile path; the Meson build detects these

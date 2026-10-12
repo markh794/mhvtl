@@ -1,3 +1,4 @@
+etc/init.d/mhvtl
 etc/mhvtl/*
 usr/bin/*
 usr/libexec/mhvtl/*

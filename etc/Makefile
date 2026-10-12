@@ -28,8 +28,11 @@ SERVICES := $(filter-out mhvtl-tcmu-handler.service,$(SERVICES))
 endif
 MHVTL_TARGET = mhvtl.target
 
+# LSB init script for non-systemd systems (installed as $(INITDIR)/mhvtl).
+INITSCRIPT = mhvtl.init
 
-all: $(SERVICES) $(CONFIGS)
+
+all: $(SERVICES) $(CONFIGS) $(INITSCRIPT)
 
 %: %.in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
@@ -58,7 +61,7 @@ distclean: clean
 
 .PHONY: clean
 clean:
-	$(RM) $(SERVICES) $(GENERATORS) $(MHVTL_CONF_FILE)
+	$(RM) $(SERVICES) $(GENERATORS) $(MHVTL_CONF_FILE) $(INITSCRIPT)
 	$(RM) $(DEVICE_CONF_FILE) $(LIB_CONTENTS_FILES)
 
 $(DESTDIR)$(SYSTEMD_SERVICE_DIR):
@@ -70,6 +73,8 @@ $(DESTDIR)$(PREFIX)/bin:
 $(DESTDIR)$(TMPFILES_DIR):
 	install -d -m 755 $@
 $(DESTDIR)$(MHVTL_DATADIR):
+	install -d -m 755 $@
+$(DESTDIR)$(INITDIR):
 	install -d -m 755 $@
 
 # Installing services
@@ -91,12 +96,16 @@ $(DESTDIR)$(TMPFILES_DIR)/mhvtl.conf: $(TMPFILES_SRC) | $(DESTDIR)$(TMPFILES_DIR
 # read-only sample configuration (vendor examples)
 $(DESTDIR)$(MHVTL_DATADIR)/%: % | $(DESTDIR)$(MHVTL_DATADIR)
 	install -m 644 $< $@
+# LSB init script, installed as $(INITDIR)/mhvtl
+$(DESTDIR)$(INITDIR)/mhvtl: $(INITSCRIPT) | $(DESTDIR)$(INITDIR)
+	install -m 755 $< $@
 
 .PHONY: install
 install: all \
 		 $(addprefix $(DESTDIR)$(SYSTEMD_SERVICE_DIR)/,$(SERVICES) $(MHVTL_TARGET)) \
 		 $(addprefix $(DESTDIR)$(MHVTL_CONFIG_PATH)/,$(CONFIGS)) \
 		 $(addprefix $(DESTDIR)$(MHVTL_DATADIR)/,$(SAMPLE_CONFIGS)) \
+		 $(DESTDIR)$(INITDIR)/mhvtl \
 		 $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(GENERATORS)) \
 		 $(DESTDIR)$(TMPFILES_DIR)/mhvtl.conf
 	$(call RESTORECON_TREE,$(SYSTEMD_SERVICE_DIR))
@@ -107,6 +116,7 @@ install: all \
 uninstall:
 	$(RM) $(addprefix $(DESTDIR)$(SYSTEMD_SERVICE_DIR)/,$(SERVICES) $(MHVTL_TARGET))
 	$(RM) $(DESTDIR)$(TMPFILES_DIR)/mhvtl.conf
+	$(RM) $(DESTDIR)$(INITDIR)/mhvtl
 	$(RM) $(addprefix $(DESTDIR)$(MHVTL_DATADIR)/,$(SAMPLE_CONFIGS))
 	$(RM) $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(GENERATORS))
 ifneq ($(PREFIX)/bin,/usr/bin)
