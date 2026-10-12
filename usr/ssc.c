@@ -1522,7 +1522,7 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 
 #define SET_BOP(ptr, blk_number)                                  \
 	do {                                                          \
-		if ((blk_number) < 2) {                                   \
+		if ((blk_number) == 0) {                                  \
 			(ptr)->BOP = 1;                                       \
 			MHVTL_DBG(3, "Setting Beginning of Partition (BOP)"); \
 		}                                                         \
