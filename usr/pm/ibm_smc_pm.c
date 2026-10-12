@@ -63,14 +63,18 @@ static void update_ibm_3100_vpd_d0(struct lu_phy_attr *lu) {
 	pg = PCODE_OFFSET(0xd0);
 	if (lu_vpd[pg]) /* Free any earlier allocation */
 		dealloc_vpd(lu_vpd[pg]);
-	lu_vpd[pg] = alloc_vpd(0xc8);
+	lu_vpd[pg] = alloc_vpd(0xc0);
 	if (!lu_vpd[pg]) {
-		MHVTL_ERR("Could not malloc(0xc8) bytes, line %d", __LINE__);
+		MHVTL_ERR("Could not malloc(0xc0) bytes, line %d", __LINE__);
 		return;
 	}
 
 	d = lu_vpd[pg]->data;
-	memcpy(d, &pg_d0[0], sizeof(pg_d0));
+	/* pg_d0[0..3] is the VPD page header (08 d0 00 c0). The generic VPD
+	 * responder in spc.c prepends that header, so copy only the 192-byte
+	 * (0xc0) payload -- otherwise the page is returned with a doubled header
+	 * and a wrong page length. */
+	memcpy(d, &pg_d0[4], sizeof(pg_d0) - 4);
 }
 
 /*
