@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/file.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -1208,6 +1209,12 @@ static const char *get_lock_path(void) {
 #define LOCK_PATH get_lock_path()
 #define MAX_WAIT  20
 
+/* Held for the daemon's lifetime: the advisory flock() on this fd is what marks
+ * the device busy. The kernel drops it automatically when the process exits, so
+ * a crash no longer leaves a stale lock. Inherited across the daemonising fork;
+ * released by free_lock() on a clean shutdown. */
+static int lock_fd = -1;
+
 /* Create a directory and any missing parents, like `mkdir -p`. Existing
  * components are not an error. Returns 0 on success, -1 otherwise. */
 static int mkdir_p(const char *path, mode_t mode)
@@ -1238,7 +1245,6 @@ static int mkdir_p(const char *path, mode_t mode)
 
 int check_for_running_daemons(unsigned minor) {
 	char lck_file[128];
-	int	 lck;
 	int	 a;
 	long rand;
 
@@ -1251,35 +1257,53 @@ int check_for_running_daemons(unsigned minor) {
 			  LOCK_PATH, strerror(errno));
 	}
 
-	sprintf(lck_file, "%s/mhvtl%d", LOCK_PATH, minor);
+	snprintf(lck_file, sizeof(lck_file), "%s/mhvtl%d", LOCK_PATH, minor);
 	MHVTL_DBG(1, "Checking lock file %s", lck_file);
 
-	for (a = 0; a < MAX_WAIT; a++) {
-		lck = open(lck_file, O_CREAT | O_EXCL | O_WRONLY, S_IRWXU);
-		if (lck >= 0) {
-			MHVTL_DBG(1, "Successfully created lock file %s", lck_file);
-			close(lck);
-			return 0;
-		} else if (errno == EEXIST) { /* Lock file still exists */
-			rand = (0xffL & random()) << 12;
-			MHVTL_DBG(3, "Lock file exists, sleeping for 0x%lxs", rand);
-			usleep((useconds_t)rand);
-		} else { /* Unexpected error */
-			MHVTL_DBG(1, "opening lock file %s failed %s", lck_file, strerror(errno));
-			return 2;
-		}
+	/* The lock is an advisory flock() held for the daemon's lifetime, not the
+	 * mere existence of the file. The file is persistent and reused - never
+	 * unlinked, since unlinking a held lock file races a concurrent open() and
+	 * can hand two daemons a "lock" on different inodes. O_CLOEXEC keeps any
+	 * helper the daemon exec()s from inheriting (and pinning) the lock. */
+	lock_fd = open(lck_file, O_RDWR | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR);
+	if (lock_fd < 0) {
+		MHVTL_DBG(1, "opening lock file %s failed: %s", lck_file, strerror(errno));
+		return 2;
 	}
 
-	MHVTL_DBG(1, "Unable to obtain lock file %s - returing error", lck_file);
+	for (a = 0; a < MAX_WAIT; a++) {
+		if (flock(lock_fd, LOCK_EX | LOCK_NB) == 0) {
+			MHVTL_DBG(1, "Acquired lock on %s", lck_file);
+			return 0;
+		}
+		if (errno != EWOULDBLOCK) {
+			MHVTL_DBG(1, "flock on %s failed: %s", lck_file, strerror(errno));
+			close(lock_fd);
+			lock_fd = -1;
+			return 2;
+		}
+		/* Another daemon holds the lock; back off and retry. */
+		rand = (0xffL & random()) << 12;
+		MHVTL_DBG(3, "Lock held, sleeping for 0x%lxs", rand);
+		usleep((useconds_t)rand);
+	}
+
+	MHVTL_DBG(1, "Unable to obtain lock on %s - returning error", lck_file);
+	close(lock_fd);
+	lock_fd = -1;
 	return 1;
 }
 
 int free_lock(unsigned minor) {
-	char lck_file[128];
+	(void)minor;
 
-	sprintf(lck_file, "%s/mhvtl%d", LOCK_PATH, minor);
-	MHVTL_DBG(1, "Unlink %s", lck_file);
-	unlink(lck_file);
+	/* Release the flock and close the fd; the kernel would do the same on exit.
+	 * The lock file is left in place for reuse (see check_for_running_daemons). */
+	if (lock_fd >= 0) {
+		flock(lock_fd, LOCK_UN);
+		close(lock_fd);
+		lock_fd = -1;
+	}
 	return 0;
 }
 
