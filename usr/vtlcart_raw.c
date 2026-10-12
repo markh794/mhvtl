@@ -29,6 +29,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>		/* memfd_create */
 #include <linux/fs.h>		/* BLKGETSIZE64, BLKSSZGET, BLKPBSZGET, BLKFLSBUF */
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -858,6 +859,57 @@ static void fill_cartridge_uuid(uint8_t uuid[16])
 	uuid[8] = (uuid[8] & 0x3f) | 0x80;
 }
 
+/* A two-character LTO media-type suffix the raw backend accepts: data L1-L9
+ * and LA (LTO-10), the LTO-8 "M8" format written on LTO-7 media, and WORM
+ * LT-LZ (U3-U9). Labels per IBM SG24-5946 / GA32-0928. */
+static int valid_lto_media_suffix(const char *s)
+{
+	if (s[0] == 'L' && ((s[1] >= '1' && s[1] <= '9') || s[1] == 'A'))
+		return 1;				/* data L1-L9, LA */
+	if (s[0] == 'L' && s[1] >= 'T' && s[1] <= 'Z')
+		return 1;				/* WORM LT-LZ (U3-U9) */
+	if (s[0] == 'M' && s[1] == '8')
+		return 1;				/* M8 (LTO-7 media as LTO-8) */
+	return 0;
+}
+
+/* A raw cartridge barcode is a 6-character VOLSER, optionally followed by a
+ * two-character media-type suffix. Reject a malformed label (e.g. lowercase,
+ * wrong length, or a bogus/mismatched suffix) before it is baked into the
+ * superblock. Returns 0 if acceptable, -1 (errno EINVAL) otherwise. */
+static int validate_raw_barcode(const char *barcode)
+{
+	size_t len, i;
+
+	if (!barcode || !barcode[0])
+		return 0;	/* no barcode supplied: format without one */
+
+	len = strlen(barcode);
+	if (len != 6 && len != 8) {
+		MHVTL_ERR("raw_format: barcode '%s' must be 6 chars (VOLSER) or "
+			  "8 chars (VOLSER + media suffix, e.g. VOL001L8)", barcode);
+		errno = EINVAL;
+		return -1;
+	}
+	for (i = 0; i < 6; i++) {
+		unsigned char c = (unsigned char)barcode[i];
+		if (!isupper(c) && !isdigit(c)) {
+			MHVTL_ERR("raw_format: barcode '%s' VOLSER must be 6 "
+				  "upper-case alphanumeric characters", barcode);
+			errno = EINVAL;
+			return -1;
+		}
+	}
+	if (len == 8 && !valid_lto_media_suffix(barcode + 6)) {
+		MHVTL_ERR("raw_format: barcode '%s' has an invalid media suffix "
+			  "'%s' (expect data L1-L9/LA, M8, or WORM LT-LZ)",
+			  barcode, barcode + 6);
+		errno = EINVAL;
+		return -1;
+	}
+	return 0;
+}
+
 int raw_format(const char *devpath, const char *barcode,
 	       const char *partspec, uint64_t min_record_size)
 {
@@ -873,6 +925,9 @@ int raw_format(const char *devpath, const char *barcode,
 		errno = EINVAL;
 		return -1;
 	}
+
+	if (validate_raw_barcode(barcode) < 0)
+		return -1;
 
 	nparts = parse_partspec(partspec, pct);
 	if (nparts < 0) {
