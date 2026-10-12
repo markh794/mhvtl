@@ -84,9 +84,12 @@
 
 char mhvtl_driver_name[] = "vtltape";
 
-/* Variables for simple, logical only SCSI Encryption system */
-
-struct encryption app_encryption_state; /* Stores the encryption info the application sent us */
+/* Variables for simple, logical only SCSI Encryption system.
+ * app_encryption_state is defined in the library (vtllib.c) and declared
+ * extern in vtllib.h; the macros below reference that single instance. A
+ * second definition here produced two distinct objects (an ODR violation),
+ * benign only because of ELF symbol interposition.
+ */
 
 #define UKAD_LENGTH app_encryption_state.ukad_length
 #define AKAD_LENGTH app_encryption_state.akad_length
