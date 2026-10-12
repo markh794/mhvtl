@@ -61,7 +61,18 @@ is 1 through 9.
 
 .PP
 .B Compression type:
-zlib or lzo
+zlib, lzo, lz4, or zstd
+.IP
+.B lz4
+and
+.B zstd
+are the modern high-throughput codecs. The
+.B Compression: factor
+value above is the compression level: it is used by zlib (1-9) and zstd
+(clamped to 1-3), and ignored by lzo and lz4. lz4 and zstd store a block
+uncompressed when compression would not shrink it, so incompressible data is
+never expanded; all codecs are lossless and a cartridge may mix codecs (each
+block records its own).
 
 .PP
 .B Backoff:

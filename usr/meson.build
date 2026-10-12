@@ -80,7 +80,7 @@ libvtlscsi = shared_library('vtlscsi',
 )
 
 # object group reused by vtltape and dump_tape
-io_srcs = files('mhvtl_io.c', 'utils/minilzo.c', 'utils/crc32c.c', 'utils/reed-solomon.c')
+io_srcs = files('mhvtl_io.c', 'mhvtl_compress.c', 'utils/minilzo.c', 'utils/crc32c.c', 'utils/reed-solomon.c')
 
 # ---- daemons ----
 executable('vtltape',
@@ -126,7 +126,7 @@ executable('tapeexerciser', files('cmd/tapeexerciser.c'),
   include_directories : inc, install : false)
 executable('dump_tape',
   [files('cmd/tape_util.c', 'pm/default_ssc_pm.c'), io_srcs],
-  include_directories : inc, link_with : libvtlscsi, dependencies : [zlib], install : false)
+  include_directories : inc, link_with : libvtlscsi, dependencies : [zlib, lz4, zstd], install : false)
 executable('validate_crc',
   files('utils/validate_crc.c', 'utils/crc32c.c', 'utils/reed-solomon.c'),
   include_directories : inc, install : false)

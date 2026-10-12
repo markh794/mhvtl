@@ -27,7 +27,7 @@ RS_SRC   = ../usr/utils/reed-solomon.c
 CRC_SRC  = ../usr/utils/crc32c.c
 
 # All test binaries
-TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf
+TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select
 
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
@@ -59,6 +59,35 @@ test_log_volstat: test_log_volstat.c acutest.h
 
 test_raw_bay_conf: test_raw_bay_conf.c acutest.h ../usr/raw_bay_conf.c ../include/raw_bay_conf.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_bay_conf.c ../usr/raw_bay_conf.c
+
+# Compression codec round-trip (file backend here; the raw block-device backend
+# is exercised by tests/test_raw_loopback.sh, which rebuilds this with
+# -DRAW_BACKEND_AVAILABLE and links libvtlscsi for cart_backend_raw).
+COMPRESS_SRC = ../usr/mhvtl_compress.c
+test_compression: test_compression.c ../include/mhvtl_compress.h $(COMPRESS_SRC)
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_compression.c $(COMPRESS_SRC) -llz4 -lzstd
+
+# Throughput benchmark (US-C3). Not a pass/fail test, so it is NOT in $(TESTS);
+# build + run it with `make bench` (optionally `make bench BENCH_ARGS="512 256 1"`
+# = total_MiB block_KiB zstd_level). Uses the same shared codec path as the
+# write path; the file backend here, no root needed.
+bench_compression: bench_compression.c
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ bench_compression.c -llzo2 -lz -llz4 -lzstd
+
+.PHONY: bench
+bench: bench_compression
+	./bench_compression $(BENCH_ARGS)
+
+# Runtime codec selection (US-C2). Links libvtlscsi for the real mode-page and
+# tape-write entry points (set_mode_compression / load_tape / write_tape_block)
+# plus mhvtl_compress.c for the codec helpers. The selection + MODE SENSE
+# reflection checks run here with no backend; the write-path flag check runs
+# when tests/test_raw_loopback.sh passes a block device + barcode.
+../usr/libvtlscsi.so:
+	$(MAKE) -C ../usr libvtlscsi.so
+test_compression_select: test_compression_select.c ../include/vtlcart.h $(COMPRESS_SRC) ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_compression_select.c $(COMPRESS_SRC) \
+		-L ../usr -lvtlscsi -llz4 -lzstd -Wl,-rpath,'$$ORIGIN/../usr'
 
 # vtlcmd parsing test — compiles vtlcmd.c to .o with main renamed, then links
 VTLCMD_SRC = ../usr/cmd/vtlcmd.c
@@ -109,4 +138,4 @@ test: $(TESTS)
 	fi
 
 clean:
-	rm -f $(TESTS) $(INTEGRATION_TESTS) vtlcmd_testobj.o
+	rm -f $(TESTS) $(INTEGRATION_TESTS) bench_compression vtlcmd_testobj.o

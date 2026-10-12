@@ -26,8 +26,9 @@ Toggle verbose flag. This will cycle verbose flag thru verbose settings 3 2 1 of
 Load media ID (barcode) - Used for stand-alone tape drive daemon.
 .IP "unload <ID>"
 Unload media ID (barcode)
-.IP "compression <ZLIB|LZO>"
-Changes compression libraries used to compress each block of data. Valid for
+.IP "compression <ZLIB|LZO|LZ4|ZSTD>"
+Changes the codec used to compress each block of data. ZLIB and LZO are the
+legacy codecs; LZ4 and ZSTD are the modern high-throughput codecs. Valid for
 .B tape
 only.
 .IP "delay load x"

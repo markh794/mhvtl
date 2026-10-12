@@ -345,6 +345,51 @@ int add_mode_control_data_protection(struct lu_phy_attr *lu) {
  */
 #define COMPRESSION_TYPE 0x10
 
+/* Map the active write-time codec (comp_type, see vtlcart.h) to the
+ * Compression Algorithm identifier reported in the Data Compression mode
+ * page. LZ4/ZSTD get distinct codes; everything else keeps the legacy
+ * default so existing LZO/ZLIB/none behaviour is unchanged on the wire.
+ */
+static uint32_t compression_algo_code(uint8_t comp_type) {
+	switch (comp_type) {
+	case LZ4:
+		return MHVTL_COMP_ALGO_LZ4;
+	case ZSTD:
+		return MHVTL_COMP_ALGO_ZSTD;
+	default:
+		return MHVTL_COMP_ALGO_DEFAULT;
+	}
+}
+
+/* Map a Compression Algorithm identifier from a MODE SELECT to a codec.
+ * Unknown / legacy / none codes keep the currently configured codec
+ * (fallback), so a host that just toggles the enable bit does not clobber a
+ * configured LZO/ZLIB selection. */
+static uint8_t compression_type_from_algo(uint32_t algo, uint8_t fallback) {
+	switch (algo) {
+	case MHVTL_COMP_ALGO_LZ4:
+		return LZ4;
+	case MHVTL_COMP_ALGO_ZSTD:
+		return ZSTD;
+	default:
+		return fallback;
+	}
+}
+
+/* Update the Compression Algorithm fields of the stored Data Compression mode
+ * page so a subsequent MODE SENSE reports the codec now in effect. */
+static void set_reported_compression_algo(struct lu_phy_attr *lu, uint8_t comp_type) {
+	struct mode *m = lookup_mode_pg(&lu->mode_pg, MODE_DATA_COMPRESSION, 0);
+	uint32_t	 algo;
+
+	if (!m)
+		return;
+
+	algo = compression_algo_code(comp_type);
+	put_unaligned_be32(algo, &m->pcodePointer[4]);
+	put_unaligned_be32(algo, &m->pcodePointer[8]);
+}
+
 int add_mode_data_compression(struct lu_phy_attr *lu) {
 	struct list_head *mode_pg;
 	struct mode		 *mp;
@@ -373,8 +418,16 @@ int add_mode_data_compression(struct lu_phy_attr *lu) {
 
 	mp->pcodePointer[2] = 0xc0; /* Set data compression enable */
 	mp->pcodePointer[3] = 0x80; /* Set data decompression enable */
-	put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[4]);
-	put_unaligned_be32(COMPRESSION_TYPE, &mp->pcodePointer[8]);
+	/* Report the currently selected codec's algorithm id (LZ4/ZSTD get
+	 * distinct codes; LZO/ZLIB/none keep the legacy 0x10 default). */
+	{
+		uint8_t comp_type = lu->lu_private
+			? ((struct priv_lu_ssc *)lu->lu_private)->compressionType
+			: 0;
+		uint32_t algo = compression_algo_code(comp_type);
+		put_unaligned_be32(algo, &mp->pcodePointer[4]);
+		put_unaligned_be32(algo, &mp->pcodePointer[8]);
+	}
 
 	/* Changeable fields - these belong in the bitmap, not in the page:
 	 * writing them to pcodePointer overwrote the algorithm set above and
@@ -411,12 +464,40 @@ void set_mode_compression(struct scsi_cmd *cmd, uint8_t *p) {
 			  (p[3] & 0x6) >> 5);
 
 	if (dce) { /* Data Compression Enable bit set */
-		MHVTL_DBG(1, " Setting compression");
+		uint32_t algo = get_unaligned_be32(&p[4]);
+		uint8_t	 comp_type;
+		int		 lvl;
+
+		/* Pick the codec from the Compression Algorithm field. LZ4/ZSTD
+		 * select those codecs; legacy/none/unknown codes keep whatever
+		 * codec was already configured (preserves LZO/ZLIB behaviour). */
+		comp_type = compression_type_from_algo(algo, lu_priv->compressionType);
+		lu_priv->compressionType = comp_type;
+
+		MHVTL_DBG(1, " Setting compression (codec %d, algo 0x%08x)",
+				  comp_type, algo);
+
+		/* The configured factor is a zlib level for the legacy codecs. For
+		 * ZSTD it carries the ZSTD level (clamp 1-3); for LZ4 the level is
+		 * unused but the factor must be non-zero or the write path treats
+		 * the block as uncompressed. */
+		lvl = lu_priv->configCompressionFactor;
+		if (comp_type == ZSTD) {
+			if (lvl < 1)
+				lvl = 1;
+			else if (lvl > 3)
+				lvl = 3;
+		} else if (comp_type == LZ4) {
+			if (lvl < 1)
+				lvl = 1;
+		}
+
 		if (pm->set_compression) {
-			pm->set_compression(&lu->mode_pg,
-								lu_priv->configCompressionFactor);
+			pm->set_compression(&lu->mode_pg, lvl);
 			set_lp11_compression(1); /* Update LogPage 11 compression bit */
 		}
+		/* Reflect the active codec so MODE SENSE reports it back. */
+		set_reported_compression_algo(lu, comp_type);
 	} else {
 		MHVTL_DBG(1, " Clearing compression");
 		if (pm->clear_compression) {

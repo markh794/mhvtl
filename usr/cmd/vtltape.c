@@ -1626,6 +1626,21 @@ void unloadTape(int update_library, uint8_t *sam_stat) {
 	OK_to_write = 0;
 }
 
+static const char *compression_name(uint8_t type) {
+	switch (type) {
+	case LZO:
+		return "LZO";
+	case ZLIB:
+		return "ZLIB";
+	case LZ4:
+		return "LZ4";
+	case ZSTD:
+		return "ZSTD";
+	default:
+		return "NONE";
+	}
+}
+
 static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	char			   *pcl;
 	char				s[128];
@@ -1768,8 +1783,12 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 			lu_ssc.compressionType = LZO;
 		if (!strncasecmp(s, "zlib", 4))
 			lu_ssc.compressionType = ZLIB;
+		if (!strncasecmp(s, "lz4", 3))
+			lu_ssc.compressionType = LZ4;
+		if (!strncasecmp(s, "zstd", 4))
+			lu_ssc.compressionType = ZSTD;
 		MHVTL_DBG(1, "Compression set to %s",
-				  (lu_ssc.compressionType == LZO) ? "LZO" : "ZLIB");
+				  compression_name(lu_ssc.compressionType));
 	}
 
 	if (!strncasecmp(msg->text, "append", 6)) {
@@ -2165,8 +2184,12 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 					lu_ssc.compressionType = LZO;
 				if (!strncasecmp(v, "zlib", 4))
 					lu_ssc.compressionType = ZLIB;
+				if (!strncasecmp(v, "lz4", 3))
+					lu_ssc.compressionType = LZ4;
+				if (!strncasecmp(v, "zstd", 4))
+					lu_ssc.compressionType = ZSTD;
 				MHVTL_DBG(2, "Compression set to %s",
-						  (lu_ssc.compressionType == LZO) ? "LZO" : "ZLIB");
+						  compression_name(lu_ssc.compressionType));
 			}
 			if (sscanf(b, " Compression: factor %d enabled %d",
 					   &i, &j)) {
