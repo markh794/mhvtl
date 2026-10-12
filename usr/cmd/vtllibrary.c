@@ -1522,6 +1522,9 @@ static void customise_lu(struct lu_phy_attr *lu) {
 		customise_spectra_lu(lu);
 	else
 		init_default_smc(lu);
+
+	/* Snapshot the fully-built pages as the default values (MODE SENSE PC=2). */
+	freeze_mode_page_defaults(lu);
 }
 
 static volatile sig_atomic_t reread_config_requested;

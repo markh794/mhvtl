@@ -1923,6 +1923,10 @@ static void config_lu(struct lu_phy_attr *lu) {
 		set_lp11_compression(0);
 	}
 
+	/* Pages are fully built (including the compression override); snapshot
+	 * them as the default values returned for MODE SENSE PC=2. */
+	freeze_mode_page_defaults(lu);
+
 	MHVTL_DBG(1, "%s: supports WORM : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_WORM ? "Yes" : "No");
 	MHVTL_DBG(1, "%s: supports append-only mode : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_append_only_mode ? "Yes" : "No");
 	MHVTL_DBG(1, "%s: supports Security Protocol : %s", lu_ssc.pm->name, lu_ssc.pm->drive_supports_SP ? "Yes" : "No");

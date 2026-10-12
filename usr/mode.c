@@ -131,8 +131,35 @@ void dealloc_all_mode_pages(struct lu_phy_attr *lu) {
 		MHVTL_DBG(2, "Removing %s", mp->description);
 		free(mp->pcodePointer);
 		free(mp->pcodePointerBitMap);
+		free(mp->pcodePointerDefault);
 		list_del(&mp->siblings);
 		free(mp);
+	}
+}
+
+/*
+ * Snapshot each mode page's current contents as its immutable "default"
+ * values. MODE SENSE with page control 2 (default values) returns this
+ * snapshot, so it is unaffected by later MODE SELECT changes to the current
+ * values. Call once after the personality has finished building every page
+ * (and any config-driven overrides, e.g. compression, have been applied) and
+ * before any command processing can mutate pcodePointer. On allocation
+ * failure the default stays NULL and add_pcode() falls back to the current
+ * values.
+ */
+void freeze_mode_page_defaults(struct lu_phy_attr *lu) {
+	struct mode *mp;
+
+	list_for_each_entry(mp, &lu->mode_pg, siblings) {
+		if (mp->pcodePointerDefault) /* already frozen */
+			continue;
+		mp->pcodePointerDefault = malloc(mp->pcodeSize);
+		if (!mp->pcodePointerDefault) {
+			MHVTL_ERR("Unable to malloc(%d) for mode page 0x%02x defaults",
+					  mp->pcodeSize, mp->pcode);
+			continue;
+		}
+		memcpy(mp->pcodePointerDefault, mp->pcodePointer, mp->pcodeSize);
 	}
 }
 
