@@ -48,16 +48,28 @@ check:
 patch:
 
 
-install: all
+# A full install covers the user-space components and the kernel module. The
+# two are decoupled so the user space still installs on hosts without kernel
+# build headers (containers, minimal systems) or where only user space is
+# packaged: `make install-user`. The kernel step is itself graceful when no
+# build tree is found (see kernel/Makefile), so plain `make install` no longer
+# aborts there.
+install: install-user install-kernel
+
+.PHONY: install-user
+install-user: all
 	[ -d $(DESTDIR)$(MHVTL_HOME_PATH) ] || mkdir -p $(DESTDIR)$(MHVTL_HOME_PATH)
 	$(MAKE) -C usr install
 	$(MAKE) -C scripts install
 	$(MAKE) -C etc install
 	$(MAKE) -C man install
-	$(MAKE) -C kernel install
 ifeq ($(ROOTUID),YES)
-	systemctl daemon-reload
+	@$(RELOAD_SYSTEMD)
 endif
+
+.PHONY: install-kernel
+install-kernel:
+	$(MAKE) -C kernel install
 
 tape: # now ensure VTL media is setup
 	env LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR) \
@@ -74,7 +86,7 @@ uninstall:
 	$(MAKE) -C man uninstall
 	$(MAKE) -C kernel uninstall
 ifeq ($(ROOTUID),YES)
-	systemctl daemon-reload
+	@$(RELOAD_SYSTEMD)
 endif
 
 tar: distclean
