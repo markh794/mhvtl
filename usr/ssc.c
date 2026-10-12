@@ -1212,28 +1212,25 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 			break;
 
 		case MODE_CONTROL:
-			if (!subpage) {							  /* Control mode page */
-				MHVTL_DBG(3, "Setting Mode Control"); /* Silently accept this worked, but really did not change anything */
-			} else {
-				if (subpage == 0x01) {
-					/* Control Extension (advertised by MODE SENSE): accept it like the
-					 * base control page. Windows HPE LTO drivers write it before use. */
-					MHVTL_DBG(3, "Setting Mode Control Extension");
-				} else if (subpage == 0xf0) {
-					/* Logical Block Protection */
-					MHVTL_DBG(2, "Setting LBP method: %d, LBP length: %d, LBP_W: %s, LBP_R: %s",
-							  buf[4 + i], buf[5 + i],
-							  (buf[6 + i] & 0x80) ? "True" : "False",
-							  (buf[6 + i] & 0x40) ? "True" : "False");
-					if (set_lbp(cmd, &buf[i], page_len))
-						return SAM_STAT_CHECK_CONDITION;
-				} else {
-					MHVTL_DBG(2, "Mode Control - Subpage: 0x%02x not supported", buf[i + 1]);
-					sd.byte0		 = SKSV;
-					sd.field_pointer = i;
-					sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+			/* Only accept the control (sub)pages this drive emulation advertises */
+			if (!lookup_mode_pg(&lu->mode_pg, page, subpage)) {
+				MHVTL_DBG(2, "Mode Control - Subpage: 0x%02x not supported", subpage);
+				sd.byte0		 = SKSV;
+				sd.field_pointer = i;
+				sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			}
+			if (subpage == 0xf0) {
+				/* Logical Block Protection */
+				MHVTL_DBG(2, "Setting LBP method: %d, LBP length: %d, LBP_W: %s, LBP_R: %s",
+						  buf[4 + i], buf[5 + i],
+						  (buf[6 + i] & 0x80) ? "True" : "False",
+						  (buf[6 + i] & 0x40) ? "True" : "False");
+				if (set_lbp(cmd, &buf[i], page_len))
 					return SAM_STAT_CHECK_CONDITION;
-				}
+			} else {
+				/* Silently accept this worked, but really did not change anything */
+				MHVTL_DBG(3, "Setting Mode Control - Subpage: 0x%02x", subpage);
 			}
 			return SAM_STAT_GOOD;
 			break;
