@@ -102,17 +102,19 @@ fi
 #%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %build
-# LIBDIR must match the install section below: it is baked into the binaries as
-# the RUNPATH to libvtlscsi.so (under LIBDIR/mhvtl), so building with the
-# config.mk default while installing to a different libdir would point the
-# RUNPATH at the wrong directory.
+# LIBDIR and MHVTL_LIBEXECDIR must match the install section below: LIBDIR
+# is baked into the binaries as the RUNPATH to libvtlscsi.so (under
+# LIBDIR/mhvtl), and the daemons' unit ExecStart path is generated here from
+# MHVTL_LIBEXECDIR, where the daemons are installed below.
 make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
+	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir}
 
 %install
 %make_install \
 	MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
+	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl MHVTL_DATADIR=%{_datadir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir} \
 	TMPFILES_DIR=%{_tmpfilesdir}
@@ -170,6 +172,8 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %config(noreplace) %{_sysconfdir}/mhvtl/device.conf
 %config(noreplace) %{_sysconfdir}/mhvtl/library_contents.10
 %config(noreplace) %{_sysconfdir}/mhvtl/library_contents.30
+%dir %{_datadir}/mhvtl
+%{_datadir}/mhvtl/*
 %dir %{_usrsrc}/mhvtl-%{dkms_version}
 %{_usrsrc}/mhvtl-%{dkms_version}/*
 %{_systemdgeneratordir}/mhvtl-device-conf-generator
@@ -182,8 +186,9 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %ghost %{mhvtl_home_dir}/*
 
 %defattr(755, root, root, 0755)
-%{_bindir}/vtltape
-%{_bindir}/vtllibrary
+%dir %{_libexecdir}/mhvtl
+%{_libexecdir}/mhvtl/vtltape
+%{_libexecdir}/mhvtl/vtllibrary
 
 %defattr(-, root, root, 755)
 %dir /opt/mhvtl/

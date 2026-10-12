@@ -61,6 +61,15 @@ BINARIES += bin/mhvtl_tcmu_handler
 endif
 LIBRARIES = libvtlscsi.so
 
+# Daemons are started by the systemd units / udev, not invoked by users, so
+# they install under $(MHVTL_LIBEXECDIR); the remaining CLIs stay in
+# $(PREFIX)/bin.
+DAEMON_BINARIES = bin/vtltape bin/vtllibrary bin/mhvtl-bay-monitor
+ifdef TCMU
+DAEMON_BINARIES += bin/mhvtl_tcmu_handler
+endif
+CLI_BINARIES = $(filter-out $(DAEMON_BINARIES),$(BINARIES))
+
 all: | bin
 all: $(LIBRARIES) $(BINARIES) $(GENERATED_FILES) validate_crc
 
@@ -258,8 +267,12 @@ $(DESTDIR)$(PREFIX)/bin:
 	install -d -m 755 $@
 $(DESTDIR)$(MHVTL_LIBDIR):
 	install -d -m 755 $@
+$(DESTDIR)$(MHVTL_LIBEXECDIR):
+	install -d -m 755 $@
 
 $(DESTDIR)$(MHVTL_LIBDIR)/%.so: %.so | $(DESTDIR)$(MHVTL_LIBDIR)
+	install -m 755 $< $@
+$(DESTDIR)$(MHVTL_LIBEXECDIR)/%: bin/% | $(DESTDIR)$(MHVTL_LIBEXECDIR)
 	install -m 755 $< $@
 $(DESTDIR)$(PREFIX)/bin/%: bin/% | $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $< $@
@@ -268,7 +281,8 @@ $(DESTDIR)$(PREFIX)/bin/tape_util: bin/tape_util
 
 .PHONY:install
 install: all \
-		 $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
+		 $(addprefix $(DESTDIR)$(PREFIX)/,$(CLI_BINARIES) $(GENERATED_FILES)) \
+		 $(patsubst bin/%,$(DESTDIR)$(MHVTL_LIBEXECDIR)/%,$(DAEMON_BINARIES)) \
 		 $(addprefix $(DESTDIR)$(MHVTL_LIBDIR)/,$(LIBRARIES))
 	@rm -f $(DESTDIR)$(PREFIX)/bin/preload_tape
 	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape
@@ -284,7 +298,8 @@ endif
 
 .PHONY: uninstall
 uninstall:
-	rm -f $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
+	rm -f $(addprefix $(DESTDIR)$(PREFIX)/,$(CLI_BINARIES) $(GENERATED_FILES)) \
+		  $(patsubst bin/%,$(DESTDIR)$(MHVTL_LIBEXECDIR)/%,$(DAEMON_BINARIES)) \
 		  $(DESTDIR)$(PREFIX)/bin/preload_tape \
 		  $(addprefix $(DESTDIR)$(MHVTL_LIBDIR)/,$(LIBRARIES)) \
 		  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/mhvtl-device-conf-generator
