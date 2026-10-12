@@ -203,8 +203,15 @@ static void update_ibm_3584_vpd_83(struct lu_phy_attr *lu) {
 	memcpy(&d[12], &lu->inquiry[16], 16);
 	/* Serial Number of device */
 	memcpy(&d[28], &lu->inquiry[38], 12);
-	/* First Storage Element Address */
-	snprintf((char *)&d[40], 5, "%04x", smc_p->pm->start_storage);
+	/* First Storage Element Address: 4 hex chars written in place. snprintf
+	 * must not write here directly -- its NUL terminator would land at d[44],
+	 * one byte past the 0x2c-byte (44) VPD buffer. */
+	{
+		char esa[5];
+
+		snprintf(esa, sizeof(esa), "%04x", smc_p->pm->start_storage);
+		memcpy(&d[40], esa, 4);
+	}
 }
 
 static void update_ibm_3584_inquiry(struct lu_phy_attr *lu) {
