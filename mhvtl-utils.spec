@@ -97,7 +97,11 @@ fi
 #%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 
 %build
-make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} \
+# LIBDIR must match the install section below: it is baked into the binaries as
+# the RUNPATH to libvtlscsi.so (under LIBDIR/mhvtl), so building with the
+# config.mk default while installing to a different libdir would point the
+# RUNPATH at the wrong directory.
+make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir}
 
@@ -152,7 +156,8 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_bindir}/update_device.conf
 %{_bindir}/generate_device_conf
 %{_bindir}/generate_library_contents
-%{_libdir}/libvtlscsi.so
+%dir %{_libdir}/mhvtl
+%{_libdir}/mhvtl/libvtlscsi.so
 %{_firmwarepath}/mhvtl/mhvtl_kernel.tgz
 %dir %{_sysconfdir}/mhvtl
 %config(noreplace) %{_sysconfdir}/mhvtl/mhvtl.conf

@@ -10,27 +10,28 @@ MHVTL_HOME_PATH = /var/lib/mhvtl
 DKMS_SRC = debian/tmp/usr/src/mhvtl-$(DEB_VERSION_UPSTREAM)
 
 # libvtlscsi.so carries no SONAME and has no stable ABI, so it is a private
-# library under Policy 10.2 rather than a public one, which means the binaries
-# need an rpath to find it.
-PRIVATE_LIBDIR = /usr/lib/$(DEB_HOST_MULTIARCH)/mhvtl
+# library under Policy 10.2 rather than a public one. Setting LIBDIR to the
+# multiarch directory makes upstream install it under <libdir>/mhvtl
+# (config.mk's MHVTL_LIBDIR) and record that as the binaries' RUNPATH, so no
+# rpath needs to be injected here.
+MULTIARCH_LIBDIR = /usr/lib/$(DEB_HOST_MULTIARCH)
 
 # usr/Makefile assigns CFLAGS with = and so discards the environment, but it
 # interpolates RPM_OPT_FLAGS into both CFLAGS and the shared library link.
 # That is the only hook upstream offers for distribution flags, so the
-# hardening flags and the rpath are both routed through it. The link rules use
-# $(CFLAGS) rather than $(LDFLAGS), hence the linker flags travel with it.
+# hardening flags are routed through it. The link rules use $(CFLAGS) rather
+# than $(LDFLAGS), hence the linker flags travel with it.
 RPM_OPT_FLAGS = \
 	$(shell dpkg-buildflags --get CPPFLAGS) \
 	$(shell dpkg-buildflags --get CFLAGS) \
-	$(shell dpkg-buildflags --get LDFLAGS) \
-	-Wl,-rpath,$(PRIVATE_LIBDIR)
+	$(shell dpkg-buildflags --get LDFLAGS)
 
 # The upstream makefiles read every path from config.mk. Command line
 # assignments override its ?= defaults and propagate to the sub-makes.
 MHVTL_MAKE_VARS = \
 	PREFIX=/usr \
 	MANDIR=/share/man \
-	LIBDIR=$(PRIVATE_LIBDIR) \
+	LIBDIR=$(MULTIARCH_LIBDIR) \
 	MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) \
 	MHVTL_CONFIG_PATH=/etc/mhvtl \
 	SYSTEMD_SERVICE_DIR=/usr/lib/systemd/system \

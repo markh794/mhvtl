@@ -60,7 +60,7 @@ ifeq ($(ROOTUID),YES)
 endif
 
 tape: # now ensure VTL media is setup
-	env LD_LIBRARY_PATH=$(DESTDIR)$(LIBDIR) \
+	env LD_LIBRARY_PATH=$(DESTDIR)$(MHVTL_LIBDIR) \
 		$(MAKE_VTL_MEDIA) \
 			--config-dir=$(DESTDIR)$(MHVTL_CONFIG_PATH) \
 			--home-dir=$(DESTDIR)$(MHVTL_HOME_PATH) \
