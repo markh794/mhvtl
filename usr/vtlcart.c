@@ -43,6 +43,8 @@
 #include "logging.h"
 #include "mhvtl_scsi.h"
 #include "vtlcart.h"
+#include "cart_backend.h"
+#include "cart_backend_raw.h"
 #include "vtllib.h"
 #include "mhvtl_update.h"
 #include "be_byteshift.h"
@@ -78,6 +80,104 @@ static int indxfile[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = -1};
 static int metafile[MAX_PARTITIONS] = {[0 ... MAX_PARTITIONS - 1] = -1};
 static int mamfile					= -1;
 static int mhvtlfile				= -1;
+
+/*
+ * Phase 2 storage-backend seam: the file backend maps a (stream, partition)
+ * to one of the fd arrays above and performs the identical syscall the code
+ * used to call directly. Behaviour-preserving by construction.
+ */
+/* file-backend open/create/close helpers, defined later in this file */
+static int open_partition(uint8_t partition_number);
+static int create_partition(int partition_number);
+static void close_partition(uint8_t partition_number);
+
+/* file-backend cartridge-level ops (increment 4), defined later in this file */
+static int file_be_open_cartridge(const char *pcl, int create);
+static void file_be_close_cartridge(void);
+static int file_be_load_mam(struct MAM *mamp, uint8_t *sam_stat);
+static int file_be_save_mam(struct MAM *mamp);
+static int file_be_num_partitions(void);
+static off_t file_be_used_size(enum cart_stream s, int partition);
+static int file_be_partition_loaded(int partition);
+
+static int cart_stream_fd(enum cart_stream s, int partition)
+{
+	switch (s) {
+	case CART_STREAM_DATA: return datafile[partition];
+	case CART_STREAM_INDX: return indxfile[partition];
+	case CART_STREAM_META: return metafile[partition];
+	}
+	return -1;
+}
+
+static ssize_t file_be_pread(enum cart_stream s, int partition,
+			     void *buf, size_t len, off_t off)
+{
+	return pread(cart_stream_fd(s, partition), buf, len, off);
+}
+
+static ssize_t file_be_pwrite(enum cart_stream s, int partition,
+			      const void *buf, size_t len, off_t off)
+{
+	return pwrite(cart_stream_fd(s, partition), buf, len, off);
+}
+
+static int file_be_truncate(enum cart_stream s, int partition, off_t len)
+{
+	return ftruncate(cart_stream_fd(s, partition), len);
+}
+
+static int file_be_sync(enum cart_stream s, int partition)
+{
+	return fsync(cart_stream_fd(s, partition));
+}
+
+static int file_be_fadvise_dontneed(enum cart_stream s, int partition)
+{
+	return posix_fadvise(cart_stream_fd(s, partition), 0, 0,
+			     POSIX_FADV_DONTNEED);
+}
+
+static struct cart_backend cart_backend_file = {
+	.name			= "file",
+	.open_partition		= open_partition,
+	.create_partition	= create_partition,
+	.close_partition	= close_partition,
+	.pread			= file_be_pread,
+	.pwrite			= file_be_pwrite,
+	.truncate		= file_be_truncate,
+	.sync			= file_be_sync,
+	.fadvise_dontneed	= file_be_fadvise_dontneed,
+	.open_cartridge		= file_be_open_cartridge,
+	.close_cartridge	= file_be_close_cartridge,
+	.load_mam		= file_be_load_mam,
+	.save_mam		= file_be_save_mam,
+	.num_partitions		= file_be_num_partitions,
+	.used_size		= file_be_used_size,
+	.partition_loaded	= file_be_partition_loaded,
+};
+
+struct cart_backend *cart_be = &cart_backend_file;
+
+/*
+ * Choose the cartridge backend for the resolved cartridge path. A block device
+ * is the future home of the raw adapter; until vtlcart_raw.c exists, every
+ * cartridge (directory-based today) uses the file backend, so behaviour is
+ * unchanged. The S_ISBLK branch is the reserved integration point.
+ */
+static void cart_select_backend(const char *pcl)
+{
+	struct stat st;
+
+	if (pcl && stat(pcl, &st) == 0 && S_ISBLK(st.st_mode)) {
+		/* stat() follows symlinks, so a home_directory/<barcode> symlink
+		 * pointing at a block device resolves here (design §8). */
+		MHVTL_DBG(1, "cartridge %s is a block device - using raw backend", pcl);
+		cart_be = &cart_backend_raw;
+		return;
+	}
+	cart_be = &cart_backend_file;
+}
 
 static struct raw_header  raw_pos;
 static struct meta_header meta[MAX_PARTITIONS];
@@ -152,7 +252,7 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 	} else if (blk_number == eod_blk_number[c_pos->partition_id])
 		mkEODHeader(eod_blk_number[c_pos->partition_id], eod_data_offset[c_pos->partition_id]);
 	else {
-		nread = pread(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
+		nread = cart_be->pread(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 					  blk_number * sizeof(raw_pos));
 		if (nread < 0) {
 			MHVTL_ERR("Medium format corrupt");
@@ -175,7 +275,7 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 }
 
 static int tape_loaded(uint8_t *sam_stat) {
-	if (datafile[c_pos->partition_id] != -1)
+	if (cart_be->partition_loaded(c_pos->partition_id))
 		return 1;
 
 	sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
@@ -188,7 +288,7 @@ static int rewrite_meta_file(void) {
 	size_t	io_offset;
 
 	io_size = sizeof(struct meta_header);
-	nwrite	= pwrite(metafile[c_pos->partition_id], &meta[c_pos->partition_id], io_size, 0);
+	nwrite	= cart_be->pwrite(CART_STREAM_META, c_pos->partition_id, &meta[c_pos->partition_id], io_size, 0);
 	if (nwrite < 0) {
 		MHVTL_ERR("Error writing meta_header to metafile: %s",
 				  strerror(errno));
@@ -205,7 +305,7 @@ static int rewrite_meta_file(void) {
 	io_offset = sizeof(struct meta_header);
 
 	if (io_size) {
-		nwrite = pwrite(metafile[c_pos->partition_id], filemarks[c_pos->partition_id], io_size, io_offset);
+		nwrite = cart_be->pwrite(CART_STREAM_META, c_pos->partition_id, filemarks[c_pos->partition_id], io_size, io_offset);
 		if (nwrite < 0) {
 			MHVTL_ERR("Error writing filemark map to metafile: %s",
 					  strerror(errno));
@@ -223,7 +323,7 @@ static int rewrite_meta_file(void) {
 	   than before.
 	*/
 
-	if (ftruncate(metafile[c_pos->partition_id], io_offset + io_size) < 0) {
+	if (cart_be->truncate(CART_STREAM_META, c_pos->partition_id, io_offset + io_size) < 0) {
 		MHVTL_ERR("Error truncating metafile: %s", strerror(errno));
 		return -1;
 	}
@@ -248,7 +348,7 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 	blk_number	= c_pos->blk_number;
 	data_offset = raw_pos.data_offset;
 
-	if (ftruncate(indxfile[c_pos->partition_id], blk_number * sizeof(raw_pos))) {
+	if (cart_be->truncate(CART_STREAM_INDX, c_pos->partition_id, blk_number * sizeof(raw_pos))) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Index file ftruncate failure, pos: "
 				  "%" PRId64 ": %s",
@@ -256,7 +356,7 @@ static int check_for_overwrite(uint8_t *sam_stat) {
 				  strerror(errno));
 		return -1;
 	}
-	if (ftruncate(datafile[c_pos->partition_id], data_offset)) {
+	if (cart_be->truncate(CART_STREAM_DATA, c_pos->partition_id, data_offset)) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 		MHVTL_ERR("Data file ftruncate failure, pos: "
 				  "%" PRId64 ": %s",
@@ -833,16 +933,11 @@ int write_mam(int mam_fd, int mhvtl_fd) {
  * Returns 0 if nothing written or -1 on error
  */
 int rewriteMAM(uint8_t *sam_stat) {
-	char mam_path[1024];
-	char mhvtl_data_path[1024];
-
 	if (!tape_loaded(sam_stat))
 		return -1;
 
 	/* Rewrite MAM data */
-	snprintf(mam_path, sizeof(mam_path), "%s/mam", currentPCL);
-	snprintf(mhvtl_data_path, sizeof(mhvtl_data_path), "%s/mhvtl_data", currentPCL);
-	if (write_mam(mamfile, mhvtlfile) < 0) {
+	if (cart_be->save_mam(&mam) < 0) {
 		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return -1;
 	};
@@ -934,9 +1029,9 @@ int change_partition(uint8_t partition_number) {
 		return 1;
 	}
 
-	close_partition(c_pos->partition_id);
+	cart_be->close_partition(c_pos->partition_id);
 	c_pos->partition_id = partition_number;
-	rc					= open_partition(partition_number);
+	rc					= cart_be->open_partition(partition_number);
 	if (read_header(0, &sam_stat))
 		MHVTL_ERR("Could not read the first header of partition %d",
 				  partition_number);
@@ -949,7 +1044,7 @@ static void erase_partition(uint8_t *sam_stat) {
 	c_pos->blk_number	= 0;
 	raw_pos.data_offset = 0;
 	format_partition(sam_stat);
-	close_partition(c_pos->partition_id);
+	cart_be->close_partition(c_pos->partition_id);
 	unlink_partition(c_pos->partition_id);
 }
 
@@ -1002,6 +1097,196 @@ static int create_partition(int partition_number) {
 	return 0;
 }
 
+/* ------------------------------------------------------------------------
+ * File backend — cartridge-level ops (increment 4)
+ *
+ * These extract the cartridge-container lifecycle (directory + mam +
+ * mhvtl_data), MAM load/save, and partition counting that create_tape() and
+ * load_tape() used to do inline. The statements are preserved verbatim so the
+ * file backend stays byte-identical; the raw backend (usr/vtlcart_raw.c)
+ * provides its own implementations of the same seam ops.
+ * ------------------------------------------------------------------------ */
+
+/*
+ * Open (create==0) or create (create!=0) the cartridge container under the
+ * resolved currentPCL. On create, an already-present cartridge returns
+ * CART_OPEN_EXISTS (nothing opened); otherwise mam + mhvtl_data are created and
+ * left open for save_mam(). On load, mam is opened (with a legacy mam-extract
+ * fallback) along with mhvtl_data, both left open for load_mam()/save_mam().
+ */
+static int file_be_open_cartridge(const char *pcl, int create)
+{
+	char path[1024];
+	char mhvtl_data_path[1024];
+	struct stat data_stat;
+
+	(void)pcl;	/* currentPCL already holds the resolved cartridge dir */
+
+	if (create) {
+		/* Check if data file already exists, nothing to create */
+		snprintf(path, ARRAY_SIZE(path), "%s/data.0", currentPCL);
+		if (stat(path, &data_stat) != -1) {
+			if (verbose)
+				printf("error: Data file already exists for new media\n");
+			return CART_OPEN_EXISTS;
+		}
+
+		if (verbose) printf("Creating new media directory: %s\n", currentPCL);
+
+		if (mkdir(currentPCL, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_ISGID)) {
+			/* No need to fail just because the parent dir exists */
+			if (errno != EEXIST) {
+				MHVTL_ERR("Failed to create directory %s: %s",
+						  currentPCL, strerror(errno));
+				return 2;
+			}
+		}
+
+		/* create mam/mhvtl_data files (filled by save_mam) */
+		snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
+		snprintf(mhvtl_data_path, ARRAY_SIZE(mhvtl_data_path), "%s/mhvtl_data", currentPCL);
+		if (verbose) printf("Creating new media mam files: %s and %s\n", path, mhvtl_data_path);
+		mamfile = open(path, O_CREAT | O_TRUNC | O_WRONLY,
+					   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		if (mamfile == -1) {
+			MHVTL_ERR("Failed to create file %s: %s", path, strerror(errno));
+			return 2;
+		}
+		mhvtlfile = open(mhvtl_data_path, O_CREAT | O_TRUNC | O_WRONLY,
+						 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		if (mhvtlfile == -1) {
+			MHVTL_ERR("Failed to create file %s: %s", mhvtl_data_path, strerror(errno));
+			return 2;
+		}
+		return 0;
+	}
+
+	/* load: open mam (with legacy extract fallback), then mhvtl_data */
+	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
+	printf("mam from %s\n", path);
+	mamfile = open(path, O_RDWR | O_LARGEFILE);
+	if (mamfile == -1) { /* Check for MAM location update */
+		MHVTL_ERR("open of file %s failed: %s", path, strerror(errno));
+		MHVTL_LOG("Trying to find mam in the meta file and update tape format...");
+
+		if (try_extract_mam(currentPCL)) {
+			MHVTL_ERR("Could not find or extract mam file : medium corrupted");
+			return 3;
+		};
+		mamfile = open(path, O_RDWR | O_LARGEFILE);
+	}
+
+	snprintf(path, ARRAY_SIZE(path), "%s/mhvtl_data", currentPCL);
+	mhvtlfile = open(path, O_RDWR | O_LARGEFILE);
+	return 0;
+}
+
+static void file_be_close_cartridge(void)
+{
+	if (mamfile >= 0) {
+		close(mamfile);
+		mamfile = -1;
+	}
+	if (mhvtlfile >= 0) {
+		close(mhvtlfile);
+		mhvtlfile = -1;
+	}
+}
+
+/*
+ * Read the tape/MAM format versions and the MAM attributes into *mamp,
+ * applying the legacy mam/tape-format migrations. mamp is the global mam.
+ */
+static int file_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
+{
+	char	touch_file[128];
+	struct stat st;
+	uint8_t	error_check;
+	loff_t	nread;
+
+	snprintf(touch_file, 127, "%s/bypass_error_check", MHVTL_HOME_PATH);
+	error_check = (stat(touch_file, &st) == -1) ? FALSE : TRUE;
+
+	/* Reading tape/mam versions by reading tape_fmt_version and mam_fmt_version  */
+	nread = read(mamfile, &mamp->tape_fmt_version, sizeof(uint32_t));
+	if (nread < 0) {
+		MHVTL_ERR("Error reading Tape Format Version from mam file: %s",
+				  strerror(errno));
+		if (error_check) return 2;
+	}
+	nread = read(mamfile, &mamp->mam_fmt_version, sizeof(uint32_t));
+	if (nread < 0) {
+		MHVTL_ERR("Error reading MAM Format Version from mam file: %s",
+				  strerror(errno));
+		if (error_check) return 2;
+	}
+
+	if (mamp->mam_fmt_version != MAM_VERSION) { /* Check for MAM Format Update */
+		MHVTL_ERR("MAM contains incorrect media format");
+		MHVTL_LOG("Trying to update mam format...");
+		if (try_update_mam(currentPCL)) {
+			MHVTL_ERR("Error : MAM update failed");
+			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+			if (error_check) return 2;
+		}
+	}
+
+	read_mam(mamfile, mhvtlfile, mamp);
+
+	if (mamp->tape_fmt_version != TAPE_FMT_VERSION) { /* Check for Tape Format Update */
+		MHVTL_ERR("contains incorrect media format");
+		MHVTL_LOG("Trying to update tape format...");
+		if (try_update_tape(currentPCL)) {
+			MHVTL_ERR("Error : Tape update failed");
+			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+			if (error_check) return 2;
+		}
+	}
+
+	return 0;
+}
+
+static int file_be_save_mam(struct MAM *mamp)
+{
+	(void)mamp;	/* write_mam serializes the global mam */
+	return write_mam(mamfile, mhvtlfile);
+}
+
+static int file_be_num_partitions(void)
+{
+	char path[1024];
+	int	 n = 0;
+
+	for (;;) {
+		snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, n);
+		if (access(path, F_OK) != 0)
+			break;
+		if (n >= MAX_PARTITIONS) {
+			MHVTL_ERR("pcl %s has more than %d partitions - ignoring the rest",
+					  currentPCL, MAX_PARTITIONS);
+			break;
+		}
+		n++;
+	}
+	return n;
+}
+
+static off_t file_be_used_size(enum cart_stream s, int partition)
+{
+	struct stat st;
+
+	if (fstat(cart_stream_fd(s, partition), &st) < 0)
+		return -1;
+	return st.st_size;
+}
+
+static int file_be_partition_loaded(int partition)
+{
+	if (partition < 0 || partition >= MAX_PARTITIONS)
+		return 0;
+	return datafile[partition] != -1;
+}
+
 /*
  * Returns:
  * == 0, the new PCL was successfully created.
@@ -1009,9 +1294,9 @@ static int create_partition(int partition_number) {
  * == 1, an error occurred.
  */
 int create_tape(const char *pcl, uint8_t *sam_stat) {
-	struct stat data_stat;
-	char		path[1024];
-	char		mhvtl_data_path[1024];
+	int rc;
+
+	(void)sam_stat;
 
 	/* Attempt to create the new PCL.  This will fail if the PCL's directory
 	   or any of the PCL's three files already exist, leaving any existing
@@ -1023,94 +1308,78 @@ int create_tape(const char *pcl, uint8_t *sam_stat) {
 		exit(1);
 	}
 
-	/* Check if data file already exists, nothing to create */
-	snprintf(path, ARRAY_SIZE(path), "%s/data.0", currentPCL);
-	if (stat(path, &data_stat) != -1) {
-		if (verbose)
-			printf("error: Data file already exists for new media\n");
+	cart_select_backend(currentPCL);
+
+	rc = cart_be->open_cartridge(currentPCL, 1);
+	if (rc == CART_OPEN_EXISTS)
 		return 0;
+	if (rc) {
+		/* Match the original create_tape: release currentPCL on failure
+		 * (nothing is loaded, so no later unload_tape would free it). */
+		free(currentPCL);
+		currentPCL = NULL;
+		return rc;
 	}
 
-	if (verbose) printf("Creating new media directory: %s\n", currentPCL);
-
-	if (mkdir(currentPCL, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_ISGID)) {
-		/* No need to fail just because the parent dir exists */
-		if (errno != EEXIST) {
-			MHVTL_ERR("Failed to create directory %s: %s",
-					  currentPCL, strerror(errno));
-			free(currentPCL);
-			return 2;
-		}
-	}
-
-	/* create mam/mhvtl_data files and fill them */
-	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
-	snprintf(mhvtl_data_path, ARRAY_SIZE(mhvtl_data_path), "%s/mhvtl_data", currentPCL);
-	if (verbose) printf("Creating new media mam files: %s and %s\n", path, mhvtl_data_path);
-	mamfile = open(path, O_CREAT | O_TRUNC | O_WRONLY,
-				   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-	if (mamfile == -1) {
-		MHVTL_ERR("Failed to create file %s: %s", path, strerror(errno));
-		return 2;
-	}
-	mhvtlfile = open(mhvtl_data_path, O_CREAT | O_TRUNC | O_WRONLY,
-					 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-	if (mhvtlfile == -1) {
-		MHVTL_ERR("Failed to create file %s: %s", mhvtl_data_path, strerror(errno));
-		return 2;
-	}
-
-	if (write_mam(mamfile, mhvtlfile) < 0) {
+	if (cart_be->save_mam(&mam) < 0) {
 		MHVTL_ERR("Failed to initialize mam/mhvtl_data files");
 	};
 
-	close(mamfile);
-	mamfile = -1;
-	close(mhvtlfile);
-	mhvtlfile = -1;
+	cart_be->close_cartridge();
 
-	return create_partition(0);
+	return cart_be->create_partition(0);
 }
 
 int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint8_t partition_number) {
 	int			 rc = 0;
-	char		 pcl_data[1024], pcl_meta[1024];
-	struct stat	 data_stat, indx_stat, meta_stat;
-	struct stat *stats[3] = {&data_stat, &indx_stat, &meta_stat};
-	int			*fd[3]	  = {&datafile[partition_number],
-							 &indxfile[partition_number],
-							 &metafile[partition_number]};
+	char		 pcl_data[1024];
+	struct stat	 data_stat;
+	off_t		 data_size, indx_size, meta_size;
 
 	uint64_t exp_size;
 	size_t	 io_size;
 	loff_t	 nread;
 
-	/* Open all three files and stat them to get their current sizes. */
-
-	snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data.%d", currentPCL, partition_number);
-	if (stat(pcl_data, &data_stat) == -1) {
-		MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
-				  pcl_data, MHVTL_HOME_PATH, pcl);
-		free(currentPCL);
-		if (asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl) < 0) {
-			perror("Could not allocate memory");
-			exit(1);
+	/*
+	 * Resolve the cartridge location. For the file backend a cartridge is a
+	 * directory of stream files, with a legacy fallback to MHVTL_HOME_PATH
+	 * when home_directory/<pcl> has none. For the raw backend currentPCL is
+	 * the already-opened block device, so this path probing does not apply.
+	 */
+	if (cart_be == &cart_backend_file) {
+		snprintf(pcl_data, ARRAY_SIZE(pcl_data), "%s/data.%d", currentPCL, partition_number);
+		if (stat(pcl_data, &data_stat) == -1) {
+			MHVTL_DBG(2, "Couldn't find %s, trying previous default: %s/%s",
+					  pcl_data, MHVTL_HOME_PATH, pcl);
+			free(currentPCL);
+			if (asprintf(&currentPCL, "%s/%s", MHVTL_HOME_PATH, pcl) < 0) {
+				perror("Could not allocate memory");
+				exit(1);
+			}
 		}
 	}
 
-	/* Opening files */
+	/* Open the partition's streams and obtain their logical lengths. */
 
-	if (open_partition(partition_number) == 3)
+	if (cart_be->open_partition(partition_number) == 3)
 		goto cleanup;
-	for (int i = 0; i < 3; i++) { fstat(*fd[i], stats[i]); }
+	data_size = cart_be->used_size(CART_STREAM_DATA, partition_number);
+	indx_size = cart_be->used_size(CART_STREAM_INDX, partition_number);
+	meta_size = cart_be->used_size(CART_STREAM_META, partition_number);
+	if (data_size < 0 || indx_size < 0 || meta_size < 0) {
+		MHVTL_ERR("pcl %s: could not determine stream sizes for partition %u",
+				  pcl, partition_number);
+		rc = 2;
+		goto cleanup;
+	}
 
 	/* Verify that the metafile size is at least reasonable. */
 	exp_size = sizeof(struct meta_header);
-	if ((uint32_t)meta_stat.st_size < exp_size) {
+	if ((uint32_t)meta_size < exp_size) {
 		MHVTL_ERR("sizeof(struct meta_header) - "
-				  "pcl %s file %s is not the correct length, "
+				  "pcl %s meta stream is not the correct length, "
 				  "expected at least %" PRId64 ", actual %" PRId64,
-				  pcl, pcl_meta, exp_size, meta_stat.st_size);
+				  pcl, exp_size, (int64_t)meta_size);
 		if (error_check) {
 			rc = 2;
 			goto cleanup;
@@ -1118,16 +1387,17 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	}
 
 	/* Read in the meta_header structure and sanity-check it. */
-	nread = read(metafile[partition_number], &meta[partition_number], sizeof(struct meta_header));
+	nread = cart_be->pread(CART_STREAM_META, partition_number,
+			       &meta[partition_number], sizeof(struct meta_header), 0);
 	if (nread < 0) {
 		MHVTL_ERR("Error reading pcl %s meta_header from "
-				  "metafile: %s",
+				  "meta stream: %s",
 				  pcl, strerror(errno));
 		rc = 2;
 		goto cleanup;
 	} else if (nread != sizeof(struct meta_header)) {
 		MHVTL_ERR("Error reading pcl %s meta header from "
-				  "metafile: unexpected read length",
+				  "meta stream: unexpected read length",
 				  pcl);
 		rc = 2;
 		goto cleanup;
@@ -1135,12 +1405,11 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 
 	/* Now recompute the correct size of the meta file. */
 	exp_size += meta[partition_number].filemark_count * sizeof(*filemarks[partition_number]);
-	if ((uint32_t)meta_stat.st_size != exp_size) {
+	if ((uint32_t)meta_size != exp_size) {
 		MHVTL_ERR("sizeof(struct MAM) + sizeof(struct_meta_header) + sizeof(*filemarks[c_pos->partition_id]) - "
-				  "pcl %s file %s is not the correct length, "
+				  "pcl %s meta stream is not the correct length, "
 				  "expected %" PRId64 ", actual %" PRId64,
-				  pcl,
-				  pcl_meta, exp_size, meta_stat.st_size);
+				  pcl, exp_size, (int64_t)meta_size);
 		if (error_check) {
 			rc = 2;
 			goto cleanup;
@@ -1157,10 +1426,12 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 		}
 	}
 
-	/* Now read in the filemark map. */
+	/* Now read in the filemark map (immediately after the meta_header). */
 	io_size = meta[partition_number].filemark_count * sizeof(*filemarks[partition_number]);
 	if (io_size) {
-		nread = read(metafile[partition_number], filemarks[partition_number], io_size);
+		nread = cart_be->pread(CART_STREAM_META, partition_number,
+				       filemarks[partition_number], io_size,
+				       sizeof(struct meta_header));
 		if (nread < 0) {
 			MHVTL_ERR("Error reading pcl %s filemark map from "
 					  "metafile: %s",
@@ -1182,14 +1453,14 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	   B_EOD block resides.
 	*/
 
-	if ((indx_stat.st_size % sizeof(struct raw_header)) != 0) {
-		MHVTL_ERR("pcl %s indx file has improper length, indicating "
-				  "possible file corruption",
+	if ((indx_size % sizeof(struct raw_header)) != 0) {
+		MHVTL_ERR("pcl %s indx stream has improper length, indicating "
+				  "possible corruption",
 				  pcl);
 		rc = 2;
 		goto cleanup;
 	}
-	eod_blk_number[partition_number] = indx_stat.st_size / sizeof(struct raw_header);
+	eod_blk_number[partition_number] = indx_size / sizeof(struct raw_header);
 
 	/* Make sure that the filemark map is consistent with the size of the
 	   indx file.
@@ -1224,12 +1495,12 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 
 	if (mam.MediumType == MEDIA_TYPE_NULL) {
 		MHVTL_LOG("Loaded NULL media type"); /* Skip check */
-	} else if ((uint64_t)data_stat.st_size != eod_data_offset[partition_number]) {
-		MHVTL_ERR("st_size != eod_data_offset - "
-				  "pcl %s file %s is not the correct length, "
+	} else if ((uint64_t)data_size != eod_data_offset[partition_number]) {
+		MHVTL_ERR("used size != eod_data_offset - "
+				  "pcl %s data stream is not the correct length, "
 				  "expected %" PRId64 ", actual %" PRId64,
 				  pcl,
-				  pcl_data, eod_data_offset[partition_number], data_stat.st_size);
+				  eod_data_offset[partition_number], (int64_t)data_size);
 		if (error_check) {
 			rc = 2;
 			goto cleanup;
@@ -1240,11 +1511,11 @@ int load_partition(const char *pcl, uint8_t *sam_stat, uint8_t error_check, uint
 	   accessed again immediately.
 	*/
 
-	posix_fadvise(indxfile[partition_number], 0, 0, POSIX_FADV_DONTNEED);
-	posix_fadvise(datafile[partition_number], 0, 0, POSIX_FADV_DONTNEED);
+	cart_be->fadvise_dontneed(CART_STREAM_INDX, partition_number);
+	cart_be->fadvise_dontneed(CART_STREAM_DATA, partition_number);
 
 cleanup:
-	close_partition(partition_number);
+	cart_be->close_partition(partition_number);
 	return rc;
 }
 
@@ -1259,11 +1530,10 @@ cleanup:
  */
 
 int load_tape(const char *pcl, uint8_t *sam_stat) {
-	char		path[1024];
 	char		touch_file[128];
 	uint8_t		error_check;
 	struct stat data_stat;
-	loff_t		nread;
+	int			rc;
 
 	snprintf(touch_file, 127, "%s/bypass_error_check", MHVTL_HOME_PATH);
 	error_check = (stat(touch_file, &data_stat) == -1) ? FALSE : TRUE;
@@ -1275,7 +1545,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 	/* KFRDEBUG - sam_stat needs updates in lots of places here. */
 
 	/* If some other PCL is already open, return. */
-	if (datafile[c_pos->partition_id] >= 0) {
+	if (cart_be->partition_loaded(c_pos->partition_id)) {
 		MHVTL_DBG(1, "Drive already full, cannot open %s", pcl);
 		return 1;
 	}
@@ -1288,77 +1558,29 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 		exit(1);
 	}
 
+	cart_select_backend(currentPCL);
+
 	/* initialize global mam */
 	init_mam(&mam);
 
-	/* load MAM and sanity-check it. */
-	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
-	printf("mam from %s\n", path);
-	mamfile = open(path, O_RDWR | O_LARGEFILE);
+	/* Open the cartridge container and load + sanity-check its MAM. */
+	rc = cart_be->open_cartridge(currentPCL, 0);
+	if (rc == 3)
+		return 3;
 
-	if (mamfile == -1) { /* Check for MAM location update */
-		MHVTL_ERR("open of file %s failed: %s", path, strerror(errno));
-		MHVTL_LOG("Trying to find mam in the meta file and update tape format...");
-
-		if (try_extract_mam(currentPCL)) {
-			MHVTL_ERR("Could not find or extract mam file : medium corrupted");
-			return 3;
-		};
-		mamfile = open(path, O_RDWR | O_LARGEFILE);
-	}
-
-	/* Reading tape/mam versions by reading tape_fmt_version and mam_fmt_version  */
-	nread = read(mamfile, &mam.tape_fmt_version, sizeof(uint32_t));
-	if (nread < 0) {
-		MHVTL_ERR("Error reading pcl %s Tape Format Version from mam file: %s",
-				  pcl, strerror(errno));
-		if (error_check) return 2;
-	}
-	nread = read(mamfile, &mam.mam_fmt_version, sizeof(uint32_t));
-	if (nread < 0) {
-		MHVTL_ERR("Error reading pcl %s MAM Format Version from mam file: %s",
-				  pcl, strerror(errno));
-		if (error_check) return 2;
-	}
-
-	if (mam.mam_fmt_version != MAM_VERSION) { /* Check for MAM Format Update */
-		MHVTL_ERR("pcl %s MAM contains incorrect media format", pcl);
-		MHVTL_LOG("Trying to update mam format...");
-		if (try_update_mam(currentPCL)) {
-			MHVTL_ERR("Error : MAM update failed");
-			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
-			if (error_check) return 2;
-		}
-	}
-
-	snprintf(path, ARRAY_SIZE(path), "%s/mhvtl_data", currentPCL);
-	mhvtlfile = open(path, O_RDWR | O_LARGEFILE);
-	read_mam(mamfile, mhvtlfile, &mam);
-
-	if (mam.tape_fmt_version != TAPE_FMT_VERSION) { /* Check for Tape Format Update */
-		MHVTL_ERR("pcl %s contains incorrect media format", pcl);
-		MHVTL_LOG("Trying to update tape format...");
-		if (try_update_tape(currentPCL)) {
-			MHVTL_ERR("Error : Tape update failed");
-			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
-			if (error_check) return 2;
-		}
+	rc = cart_be->load_mam(&mam, sam_stat);
+	if (rc == 2 && error_check) {
+		cart_be->close_cartridge();
+		return 2;
 	}
 
 	/* Load all partitions. The per-partition state is MAX_PARTITIONS deep,
-	 * so stop there however many data.N files the cartridge directory holds.
+	 * so stop there however many partitions the cartridge holds.
 	 */
-	mam.num_partitions = 0;
-	snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, mam.num_partitions);
-	while (access(path, F_OK) == 0) {
-		if (mam.num_partitions >= MAX_PARTITIONS) {
-			MHVTL_ERR("pcl %s has more than %d partitions - ignoring the rest",
-					  pcl, MAX_PARTITIONS);
-			break;
-		}
-		c_pos->partition_id = mam.num_partitions;
-		load_partition(pcl, sam_stat, error_check, mam.num_partitions);
-		snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, ++mam.num_partitions);
+	mam.num_partitions = cart_be->num_partitions();
+	for (int p = 0; p < mam.num_partitions; p++) {
+		c_pos->partition_id = p;
+		load_partition(pcl, sam_stat, error_check, p);
 	}
 
 	change_partition(0);
@@ -1368,7 +1590,7 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 
 	/* Now initialize raw_pos by reading in the first header, if any. */
 	if (read_header(0, sam_stat)) {
-		close_partition(c_pos->partition_id);
+		cart_be->close_partition(c_pos->partition_id);
 		return 3;
 	}
 
@@ -1397,16 +1619,13 @@ int format_partition(uint8_t *sam_stat) {
 }
 
 int format_tape(uint8_t *sam_stat) {
-	char path[1024];
-	int	 partition_number = 0;
+	int n = cart_be->num_partitions();
 
-	/* Erase all partitions */
-	snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, partition_number);
-	while (access(path, F_OK) == 0) {
+	/* Erase all existing partitions */
+	for (int partition_number = 0; partition_number < n; partition_number++) {
 		MHVTL_DBG(1, "Erasing partition %d", partition_number);
 		change_partition(partition_number);
 		erase_partition(sam_stat);
-		snprintf(path, ARRAY_SIZE(path), "%s/data.%d", currentPCL, ++partition_number);
 	}
 
 	/* Create <mam.num_partitions> partitions */
@@ -1416,7 +1635,7 @@ int format_tape(uint8_t *sam_stat) {
 		mam.num_partitions = MAX_PARTITIONS;
 	}
 	for (int j = 0; j < mam.num_partitions; ++j) {
-		create_partition(j);
+		cart_be->create_partition(j);
 	}
 
 	change_partition(0);
@@ -1448,9 +1667,9 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 	if (count == 0) {
 		MHVTL_DBG(2, "Flushing data - 0 filemarks written");
-		fsync(datafile[c_pos->partition_id]);
-		fsync(indxfile[c_pos->partition_id]);
-		fsync(metafile[c_pos->partition_id]);
+		cart_be->sync(CART_STREAM_DATA, c_pos->partition_id);
+		cart_be->sync(CART_STREAM_INDX, c_pos->partition_id);
+		cart_be->sync(CART_STREAM_META, c_pos->partition_id);
 
 		return 0;
 	}
@@ -1484,7 +1703,7 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 		MHVTL_DBG(3, "Writing filemark: partition/block %u/%u", partition_id, blk_number);
 
-		nwrite = pwrite(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
+		nwrite = cart_be->pwrite(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 						blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
 			sam_medium_error(E_WRITE_ERROR, sam_stat);
@@ -1504,9 +1723,9 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 
 	/* Provide the force-flush guarantee. */
 
-	fsync(datafile[c_pos->partition_id]);
-	fsync(indxfile[c_pos->partition_id]);
-	fsync(metafile[c_pos->partition_id]);
+	cart_be->sync(CART_STREAM_DATA, c_pos->partition_id);
+	cart_be->sync(CART_STREAM_INDX, c_pos->partition_id);
+	cart_be->sync(CART_STREAM_META, c_pos->partition_id);
 
 	return mkEODHeader(blk_number, data_offset);
 }
@@ -1586,7 +1805,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	if (null_media_type) {
 		nwrite = disk_blk_size;
 	} else
-		nwrite = pwrite(datafile[c_pos->partition_id], buffer, disk_blk_size, data_offset);
+		nwrite = cart_be->pwrite(CART_STREAM_DATA, c_pos->partition_id, buffer, disk_blk_size, data_offset);
 	if (nwrite != disk_blk_size) {
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
@@ -1595,7 +1814,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 
 		/* Truncate last partital write */
 		MHVTL_DBG(1, "Truncating data file size: %" PRId64, data_offset);
-		if (ftruncate(datafile[c_pos->partition_id], data_offset) < 0) {
+		if (cart_be->truncate(CART_STREAM_DATA, c_pos->partition_id, data_offset) < 0) {
 			MHVTL_ERR("Error truncating data: %s", strerror(errno));
 		}
 
@@ -1610,7 +1829,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 			  mhvtl_block_type_desc(c_pos->blk_type),
 			  c_pos->blk_size);
 
-	nwrite = pwrite(indxfile[c_pos->partition_id], &raw_pos, sizeof(raw_pos),
+	nwrite = cart_be->pwrite(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 					blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
 		long indxsz = (blk_number - 1) * sizeof(raw_pos);
@@ -1622,14 +1841,14 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 				  strerror(errno));
 
 		MHVTL_DBG(1, "Truncating index file size to: %ld", indxsz);
-		if (ftruncate(indxfile[c_pos->partition_id], indxsz) < 0) {
+		if (cart_be->truncate(CART_STREAM_INDX, c_pos->partition_id, indxsz) < 0) {
 			MHVTL_ERR("Error truncating indx: %s", strerror(errno));
 		}
 
 		if (!null_media_type) {
 			MHVTL_DBG(1, "Truncating data file size: %" PRId64,
 					  data_offset);
-			if (ftruncate(datafile[c_pos->partition_id], data_offset) < 0) {
+			if (cart_be->truncate(CART_STREAM_DATA, c_pos->partition_id, data_offset) < 0) {
 				MHVTL_ERR("Error truncating data: %s",
 						  strerror(errno));
 			}
@@ -1649,7 +1868,7 @@ void unload_tape(uint8_t *sam_stat) {
 		MHVTL_DBG(3, "Unloading tape : partition %d", j);
 		change_partition(j);
 		rewrite_meta_file();
-		close_partition(j);
+		cart_be->close_partition(j);
 		if (filemarks[j]) {
 			free(filemarks[j]);
 			filemarks[j] = NULL;
@@ -1660,15 +1879,7 @@ void unload_tape(uint8_t *sam_stat) {
 	memset(eod_blk_number, 0, sizeof(eod_blk_number));
 	memset(eod_data_offset, 0, sizeof(eod_data_offset));
 
-	if (mamfile >= 0) {
-		close(mamfile);
-		mamfile = -1;
-	}
-
-	if (mhvtlfile >= 0) {
-		close(mhvtlfile);
-		mhvtlfile = -1;
-	}
+	cart_be->close_cartridge();
 
 	free(currentPCL);
 }
@@ -1698,7 +1909,7 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 	if (iosize > buf_size)
 		iosize = buf_size;
 
-	nread = pread(datafile[c_pos->partition_id], buf, iosize, raw_pos.data_offset);
+	nread = cart_be->pread(CART_STREAM_DATA, c_pos->partition_id, buf, iosize, raw_pos.data_offset);
 	if (nread != iosize) {
 		MHVTL_ERR("Failed to read %d bytes", iosize);
 		return -1;
@@ -1716,7 +1927,7 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 }
 
 uint64_t current_tape_offset(void) {
-	if (datafile[c_pos->partition_id] != -1)
+	if (cart_be->partition_loaded(c_pos->partition_id))
 		return raw_pos.data_offset;
 
 	return 0;
@@ -1737,7 +1948,7 @@ uint64_t partition_data_offset(int partition) {
 }
 
 uint64_t current_tape_block(void) {
-	if (datafile[c_pos->partition_id] != -1)
+	if (cart_be->partition_loaded(c_pos->partition_id))
 		return (uint64_t)c_pos->blk_number;
 	return 0;
 }

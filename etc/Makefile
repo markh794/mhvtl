@@ -10,6 +10,9 @@ DEVICE_CONF_FILE = device.conf
 LIB_CONTENTS_FILES = library_contents.10 library_contents.30
 CONFIGS = $(MHVTL_CONF_FILE) $(DEVICE_CONF_FILE) $(LIB_CONTENTS_FILES)
 
+# Static sample configs shipped as-is (no generation).
+SAMPLE_CONFIGS = mhvtl_raw_bays.conf.sample
+
 GENERATE_DEVICE_CONF = generate_device_conf
 GENERATE_LIB_CONTENTS = generate_library_contents
 GENERATORS = $(GENERATE_DEVICE_CONF) $(GENERATE_LIB_CONTENTS)
@@ -72,7 +75,7 @@ $(DESTDIR)$(MHVTL_CONFIG_PATH)/%: % | $(DESTDIR)$(MHVTL_CONFIG_PATH)
 .PHONY: install
 install: all \
 		 $(addprefix $(DESTDIR)$(SYSTEMD_SERVICE_DIR)/,$(SERVICES) $(MHVTL_TARGET)) \
-		 $(addprefix $(DESTDIR)$(MHVTL_CONFIG_PATH)/,$(CONFIGS)) \
+		 $(addprefix $(DESTDIR)$(MHVTL_CONFIG_PATH)/,$(CONFIGS) $(SAMPLE_CONFIGS)) \
 		 $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(GENERATORS))
 	$(call RESTORECON_TREE,$(SYSTEMD_SERVICE_DIR))
 

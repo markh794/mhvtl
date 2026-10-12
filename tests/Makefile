@@ -27,7 +27,7 @@ RS_SRC   = ../usr/utils/reed-solomon.c
 CRC_SRC  = ../usr/utils/crc32c.c
 
 # All test binaries
-TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing
+TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf
 
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
@@ -56,6 +56,9 @@ test_vpd: test_vpd.c acutest.h
 
 test_log_volstat: test_log_volstat.c acutest.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_raw_bay_conf: test_raw_bay_conf.c acutest.h ../usr/raw_bay_conf.c ../include/raw_bay_conf.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_bay_conf.c ../usr/raw_bay_conf.c
 
 # vtlcmd parsing test — compiles vtlcmd.c to .o with main renamed, then links
 VTLCMD_SRC = ../usr/cmd/vtlcmd.c

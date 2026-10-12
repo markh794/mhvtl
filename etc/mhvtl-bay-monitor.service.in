@@ -1,0 +1,21 @@
+[Unit]
+Description=mhvtl raw-disk bay hot-plug monitor
+Documentation=man:vtllibrary(1) man:vtlcmd(1)
+# The monitor places cartridges into the library MAP over the control queue, so
+# the library daemons must already be running; order it after the aggregate
+# target that pulls them up.
+After=mhvtl.target
+PartOf=mhvtl.target
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=simple
+# --config is passed explicitly so the monitor and the library read the same
+# bay/home configuration regardless of the service environment.
+ExecStart=/usr/bin/mhvtl-bay-monitor -f --config @CONF_PATH@/mhvtl_raw_bays.conf
+KillMode=mixed
+TimeoutStopSec=10
+
+[Install]
+WantedBy=mhvtl.target
