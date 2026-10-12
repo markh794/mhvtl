@@ -5,7 +5,11 @@ Maintainer: Matej Kenda <matejken@gmail.com>
 Build-Depends:
  debhelper-compat (= 13),
  dh-dkms,
- zlib1g-dev
+ zlib1g-dev,
+ liblz4-dev,
+ libzstd-dev,
+ pkg-config,
+ libudev-dev
 Standards-Version: 4.7.2
 Homepage: https://github.com/markh794/mhvtl
 Vcs-Git: https://github.com/matejk/mhvtl.git
