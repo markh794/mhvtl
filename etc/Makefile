@@ -13,6 +13,9 @@ CONFIGS = $(MHVTL_CONF_FILE) $(DEVICE_CONF_FILE) $(LIB_CONTENTS_FILES)
 # Static sample configs shipped as-is (no generation).
 SAMPLE_CONFIGS = mhvtl_raw_bays.conf.sample
 
+# tmpfiles.d snippet creating the runtime directories; installed as mhvtl.conf.
+TMPFILES_SRC = mhvtl.tmpfiles
+
 GENERATE_DEVICE_CONF = generate_device_conf
 GENERATE_LIB_CONTENTS = generate_library_contents
 GENERATORS = $(GENERATE_DEVICE_CONF) $(GENERATE_LIB_CONTENTS)
@@ -57,6 +60,8 @@ $(DESTDIR)$(MHVTL_CONFIG_PATH):
 	install -d -m 755 $@
 $(DESTDIR)$(PREFIX)/bin:
 	install -d -m 755 $@
+$(DESTDIR)$(TMPFILES_DIR):
+	install -d -m 755 $@
 
 # Installing services
 $(DESTDIR)$(SYSTEMD_SERVICE_DIR)/%.service: %.service | $(DESTDIR)$(SYSTEMD_SERVICE_DIR)
@@ -71,12 +76,16 @@ $(DESTDIR)$(PREFIX)/bin/generate_%: generate_% | $(DESTDIR)$(PREFIX)/bin
 # save backup copies of config files
 $(DESTDIR)$(MHVTL_CONFIG_PATH)/%: % | $(DESTDIR)$(MHVTL_CONFIG_PATH)
 	install -m 644 -b -S .orig $< $@
+# tmpfiles.d snippet, installed as <tmpfilesdir>/mhvtl.conf
+$(DESTDIR)$(TMPFILES_DIR)/mhvtl.conf: $(TMPFILES_SRC) | $(DESTDIR)$(TMPFILES_DIR)
+	install -m 644 $< $@
 
 .PHONY: install
 install: all \
 		 $(addprefix $(DESTDIR)$(SYSTEMD_SERVICE_DIR)/,$(SERVICES) $(MHVTL_TARGET)) \
 		 $(addprefix $(DESTDIR)$(MHVTL_CONFIG_PATH)/,$(CONFIGS) $(SAMPLE_CONFIGS)) \
-		 $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(GENERATORS))
+		 $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(GENERATORS)) \
+		 $(DESTDIR)$(TMPFILES_DIR)/mhvtl.conf
 	$(call RESTORECON_TREE,$(SYSTEMD_SERVICE_DIR))
 
 # The configuration under $(MHVTL_CONFIG_PATH) describes the libraries the user
@@ -84,6 +93,7 @@ install: all \
 .PHONY: uninstall
 uninstall:
 	$(RM) $(addprefix $(DESTDIR)$(SYSTEMD_SERVICE_DIR)/,$(SERVICES) $(MHVTL_TARGET))
+	$(RM) $(DESTDIR)$(TMPFILES_DIR)/mhvtl.conf
 	$(RM) $(addprefix $(DESTDIR)$(PREFIX)/bin/,$(GENERATORS))
 ifneq ($(PREFIX)/bin,/usr/bin)
 	# Earlier releases installed the generators into /usr/bin regardless of PREFIX

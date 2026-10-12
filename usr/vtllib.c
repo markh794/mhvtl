@@ -1207,15 +1207,48 @@ static const char *get_lock_path(void) {
 }
 #define LOCK_PATH get_lock_path()
 #define MAX_WAIT  20
+
+/* Create a directory and any missing parents, like `mkdir -p`. Existing
+ * components are not an error. Returns 0 on success, -1 otherwise. */
+static int mkdir_p(const char *path, mode_t mode)
+{
+	char tmp[256];
+	size_t len;
+	char *p;
+
+	len = strlen(path);
+	if (len == 0 || len >= sizeof(tmp))
+		return -1;
+	memcpy(tmp, path, len + 1);
+	if (tmp[len - 1] == '/')
+		tmp[len - 1] = '\0';
+
+	for (p = tmp + 1; *p; p++) {
+		if (*p != '/')
+			continue;
+		*p = '\0';
+		if (mkdir(tmp, mode) < 0 && errno != EEXIST)
+			return -1;
+		*p = '/';
+	}
+	if (mkdir(tmp, mode) < 0 && errno != EEXIST)
+		return -1;
+	return 0;
+}
+
 int check_for_running_daemons(unsigned minor) {
 	char lck_file[128];
 	int	 lck;
 	int	 a;
 	long rand;
 
-	/* Don't really care if this dir exists already */
-	if (mkdir(LOCK_PATH, S_IWUSR | S_IRUSR) < 0) {
-		MHVTL_DBG(3, "Unable to create lock directory %s", LOCK_PATH);
+	/* Create the lock directory (and any missing parents). A directory needs
+	 * the execute bit to be usable, so 0750 - not 0600. Boot-time creation is
+	 * handled by tmpfiles.d; this is the on-demand fallback. Pre-existing is
+	 * fine. */
+	if (mkdir_p(LOCK_PATH, S_IRWXU | S_IRGRP | S_IXGRP) < 0) {
+		MHVTL_DBG(3, "Unable to create lock directory %s: %s",
+			  LOCK_PATH, strerror(errno));
 	}
 
 	sprintf(lck_file, "%s/mhvtl%d", LOCK_PATH, minor);

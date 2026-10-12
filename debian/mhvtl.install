@@ -3,5 +3,6 @@ usr/bin/*
 usr/lib/*/mhvtl/libvtlscsi.so
 usr/lib/systemd/system/*
 usr/lib/systemd/system-generators/*
+usr/lib/tmpfiles.d/*
 usr/share/man/man1/*
 usr/share/man/man5/*

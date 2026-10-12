@@ -67,6 +67,7 @@ The SSC/SMC target daemons have been written from scratch.
 /sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/mhvtl.target
 /sbin/restorecon -R -v %{_unitdir}
 /bin/systemctl daemon-reload
+%tmpfiles_create %{_tmpfilesdir}/mhvtl.conf
 %{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 /bin/systemctl start mhvtl.target
 /bin/systemctl enable  mhvtl.target
@@ -105,7 +106,8 @@ make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} 
 %make_install \
 	MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
-	SYSTEMD_SERVICE_DIR=%{_unitdir}
+	SYSTEMD_SERVICE_DIR=%{_unitdir} \
+	TMPFILES_DIR=%{_tmpfilesdir}
 # The kernel module is built out of band from the packaged mhvtl_kernel.tgz;
 # discard the module the recursive install staged for the build host's kernel.
 %{__rm} -rf %{buildroot}/lib/modules
@@ -166,6 +168,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_unitdir}/vtllibrary@.service
 %{_unitdir}/vtltape@.service
 %{_unitdir}/mhvtl.target
+%{_tmpfilesdir}/mhvtl.conf
 %dir %{mhvtl_home_dir}
 %ghost %{mhvtl_home_dir}/*
 
