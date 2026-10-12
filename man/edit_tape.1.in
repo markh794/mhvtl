@@ -10,7 +10,7 @@ edit_tape \- Utility to update meta data virtual media for the VTL.
 .\" Add any additional description here
 .PP
 Create and initialise new media for the Virtual Tape Library. Media is created in the
-/opt/vtl/ directory. This path is hard coded.
+mhVTL home directory (\fI/opt/mhvtl\fR by default), as set at build time and per device.
 .SH OPTIONS
 .TP
 \fB\-h\fR
