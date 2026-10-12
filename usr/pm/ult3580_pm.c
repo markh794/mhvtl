@@ -60,6 +60,12 @@ static struct density_info density_lto7 = {
 static struct density_info density_lto8 = {
 	20669, 127, 6656, 12000000, medium_density_code_lto8,
 	"LTO-CVE", "U-832", "Ultrium 8/32T"};
+/* An LTO-8 drive also writes LTO-7 media in the 9 TB "M8" format (density
+ * 0x5d). Same bits/mm as LTO-7 (M8 is LTO-7 media); IBM LTO SCSI Reference
+ * GA32-0928-08 table 114. */
+static struct density_info density_lto8_m8 = {
+	19107, 127, 5376, 9000000, medium_density_code_lto8_m8,
+	"LTO-CVE", "U-832M", "Ultrium 8/32T Type M"};
 static struct density_info density_lto9 = {
 	21459, 127, 8960, 18000000, medium_density_code_lto9,
 	"LTO-CVE", "U-932", "Ultrium 9/32T"};
@@ -119,6 +125,8 @@ static struct name_to_media_info media_info[] = {
 	 media_type_lto8_data, medium_density_code_lto8},
 	{"LTO8 WORM", Media_LTO8_WORM,
 	 media_type_lto8_worm, medium_density_code_lto8},
+	{"LTO8 M8", Media_LTO8,
+	 media_type_lto8_data, medium_density_code_lto8_m8},
 	{"LTO9", Media_LTO9,
 	 media_type_lto9_data, medium_density_code_lto9},
 	{"LTO9 Clean", Media_LTO9_CLEAN,
@@ -1003,6 +1011,11 @@ static const struct ult_gen_media td8_media[] = {
 void init_ult3580_td8(struct lu_phy_attr *lu) {
 	init_ult3580_lbp(lu, pm_name_lto8, &density_lto8,
 					 td8_media, ARRAY_SIZE(td8_media));
+	/* An LTO-8 drive also writes LTO-7 media in the 9 TB "M8" format
+	 * (density 0x5d): advertise it and accept "LTO8 M8" cartridges. LTO-7
+	 * drives cannot read M8, so this stays td8-only. GA32-0928-08 table 114. */
+	add_density_support(&lu->den_list, &density_lto8_m8, 1);
+	add_drive_media_list(lu, LOAD_RW, "LTO8 M8");
 }
 
 static const struct ult_gen_media td9_media[] = {
