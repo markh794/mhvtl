@@ -21,7 +21,7 @@ static struct smc_personality_template smc_pm = {
 	.library_has_barcode_reader = TRUE,
 	.library_has_playground		= FALSE,
 
-	.dvcid_len = 34,
+	.dvcid_len = 64, /* Identifier area: always 64 bytes, space filled */
 };
 
 static void init_scalar_inquiry(struct lu_phy_attr *lu) {
@@ -30,7 +30,11 @@ static void init_scalar_inquiry(struct lu_phy_attr *lu) {
 
 	lu->inquiry[2] = 3;	   /* SNSI Approved Version */
 	lu->inquiry[3] = 2;	   /* Response data format */
-	lu->inquiry[4] = 0x1f; /* Additional length */
+	/* Additional length: up to the last version descriptor (byte 65).
+	 * The reference gives 33h for bytes 0 - 55 and has the version
+	 * descriptors appended by the drive hosting the control path.
+	 */
+	lu->inquiry[4] = 0x3d;
 
 	lu->inquiry[6] |= smc_p->pm->library_has_barcode_reader ? 0x20 : 0;
 	lu->inquiry[55] |= smc_p->pm->library_has_barcode_reader ? 1 : 0;

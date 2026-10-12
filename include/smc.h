@@ -30,6 +30,11 @@ struct smc_personality_template {
 	uint32_t library_has_playground : 1;
 	uint32_t dvcid_serial_only : 1;
 	uint32_t no_dvcid_flag : 1;
+	/* Serial-only identifier is a NUL terminated string, NUL filled to
+	 * dvcid_len, so it holds at most dvcid_len - 1 characters (Spectra
+	 * T-Series).
+	 */
+	uint32_t dvcid_nul_terminated : 1;
 	/* Report ID VALID and the drive's SCSI bus address in the data
 	 * transfer element descriptor. SMC-2 marks both fields obsolete,
 	 * but libraries with parallel SCSI drives still populate them

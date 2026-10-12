@@ -18,7 +18,7 @@ static struct smc_personality_template smc_pm = {
 	 */
 	.report_scsi_bus_address = TRUE,
 
-	.dvcid_len = 32,
+	.dvcid_len = 34,
 };
 
 static void update_default_inquiry(struct lu_phy_attr *lu) {
@@ -38,7 +38,7 @@ static void update_default_inquiry(struct lu_phy_attr *lu) {
 	put_unaligned_be16(0x030f, &lu->inquiry[64]); /* SPC-3 */
 
 	/* Device Identification */
-	lu->lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(VPD_83_SZ);
+	lu->lu_vpd[PCODE_OFFSET(0x83)] = alloc_vpd(vpd_83_size(lu));
 	if (lu->lu_vpd[PCODE_OFFSET(0x83)])
 		update_vpd_83(lu, NULL);
 }

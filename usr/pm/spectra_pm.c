@@ -133,6 +133,10 @@ void init_spectra_logic_smc(struct lu_phy_attr *lu) {
 	smc_pm.library_has_map			  = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
 	smc_pm.dvcid_serial_only		  = TRUE;
+	/* SCSI Developer's Guide 90940001 Rev L, table 11-6: "The 32 byte
+	 * null terminated ASCII representation of the ... drive serial number"
+	 */
+	smc_pm.dvcid_nul_terminated = TRUE;
 
 	/* Extracted from Spectra T-Series SCSI Developers guide */
 	smc_pm.start_picker	 = 0x0001;

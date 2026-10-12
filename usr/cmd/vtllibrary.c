@@ -78,6 +78,31 @@ static struct smc_priv smc_slots;
 
 struct s_info *add_new_slot(struct lu_phy_attr *lu);
 
+/* Worst case READ ELEMENT STATUS response: the data header, a page header
+ * per element type and every descriptor carrying a volume tag, plus the
+ * device identifier area for data transfer elements. The personality must
+ * already be registered, as it sets the identifier width.
+ */
+static int smc_buffer_size(struct smc_priv *smc_p) {
+	struct d_info *dp;
+	int			   drives = 0;
+	int			   sz;
+
+	/* Drives only listed in device.conf are not in num_drives */
+	list_for_each_entry(dp, &smc_p->drive_list, siblings)
+		drives++;
+	drives = max(drives, smc_p->num_drives);
+
+	/* A trailing drive page can follow the storage page, hence five */
+	sz = 8 + 5 * 8;
+	sz += (drives + smc_p->num_picker +
+		   smc_p->num_map + smc_p->num_storage) *
+		  (16 + VOLTAG_LEN);
+	sz += drives * smc_p->pm->dvcid_len;
+
+	return max(SMC_BUF_SIZE, sz);
+}
+
 static void usage(char *progname) {
 	printf("Usage: %s [OPTIONS] -q <Q-number>\n", progname);
 	printf("Where:\n");
@@ -437,8 +462,7 @@ static void add_storage_slot(struct q_msg *msg) {
 	MHVTL_DBG(1, "add slot && init smc");
 
 	/* malloc a big enough buffer to fit worst case read element status */
-	buffer_size		  = (smc_slots.num_drives + smc_slots.num_picker + smc_slots.num_map + smc_slots.num_storage) * 80;
-	buffer_size		  = max(SMC_BUF_SIZE, buffer_size);
+	buffer_size		  = smc_buffer_size(&smc_slots);
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
 
@@ -589,6 +613,31 @@ struct s_info *add_new_slot(struct lu_phy_attr *lu) {
 
 /* Open device config file and update device information
  */
+
+/* Store a drive serial number, saying so if it is longer than the device
+ * identifier this personality reports in READ ELEMENT STATUS can carry.
+ */
+static void set_drive_serial(struct smc_priv *smc_p, struct d_info *dp,
+							 long id, char *v) {
+	unsigned int room;
+
+	if (strlen(v) > MAX_DRIVE_SN_LEN)
+		MHVTL_LOG("Drive %ld: serial number truncated to %d characters: %s",
+				  id, MAX_DRIVE_SN_LEN, v);
+	snprintf(dp->inq_product_sno, sizeof(dp->inq_product_sno), "%s", v);
+
+	room = smc_p->pm->dvcid_len;
+	if (!room) /* Personality reports no device identifier */
+		return;
+	if (!smc_p->pm->dvcid_serial_only)
+		room = (room > 24) ? room - 24 : 0;
+	else if (smc_p->pm->dvcid_nul_terminated)
+		room--;
+	if (strlen(dp->inq_product_sno) > room)
+		MHVTL_LOG("Drive %ld: %s reports only the first %u characters"
+				  " of serial number %s",
+				  id, smc_p->pm->name, room, dp->inq_product_sno);
+}
 static void update_drive_details(struct lu_phy_attr *lu) {
 	char			 device_conf[CONF_FILE_SZ];
 	FILE			*conf;
@@ -665,10 +714,8 @@ static void update_drive_details(struct lu_phy_attr *lu) {
 			char *v;
 
 			v = conf_value(b, "Unit serial number");
-			if (v) {
-				strncpy(dp->inq_product_sno, v, 10);
-				rmnl(dp->inq_product_sno, ' ', 10);
-			}
+			if (v)
+				set_drive_serial(smc_p, dp, drv_id, v);
 			v = conf_value(b, "Product identification");
 			if (v) {
 				strncpy(dp->inq_product_id, v, 16);
@@ -816,7 +863,7 @@ void init_drive_slot(struct lu_phy_attr *lu, int slt, char *s) {
 	dp->slot->status		= STATUS_Access;
 	smc_p->num_drives++;
 	if (strlen(s)) {
-		strncpy(dp->inq_product_sno, s, 10);
+		set_drive_serial(smc_p, dp, slt, s);
 		MHVTL_DBG(2, "Drive s/no: %s", s);
 	}
 	MHVTL_DBG(3, "Slot: %d, start_drive: %d, slot_location: %d",
@@ -1467,9 +1514,9 @@ static void customise_lu(struct lu_phy_attr *lu) {
 		customise_hp_lu(lu);
 	else if (!strncasecmp(lu->product_id, "OVERLAND", 8))
 		init_overland_smc(lu);
-	else if (!strncasecmp(lu->product_id, "ADIC", 4))
-		init_scalar_smc(lu);
-	else if (!strncasecmp(lu->product_id, "QUANTUM", 7))
+	else if (!strncasecmp(lu->vendor_id, "ADIC", 4) ||
+			 !strncasecmp(lu->vendor_id, "QUANTUM", 7) ||
+			 !strncasecmp(lu->product_id, "Scalar", 6))
 		init_scalar_smc(lu);
 	else if (!strncasecmp(lu->vendor_id, "SPECTRA ", 7))
 		customise_spectra_lu(lu);
@@ -1517,11 +1564,7 @@ static void do_rereadconfig(void) {
 	update_drive_details(&lunit);
 
 	/* malloc a big enough buffer to fit worst case read element status */
-	buffer_size = (smc_slots.num_drives +
-				   smc_slots.num_picker +
-				   smc_slots.num_map +
-				   smc_slots.num_storage) *
-				  80;
+	buffer_size = smc_buffer_size(&smc_slots);
 	reset_device(); /* Force a POWER-ON/RESET sense code */
 	if (buffer_size > smc_slots.bufsize) {
 		MHVTL_LOG("Too many slots configured"
@@ -1696,12 +1739,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* malloc a big enough buffer to fit worst case read element status */
-	buffer_size = (smc_slots.num_drives +
-				   smc_slots.num_picker +
-				   smc_slots.num_map +
-				   smc_slots.num_storage) *
-				  80;
-	buffer_size		  = max(SMC_BUF_SIZE, buffer_size);
+	buffer_size		  = smc_buffer_size(&smc_slots);
 	smc_slots.bufsize = buffer_size;
 	MHVTL_DBG(1, "Setting buffer size to %d", buffer_size);
 	buf = (uint8_t *)zalloc(buffer_size);
@@ -1738,10 +1776,8 @@ int main(int argc, char *argv[]) {
 				s[4] = '\0';
 				MHVTL_DBG(3, "Revision Level: \"%s\"", s);
 
-				strncpy(s, dp->inq_product_sno, 10 + 2);
-				rmnl(s, ' ', 10);
-				s[10] = '\0';
-				MHVTL_DBG(3, "Product S/No  : \"%s\"", s);
+				MHVTL_DBG(3, "Product S/No  : \"%s\"",
+						  dp->inq_product_sno);
 
 				MHVTL_DBG(3, "Drive location: %d",
 						  dp->slot->slot_location);
