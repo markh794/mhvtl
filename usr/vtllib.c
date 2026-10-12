@@ -284,7 +284,10 @@ int get_config(char *buf, conf_file conf, long id) {
 		 config_path[0] ? config_path : MHVTL_CONFIG_PATH);
 	fp = fopen(conf_file_path, "r");
 
-	snprintf(format, sizeof(format), "%%255[^= \t\r] = %%%u[^\n]", CONF_DIR_PATH_SZ - 1);
+	/* The value field width must be one less than the value[] buffer
+	 * (CONF_DIR_PATH_SZ - 1 bytes): sscanf appends a NUL after the field, so a
+	 * width equal to the buffer size overflowed value[] by one byte. */
+	snprintf(format, sizeof(format), "%%255[^= \t\r] = %%%u[^\n]", CONF_DIR_PATH_SZ - 2);
 	if (fp) {
 		char  *line = NULL;
 		size_t len	= 0;
