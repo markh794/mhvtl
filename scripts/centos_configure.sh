@@ -24,7 +24,7 @@ yum install -y git
 yum install -y mc ntp gcc gcc-c++ make kernel-devel zlib-devel sg3_utils lsscsi mt-st mtx lzo lzo-devel perl-Config-General
 
 # Create required directories
-mkdir -p /opt/mhvtl
+mkdir -p /var/lib/mhvtl
 mkdir -p /etc/mhvtl
 
 # install mhvtl
