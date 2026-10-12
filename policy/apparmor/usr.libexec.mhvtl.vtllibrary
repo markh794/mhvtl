@@ -1,0 +1,49 @@
+# AppArmor profile for the mhVTL library (medium changer) daemon.
+#
+# Shipped in complain (learning) mode: AppArmor logs accesses that fall
+# outside the profile but never denies them, so enabling it cannot break a
+# working deployment. Review the logged events (dmesg / audit) and, once the
+# profile covers your configuration, drop `flags=(complain)` to enforce it.
+abi <abi/3.0>,
+
+include <tunables/global>
+
+profile mhvtl-vtllibrary /usr/libexec/mhvtl/vtllibrary flags=(complain) {
+  include <abstractions/base>
+  include <abstractions/nameservice>
+
+  # Creates its own /dev/mhvtl<n> character node; raises resource limits;
+  # overrides DAC on the media it owns.
+  capability mknod,
+  capability sys_resource,
+  capability dac_override,
+
+  network unix stream,
+
+  # Executable and the private, RUNPATH-resolved library.
+  /usr/libexec/mhvtl/vtllibrary      mr,
+  /usr/lib/mhvtl/libvtlscsi.so*      mr,
+  /usr/lib64/mhvtl/libvtlscsi.so*    mr,
+  /usr/lib/@{multiarch}/mhvtl/libvtlscsi.so* mr,
+
+  /usr/bin/vtlcmd                    rix,
+
+  # Configuration (read-only).
+  /etc/mhvtl/                        r,
+  /etc/mhvtl/**                      r,
+
+  # Media and per-device FIFO under the home directory.
+  /var/lib/mhvtl/                    rw,
+  /var/lib/mhvtl/**                  rwk,
+
+  # Runtime socket and lock directories (and their historical spellings).
+  owner /run/mhvtl/**                rw,
+  owner /run/lock/mhvtl/**           rwk,
+  owner /var/run/mhvtl/**            rw,
+  owner /var/lock/mhvtl/**           rwk,
+
+  # The emulated SCSI character device backed by mhvtl.ko.
+  /dev/mhvtl[0-9]*                   rw,
+
+  /{,var/}run/systemd/notify         w,
+}

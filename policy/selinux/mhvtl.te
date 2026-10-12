@@ -1,0 +1,84 @@
+policy_module(mhvtl, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+## <desc>mhVTL virtual tape library daemons (vtltape, vtllibrary).</desc>
+
+# The daemons and their entrypoint (installed under /usr/libexec/mhvtl).
+type mhvtl_t;
+type mhvtl_exec_t;
+init_daemon_domain(mhvtl_t, mhvtl_exec_t)
+
+# Shipped PERMISSIVE: SELinux logs what the domain does (AVCs) but does not
+# deny it, so loading this module cannot break a working deployment. Review
+# the audit log, refine the rules below, then remove this line to enforce.
+permissive mhvtl_t;
+
+# Virtual media and per-device FIFOs under the home directory (/var/lib/mhvtl).
+type mhvtl_var_lib_t;
+files_type(mhvtl_var_lib_t)
+
+# Runtime socket directory (/run/mhvtl).
+type mhvtl_runtime_t;
+files_pid_file(mhvtl_runtime_t)
+
+# Lock files (/run/lock/mhvtl).
+type mhvtl_lock_t;
+files_lock_file(mhvtl_lock_t)
+
+# The emulated SCSI character device the daemon creates (/dev/mhvtl<n>).
+type mhvtl_device_t;
+dev_node(mhvtl_device_t)
+
+########################################
+#
+# Local policy
+#
+
+# The daemon creates its own device node, raises rlimits and overrides DAC on
+# the media it owns; it uses SysV IPC and AF_UNIX sockets to talk to vtlcmd and
+# the kernel backend.
+allow mhvtl_t self:capability { mknod sys_resource dac_override };
+allow mhvtl_t self:process { setrlimit signal_perms };
+allow mhvtl_t self:fifo_file manage_fifo_file_perms;
+allow mhvtl_t self:unix_stream_socket { create_stream_socket_perms connectto };
+allow mhvtl_t self:unix_dgram_socket create_socket_perms;
+allow mhvtl_t self:msg { send receive };
+allow mhvtl_t self:msgq create_msgq_perms;
+allow mhvtl_t self:sem create_sem_perms;
+allow mhvtl_t self:shm create_shm_perms;
+
+# Configuration under /etc/mhvtl.
+files_read_etc_files(mhvtl_t)
+
+# Media home: create/manage files, dirs and the per-device FIFOs.
+manage_dirs_pattern(mhvtl_t, mhvtl_var_lib_t, mhvtl_var_lib_t)
+manage_files_pattern(mhvtl_t, mhvtl_var_lib_t, mhvtl_var_lib_t)
+manage_fifo_files_pattern(mhvtl_t, mhvtl_var_lib_t, mhvtl_var_lib_t)
+files_var_lib_filetrans(mhvtl_t, mhvtl_var_lib_t, { dir file fifo_file })
+
+# Runtime socket directory and lock files, with the right transitions so files
+# created there get the module's types.
+manage_dirs_pattern(mhvtl_t, mhvtl_runtime_t, mhvtl_runtime_t)
+manage_files_pattern(mhvtl_t, mhvtl_runtime_t, mhvtl_runtime_t)
+manage_sock_files_pattern(mhvtl_t, mhvtl_runtime_t, mhvtl_runtime_t)
+files_pid_filetrans(mhvtl_t, mhvtl_runtime_t, { dir file sock_file })
+
+manage_files_pattern(mhvtl_t, mhvtl_lock_t, mhvtl_lock_t)
+files_lock_filetrans(mhvtl_t, mhvtl_lock_t, { dir file })
+
+# The emulated SCSI character device node it creates and talks to.
+manage_chr_files_pattern(mhvtl_t, mhvtl_device_t, mhvtl_device_t)
+dev_filetrans(mhvtl_t, mhvtl_device_t, chr_file)
+
+# Talk to the kernel backend and sg devices.
+dev_rw_generic_chr_files(mhvtl_t)
+dev_read_sysfs(mhvtl_t)
+
+# Systemd notify, logging, and running the vtlcmd helper.
+logging_send_syslog_msg(mhvtl_t)
+kernel_read_system_state(mhvtl_t)
+corecmd_exec_bin(mhvtl_t)
