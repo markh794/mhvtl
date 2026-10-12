@@ -170,12 +170,14 @@ static void update_vpd_ult_c0(struct lu_phy_attr *lu) {
 
 	ymd(&year, &month, &day, &h, &m, &s);
 
-	data[1] = 0xc0;
-	data[3] = 0x27;
-
-	sprintf((char *)&data[16], "%02d%02d%02d", h, m, s);
-	sprintf((char *)&data[23], "%04d%02d%02d", year, month, day);
-	sprintf((char *)&data[31], "mhvtl_fl_f");
+	/* data[] is the VPD page payload only; spc.c prepends the standard
+	 * peripheral / page-code / page-length header when answering, so do not
+	 * embed a second header here. The field offsets are 4 lower than the
+	 * header-inclusive layout, which keeps the host-visible positions the
+	 * same once the real header is added. */
+	sprintf((char *)&data[12], "%02d%02d%02d", h, m, s);
+	sprintf((char *)&data[19], "%04d%02d%02d", year, month, day);
+	sprintf((char *)&data[27], "mhvtl_fl_f");
 }
 
 static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn) {
@@ -370,8 +372,8 @@ static void init_ult_inquiry(struct lu_phy_attr *lu) {
 		update_vpd_lbp(lu);
 	}
 
-	/* VPD page 0xC0 */
-	add_vpd_page(lu, 0xc0, 43);
+	/* VPD page 0xC0: 0x27-byte payload (spc.c prepends the 4-byte header) */
+	add_vpd_page(lu, 0xc0, 0x27);
 	update_vpd_ult_c0(lu);
 
 	/* VPD page 0xC1 */
