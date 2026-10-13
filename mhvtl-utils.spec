@@ -92,7 +92,7 @@ matching the running kernel must be installed for the build to succeed.
 # Label the unit files for SELinux only where the management tooling is
 # actually installed; skip quietly otherwise (and never fail the install).
 if command -v semanage >/dev/null 2>&1 && command -v restorecon >/dev/null 2>&1; then
-	for unit in mhvtl-load-modules.service mhvtl-bay-monitor.service vtllibrary@.service vtltape@.service mhvtl.target; do
+	for unit in mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service vtllibrary@.service vtltape@.service mhvtl.target; do
 		semanage fcontext -a -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || \
 		semanage fcontext -m -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || :
 	done
@@ -107,13 +107,6 @@ fi
 %else
 %systemd_post mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %endif
-if [ "$1" -eq 1 ]; then
-	# Fresh install only: seed the default library's media under the home dir.
-	# On upgrade the admin's existing media and %config(noreplace) device.conf
-	# are left untouched (whatever home path they already reference keeps
-	# working), so a relocated default never duplicates or orphans data.
-	make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=%{mhvtl_home_dir} --mktape-path=%{_bindir}
-fi
 
 %postun
 /sbin/ldconfig
@@ -254,6 +247,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_systemdgeneratordir}/mhvtl-device-conf-generator
 %{_unitdir}/mhvtl-load-modules.service
 %{_unitdir}/mhvtl-bay-monitor.service
+%{_unitdir}/mhvtl-media.service
 %{_unitdir}/vtllibrary@.service
 %{_unitdir}/vtltape@.service
 %{_unitdir}/mhvtl.target

@@ -34,7 +34,8 @@ all: $(SERVICES) $(CONFIGS)
 %: %.in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
 	    -e s'/@HOME_PATH@/$(HOME_PATH)/' \
-	    -e s'/@LIBEXEC_PATH@/$(LIBEXEC_PATH)/' $< > $@
+	    -e s'/@LIBEXEC_PATH@/$(LIBEXEC_PATH)/' \
+	    -e s'/@BIN_PATH@/$(BIN_PATH)/g' $< > $@
 
 $(GENERATE_DEVICE_CONF): $(GENERATE_DEVICE_CONF).in
 	sed -e s'/@CONF_PATH@/$(CONFIG_PATH)/' \
