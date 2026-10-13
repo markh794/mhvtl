@@ -28,6 +28,15 @@ Name: mhvtl-utils
 %define minor 0
 Version: 1.8
 Release: %{minor}%{?dist}
+%if 0%{?suse_version}
+# openSUSE ships its own mhvtl packages versioned 1.72_release+... (upstream
+# 1.7-2), which RPM orders above 1.8. Without an epoch the solver would prefer
+# them, e.g. pick openSUSE's older kernel module package for a new kernel next
+# to these 1.8 daemons. Epoch 1 orders every package built from this spec
+# (KMPs included) above them. It is SUSE-only, so other distributions do not
+# carry it; the mhvtl-kmod capability stays epoch-less on purpose.
+Epoch: 1
+%endif
 License: GPL
 URL: http://sites.google.com/site/linuxvtl2/
 
