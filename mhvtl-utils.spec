@@ -37,6 +37,10 @@ Requires: dkms
 BuildRequires: systemd
 BuildRequires: systemd-rpm-macros
 BuildRequires: zlib-devel
+BuildRequires: pkgconfig
+BuildRequires: pkgconfig(libudev)
+BuildRequires: pkgconfig(liblz4)
+BuildRequires: pkgconfig(libzstd)
 %{?systemd_requires}
 %{?systemd_ordering}
 
