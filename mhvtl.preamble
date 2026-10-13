@@ -1,0 +1,2 @@
+Requires: kernel-%1
+Provides: mhvtl-kmod = %{version}

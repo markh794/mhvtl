@@ -73,8 +73,12 @@ uninstall: distclean
 	rm -f $(MODULE_DIR)/mhvtl.ko $(DESTDIR)$(FIRMWAREDIR)/mhvtl/mhvtl_kernel.tgz
 	$(RUN_DEPMOD)
 
+# Module.supported marks mhvtl as externally supported. SUSE kernels refuse to
+# load an unmarked out-of-tree module unless allow_unsupported_modules is set
+# (it is off on Leap 16 / SLE); other kernels ignore the file. It is in the
+# tarball so both the DKMS and the KMP builds pick it up.
 ../mhvtl_kernel.tgz:  $(wildcard ./*.c) $(wildcard ./*.h) $(wildcard ../include/common/*.h) \
-					  config.sh dkms.conf Makefile
+					  config.sh dkms.conf Makefile Module.supported
 	tar --sort=name --mtime=@1 --format=gnu --transform='s|.*/||' -czf $@ $^
 
 install-bkup:

@@ -9,6 +9,16 @@
 %{!?_systemdgeneratordir: %global _systemdgeneratordir %{_prefix}/lib/systemd/system-generators}
 
 %define mhvtl_home_dir /var/lib/mhvtl
+
+# On openSUSE, also build prebuilt kernel module packages (KMP), one per kernel
+# flavor, as the distribution's own mhvtl package does. They provide
+# mhvtl-kmod as an alternative to mhvtl-dkms. Not built where the
+# distribution kernel has no flavors to build against.
+%if 0%{?suse_version}
+%ifnarch ppc s390x
+%define buildkmp 1
+%endif
+%endif
 %global dkms_version %{version}.%{minor}
 
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
@@ -22,6 +32,8 @@ License: GPL
 URL: http://sites.google.com/site/linuxvtl2/
 
 Source: mhvtl-%{real_version}.tgz
+# Subpackage preamble for the openSUSE kernel module packages (KMP) below.
+Source2: mhvtl.preamble
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 
 Recommends: lsscsi mtx mt-st
@@ -33,10 +45,14 @@ Requires: tar >= 1.28
 # module must come from the same release. mhvtl-dkms provides it; a prebuilt
 # kmod/KMP package can provide the same capability instead.
 Requires: mhvtl-kmod = %{version}
+%if 0%{?buildkmp}
+# Steer the solver to the prebuilt module over DKMS when both are available.
+Recommends: mhvtl-kmp
+%endif
 
 BuildRequires: systemd
 BuildRequires: systemd-rpm-macros
-BuildRequires: zlib-devel
+BuildRequires: pkgconfig(zlib)
 BuildRequires: pkgconfig
 BuildRequires: pkgconfig(libudev)
 BuildRequires: pkgconfig(liblz4)
@@ -46,6 +62,12 @@ BuildRequires: pkgconfig(libzstd)
 
 Obsoletes: mhvtl <= %{version}-%{release}
 Provides: mhvtl = %{version}-%{release}
+
+%if 0%{?buildkmp}
+BuildRequires: %kernel_module_package_buildreqs
+# Named mhvtl-kmp-<flavor>, as in openSUSE; kdump, ec2 and um are excluded.
+%suse_kernel_module_package -n mhvtl -p %{S:2} kdump ec2 um
+%endif
 
 %description
 A Virtual tape library and tape drives:
@@ -178,6 +200,20 @@ make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} 
 	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir}
+%if 0%{?buildkmp}
+# Build the module once per kernel flavor, from the same flattened source tree
+# that mhvtl-dkms ships. KDIR is the flavor's /lib/modules/<release>/build, the
+# layout DKMS also uses, so config.sh finds the headers via its source link.
+[ -z "$SOURCE_DATE_EPOCH" ] || export KBUILD_BUILD_TIMESTAMP=@$SOURCE_DATE_EPOCH
+make -C kernel ../mhvtl_kernel.tgz
+for flavor in %flavors_to_build; do
+	obj=/usr/src/linux-obj/%_target_cpu/$flavor
+	krel=$(make -s -C $obj kernelrelease)
+	rm -rf kmp/$flavor && mkdir -p kmp/$flavor
+	tar -xf mhvtl_kernel.tgz -C kmp/$flavor
+	make -C kmp/$flavor KDIR=/lib/modules/$krel/build mhvtl.ko
+done
+%endif
 
 %install
 %make_install \
@@ -189,6 +225,13 @@ make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} 
 # The kernel module is built out of band from the packaged mhvtl_kernel.tgz;
 # discard the module the recursive install staged for the build host's kernel.
 %{__rm} -rf %{buildroot}/lib/modules
+%if 0%{?buildkmp}
+export INSTALL_MOD_PATH=%{buildroot}
+export INSTALL_MOD_DIR=updates
+for flavor in %flavors_to_build; do
+	make -C /usr/src/linux-obj/%_target_cpu/$flavor M=$PWD/kmp/$flavor modules_install
+done
+%endif
 # The media home directory (%{mhvtl_home_dir}) is created by %make_install.
 
 # DKMS source tree, shipped by the mhvtl-dkms subpackage
