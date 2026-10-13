@@ -1,10 +1,14 @@
 TOPDIR ?= $(CURDIR)
 
-VER ?= $(shell awk '/Version/ {print $$2}'  $(TOPDIR)/mhvtl-utils.spec)
-REL ?= $(shell awk -F'[ %]' '/Release/ {print $$2}' $(TOPDIR)/mhvtl-utils.spec)
-EXTRAVERSION ?= $(shell awk '/define minor/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
+# The project version is defined once, in meson.build's project(version:).
+# Derive VER (major.minor) and EXTRAVERSION (patch) from it rather than
+# scraping the RPM spec, so meson.build is the single source of truth and the
+# Makefile build does not depend on the spec.
+MHVTL_PROJECT_VERSION := $(shell awk -F\' '/^[[:space:]]*version[[:space:]]*:/ {print $$2; exit}' $(TOPDIR)/meson.build)
+VER ?= $(basename $(MHVTL_PROJECT_VERSION))
+EXTRAVERSION ?= $(patsubst .%,%,$(suffix $(MHVTL_PROJECT_VERSION)))
 
-FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
+FIRMWAREDIR ?= /usr/lib/firmware
 
 GITHASH ?= $(if $(shell test -d $(TOPDIR)/.git && echo 1),commit:\ $(shell git show -s --format=%h))
 GITDATE ?= $(if $(shell test -d $(TOPDIR)/.git && echo 1),$(shell git show -s --format=%aI))
