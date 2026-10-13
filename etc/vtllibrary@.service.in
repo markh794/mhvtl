@@ -15,7 +15,9 @@ ExecStart=/usr/bin/vtllibrary -F -q%i -v${VERBOSE} ${DAEMON_DEBUG}
 ExecStop=/usr/bin/vtlcmd %i exit
 KillMode=mixed
 TimeoutStopSec=10
-ExecStopPost=-/bin/rm -f /var/lock/mhvtl/mhvtl%i
+# No lock-file cleanup is needed: the lock is a held flock() the kernel releases
+# when the daemon exits (including on a crash), so a leftover file never blocks
+# a restart.
 ExecReload=/usr/bin/kill -HUP $MAINPID
 
 # The daemon runs as root because it creates its own /dev/mhvtl<n> node and the
