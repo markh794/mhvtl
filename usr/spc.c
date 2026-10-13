@@ -393,7 +393,11 @@ uint8_t resp_spc_pri(uint8_t *cdb, struct mhvtl_ds *dbuf_p) {
 		break;
 	case 2: /* REPORT CAPABILITIES */
 		buf[1]	   = 8;
-		buf[2]	   = 0x10;
+		/* CRH=0: this device does not implement the SPC-3 (5.6.3) compatible
+		 * reservation handling exceptions for RESERVE/RELEASE that CRH=1 would
+		 * promise. TMV=1 (buf[3]) with a type mask (buf[4]) of Exclusive
+		 * Access only (0x08) -- the one type PR OUT RESERVE/RELEASE accept. */
+		buf[2]	   = 0x00;
 		buf[3]	   = 0x80;
 		buf[4]	   = 0x08;
 		dbuf_p->sz = 8;
