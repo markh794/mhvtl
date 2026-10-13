@@ -1,0 +1,14 @@
+# mhVTL runtime directories.
+#
+# Created on boot by systemd-tmpfiles on systemd systems, and by
+# opentmpfiles / bootclean where those process /usr/lib/tmpfiles.d. The
+# daemons also create the lock directory on demand (see
+# check_for_running_daemons()), so this is not the only path that creates it.
+#
+#   /run/mhvtl       TCMU handler socket (/run/mhvtl/tcmu_handler.sock)
+#   /run/lock/mhvtl  per-drive / per-library lock files (vtltape, vtllibrary)
+#
+# /var/run and /var/lock are the historical spellings of these and resolve
+# here via the standard symlinks.
+d /run/mhvtl 0755 root root -
+d /run/lock/mhvtl 0750 root root -
