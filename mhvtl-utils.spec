@@ -21,7 +21,6 @@ Name: mhvtl-utils
 Version: 1.8
 Release: %{minor}%{?dist}
 License: GPL
-Group: System/Kernel
 URL: http://sites.google.com/site/linuxvtl2/
 
 Source: mhvtl-%{real_version}.tgz
@@ -65,16 +64,24 @@ The SSC/SMC target daemons have been written from scratch.
 %setup -n %{real_name}-%{version}
 
 %post
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/mhvtl-load-modules.service
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/vtllibrary@.service
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/vtltape@.service
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/mhvtl.target
-/sbin/restorecon -R -v %{_unitdir}
-/bin/systemctl daemon-reload
+# Label the unit files for SELinux only where the management tooling is
+# actually installed; skip quietly otherwise (and never fail the install).
+if command -v semanage >/dev/null 2>&1 && command -v restorecon >/dev/null 2>&1; then
+	for unit in mhvtl-load-modules.service vtllibrary@.service vtltape@.service mhvtl.target; do
+		semanage fcontext -a -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || \
+		semanage fcontext -m -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || :
+	done
+	restorecon -R %{_unitdir} || :
+fi
 %tmpfiles_create %{_tmpfilesdir}/mhvtl.conf
-%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
-/bin/systemctl start mhvtl.target
-/bin/systemctl enable  mhvtl.target
+# Register the units via the distribution's service macros (which run
+# daemon-reload and apply presets) rather than force-starting/enabling them:
+# mhVTL needs a configured library before it can run, so it is not auto-started.
+%if 0%{?suse_version}
+%service_add_post mhvtl-load-modules.service mhvtl.target
+%else
+%systemd_post mhvtl-load-modules.service mhvtl.target
+%endif
 if [ "$1" -eq 1 ]; then
 	# Fresh install only: seed the default library's media under the home dir.
 	# On upgrade the admin's existing media and %config(noreplace) device.conf
@@ -90,22 +97,24 @@ fi
 
 %postun
 /sbin/ldconfig
-/bin/systemctl daemon-reload
+%if 0%{?suse_version}
+%service_del_postun mhvtl-load-modules.service mhvtl.target
+%else
+%systemd_postun mhvtl-load-modules.service mhvtl.target
+%endif
 
 # Remove DKMS module on package erase
 if [ "$1" -eq 0 ]; then
 	/usr/sbin/dkms remove -m mhvtl -v %{dkms_version} --all || :
 fi
 
-#%{service_del_postun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
-
-%pre
-#%{service_add_pre mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
-
 %preun
-/bin/systemctl stop  mhvtl.target
-/bin/systemctl disable  mhvtl.target
-#%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+# Stop/disable only on erase (not on upgrade); the macro handles that.
+%if 0%{?suse_version}
+%service_del_preun mhvtl-load-modules.service mhvtl.target
+%else
+%systemd_preun mhvtl-load-modules.service mhvtl.target
+%endif
 
 %build
 # LIBDIR and MHVTL_LIBEXECDIR must match the install section below: LIBDIR
@@ -141,7 +150,6 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{__rm} -rf %{buildroot}
 
 %files
-%defattr(-, root, root, 0755)
 %doc INSTALL README etc/library_contents.sample
 %doc %{_mandir}/man1/mktape.1*
 %doc %{_mandir}/man1/edit_tape.1*
@@ -191,7 +199,6 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %dir %{mhvtl_home_dir}
 %ghost %{mhvtl_home_dir}/*
 
-%defattr(755, root, root, 0755)
 %dir %{_libexecdir}/mhvtl
 %{_libexecdir}/mhvtl/vtltape
 %{_libexecdir}/mhvtl/vtllibrary
