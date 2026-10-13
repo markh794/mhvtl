@@ -66,6 +66,14 @@ else
 LIBDIR ?= $(PREFIX)/lib64
 endif
 
+# libvtlscsi.so is an internal library: it has no SONAME, no stable ABI and no
+# consumers outside this tree, and it relies on each executable supplying the
+# mhvtl_driver_name symbol. So it is installed into a private directory and
+# found through a RUNPATH on the binaries, rather than published onto the public
+# library search path. Distribution packaging can point this at the multiarch
+# directory (debian/rules sets LIBDIR to the triplet path, so this follows).
+MHVTL_LIBDIR ?= $(LIBDIR)/mhvtl
+
 -include $(TOPDIR)/local.mk
 
 HOME_PATH = $(subst /,\/,$(MHVTL_HOME_PATH))

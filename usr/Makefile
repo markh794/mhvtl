@@ -32,6 +32,14 @@ CFLAGS += -DMHVTL_DEBUG
 CFLAGS += -DMHVTL_HOME_PATH=\"$(MHVTL_HOME_PATH)\"
 CFLAGS += -DMHVTL_CONFIG_PATH=\"$(MHVTL_CONFIG_PATH)\"
 CFLAGS += -DSYSTEMD_SERVICE_DIR=\"$(SYSTEMD_SERVICE_DIR)\"
+# Record the private library directory as RUNPATH so the binaries find
+# libvtlscsi.so there without it being on the public library search path. This
+# is a link-time flag; it is harmlessly ignored while compiling. The shared
+# object itself is linked with CLFLAGS and needs no RUNPATH.
+# --enable-new-dtags emits DT_RUNPATH (searched after LD_LIBRARY_PATH, so the
+# test harness can still override with the build tree) rather than the legacy
+# DT_RPATH some toolchains default to.
+CFLAGS += -Wl,--enable-new-dtags -Wl,-rpath,$(MHVTL_LIBDIR)
 
 CLFLAGS = -shared ${RPM_OPT_FLAGS}
 
@@ -248,10 +256,10 @@ bin/mhvtl_kernel_mod_build: cmd/mhvtl_kernel_mod_build.in
 
 $(DESTDIR)$(PREFIX)/bin:
 	install -d -m 755 $@
-$(DESTDIR)$(LIBDIR):
+$(DESTDIR)$(MHVTL_LIBDIR):
 	install -d -m 755 $@
 
-$(DESTDIR)$(LIBDIR)/%.so: %.so | $(DESTDIR)$(LIBDIR)
+$(DESTDIR)$(MHVTL_LIBDIR)/%.so: %.so | $(DESTDIR)$(MHVTL_LIBDIR)
 	install -m 755 $< $@
 $(DESTDIR)$(PREFIX)/bin/%: bin/% | $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $< $@
@@ -261,12 +269,15 @@ $(DESTDIR)$(PREFIX)/bin/tape_util: bin/tape_util
 .PHONY:install
 install: all \
 		 $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
-		 $(addprefix $(DESTDIR)$(LIBDIR)/,$(LIBRARIES)) 
+		 $(addprefix $(DESTDIR)$(MHVTL_LIBDIR)/,$(LIBRARIES))
 	@rm -f $(DESTDIR)$(PREFIX)/bin/preload_tape
 	ln $(DESTDIR)$(PREFIX)/bin/dump_tape $(DESTDIR)$(PREFIX)/bin/preload_tape
 	[ -d $(DESTDIR)$(SYSTEMD_GENERATOR_DIR) ] || install -d -m 755 $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)
 	install -m 755 bin/mhvtl-device-conf-generator $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/
 	$(call RESTORECON_TREE,$(SYSTEMD_GENERATOR_DIR))
+	# Migration: drop any libvtlscsi.so an older install left in the public
+	# libdir; it now lives under $(MHVTL_LIBDIR) and is found via RUNPATH.
+	rm -f $(DESTDIR)$(LIBDIR)/libvtlscsi.so
 ifeq ($(ROOTUID),YES)
 	ldconfig
 endif
@@ -275,7 +286,7 @@ endif
 uninstall:
 	rm -f $(addprefix $(DESTDIR)$(PREFIX)/,$(BINARIES) $(GENERATED_FILES)) \
 		  $(DESTDIR)$(PREFIX)/bin/preload_tape \
-		  $(addprefix $(DESTDIR)$(LIBDIR)/,$(LIBRARIES)) \
+		  $(addprefix $(DESTDIR)$(MHVTL_LIBDIR)/,$(LIBRARIES)) \
 		  $(DESTDIR)$(SYSTEMD_GENERATOR_DIR)/mhvtl-device-conf-generator
 	$(call RESTORECON_TREE,$(SYSTEMD_GENERATOR_DIR))
 ifeq ($(ROOTUID),YES)
