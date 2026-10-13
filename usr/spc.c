@@ -608,6 +608,15 @@ uint8_t spc_mode_select(struct scsi_cmd *cmd) {
 			  (cdb[0] == MODE_SELECT) ? 6 : 10,
 			  (long)dbuf_p->serialNo);
 
+	if (cdb[1] & 0x01) { /* SP (Save Pages): saved mode pages not supported.
+			      * Match the tape path (ssc_mode_select) which rejects
+			      * this with INVALID FIELD IN CDB. */
+		sd.byte0		 = SKSV | CD | BPV | 1;
+		sd.field_pointer = 1;
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
 	if (!dbuf_p->sz) /* Nothing to apply */
 		return SAM_STAT_GOOD;
 
@@ -712,7 +721,9 @@ uint8_t spc_mode_select(struct scsi_cmd *cmd) {
 static int add_pcode(struct mode *m, uint8_t pc, uint8_t *p) {
 	if (pc == 1) /* Report Changeable bitmap */
 		memcpy(p, m->pcodePointerBitMap, m->pcodeSize);
-	else
+	else if (pc == 2 && m->pcodePointerDefault) /* Report Default values */
+		memcpy(p, m->pcodePointerDefault, m->pcodeSize);
+	else /* Report Current values (pc 0; pc 2 before defaults are frozen) */
 		memcpy(p, m->pcodePointer, m->pcodeSize);
 	return m->pcodeSize;
 }

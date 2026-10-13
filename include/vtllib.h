@@ -161,6 +161,7 @@ struct mode {
 	int32_t			 pcodeSize;			 /* Size of page code data. */
 	uint8_t			*pcodePointerBitMap; /* bitmap for changeable data */
 	uint8_t			*pcodePointer;		 /* Pointer to page code data */
+	uint8_t			*pcodePointerDefault; /* frozen default values (PC=2) */
 	char			*description;		 /* ASCII text 'description' */
 };
 
