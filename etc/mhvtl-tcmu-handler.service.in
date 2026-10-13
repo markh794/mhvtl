@@ -11,7 +11,7 @@ Before=shutdown.target
 Type=simple
 Environment=MHVTL_BACKEND=mhvtl
 EnvironmentFile=-@CONF_PATH@/mhvtl.conf
-ExecStart=/usr/bin/mhvtl_tcmu_handler -F
+ExecStart=@LIBEXEC_PATH@/mhvtl_tcmu_handler -F
 KillMode=mixed
 TimeoutStopSec=10
 

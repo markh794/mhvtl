@@ -1,5 +1,7 @@
 etc/mhvtl/*
 usr/bin/*
+usr/libexec/mhvtl/*
+usr/share/mhvtl/*
 usr/lib/*/mhvtl/libvtlscsi.so
 usr/lib/systemd/system/*
 usr/lib/systemd/system-generators/*
