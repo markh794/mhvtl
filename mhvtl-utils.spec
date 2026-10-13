@@ -10,7 +10,7 @@
 
 %define _unpackaged_files_terminate_build 0
 
-%define mhvtl_home_dir /opt/mhvtl
+%define mhvtl_home_dir /var/lib/mhvtl
 %global dkms_version %{version}.%{minor}
 
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
@@ -75,7 +75,13 @@ The SSC/SMC target daemons have been written from scratch.
 %{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
 /bin/systemctl start mhvtl.target
 /bin/systemctl enable  mhvtl.target
-make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=/opt/mhvtl --mktape-path=%{_bindir}
+if [ "$1" -eq 1 ]; then
+	# Fresh install only: seed the default library's media under the home dir.
+	# On upgrade the admin's existing media and %config(noreplace) device.conf
+	# are left untouched (whatever home path they already reference keeps
+	# working), so a relocated default never duplicates or orphans data.
+	make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=%{mhvtl_home_dir} --mktape-path=%{_bindir}
+fi
 
 # DKMS registration (additive; do not fail install if DKMS isn't active)
 /usr/sbin/dkms add -m mhvtl -v %{dkms_version} || :
@@ -121,7 +127,7 @@ make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} 
 %{__rm} -rf %{buildroot}/lib/modules
 install -d -m 755 %{buildroot}%{_sbindir}
 ln -s %{_sbindir}/service %{buildroot}/%{_sbindir}/rc%{name}
-install -d -m 755 %{buildroot}/var/lib/%{name}
+# The media home directory (%{mhvtl_home_dir}) is created by %make_install.
 
 # DKMS source tree (additive; does not replace existing install behavior)
 install -d -m 755 %{buildroot}%{_usrsrc}/mhvtl-%{dkms_version}
@@ -184,9 +190,6 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %defattr(755, root, root, 0755)
 %{_bindir}/vtltape
 %{_bindir}/vtllibrary
-
-%defattr(-, root, root, 755)
-%dir /opt/mhvtl/
 
 %changelog
 * Fri Jan 30 2026 Maarten Jacobs <maarten256@outlook.com> - 1.7-3

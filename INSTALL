@@ -98,7 +98,7 @@ You can test that your vtl* daemons are running with:
 	sh> ps -ax | fgrep vtl
 
 If the install did not create virtual media under MHVTL_HOME_PATH
-(default /opt/mhvtl), create it before using mtx to load tapes:
+(default /var/lib/mhvtl), create it before using mtx to load tapes:
 
 	sh> sudo make_vtl_media
 
