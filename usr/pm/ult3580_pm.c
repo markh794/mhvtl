@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <inttypes.h>
 #include "be_byteshift.h"
@@ -187,10 +188,18 @@ static void update_vpd_ult_c1(struct lu_phy_attr *lu, char *sn) {
 	vpd_p = lu->lu_vpd[PCODE_OFFSET(0xc1)];
 	data  = vpd_p->data;
 
-	data[1] = 0xc1;
-	data[3] = 0x18;
-	snprintf((char *)&data[4], 13, "%-12.12s", sn);
-	snprintf((char *)&data[16], 13, "%-12.12s", sn);
+	/* data[] is the VPD page payload only; spc.c prepends the peripheral /
+	 * page-code / page-length header, so do not embed a second header here.
+	 * Format the serial once and memcpy exactly 12 bytes into each field:
+	 * snprintf((char *)&data[16], 13, ...) would write its NUL terminator one
+	 * byte past the 0x18-byte (24) payload. */
+	{
+		char serial[13];
+
+		snprintf(serial, sizeof(serial), "%-12.12s", sn);
+		memcpy(&data[0], serial, 12);
+		memcpy(&data[12], serial, 12);
+	}
 }
 
 static uint8_t set_ult_WORM(struct list_head *lst) {
@@ -377,7 +386,7 @@ static void init_ult_inquiry(struct lu_phy_attr *lu) {
 	update_vpd_ult_c0(lu);
 
 	/* VPD page 0xC1 */
-	add_vpd_page(lu, 0xc1, 28);
+	add_vpd_page(lu, 0xc1, 0x18); /* 0x18-byte payload; spc.c adds the header */
 	update_vpd_ult_c1(lu, lu->lu_serial_no);
 }
 
