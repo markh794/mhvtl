@@ -3,6 +3,7 @@
 # ever wanted by that target, never by multi-user.target directly.
 mhvtl: systemd-service-file-refers-to-unusual-wantedby-target mhvtl.target *
 
-# Upstream ships no manual page for these two helpers.
+# Upstream ships no manual page for these helpers.
 mhvtl: no-manual-page [usr/bin/dump_messageQ]
-mhvtl: no-manual-page [usr/bin/mhvtl-device-conf-generator]
+mhvtl: no-manual-page [usr/bin/mhvtl-raw-format]
+mhvtl: no-manual-page [usr/bin/mhvtl-raw-provision]

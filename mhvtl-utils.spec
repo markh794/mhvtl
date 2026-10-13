@@ -8,8 +8,6 @@
 # pilfered from https://src.fedoraproject.org/rpms/snapd/blob/master/f/snapd.spec
 %{!?_systemdgeneratordir: %global _systemdgeneratordir %{_prefix}/lib/systemd/system-generators}
 
-%define _unpackaged_files_terminate_build 0
-
 %define mhvtl_home_dir /var/lib/mhvtl
 %global dkms_version %{version}.%{minor}
 
@@ -87,14 +85,14 @@ matching the running kernel must be installed for the build to succeed.
 # SUSE's service_add_post applies presets only to the units service_add_pre
 # recorded as newly installed; the systemd macros need no pre step.
 %if 0%{?suse_version}
-%service_add_pre mhvtl-load-modules.service mhvtl.target
+%service_add_pre mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %endif
 
 %post
 # Label the unit files for SELinux only where the management tooling is
 # actually installed; skip quietly otherwise (and never fail the install).
 if command -v semanage >/dev/null 2>&1 && command -v restorecon >/dev/null 2>&1; then
-	for unit in mhvtl-load-modules.service vtllibrary@.service vtltape@.service mhvtl.target; do
+	for unit in mhvtl-load-modules.service mhvtl-bay-monitor.service vtllibrary@.service vtltape@.service mhvtl.target; do
 		semanage fcontext -a -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || \
 		semanage fcontext -m -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || :
 	done
@@ -105,9 +103,9 @@ fi
 # daemon-reload and apply presets) rather than force-starting/enabling them:
 # mhVTL needs a configured library before it can run, so it is not auto-started.
 %if 0%{?suse_version}
-%service_add_post mhvtl-load-modules.service mhvtl.target
+%service_add_post mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %else
-%systemd_post mhvtl-load-modules.service mhvtl.target
+%systemd_post mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %endif
 if [ "$1" -eq 1 ]; then
 	# Fresh install only: seed the default library's media under the home dir.
@@ -120,17 +118,17 @@ fi
 %postun
 /sbin/ldconfig
 %if 0%{?suse_version}
-%service_del_postun mhvtl-load-modules.service mhvtl.target
+%service_del_postun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %else
-%systemd_postun mhvtl-load-modules.service mhvtl.target
+%systemd_postun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %endif
 
 %preun
 # Stop/disable only on erase (not on upgrade); the macro handles that.
 %if 0%{?suse_version}
-%service_del_preun mhvtl-load-modules.service mhvtl.target
+%service_del_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %else
-%systemd_preun mhvtl-load-modules.service mhvtl.target
+%systemd_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
 %endif
 
 %preun -n mhvtl-dkms
@@ -198,8 +196,6 @@ make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} 
 # The kernel module is built out of band from the packaged mhvtl_kernel.tgz;
 # discard the module the recursive install staged for the build host's kernel.
 %{__rm} -rf %{buildroot}/lib/modules
-install -d -m 755 %{buildroot}%{_sbindir}
-ln -s %{_sbindir}/service %{buildroot}/%{_sbindir}/rc%{name}
 # The media home directory (%{mhvtl_home_dir}) is created by %make_install.
 
 # DKMS source tree, shipped by the mhvtl-dkms subpackage
@@ -231,6 +227,9 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %doc %{_mandir}/man5/mhvtl.conf.5*
 %doc %{_mandir}/man5/library_contents.5*
 %{_bindir}/vtlcmd
+%{_bindir}/dump_messageQ
+%{_bindir}/mhvtl-raw-format
+%{_bindir}/mhvtl-raw-provision
 %{_bindir}/mktape
 %{_bindir}/edit_tape
 %{_bindir}/dump_tape
@@ -254,6 +253,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_datadir}/mhvtl/*
 %{_systemdgeneratordir}/mhvtl-device-conf-generator
 %{_unitdir}/mhvtl-load-modules.service
+%{_unitdir}/mhvtl-bay-monitor.service
 %{_unitdir}/vtllibrary@.service
 %{_unitdir}/vtltape@.service
 %{_unitdir}/mhvtl.target
@@ -264,6 +264,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %dir %{_libexecdir}/mhvtl
 %{_libexecdir}/mhvtl/vtltape
 %{_libexecdir}/mhvtl/vtllibrary
+%{_libexecdir}/mhvtl/mhvtl-bay-monitor
 
 %files -n mhvtl-dkms
 %{_usrsrc}/mhvtl-%{dkms_version}

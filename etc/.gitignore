@@ -7,3 +7,5 @@ vtltape@.service
 mhvtl-load-modules.service
 generate_device_conf
 generate_library_contents
+mhvtl-bay-monitor.service
+mhvtl-tcmu-handler.service

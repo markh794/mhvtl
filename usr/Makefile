@@ -68,7 +68,9 @@ DAEMON_BINARIES = bin/vtltape bin/vtllibrary bin/mhvtl-bay-monitor
 ifdef TCMU
 DAEMON_BINARIES += bin/mhvtl_tcmu_handler
 endif
-CLI_BINARIES = $(filter-out $(DAEMON_BINARIES),$(BINARIES))
+# The systemd generator is installed only into SYSTEMD_GENERATOR_DIR (below);
+# it is invoked by systemd, not by users, so it is not a CLI either.
+CLI_BINARIES = $(filter-out $(DAEMON_BINARIES) bin/mhvtl-device-conf-generator,$(BINARIES))
 
 all: | bin
 all: $(LIBRARIES) $(BINARIES) $(GENERATED_FILES) validate_crc

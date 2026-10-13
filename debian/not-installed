@@ -1,0 +1,3 @@
+# Superseded by mhvtl-dkms; see override_dh_install in debian/rules.
+usr/bin/mhvtl_kernel_mod_build
+usr/share/man/man1/mhvtl_kernel_mod_build.1
