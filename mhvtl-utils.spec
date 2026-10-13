@@ -63,6 +63,13 @@ The SSC/SMC target daemons have been written from scratch.
 %prep
 %setup -n %{real_name}-%{version}
 
+%pre
+# SUSE's service_add_post applies presets only to the units service_add_pre
+# recorded as newly installed; the systemd macros need no pre step.
+%if 0%{?suse_version}
+%service_add_pre mhvtl-load-modules.service mhvtl.target
+%endif
+
 %post
 # Label the unit files for SELinux only where the management tooling is
 # actually installed; skip quietly otherwise (and never fail the install).
@@ -150,6 +157,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{__rm} -rf %{buildroot}
 
 %files
+%license COPYING
 %doc INSTALL README etc/library_contents.sample
 %doc %{_mandir}/man1/mktape.1*
 %doc %{_mandir}/man1/edit_tape.1*
@@ -180,6 +188,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_bindir}/generate_library_contents
 %dir %{_libdir}/mhvtl
 %{_libdir}/mhvtl/libvtlscsi.so
+%dir %{_firmwarepath}/mhvtl
 %{_firmwarepath}/mhvtl/mhvtl_kernel.tgz
 %dir %{_sysconfdir}/mhvtl
 %config(noreplace) %{_sysconfdir}/mhvtl/mhvtl.conf
