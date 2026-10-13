@@ -1,0 +1,67 @@
+name: packages
+
+# Phase 7 package gate (issue #11, step 1): build the distribution packages in
+# clean containers on every push/PR so packaging regressions surface before the
+# FHS path rework (#10) and the later spec/OBS changes. Each target runs the
+# same scripts a maintainer runs by hand (ci/build-deb.sh, ci/build-rpm.sh).
+#
+# Runs on ubuntu-latest and drives each distro with `docker run` rather than a
+# job `container:`, so checkout stays on the host (minimal distro images ship no
+# Node for the checkout action) and the build runs in a pristine image.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - debian:13
+          - ubuntu:24.04
+    name: deb (${{ matrix.image }})
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build .deb in ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "${{ matrix.image }}" \
+            bash /src/ci/build-deb.sh
+      - name: Upload packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ strategy.job-index }}
+          path: dist/deb/*.deb
+          if-no-files-found: ignore
+
+  rpm:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - rockylinux/rockylinux:9
+          - rockylinux/rockylinux:10
+          - opensuse/leap:16.0
+          - opensuse/tumbleweed
+    name: rpm (${{ matrix.image }})
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build .rpm in ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "${{ matrix.image }}" \
+            bash /src/ci/build-rpm.sh
+      - name: Upload packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-${{ strategy.job-index }}
+          path: dist/rpm/*.rpm
+          if-no-files-found: ignore
