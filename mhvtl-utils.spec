@@ -31,7 +31,10 @@ Recommends: lsscsi mtx mt-st
 Requires:sg3_utils
 Requires: policycoreutils
 Requires: tar >= 1.28
-Requires: dkms
+# The daemons and the kernel module share the vtl_common.h ioctl ABI, so the
+# module must come from the same release. mhvtl-dkms provides it; a prebuilt
+# kmod/KMP package can provide the same capability instead.
+Requires: mhvtl-kmod = %{version}
 
 BuildRequires: systemd
 BuildRequires: systemd-rpm-macros
@@ -59,6 +62,23 @@ via /dev/mhvtl? device nodes.
 
 The kernel module is based on the scsi_debug driver.
 The SSC/SMC target daemons have been written from scratch.
+
+%package -n mhvtl-dkms
+Summary: Virtual tape library - kernel module source for DKMS
+BuildArch: noarch
+Requires: dkms
+Requires: gcc
+Requires: make
+Provides: mhvtl-kmod = %{version}
+# openSUSE's prebuilt kernel module packages: two mhvtl.ko builds would compete
+# for the same kernel.
+Conflicts: mhvtl-kmp
+
+%description -n mhvtl-dkms
+Source of the mhvtl pseudo HBA kernel module, registered with DKMS so the
+module is built for the running kernel on installation and rebuilt whenever
+a new kernel is installed. Kernel headers (kernel-devel / kernel-default-devel)
+matching the running kernel must be installed for the build to succeed.
 
 %prep
 %setup -n %{real_name}-%{version}
@@ -97,11 +117,6 @@ if [ "$1" -eq 1 ]; then
 	make_vtl_media --config-dir=%{_sysconfdir}/mhvtl --home-dir=%{mhvtl_home_dir} --mktape-path=%{_bindir}
 fi
 
-# DKMS registration (additive; do not fail install if DKMS isn't active)
-/usr/sbin/dkms add -m mhvtl -v %{dkms_version} || :
-/usr/sbin/dkms build -m mhvtl -v %{dkms_version} || :
-/usr/sbin/dkms install -m mhvtl -v %{dkms_version} || :
-
 %postun
 /sbin/ldconfig
 %if 0%{?suse_version}
@@ -110,11 +125,6 @@ fi
 %systemd_postun mhvtl-load-modules.service mhvtl.target
 %endif
 
-# Remove DKMS module on package erase
-if [ "$1" -eq 0 ]; then
-	/usr/sbin/dkms remove -m mhvtl -v %{dkms_version} --all || :
-fi
-
 %preun
 # Stop/disable only on erase (not on upgrade); the macro handles that.
 %if 0%{?suse_version}
@@ -122,6 +132,51 @@ fi
 %else
 %systemd_preun mhvtl-load-modules.service mhvtl.target
 %endif
+
+%preun -n mhvtl-dkms
+# Unregister this version on erase, upgrade and reinstall alike. On upgrade
+# and reinstall the posttrans scriptlet below registers the new version again;
+# it runs after this one, which a registration at post time would not.
+#
+# On EL, dkms remove calls weak-modules --remove-modules before it deletes the
+# module, and weak-modules keeps any weak link whose target still exists, so
+# the links it made for other installed kernels are left dangling. Note the
+# modules they point to, and pass those dkms deleted to weak-modules again.
+weak_targets=
+if [ -x /usr/sbin/weak-modules ]; then
+	weak_targets=$(find /lib/modules/*/weak-updates -name 'mhvtl.ko*' -type l \
+		-exec readlink {} \; 2>/dev/null | sort -u)
+fi
+dkms remove -m mhvtl -v %{dkms_version} --all >/dev/null 2>&1 || :
+gone=$(for module in $weak_targets; do [ -e "$module" ] || echo "$module"; done)
+if [ -n "$gone" ]; then
+	echo "$gone" | /usr/sbin/weak-modules --no-initramfs --remove-modules >/dev/null 2>&1 || :
+fi
+
+%posttrans -n mhvtl-dkms
+# Releases before the mhvtl-dkms split shipped the source in mhvtl-utils and
+# left their DKMS registration behind on upgrade, with the source tree gone.
+# dkms remove refuses such an entry, and deleting it by hand would leave its
+# installed module behind (to be restored when this version is removed). So
+# lend it this release's source, whose module layout is the same, under its
+# own version, and let dkms undo its install properly.
+for tree in /var/lib/dkms/mhvtl/*/; do
+	tree=${tree%/}
+	[ -L "$tree/source" ] || continue
+	ver=${tree##*/}
+	[ "$ver" = "%{dkms_version}" ] && continue
+	src=%{_usrsrc}/mhvtl-$ver
+	[ -e "$src" ] && continue
+	cp -a %{_usrsrc}/mhvtl-%{dkms_version} "$src" &&
+		sed -i "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=\"$ver\"/" "$src/dkms.conf" &&
+		dkms remove -m mhvtl -v "$ver" --all >/dev/null 2>&1
+	rm -rf "$src"
+done
+# Build and install for the running kernel. A missing kernel-devel must not
+# fail the transaction: DKMS retries automatically when a kernel is installed.
+dkms add -m mhvtl -v %{dkms_version} -q || :
+dkms build -m mhvtl -v %{dkms_version} -q || :
+dkms install -m mhvtl -v %{dkms_version} -q --force || :
 
 %build
 # LIBDIR and MHVTL_LIBEXECDIR must match the install section below: LIBDIR
@@ -147,7 +202,7 @@ install -d -m 755 %{buildroot}%{_sbindir}
 ln -s %{_sbindir}/service %{buildroot}/%{_sbindir}/rc%{name}
 # The media home directory (%{mhvtl_home_dir}) is created by %make_install.
 
-# DKMS source tree (additive; does not replace existing install behavior)
+# DKMS source tree, shipped by the mhvtl-dkms subpackage
 install -d -m 755 %{buildroot}%{_usrsrc}/mhvtl-%{dkms_version}
 tar -xf mhvtl_kernel.tgz -C %{buildroot}%{_usrsrc}/mhvtl-%{dkms_version}
 sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
@@ -197,8 +252,6 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %config(noreplace) %{_sysconfdir}/mhvtl/library_contents.30
 %dir %{_datadir}/mhvtl
 %{_datadir}/mhvtl/*
-%dir %{_usrsrc}/mhvtl-%{dkms_version}
-%{_usrsrc}/mhvtl-%{dkms_version}/*
 %{_systemdgeneratordir}/mhvtl-device-conf-generator
 %{_unitdir}/mhvtl-load-modules.service
 %{_unitdir}/vtllibrary@.service
@@ -211,6 +264,9 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %dir %{_libexecdir}/mhvtl
 %{_libexecdir}/mhvtl/vtltape
 %{_libexecdir}/mhvtl/vtllibrary
+
+%files -n mhvtl-dkms
+%{_usrsrc}/mhvtl-%{dkms_version}
 
 %changelog
 * Fri Jan 30 2026 Maarten Jacobs <maarten256@outlook.com> - 1.7-3
