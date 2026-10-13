@@ -53,6 +53,12 @@ if $(HAVE_SEMANAGE); then \
 fi
 endef
 
+# Reloading the systemd manager only makes sense on a live systemd system.
+# Skip it when staging into DESTDIR for packaging, and on non-systemd init
+# systems - where systemctl is absent or systemd is not the running init - so
+# that a root `make install` there does not abort (see issue #143).
+RELOAD_SYSTEMD = if [ -z "$(DESTDIR)" ] && [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload; fi
+
 ifeq ($(shell grep lib64$ /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
 LIBDIR ?= $(PREFIX)/lib
 else

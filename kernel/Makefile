@@ -25,12 +25,28 @@ endif
 
 export KDIR
 
+# Compile the module only when KDIR is set - either auto-detected above from a
+# present build tree, or passed in explicitly. Without one we still produce and
+# install the source tarball (consumed by DKMS / packaging), but skip building
+# and installing mhvtl.ko instead of aborting - so the module can be built
+# later, e.g. by DKMS, on hosts that lack build headers now.
+ifeq ($(KDIR),)
+KERNEL_MODULE :=
+else
+KERNEL_MODULE := mhvtl.ko
+endif
+
 TOPDIR ?= $(CURDIR)/..
 FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
 
 PWD	:= $(shell pwd)
 
-all: mhvtl.ko ../mhvtl_kernel.tgz
+all: $(KERNEL_MODULE) ../mhvtl_kernel.tgz
+ifeq ($(KERNEL_MODULE),)
+	@echo "mhvtl: no kernel build tree for $(V) found - skipping module build."
+	@echo "mhvtl: install the matching kernel headers/-devel package, or pass"
+	@echo "mhvtl: KDIR=<path>, to build mhvtl.ko. Source tarball staged for DKMS."
+endif
 
 mhvtl.ko:	config.h
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
@@ -47,9 +63,11 @@ RUN_DEPMOD = if [ -z "$(DESTDIR)" ] && command -v depmod >/dev/null 2>&1; then d
 install: all
 	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
 	install -m 755 ../mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
+ifneq ($(KERNEL_MODULE),)
 	[ -d $(MODULE_DIR) ] || install -d -m 755 $(MODULE_DIR)
 	install -m 644 mhvtl.ko $(MODULE_DIR)/
 	$(RUN_DEPMOD)
+endif
 
 uninstall: distclean
 	rm -f $(MODULE_DIR)/mhvtl.ko $(DESTDIR)$(FIRMWAREDIR)/mhvtl/mhvtl_kernel.tgz
