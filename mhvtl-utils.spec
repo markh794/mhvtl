@@ -60,7 +60,12 @@ BuildRequires: pkgconfig(libzstd)
 %{?systemd_requires}
 %{?systemd_ordering}
 
-Obsoletes: mhvtl <= %{version}-%{release}
+# Replaces the distributions' "mhvtl" package. openSUSE versions upstream 1.7-2
+# as 1.72_release, which RPM orders above 1.8, so a bound at our own version
+# would never match it; any 1.x is obsoleted instead. This deliberately claims
+# the mhvtl name for all 1.x; a package never obsoletes itself, and the mhvtl
+# Provides below keeps dependencies on the old name satisfied.
+Obsoletes: mhvtl < 2
 Provides: mhvtl = %{version}-%{release}
 
 %if 0%{?buildkmp}
