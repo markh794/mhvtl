@@ -98,7 +98,8 @@ static int smc_buffer_size(struct smc_priv *smc_p) {
 	sz += (drives + smc_p->num_picker +
 		   smc_p->num_map + smc_p->num_storage) *
 		  (16 + VOLTAG_LEN);
-	sz += drives * smc_p->pm->dvcid_len;
+	/* StorageTek always adds the four domain/type bytes as well */
+	sz += drives * (smc_p->pm->dvcid_len + (smc_p->pm->stk_dte_layout ? 4 : 0));
 
 	return max(SMC_BUF_SIZE, sz);
 }
@@ -629,7 +630,9 @@ static void set_drive_serial(struct smc_priv *smc_p, struct d_info *dp,
 	room = smc_p->pm->dvcid_len;
 	if (!room) /* Personality reports no device identifier */
 		return;
-	if (!smc_p->pm->dvcid_serial_only)
+	if (smc_p->pm->stk_dte_layout)
+		; /* The whole area is the serial number */
+	else if (!smc_p->pm->dvcid_serial_only)
 		room = (room > 24) ? room - 24 : 0;
 	else if (smc_p->pm->dvcid_nul_terminated)
 		room--;

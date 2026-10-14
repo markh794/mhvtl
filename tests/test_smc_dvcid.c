@@ -568,6 +568,110 @@ void test_non_ibm_short_serial_unchanged(void)
 	stop();
 }
 
+/* StorageTek L20/40/80 (doc 95971 tables 4-49/4-50), L180/L700e (doc 95869
+ * tables 6-67/6-68) and SL500 (PN 96122 tables 6-76/6-77): with or without
+ * DvcID the drive descriptor ends with the serial in a 32 byte area and the
+ * four Media/Transport Domain/Type bytes, 88 bytes with PVolTag. The L20 and
+ * L700 report the drive's SCSI bus address; the SL500 does not.
+ */
+void test_stk_dte_layout(void)
+{
+	static const struct { const char *product; int bus; } models[] = {
+		{ "L700", 1 }, { "L80", 1 }, { "SL500", 0 },
+	};
+	static const uint8_t ff[4] = { 0xff, 0xff, 0xff, 0xff };
+	static const uint8_t zero[4] = { 0 };
+
+	for (unsigned i = 0; i < ARRAY_SIZE(models); i++) {
+		struct lib_conf c = {
+			"STK", models[i].product, "IBM", "ULT3580-TD8", LONG_SERIAL
+		};
+		struct elem_page pg;
+		uint8_t *id;
+		int len;
+
+		TEST_CASE_("%s", models[i].product);
+		TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+
+		/* DvcID=1, PVolTag=1 */
+		len = read_element_status(1, 1);
+		TEST_ASSERT(find_page(len, 4, &pg) == 0);
+		TEST_CHECK(pg.desc_len == 88);
+		TEST_CHECK(pg.byte_count == 2 * pg.desc_len);
+		TEST_MSG("desc_len %d", pg.desc_len);
+		id = &pg.desc[id_offset(1)];
+		TEST_CHECK(id[0] == 2 && id[1] == 0 && id[3] == 25);
+		TEST_CHECK(memcmp(&id[4], LONG_SERIAL, 25) == 0);
+		for (int k = 25; k < 32; k++)
+			TEST_CHECK_(id[4 + k] == ' ', "pad byte %d is space", k);
+		TEST_CHECK(memcmp(&pg.desc[84], ff, 4) == 0);
+		TEST_MSG("identifier: '%.32s'", &id[4]);
+		if (models[i].bus) {
+			TEST_CHECK(pg.desc[6] == 0x20); /* ID Valid */
+			TEST_CHECK(pg.desc[7] == 1);	/* TARGET 01 */
+		} else {
+			TEST_CHECK(pg.desc[6] == 0 && pg.desc[7] == 0);
+		}
+		TEST_MSG("byte 6 0x%02x, byte 7 0x%02x", pg.desc[6], pg.desc[7]);
+
+		/* DvcID=1, PVolTag=0: the fields move up */
+		len = read_element_status(0, 1);
+		TEST_ASSERT(find_page(len, 4, &pg) == 0);
+		TEST_CHECK(pg.desc_len == 52);
+		TEST_CHECK(memcmp(&pg.desc[id_offset(0) + 4], LONG_SERIAL, 25) == 0);
+		TEST_CHECK(memcmp(&pg.desc[48], ff, 4) == 0);
+
+		/* DvcID=0, PVolTag=1: Transport Serial Number at bytes 56-87 */
+		len = read_element_status(1, 0);
+		TEST_ASSERT(find_page(len, 4, &pg) == 0);
+		TEST_CHECK(pg.desc_len == 88);
+		TEST_CHECK(memcmp(&pg.desc[48], zero, 4) == 0);
+		TEST_CHECK(memcmp(&pg.desc[52], ff, 4) == 0);
+		TEST_CHECK(memcmp(&pg.desc[56], LONG_SERIAL, 25) == 0);
+		for (int k = 25; k < 32; k++)
+			TEST_CHECK_(pg.desc[56 + k] == ' ', "pad byte %d is space", k);
+		TEST_MSG("transport serial: '%.32s'", &pg.desc[56]);
+
+		/* DvcID=0, PVolTag=0: the same fields moved up to bytes 12-51 */
+		len = read_element_status(0, 0);
+		TEST_ASSERT(find_page(len, 4, &pg) == 0);
+		TEST_CHECK(pg.desc_len == 52);
+		TEST_CHECK(memcmp(&pg.desc[12], zero, 4) == 0);
+		TEST_CHECK(memcmp(&pg.desc[16], ff, 4) == 0);
+		TEST_CHECK(memcmp(&pg.desc[20], LONG_SERIAL, 25) == 0);
+		TEST_CHECK(pg.desc[20 + 25] == ' ' && pg.desc[51] == ' ');
+
+		stop();
+	}
+}
+
+/* A StorageTek drive serial longer than the 32 byte area is cut to 32
+ * characters, and the identifier length says 32.
+ */
+void test_stk_long_serial_truncated(void)
+{
+	static const char sn40[] = "STK0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0"; /* 40 */
+	struct lib_conf c = { "STK", "L700", "IBM", "ULT3580-TD8", sn40 };
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+	len = read_element_status(1, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 88);
+	id = &pg.desc[id_offset(1)];
+	TEST_CHECK(id[3] == 32);
+	TEST_CHECK(memcmp(&id[4], sn40, 32) == 0);
+	TEST_CHECK(pg.desc[84] == 0xff); /* domain/type bytes not overwritten */
+	TEST_MSG("identifier: '%.32s'", &id[4]);
+
+	len = read_element_status(1, 0);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(memcmp(&pg.desc[56], sn40, 32) == 0);
+	stop();
+}
+
 #define OVERLONG_SERIAL "SN0123456789012345678901234567890123456789XYZ" /* 45 */
 
 /* Serials past MAX_DRIVE_SN_LEN are cut to 40 characters on both sides */
@@ -643,6 +747,8 @@ TEST_LIST = {
 	{ "overlong_serial_clamped",        test_overlong_serial_clamped },
 	{ "ibm_lto_short_serial_zero_padded", test_ibm_lto_short_serial_zero_padded },
 	{ "non_ibm_short_serial_unchanged", test_non_ibm_short_serial_unchanged },
+	{ "stk_dte_layout",                 test_stk_dte_layout },
+	{ "stk_long_serial_truncated",      test_stk_long_serial_truncated },
 	{ "scalar_inquiry_length",          test_scalar_inquiry_length },
 	{ NULL, NULL }
 };
