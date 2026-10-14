@@ -22,15 +22,14 @@ $INSTALL rpmlint || echo "rpmlint unavailable - lint step will be skipped"
 echo "::endgroup::"
 
 echo "::group::assemble source tarball"
-REALVER=$(awk '/%define real_version/ {print $3}' "$SPEC")
 VER=$(awk '/^Version:/ {print $2}' "$SPEC")
-echo "real_version=$REALVER version=$VER"
+echo "version=$VER"
 # Pin _topdir: openSUSE defaults it to /usr/src/packages, EL to ~/rpmbuild;
 # fix it so the tarball location and the rpmbuild lookup always agree.
 TOPDIR="$PWD/rpmbuild"
 mkdir -p "$TOPDIR"/{SOURCES,SPECS,BUILD,BUILDROOT,RPMS,SRPMS}
 # Name the tarball as Source: expects and give it the %setup -n top dir.
-tar czf "$TOPDIR/SOURCES/mhvtl-$REALVER.tgz" \
+tar czf "$TOPDIR/SOURCES/mhvtl-$VER.tgz" \
 	--transform "s,^\.,mhvtl-$VER," \
 	--exclude=.git --exclude=./ci --exclude=./rpmbuild --exclude=./dist .
 # Additional sources referenced by the spec (Source2: the KMP preamble).
