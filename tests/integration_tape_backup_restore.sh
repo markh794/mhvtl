@@ -60,8 +60,7 @@ echo "$STATUS" | sed -n '1,6p'
 
 if [ -z "${SRC_SLOT:-}" ]; then
     SRC_SLOT="$(echo "$STATUS" \
-        | awk '/Storage Element [0-9]+:Full.*L8/ {
-                 match($0, /Storage Element ([0-9]+)/, m); print m[1]; exit }')"
+        | sed -nE 's/.*Storage Element ([0-9]+):Full.*L8.*/\1/p' | head -n 1)"
 fi
 [ -n "$SRC_SLOT" ] || fail "could not find an L8 tape in any slot"
 log "using tape from slot $SRC_SLOT"
