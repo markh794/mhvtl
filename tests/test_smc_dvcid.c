@@ -256,13 +256,13 @@ void test_default_personality_consistent(void)
 		TEST_CHECK(id[3] == pg.desc_len - id_offset(voltag) - 4);
 		TEST_CHECK(id[3] == 34);
 		TEST_CHECK(memcmp(&id[4],
-				  "IBM     ULT3580-TD8     XYZZY_A   ", 34) == 0);
+				  "IBM     ULT3580-TD8     000XYZZY_A", 34) == 0);
 		/* The second descriptor starts where the length says */
 		id = &pg.desc[pg.desc_len + id_offset(voltag)];
 		TEST_CHECK(get_unaligned_be16(&pg.desc[pg.desc_len]) ==
 			   get_unaligned_be16(&pg.desc[0]) + 1);
 		TEST_CHECK(memcmp(&id[4],
-				  "IBM     ULT3580-TD8     XYZZY_B   ", 34) == 0);
+				  "IBM     ULT3580-TD8     000XYZZY_B", 34) == 0);
 		TEST_MSG("desc_len %d, byte_count %d, id_len %d",
 			 pg.desc_len, pg.byte_count, id[3]);
 		/* Header byte count covers exactly what was sent */
@@ -273,7 +273,8 @@ void test_default_personality_consistent(void)
 }
 
 /* IBM TS3100/TS3200 (3573): code set 2, type 1, 34 byte identifier,
- * GA32-0547-02 p. 3-68.
+ * GA32-0547-02 p. 3-68. The 7 character serial of the IBM LTO drive is
+ * reported zero-padded to 10 characters, as the drive does.
  */
 void test_ibm_layout_unchanged(void)
 {
@@ -292,7 +293,7 @@ void test_ibm_layout_unchanged(void)
 	id = &pg.desc[id_offset(0)];
 	TEST_CHECK(id[0] == 2 && id[1] == 1 && id[3] == 34);
 	TEST_CHECK(memcmp(&id[4],
-			  "IBM     ULT3580-TD8     XYZZY_A   ", 34) == 0);
+			  "IBM     ULT3580-TD8     000XYZZY_A", 34) == 0);
 	TEST_MSG("identifier: '%.34s'", &id[4]);
 
 	stop();
@@ -502,6 +503,71 @@ void test_spectra_serial_nul_terminated(void)
 	stop();
 }
 
+/* IBM LTO drives report a serial shorter than 10 characters right-justified
+ * with leading zeroes (GA32-0928-06 tables 200 and 202). The drive's VPD
+ * pages and the library's DTE identifier must carry the same value.
+ */
+void test_ibm_lto_short_serial_zero_padded(void)
+{
+	struct lib_conf c = {
+		"IBM", "3573-TL", "IBM", "ULTRIUM-HH8", "1234567"
+	};
+	struct elem_page pg;
+	uint8_t buf[255];
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[3] == 34);
+	TEST_CHECK(memcmp(&id[4], "IBM     ULTRIUM-HH8     0001234567", 34) == 0);
+	TEST_MSG("identifier: '%.34s'", &id[4]);
+	stop();
+
+	TEST_ASSERT(start(&c, TAPE_MINOR, "tape") == 0);
+	len = inquiry_vpd(0x80, buf, sizeof(buf));
+	TEST_CHECK(len == 4 + 10);
+	TEST_CHECK(buf[3] == 10);
+	TEST_CHECK(memcmp(&buf[4], "0001234567", 10) == 0);
+	TEST_MSG("VPD 80h: '%.*s'", buf[3], &buf[4]);
+	len = inquiry_vpd(0x83, buf, sizeof(buf));
+	TEST_CHECK(buf[7] == 34);
+	TEST_CHECK(memcmp(&buf[8], "IBM     ULTRIUM-HH8     0001234567", 34) == 0);
+	TEST_MSG("VPD 83h T10 id: '%.*s'", buf[7], &buf[8]);
+	stop();
+}
+
+/* Only IBM LTO drives zero-pad: another vendor's short serial is reported
+ * as configured, blank padded.
+ */
+void test_non_ibm_short_serial_unchanged(void)
+{
+	struct lib_conf c = {
+		"QUANTUM", "Scalar i6000", "HP", "Ultrium 6-SCSI", "ABC12"
+	};
+	struct elem_page pg;
+	uint8_t buf[255];
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[3] == 34);
+	TEST_CHECK(memcmp(&id[4], "HP      Ultrium 6-SCSI  ABC12     ", 34) == 0);
+	TEST_MSG("identifier: '%.34s'", &id[4]);
+	stop();
+
+	TEST_ASSERT(start(&c, TAPE_MINOR, "tape") == 0);
+	len = inquiry_vpd(0x80, buf, sizeof(buf));
+	TEST_CHECK(memcmp(&buf[4], "ABC12", 5) == 0);
+	TEST_MSG("VPD 80h: '%.*s'", buf[3], &buf[4]);
+	stop();
+}
+
 #define OVERLONG_SERIAL "SN0123456789012345678901234567890123456789XYZ" /* 45 */
 
 /* Serials past MAX_DRIVE_SN_LEN are cut to 40 characters on both sides */
@@ -575,6 +641,8 @@ TEST_LIST = {
 	{ "hp_msl_serial_only_unchanged",   test_hp_msl_serial_only_unchanged },
 	{ "spectra_serial_nul_terminated",  test_spectra_serial_nul_terminated },
 	{ "overlong_serial_clamped",        test_overlong_serial_clamped },
+	{ "ibm_lto_short_serial_zero_padded", test_ibm_lto_short_serial_zero_padded },
+	{ "non_ibm_short_serial_unchanged", test_non_ibm_short_serial_unchanged },
 	{ "scalar_inquiry_length",          test_scalar_inquiry_length },
 	{ NULL, NULL }
 };

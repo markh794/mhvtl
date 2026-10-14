@@ -2344,6 +2344,37 @@ void sort_library_slot_type(struct lu_phy_attr *lu, struct smc_type_slot *type) 
 }
 
 /* Set VPD data with device serial number */
+/* IBM LTO drives report their unit serial number right-justified with
+ * leading zeroes in a 10 character field: VPD page 0x80 bytes 4-13, and the
+ * same serial in the VPD page 0x83 T10 vendor ID designator (IBM LTO SCSI
+ * Reference GA32-0928-06, tables 200 and 202). Pad a shorter serial of an
+ * IBM LTO drive that way, in place, so the drive's VPD pages and the
+ * library's DTE identifier agree; any other serial is left as configured.
+ * vendor and product are the INQUIRY identification, blank padded or not.
+ */
+void ibm_lto_serial_pad(const char *vendor, const char *product, char *sn,
+						size_t size) {
+	size_t len = strlen(sn);
+	size_t vlen;
+
+	vlen = strlen(vendor);
+	while (vlen && vendor[vlen - 1] == ' ')
+		vlen--;
+	if (vlen != 3 || strncmp(vendor, "IBM", 3))
+		return;
+	if (strncmp(product, "ULT3580-", 8) && strncmp(product, "ULTRIUM-", 8))
+		return;
+
+	while (len && sn[len - 1] == ' ')
+		len--;
+	if (!len || len >= 10 || size < 11)
+		return;
+
+	memmove(&sn[10 - len], sn, len);
+	memset(sn, '0', 10 - len);
+	sn[10] = '\0';
+}
+
 void update_vpd_80(struct lu_phy_attr *lu, void *p) {
 	struct vpd *vpd_pg = lu->lu_vpd[PCODE_OFFSET(0x80)];
 

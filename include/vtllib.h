@@ -848,6 +848,8 @@ void  rmnl(char *s, unsigned char c, int len);
 void  truncate_spaces(char *s, int maxlen);
 char *get_version(void);
 
+void ibm_lto_serial_pad(const char *vendor, const char *product, char *sn,
+						size_t size);
 void update_vpd_80(struct lu_phy_attr *lu, void *p);
 uint16_t vpd_83_size(struct lu_phy_attr *lu);
 void update_vpd_83(struct lu_phy_attr *lu, void *p);
