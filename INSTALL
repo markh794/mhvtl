@@ -35,6 +35,51 @@ SLES 9 & 10:
 	sh> make
 	sh> sudo make install
 
+Secure Boot:
+============
+With UEFI Secure Boot enabled the kernel loads only signed modules, and an
+unsigned mhvtl.ko fails with "Key was rejected by service".
+
+Recent DKMS releases sign the modules they build, unless signing is turned
+off (try_sign_modules=false) or the build runs in a chroot. The key is the
+one configured as mok_signing_key / mok_certificate in
+/etc/dkms/framework.conf (or framework.conf.d); by default DKMS creates
+/var/lib/dkms/mok.key and /var/lib/dkms/mok.pub on first use. Ubuntu uses
+/var/lib/shim-signed/mok/MOK.der instead and offers to enrol it itself.
+
+That certificate has to be enrolled once, as a machine owner key (MOK):
+
+	sh> sudo mokutil --import /var/lib/dkms/mok.pub
+	(choose a one-time password)
+	sh> sudo reboot
+
+At the next boot the firmware's MOK manager asks to enrol it, typically
+"Enroll MOK", "Continue", "Yes", then the password. As long as DKMS keeps
+signing with that key, modules it builds later, for new kernels too, load
+without further steps. To check:
+
+	sh> mokutil --test-key /var/lib/dkms/mok.pub
+	sh> modinfo -F signer mhvtl
+	sh> modinfo -F sig_key mhvtl
+
+Enrolling a key does not change a module that is already built. If mhvtl.ko
+is unsigned or signed with another key, rebuild it once DKMS signs with the
+enrolled key:
+
+	sh> sudo dkms build -m mhvtl -v <version> --force
+	sh> sudo dkms install -m mhvtl -v <version> --force
+
+On openSUSE, the prebuilt mhvtl-kmp packages are signed by their build
+service instead; enrol the project's certificate for those. If you use
+mhvtl-dkms there, recent openSUSE kernels also require the signing key to
+carry the codeSigning extended key usage, or they reject the module
+("key is not CodeSigning" in dmesg). DKMS adds it to the keys it generates
+from release 3.1.7 on, but keeps using a key an older release generated: in
+that case delete /var/lib/dkms/mok.key and mok.pub, rebuild the module as
+above and enrol the new key (https://bugzilla.suse.com/show_bug.cgi?id=1242820).
+
+A module built with plain "make install" is not signed: sign it with the
+kernel's scripts/sign-file and a key the kernel trusts, or use mhvtl-dkms.
 
 User space daemons:
 ===================
