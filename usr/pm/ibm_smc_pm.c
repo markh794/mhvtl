@@ -123,10 +123,14 @@ static void update_3573_device_capabilities(struct lu_phy_attr *lu) {
 	mp->pcodePointer[6] = 0x0e; /* MAP Element Capabilities */
 	mp->pcodePointer[7] = 0x0e; /* Data Trans. Element Capabilities */
 
-	mp->pcodePointer[12] = 0x0e; /* Medium Transport Capabilities */
-	mp->pcodePointer[13] = 0x0e; /* Storage Element Capabilities */
-	mp->pcodePointer[14] = 0x0e; /* MAP Element Capabilities */
-	mp->pcodePointer[15] = 0x0e; /* Data Trans. Element Capabilities */
+	/* Bytes 12-15 are the EXCHANGE MEDIUM matrix. mhvtl does not
+	 * implement A6h, so claiming support here would advertise a
+	 * command that terminates with INVALID COMMAND OPERATION CODE.
+	 */
+	mp->pcodePointer[12] = 0x00;
+	mp->pcodePointer[13] = 0x00;
+	mp->pcodePointer[14] = 0x00;
+	mp->pcodePointer[15] = 0x00;
 }
 
 static void update_3584_device_capabilities(struct lu_phy_attr *lu) {
@@ -146,10 +150,14 @@ static void update_3584_device_capabilities(struct lu_phy_attr *lu) {
 	mp->pcodePointer[6] = 0x0e; /* MAP Element Capabilities */
 	mp->pcodePointer[7] = 0x0e; /* Data Trans. Element Capabilities */
 
-	mp->pcodePointer[12] = 0x0e; /* Medium Transport Capabilities */
-	mp->pcodePointer[13] = 0x0e; /* Storage Element Capabilities */
-	mp->pcodePointer[14] = 0x0e; /* MAP Element Capabilities */
-	mp->pcodePointer[15] = 0x0e; /* Data Trans. Element Capabilities */
+	/* Bytes 12-15 are the EXCHANGE MEDIUM matrix. mhvtl does not
+	 * implement A6h, so claiming support here would advertise a
+	 * command that terminates with INVALID COMMAND OPERATION CODE.
+	 */
+	mp->pcodePointer[12] = 0x00;
+	mp->pcodePointer[13] = 0x00;
+	mp->pcodePointer[14] = 0x00;
+	mp->pcodePointer[15] = 0x00;
 }
 
 static void update_ibm_3584_vpd_80(struct lu_phy_attr *lu) {
