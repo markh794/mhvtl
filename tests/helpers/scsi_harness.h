@@ -375,8 +375,8 @@ static int harness_start_env(struct harness_daemon *d, unsigned minor,
 	d->pid = -1;
 	d->sock_fd = -1;
 
-	const char *run_dir = env ? env->run_dir : "/var/run/mhvtl";
-	const char *lock_dir = env ? env->lock_dir : "/var/lock/mhvtl";
+	const char *run_dir = env ? env->run_dir : "/run/mhvtl";
+	const char *lock_dir = env ? env->lock_dir : "/run/lock/mhvtl";
 
 	snprintf(d->sock_path, sizeof(d->sock_path),
 		 "%s/userland.%u.sock", run_dir, minor);

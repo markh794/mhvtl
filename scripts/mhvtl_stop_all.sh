@@ -119,9 +119,9 @@ rmmod mhvtl 2>/dev/null || true
 # Remove stale char device nodes — on reload the module may get
 # a different major number, making old nodes point to nothing.
 rm -f /dev/mhvtl* 2>/dev/null || true
-rm -f /var/lock/mhvtl/mhvtl* 2>/dev/null || true
-rm -f /var/run/mhvtl/tcmu_ready.* /var/run/mhvtl/handler_ready.* 2>/dev/null || true
-rm -f /var/run/mhvtl/tcmu_handler.sock 2>/dev/null || true
+rm -f /run/lock/mhvtl/mhvtl* 2>/dev/null || true
+rm -f /run/mhvtl/tcmu_ready.* /run/mhvtl/handler_ready.* 2>/dev/null || true
+rm -f /run/mhvtl/tcmu_handler.sock 2>/dev/null || true
 
 systemctl reset-failed 'vtltape@*' 'vtllibrary@*' \
     'mhvtl-tcmu-handler' 'mhvtl-load-modules' 2>/dev/null || true

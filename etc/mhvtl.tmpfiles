@@ -8,7 +8,9 @@
 #   /run/mhvtl       TCMU handler socket (/run/mhvtl/tcmu_handler.sock)
 #   /run/lock/mhvtl  per-drive / per-library lock files (vtltape, vtllibrary)
 #
-# /var/run and /var/lock are the historical spellings of these and resolve
+#   /run/mhvtl/fifo  suggested location of a device's status FIFO (fifo:)
+#
+# The daemons used to spell these /var/run and /var/lock, which resolve
 # here via the standard symlinks.
 d /run/mhvtl 0755 root root -
 d /run/lock/mhvtl 0750 root root -
