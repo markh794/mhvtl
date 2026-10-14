@@ -41,6 +41,14 @@ struct smc_personality_template {
 	 * (HPE, IBM, Quantum); ones without report zero (StorageTek).
 	 */
 	uint32_t report_scsi_bus_address : 1;
+	/* With DVCID=1 a data transfer element descriptor reports only the
+	 * drive's identity: Except set with ASC/ASCQ 81/00 (status is
+	 * questionable, drive is present), and Access, Full, ID Valid, the bus
+	 * address, SValid and the source address cleared (IBM TS3500/3584 SCSI
+	 * Reference, READ ELEMENT STATUS, Element Type 4 descriptor with
+	 * DVCID=B'1', table 7).
+	 */
+	uint32_t dvcid_identity_only : 1;
 
 	uint32_t start_drive;
 	uint32_t start_picker;
