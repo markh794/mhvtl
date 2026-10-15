@@ -2307,6 +2307,7 @@ char *slot_type_str(int type) {
 void init_smc_log_pages(struct lu_phy_attr *lu) {
 	add_log_temperature_page(lu);
 	add_log_tape_alert(lu);
+	add_log_library_statistics(lu);
 }
 
 void init_smc_mode_pages(struct lu_phy_attr *lu) {

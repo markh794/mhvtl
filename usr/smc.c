@@ -2122,6 +2122,15 @@ uint8_t smc_log_sense(struct scsi_cmd *cmd) {
 		b	   = memcpy(b, l->p, l->size);
 		retval = l->size;
 		break;
+	case TAPE_USAGE: /* Library statistics */
+		MHVTL_DBG(1, "LOG SENSE: Library statistics page");
+		l = lookup_log_pg(&lu->log_pg, TAPE_USAGE, NO_SUBPAGE);
+		if (!l)
+			goto log_page_not_found;
+
+		b	   = memcpy(b, l->p, l->size);
+		retval = l->size;
+		break;
 	case TAPE_ALERT: /* TapeAlert page */
 		MHVTL_DBG(1, "LOG SENSE: TapeAlert page");
 		/*		MHVTL_DBG(2, " Returning TapeAlert flags: 0x%" PRIx64,

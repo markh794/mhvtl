@@ -2012,6 +2012,7 @@ uint8_t ssc_log_sense(struct scsi_cmd *cmd) {
 	case TEMPERATURE_PAGE:
 	case SELFTEST_RESULTS:
 	case DEVICE_STATUS:
+	case DEVICE_STATISTICS:
 		break;
 
 	case VOLUME_STATISTICS:

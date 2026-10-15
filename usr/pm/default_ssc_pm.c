@@ -412,6 +412,7 @@ void init_default_ssc(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);

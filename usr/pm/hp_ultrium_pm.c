@@ -446,6 +446,7 @@ void init_hp_ult_1(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -493,6 +494,7 @@ void init_hp_ult_2(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -547,6 +549,7 @@ void init_hp_ult_3(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -611,6 +614,7 @@ void init_hp_ult_4(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -682,6 +686,7 @@ void init_hp_ult_5(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -755,6 +760,7 @@ void init_hp_ult_6(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -829,6 +835,7 @@ void init_hp_ult_7(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
@@ -902,6 +909,7 @@ void init_hp_ult_8(struct lu_phy_attr *lu) {
 	add_log_volume_statistics(lu);
 	add_log_tape_alert(lu);
 	add_log_tape_usage(lu);
+	add_log_device_statistics(lu);
 	add_log_tape_capacity(lu);
 	add_log_data_compression(lu);
 	add_log_performance_characteristics(lu);
