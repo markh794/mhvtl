@@ -448,8 +448,22 @@ static int sizeof_element(struct scsi_cmd *cmd, int type) {
 	else
 		dvcid = cmd->scb[6] & 0x01; /* Device ID */
 
+	if (type == DATA_TRANSFER && smc_p->pm->stk_dte_layout)
+		/* The serial area and four domain/type bytes, either way */
+		return 16 + (voltag ? VOLTAG_LEN : 0) + smc_p->pm->dvcid_len + 4;
+
 	return 16 + (voltag ? VOLTAG_LEN : 0) +
 		   (dvcid && (type == DATA_TRANSFER) ? smc_p->pm->dvcid_len : 0);
+}
+
+/* StorageTek Media Domain, Media Type, Transport Domain and Transport Type.
+ * The manuals' tables stop at LTO-4 and the T10000B in its 3490/3592
+ * emulations, so for the media and drives mhVTL emulates every one is FFh,
+ * "cannot be determined", which each field allows.
+ */
+static int stk_domain_type(uint8_t *p) {
+	memset(p, 0xff, 4);
+	return 4;
 }
 
 /*
@@ -569,7 +583,26 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s) {
 		j += VOLTAG_LEN; /* Account for barcode */
 	}
 
-	if (dvcid && s->element_type == DATA_TRANSFER) {
+	if (s->element_type == DATA_TRANSFER && smc_p->pm->stk_dte_layout) {
+		int area = smc_p->pm->dvcid_len;
+
+		if (dvcid) {
+			p[j++] = 2; /* Code set 2 = ASCII */
+			p[j++] = 0; /* Identifier type 0: vendor specific */
+			p[j++] = 0; /* Reserved */
+			p[j++] = min((int)strlen(d->inq_product_sno), area);
+			blank_fill(&p[j], d->inq_product_sno, area);
+			j += area;
+			j += stk_domain_type(&p[j]);
+		} else {
+			memset(&p[j], 0, 4); /* Reserved */
+			j += 4;
+			j += stk_domain_type(&p[j]);
+			/* Transport Serial Number, left justified, blank padded */
+			blank_fill(&p[j], d->inq_product_sno, area);
+			j += area;
+		}
+	} else if (dvcid && s->element_type == DATA_TRANSFER) {
 		p[j++] = 2; /* Code set 2 = ASCII */
 		/* Identifier type - If serial number only - 0, otherwise 1 */
 		p[j++] = smc_p->pm->dvcid_serial_only ? 0 : 1;

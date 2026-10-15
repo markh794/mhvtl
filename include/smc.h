@@ -38,9 +38,22 @@ struct smc_personality_template {
 	/* Report ID VALID and the drive's SCSI bus address in the data
 	 * transfer element descriptor. SMC-2 marks both fields obsolete,
 	 * but libraries with parallel SCSI drives still populate them
-	 * (HPE, IBM, Quantum); ones without report zero (StorageTek).
+	 * (HPE, IBM, Quantum, StorageTek L20/L700); others report zero
+	 * (StorageTek SL500).
 	 */
 	uint32_t report_scsi_bus_address : 1;
+	/* StorageTek data transfer element layout (L20/40/80 doc 95971 tables
+	 * 4-49/4-50, L180/L700e doc 95869 tables 6-67/6-68, SL500 PN 96122
+	 * tables 6-76/6-77). Whatever DvcID is, the descriptor ends with the
+	 * drive's serial number in a 32 byte area and the Media Domain, Media
+	 * Type, Transport Domain and Transport Type bytes:
+	 *   DvcID=1  code set 2, type 0, identifier length, the serial blank
+	 *            padded to 32 bytes, then the four domain/type bytes
+	 *   DvcID=0  four reserved bytes, the four domain/type bytes, then the
+	 *            serial blank padded to 32 bytes (Transport Serial Number)
+	 * dvcid_len is the 32 byte serial area.
+	 */
+	uint32_t stk_dte_layout : 1;
 
 	uint32_t start_drive;
 	uint32_t start_picker;
