@@ -874,6 +874,42 @@ void test_scalar_inquiry_length(void)
 	stop();
 }
 
+/* StorageTek library Unit Serial Number page (80h): 11 characters, page
+ * length 0Bh, on the L20/40/80 (doc 95971 table 4-11) and L180/L700 (doc
+ * 95869 table 6-11); 12 characters, page length 0Ch, on the SL500 (PN 96122
+ * table 6-11). ASCII and blank padded, with no trailing NUL bytes.
+ */
+void test_stk_library_vpd80(void)
+{
+	static const struct {
+		const char *product;
+		const char *serial;
+	} models[] = {
+		{ "L700",  "TESTLIB00  " },
+		{ "L80",   "TESTLIB00  " },
+		{ "SL500", "TESTLIB00   " },
+	};
+	uint8_t buf[255];
+	int len;
+
+	for (size_t i = 0; i < sizeof(models) / sizeof(models[0]); i++) {
+		struct lib_conf c = {
+			"STK", models[i].product, "IBM", "ULT3580-TD8", "F0027BE0F1"
+		};
+		int sn_len = (int)strlen(models[i].serial);
+
+		TEST_CASE(models[i].product);
+		TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+		len = inquiry_vpd(0x80, buf, sizeof(buf));
+		TEST_CHECK(len == 4 + sn_len);
+		TEST_CHECK(buf[1] == 0x80 && buf[2] == 0 && buf[3] == sn_len);
+		TEST_CHECK(memcmp(&buf[4], models[i].serial, sn_len) == 0);
+		TEST_MSG("%s VPD 80h: len %d, page length %u, '%.*s'",
+			 models[i].product, len, buf[3], buf[3], &buf[4]);
+		stop();
+	}
+}
+
 TEST_LIST = {
 	{ "scalar_selected_by_vendor",      test_scalar_selected_by_vendor },
 	{ "default_personality_consistent", test_default_personality_consistent },
@@ -896,5 +932,6 @@ TEST_LIST = {
 	{ "stk_dte_layout",                 test_stk_dte_layout },
 	{ "stk_long_serial_truncated",      test_stk_long_serial_truncated },
 	{ "scalar_inquiry_length",          test_scalar_inquiry_length },
+	{ "stk_library_vpd80",              test_stk_library_vpd80 },
 	{ NULL, NULL }
 };
