@@ -498,6 +498,58 @@ void test_hp_msl6480_documented_identity(void)
 	stop();
 }
 
+void test_hp_msl2024_g4_documented_identity(void)
+{
+	struct lib_conf c = {
+		"HPE", "MSL2024 G4", "HPE", "Ultrium 9-SCSI", "HU9876543B"
+	};
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 50);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[0] == 2 && id[1] == 1 && id[3] == 34);
+	TEST_CHECK(memcmp(&id[4],
+			  "HPE     Ultrium 9-SCSI  HU9876543B", 34) == 0);
+	TEST_MSG("identifier: '%.34s'", &id[4]);
+
+	len = read_element_status(0, 0);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 16);
+
+	stop();
+}
+
+void test_hp_msl2024_serial_only(void)
+{
+	struct lib_conf c = {
+		"HPE", "MSL2024", "HPE", "Ultrium 6-SCSI", "HU1122334C"
+	};
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+
+	/* The unit before the G4 reports the identifier whether or not DVCID
+	 * is set.
+	 */
+	len = read_element_status(0, 0);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 36);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[0] == 2 && id[1] == 0 && id[3] == 20);
+	TEST_CHECK(memcmp(&id[4], "HU1122334C          ", 20) == 0);
+	TEST_MSG("identifier: '%.20s'", &id[4]);
+
+	stop();
+}
+
 /* Spectra T-Series reports the serial alone, NUL terminated, in 32 bytes */
 void test_spectra_serial_nul_terminated(void)
 {
@@ -833,6 +885,9 @@ TEST_LIST = {
 	{ "ibm_long_serial_truncated",      test_ibm_long_serial_truncated },
 	{ "hp_msl_serial_only_unchanged",   test_hp_msl_serial_only_unchanged },
 	{ "hp_msl6480_documented_identity", test_hp_msl6480_documented_identity },
+	{ "hp_msl2024_g4_documented_identity",
+	  test_hp_msl2024_g4_documented_identity },
+	{ "hp_msl2024_serial_only",         test_hp_msl2024_serial_only },
 	{ "spectra_serial_nul_terminated",  test_spectra_serial_nul_terminated },
 	{ "overlong_serial_clamped",        test_overlong_serial_clamped },
 	{ "ibm_lto_short_serial_zero_padded", test_ibm_lto_short_serial_zero_padded },
