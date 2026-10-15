@@ -24,7 +24,7 @@
 
 #include <stdint.h>
 
-#define TCMU_SOCK_PATH "/var/run/mhvtl/tcmu_handler.sock"
+#define TCMU_SOCK_PATH "/run/mhvtl/tcmu_handler.sock"
 #define TCMU_MAX_CDB_SIZE 16
 #define TCMU_MAX_SENSE_SIZE 96
 #define TCMU_MAX_DATA_SIZE (2 * 1024 * 1024)  /* 2MB, matches mhvtl bufsize */

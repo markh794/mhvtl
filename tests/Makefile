@@ -27,7 +27,7 @@ RS_SRC   = ../usr/utils/reed-solomon.c
 CRC_SRC  = ../usr/utils/crc32c.c
 
 # All test binaries
-TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select
+TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo
 
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
@@ -88,6 +88,11 @@ bench: bench_compression
 test_compression_select: test_compression_select.c ../include/vtlcart.h $(COMPRESS_SRC) ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_compression_select.c $(COMPRESS_SRC) \
 		-L ../usr -lvtlscsi -llz4 -lzstd -Wl,-rpath,'$$ORIGIN/../usr'
+
+# open_fifo() from libvtlscsi: never follow a symlink or write a non-FIFO
+test_open_fifo: test_open_fifo.c acutest.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_open_fifo.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
 # vtlcmd parsing test — compiles vtlcmd.c to .o with main renamed, then links
 VTLCMD_SRC = ../usr/cmd/vtlcmd.c

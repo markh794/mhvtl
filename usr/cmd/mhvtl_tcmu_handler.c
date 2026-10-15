@@ -625,7 +625,7 @@ int main(int argc, char *argv[])
 
 	/* Create listen socket */
 	unlink(TCMU_SOCK_PATH);
-	mkdir("/var/run/mhvtl", 0755);
+	mkdir("/run/mhvtl", 0755);
 	listen_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (listen_fd < 0) {
 		MHVTL_ERR("socket: %s", strerror(errno));

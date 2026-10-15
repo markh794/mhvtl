@@ -4,7 +4,7 @@
  * No kernel modules. Uses a unix socketpair to exchange SCSI
  * commands with a test harness (or any external process).
  *
- * The socket path is: /var/run/mhvtl/userland.<minor>.sock
+ * The socket path is: /run/mhvtl/userland.<minor>.sock
  * The test harness connects as a client; the daemon listens.
  *
  * Wire protocol: same as tcmu_proto.h messages but simpler —
@@ -87,7 +87,7 @@ static int ul_open(unsigned minor, struct mhvtl_ctl *ctl)
 	{
 		const char *run_path = getenv("MHVTL_RUN_PATH");
 		if (!run_path || !run_path[0])
-			run_path = "/var/run/mhvtl";
+			run_path = "/run/mhvtl";
 		snprintf(state->sock_path, sizeof(state->sock_path),
 			 "%s/userland.%u.sock", run_path, minor);
 		mkdir(run_path, 0755);

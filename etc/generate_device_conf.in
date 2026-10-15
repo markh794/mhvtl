@@ -55,10 +55,10 @@ VERSION: 5
 #						9 = Best compression
 #     enabled 0 == off, 1 == on
 #
-# fifo: /var/tmp/mhvtl
+# fifo: /run/mhvtl/fifo
 # If enabled, data must be read from fifo, otherwise daemon will block
 # trying to write.
-# e.g. cat /var/tmp/mhvtl (in another terminal)
+# e.g. cat /run/mhvtl/fifo (in another terminal)
 
 CONF_START
 }
@@ -88,7 +88,7 @@ add_library()
 	echo " Home directory: $MHVTL_HOME_PATH"
 	echo " PERSIST: False"
 	echo " Backoff: 400"
-	echo "# fifo: /var/tmp/mhvtl"
+	echo "# fifo: /run/mhvtl/fifo"
 	echo ""
 }
 
@@ -127,7 +127,7 @@ add_drive()
 	echo " Compression: factor 1 enabled 1"
 	echo " Compression type: lzo"
 	echo " Backoff: 400"
-	echo "# fifo: /var/tmp/mhvtl"
+	echo "# fifo: /run/mhvtl/fifo"
 	echo ""
 }
 

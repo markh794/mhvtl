@@ -18,7 +18,7 @@ Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
  Unit serial number: XYZZY_A
  NAA: 10:22:33:44:ab:00:00:00
  Home directory: @HOME_PATH@/Spectra
- fifo: /var/tmp/mhvtl
+ fifo: /run/mhvtl/fifo
  PERSIST: True
 .PP
 Where descriptor

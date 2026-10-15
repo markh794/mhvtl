@@ -963,29 +963,44 @@ void hex_dump(uint8_t *p, int count) {
  * Return errno on failure
  */
 int open_fifo(FILE **fifo_fd, char *fifoname) {
-	int ret;
+	struct stat st;
+	int			fd;
 
 	umask(0);
-	ret = 0;
 
-	ret = mknod(fifoname, S_IFIFO | 0644, 0);
-	if ((ret < 0) && (errno != EEXIST)) {
+	if (mknod(fifoname, S_IFIFO | 0644, 0) < 0 && errno != EEXIST) {
 		MHVTL_LOG("Sorry, cant create %s: %s, Disabling fifo feature",
 				  fifoname, strerror(errno));
-		ret = errno;
-	} else {
-		*fifo_fd = fopen(fifoname, "w+");
-		if (*fifo_fd) {
-			MHVTL_DBG(2, "Successfully opened named pipe: %s",
-					  fifoname);
-		} else {
-			MHVTL_LOG("Sorry, cant open %s: %s, "
-					  "Disabling fifo feature",
-					  fifoname, strerror(errno));
-			ret = errno;
-		}
+		return errno;
 	}
-	return ret;
+
+	/* The daemons run as root and the path comes from device.conf, possibly
+	 * in a directory others can write to (the old documented example was
+	 * /var/tmp). Never follow a symlink planted there, and only use a FIFO
+	 * this user owns, so the write cannot land in some other file.
+	 */
+	fd = open(fifoname, O_RDWR | O_NOFOLLOW | O_CLOEXEC);
+	if (fd < 0) {
+		MHVTL_LOG("Sorry, cant open %s: %s, Disabling fifo feature",
+				  fifoname, strerror(errno));
+		return errno;
+	}
+	if (fstat(fd, &st) < 0 || !S_ISFIFO(st.st_mode) || st.st_uid != geteuid()) {
+		MHVTL_LOG("Sorry, %s is not a FIFO owned by this user, "
+				  "Disabling fifo feature", fifoname);
+		close(fd);
+		return EINVAL;
+	}
+
+	*fifo_fd = fdopen(fd, "w+");
+	if (!*fifo_fd) {
+		MHVTL_LOG("Sorry, cant open %s: %s, Disabling fifo feature",
+				  fifoname, strerror(errno));
+		close(fd);
+		return errno;
+	}
+	MHVTL_DBG(2, "Successfully opened named pipe: %s", fifoname);
+	return 0;
 }
 
 void status_change(FILE *fifo_fd, int current_status, int m_id, char **msg) {
@@ -1204,7 +1219,7 @@ void log_opcode(char *opcode, struct scsi_cmd *cmd) {
  * This allows tests to run without root and in parallel. */
 static const char *get_lock_path(void) {
 	const char *p = getenv("MHVTL_LOCK_PATH");
-	return (p && p[0]) ? p : "/var/lock/mhvtl";
+	return (p && p[0]) ? p : "/run/lock/mhvtl";
 }
 #define LOCK_PATH get_lock_path()
 #define MAX_WAIT  20
