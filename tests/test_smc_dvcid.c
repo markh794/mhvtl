@@ -468,6 +468,36 @@ void test_hp_msl_serial_only_unchanged(void)
 	stop();
 }
 
+void test_hp_msl6480_documented_identity(void)
+{
+	struct lib_conf c = {
+		"HP", "MSL6480", "HP", "Ultrium 7-SCSI", "HU1234567A"
+	};
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+
+	/* The models the HPE reference covers honour DVCID and report the
+	 * drive's vendor id, product id and serial number in 34 bytes.
+	 */
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 50);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[0] == 2 && id[1] == 1 && id[3] == 34);
+	TEST_CHECK(memcmp(&id[4],
+			  "HP      Ultrium 7-SCSI  HU1234567A", 34) == 0);
+	TEST_MSG("identifier: '%.34s'", &id[4]);
+
+	len = read_element_status(0, 0);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 16);
+
+	stop();
+}
+
 /* Spectra T-Series reports the serial alone, NUL terminated, in 32 bytes */
 void test_spectra_serial_nul_terminated(void)
 {
@@ -795,6 +825,7 @@ TEST_LIST = {
 	{ "tape_vpd_short_serial_unchanged",test_tape_vpd_short_serial_unchanged },
 	{ "ibm_long_serial_truncated",      test_ibm_long_serial_truncated },
 	{ "hp_msl_serial_only_unchanged",   test_hp_msl_serial_only_unchanged },
+	{ "hp_msl6480_documented_identity", test_hp_msl6480_documented_identity },
 	{ "spectra_serial_nul_terminated",  test_spectra_serial_nul_terminated },
 	{ "overlong_serial_clamped",        test_overlong_serial_clamped },
 	{ "ibm_lto_short_serial_zero_padded", test_ibm_lto_short_serial_zero_padded },

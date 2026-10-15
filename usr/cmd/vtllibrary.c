@@ -1498,7 +1498,13 @@ static void customise_stk_lu(struct lu_phy_attr *lu) {
 }
 
 static void customise_hp_lu(struct lu_phy_attr *lu) {
-	if (!strncasecmp(lu->product_id, "MSL", 3))
+	/* The 1U autoloader reports "1x8 G3 AUTOLDR" rather than an MSL
+	 * name, but it is the same platform as the MSL rack libraries.
+	 * Without this it falls through to the EML E-Series, which is a
+	 * different product with a different element address layout.
+	 */
+	if (!strncasecmp(lu->product_id, "MSL", 3) ||
+		!strncasecmp(lu->product_id, "1x8", 3))
 		init_hp_msl_smc(lu);
 	else
 		init_hp_eml_smc(lu);
