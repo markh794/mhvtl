@@ -205,6 +205,29 @@ done
 dkms add -m mhvtl -v %{dkms_version} -q || :
 dkms build -m mhvtl -v %{dkms_version} -q || :
 dkms install -m mhvtl -v %{dkms_version} -q --force || :
+# With Secure Boot on, a module only loads once it is signed with an enrolled
+# key. DKMS signs with the certificate configured as mok_certificate in its
+# framework.conf (default /var/lib/dkms/mok.pub); say what is missing, the
+# first time. mokutil's text is matched, not its exit status, which has
+# differed between versions.
+(
+	export LC_ALL=C
+	command -v mokutil >/dev/null 2>&1 || exit 0
+	mokutil --sb-state 2>/dev/null | grep -q "SecureBoot enabled" || exit 0
+	cert=$(mok_certificate=
+		for f in /etc/dkms/framework.conf /etc/dkms/framework.conf.d/*.conf; do
+			[ -f "$f" ] && . "$f"
+		done >/dev/null 2>&1
+		echo "${mok_certificate:-/var/lib/dkms/mok.pub}")
+	if [ -z "$(modinfo -F signer mhvtl 2>/dev/null)" ]; then
+		echo "mhvtl-dkms: Secure Boot is enabled but mhvtl.ko is not signed, so it"
+		echo "will not load. Check DKMS module signing (see INSTALL, Secure Boot)."
+	elif [ -f "$cert" ] && ! mokutil --test-key "$cert" 2>/dev/null | grep -q "already enrolled"; then
+		echo "mhvtl-dkms: Secure Boot is enabled, so mhvtl.ko loads only after the"
+		echo "DKMS signing key is enrolled. Run 'mokutil --import $cert', reboot and"
+		echo "confirm the enrolment in the MOK manager (see INSTALL, Secure Boot)."
+	fi
+) || :
 
 %build
 # LIBDIR and MHVTL_LIBEXECDIR must match the install section below: LIBDIR
