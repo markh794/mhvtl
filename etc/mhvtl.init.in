@@ -117,9 +117,9 @@ stop() {
 	# (which also only runs for active units). Do NOT ipcrm the SysV message
 	# queue: it is a single global queue shared by all mhVTL daemons, so
 	# removing it would disrupt any that survive. Never message a daemon that
-	# is not running: vtlcmd creates the queue if needed, nothing consumes the
-	# "exit", and the next vtltape started on that id reads it and quits
-	# (vtllibrary drains its stale messages at startup; vtltape does not).
+	# is not running: nothing would consume the "exit" while the queue lives
+	# on (it outlives any one daemon), and older vtltape versions read it at
+	# startup and quit.
 	for n in $(device_ids Drive); do
 		is_running vtltape "$n" && { "$VTLCMD" "$n" exit >/dev/null 2>&1 || true; }
 	done
