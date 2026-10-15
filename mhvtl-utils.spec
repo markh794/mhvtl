@@ -178,8 +178,12 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_unitdir}/vtltape@.service
 %{_unitdir}/mhvtl.target
 %{_tmpfilesdir}/mhvtl.conf
+# Own only the media home directory, never what is in it: the tapes that
+# make_vtl_media creates there are user data. A %ghost glob here records
+# whatever the build root holds under it, and rpm deletes recorded paths
+# on erase and on upgrade; with an empty build root it records a bogus
+# literal "/opt/mhvtl/*" path instead.
 %dir %{mhvtl_home_dir}
-%ghost %{mhvtl_home_dir}/*
 
 %defattr(755, root, root, 0755)
 %{_bindir}/vtltape
