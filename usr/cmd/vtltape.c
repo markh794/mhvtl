@@ -1662,6 +1662,9 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	if (!strncmp(msg->text, "lload", 5)) {
 		if (!lu_ssc.inLibrary) {
 			MHVTL_DBG(2, "lload & drive not in library");
+			/* The library waits for an answer: give it one */
+			snprintf(s, sizeof(s), "%s - drive is not in a library", msg_load_failed);
+			SEND_MSG_AND_LOG(s, msg->snd_id);
 			return 0;
 		}
 
