@@ -1,0 +1,17 @@
+[Unit]
+Description=Create missing mhvtl virtual media
+Documentation=man:make_vtl_media(1) man:library_contents(5)
+# Pulled in by every vtllibrary@ instance, which is ordered after it: a library
+# scans its slots on start, so the media it lists must exist by then.
+# make_vtl_media skips a cartridge that already exists, so this only ever adds
+# the media library_contents declares but the home directory lacks - on first
+# start, and after slots are added - and never touches existing media.
+PartOf=mhvtl.target
+ConditionPathExists=@CONF_PATH@/device.conf
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# The home directory is taken from mhvtl.conf (MHVTL_HOME_PATH) and created if
+# an administrator pointed it somewhere new.
+ExecStart=@BIN_PATH@/make_vtl_media --config-dir=@CONF_PATH@ --create-dir --mktape-path=@BIN_PATH@

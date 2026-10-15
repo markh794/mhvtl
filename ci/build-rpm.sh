@@ -21,14 +21,6 @@ $INSTALL rpm-build gcc make tar gzip gawk findutils sed
 $INSTALL rpmlint || echo "rpmlint unavailable - lint step will be skipped"
 echo "::endgroup::"
 
-echo "::group::install build requires (from spec)"
-# rpmspec reads the spec's BuildRequires, including pkgconfig(...) virtual
-# provides, which both dnf and zypper resolve to the right package.
-mapfile -t BR < <(rpmspec -q --buildrequires "$SPEC" | sed 's/[[:space:]].*//')
-printf '%s\n' "${BR[@]}"
-[ "${#BR[@]}" -gt 0 ] && $INSTALL "${BR[@]}"
-echo "::endgroup::"
-
 echo "::group::assemble source tarball"
 REALVER=$(awk '/%define real_version/ {print $3}' "$SPEC")
 VER=$(awk '/^Version:/ {print $2}' "$SPEC")
@@ -41,6 +33,25 @@ mkdir -p "$TOPDIR"/{SOURCES,SPECS,BUILD,BUILDROOT,RPMS,SRPMS}
 tar czf "$TOPDIR/SOURCES/mhvtl-$REALVER.tgz" \
 	--transform "s,^\.,mhvtl-$VER," \
 	--exclude=.git --exclude=./ci --exclude=./rpmbuild --exclude=./dist .
+# Additional sources referenced by the spec (Source2: the KMP preamble).
+cp mhvtl.preamble "$TOPDIR/SOURCES/"
+echo "::endgroup::"
+
+echo "::group::install build requires (from spec)"
+# rpmspec reads the spec's BuildRequires, including pkgconfig(...) virtual
+# provides, which both dnf and zypper resolve to the right package.
+# On openSUSE the spec builds kernel module packages. Their subpackage macro
+# comes from kernel-macros and only expands once a kernel flavor to build
+# against is installed (OBS installs those before parsing the spec), so install
+# the macro's own build requirements (kernel-syms etc.) first.
+if command -v zypper >/dev/null; then
+	$INSTALL kernel-macros
+	# shellcheck disable=SC2046 # word splitting is intended: a package list
+	$INSTALL $(rpm --eval '%kernel_module_package_buildreqs')
+fi
+mapfile -t BR < <(rpmspec --define "_topdir $TOPDIR" -q --buildrequires "$SPEC" | sed 's/[[:space:]].*//')
+printf '%s\n' "${BR[@]}"
+[ "${#BR[@]}" -gt 0 ] && $INSTALL "${BR[@]}"
 echo "::endgroup::"
 
 echo "::group::rpmbuild"

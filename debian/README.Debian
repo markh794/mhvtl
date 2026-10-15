@@ -22,7 +22,9 @@ individually. After editing the configuration:
 
     systemctl start mhvtl.target
 
-If /var/lib/mhvtl is empty, run make_vtl_media(1) once to create the media.
+Each library's media is created on start by mhvtl-media.service, which runs
+make_vtl_media(1) for any cartridge listed in library_contents that does not
+exist yet under /var/lib/mhvtl. Existing media is never modified.
 
 Why the daemons run as root
 ---------------------------

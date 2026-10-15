@@ -12,7 +12,9 @@ RemainAfterExit=yes
 Environment=VTL_DEBUG="0"
 Environment=MHVTL_BACKEND="mhvtl"
 EnvironmentFile=-@CONF_PATH@/mhvtl.conf
-ExecStart=/bin/sh -c 'case "$MHVTL_BACKEND" in tcmu*) modprobe target_core_user; modprobe tcm_loop;; *) modprobe mhvtl opts=$VTL_DEBUG;; esac; modprobe sg'
+# -e: fail the unit when a module does not load, rather than reporting
+# success because the last modprobe (sg) did.
+ExecStart=/bin/sh -ec 'case "$MHVTL_BACKEND" in tcmu*) modprobe target_core_user; modprobe tcm_loop;; *) modprobe mhvtl opts=$VTL_DEBUG;; esac; modprobe sg'
 
 [Install]
 WantedBy=mhvtl.target

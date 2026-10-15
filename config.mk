@@ -110,3 +110,4 @@ MHVTL_LIBDIR ?= $(LIBDIR)/mhvtl
 HOME_PATH = $(subst /,\/,$(MHVTL_HOME_PATH))
 CONFIG_PATH = $(subst /,\/,$(MHVTL_CONFIG_PATH))
 LIBEXEC_PATH = $(subst /,\/,$(MHVTL_LIBEXECDIR))
+BIN_PATH = $(subst /,\/,$(PREFIX)/bin)
