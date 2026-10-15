@@ -315,6 +315,77 @@ void test_second_library_tape(void)
 	stop_daemon();
 }
 
+/* An "exit" left in the queue before the drive started (vtlcmd queues one
+ * even when no daemon runs on that id) must not stop the new daemon, while
+ * an "exit" sent once it runs still does.
+ */
+static int queue_exit(unsigned minor)
+{
+	struct q_entry e;
+	int qid;
+
+	qid = msgget(QKEY, IPC_CREAT | QPERM);
+	if (qid < 0)
+		return -1;
+	memset(&e, 0, sizeof(e));
+	e.rcv_id = minor;
+	e.msg.snd_id = VTLCMD_Q;
+	strcpy(e.msg.text, "exit");
+	return msgsnd(qid, &e, strlen(e.msg.text) + 1 + offsetof(struct q_msg, text), 0);
+}
+
+static int daemon_exited_within(pid_t pid, int ms)
+{
+	for (int i = 0; i < ms / 100; i++) {
+		if (waitpid(pid, NULL, WNOHANG) == pid)
+			return 1;
+		usleep(100000);
+	}
+	return 0;
+}
+
+void test_stale_exit_ignored(void)
+{
+	char qkey[32];
+	uint8_t cdb[6] = { 0x12, 0x00, 0x00, 0x00, 36, 0x00 };	/* INQUIRY */
+	struct scsi_result r;
+	pid_t pid;
+	int exited;
+
+	/* The same per-test key harness_start_env() hands to the daemon */
+	snprintf(qkey, sizeof(qkey), "0x%x",
+		 (unsigned)(MHVTL_QKEY_BASE + getpid()));
+	setenv("MHVTL_QKEY", qkey, 1);
+	TEST_ASSERT(queue_exit(test_minor) == 0);
+
+	if (!TEST_CHECK(start_daemon(test_minor, "tape") == 0)) {
+		stop_daemon();
+		return;
+	}
+	pid = daemon_ctx.pid;
+
+	/* A daemon acts on "exit" only once idle for a few seconds; stay
+	 * idle well past that before probing it. */
+	exited = daemon_exited_within(pid, 8000);
+	TEST_CHECK(!exited);
+	TEST_MSG("drive exited on an exit queued before it started");
+	if (!exited) {
+		clear_unit_attention();
+		harness_cdb(&daemon_ctx, cdb, 6, &r);
+		TEST_CHECK(r.sam_stat == SAM_STAT_GOOD);
+
+		/* A stop request sent to the running daemon still works */
+		if (TEST_CHECK(queue_exit(test_minor) == 0)) {
+			exited = daemon_exited_within(pid, 10000);
+			TEST_CHECK(exited);
+			TEST_MSG("drive ignored an exit sent while it was running");
+		}
+	}
+	if (exited)
+		daemon_ctx.pid = -1;	/* already reaped */
+	stop_daemon();
+}
+
 TEST_LIST = {
 	{ "daemon_starts",              test_daemon_starts },
 	{ "inquiry",                    test_inquiry },
@@ -324,5 +395,6 @@ TEST_LIST = {
 	{ "library_inquiry",            test_library_inquiry },
 	{ "library_read_element_status",test_library_read_element_status },
 	{ "second_library_tape",        test_second_library_tape },
+	{ "stale_exit_ignored",         test_stale_exit_ignored },
 	{ NULL, NULL }
 };

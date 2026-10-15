@@ -2617,6 +2617,41 @@ int main(int argc, char *argv[]) {
 
 	child_cleanup = not_started;
 
+	/* Handle what was queued for this drive before it started. The queue
+	 * is shared by all daemons and outlives any one of them, so an "exit"
+	 * sent while no vtltape ran on this id (e.g. "vtlcmd 11 exit" for a
+	 * drive that is already stopped while the library runs) is still
+	 * there and would stop this new daemon once it is idle. Drop it;
+	 * vtllibrary drains its whole queue at startup for the same reason.
+	 * Keep the rest, such as the library's "Register", which it sends at
+	 * startup, usually before the drives are up.
+	 *
+	 * Take everything off the queue before handling any of it: a command
+	 * can take a while (an unload waits for the drive), and an "exit"
+	 * sent meanwhile is a live request for the main loop.
+	 */
+	{
+		struct q_msg *pending = NULL, *p;
+		size_t		  n		  = 0;
+
+		while (msgrcv(r_qid, &lu_ssc.r_entry, MAXOBN, my_id, IPC_NOWAIT) > 0) {
+			if (!strncmp(lu_ssc.r_entry.msg.text, "exit", 4)) {
+				MHVTL_LOG("Ignoring \"exit\" queued before this daemon started");
+				continue;
+			}
+			p = realloc(pending, (n + 1) * sizeof(*pending));
+			if (!p) {
+				MHVTL_ERR("Out of memory reading the message queue");
+				break;
+			}
+			pending		 = p;
+			pending[n++] = lu_ssc.r_entry.msg;
+		}
+		for (size_t i = 0; i < n; i++)
+			processMessageQ(&pending[i], &lu_ssc.sam_status);
+		free(pending);
+	}
+
 	for (;;) {
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &lu_ssc.r_entry, MAXOBN, my_id, IPC_NOWAIT);
