@@ -150,12 +150,13 @@ void init_hp_eml_smc(struct lu_phy_attr *lu) {
 /* The MSL identity below is documented for the MSL6480, MSL3040, MSL2024 G4
  * and the 1/8 G3 Autoloader. The earlier MSL2024, MSL4048, MSL6000 and
  * MSL8096 are not covered by that reference and keep the serial only
- * identifier they have always reported. MSL2024 counts as an earlier unit
- * here, because its product id does not tell the G4 from its predecessor.
+ * identifier they have always reported. The G4 reports "MSL2024 G4", which
+ * tells it from the earlier MSL2024.
  */
 static int hp_msl_documented(struct lu_phy_attr *lu) {
 	return !strncasecmp(lu->product_id, "MSL6480", 7) ||
 		   !strncasecmp(lu->product_id, "MSL3040", 7) ||
+		   !strncasecmp(lu->product_id, "MSL2024 G4", 10) ||
 		   !strncasecmp(lu->product_id, "1x8", 3);
 }
 
