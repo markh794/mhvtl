@@ -115,7 +115,7 @@ int check_media(int libno, char *barcode) {
 void DisplayResponse(int msqid, char *s) {
 	struct q_entry r_entry;
 
-	if (msgrcv(msqid, &r_entry, MAXOBN, VTLCMD_Q, 0) > 0)
+	if (msgrcv(msqid, &r_entry, MAXOBN, mhvtl_reply_id(), 0) > 0)
 		printf("%s%s\n", s, r_entry.msg.text);
 }
 
@@ -402,7 +402,7 @@ int SendMsg(long ReceiverQid, long ReceiverMtyp, char *sndbuf) {
 	struct q_entry s_entry;
 
 	s_entry.rcv_id		= ReceiverMtyp;
-	s_entry.msg.snd_id	= VTLCMD_Q;
+	s_entry.msg.snd_id	= mhvtl_reply_id();
 	s_entry.msg.text[0] = '\0';
 	strncat(s_entry.msg.text, sndbuf, MAXTEXTLEN);
 

@@ -49,15 +49,17 @@ const char *raw_bay_config_dir(void);
 /*
  * Send control command `cmd` to library `library_id` and wait for its reply.
  * Mirrors vtlcmd addressing: the command is sent with rcv_id == library_id and
- * snd_id == VTLCMD_Q, and the reply comes back on the VTLCMD_Q message-type.
+ * snd_id == mhvtl_reply_id(), and the reply comes back on that message-type,
+ * which no other client (vtlcmd, mhvtld) reads.
  *
  * HARDENED for repeated use by a long-running daemon: before sending, any stale
- * replies already sitting on the VTLCMD_Q message-type are DRAINED, so a reply
+ * replies already sitting on our reply message-type are DRAINED, so a reply
  * left over from an earlier command can never be mis-read as this command's
  * answer. Returns 0 and fills `reply` on a reply; -1 if the send failed or no
  * reply arrived within the bounded window (e.g. no library is listening).
  *
- * Sets my_id = VTLCMD_Q so replies route back here regardless of prior state.
+ * Sets my_id = mhvtl_reply_id() so replies route back here regardless of prior
+ * state.
  */
 int raw_bay_lib_cmd(long library_id, const char *cmd, char *reply, size_t rlen,
 		    int verbose_log);
