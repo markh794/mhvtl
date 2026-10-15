@@ -742,6 +742,13 @@ static void update_drive_details(struct lu_phy_attr *lu) {
 
 	free(b);
 	fclose(conf);
+
+	/* Report each drive's serial as the drive itself does. The vendor and
+	 * product are only known once the whole drive section has been read.
+	 */
+	list_for_each_entry(dp, &smc_p->drive_list, siblings)
+		ibm_lto_serial_pad(dp->inq_vendor_id, dp->inq_product_id,
+						   dp->inq_product_sno, sizeof(dp->inq_product_sno));
 }
 
 /*

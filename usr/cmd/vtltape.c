@@ -2250,6 +2250,8 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	}
 
 	/* Unit Serial Number */
+	ibm_lto_serial_pad(lu->vendor_id, lu->product_id, lu->lu_serial_no,
+					   sizeof(lu->lu_serial_no));
 	lu_vpd[PCODE_OFFSET(0x80)] = alloc_vpd(strlen(lu->lu_serial_no));
 	update_vpd_80(lu, lu->lu_serial_no);
 
