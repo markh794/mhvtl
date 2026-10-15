@@ -174,6 +174,11 @@ static void *lun_map_thread(void *arg)
  * BEFORE calling tcmulib_command_complete() (which updates cmd_tail
  * and signals the kernel).
  *
+ * The kernel only honours rsp.read_len when TCMU_UFLAG_READ_LEN is set
+ * in the entry header, and only gathers DATA-IN for a CHECK CONDITION
+ * response when it is: without the flag a short read with ILI reaches
+ * the initiator as a full buffer of zeros.
+ *
  * struct tcmu_device is opaque from the public libtcmu API, but its
  * first member after fd is the map pointer. We use an ABI-compatible
  * partial struct to access it.
@@ -204,7 +209,11 @@ static void set_read_len_on_current_entry(struct tcmu_device *dev,
 		ent = (void *)mb + mb->cmdr_off + tail;
 	}
 
+	if (!(mb->flags & TCMU_MAILBOX_FLAG_CAP_READ_LEN))
+		return;
+
 	ent->rsp.read_len = read_len;
+	ent->hdr.uflags |= TCMU_UFLAG_READ_LEN;
 }
 
 /*
@@ -284,10 +293,14 @@ static void relay_one_batch(struct handler_device *d)
 
 			int tcmu_status;
 			if (resp.sam_stat == SAM_STAT_CHECK_CONDITION) {
-				uint16_t asc_ascq = ((uint16_t)resp.sense[12] << 8) |
-						    resp.sense[13];
-				tcmu_sense_set_data(cmd->sense_buf,
-						    resp.sense[2], asc_ascq);
+				/*
+				 * Pass the daemon's sense through unchanged:
+				 * the VALID bit and INFORMATION field carry the
+				 * residual the st driver needs for ILI reads.
+				 */
+				memcpy(cmd->sense_buf, resp.sense,
+				       sizeof(cmd->sense_buf) < sizeof(resp.sense) ?
+				       sizeof(cmd->sense_buf) : sizeof(resp.sense));
 				tcmu_status = TCMU_STS_PASSTHROUGH_ERR;
 			} else if (resp.sam_stat == SAM_STAT_GOOD) {
 				tcmu_status = TCMU_STS_OK;
