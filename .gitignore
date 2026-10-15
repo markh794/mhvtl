@@ -15,7 +15,6 @@
 /tcopy/tcopy
 local.mk
 mhvtl_kernel.tgz
-/usr/mhvtl_kernel_mod_build
 /usr/bin/
 tests/test_*
 !tests/test_*.c
