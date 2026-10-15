@@ -50,19 +50,27 @@ http://scaryreasoner.wordpress.com/2009/02/28/checking-sizeof-at-compile-time/
  */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2 * !!(condition)]))
 
+/* libtcmu_common.h defines the same three helpers; the TCMU handler includes
+ * it first, so keep its definitions there instead of redefining them. */
+#ifndef min
 #define min(x, y) ({		\
 	typeof(x) _x = (x);	\
 	typeof(y) _y = (y);	\
 	(void) (&_x == &_y);	\
 	_x < _y ? _x : _y; })
+#endif
 
+#ifndef max
 #define max(x, y) ({		\
 	typeof(x) _x = (x);	\
 	typeof(y) _y = (y);	\
 	(void) (&_x == &_y);	\
 	_x > _y ? _x : _y; })
+#endif
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 #define likely(x)	__builtin_expect((x), 1)
 #define unlikely(x) __builtin_expect((x), 0)
