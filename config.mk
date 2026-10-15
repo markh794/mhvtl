@@ -60,10 +60,29 @@ endef
 # that a root `make install` there does not abort (see issue #143).
 RELOAD_SYSTEMD = if [ -z "$(DESTDIR)" ] && [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload; fi
 
-ifeq ($(shell grep lib64$ /etc/ld.so.conf /etc/ld.so.conf.d/* | wc -l),0)
-LIBDIR ?= $(PREFIX)/lib
-else
+# Library directory for a bare `make install`; distribution packaging sets
+# LIBDIR itself (the spec to %{_libdir}, debian/rules to the multiarch path).
+#
+# The compiler knows which of lib and lib64 holds the target's libraries: GCC
+# prints ../lib64 on Fedora, EL and SUSE and ../lib on Debian and Ubuntu.
+# Clang rejects -print-multi-os-directory, so when there is no answer fall
+# back to the distribution's layout. Every one of these systems has a
+# /usr/lib64, but on Debian-family systems it holds only the dynamic loader,
+# so it is used only elsewhere. (ld.so.conf names neither reliably: no entry
+# on Rocky 9 ends in lib64.)
+MULTI_OS_DIR := $(shell $(CC) -print-multi-os-directory 2>/dev/null)
+ifneq ($(MULTI_OS_DIR),)
+ifneq ($(findstring lib64,$(MULTI_OS_DIR)),)
 LIBDIR ?= $(PREFIX)/lib64
+else
+LIBDIR ?= $(PREFIX)/lib
+endif
+else ifneq ($(wildcard /etc/debian_version),)
+LIBDIR ?= $(PREFIX)/lib
+else ifneq ($(wildcard /usr/lib64/.),)
+LIBDIR ?= $(PREFIX)/lib64
+else
+LIBDIR ?= $(PREFIX)/lib
 endif
 
 # libvtlscsi.so is an internal library: it has no SONAME, no stable ABI and no
