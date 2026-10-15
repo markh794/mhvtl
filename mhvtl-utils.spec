@@ -21,7 +21,6 @@ Name: mhvtl-utils
 Version: 1.8
 Release: %{minor}%{?dist}
 License: GPL
-Group: System/Kernel
 URL: http://sites.google.com/site/linuxvtl2/
 
 Source: mhvtl-%{real_version}.tgz
@@ -64,17 +63,32 @@ The SSC/SMC target daemons have been written from scratch.
 %prep
 %setup -n %{real_name}-%{version}
 
+%pre
+# SUSE's service_add_post applies presets only to the units service_add_pre
+# recorded as newly installed; the systemd macros need no pre step.
+%if 0%{?suse_version}
+%service_add_pre mhvtl-load-modules.service mhvtl.target
+%endif
+
 %post
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/mhvtl-load-modules.service
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/vtllibrary@.service
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/vtltape@.service
-/sbin/semanage fcontext -a -t systemd_unit_file_t %{_unitdir}/mhvtl.target
-/sbin/restorecon -R -v %{_unitdir}
-/bin/systemctl daemon-reload
+# Label the unit files for SELinux only where the management tooling is
+# actually installed; skip quietly otherwise (and never fail the install).
+if command -v semanage >/dev/null 2>&1 && command -v restorecon >/dev/null 2>&1; then
+	for unit in mhvtl-load-modules.service vtllibrary@.service vtltape@.service mhvtl.target; do
+		semanage fcontext -a -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || \
+		semanage fcontext -m -t systemd_unit_file_t "%{_unitdir}/$unit" 2>/dev/null || :
+	done
+	restorecon -R %{_unitdir} || :
+fi
 %tmpfiles_create %{_tmpfilesdir}/mhvtl.conf
-%{service_add_post mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
-/bin/systemctl start mhvtl.target
-/bin/systemctl enable  mhvtl.target
+# Register the units via the distribution's service macros (which run
+# daemon-reload and apply presets) rather than force-starting/enabling them:
+# mhVTL needs a configured library before it can run, so it is not auto-started.
+%if 0%{?suse_version}
+%service_add_post mhvtl-load-modules.service mhvtl.target
+%else
+%systemd_post mhvtl-load-modules.service mhvtl.target
+%endif
 if [ "$1" -eq 1 ]; then
 	# Fresh install only: seed the default library's media under the home dir.
 	# On upgrade the admin's existing media and %config(noreplace) device.conf
@@ -90,35 +104,39 @@ fi
 
 %postun
 /sbin/ldconfig
-/bin/systemctl daemon-reload
+%if 0%{?suse_version}
+%service_del_postun mhvtl-load-modules.service mhvtl.target
+%else
+%systemd_postun mhvtl-load-modules.service mhvtl.target
+%endif
 
 # Remove DKMS module on package erase
 if [ "$1" -eq 0 ]; then
 	/usr/sbin/dkms remove -m mhvtl -v %{dkms_version} --all || :
 fi
 
-#%{service_del_postun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
-
-%pre
-#%{service_add_pre mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
-
 %preun
-/bin/systemctl stop  mhvtl.target
-/bin/systemctl disable  mhvtl.target
-#%{service_del_preun mhvtl.target mhvtl-load-modules.service vtllibrary@.service vtltape@.service}
+# Stop/disable only on erase (not on upgrade); the macro handles that.
+%if 0%{?suse_version}
+%service_del_preun mhvtl-load-modules.service mhvtl.target
+%else
+%systemd_preun mhvtl-load-modules.service mhvtl.target
+%endif
 
 %build
-# LIBDIR must match the install section below: it is baked into the binaries as
-# the RUNPATH to libvtlscsi.so (under LIBDIR/mhvtl), so building with the
-# config.mk default while installing to a different libdir would point the
-# RUNPATH at the wrong directory.
+# LIBDIR and MHVTL_LIBEXECDIR must match the install section below: LIBDIR
+# is baked into the binaries as the RUNPATH to libvtlscsi.so (under
+# LIBDIR/mhvtl), and the daemons' unit ExecStart path is generated here from
+# MHVTL_LIBEXECDIR, where the daemons are installed below.
 make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
+	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir}
 
 %install
 %make_install \
 	MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
+	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl MHVTL_DATADIR=%{_datadir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir} \
 	TMPFILES_DIR=%{_tmpfilesdir}
@@ -139,7 +157,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{__rm} -rf %{buildroot}
 
 %files
-%defattr(-, root, root, 0755)
+%license COPYING
 %doc INSTALL README etc/library_contents.sample
 %doc %{_mandir}/man1/mktape.1*
 %doc %{_mandir}/man1/edit_tape.1*
@@ -170,12 +188,15 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_bindir}/generate_library_contents
 %dir %{_libdir}/mhvtl
 %{_libdir}/mhvtl/libvtlscsi.so
+%dir %{_firmwarepath}/mhvtl
 %{_firmwarepath}/mhvtl/mhvtl_kernel.tgz
 %dir %{_sysconfdir}/mhvtl
 %config(noreplace) %{_sysconfdir}/mhvtl/mhvtl.conf
 %config(noreplace) %{_sysconfdir}/mhvtl/device.conf
 %config(noreplace) %{_sysconfdir}/mhvtl/library_contents.10
 %config(noreplace) %{_sysconfdir}/mhvtl/library_contents.30
+%dir %{_datadir}/mhvtl
+%{_datadir}/mhvtl/*
 %dir %{_usrsrc}/mhvtl-%{dkms_version}
 %{_usrsrc}/mhvtl-%{dkms_version}/*
 %{_systemdgeneratordir}/mhvtl-device-conf-generator
@@ -187,9 +208,9 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %dir %{mhvtl_home_dir}
 %ghost %{mhvtl_home_dir}/*
 
-%defattr(755, root, root, 0755)
-%{_bindir}/vtltape
-%{_bindir}/vtllibrary
+%dir %{_libexecdir}/mhvtl
+%{_libexecdir}/mhvtl/vtltape
+%{_libexecdir}/mhvtl/vtllibrary
 
 %changelog
 * Fri Jan 30 2026 Maarten Jacobs <maarten256@outlook.com> - 1.7-3

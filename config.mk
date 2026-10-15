@@ -18,6 +18,14 @@ VERSION ?= $(VER)
 PREFIX ?= /usr
 MANDIR ?= /share/man
 
+# Internal daemons (invoked by the systemd units / udev, not by users) live
+# under a private libexec dir; read-only sample configuration under a private
+# share dir. User-facing CLIs stay in $(PREFIX)/bin.
+LIBEXECDIR ?= $(PREFIX)/libexec
+DATADIR ?= $(PREFIX)/share
+MHVTL_LIBEXECDIR ?= $(LIBEXECDIR)/mhvtl
+MHVTL_DATADIR ?= $(DATADIR)/mhvtl
+
 MHVTL_HOME_PATH ?= /var/lib/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 SYSTEMD_GENERATOR_DIR ?= /usr/lib/systemd/system-generators
@@ -101,3 +109,4 @@ MHVTL_LIBDIR ?= $(LIBDIR)/mhvtl
 
 HOME_PATH = $(subst /,\/,$(MHVTL_HOME_PATH))
 CONFIG_PATH = $(subst /,\/,$(MHVTL_CONFIG_PATH))
+LIBEXEC_PATH = $(subst /,\/,$(MHVTL_LIBEXECDIR))

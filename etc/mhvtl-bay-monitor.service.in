@@ -13,7 +13,7 @@ Before=shutdown.target
 Type=simple
 # --config is passed explicitly so the monitor and the library read the same
 # bay/home configuration regardless of the service environment.
-ExecStart=/usr/bin/mhvtl-bay-monitor -f --config @CONF_PATH@/mhvtl_raw_bays.conf
+ExecStart=@LIBEXEC_PATH@/mhvtl-bay-monitor -f --config @CONF_PATH@/mhvtl_raw_bays.conf
 KillMode=mixed
 TimeoutStopSec=10
 
