@@ -77,6 +77,16 @@ override_dh_dkms:
 # The daemon units are templates instantiated by the generator from
 # device.conf, so only the target is enabled. Nothing is started on install:
 # that needs a configured library and media created by make_vtl_media.
+# The LSB init script is generated and installed by the upstream Makefile
+# (etc/init.d/mhvtl). --only-scripts registers it with update-rc.d / invoke-rc.d
+# without trying to source a debian/mhvtl.init. It is shipped for non-systemd
+# init systems (Devuan et al.); on a systemd host it is an inert no-op (the
+# script bails out under /run/systemd/system) and the native generator-driven
+# vtllibrary@/vtltape@ units own mhVTL. --no-start matches the units' policy of
+# not launching daemons at install time.
+override_dh_installinit:
+	dh_installinit --only-scripts --no-start
+
 override_dh_installsystemd:
 	dh_installsystemd -p mhvtl --no-enable --no-start \
 		mhvtl-load-modules.service mhvtl-bay-monitor.service \

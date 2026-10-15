@@ -1,0 +1,161 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          mhvtl
+# Required-Start:    $local_fs $remote_fs $syslog
+# Required-Stop:     $local_fs $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: mhVTL virtual tape library
+# Description:       Load the mhvtl kernel module and start one vtllibrary /
+#                    vtltape daemon per device listed in device.conf.
+### END INIT INFO
+#
+# SysV / LSB init script for non-systemd systems. On a systemd host the native
+# vtllibrary@/vtltape@ template units (driven by mhvtl-device-conf-generator)
+# manage mhVTL, so this script does nothing there - that keeps a
+# systemd-sysv-generator wrapper from double-launching the daemons.
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+NAME=mhvtl
+CONFIG_DIR=@CONF_PATH@
+LIBEXECDIR=@LIBEXEC_PATH@
+BINDIR=@BIN_PATH@
+DEVICE_CONF="$CONFIG_DIR/device.conf"
+MHVTL_CONF="$CONFIG_DIR/mhvtl.conf"
+VTLCMD="$BINDIR/vtlcmd"
+TCMU_HANDLER="$LIBEXECDIR/mhvtl_tcmu_handler"
+
+# Do nothing under systemd; the generator-driven units own mhVTL there.
+if [ -d /run/systemd/system ]; then
+	exit 0
+fi
+
+# VTL_DEBUG, VERBOSE, DAEMON_DEBUG and (optionally) MHVTL_BACKEND come from
+# mhvtl.conf, with the same defaults as the systemd units. The backend is
+# exported so the daemons select the same transport the modules were loaded for.
+[ -r "$MHVTL_CONF" ] && . "$MHVTL_CONF"
+MHVTL_BACKEND="${MHVTL_BACKEND:-mhvtl}"
+VTL_DEBUG="${VTL_DEBUG:-0}"
+VERBOSE="${VERBOSE:-0}"
+DAEMON_DEBUG="${DAEMON_DEBUG:-}"
+export MHVTL_BACKEND
+
+log() { echo "$NAME: $*"; }
+
+load_modules() {
+	case "$MHVTL_BACKEND" in
+	userland*)	return 0 ;;	# test backend: no kernel modules needed
+	tcmu*)		modprobe target_core_user && modprobe tcm_loop ;;
+	*)		modprobe mhvtl opts="$VTL_DEBUG" ;;
+	esac
+	modprobe sg
+}
+
+# Print the device (queue) numbers for a kind: "Library" or "Drive".
+device_ids() {
+	[ -f "$DEVICE_CONF" ] || return 0
+	awk -v k="$1:" '$1 == k { print $2 }' "$DEVICE_CONF"
+}
+
+# List running daemon PIDs. Match each name separately: a single -x pattern
+# with an alternation is >15 chars and trips a procps length warning.
+running_pids() { pgrep -x vtltape 2>/dev/null; pgrep -x vtllibrary 2>/dev/null; }
+
+# Is the daemon for queue $2 already running? A duplicate would still bail out
+# on the device's flock, but only after retrying for up to ~20 seconds.
+is_running() { pgrep -f "^$LIBEXECDIR/$1 -q$2( |\$)" >/dev/null 2>&1; }
+
+# The TCMU handler takes no lock, so check for a running one before starting
+# another. Its process name is truncated to 15 chars; match the full path.
+tcmu_handler_pids() { pgrep -f "^$TCMU_HANDLER" 2>/dev/null; }
+
+# The tcmu backend needs the handler up before the daemons (as the units order
+# it). It is only installed in TCMU builds.
+start_tcmu_handler() {
+	case "$MHVTL_BACKEND" in tcmu*) ;; *) return 0 ;; esac
+	[ -x "$TCMU_HANDLER" ] || { log "$TCMU_HANDLER not installed (non-TCMU build)"; return 1; }
+	[ -n "$(tcmu_handler_pids)" ] && return 0
+	log "starting mhvtl_tcmu_handler"
+	"$TCMU_HANDLER" || log "mhvtl_tcmu_handler failed"
+}
+
+start() {
+	if [ ! -f "$DEVICE_CONF" ]; then
+		log "no $DEVICE_CONF - nothing to start"
+		return 6
+	fi
+	log "loading modules ($MHVTL_BACKEND backend)"
+	load_modules
+	start_tcmu_handler
+	# Create any cartridge listed in library_contents that does not exist yet,
+	# as mhvtl-media.service does before the libraries start. Existing media
+	# is never touched.
+	"$BINDIR/make_vtl_media" --config-dir="$CONFIG_DIR" --create-dir \
+		--mktape-path="$BINDIR" >/dev/null || log "make_vtl_media failed"
+	# Libraries first, then the drives that attach to them. Each daemon
+	# daemonises itself. Daemons already running are skipped, so a repeat
+	# start is a quick no-op (the flock each daemon holds is the backstop).
+	# The daemons keep the stdio they were started with and log to syslog, so
+	# detach them from ours; otherwise a caller reading this script's output
+	# (a pipe, $(...)) would wait on them forever.
+	for n in $(device_ids Library); do
+		is_running vtllibrary "$n" && continue
+		log "starting vtllibrary q$n"
+		"$LIBEXECDIR/vtllibrary" -q"$n" -v"$VERBOSE" $DAEMON_DEBUG \
+			</dev/null >/dev/null 2>&1 || log "vtllibrary q$n failed"
+	done
+	for n in $(device_ids Drive); do
+		is_running vtltape "$n" && continue
+		log "starting vtltape q$n"
+		"$LIBEXECDIR/vtltape" -q"$n" -v"$VERBOSE" $DAEMON_DEBUG \
+			</dev/null >/dev/null 2>&1 || log "vtltape q$n failed"
+	done
+}
+
+stop() {
+	# Ask each running daemon to exit, the same way the systemd ExecStop does
+	# (which also only runs for active units). Do NOT ipcrm the SysV message
+	# queue: it is a single global queue shared by all mhVTL daemons, so
+	# removing it would disrupt any that survive. Never message a daemon that
+	# is not running: vtlcmd creates the queue if needed, nothing consumes the
+	# "exit", and the next vtltape started on that id reads it and quits
+	# (vtllibrary drains its stale messages at startup; vtltape does not).
+	for n in $(device_ids Drive); do
+		is_running vtltape "$n" && { "$VTLCMD" "$n" exit >/dev/null 2>&1 || true; }
+	done
+	for n in $(device_ids Library); do
+		is_running vtllibrary "$n" && { "$VTLCMD" "$n" exit >/dev/null 2>&1 || true; }
+	done
+	# Reap any stragglers (e.g. a hung daemon) without touching the queue.
+	i=0
+	while [ -n "$(running_pids)" ] && [ "$i" -lt 5 ]; do sleep 1; i=$((i + 1)); done
+	pids="$(running_pids)"
+	if [ -n "$pids" ]; then
+		log "sending SIGTERM to stragglers: $pids"
+		kill $pids 2>/dev/null || true
+		sleep 2
+		pids="$(running_pids)"
+		[ -n "$pids" ] && { log "SIGKILL: $pids"; kill -9 $pids 2>/dev/null || true; }
+	fi
+	# The TCMU handler serves the daemons, so it goes last.
+	pids="$(tcmu_handler_pids)"
+	if [ -n "$pids" ]; then kill $pids 2>/dev/null || true; fi
+}
+
+status() {
+	pids="$(running_pids)"
+	if [ -n "$pids" ]; then
+		log "running (pids: $(echo $pids | tr '\n' ' '))"
+		return 0
+	fi
+	log "not running"
+	return 3
+}
+
+case "$1" in
+start)		start ;;
+stop)		stop ;;
+restart|force-reload)	stop; start ;;
+status)		status ;;
+*)		echo "Usage: $0 {start|stop|restart|force-reload|status}" >&2; exit 2 ;;
+esac
