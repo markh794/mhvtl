@@ -42,6 +42,14 @@ struct smc_personality_template {
 	 * (StorageTek SL500).
 	 */
 	uint32_t report_scsi_bus_address : 1;
+	/* With DVCID=1 a data transfer element descriptor reports only the
+	 * drive's identity: Except set with ASC/ASCQ 81/00 (status is
+	 * questionable, drive is present), and Access, Full, ID Valid, the bus
+	 * address, SValid and the source address cleared (IBM TS3500/3584 SCSI
+	 * Reference, READ ELEMENT STATUS, Element Type 4 descriptor with
+	 * DVCID=B'1', table 7).
+	 */
+	uint32_t dvcid_identity_only : 1;
 	/* StorageTek data transfer element layout (L20/40/80 doc 95971 tables
 	 * 4-49/4-50, L180/L700e doc 95869 tables 6-67/6-68, SL500 PN 96122
 	 * tables 6-76/6-77). Whatever DvcID is, the descriptor ends with the

@@ -645,6 +645,28 @@ static int fill_ed(struct scsi_cmd *cmd, uint8_t *p, struct s_info *s) {
 		p[j++] = 0; /* Reserved */
 		p[j++] = 0; /* Reserved */
 	}
+	if (dvcid && s->element_type == DATA_TRANSFER &&
+		smc_p->pm->dvcid_identity_only) {
+		int id_off = 12 + (voltag ? VOLTAG_LEN : 0);
+
+		p[2] = STATUS_Except; /* Access and Full not supported */
+		p[6] = 0;			  /* No ID Valid, LU Valid or LUN */
+		p[7] = 0;			  /* No SCSI bus address */
+		p[9] = 0;			  /* No SValid */
+		put_unaligned_be16(0, &p[10]); /* No source element */
+		if (d->drv_id) {
+			p[4] = 0x81; /* Status is questionable, drive is present */
+			p[5] = 0x00;
+		} else {
+			/* A drive position with no drive configured (a gap in
+			 * library_contents): drive is not present, and every
+			 * byte of the identification descriptor is zero.
+			 */
+			p[4] = 0x82;
+			p[5] = 0x00;
+			memset(&p[id_off], 0, j - id_off);
+		}
+	}
 	MHVTL_DBG(3, "Element Descriptor - Returning %d (0x%02x) bytes", j, j);
 
 	return j;

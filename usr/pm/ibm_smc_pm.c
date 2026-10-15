@@ -417,6 +417,9 @@ void init_ibm3584(struct lu_phy_attr *lu) {
 	smc_pm.library_has_barcode_reader = TRUE;
 	smc_pm.library_has_playground	  = TRUE;
 
+	/* With DVCID=1 the drive descriptor carries only its identity */
+	smc_pm.dvcid_identity_only = TRUE;
+
 	/* Follow IBM 3584 SCSI Reference Manual */
 	smc_pm.start_picker	 = 0x0001;
 	smc_pm.start_drive	 = 0x0101;
