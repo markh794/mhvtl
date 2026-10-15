@@ -65,8 +65,11 @@ override_dh_auto_install:
 
 # The upstream source directory is itself called usr/ and builds into usr/bin,
 # which dh_install would prefer over the staging tree. Pin it to debian/tmp.
+# mhvtl_kernel_mod_build rebuilds the module from the source tarball that the
+# kernel/ install puts under the firmware directory. That install is skipped
+# here (mhvtl-dkms builds the module instead), so the script could only fail.
 override_dh_install:
-	dh_install --sourcedir=debian/tmp
+	dh_install --sourcedir=debian/tmp -Xmhvtl_kernel_mod_build
 
 override_dh_dkms:
 	dh_dkms -p mhvtl-dkms -V $(DEB_VERSION_UPSTREAM) kernel/dkms.conf
@@ -76,5 +79,6 @@ override_dh_dkms:
 # that needs a configured library and media created by make_vtl_media.
 override_dh_installsystemd:
 	dh_installsystemd -p mhvtl --no-enable --no-start \
-		mhvtl-load-modules.service vtltape@.service vtllibrary@.service
+		mhvtl-load-modules.service mhvtl-bay-monitor.service \
+		vtltape@.service vtllibrary@.service
 	dh_installsystemd -p mhvtl --no-start mhvtl.target

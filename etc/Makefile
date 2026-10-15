@@ -21,6 +21,11 @@ GENERATE_LIB_CONTENTS = generate_library_contents
 GENERATORS = $(GENERATE_DEVICE_CONF) $(GENERATE_LIB_CONTENTS)
 
 SERVICES = $(patsubst %.in,%,$(wildcard *.service.in))
+# The TCMU handler is only built with TCMU set (see usr/Makefile), so its unit
+# would otherwise point at a daemon that was never installed.
+ifndef TCMU
+SERVICES := $(filter-out mhvtl-tcmu-handler.service,$(SERVICES))
+endif
 MHVTL_TARGET = mhvtl.target
 
 
