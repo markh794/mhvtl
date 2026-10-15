@@ -1,0 +1,38 @@
+## <summary>mhVTL virtual tape library daemons.</summary>
+
+########################################
+## <summary>
+##	Execute the mhVTL daemons in their own domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed to transition.
+##	</summary>
+## </param>
+#
+interface(`mhvtl_domtrans',`
+	gen_require(`
+		type mhvtl_t, mhvtl_exec_t;
+	')
+
+	domtrans_pattern($1, mhvtl_exec_t, mhvtl_t)
+')
+
+########################################
+## <summary>
+##	Read and write mhVTL virtual media under the home directory.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`mhvtl_manage_var_lib',`
+	gen_require(`
+		type mhvtl_var_lib_t;
+	')
+
+	manage_dirs_pattern($1, mhvtl_var_lib_t, mhvtl_var_lib_t)
+	manage_files_pattern($1, mhvtl_var_lib_t, mhvtl_var_lib_t)
+')

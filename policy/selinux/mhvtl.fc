@@ -1,0 +1,15 @@
+# mhVTL file contexts.
+#
+# Daemons live under /usr/libexec/mhvtl; media under /var/lib/mhvtl; the
+# runtime socket dir under /run/mhvtl; lock files under /run/lock/mhvtl; and
+# the emulated SCSI character nodes are /dev/mhvtl<n>.
+
+/usr/libexec/mhvtl/vtltape	--	gen_context(system_u:object_r:mhvtl_exec_t,s0)
+/usr/libexec/mhvtl/vtllibrary	--	gen_context(system_u:object_r:mhvtl_exec_t,s0)
+
+/var/lib/mhvtl(/.*)?			gen_context(system_u:object_r:mhvtl_var_lib_t,s0)
+
+/run/mhvtl(/.*)?			gen_context(system_u:object_r:mhvtl_runtime_t,s0)
+/run/lock/mhvtl(/.*)?			gen_context(system_u:object_r:mhvtl_lock_t,s0)
+
+/dev/mhvtl[0-9]+		-c	gen_context(system_u:object_r:mhvtl_device_t,s0)

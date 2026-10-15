@@ -100,6 +100,7 @@ tar: distclean
 		 $(PARENTDIR)/usr \
 		 $(PARENTDIR)/etc/ \
 		 $(PARENTDIR)/scripts/ \
+		 $(PARENTDIR)/policy/ \
 		 $(PARENTDIR)/ccan/ \
 		 $(PARENTDIR)/tcopy/ \
 		 $(PARENTDIR)/include \
