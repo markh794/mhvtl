@@ -612,6 +612,51 @@ void test_ibm3584_dvcid_layout(void)
 		"IBM", "03584L32", "IBM", "ULT3580-TD8", "F0027BE0F1", 1
 	};
 	static const uint8_t zero[38] = { 0 };
+	struct elem_page pg;
+	uint8_t *id;
+	int len;
+
+	/* The drive stays empty: loading it needs the tape daemon. The cleared
+	 * Full, SValid and source fields of a loaded drive are checked on a
+	 * real kernel instead.
+	 */
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+
+	len = read_element_status(0, 1);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 0x32);
+	TEST_CHECK(get_unaligned_be16(&pg.desc[0]) == 0x0101);
+	TEST_CHECK(pg.desc[2] == 0x04);			/* Except only */
+	TEST_CHECK(pg.desc[4] == 0x81 && pg.desc[5] == 0x00);
+	TEST_CHECK(memcmp(&pg.desc[6], zero, 6) == 0);	/* bytes 6-11 */
+	TEST_MSG("bytes 2-11: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+		 pg.desc[2], pg.desc[3], pg.desc[4], pg.desc[5], pg.desc[6],
+		 pg.desc[7], pg.desc[8], pg.desc[9], pg.desc[10], pg.desc[11]);
+	id = &pg.desc[id_offset(0)];
+	TEST_CHECK(id[0] == 2 && id[1] == 1 && id[2] == 0 && id[3] == 0x22);
+	TEST_CHECK(memcmp(&id[4],
+			  "IBM     ULT3580-TD8     F0027BE0F1", 34) == 0);
+
+	/* Drive 3 has no drive configured: not present, identifier all zero */
+	TEST_CHECK(pg.byte_count == 3 * pg.desc_len);
+	id = &pg.desc[2 * pg.desc_len];
+	TEST_CHECK(get_unaligned_be16(&id[0]) == 0x0103);
+	TEST_CHECK(id[2] == 0x04);
+	TEST_CHECK(id[4] == 0x82 && id[5] == 0x00);
+	TEST_CHECK(memcmp(&id[12], zero, 38) == 0);
+	TEST_MSG("drive 3 bytes 2-5: %02x %02x %02x %02x", id[2], id[3], id[4],
+		 id[5]);
+
+	/* DVCID=0 still reports the status and the bus address */
+	len = read_element_status(0, 0);
+	TEST_ASSERT(find_page(len, 4, &pg) == 0);
+	TEST_CHECK(pg.desc_len == 16);
+	TEST_CHECK((pg.desc[2] & 0x04) == 0);
+	TEST_CHECK(pg.desc[6] == 0x20 && pg.desc[7] == 1);
+
+	stop();
+}
+
 /* StorageTek L20/40/80 (doc 95971 tables 4-49/4-50), L180/L700e (doc 95869
  * tables 6-67/6-68) and SL500 (PN 96122 tables 6-76/6-77): with or without
  * DvcID the drive descriptor ends with the serial in a 32 byte area and the
@@ -699,44 +744,6 @@ void test_stk_long_serial_truncated(void)
 	struct elem_page pg;
 	uint8_t *id;
 	int len;
-
-	/* The drive stays empty: loading it needs the tape daemon. The cleared
-	 * Full, SValid and source fields of a loaded drive are checked on a
-	 * real kernel instead.
-	 */
-	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
-
-	len = read_element_status(0, 1);
-	TEST_ASSERT(find_page(len, 4, &pg) == 0);
-	TEST_CHECK(pg.desc_len == 0x32);
-	TEST_CHECK(get_unaligned_be16(&pg.desc[0]) == 0x0101);
-	TEST_CHECK(pg.desc[2] == 0x04);			/* Except only */
-	TEST_CHECK(pg.desc[4] == 0x81 && pg.desc[5] == 0x00);
-	TEST_CHECK(memcmp(&pg.desc[6], zero, 6) == 0);	/* bytes 6-11 */
-	TEST_MSG("bytes 2-11: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-		 pg.desc[2], pg.desc[3], pg.desc[4], pg.desc[5], pg.desc[6],
-		 pg.desc[7], pg.desc[8], pg.desc[9], pg.desc[10], pg.desc[11]);
-	id = &pg.desc[id_offset(0)];
-	TEST_CHECK(id[0] == 2 && id[1] == 1 && id[2] == 0 && id[3] == 0x22);
-	TEST_CHECK(memcmp(&id[4],
-			  "IBM     ULT3580-TD8     F0027BE0F1", 34) == 0);
-
-	/* Drive 3 has no drive configured: not present, identifier all zero */
-	TEST_CHECK(pg.byte_count == 3 * pg.desc_len);
-	id = &pg.desc[2 * pg.desc_len];
-	TEST_CHECK(get_unaligned_be16(&id[0]) == 0x0103);
-	TEST_CHECK(id[2] == 0x04);
-	TEST_CHECK(id[4] == 0x82 && id[5] == 0x00);
-	TEST_CHECK(memcmp(&id[12], zero, 38) == 0);
-	TEST_MSG("drive 3 bytes 2-5: %02x %02x %02x %02x", id[2], id[3], id[4],
-		 id[5]);
-
-	/* DVCID=0 still reports the status and the bus address */
-	len = read_element_status(0, 0);
-	TEST_ASSERT(find_page(len, 4, &pg) == 0);
-	TEST_CHECK(pg.desc_len == 16);
-	TEST_CHECK((pg.desc[2] & 0x04) == 0);
-	TEST_CHECK(pg.desc[6] == 0x20 && pg.desc[7] == 1);
 
 	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
 	len = read_element_status(1, 1);
