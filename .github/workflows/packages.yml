@@ -18,6 +18,15 @@ permissions:
   contents: read
 
 jobs:
+  version:
+    # meson.build is the only place the version is set; the spec and both
+    # changelogs must agree with it (scripts/sync-version.sh updates them).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check the version is consistent
+        run: scripts/sync-version.sh --check
+
   deb:
     runs-on: ubuntu-latest
     strategy:

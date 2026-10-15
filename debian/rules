@@ -36,7 +36,6 @@ MHVTL_MAKE_VARS = \
 	MHVTL_CONFIG_PATH=/etc/mhvtl \
 	SYSTEMD_SERVICE_DIR=/usr/lib/systemd/system \
 	SYSTEMD_GENERATOR_DIR=/usr/lib/systemd/system-generators \
-	VERSION=$(DEB_VERSION_UPSTREAM) \
 	RPM_OPT_FLAGS='$(strip $(RPM_OPT_FLAGS))'
 
 %:

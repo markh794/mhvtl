@@ -19,15 +19,16 @@
 %define buildkmp 1
 %endif
 %endif
-%global dkms_version %{version}.%{minor}
+%global dkms_version %{version}
 
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
 Name: mhvtl-utils
-%define real_version 2026-03-10
-%define minor 0
-Version: 1.8
-Release: %{minor}%{?dist}
+# Version comes from meson.build; scripts/sync-version.sh writes it here (and
+# into the changelogs), and CI fails when they disagree. Release counts
+# packaging revisions of that version.
+Version: 1.8.0
+Release: 1%{?dist}
 %if 0%{?suse_version}
 # openSUSE ships its own mhvtl packages versioned 1.72_release+... (upstream
 # 1.7-2), which RPM orders above 1.8. Without an epoch the solver would prefer
@@ -40,7 +41,7 @@ Epoch: 1
 License: GPL
 URL: http://sites.google.com/site/linuxvtl2/
 
-Source: mhvtl-%{real_version}.tgz
+Source: mhvtl-%{version}.tgz
 # Subpackage preamble for the openSUSE kernel module packages (KMP) below.
 Source2: mhvtl.preamble
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
@@ -210,7 +211,7 @@ dkms install -m mhvtl -v %{dkms_version} -q --force || :
 # is baked into the binaries as the RUNPATH to libvtlscsi.so (under
 # LIBDIR/mhvtl), and the daemons' unit ExecStart path is generated here from
 # MHVTL_LIBEXECDIR, where the daemons are installed below.
-make MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
+make MHVTL_HOME_PATH=%{mhvtl_home_dir} LIBDIR=%{_libdir} \
 	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir}
@@ -231,7 +232,7 @@ done
 
 %install
 %make_install \
-	MHVTL_HOME_PATH=%{mhvtl_home_dir} VERSION=%{version} EXTRAVERSION=%{minor} LIBDIR=%{_libdir} \
+	MHVTL_HOME_PATH=%{mhvtl_home_dir} LIBDIR=%{_libdir} \
 	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl MHVTL_DATADIR=%{_datadir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir} \
@@ -324,6 +325,12 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_usrsrc}/mhvtl-%{dkms_version}
 
 %changelog
+* Tue Oct 13 2026 Ciro Iriarte <ciro.iriarte@gmail.com> - 1.8.0-1
+- Update to 1.8.0; the version now comes from meson.build.
+- Split the kernel module source into mhvtl-dkms; build openSUSE KMPs.
+- Install the daemons under libexec and default the media home to /var/lib/mhvtl.
+- Use the distribution service macros; create media from mhvtl-media.service.
+
 * Fri Jan 30 2026 Maarten Jacobs <maarten256@outlook.com> - 1.7-3
 - Added DKMS deployment so kernel module is built and kept in sync with kernel
 

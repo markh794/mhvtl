@@ -12,11 +12,13 @@
 
 include config.mk
 
-PARENTDIR = mhvtl-$(VER)
+PARENTDIR = mhvtl-$(MHVTL_PROJECT_VERSION)
 CHECK_CC = cgcc
 CHECK_CC_FLAGS = '$(CHECK_CC) -Wbitwise -Wno-return-void -no-compile $(ARCH)'
 
-TAR_FILE := mhvtl-$(shell date +%F)-$(VERSION).$(EXTRAVERSION).tgz
+# Matches the spec's Source and %setup: mhvtl-<version>.tgz unpacking to
+# mhvtl-<version>/.
+TAR_FILE := mhvtl-$(MHVTL_PROJECT_VERSION).tgz
 
 MAKE_VTL_MEDIA = usr/bin/make_vtl_media
 
@@ -106,12 +108,20 @@ tar: distclean
 		 $(PARENTDIR)/include \
 		 $(PARENTDIR)/Makefile \
 		 $(PARENTDIR)/config.mk \
+		 $(PARENTDIR)/meson.build \
+		 $(PARENTDIR)/COPYING \
 		 $(PARENTDIR)/README \
 		 $(PARENTDIR)/INSTALL \
 		 $(PARENTDIR)/ChangeLog \
 		 $(PARENTDIR)/mhvtl_kernel.tgz \
 		 $(PARENTDIR)/mhvtl-utils.spec)
 	$(RM) ../$(PARENTDIR)
+
+# meson.build is the only place the version is set: copy it into the spec and
+# changelogs (CI runs the --check form).
+.PHONY: sync-version
+sync-version:
+	scripts/sync-version.sh
 
 .PHONY:tags
 tags:
