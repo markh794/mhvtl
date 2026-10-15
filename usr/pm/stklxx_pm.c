@@ -13,8 +13,9 @@ static struct smc_personality_template smc_pm = {
 	.library_has_map			= TRUE,
 	.library_has_barcode_reader = TRUE,
 	.library_has_playground		= TRUE,
+	.stk_dte_layout				= TRUE,
 
-	.dvcid_len = 34,
+	.dvcid_len = 32,
 };
 
 static void update_stk_l_vpd_80(struct lu_phy_attr *lu) {
@@ -58,6 +59,11 @@ void init_stkl20(struct lu_phy_attr *lu) {
 	smc_pm.library_has_barcode_reader = TRUE;
 	smc_pm.library_has_playground	  = TRUE;
 
+	/* The L20/40/80 reports each drive's SCSI bus address (doc 95971
+	 * table 4-50, bytes 6-7).
+	 */
+	smc_pm.report_scsi_bus_address = TRUE;
+
 	/* Follow L20 SCSI Reference Manual  */
 	smc_pm.start_picker	 = 0x0001;
 	smc_pm.start_map	 = 0x000a; /*   10d -   55d */
@@ -83,6 +89,11 @@ void init_stklxx(struct lu_phy_attr *lu) {
 	smc_pm.library_has_barcode_reader = TRUE;
 	smc_pm.library_has_playground	  = TRUE;
 
+	/* The L700/L180 reports each drive's SCSI bus address (doc 95869
+	 * tables 6-67/6-68, bytes 6-7).
+	 */
+	smc_pm.report_scsi_bus_address = TRUE;
+
 	/* Follow L700e/L180 SCSI Reference Manual - 8th Edition */
 	smc_pm.start_picker	 = 0x0001;
 	smc_pm.start_map	 = 0x000a; /*   10d -   55d */
@@ -105,6 +116,9 @@ void init_stkslxx(struct lu_phy_attr *lu) {
 	smc_pm.library_has_map			  = TRUE;
 	smc_pm.library_has_barcode_reader = TRUE;
 	smc_pm.library_has_playground	  = TRUE;
+
+	/* SL500 bytes 6-8 are reserved (PN 96122 tables 6-76/6-77) */
+	smc_pm.report_scsi_bus_address = FALSE;
 
 	/* Follow Streamline SL500 Interface Reference Manual - 2th Edition */
 	smc_pm.start_picker	 = 0x0001;
