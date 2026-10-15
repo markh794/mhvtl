@@ -9,6 +9,9 @@
 %{!?_systemdgeneratordir: %global _systemdgeneratordir %{_prefix}/lib/systemd/system-generators}
 
 %define mhvtl_home_dir /var/lib/mhvtl
+# Former default media home; only consulted when upgrading from a release
+# that used it.
+%define mhvtl_legacy_home_dir /opt/mhvtl
 
 # On openSUSE, also build prebuilt kernel module packages (KMP), one per kernel
 # flavor, as the distribution's own mhvtl package does. They provide
@@ -136,6 +139,19 @@ if command -v semanage >/dev/null 2>&1 && command -v restorecon >/dev/null 2>&1;
 	restorecon -R %{_unitdir} || :
 fi
 %tmpfiles_create %{_tmpfilesdir}/mhvtl.conf
+if [ "$1" -ge 2 ] && [ -n "$(ls -A %{mhvtl_legacy_home_dir} 2>/dev/null)" ] &&
+   [ -z "$(ls -A %{mhvtl_home_dir} 2>/dev/null)" ]; then
+	# Upgrade from a release that kept media under %{mhvtl_legacy_home_dir}.
+	# %config(noreplace) only preserves configs the admin edited; unedited
+	# ones were just replaced with copies pointing at %{mhvtl_home_dir},
+	# which would orphan the existing media (and let mhvtl-media.service seed
+	# a second, empty library there). Point them back at the old home.
+	sed -i -e 's#^\([[:space:]]*Home directory:[[:space:]]*\)%{mhvtl_home_dir}\(/\|[[:space:]]*$\)#\1%{mhvtl_legacy_home_dir}\2#' \
+		%{_sysconfdir}/mhvtl/device.conf
+	sed -i -e 's#^MHVTL_HOME_PATH=%{mhvtl_home_dir}\(/\|[[:space:]]*$\)#MHVTL_HOME_PATH=%{mhvtl_legacy_home_dir}\1#' \
+		%{_sysconfdir}/mhvtl/mhvtl.conf
+	echo "mhvtl: existing media kept in %{mhvtl_legacy_home_dir}; to relocate it, move it to %{mhvtl_home_dir} and update device.conf and mhvtl.conf." >&2
+fi
 # Register the units via the distribution's service macros (which run
 # daemon-reload and apply presets) rather than force-starting/enabling them:
 # mhVTL needs a configured library before it can run, so it is not auto-started.
