@@ -10,3 +10,4 @@ generate_library_contents
 mhvtl-bay-monitor.service
 mhvtl-media.service
 mhvtl-tcmu-handler.service
+mhvtl.init
