@@ -4,9 +4,9 @@ mhvtl for Debian
 Differences from the default build
 ----------------------------------
 
-Media is stored in /var/lib/mhvtl rather than the /opt/mhvtl that config.mk
-defaults to. Debian Policy 9.1.1 reserves /opt for software the distribution
-does not ship.
+Media is stored in /var/lib/mhvtl, the FHS location for variable state data
+(Debian Policy 9.1.1 reserves /opt for software the distribution does not
+ship). This matches the upstream default.
 
 The kernel module is not built during the package build. mhvtl-dkms ships the
 source and DKMS builds it for the running kernel. Kernel headers matching that

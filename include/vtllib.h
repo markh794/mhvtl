@@ -40,9 +40,9 @@
 
 #ifndef MHVTL_HOME_PATH
 /* Where all the tape data files belong. Both build systems (config.mk and
- * meson) define this to /opt/mhvtl; keep this fallback in agreement so a build
- * that does not pass -DMHVTL_HOME_PATH still uses the real default. */
-#define MHVTL_HOME_PATH "/opt/mhvtl"
+ * meson) define this to /var/lib/mhvtl; keep this fallback in agreement so a
+ * build that does not pass -DMHVTL_HOME_PATH still uses the real default. */
+#define MHVTL_HOME_PATH "/var/lib/mhvtl"
 #endif
 
 /*

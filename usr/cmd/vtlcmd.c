@@ -89,7 +89,7 @@ static void usage(char *prog) {
 	fprintf(stderr, "   load map ID  -> Load media ID into map\n");
 }
 
-/* check if media (tape) exists in directory (/opt/mhvtl/..) */
+/* check if media (tape) exists in directory (/var/lib/mhvtl/..) */
 int check_media(int libno, char *barcode) {
 	char currentMedia[1024];
 	int	 datafile;

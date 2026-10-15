@@ -35,7 +35,7 @@ add_project_arguments(
   '-DMHVTL_VERSION="' + mhvtl_version + '"',
   '-DMHVTL_GITDATE="' + gitdate + '"',
   '-DMHVTL_GITHASH="' + githash + '"',
-  '-DMHVTL_HOME_PATH="/opt/mhvtl"',
+  '-DMHVTL_HOME_PATH="/var/lib/mhvtl"',
   '-DMHVTL_CONFIG_PATH="/etc/mhvtl"',
   '-DSYSTEMD_SERVICE_DIR="/usr/lib/systemd/system"',
   language : 'c',

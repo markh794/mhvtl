@@ -14,7 +14,7 @@ VERSION ?= $(VER)
 PREFIX ?= /usr
 MANDIR ?= /share/man
 
-MHVTL_HOME_PATH ?= /opt/mhvtl
+MHVTL_HOME_PATH ?= /var/lib/mhvtl
 MHVTL_CONFIG_PATH ?= /etc/mhvtl
 SYSTEMD_GENERATOR_DIR ?= /usr/lib/systemd/system-generators
 SYSTEMD_SERVICE_DIR ?= /usr/lib/systemd/system
