@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # vim: tabstop=4 shiftwidth=4 expandtab colorcolumn=80 foldmethod=marker :
 
 # uncomment the next line to enable script debugging
