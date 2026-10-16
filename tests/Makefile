@@ -32,6 +32,7 @@ TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_vols
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
 SCRIPT_TESTS += make_vtl_media_home.sh
+SCRIPT_TESTS += generator/run.sh
 
 # Integration tests via userland transport (no kernel modules or root needed)
 INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew
