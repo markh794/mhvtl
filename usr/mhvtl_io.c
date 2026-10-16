@@ -1067,6 +1067,15 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz, uint32_t src_offset) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
 		sam_no_sense(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
+		/* Nothing was written: in variable-block mode INFORMATION is the
+		 * transfer length in bytes (GA32-0928-07 Table 17 "Write at EOM",
+		 * p.51). Left at 0 with VALID set, the initiator concludes the
+		 * refused block was written.
+		 * Fixed-block mode reports blocks not written, which only the
+		 * caller's per-block loop knows.
+		 */
+		if (cmd->scb && !(cmd->scb[1] & 1))
+			put_unaligned_be32(src_sz, &sense[3]);
 		return src_len;
 	}
 
