@@ -34,7 +34,7 @@ SCRIPT_TESTS = check_make_vtl_media.sh
 SCRIPT_TESTS += make_vtl_media_home.sh
 
 # Integration tests via userland transport (no kernel modules or root needed)
-INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew
+INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_space
 
 .PHONY: all test clean
 
@@ -133,6 +133,9 @@ test_queue_backoff: test_queue_backoff.c acutest.h helpers/scsi_harness.h helper
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_ssc_fixed_ew: test_ssc_fixed_ew.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_ssc_space: test_ssc_space.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 integration: $(INTEGRATION_TESTS)
