@@ -44,9 +44,9 @@ $(MAN_PATH)/man5:
 
 # installation
 $(MAN_PATH)/man1/%.1: %.1 | $(MAN_PATH)/man1
-	install $< $@
+	install -m 644 $< $@
 $(MAN_PATH)/man5/%.5: %.5 | $(MAN_PATH)/man5
-	install $< $@
+	install -m 644 $< $@
 
 .PHONY:install
 install: $(addprefix $(MAN_PATH)/man1/,$(MAN1_PAGES)) \

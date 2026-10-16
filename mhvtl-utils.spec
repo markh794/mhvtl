@@ -122,7 +122,7 @@ matching the running kernel must be installed for the build to succeed.
 # SUSE's service_add_post applies presets only to the units service_add_pre
 # recorded as newly installed; the systemd macros need no pre step.
 %if 0%{?suse_version}
-%service_add_pre mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
+%service_add_pre mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %endif
 
 %post
@@ -153,25 +153,25 @@ fi
 # daemon-reload and apply presets) rather than force-starting/enabling them:
 # mhVTL needs a configured library before it can run, so it is not auto-started.
 %if 0%{?suse_version}
-%service_add_post mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
+%service_add_post mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %else
-%systemd_post mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
+%systemd_post mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %endif
 
 %postun
 /sbin/ldconfig
 %if 0%{?suse_version}
-%service_del_postun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
+%service_del_postun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %else
-%systemd_postun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
+%systemd_postun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %endif
 
 %preun
 # Stop/disable only on erase (not on upgrade); the macro handles that.
 %if 0%{?suse_version}
-%service_del_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
+%service_del_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %else
-%systemd_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl.target
+%systemd_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %endif
 
 %preun -n mhvtl-dkms
