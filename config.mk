@@ -8,8 +8,6 @@ MHVTL_PROJECT_VERSION := $(shell awk -F\' '/^[[:space:]]*version[[:space:]]*:/ {
 VER ?= $(basename $(MHVTL_PROJECT_VERSION))
 EXTRAVERSION ?= $(patsubst .%,%,$(suffix $(MHVTL_PROJECT_VERSION)))
 
-FIRMWAREDIR ?= /usr/lib/firmware
-
 GITHASH ?= $(if $(shell test -d $(TOPDIR)/.git && echo 1),commit:\ $(shell git show -s --format=%h))
 GITDATE ?= $(if $(shell test -d $(TOPDIR)/.git && echo 1),$(shell git show -s --format=%aI))
 

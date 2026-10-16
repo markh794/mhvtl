@@ -37,7 +37,6 @@ KERNEL_MODULE := mhvtl.ko
 endif
 
 TOPDIR ?= $(CURDIR)/..
-FIRMWAREDIR ?= $(shell awk '/^%.*_firmwarepath/ {print $$3}' $(TOPDIR)/mhvtl-utils.spec)
 
 PWD	:= $(shell pwd)
 
@@ -61,8 +60,6 @@ MODULE_DIR = $(DESTDIR)/lib/modules/$(V)/kernel/drivers/scsi
 RUN_DEPMOD = if [ -z "$(DESTDIR)" ] && command -v depmod >/dev/null 2>&1; then depmod -a; fi
 
 install: all
-	[ -d $(DESTDIR)$(FIRMWAREDIR)/mhvtl ] || mkdir -p $(DESTDIR)$(FIRMWAREDIR)/mhvtl
-	install -m 755 ../mhvtl_kernel.tgz $(DESTDIR)$(FIRMWAREDIR)/mhvtl/
 ifneq ($(KERNEL_MODULE),)
 	[ -d $(MODULE_DIR) ] || install -d -m 755 $(MODULE_DIR)
 	install -m 644 mhvtl.ko $(MODULE_DIR)/
@@ -70,7 +67,7 @@ ifneq ($(KERNEL_MODULE),)
 endif
 
 uninstall: distclean
-	rm -f $(MODULE_DIR)/mhvtl.ko $(DESTDIR)$(FIRMWAREDIR)/mhvtl/mhvtl_kernel.tgz
+	rm -f $(MODULE_DIR)/mhvtl.ko
 	$(RUN_DEPMOD)
 
 # Module.supported marks mhvtl as externally supported. SUSE kernels refuse to

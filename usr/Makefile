@@ -259,10 +259,6 @@ bin/make_vtl_media: cmd/make_vtl_media.in
 	    -e s'/@HOME_PATH@/$(HOME_PATH)/' $< > $@
 	chmod 755 $@
 
-bin/mhvtl_kernel_mod_build: cmd/mhvtl_kernel_mod_build.in
-	sed -e s'|@FIRMWAREDIR@|${FIRMWAREDIR}|' $< > $@
-	chmod 755 $@
-
 # ========== command targets ==========
 
 $(DESTDIR)$(PREFIX)/bin:
