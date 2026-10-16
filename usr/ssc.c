@@ -440,10 +440,22 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
 		 * here would leave every block a copy of the first.
 		 */
 		for (k = 0; k < count; k++) {
-			writeBlock(cmd, sz, (uint32_t)k * sz);
+			int written = writeBlock(cmd, sz, (uint32_t)k * sz) ? 1 : 0;
 
-			if (*sam_stat)
+			if (*sam_stat) {
+				/* Fixed block mode: the command stops here, so
+				 * INFORMATION is the transfer length minus the
+				 * blocks written - including the block that
+				 * reached early warning, excluding one refused
+				 * at EOM (GA32-0928-07 Table 17, p.51).
+				 */
+				if (cdb[1] & FIXED_BLOCK) {
+					MHVTL_DBG(2, "Fixed block write short by %d blocks",
+							  count - k - written);
+					put_unaligned_be32(count - k - written, &sense[3]);
+				}
 				return *sam_stat;
+			}
 		}
 	}
 	return SAM_STAT_GOOD;
