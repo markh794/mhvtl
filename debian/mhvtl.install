@@ -4,8 +4,8 @@ usr/bin/*
 usr/libexec/mhvtl/*
 usr/share/mhvtl/*
 usr/lib/*/mhvtl/libvtlscsi.so
-usr/lib/systemd/system/*
-usr/lib/systemd/system-generators/*
+${env:MHVTL_UNITDIR}/*
+${env:MHVTL_GENERATORDIR}/*
 usr/lib/tmpfiles.d/*
 usr/share/man/man1/*
 usr/share/man/man5/*

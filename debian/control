@@ -9,6 +9,7 @@ Build-Depends:
  liblz4-dev,
  libzstd-dev,
  pkg-config,
+ systemd-dev | systemd (<< 253-2~),
  libudev-dev
 Standards-Version: 4.7.2
 Homepage: https://github.com/markh794/mhvtl

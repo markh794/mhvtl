@@ -26,6 +26,17 @@ RPM_OPT_FLAGS = \
 	$(shell dpkg-buildflags --get CFLAGS) \
 	$(shell dpkg-buildflags --get LDFLAGS)
 
+# Unit and generator directories come from systemd.pc: /lib/systemd on
+# Debian 12, whose dh_installsystemd only looks there, /usr/lib/systemd on
+# later releases. debian/mhvtl.install reads the same values.
+SYSTEMD_UNITDIR := $(shell pkg-config --variable=systemdsystemunitdir systemd)
+SYSTEMD_GENERATORDIR := $(shell pkg-config --variable=systemdsystemgeneratordir systemd)
+ifeq ($(SYSTEMD_UNITDIR),)
+$(error systemd.pc not found: install systemd-dev (systemd before 253-2 ships it itself))
+endif
+export MHVTL_UNITDIR = $(patsubst /%,%,$(SYSTEMD_UNITDIR))
+export MHVTL_GENERATORDIR = $(patsubst /%,%,$(SYSTEMD_GENERATORDIR))
+
 # The upstream makefiles read every path from config.mk. Command line
 # assignments override its ?= defaults and propagate to the sub-makes.
 MHVTL_MAKE_VARS = \
@@ -34,8 +45,8 @@ MHVTL_MAKE_VARS = \
 	LIBDIR=$(MULTIARCH_LIBDIR) \
 	MHVTL_HOME_PATH=$(MHVTL_HOME_PATH) \
 	MHVTL_CONFIG_PATH=/etc/mhvtl \
-	SYSTEMD_SERVICE_DIR=/usr/lib/systemd/system \
-	SYSTEMD_GENERATOR_DIR=/usr/lib/systemd/system-generators \
+	SYSTEMD_SERVICE_DIR=$(SYSTEMD_UNITDIR) \
+	SYSTEMD_GENERATOR_DIR=$(SYSTEMD_GENERATORDIR) \
 	RPM_OPT_FLAGS='$(strip $(RPM_OPT_FLAGS))'
 
 %:
