@@ -59,6 +59,9 @@ int enter(char *, long rcv_id);
 int send_msg(char *cmd, long rcv_id);
 int serve(void);
 int init_queue(void);
+int recv_reply_from(int qid, long from, const char *const *replies,
+					struct q_entry *reply);
+int recv_msg(int qid, struct q_entry *e, int flags);
 
 extern long my_id;
 

@@ -7,10 +7,12 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <syslog.h>
 #include <sys/msg.h>
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 #include "q.h"
 
 extern int	debug;
@@ -93,6 +95,103 @@ int send_msg(char *cmd, long rcv_id) {
 	}
 
 	return 0;
+}
+
+/*
+ * Messages for this daemon that were taken off the queue while it waited for
+ * a reply, oldest first. recv_msg() hands them out before reading the queue
+ * again, so they keep their place ahead of anything that arrived later.
+ */
+struct pending_msg {
+	struct pending_msg *next;
+	struct q_entry		entry;
+};
+static struct pending_msg *pending_head, *pending_tail;
+
+static void hold(struct pending_msg *p) {
+	p->next = NULL;
+	if (pending_tail)
+		pending_tail->next = p;
+	else
+		pending_head = p;
+	pending_tail = p;
+}
+
+static int is_reply(const char *text, const char *const *replies) {
+	for (; *replies; replies++)
+		if (!strncmp(text, *replies, strlen(*replies)))
+			return 1;
+	return 0;
+}
+
+/*
+ * Wait on queue qid for the reply that 'from' sends to this daemon: a message
+ * from 'from' whose text starts with one of the NULL-terminated 'replies'.
+ *
+ * Everything addressed to a daemon shares one message type, its id, so a
+ * plain msgrcv(my_id) takes whatever arrives first: a vtlcmd command, a
+ * management daemon's request, another drive's notice, or an unsolicited
+ * notice from the very drive being waited on. Anything that is not the reply
+ * is held for recv_msg(), which the daemon's main loop reads its messages
+ * with, so it is processed afterwards in the order it arrived. Room to hold a
+ * message is made before it is taken off the queue, so none is dropped.
+ *
+ * Like the msgrcv() it replaces, this waits until the reply comes. Returns
+ * the size of the reply, or -1 with errno set by msgrcv().
+ */
+int recv_reply_from(int qid, long from, const char *const *replies,
+					struct q_entry *reply) {
+	struct pending_msg *p = NULL;
+	int					mlen;
+
+	for (;;) {
+		if (!p) {
+			p = malloc(sizeof(*p));
+			if (!p) {
+				MHVTL_ERR("Out of memory holding messages while waiting for %ld",
+						  from);
+				sleep(1);
+				continue;
+			}
+		}
+		/* msgrcv() writes only what was sent: start from a clean entry */
+		memset(&p->entry, 0, sizeof(p->entry));
+		mlen = msgrcv(qid, &p->entry, MAXOBN, my_id, MSG_NOERROR);
+		if (mlen < 0) {
+			if (errno == EINTR)
+				continue;
+			free(p);
+			return -1;
+		}
+		p->entry.msg.text[MAXTEXTLEN] = '\0';
+		/* Too short to carry a sender and text, it cannot be the reply */
+		if (mlen > (int)offsetof(struct q_msg, text) &&
+			p->entry.msg.snd_id == from && is_reply(p->entry.msg.text, replies)) {
+			*reply = p->entry;
+			free(p);
+			return mlen;
+		}
+		hold(p);
+		p = NULL;
+	}
+}
+
+/*
+ * Receive the next message for this daemon: one held while it waited for a
+ * reply, else msgrcv() with the given flags. Returns as msgrcv() does.
+ */
+int recv_msg(int qid, struct q_entry *e, int flags) {
+	struct pending_msg *p = pending_head;
+
+	if (p) {
+		pending_head = p->next;
+		if (!pending_head)
+			pending_tail = NULL;
+		*e = p->entry;
+		free(p);
+		return offsetof(struct q_msg, text) + strlen(e->msg.text) + 1;
+	}
+	return msgrcv(qid, e, MAXOBN, my_id, flags | MSG_NOERROR);
 }
 
 static void proc_obj(struct q_entry *q_entry) {

@@ -1863,8 +1863,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	for (;;) {
-		/* Check for any messages */
-		mlen = msgrcv(r_qid, &r_entry, MAXOBN, my_id, IPC_NOWAIT);
+		/* Check for any messages, starting with those held while a
+		 * move waited for a drive's reply.
+		 */
+		mlen = recv_msg(r_qid, &r_entry, IPC_NOWAIT);
 		if (mlen > 0) {
 			if (processMessageQ(&r_entry.msg))
 				time_to_exit = 1;

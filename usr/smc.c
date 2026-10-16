@@ -144,6 +144,10 @@ static struct d_info *drive2struct(struct smc_priv *smc_p, int addr) {
 	return NULL;
 }
 
+static const char *const mount_state_replies[] = {msg_occupied, msg_not_occupied, NULL};
+static const char *const load_replies[]		   = {msg_load_ok, msg_load_failed, NULL};
+static const char *const unload_replies[]	   = {msg_unload_ok, NULL};
+
 /* Query the drive to check if it thinks it is empty */
 static int is_drive_empty(struct d_info *drv) {
 	int			   mlen, r_qid;
@@ -163,7 +167,7 @@ static int is_drive_empty(struct d_info *drv) {
 	/* A failed receive leaves q untouched, so it must not be read */
 	memset(&q, 0, sizeof(q));
 
-	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
+	mlen = recv_reply_from(r_qid, drv->drv_id, mount_state_replies, &q);
 	if (mlen <= 0) {
 		MHVTL_ERR("%ld: No reply from the drive: %s",
 				  my_id, strerror(errno));
@@ -199,7 +203,7 @@ static int driveOccupied(struct d_info *d) {
 	return ret;
 }
 
-static int check_tape_unload(void) {
+static int check_tape_unload(long drv_id) {
 	int			   mlen, r_qid;
 	struct q_entry q;
 
@@ -213,7 +217,7 @@ static int check_tape_unload(void) {
 	/* A failed receive leaves q untouched, so it must not be read */
 	memset(&q, 0, sizeof(q));
 
-	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
+	mlen = recv_reply_from(r_qid, drv_id, unload_replies, &q);
 	if (mlen <= 0) {
 		MHVTL_ERR("%ld: No reply from the drive: %s",
 				  my_id, strerror(errno));
@@ -313,7 +317,7 @@ static void setDriveEmpty(struct d_info *d) {
 	setFullStatus(d->slot, 0);
 	send_msg(msg_set_empty, d->drv_id);
 	/* Wait for ack from drive */
-	check_tape_unload();
+	check_tape_unload(d->drv_id);
 }
 
 void setSlotFull(struct s_info *s) {
@@ -1141,7 +1145,7 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd) {
 
  * FIXME: I really need a timeout here..
  */
-static int check_tape_load(void) {
+static int check_tape_load(long drv_id) {
 	int			   mlen, r_qid;
 	struct q_entry q;
 
@@ -1155,7 +1159,7 @@ static int check_tape_load(void) {
 	/* A failed receive leaves q untouched, so it must not be read */
 	memset(&q, 0, sizeof(q));
 
-	mlen = msgrcv(r_qid, &q, MAXOBN, my_id, MSG_NOERROR);
+	mlen = recv_reply_from(r_qid, drv_id, load_replies, &q);
 	if (mlen <= 0) {
 		MHVTL_ERR("%ld: No reply from the drive: %s",
 				  my_id, strerror(errno));
@@ -1303,7 +1307,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 				 slot_number(smc_p->pm, dest->slot));
 	}
 
-	if (check_tape_load()) {
+	if (check_tape_load(dest->drv_id)) {
 		MHVTL_ERR("Load of %s into drive %d failed",
 				  cmd, slot_number(smc_p->pm, dest->slot));
 		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
@@ -1454,7 +1458,7 @@ static int move_drive2slot(struct smc_priv *smc_p,
 		sprintf(cmd, "unload %s", src->slot->media->barcode);
 		send_msg(cmd, src->drv_id);
 		/* Now we wait for the tape device to respond with status of unload */
-		if (check_tape_unload()) {
+		if (check_tape_unload(src->drv_id)) {
 			MHVTL_ERR("Unload of %s from drive %d failed",
 					  cmd, slot_number(smc_p->pm, src->slot));
 			sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
@@ -1522,7 +1526,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	sprintf(cmd, "unload %s", src->slot->media->barcode);
 	send_msg(cmd, src->drv_id);
 	/* Now we wait for the tape device to respond with status of unload */
-	if (check_tape_unload()) {
+	if (check_tape_unload(src->drv_id)) {
 		MHVTL_ERR("Failed to unload tape from drive %d",
 				  slot_number(smc_p->pm, src->slot));
 		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
@@ -1540,7 +1544,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	send_msg(cmd, dest->drv_id);
 
-	if (check_tape_load()) {
+	if (check_tape_load(dest->drv_id)) {
 		/* Failed, so put the tape back where it came from */
 		MHVTL_ERR("Failed to move to drive %d, "
 				  "placing back into drive %d",
@@ -1550,7 +1554,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		sprintf(cmd, "lload %s", src->slot->media->barcode);
 		truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 		send_msg(cmd, src->drv_id);
-		check_tape_load();
+		check_tape_load(src->drv_id);
 		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
