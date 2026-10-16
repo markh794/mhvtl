@@ -2659,9 +2659,15 @@ int main(int argc, char *argv[]) {
 		/* Check for anything in the messages Q */
 		mlen = msgrcv(r_qid, &lu_ssc.r_entry, MAXOBN, my_id, IPC_NOWAIT);
 		if (mlen > 0) {
+			/* Poll again soon, as after a SCSI command: another
+			 * message may be waiting. Not for "exit", which must
+			 * wait for the interval to back off past the exit gate.
+			 */
 			if (processMessageQ(&lu_ssc.r_entry.msg, &lu_ssc.sam_status)) {
 				time_to_exit = 1; /* Flag that we need to exit */
 				MHVTL_DBG(1, "Exit called");
+			} else {
+				sleep_time = MIN_SLEEP_TIME;
 			}
 		} else if (mlen < 0 && errno != ENOMSG && errno != EINTR) {
 			if ((r_qid = init_queue()) == -1) {
