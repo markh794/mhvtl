@@ -1028,7 +1028,7 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 
 		switch (type) {
 		case DATA_TRANSFER:
-			if (sscanf(b, "Drive %d: %s", &slt, s)) {
+			if (sscanf(b, "Drive %d: %s", &slt, s) > 0) {
 				if (slt > start_slot) {
 					/* Config file has holes - fill in empty slots */
 					MHVTL_DBG(1, "Config file is missing Drive %d - Creating empty records up to drive %d", start_slot, slt);
@@ -1042,17 +1042,17 @@ static void __init_slot_info(struct lu_phy_attr *lu, int type) {
 			break;
 
 		case MAP_ELEMENT:
-			if (sscanf(b, "MAP %d: %s", &slt, s))
+			if (sscanf(b, "MAP %d: %s", &slt, s) > 0)
 				init_map_slot(lu, slt, s);
 			break;
 
 		case MEDIUM_TRANSPORT:
-			if (sscanf(b, "Picker %d: %s", &slt, s))
+			if (sscanf(b, "Picker %d: %s", &slt, s) > 0)
 				init_transport_slot(lu, slt, s);
 			break;
 
 		case STORAGE_ELEMENT:
-			if (sscanf(b, "Slot %d: %s", &slt, s)) {
+			if (sscanf(b, "Slot %d: %s", &slt, s) > 0) {
 				if (slt > start_slot) {
 					/* Config file has holes - fill in empty slots */
 					MHVTL_DBG(1, "Config file is missing Slot %d - Creating empty slots up to %d", start_slot, slt);
@@ -1220,10 +1220,11 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	char			 device_conf[CONF_FILE_SZ];
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
-	int				 indx;
+	int				 indx = 0xff;
 	struct mhvtl_ctl tmpctl;
 	int				 found = 0;
 	int				 linecount;
+	int				 n;
 
 	backoff		= DEFLT_BACKOFF_VALUE;
 	lu->persist = FALSE;
@@ -1280,15 +1281,26 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 			continue;
 		if (strlen(b) == 1) /* Reset drive number of blank line */
 			indx = 0xff;
-		if (sscanf(b, "Library: %d CHANNEL: %d TARGET: %d LUN: %d",
+		/* sscanf() returns EOF or a partial count on a short line (C99
+		 * 7.19.6.7p3), so only a header with all four fields may set the
+		 * library's address
+		 */
+		n = sscanf(b, "Library: %d CHANNEL: %d TARGET: %d LUN: %d",
 				   &indx, &tmpctl.channel,
-				   &tmpctl.id, &tmpctl.lun)) {
+				   &tmpctl.id, &tmpctl.lun);
+		if (n == 4) {
 			MHVTL_DBG(2, "Found Library %d, looking for %u",
 					  indx, minor);
 			if (indx == minor) {
 				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
 			}
+		} else if (n > 0) {
+			if ((unsigned int)indx == minor)
+				MHVTL_ERR("Line %d: Library: %d has no CHANNEL: TARGET: LUN:"
+						  " - ignoring this library",
+						  linecount, indx);
+			indx = 0xff;
 		}
 		if (indx == minor) {
 			unsigned int c, d, e, f, g, h, j, k;
