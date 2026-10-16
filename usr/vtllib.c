@@ -1709,11 +1709,14 @@ void find_media_home_directory(char *config_directory, long lib_id) {
 			continue;
 		if (strlen(b) < 3) /* Reset drive number of blank line */
 			i = 0xff;
-		if (sscanf(b, "Library: %ld ", &i)) {
+		if (sscanf(b, "Library: %ld ", &i) == 1) {
 			MHVTL_DBG(2, "Found Library %ld, looking for %ld",
 					  i, lib_id);
-			if (i == lib_id)
-				found = 1;
+			/* A different library ends the one we were reading */
+			found = (i == lib_id);
+		} else if (strncmp(b, "Drive:", 6) == 0) {
+			/* Drives carry no home directory; the library block is over */
+			found = 0;
 		}
 		if (found == 1) {
 			int a;
