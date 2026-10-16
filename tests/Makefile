@@ -33,7 +33,7 @@ TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_vols
 SCRIPT_TESTS = check_make_vtl_media.sh
 
 # Integration tests via userland transport (no kernel modules or root needed)
-INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid
+INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff
 
 .PHONY: all test clean
 
@@ -118,6 +118,9 @@ test_tape_io: test_tape_io.c acutest.h helpers/scsi_harness.h helpers/device_con
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_smc_dvcid: test_smc_dvcid.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_queue_backoff: test_queue_backoff.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 integration: $(INTEGRATION_TESTS)

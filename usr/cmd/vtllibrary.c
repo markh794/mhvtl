@@ -1868,8 +1868,14 @@ int main(int argc, char *argv[]) {
 		 */
 		mlen = recv_msg(r_qid, &r_entry, IPC_NOWAIT);
 		if (mlen > 0) {
+			/* Poll again soon, as after a SCSI command: another
+			 * message may be waiting. Not for "exit", which must
+			 * wait for the interval to back off past the exit gate.
+			 */
 			if (processMessageQ(&r_entry.msg))
 				time_to_exit = 1;
+			else
+				pollInterval = MIN_SLEEP_TIME;
 		} else if (mlen < 0) {
 			r_qid = init_queue();
 			if (r_qid == -1)
