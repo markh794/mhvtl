@@ -35,6 +35,10 @@ struct smc_personality_template {
 	 * T-Series).
 	 */
 	uint32_t dvcid_nul_terminated : 1;
+	/* MODE SENSE with PC=11b reports saved values instead of failing with
+	 * SAVING PARAMETERS NOT SUPPORTED. See spc_mode_sense().
+	 */
+	uint32_t library_supports_saved_mode_pages : 1;
 	/* Report ID VALID and the drive's SCSI bus address in the data
 	 * transfer element descriptor. SMC-2 marks both fields obsolete,
 	 * but libraries with parallel SCSI drives still populate them

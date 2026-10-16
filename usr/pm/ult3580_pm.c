@@ -529,6 +529,11 @@ static struct ssc_personality_template ssc_pm = {
 	.media_load			  = ult_media_load,
 	.cleaning_media		  = ult_cleaning,
 	.media_handling		  = media_info,
+
+	/* IBM LTO drives report saved mode values (GA32-0928-07 4.7.2 and
+	 * Table 14, p.41-42).
+	 */
+	.drive_supports_saved_mode_pages = TRUE,
 };
 
 void init_ult3580_td1(struct lu_phy_attr *lu) {

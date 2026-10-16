@@ -22,6 +22,11 @@ static struct smc_personality_template smc_pm = {
 	.report_scsi_bus_address = TRUE,
 
 	.dvcid_len = 34,
+
+	/* IBM libraries report saved mode values (TS2900 SCSI Reference
+	 * GC27-2211-00, MODE SENSE, Table 36, p.29-30).
+	 */
+	.library_supports_saved_mode_pages = TRUE,
 };
 
 /*

@@ -33,6 +33,7 @@
 #include "vtllib.h"
 #include "logging.h"
 #include "ssc.h"
+#include "smc.h"
 
 extern unsigned char sense[];
 
@@ -721,11 +722,24 @@ uint8_t spc_mode_select(struct scsi_cmd *cmd) {
 static int add_pcode(struct mode *m, uint8_t pc, uint8_t *p) {
 	if (pc == 1) /* Report Changeable bitmap */
 		memcpy(p, m->pcodePointerBitMap, m->pcodeSize);
-	else if (pc == 2 && m->pcodePointerDefault) /* Report Default values */
+	else if (pc >= 2 && m->pcodePointerDefault) /* Default or Saved values */
 		memcpy(p, m->pcodePointerDefault, m->pcodeSize);
-	else /* Report Current values (pc 0; pc 2 before defaults are frozen) */
+	else /* Report Current values (pc 0; pc 2/3 before defaults are frozen) */
 		memcpy(p, m->pcodePointer, m->pcodeSize);
 	return m->pcodeSize;
+}
+
+/*
+ * Does the emulated device report saved mode values (MODE SENSE PC=11b)?
+ */
+static int lu_reports_saved_mode_pages(struct lu_phy_attr *lu) {
+	switch (lu->ptype) {
+	case TYPE_TAPE:
+		return ((struct priv_lu_ssc *)lu->lu_private)->pm->drive_supports_saved_mode_pages;
+	case TYPE_MEDIUM_CHANGER:
+		return ((struct smc_priv *)lu->lu_private)->pm->library_supports_saved_mode_pages;
+	}
+	return 0;
 }
 
 /*
@@ -792,7 +806,15 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd) {
 			  (blockDescriptorLen) ? "Report" : "Disable");
 	MHVTL_DBG(2, " Allocation len   : %d", alloc_len);
 
-	if (0x3 == pc) { /* Saving values not supported */
+	/*
+	 * mhVTL never saves mode pages (MODE SELECT rejects SP=1), so the
+	 * saved values are the power-on values, i.e. the frozen defaults.
+	 * Devices that support saved values report them; IBM LTO drives do
+	 * (GA32-0928-07 4.7.2 and Table 14, p.41-42) and IBM i asks for them.
+	 * Everyone else gets SAVING PARAMETERS NOT SUPPORTED as SPC-4 requires
+	 * of a device that does not implement saved values.
+	 */
+	if (0x3 == pc && !lu_reports_saved_mode_pages(cmd->lu)) {
 		MHVTL_DBG(2, "Reporting on Saved Values not supported");
 		sam_illegal_request(E_SAVING_PARMS_UNSUP, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
@@ -873,6 +895,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd) {
 			switch (pc) {
 			case 0:
 			case 2:
+			case 3:
 				memcpy(&buf[4], modeBlockDescriptor,
 					   blockDescriptorLen);
 				break;
@@ -893,6 +916,7 @@ uint8_t spc_mode_sense(struct scsi_cmd *cmd) {
 			switch (pc) {
 			case 0:
 			case 2:
+			case 3:
 				memcpy(&buf[8], modeBlockDescriptor,
 					   blockDescriptorLen);
 				break;
