@@ -1613,7 +1613,11 @@ int format_partition(uint8_t *sam_stat) {
 	if (check_for_overwrite(sam_stat))
 		return -1;
 
-	zero_filemark_count();
+	/* Away from BOP the filemarks before the current position survive;
+	 * check_for_overwrite() has already dropped the rest.
+	 */
+	if (c_pos->blk_number == 0)
+		zero_filemark_count();
 
 	return mkEODHeader(c_pos->blk_number, raw_pos.data_offset);
 }
