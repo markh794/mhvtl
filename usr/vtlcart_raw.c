@@ -212,6 +212,21 @@ static int sb_persist(int bump_generation)
 
 /* --------------------------------------------------------- open / close */
 
+/*
+ * Both the drive and mhvtl-raw-format open the device with O_EXCL. On a block
+ * device Linux then refuses the open with EBUSY while the device is mounted,
+ * claimed by a holder (device-mapper/LVM, md, an imported ZFS vdev, bcache)
+ * or opened O_EXCL by another process - which includes a drive that has the
+ * cartridge loaded. See open(2), "O_EXCL". An active swap device is refused
+ * for writing with ETXTBSY, with or without O_EXCL.
+ */
+static const char *excl_hint(int err)
+{
+	return (err == EBUSY || err == ETXTBSY) ?
+		" (device in use: mounted, swap, held by LVM/md/ZFS, or "
+		"loaded in a drive)" : "";
+}
+
 int raw_open(const char *devpath)
 {
 	int fd;
@@ -220,10 +235,10 @@ int raw_open(const char *devpath)
 	struct mhvtl_raw_superblock primary, mirror;
 	int vp, vm;
 
-	fd = open(devpath, O_RDWR | O_LARGEFILE);
+	fd = open(devpath, O_RDWR | O_LARGEFILE | O_EXCL);
 	if (fd < 0) {
-		MHVTL_ERR("open of raw device %s failed: %s",
-			  devpath, strerror(errno));
+		MHVTL_ERR("open of raw device %s failed: %s%s",
+			  devpath, strerror(errno), excl_hint(errno));
 		return -1;
 	}
 
@@ -936,10 +951,10 @@ int raw_format(const char *devpath, const char *barcode,
 		return -1;
 	}
 
-	fd = open(devpath, O_RDWR | O_LARGEFILE);
+	fd = open(devpath, O_RDWR | O_LARGEFILE | O_EXCL);
 	if (fd < 0) {
-		MHVTL_ERR("raw_format: open %s failed: %s",
-			  devpath, strerror(errno));
+		MHVTL_ERR("raw_format: open %s failed: %s%s",
+			  devpath, strerror(errno), excl_hint(errno));
 		return -1;
 	}
 
