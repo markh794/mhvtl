@@ -16,12 +16,14 @@ SUDO=""
 
 IMG="$(mktemp /tmp/mhvtl-raw-XXXXXX.img)"
 LOOP=""
+MNT=""
 TESTBIN="$(mktemp /tmp/test_raw_backend-XXXXXX)"
 LOADBIN="$(mktemp /tmp/test_raw_load_tape-XXXXXX)"
 COMPBIN="$(mktemp /tmp/test_compression-XXXXXX)"
 SELBIN="$(mktemp /tmp/test_compression_select-XXXXXX)"
-BARCODE="TEST001L8"
+BARCODE="TST001L8"
 cleanup() {
+	[ -n "$MNT" ] && { $SUDO umount "$MNT" 2>/dev/null; rmdir "$MNT"; }
 	[ -n "$LOOP" ] && $SUDO losetup -d "$LOOP" 2>/dev/null
 	rm -f "$IMG" "$TESTBIN" "$LOADBIN" "$COMPBIN" "$SELBIN"
 }
@@ -97,5 +99,21 @@ $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
 echo "=== run runtime codec selection + write-path flag check ==="
 $SUDO env LD_LIBRARY_PATH="$HERE/usr" "$SELBIN" "$LOOP" "$BARCODE" \
 	|| fail "test_compression_select exited $?"
+
+# mhvtl-raw-format opens the device O_EXCL, so the kernel refuses it with
+# EBUSY while the device is in use - here, a mounted filesystem.
+echo "=== format refused while the device is mounted ==="
+$SUDO mkfs.ext4 -q -F "$LOOP" || fail "mkfs.ext4 failed"
+MNT="$(mktemp -d /tmp/mhvtl-raw-mnt-XXXXXX)"
+$SUDO mount "$LOOP" "$MNT" || fail "mount failed"
+if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode "$BARCODE" --partition-data 100 >/tmp/raw_loop_busy.log 2>&1; then
+	fail "mhvtl-raw-format formatted a mounted device"
+fi
+grep -q "Device or resource busy" /tmp/raw_loop_busy.log \
+	|| fail "expected EBUSY (see /tmp/raw_loop_busy.log)"
+$SUDO umount "$MNT" || fail "umount failed"
+rmdir "$MNT"
+MNT=""
 
 echo "=== LOOPBACK TEST PASSED ==="
