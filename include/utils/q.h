@@ -24,6 +24,7 @@
 #define _Q_H_
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #define MAXTEXTLEN 1024
 
@@ -49,6 +50,15 @@ static inline key_t mhvtl_qkey(void) {
 #define MAXOBN	 sizeof(struct q_msg) /* Maximum length of message for Q. */
 #define MAXPRIOR 1024				  /* max priority level */
 #define VTLCMD_Q 32768				  /* Priority for vtlcmd */
+
+/* Reply message type of the calling client. vtllibrary and vtltape answer a
+ * command on the type named by its snd_id, so a client that sends with its
+ * own id reads only its own replies; with VTLCMD_Q alone, concurrent clients
+ * (vtlcmd, mhvtl-bay-monitor, mhvtld) could read each other's. Device ids
+ * are below VTLCMD_Q, so this never names a device. */
+static inline long mhvtl_reply_id(void) {
+	return VTLCMD_Q + (long)getpid();
+}
 
 struct q_entry {
 	long		 rcv_id;

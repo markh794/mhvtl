@@ -44,27 +44,25 @@ int raw_bay_lib_cmd(long library_id, const char *cmd, char *reply, size_t rlen,
 	if (reply && rlen)
 		reply[0] = '\0';
 
-	/* send_msg() uses my_id as snd_id; VTLCMD_Q makes the library's reply
-	 * come back on the VTLCMD_Q message-type, exactly like vtlcmd. */
-	my_id = VTLCMD_Q;
+	/* send_msg() uses my_id as snd_id, so the library's reply comes back
+	 * on this process's own message type, which no other client reads. */
+	my_id = mhvtl_reply_id();
 
 	qid = init_queue();
 	if (qid < 0)
 		return -1;
 
 	/*
-	 * Drain-before-send: clear any stale replies already queued on the
-	 * VTLCMD_Q message-type before issuing this command. A reply left over
-	 * from a previous command (or a previous run) would otherwise be read
-	 * back as THIS command's answer. Draining first means the next VTLCMD_Q
-	 * message we read after sending is attributable to this send. This is
-	 * the hardening that makes the helper safe for a long-running daemon
-	 * that issues many commands over the one shared queue.
+	 * Drain-before-send: clear any stale replies already queued on our
+	 * reply message-type before issuing this command. A reply that arrived
+	 * after an earlier command gave up waiting would otherwise be read back
+	 * as THIS command's answer. Draining first means the next message we
+	 * read after sending is attributable to this send.
 	 */
-	while (msgrcv(qid, &r, MAXOBN, VTLCMD_Q, IPC_NOWAIT) >= 0) {
+	while (msgrcv(qid, &r, MAXOBN, my_id, IPC_NOWAIT) >= 0) {
 		if (verbose_log)
 			fprintf(stderr,
-				"raw_bay: drained stale reply on VTLCMD_Q: %s\n",
+				"raw_bay: drained stale reply: %s\n",
 				r.msg.text);
 	}
 
@@ -75,7 +73,7 @@ int raw_bay_lib_cmd(long library_id, const char *cmd, char *reply, size_t rlen,
 	/* Poll briefly for the reply; a missing reply means no library is
 	 * listening on this id. 80 * 25ms = up to 2s. */
 	for (int attempt = 0; attempt < 80; attempt++) {
-		if (msgrcv(qid, &r, MAXOBN, VTLCMD_Q, IPC_NOWAIT) >= 0) {
+		if (msgrcv(qid, &r, MAXOBN, my_id, IPC_NOWAIT) >= 0) {
 			if (reply && rlen)
 				snprintf(reply, rlen, "%s", r.msg.text);
 			if (verbose_log)
