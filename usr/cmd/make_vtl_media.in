@@ -29,6 +29,7 @@ MHVTL_CONFIG_PATH='@CONF_PATH@'
 FORCE=''
 CREATE_DIR=''
 MKTAPE_PATH=''
+PER_LIBRARY_HOME='1'
 
 # print usage info
 usage()
@@ -37,11 +38,37 @@ usage()
 	echo "where OPTIONS are from:"
 	echo "  [-h|--help]            -- print this message and exit"
 	echo "  [-H|--home-dir MHVTL_HOME_PATH]"
-	echo "                         -- home path [default $MHVTL_HOME_PATH]"
+	echo "                         -- home path for libraries without their own"
+	echo "                            'Home directory:' [default $MHVTL_HOME_PATH]"
+	echo "  [--per-library-home]   -- create each library's media in that library's"
+	echo "                            'Home directory:' from device.conf [default]"
+	echo "  [--no-per-library-home] -- create all media under MHVTL_HOME_PATH"
 	echo "  [-C|--config-dir DIR]  -- configuration dir [default @CONF_PATH@]"
 	echo "  [-f|--force]           -- overwrite files if present"
 	echo "  [-c|--create-dir]      -- mkdir MHVTL_HOME_PATH if needed"
 	echo "  [-m|--mktape-path MKTAPE] -- pass in dir where mktape lives [default uses PATH]"
+}
+
+#
+# library_home -- print the home directory of library $1
+#
+# Same order as find_media_home_directory() in vtllib.c: the library's own
+# 'Home directory:' in device.conf, else MHVTL_HOME_PATH.
+#
+library_home()
+{
+	local home
+
+	home=$(awk -v id="$1" '
+		/^Library:/ { cur = ($2 + 0 == id + 0); next }
+		/^Drive:/ { cur = 0; next }
+		cur && /^[ \t]*Home directory:/ {
+			sub(/^[ \t]*Home directory:[ \t]*/, "")
+			sub(/[ \t\r]+$/, "")
+			print
+			exit
+		}' "$MHVTL_CONFIG_PATH/$DEVICE_CONF")
+	echo "${home:-$MHVTL_HOME_PATH}"
 }
 
 #
@@ -202,7 +229,7 @@ find_mktape_path()
 ## Main starts here...
 ##################################################################
 
-TEMP=$(getopt -o 'hH:C:fcm:' --long 'help,home-dir:,config-dir:,force,create-dir,mktape-path:' -n "$PROG_NAME" -- "$@")
+TEMP=$(getopt -o 'hH:C:fcm:' --long 'help,home-dir:,config-dir:,force,create-dir,mktape-path:,per-library-home,no-per-library-home' -n "$PROG_NAME" -- "$@")
 if [[ $? -ne 0 ]] ; then
 	usage
 	exit 1
@@ -239,6 +266,16 @@ while true; do
 	'-m'|'--mktape-path')
 		MKTAPE_PATH="$2"
 		shift 2
+		continue
+		;;
+	'--per-library-home')
+		PER_LIBRARY_HOME='1'
+		shift
+		continue
+		;;
+	'--no-per-library-home')
+		PER_LIBRARY_HOME=''
+		shift
 		continue
 		;;
 	'--')
@@ -309,22 +346,36 @@ for LIBID in $(awk '/Library:/ {print $2}' $MHVTL_CONFIG_PATH/$DEVICE_CONF) ; do
 		echo "have you ran 'generate_library_contents'?" 1>&2
 		exit 1
 	fi
-	echo '===>' "Scanning for 'Slot' entries in $LIBCONTENTS ..."
+	if [[ -n "$PER_LIBRARY_HOME" ]] ; then
+		LIBHOME=$(library_home $LIBID)
+	else
+		LIBHOME=$MHVTL_HOME_PATH
+	fi
+	if [[ ! -d $LIBHOME ]] ; then
+		if [[ -z "$CREATE_DIR" ]] ; then
+			echo "error: no such directory: $LIBHOME (library $LIBID)" 1>&2
+			exit 1
+		fi
+		echo "warning: creating directory: $LIBHOME" 1>&2
+		mkdir -p $LIBHOME
+		chmod 755 $LIBHOME
+	fi
+	echo '===>' "Scanning for 'Slot' entries in $LIBCONTENTS (home $LIBHOME) ..."
 	for a in $(awk '/^Slot/ {print $3}' <$LIBCONTENTS|sort -u) ; do
-		if [[ -d $MHVTL_HOME_PATH/$a ]] ; then
+		if [[ -d $LIBHOME/$a ]] ; then
 			if [[ -z "$FORCE" ]] ; then
-				echo "Directory already exists: $MHVTL_HOME_PATH/$a: skipping"
+				echo "Directory already exists: $LIBHOME/$a: skipping"
 				continue
 			fi
-			echo "warning: removing entry: $MHVTL_HOME_PATH/$a"
-			rm -rf $MHVTL_HOME_PATH/$a
+			echo "warning: removing entry: $LIBHOME/$a"
+			rm -rf $LIBHOME/$a
 		fi
-		echo '===>' "Creating entry: $MHVTL_HOME_PATH/$a ..."
+		echo '===>' "Creating entry: $LIBHOME/$a ..."
 		set_density $a
 		set_media_type $a
 		# pass in "-D[0-9]" for debugging, "-v" for verbosity
 		$MKTAPE_PATH/mktape -v -D5 -l $LIBID -s $CAPACITY -t $MEDIA_TYPE -m $a -d $DENSITY \
-			-C $MHVTL_CONFIG_PATH -H $MHVTL_HOME_PATH
+			-C $MHVTL_CONFIG_PATH -H $LIBHOME
 		res=$?
 		[[ $res -eq 0 ]] || exit 1
 	done

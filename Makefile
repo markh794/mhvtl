@@ -78,6 +78,7 @@ tape: # now ensure VTL media is setup
 		$(MAKE_VTL_MEDIA) \
 			--config-dir=$(DESTDIR)$(MHVTL_CONFIG_PATH) \
 			--home-dir=$(DESTDIR)$(MHVTL_HOME_PATH) \
+			--no-per-library-home \
 			--mktape-path=usr/bin
 
 .PHONY:uninstall

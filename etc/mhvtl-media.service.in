@@ -12,6 +12,7 @@ ConditionPathExists=@CONF_PATH@/device.conf
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# The home directory is taken from mhvtl.conf (MHVTL_HOME_PATH) and created if
-# an administrator pointed it somewhere new.
+# Each library's media go in that library's "Home directory:" from device.conf.
+# MHVTL_HOME_PATH from mhvtl.conf is only the fallback for a library without
+# one. Either is created if an administrator pointed it somewhere new.
 ExecStart=@BIN_PATH@/make_vtl_media --config-dir=@CONF_PATH@ --create-dir --mktape-path=@BIN_PATH@
