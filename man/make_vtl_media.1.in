@@ -15,8 +15,19 @@ are from:
 \fB\-H\fR, \fB\-\-home-dir\fR=\fIDIR\fR
 Set the
 .I mhvtl
-home directory [default
+home directory, used for libraries that have no
+.B Home directory:
+of their own in device.conf [default
 .BR @HOME_PATH@ ]
+.TP
+\fB\-\-per-library-home\fR
+Create each library's media in that library's own
+.B Home directory:
+from device.conf, the same place its daemons look for it. This is the default.
+.TP
+\fB\-\-no\-per-library-home\fR
+Create all media under the home directory given by
+.BR \-H .
 .TP
 \fB\-C\fR, \fB\-\-config-dir\fR=\fIDIR\fR
 Set the config directory [default
