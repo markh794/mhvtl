@@ -27,7 +27,7 @@ RS_SRC   = ../usr/utils/reed-solomon.c
 CRC_SRC  = ../usr/utils/crc32c.c
 
 # All test binaries
-TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo test_q_reply
+TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo test_q_reply test_q_send
 
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
@@ -107,6 +107,9 @@ test_vtlcmd_parsing: test_vtlcmd_parsing.c acutest.h vtlcmd_testobj.o
 
 test_q_reply: test_q_reply.c acutest.h ../usr/utils/q.c ../include/utils/q.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_q_reply.c ../usr/utils/q.c -lpthread
+
+test_q_send: test_q_send.c acutest.h ../usr/utils/q.c ../include/utils/q.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_q_send.c ../usr/utils/q.c
 
 test_userland_transport: test_userland_transport.c acutest.h helpers/scsi_harness.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<

@@ -87,7 +87,7 @@ int send_msg(char *cmd, long rcv_id) {
 	s_entry.msg.snd_id = my_id;
 	strncpy(s_entry.msg.text, cmd, MAXTEXTLEN);
 	s_entry.msg.text[MAXTEXTLEN] = '\0';
-	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_entry, msg.text);
+	len = strlen(s_entry.msg.text) + 1 + offsetof(struct q_msg, text);
 
 	if (msgsnd(s_qid, &s_entry, len, 0) == -1) {
 		MHVTL_ERR("msgsnd failed: %s", strerror(errno));
