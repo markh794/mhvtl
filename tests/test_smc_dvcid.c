@@ -32,6 +32,7 @@ struct lib_conf {
 	const char *drive_product;
 	const char *drive_serial;
 	int extra_drive; /* add a Drive 3 position with no drive configured */
+	int num_map;	 /* MAP slots in library_contents; 0 means 1 */
 };
 
 static int prepare_env(const struct lib_conf *c)
@@ -111,8 +112,11 @@ static int prepare_env(const struct lib_conf *c)
 	fp = fopen(path, "w");
 	if (!fp)
 		return -1;
-	fprintf(fp, "Drive 1:\nDrive 2:\n%sPicker 1:\nMAP 1:\nSlot 1: %s\nSlot 2:\n",
-		c->extra_drive ? "Drive 3:\n" : "", barcode);
+	fprintf(fp, "Drive 1:\nDrive 2:\n%sPicker 1:\n",
+		c->extra_drive ? "Drive 3:\n" : "");
+	for (int m = 1; m <= (c->num_map ? c->num_map : 1); m++)
+		fprintf(fp, "MAP %d:\n", m);
+	fprintf(fp, "Slot 1: %s\nSlot 2:\n", barcode);
 	fclose(fp);
 
 	if (gen_find_binary("mktape", mktape_path, sizeof(mktape_path)) < 0)
@@ -141,7 +145,7 @@ static void stop(void)
 	gen_cleanup_env(&test_env);
 }
 
-static uint8_t res_buf[4096];
+static uint8_t res_buf[16384];
 
 /* READ ELEMENT STATUS for all element types. Returns bytes received. */
 static int read_element_status(int voltag, int dvcid)
@@ -152,6 +156,28 @@ static int read_element_status(int voltag, int dvcid)
 		0xff, 0xff,		/* number of elements */
 		dvcid ? 0x01 : 0x00,
 		0x00, 0x0f, 0xe8,	/* allocation length 4072 */
+		0x00, 0x00
+	};
+	struct scsi_result r;
+
+	memset(res_buf, 0, sizeof(res_buf));
+	if (harness_send_cdb(&daemon_ctx, cdb, 12, &r, res_buf,
+			     sizeof(res_buf)) != 0)
+		return -1;
+	if (r.sam_stat != SAM_STAT_GOOD)
+		return -1;
+	return (int)r.data_len;
+}
+
+/* READ ELEMENT STATUS for one element type, no VolTag or DvcID. */
+static int read_element_status_type(uint8_t type)
+{
+	uint8_t cdb[12] = {
+		0xb8, type,
+		0x00, 0x00,		/* starting element */
+		0xff, 0xff,		/* number of elements */
+		0x00,
+		0x00, 0x40, 0x00,	/* allocation length 16384 */
 		0x00, 0x00
 	};
 	struct scsi_result r;
@@ -709,6 +735,34 @@ void test_ibm3584_dvcid_layout(void)
 	stop();
 }
 
+/* IBM TS3500/3584 import/export elements (TS3500 Tape Library manual,
+ * "Addresses of SCSI elements"): they start at 769 (X'301') and run to at most
+ * 1023 (X'3FF'), 255 elements. 768 (X'300') is in the shuttle-station range.
+ * A 256th MAP slot would collide with the first storage element and is
+ * dropped.
+ */
+void test_ibm3584_ie_addresses(void)
+{
+	struct lib_conf c = {
+		"IBM", "03584L32", "IBM", "ULT3580-TD8", "F0027BE0F1", 0, 256
+	};
+	struct elem_page pg;
+	int len, n;
+
+	TEST_ASSERT(start(&c, LIB_MINOR, "library") == 0);
+	len = read_element_status_type(3);
+	TEST_ASSERT(find_page(len, 3, &pg) == 0);
+	TEST_ASSERT(pg.desc_len > 0);
+	n = pg.byte_count / pg.desc_len;
+	TEST_CHECK(n == 255);
+	TEST_MSG("I/E elements: %d", n);
+	TEST_CHECK(get_unaligned_be16(&pg.desc[0]) == 0x0301);
+	TEST_CHECK(get_unaligned_be16(&pg.desc[(n - 1) * pg.desc_len]) == 0x03ff);
+	TEST_MSG("first 0x%04x, last 0x%04x", get_unaligned_be16(&pg.desc[0]),
+		 get_unaligned_be16(&pg.desc[(n - 1) * pg.desc_len]));
+	stop();
+}
+
 /* StorageTek L20/40/80 (doc 95971 tables 4-49/4-50), L180/L700e (doc 95869
  * tables 6-67/6-68) and SL500 (PN 96122 tables 6-76/6-77): with or without
  * DvcID the drive descriptor ends with the serial in a 32 byte area and the
@@ -929,6 +983,7 @@ TEST_LIST = {
 	{ "ibm_lto_short_serial_zero_padded", test_ibm_lto_short_serial_zero_padded },
 	{ "non_ibm_short_serial_unchanged", test_non_ibm_short_serial_unchanged },
 	{ "ibm3584_dvcid_layout",           test_ibm3584_dvcid_layout },
+	{ "ibm3584_ie_addresses",           test_ibm3584_ie_addresses },
 	{ "stk_dte_layout",                 test_stk_dte_layout },
 	{ "stk_long_serial_truncated",      test_stk_long_serial_truncated },
 	{ "scalar_inquiry_length",          test_scalar_inquiry_length },

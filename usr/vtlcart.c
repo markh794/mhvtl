@@ -590,7 +590,10 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 	if (mam.MediumType == MEDIA_TYPE_WORM)
 		OK_to_write = 0;
 
-	blk_target = c_pos->blk_number - count;
+	/* Count may exceed the current block number: compare before
+	   subtracting so the target cannot wrap past BOP.
+	*/
+	blk_target = (count < c_pos->blk_number) ? c_pos->blk_number - count : 0;
 
 	/* Find the first filemark prior to our current position, if any. */
 
@@ -606,7 +609,11 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 		if (filemarks[c_pos->partition_id][i] < blk_target)
 			return position_to_block(blk_target, sam_stat);
 
-		residual = c_pos->blk_number - blk_target;
+		/* INFORMATION = count minus blocks spaced over, not including
+		   the filemark; stop on the BOP side of the filemark.
+		   GA32-0928-07 SPACE CODE 0h, p.172-173
+		*/
+		residual = count - (c_pos->blk_number - filemarks[c_pos->partition_id][i] - 1);
 		if (read_header(filemarks[c_pos->partition_id][i], sam_stat))
 			return -1;
 
@@ -616,7 +623,10 @@ int position_blocks_back(uint64_t count, uint8_t *sam_stat) {
 		return -1;
 	}
 
-	if (blk_target < 0) {
+	/* GA32-0928-07 Table 17 (Space blocks, encountered BOP), p.51:
+	   0/0004 with EOM set, INFORMATION = count - blocks traversed, at BOP
+	*/
+	if (count > c_pos->blk_number) {
 		residual = count - c_pos->blk_number;
 		if (read_header(0, sam_stat))
 			return -1;
