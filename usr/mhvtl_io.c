@@ -591,10 +591,17 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		be used to determine its actual length (e.g., read it again
 		with the fixed bit set to zero).
 	*/
-	if (rc != request_sz)
-		mk_sense_short_block(request_sz, rc, sam_stat);
-	else if (!sili) {
-		if (lbp_sz < blk_size)
+	/*
+	 * SILI (variable mode only - ssc_read_6() rejects SILI + FIXED):
+	 * an underlength block returns GOOD; an overlength block still
+	 * reports ILI unless the mode block descriptor BLOCK LENGTH is zero.
+	 * GA32-0928-07 4.12.1 p.49 and Table 17 p.50.
+	 */
+	if (rc != request_sz) {
+		if (!sili)
+			mk_sense_short_block(request_sz, rc, sam_stat);
+	} else if (lbp_sz < blk_size) {
+		if (!sili || get_unaligned_be24(&modeBlockDescriptor[5]))
 			mk_sense_short_block(lbp_sz, blk_size, sam_stat);
 	}
 
