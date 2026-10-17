@@ -1745,18 +1745,18 @@ uint8_t ssc_erase(struct scsi_cmd *cmd) {
 	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
 
-	if (c_pos->blk_number != 0) {
-		MHVTL_LOG("Not at BOT.. Can't erase unless at BOT");
-		sam_not_ready(E_INVALID_FIELD_IN_CDB, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
+	/* ERASE writes EOD at the current position, from any position
+	 * (GA32-0928-07 5.2.2 ERASE, p.81). A long erase (LONG=1) also
+	 * overwrites the rest of the partition; mhVTL discards everything
+	 * after the new EOD in both cases, so LONG needs no separate path.
+	 */
 	if (OK_to_write) {
 		update_volume_change_reference(lu_priv, sam_stat);
 		format_partition(sam_stat);
 	} else {
+		/* DATA PROTECT, WRITE PROTECTED (GA32-0928-07 B.8, p.483) */
 		MHVTL_LOG("Attempt to erase Write-protected media");
-		sam_not_ready(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
+		sam_data_protect(E_WRITE_PROTECT, sam_stat);
 	}
 	return *sam_stat;
 }

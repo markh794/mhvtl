@@ -433,10 +433,11 @@ void init_ibm3584(struct lu_phy_attr *lu) {
 	/* With DVCID=1 the drive descriptor carries only its identity */
 	smc_pm.dvcid_identity_only = TRUE;
 
-	/* Follow IBM 3584 SCSI Reference Manual */
+	/* Follow IBM 3584 SCSI Reference Manual. A real TS3500 reports its first
+	 * import/export element at 0x0301, not 0x0300. */
 	smc_pm.start_picker	 = 0x0001;
 	smc_pm.start_drive	 = 0x0101;
-	smc_pm.start_map	 = 0x0300;
+	smc_pm.start_map	 = 0x0301;
 	smc_pm.start_storage = 0x0400;
 
 	smc_pm.lu = lu;
