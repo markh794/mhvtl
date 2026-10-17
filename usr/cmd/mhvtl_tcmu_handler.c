@@ -217,6 +217,46 @@ static void set_read_len_on_current_entry(struct tcmu_device *dev,
 }
 
 /*
+ * Complete a command with NOT READY, LOGICAL UNIT COMMUNICATION FAILURE
+ * (02/08/00), the sense LIO itself returns for a broken TCMU device.
+ * Linux does not retry it.
+ */
+static void fail_cmd(struct handler_device *d, struct tcmulib_cmd *cmd)
+{
+	/* SPC fixed-format sense: response code, key, length, ASC/ASCQ */
+	memset(cmd->sense_buf, 0, sizeof(cmd->sense_buf));
+	cmd->sense_buf[0] = 0x70;
+	cmd->sense_buf[2] = 0x02;	/* NOT READY */
+	cmd->sense_buf[7] = 0x0a;
+	cmd->sense_buf[12] = 0x08;	/* LU communication failure */
+	tcmulib_command_complete(d->tcmu_dev, cmd, TCMU_STS_PASSTHROUGH_ERR);
+}
+
+/* Fail every command in the ring; used once the daemon has gone. */
+static void fail_batch(struct handler_device *d)
+{
+	struct tcmulib_cmd *cmd;
+
+	tcmulib_processing_start(d->tcmu_dev);
+	while ((cmd = tcmulib_get_next_command(d->tcmu_dev, 0)))
+		fail_cmd(d, cmd);
+	tcmulib_processing_complete(d->tcmu_dev);
+}
+
+/*
+ * Shut the daemon socket down without closing it: a worker blocked in
+ * recv() on it returns at once, which close() from another thread does
+ * not guarantee. Only the worker closes the fd.
+ */
+static void stop_daemon_socket(struct handler_device *d)
+{
+	pthread_mutex_lock(&d->lock);
+	if (d->daemon_fd >= 0)
+		shutdown(d->daemon_fd, SHUT_RDWR);
+	pthread_mutex_unlock(&d->lock);
+}
+
+/*
  * Relay one batch of CDBs from the UIO ring to the daemon socket.
  * Handles DATA-OUT (write) and DATA-IN (read) transfers.
  */
@@ -320,6 +360,25 @@ static void relay_one_batch(struct handler_device *d)
 	}
 
 	tcmulib_processing_complete(d->tcmu_dev);
+}
+
+/*
+ * With no daemon, fail commands as they arrive until main() stops this
+ * worker at shutdown, once the LUNs are gone.
+ */
+static void serve_without_daemon(struct handler_device *d, int dev_fd)
+{
+	fail_batch(d);
+	while (d->active) {
+		struct pollfd pfd = { .fd = dev_fd, .events = POLLIN };
+		if (poll(&pfd, 1, 500) <= 0)
+			continue;
+		if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
+			break;
+		fail_batch(d);
+	}
+	/* Anything that arrived during the last poll */
+	fail_batch(d);
 }
 
 /* ---- Per-device worker thread ---- */
@@ -484,12 +543,19 @@ static void *device_worker(void *arg)
 		relay_one_batch(d);
 	}
 
+	/* The handler is stopping. Keep the ring serviced until main()
+	 * stops this worker, after it has removed the LUNs. */
+	if (d->ready && !running)
+		serve_without_daemon(d, dev_fd);
+
 err:
 	MHVTL_LOG("[%s] Worker exiting", d->bs_name);
+	pthread_mutex_lock(&d->lock);
 	if (d->daemon_fd >= 0) {
 		close(d->daemon_fd);
 		d->daemon_fd = -1;
 	}
+	pthread_mutex_unlock(&d->lock);
 	d->active = 0;
 	return NULL;
 }
@@ -723,32 +789,18 @@ int main(int argc, char *argv[])
 
 	MHVTL_LOG("Shutting down — waiting for workers ...");
 
-	/* Close daemon sockets so worker threads exit their relay loops */
-	for (i = 0; i < MAX_DEVICES; i++) {
-		if (devices[i].daemon_fd >= 0) {
-			close(devices[i].daemon_fd);
-			devices[i].daemon_fd = -1;
-		}
-		devices[i].active = 0;
-	}
+	/* Shut the daemon sockets down so worker threads leave their relay
+	 * loops. They keep failing commands until the LUNs are removed
+	 * below. */
+	for (i = 0; i < MAX_DEVICES; i++)
+		stop_daemon_socket(&devices[i]);
 
-	/* Join all worker threads — ensures no thread is using
-	 * tcmu_dev or configfs when we tear them down */
-	for (i = 0; i < MAX_DEVICES; i++) {
-		if (devices[i].thread) {
-			pthread_join(devices[i].thread, NULL);
-			devices[i].thread = 0;
-		}
-	}
-
-	MHVTL_LOG("All workers stopped, cleaning configfs ...");
-
-	/* Close libtcmu BEFORE configfs teardown — releases UIO fds
-	 * which release target_core_user references */
-	tcmulib_close(tcmu_ctx);
-	tcmu_ctx = NULL;
-
-	/* Remove LUN symlinks and directories */
+	/*
+	 * Remove the LUNs while the workers still service the rings.
+	 * Removing a LUN removes the host's SCSI device, which waits for
+	 * every command it has outstanding. A command left in a ring
+	 * nobody reads would hold that up until cmd_time_out.
+	 */
 	if (target_wwn[0]) {
 		char path[512];
 		for (i = 0; i < MAX_DEVICES; i++) {
@@ -780,6 +832,40 @@ int main(int argc, char *argv[])
 			 CONFIGFS_TARGET "/loopback/%s", target_wwn);
 		rmdir(path);
 	}
+
+	/*
+	 * Block the backstores before stopping the workers. A command that
+	 * still reaches a ring, say for a LUN mapped after the removal
+	 * above, gets BUSY instead of waiting in a ring nobody reads:
+	 * tcmulib_close() waits for every ring to be empty.
+	 */
+	for (i = 0; i < MAX_DEVICES; i++) {
+		char path[512];
+		if (!devices[i].bs_name[0])
+			continue;
+		snprintf(path, sizeof(path),
+			 CONFIGFS_TARGET "/core/user_0/%s/action/block_dev",
+			 devices[i].bs_name);
+		configfs_write(path, "1");
+	}
+
+	/* Join all worker threads — ensures no thread is using
+	 * tcmu_dev or configfs when we tear them down */
+	for (i = 0; i < MAX_DEVICES; i++)
+		devices[i].active = 0;
+	for (i = 0; i < MAX_DEVICES; i++) {
+		if (devices[i].thread) {
+			pthread_join(devices[i].thread, NULL);
+			devices[i].thread = 0;
+		}
+	}
+
+	MHVTL_LOG("All workers stopped, cleaning configfs ...");
+
+	/* Close libtcmu BEFORE configfs teardown — releases UIO fds
+	 * which release target_core_user references */
+	tcmulib_close(tcmu_ctx);
+	tcmu_ctx = NULL;
 
 	/* Disable and remove backstores */
 	{
