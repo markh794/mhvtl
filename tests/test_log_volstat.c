@@ -71,6 +71,21 @@ static uint64_t volstat_megabytes(uint64_t bytes) {
 	return (bytes + 999999) / 1000000;
 }
 
+/* The ratio x 100, clamped to the two bytes it has - see usr/mhvtl_log.c */
+#define VOLSTAT_RATIO_MAX 0xFFFF
+
+static uint16_t volstat_compression_ratio(uint64_t initiator, uint64_t media) {
+	uint64_t ratio;
+
+	if (!media || !initiator)
+		return 0;
+
+	ratio = (initiator * 100) / media;
+	if (ratio > VOLSTAT_RATIO_MAX)
+		return VOLSTAT_RATIO_MAX;
+	return (uint16_t)ratio;
+}
+
 /* Exact copy of update_VolumeStatistics from usr/mhvtl_log.c (after fix) */
 static size_t test_update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
 	uint8_t *header;
@@ -109,6 +124,17 @@ static size_t test_update_VolumeStatistics(struct VolumeStatistics_pg *pg, struc
 					   &pg->LifetimeMBWritten);
 	put_unaligned_be64(volstat_megabytes(get_unaligned_be64(&mam.ReadInMediumLife) + lu_priv->bytesRead_I),
 					   &pg->LifetimeMBRead);
+
+	/* How well this load compressed, in each direction. These are per load,
+	 * not per lifetime, so they come from the drive's live counters only and
+	 * never from the MAM.
+	 */
+	put_unaligned_be16(volstat_compression_ratio(lu_priv->bytesWritten_I,
+												 lu_priv->bytesWritten_M),
+					   &pg->LastLoadWriteCompressionRatio);
+	put_unaligned_be16(volstat_compression_ratio(lu_priv->bytesRead_I,
+												 lu_priv->bytesRead_M),
+					   &pg->LastLoadReadCompressionRatio);
 
 	memset(&pg->h_FirstEncryptedLogicalObj, 0,
 		   sizeof(struct VolumeStatistics_pg) - offsetof(struct VolumeStatistics_pg, h_FirstEncryptedLogicalObj));
@@ -575,6 +601,124 @@ void test_volstat_counters_empty_drive(void) {
 	TEST_CHECK(get_unaligned_be64(&pg.LifetimeMBRead) == 0);
 }
 
+/*
+ * The compression ratios, 0012h and 0013h, are the ratio multiplied by 100.
+ * The multiplier is the whole point of these two parameters: a wrong one is
+ * not a wrong number, it is a number that looks right and is believed, so it
+ * is pinned here in both directions and at the boundary.
+ */
+void test_volstat_compression_ratios(void) {
+	struct VolumeStatistics_pg pg;
+	struct priv_lu_ssc priv;
+
+	memset(&pg, 0, sizeof(pg));
+	memset(&priv, 0, sizeof(priv));
+	memset(&mam, 0, sizeof(mam));
+	mam.num_partitions = 1;
+	priv.capacity_unit = 1;
+	fake_tape_status = TAPE_LOADED;
+	pg.pcode_head.pcode = VOLUME_STATISTICS;
+
+	/* 250 MB in, 100 MB onto the medium: 2.5:1, reported as 250. */
+	priv.bytesWritten_I = 250000000;
+	priv.bytesWritten_M = 100000000;
+	/* And 3:1 the other way, so the two cannot be reading one counter. */
+	priv.bytesRead_I = 300000000;
+	priv.bytesRead_M = 100000000;
+
+	test_update_VolumeStatistics(&pg, &priv);
+
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadWriteCompressionRatio) == 250);
+	TEST_MSG("write ratio: 2.5:1 is 250, got %u",
+			 get_unaligned_be16(&pg.LastLoadWriteCompressionRatio));
+
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadReadCompressionRatio) == 300);
+	TEST_MSG("read ratio: 3:1 is 300, got %u",
+			 get_unaligned_be16(&pg.LastLoadReadCompressionRatio));
+
+	/* 1:1 is 100, not 1 and not 0. */
+	priv.bytesWritten_I = 100000000;
+	priv.bytesWritten_M = 100000000;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadWriteCompressionRatio) == 100);
+	TEST_MSG("1:1 is 100, got %u",
+			 get_unaligned_be16(&pg.LastLoadWriteCompressionRatio));
+}
+
+/*
+ * Two bytes hold 655.35:1 and no more, and a cartridge of zeroes goes past
+ * that easily - this drive compresses them better than 200:1. The result is
+ * clamped, because a wrapped ratio is a small plausible number: 700:1 would
+ * come back as 4464 and read as 44.64:1.
+ */
+void test_volstat_compression_ratio_clamped(void) {
+	struct VolumeStatistics_pg pg;
+	struct priv_lu_ssc priv;
+
+	memset(&pg, 0, sizeof(pg));
+	memset(&priv, 0, sizeof(priv));
+	memset(&mam, 0, sizeof(mam));
+	mam.num_partitions = 1;
+	priv.capacity_unit = 1;
+	fake_tape_status = TAPE_LOADED;
+	pg.pcode_head.pcode = VOLUME_STATISTICS;
+
+	/* Exactly at the limit: 655.35:1 fits. */
+	priv.bytesWritten_I = 65535000;
+	priv.bytesWritten_M = 100000;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadWriteCompressionRatio) == 0xFFFF);
+	TEST_MSG("655.35:1 should be 65535, got %u",
+			 get_unaligned_be16(&pg.LastLoadWriteCompressionRatio));
+
+	/* Past it: clamped, not wrapped. 700:1 unwrapped would be 4464. */
+	priv.bytesWritten_I = 700000000;
+	priv.bytesWritten_M = 1000000;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadWriteCompressionRatio) == 0xFFFF);
+	TEST_MSG("700:1 should clamp to 65535, got %u",
+			 get_unaligned_be16(&pg.LastLoadWriteCompressionRatio));
+}
+
+/*
+ * A drive that has written nothing has no ratio to report. Reporting 1:1
+ * would say it compressed something and achieved nothing, which is a
+ * different claim and a false one.
+ */
+void test_volstat_compression_ratio_idle(void) {
+	struct VolumeStatistics_pg pg;
+	struct priv_lu_ssc priv;
+
+	memset(&pg, 0, sizeof(pg));
+	memset(&priv, 0, sizeof(priv));
+	memset(&mam, 0, sizeof(mam));
+	mam.num_partitions = 1;
+	priv.capacity_unit = 1;
+	fake_tape_status = TAPE_LOADED;
+	pg.pcode_head.pcode = VOLUME_STATISTICS;
+
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadWriteCompressionRatio) == 0);
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadReadCompressionRatio) == 0);
+
+	/* Media counted but nothing from the initiator, and the reverse: both
+	 * are a division this function must not attempt.
+	 */
+	priv.bytesWritten_M = 100000000;
+	priv.bytesWritten_I = 0;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadWriteCompressionRatio) == 0);
+	TEST_MSG("no initiator bytes means no ratio, got %u",
+			 get_unaligned_be16(&pg.LastLoadWriteCompressionRatio));
+
+	priv.bytesWritten_M = 0;
+	priv.bytesWritten_I = 100000000;
+	test_update_VolumeStatistics(&pg, &priv);
+	TEST_CHECK(get_unaligned_be16(&pg.LastLoadWriteCompressionRatio) == 0);
+	TEST_MSG("no media bytes means no ratio, got %u",
+			 get_unaligned_be16(&pg.LastLoadWriteCompressionRatio));
+}
+
 TEST_LIST = {
 	{"volstat_struct_access_broken", test_volstat_struct_access_broken},
 	{"volstat_packing_1_partition", test_volstat_packing_1_partition},
@@ -584,5 +728,8 @@ TEST_LIST = {
 	{"volstat_megabyte_counters", test_volstat_megabyte_counters},
 	{"volstat_megabytes_round_up", test_volstat_megabytes_round_up},
 	{"volstat_counters_empty_drive", test_volstat_counters_empty_drive},
+	{"volstat_compression_ratios", test_volstat_compression_ratios},
+	{"volstat_compression_ratio_clamped", test_volstat_compression_ratio_clamped},
+	{"volstat_compression_ratio_idle", test_volstat_compression_ratio_idle},
 	{NULL, NULL}
 };
