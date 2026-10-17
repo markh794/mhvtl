@@ -52,6 +52,7 @@ struct ssc_personality_template {
 	uint32_t drive_supports_WORM : 1; /* Write Once Read Many */
 	uint32_t drive_supports_SPR : 1;  /* SCSI Persistent Reservation */
 	uint32_t drive_supports_SP : 1;	  /* Security Protocol */
+	uint32_t drive_supports_saved_mode_pages : 1; /* MODE SENSE PC=11b */
 	uint32_t drive_supports_LBP : 2;  /* 0 - No, 1- Reed-Solomon only, 2 - RSCRC and CRC32C */
 	uint32_t drive_ANSI_VERSION : 5;
 

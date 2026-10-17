@@ -85,4 +85,9 @@ extern long my_id;
 #define msg_eject		 "eject"
 #define msg_set_empty	 "set_empty"
 
+/* A "Load failed" reply: the drive cannot use the medium */
+#define msg_load_failed_incompatible "Load failed - incompatible medium"
+/* loadTape() and check_tape_load() return for that failure */
+#define LOAD_INCOMPATIBLE_MEDIUM 4
+
 #endif /* _Q_H_ */
