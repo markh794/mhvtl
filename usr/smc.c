@@ -1141,7 +1141,8 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd) {
 
 /* Expect a response from tape drive on load success/failure
  * Returns 0 on success
- * non-zero on load failure
+ * LOAD_INCOMPATIBLE_MEDIUM if the drive cannot use the medium
+ * other non-zero on any other load failure
 
  * FIXME: I really need a timeout here..
  */
@@ -1172,7 +1173,22 @@ static int check_tape_load(long drv_id) {
 			  q.msg.snd_id);
 
 	/* msg defined in q.h */
+	if (!strncmp(msg_load_failed_incompatible, q.msg.text,
+				 strlen(msg_load_failed_incompatible)))
+		return LOAD_INCOMPATIBLE_MEDIUM;
 	return strncmp(msg_load_ok, q.msg.text, strlen(msg_load_ok));
+}
+
+/*
+ * Sense for a MOVE MEDIUM whose load into a drive failed.
+ * GC27-2211-00 (IBM TS2900 SCSI Reference) Table 68, p.58:
+ * 05/30/00 INCOMPATIBLE MEDIUM INSTALLED, 04/53/00 MEDIA LOAD OR EJECT FAILED.
+ */
+static void load_failed_sense(int rc, uint8_t *sam_stat) {
+	if (rc == LOAD_INCOMPATIBLE_MEDIUM)
+		sam_illegal_request(E_MEDIUM_INCOMPATIBLE, NULL, sam_stat);
+	else
+		sam_hardware_error(E_MEDIA_LOAD_EJECT_ERROR, sam_stat);
 }
 
 /*
@@ -1307,10 +1323,11 @@ static int move_slot2drive(struct smc_priv *smc_p,
 				 slot_number(smc_p->pm, dest->slot));
 	}
 
-	if (check_tape_load(dest->drv_id)) {
+	retval = check_tape_load(dest->drv_id);
+	if (retval) {
 		MHVTL_ERR("Load of %s into drive %d failed",
 				  cmd, slot_number(smc_p->pm, dest->slot));
-		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
+		load_failed_sense(retval, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
@@ -1544,7 +1561,8 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	send_msg(cmd, dest->drv_id);
 
-	if (check_tape_load(dest->drv_id)) {
+	retval = check_tape_load(dest->drv_id);
+	if (retval) {
 		/* Failed, so put the tape back where it came from */
 		MHVTL_ERR("Failed to move to drive %d, "
 				  "placing back into drive %d",
@@ -1555,7 +1573,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 		send_msg(cmd, src->drv_id);
 		check_tape_load(src->drv_id);
-		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
+		load_failed_sense(retval, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 

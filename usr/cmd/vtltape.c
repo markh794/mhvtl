@@ -1561,7 +1561,7 @@ mismatchmedia:
 	lu_ssc.pm->media_load(lu, TAPE_UNLOADED);
 	delay_opcode(DELAY_LOAD, lu_ssc.delay_load);
 	set_current_state(MHVTL_STATE_LOAD_FAILED);
-	return 1;
+	return LOAD_INCOMPATIBLE_MEDIUM;
 }
 
 static void dump_linked_list(void) {
@@ -1684,7 +1684,10 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 			} else {
 				rc = loadTape(pcl, sam_stat);
 				strncpy(lu_ssc.barcode, pcl, pcl_len);
-				snprintf(s, sizeof(s), "%s: %s", (get_tape_load_status() == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok, pcl);
+				if (rc == LOAD_INCOMPATIBLE_MEDIUM)
+					snprintf(s, sizeof(s), "%s: %s", msg_load_failed_incompatible, pcl);
+				else
+					snprintf(s, sizeof(s), "%s: %s", (get_tape_load_status() == TAPE_UNLOADED) ? msg_load_failed : msg_load_ok, pcl);
 				/* If load fails - clean up 'barcode' */
 				if (rc) {
 					MHVTL_LOG("Mount of %s failed, return code: %d", pcl, rc);
