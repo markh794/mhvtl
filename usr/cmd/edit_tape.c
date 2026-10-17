@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
 			/* If found a library: Attempt to load media
 			 * Break out of loop if found. Otherwise try next lib.
 			 */
-			if (sscanf(b, "Library: %d CHANNEL:", &indx)) {
+			if (sscanf(b, "Library: %d CHANNEL:", &indx) == 1) {
 				find_media_home_directory(NULL, indx);
 				rc = load_tape(pcl, &sam_stat);
 				if (!rc)

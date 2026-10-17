@@ -2077,10 +2077,11 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	char			 device_conf[CONF_FILE_SZ];
 	FILE			*conf;
 	char			*b; /* Read from file into this buffer */
-	int				 indx;
+	int				 indx = 0xff;
 	struct mhvtl_ctl tmpctl;
 	int				 found = 0;
 	int				 linecount;
+	int				 n;
 
 	if (get_config(device_conf, DEVICE_CONF, my_id) < 0) {
 		exit(1);
@@ -2139,15 +2140,26 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 			continue;
 		if (strlen(b) == 1) /* Reset drive number of blank line */
 			indx = 0xff;
-		if (sscanf(b, "Drive: %d CHANNEL: %d TARGET: %d LUN: %d",
+		/* sscanf() returns EOF or a partial count on a short line (C99
+		 * 7.19.6.7p3), so only a header with all four fields may set the
+		 * drive's address
+		 */
+		n = sscanf(b, "Drive: %d CHANNEL: %d TARGET: %d LUN: %d",
 				   &indx, &tmpctl.channel,
-				   &tmpctl.id, &tmpctl.lun)) {
+				   &tmpctl.id, &tmpctl.lun);
+		if (n == 4) {
 			MHVTL_DBG(2, "Looking for %d, Found drive %u",
 					  minor, indx);
 			if (indx == minor) {
 				found = 1;
 				memcpy(ctl, &tmpctl, sizeof(tmpctl));
 			}
+		} else if (n > 0) {
+			if ((unsigned int)indx == minor)
+				MHVTL_ERR("Line %d: Drive: %d has no CHANNEL: TARGET: LUN:"
+						  " - ignoring this drive",
+						  linecount, indx);
+			indx = 0xff;
 		}
 		if (indx == minor) {
 			unsigned int c, d, e, f, g, h, j, k;
@@ -2205,14 +2217,18 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 						  compression_name(lu_ssc.compressionType));
 			}
 			if (sscanf(b, " Compression: factor %d enabled %d",
-					   &i, &j)) {
+					   &i, &j) == 2) {
 				lu_ssc.configCompressionFactor	= i;
 				lu_ssc.configCompressionEnabled = j;
-			} else if (sscanf(b, " Compression: %d", &i)) {
+			} else if (sscanf(b, " Compression: %d", &i) == 1) {
 				if ((i > Z_NO_COMPRESSION) && (i <= Z_BEST_COMPRESSION))
 					lu_ssc.configCompressionFactor = i;
 				else
 					lu_ssc.configCompressionFactor = 0;
+			} else if (conf_value(b, "Compression")) {
+				MHVTL_ERR("Line %d: Compression: expects 'factor N enabled 0|1'"
+						  " or 'N' - ignored",
+						  linecount);
 			}
 			v = conf_value(b, "fifo");
 			if (v)
