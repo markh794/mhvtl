@@ -22,6 +22,11 @@ static struct smc_personality_template smc_pm = {
 	.report_scsi_bus_address = TRUE,
 
 	.dvcid_len = 34,
+
+	/* IBM libraries report saved mode values (TS2900 SCSI Reference
+	 * GC27-2211-00, MODE SENSE, Table 36, p.29-30).
+	 */
+	.library_supports_saved_mode_pages = TRUE,
 };
 
 /*
@@ -428,10 +433,11 @@ void init_ibm3584(struct lu_phy_attr *lu) {
 	/* With DVCID=1 the drive descriptor carries only its identity */
 	smc_pm.dvcid_identity_only = TRUE;
 
-	/* Follow IBM 3584 SCSI Reference Manual */
+	/* Follow IBM 3584 SCSI Reference Manual. A real TS3500 reports its first
+	 * import/export element at 0x0301, not 0x0300. */
 	smc_pm.start_picker	 = 0x0001;
 	smc_pm.start_drive	 = 0x0101;
-	smc_pm.start_map	 = 0x0300;
+	smc_pm.start_map	 = 0x0301;
 	smc_pm.start_storage = 0x0400;
 
 	smc_pm.lu = lu;

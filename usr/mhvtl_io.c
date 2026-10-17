@@ -591,10 +591,17 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 		be used to determine its actual length (e.g., read it again
 		with the fixed bit set to zero).
 	*/
-	if (rc != request_sz)
-		mk_sense_short_block(request_sz, rc, sam_stat);
-	else if (!sili) {
-		if (lbp_sz < blk_size)
+	/*
+	 * SILI (variable mode only - ssc_read_6() rejects SILI + FIXED):
+	 * an underlength block returns GOOD; an overlength block still
+	 * reports ILI unless the mode block descriptor BLOCK LENGTH is zero.
+	 * GA32-0928-07 4.12.1 p.49 and Table 17 p.50.
+	 */
+	if (rc != request_sz) {
+		if (!sili)
+			mk_sense_short_block(request_sz, rc, sam_stat);
+	} else if (lbp_sz < blk_size) {
+		if (!sili || get_unaligned_be24(&modeBlockDescriptor[5]))
 			mk_sense_short_block(lbp_sz, blk_size, sam_stat);
 	}
 
@@ -1067,6 +1074,15 @@ int writeBlock(struct scsi_cmd *cmd, uint32_t src_sz, uint32_t src_offset) {
 		mam.remaining_capacity = 0L;
 		MHVTL_DBG(1, "End of Medium - VOLUME_OVERFLOW/EOM");
 		sam_no_sense(VOLUME_OVERFLOW | SD_EOM, E_EOM, sam_stat);
+		/* Nothing was written: in variable-block mode INFORMATION is the
+		 * transfer length in bytes (GA32-0928-07 Table 17 "Write at EOM",
+		 * p.51). Left at 0 with VALID set, the initiator concludes the
+		 * refused block was written.
+		 * Fixed-block mode reports blocks not written, which only the
+		 * caller's per-block loop knows.
+		 */
+		if (cmd->scb && !(cmd->scb[1] & 1))
+			put_unaligned_be32(src_sz, &sense[3]);
 		return src_len;
 	}
 

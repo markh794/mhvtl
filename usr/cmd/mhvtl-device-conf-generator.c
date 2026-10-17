@@ -236,11 +236,26 @@ static int parse_config_file(char *path) {
 		if (strncmp(cp, "Library: ", 9) == 0) {
 			/* found a Library entry */
 			library_num = strtol(cp + 9, NULL, 0);
+			if (library_num <= 0) {
+				/* Skip the entry, not the rest of the file */
+				pr_klog(3, "%s: ignoring Library entry with id %d in %s\n",
+						__progname, library_num, path);
+				(void)fprintf(stderr, "%s: ignoring Library entry with id %d\n",
+							  __progname, library_num);
+				continue;
+			}
 			if (!add_to_libraries(library_num))
 				goto dun;
 		} else if (strncmp(cp, "Drive: ", 7) == 0) {
 			/* found a Drive entry */
 			tape_num = strtol(cp + 7, NULL, 0);
+			if (tape_num <= 0) {
+				pr_klog(3, "%s: ignoring Drive entry with id %d in %s\n",
+						__progname, tape_num, path);
+				(void)fprintf(stderr, "%s: ignoring Drive entry with id %d\n",
+							  __progname, tape_num);
+				continue;
+			}
 			if (!add_to_tapes(tape_num))
 				goto dun;
 		}
