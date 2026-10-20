@@ -122,6 +122,26 @@ for extra in "" "--density LTO8"; do
 	fi
 done
 
+# A density that contradicts the barcode suffix, and more partitions than the
+# media allows (LTO-4 has one), are refused before the device is written: the
+# TST002 cartridge formatted above must still be there afterwards.
+echo "=== contradicting density and too many partitions refused ==="
+if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST004L8 --density LTO7 >/tmp/raw_loop_conflict.log 2>&1; then
+	fail "mhvtl-raw-format accepted --density LTO7 for an L8 barcode"
+fi
+if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST005L4 --partition-data 50,50 >/tmp/raw_loop_parts.log 2>&1; then
+	fail "mhvtl-raw-format formatted two partitions on LTO-4 media"
+fi
+$SUDO dd if="$LOOP" bs=1M skip=1 count=1 status=none | grep -aq TST002 \
+	|| fail "a refused format overwrote the existing superblock"
+
+# LH is the LTO-10 WORM label.
+echo "=== LTO-10 WORM barcode accepted ==="
+$SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST006LH || fail "mhvtl-raw-format refused an LH barcode"
+
 # mhvtl-raw-format opens the device O_EXCL, so the kernel refuses it with
 # EBUSY while the device is in use - here, a mounted filesystem.
 echo "=== format refused while the device is mounted ==="

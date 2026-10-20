@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -895,16 +896,17 @@ static void fill_cartridge_uuid(uint8_t uuid[16])
 }
 
 /* A two-character LTO media-type suffix the raw backend accepts: data L1-L9
- * and LA (LTO-10), and WORM LT-LZ (U3-U9). Labels per IBM SG24-5946 /
- * GA32-0928. M8, LTO-7 media written in the LTO-8 Type M format, is refused:
+ * and LA (LTO-10), and WORM LT-LZ (U3-U9) and LH (U10). Labels per IBM
+ * SG24-5946 and the IBM bar code label table,
+ * https://www.ibm.com/docs/en/STAKKZ/con_LTOdrive_cartridges_barcodelabel.html. M8, LTO-7 media written in the LTO-8 Type M format, is refused:
  * mhVTL has no M8 media type yet, so the cartridge memory could only claim
  * plain LTO-8 (density 0x5e) instead of Type M (0x5d, GA32-0928 p.142). */
 static int valid_lto_media_suffix(const char *s)
 {
 	if (s[0] == 'L' && ((s[1] >= '1' && s[1] <= '9') || s[1] == 'A'))
 		return 1;				/* data L1-L9, LA */
-	if (s[0] == 'L' && s[1] >= 'T' && s[1] <= 'Z')
-		return 1;				/* WORM LT-LZ (U3-U9) */
+	if (s[0] == 'L' && ((s[1] >= 'T' && s[1] <= 'Z') || s[1] == 'H'))
+		return 1;				/* WORM LT-LZ, LH (U3-U10) */
 	return 0;
 }
 
@@ -937,7 +939,7 @@ static int validate_raw_barcode(const char *barcode)
 	}
 	if (len == 8 && !valid_lto_media_suffix(barcode + 6)) {
 		MHVTL_ERR("raw_format: barcode '%s' has an invalid media suffix "
-			  "'%s' (expect data L1-L9/LA or WORM LT-LZ; M8 is not supported)",
+			  "'%s' (expect data L1-L9/LA or WORM LT-LZ/LH; M8 is not supported)",
 			  barcode, barcode + 6);
 		errno = EINVAL;
 		return -1;
@@ -947,8 +949,8 @@ static int validate_raw_barcode(const char *barcode)
 
 /* The density a barcode's media suffix stands for, written to *density, and
  * whether the suffix names WORM media. The data suffixes L1-L9 and LA are
- * LTO-1 to LTO-10, and the WORM suffixes LT-LZ are LTO-3 to LTO-9 (IBM
- * SG24-5946). Returns -1 for a barcode without a suffix.
+ * LTO-1 to LTO-10, and the WORM suffixes LT-LZ and LH are LTO-3 to LTO-10
+ * (IBM SG24-5946). Returns -1 for a barcode without a suffix.
  */
 static int raw_barcode_density(const char *barcode, char *density, size_t len,
 			       int *worm)
@@ -967,25 +969,26 @@ static int raw_barcode_density(const char *barcode, char *density, size_t len,
 	else if (sfx[0] == 'L' && sfx[1] >= 'T' && sfx[1] <= 'Z') {
 		snprintf(density, len, "LTO%d", sfx[1] - 'T' + 3);
 		*worm = 1;
+	} else if (sfx[0] == 'L' && sfx[1] == 'H') {
+		snprintf(density, len, "LTO10");
+		*worm = 1;
 	} else
 		return -1;
 	return 0;
 }
 
 /*
- * Fill the global mam the way mktape does for a new cartridge, with the
- * capacity taken from the data regions of the device rather than the media
- * type: a raw cartridge holds what its disk holds. Each partition's capacity
- * is recorded as well, since the partition layout is fixed by the format.
+ * Start the global mam the way mktape does for a new cartridge: the media
+ * type and density from the barcode suffix, or from density_arg for a
+ * barcode without one. Refuse a density_arg that contradicts the suffix and
+ * more partitions than the media supports. Called before the device is
+ * touched, so a refusal leaves the disk as it was.
  */
-static int raw_init_mam(const struct mhvtl_raw_superblock *s,
-			const char *barcode, const char *density_arg)
+static int raw_mam_media(const char *barcode, const char *density_arg,
+			 int nparts)
 {
 	char density[16];
-	char ver[64];
-	uint64_t total = 0;
-	int worm, major = 0, minor = 0;
-	time_t now = time(NULL);
+	int worm;
 
 	if (raw_barcode_density(barcode, density, sizeof(density), &worm) < 0) {
 		if (!density_arg) {
@@ -995,9 +998,13 @@ static int raw_init_mam(const struct mhvtl_raw_superblock *s,
 			errno = EINVAL;
 			return -1;
 		}
-	}
-	if (density_arg)
 		snprintf(density, sizeof(density), "%s", density_arg);
+	} else if (density_arg && strcasecmp(density_arg, density)) {
+		MHVTL_ERR("raw_format: density %s contradicts barcode '%s' (%s)",
+			  density_arg, barcode, density);
+		errno = EINVAL;
+		return -1;
+	}
 
 	init_mam(&mam);
 	mam.tape_fmt_version = TAPE_FMT_VERSION;
@@ -1009,6 +1016,28 @@ static int raw_init_mam(const struct mhvtl_raw_superblock *s,
 		errno = EINVAL;
 		return -1;
 	}
+	if (nparts > mam.max_partitions) {
+		MHVTL_ERR("raw_format: %s media holds at most %d partition(s), "
+			  "not %d", density, mam.max_partitions, nparts);
+		errno = EINVAL;
+		return -1;
+	}
+	return 0;
+}
+
+/*
+ * Finish the mam started by raw_mam_media(), with the capacity taken from the
+ * data regions of the device rather than the media type: a raw cartridge
+ * holds what its disk holds. Each partition's capacity is recorded as well,
+ * since the partition layout is fixed by the format.
+ */
+static void raw_init_mam(const struct mhvtl_raw_superblock *s,
+			 const char *barcode)
+{
+	char ver[64];
+	uint64_t total = 0;
+	int major = 0, minor = 0;
+	time_t now = time(NULL);
 
 	mam.num_partitions = (uint8_t)s->num_partitions;
 	for (uint32_t i = 0; i < s->num_partitions; i++) {
@@ -1032,7 +1061,6 @@ static int raw_init_mam(const struct mhvtl_raw_superblock *s,
 	snprintf((char *)mam.Barcode, sizeof(mam.Barcode), "%-31s", barcode);
 
 	mam_space_remaining(&mam);
-	return 0;
 }
 
 int raw_format(const char *devpath, const char *barcode, const char *density,
@@ -1062,6 +1090,9 @@ int raw_format(const char *devpath, const char *barcode, const char *density,
 			  "percentages totalling 100)", partspec ? partspec : "");
 		return -1;
 	}
+
+	if (raw_mam_media(barcode, density, nparts) < 0)
+		return -1;
 
 	fd = open(devpath, O_RDWR | O_LARGEFILE | O_EXCL);
 	if (fd < 0) {
@@ -1114,6 +1145,19 @@ int raw_format(const char *devpath, const char *barcode, const char *density,
 	if (pwrite(fd, zbuf, MVTL_RESERVED_BYTES, 0) !=
 	    (ssize_t)MVTL_RESERVED_BYTES) {
 		MHVTL_ERR("raw_format: zeroing reserved area failed: %s",
+			  strerror(errno));
+		goto out;
+	}
+
+	/* Invalidate any earlier cartridge's superblocks before its regions are
+	 * overwritten, so an interrupted reformat leaves no valid superblock
+	 * describing a half-written layout. */
+	if (pwrite(fd, zbuf, sizeof(newsb), MVTL_SB_MIRROR_OFF) !=
+		    (ssize_t)sizeof(newsb) ||
+	    pwrite(fd, zbuf, sizeof(newsb), MVTL_SB_PRIMARY_OFF) !=
+		    (ssize_t)sizeof(newsb) ||
+	    fdatasync(fd) < 0) {
+		MHVTL_ERR("raw_format: invalidating old superblocks failed: %s",
 			  strerror(errno));
 		goto out;
 	}
@@ -1228,8 +1272,8 @@ int raw_format(const char *devpath, const char *barcode, const char *density,
 	/* A new cartridge carries a MAM saying what media it is and how much it
 	 * holds; without one the drive sees no capacity and reports end of
 	 * medium on the first write. */
-	if (raw_init_mam(&newsb, barcode, density) < 0 ||
-	    raw_serialize_mam(&mam_buf, &mam_len) < 0)
+	raw_init_mam(&newsb, barcode);
+	if (raw_serialize_mam(&mam_buf, &mam_len) < 0)
 		goto out;
 	if (pwrite(fd, mam_buf, (size_t)mam_len, (off_t)newsb.mam_off) !=
 	    (ssize_t)mam_len) {
@@ -1239,22 +1283,24 @@ int raw_format(const char *devpath, const char *barcode, const char *density,
 	}
 	newsb.mam_len = mam_len;
 
-	/* Finalise and write both superblocks with a valid CRC. */
-	newsb.header_crc32c = crc32c(0, &newsb, MVTL_SB_CRC_LEN);
-	if (pwrite(fd, &newsb, sizeof(newsb), MVTL_SB_PRIMARY_OFF) !=
-	    (ssize_t)sizeof(newsb)) {
-		MHVTL_ERR("raw_format: primary superblock write failed: %s",
-			  strerror(errno));
+	/* The superblocks make the cartridge valid, so the regions they describe
+	 * go to stable storage first. Then mirror and primary, each flushed, in
+	 * the order sb_persist() uses. */
+	if (fdatasync(fd) < 0) {
+		MHVTL_ERR("raw_format: fdatasync failed: %s", strerror(errno));
 		goto out;
 	}
+	newsb.header_crc32c = crc32c(0, &newsb, MVTL_SB_CRC_LEN);
 	if (pwrite(fd, &newsb, sizeof(newsb), MVTL_SB_MIRROR_OFF) !=
-	    (ssize_t)sizeof(newsb)) {
+		    (ssize_t)sizeof(newsb) || fdatasync(fd) < 0) {
 		MHVTL_ERR("raw_format: mirror superblock write failed: %s",
 			  strerror(errno));
 		goto out;
 	}
-	if (fdatasync(fd) < 0) {
-		MHVTL_ERR("raw_format: fdatasync failed: %s", strerror(errno));
+	if (pwrite(fd, &newsb, sizeof(newsb), MVTL_SB_PRIMARY_OFF) !=
+		    (ssize_t)sizeof(newsb) || fdatasync(fd) < 0) {
+		MHVTL_ERR("raw_format: primary superblock write failed: %s",
+			  strerror(errno));
 		goto out;
 	}
 

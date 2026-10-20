@@ -55,7 +55,9 @@ int raw_probe(const char *devpath, struct mhvtl_raw_probe *out);
  *   density         media density for the MAM, e.g. "LTO8"; NULL takes it
  *                   from the barcode's media suffix (L8 = LTO-8, LU = LTO-4
  *                   WORM), which an 8-character barcode must then carry.
- *                   An M8 barcode is refused (no M8 media type yet)
+ *                   A density that contradicts the suffix, more partitions
+ *                   than the media supports, and an M8 barcode (no M8 media
+ *                   type yet) are refused before the device is written
  *   partspec        comma-separated per-partition size percentages that must
  *                   total exactly 100, e.g. "92,8" or "85,5,5,5"
  *   min_record_size planning minimum record size; sizes the index region so it
