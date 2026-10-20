@@ -35,7 +35,7 @@ SCRIPT_TESTS += make_vtl_media_home.sh
 SCRIPT_TESTS += generator/run.sh
 
 # Integration tests via userland transport (no kernel modules or root needed)
-INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf
+INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf test_encryption_state
 
 .PHONY: all test clean
 
@@ -155,6 +155,9 @@ test_ssc_space: test_ssc_space.c acutest.h helpers/scsi_harness.h helpers/device
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_ssc_eom: test_ssc_eom.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_encryption_state: test_encryption_state.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 integration: $(INTEGRATION_TESTS)
