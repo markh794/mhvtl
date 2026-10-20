@@ -497,9 +497,13 @@ static int empty_map(struct q_msg *msg) {
 		return 0;
 	}
 
+	/* The barcode is the rest of the message, which vtlcmd ends with a
+	 * space; a barcode may hold spaces itself. */
 	while (*barcode == ' ')
 		barcode++;
-	len = strcspn(barcode, " ");
+	len = strlen(barcode);
+	while (len && barcode[len - 1] == ' ')
+		len--;
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
