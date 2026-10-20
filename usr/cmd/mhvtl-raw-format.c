@@ -22,6 +22,7 @@
 #include <getopt.h>
 #include <stdint.h>
 #include <errno.h>
+#include <syslog.h>
 
 #include "cart_backend_raw.h"
 
@@ -87,6 +88,10 @@ int main(int argc, char **argv)
 		{ NULL, 0, NULL, 0 },
 	};
 	int c, ok;
+
+	/* raw_format() reports why it refused a device through syslog; copy
+	 * those messages to stderr so the caller sees the reason as well. */
+	openlog(mhvtl_driver_name, LOG_PERROR, LOG_DAEMON);
 
 	while ((c = getopt_long(argc, argv, "b:d:p:m:n:h", opts, NULL)) != -1) {
 		switch (c) {
