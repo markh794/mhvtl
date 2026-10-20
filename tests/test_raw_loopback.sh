@@ -100,6 +100,18 @@ echo "=== run runtime codec selection + write-path flag check ==="
 $SUDO env LD_LIBRARY_PATH="$HERE/usr" "$SELBIN" "$LOOP" "$BARCODE" \
 	|| fail "test_compression_select exited $?"
 
+# A 6-character barcode has no media suffix, so the density must be given.
+echo "=== format without a media suffix needs --density ==="
+if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST002 >/tmp/raw_loop_density.log 2>&1; then
+	fail "mhvtl-raw-format formatted a barcode without a media type"
+fi
+grep -q -- "--density is required" /tmp/raw_loop_density.log \
+	|| fail "expected a --density hint (see /tmp/raw_loop_density.log)"
+$SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST002 --density LTO7 \
+	|| fail "mhvtl-raw-format --density failed"
+
 # mhvtl-raw-format opens the device O_EXCL, so the kernel refuses it with
 # EBUSY while the device is in use - here, a mounted filesystem.
 echo "=== format refused while the device is mounted ==="

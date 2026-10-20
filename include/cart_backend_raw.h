@@ -52,15 +52,21 @@ int raw_probe(const char *devpath, struct mhvtl_raw_probe *out);
  *
  *   devpath         block device to format (e.g. /dev/sdX, /dev/loopN)
  *   barcode         cartridge PCL/barcode (copied into the superblock)
+ *   density         media density for the MAM, e.g. "LTO8"; NULL takes it
+ *                   from the barcode's media suffix (L8 = LTO-8, LU = LTO-4
+ *                   WORM), which an 8-character barcode must then carry
  *   partspec        comma-separated per-partition size percentages that must
  *                   total exactly 100, e.g. "92,8" or "85,5,5,5"
  *   min_record_size planning minimum record size; sizes the index region so it
  *                   can describe a data region made entirely of minimum records
  *
- * Writes the initial meta_header for each partition and both superblocks with
- * generation_id = 1. Returns 0 on success, -1 on error (errno set).
+ * Writes the initial meta_header for each partition, a MAM describing the
+ * media type and the capacity of the data regions, and both superblocks with
+ * generation_id = 1. The MAM is built in the global mam, so this is not for
+ * use by a daemon that has a cartridge loaded. Returns 0 on success, -1 on
+ * error (errno set).
  */
-int raw_format(const char *devpath, const char *barcode,
+int raw_format(const char *devpath, const char *barcode, const char *density,
 	       const char *partspec, uint64_t min_record_size);
 
 #endif /* _CART_BACKEND_RAW_H_ */

@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "logging.h"
@@ -46,6 +47,7 @@
 #include "cart_backend.h"
 #include "cart_backend_raw.h"
 #include "ccan/crc32c/crc32c.h"
+#include "be_byteshift.h"
 
 /*
  * sizeof(struct meta_header) in usr/vtlcart.c: a uint32_t filemark_count
@@ -634,20 +636,13 @@ static int raw_be_partition_loaded(int partition)
  * over in-memory fds so the on-disk encoding is byte-compatible. sb.mam_len is
  * the total container length; 0 means "no MAM written yet" (fresh format).
  */
-static int raw_be_save_mam(struct MAM *mamp)
+static int raw_serialize_mam(uint8_t **out, uint64_t *out_len)
 {
 	int mfd = -1, hfd = -1, ret = -1;
 	off_t mlen, hlen;
 	uint32_t hdr[2];
 	uint8_t *buf = NULL;
 	uint64_t total;
-
-	(void)mamp;	/* write_mam serializes the global mam */
-
-	if (!sb_loaded || devfd < 0) {
-		errno = EBADF;
-		return -1;
-	}
 
 	mfd = memfd_create("mhvtl-mam", 0);
 	hfd = memfd_create("mhvtl-mhvtl", 0);
@@ -692,6 +687,35 @@ static int raw_be_save_mam(struct MAM *mamp)
 		goto out;
 	}
 
+	*out = buf;
+	*out_len = total;
+	buf = NULL;
+	ret = 0;
+out:
+	free(buf);
+	if (mfd >= 0)
+		close(mfd);
+	if (hfd >= 0)
+		close(hfd);
+	return ret;
+}
+
+static int raw_be_save_mam(struct MAM *mamp)
+{
+	uint8_t *buf = NULL;
+	uint64_t total;
+	int ret = -1;
+
+	(void)mamp;	/* write_mam serializes the global mam */
+
+	if (!sb_loaded || devfd < 0) {
+		errno = EBADF;
+		return -1;
+	}
+
+	if (raw_serialize_mam(&buf, &total) < 0)
+		return -1;
+
 	if (pwrite(devfd, buf, (size_t)total, (off_t)sb.mam_off) !=
 	    (ssize_t)total) {
 		MHVTL_ERR("raw save_mam: MAM region write failed: %s",
@@ -706,10 +730,6 @@ static int raw_be_save_mam(struct MAM *mamp)
 	ret = 0;
 out:
 	free(buf);
-	if (mfd >= 0)
-		close(mfd);
-	if (hfd >= 0)
-		close(hfd);
 	return ret;
 }
 
@@ -925,14 +945,109 @@ static int validate_raw_barcode(const char *barcode)
 	return 0;
 }
 
-int raw_format(const char *devpath, const char *barcode,
+/* The density a barcode's media suffix stands for, written to *density, and
+ * whether the suffix names WORM media. The data suffixes L1-L9 and LA are
+ * LTO-1 to LTO-10, and the WORM suffixes LT-LZ are LTO-3 to LTO-9 (IBM
+ * SG24-5946). M8, LTO-7 media written in LTO-8 format, has no density of its
+ * own here and is treated as LTO-8. Returns -1 for a barcode without a suffix.
+ */
+static int raw_barcode_density(const char *barcode, char *density, size_t len,
+			       int *worm)
+{
+	const char *sfx;
+
+	*worm = 0;
+	if (!barcode || strlen(barcode) != 8)
+		return -1;
+	sfx = barcode + 6;
+
+	if (sfx[0] == 'L' && sfx[1] >= '1' && sfx[1] <= '9')
+		snprintf(density, len, "LTO%c", sfx[1]);
+	else if (sfx[0] == 'L' && sfx[1] == 'A')
+		snprintf(density, len, "LTO10");
+	else if (sfx[0] == 'L' && sfx[1] >= 'T' && sfx[1] <= 'Z') {
+		snprintf(density, len, "LTO%d", sfx[1] - 'T' + 3);
+		*worm = 1;
+	} else if (sfx[0] == 'M' && sfx[1] == '8')
+		snprintf(density, len, "LTO8");
+	else
+		return -1;
+	return 0;
+}
+
+/*
+ * Fill the global mam the way mktape does for a new cartridge, with the
+ * capacity taken from the data regions of the device rather than the media
+ * type: a raw cartridge holds what its disk holds. Each partition's capacity
+ * is recorded as well, since the partition layout is fixed by the format.
+ */
+static int raw_init_mam(const struct mhvtl_raw_superblock *s,
+			const char *barcode, const char *density_arg)
+{
+	char density[16];
+	char ver[64];
+	uint64_t total = 0;
+	int worm, major = 0, minor = 0;
+	time_t now = time(NULL);
+
+	if (raw_barcode_density(barcode, density, sizeof(density), &worm) < 0) {
+		if (!density_arg) {
+			MHVTL_ERR("raw_format: barcode '%s' has no media suffix; "
+				  "give the density (e.g. LTO8)",
+				  barcode ? barcode : "");
+			errno = EINVAL;
+			return -1;
+		}
+	}
+	if (density_arg)
+		snprintf(density, sizeof(density), "%s", density_arg);
+
+	init_mam(&mam);
+	mam.tape_fmt_version = TAPE_FMT_VERSION;
+	mam.mam_fmt_version  = MAM_VERSION;
+	mam.MediumType	     = worm ? MEDIA_TYPE_WORM : MEDIA_TYPE_DATA;
+
+	if (set_media_params(&mam, density)) {
+		MHVTL_ERR("raw_format: '%s' is not a known density", density);
+		errno = EINVAL;
+		return -1;
+	}
+
+	mam.num_partitions = (uint8_t)s->num_partitions;
+	for (uint32_t i = 0; i < s->num_partitions; i++) {
+		put_unaligned_be64(s->part[i].advertised_capacity,
+				   &mam.partition_capacity[i]);
+		total += s->part[i].advertised_capacity;
+	}
+	put_unaligned_be64(total, &mam.max_capacity);
+	put_unaligned_be64(total, &mam.remaining_capacity);
+
+	sscanf(MHVTL_VERSION, "%d.%d", &major, &minor);
+	snprintf(ver, sizeof(ver), "vtl-%d.%d      ", major, minor);
+	memcpy(&mam.MediumManufacturer, "linuxVTL", 8);
+	memcpy(&mam.ApplicationVendor, ver, 8);
+	snprintf((char *)mam.ApplicationVersion, sizeof(mam.ApplicationVersion),
+		 "%d", TAPE_FMT_VERSION);
+	snprintf((char *)mam.MediumSerialNumber, sizeof(mam.MediumSerialNumber),
+		 "%s_%d", barcode, (int)now);
+	snprintf((char *)mam.MediumManufactureDate,
+		 sizeof(mam.MediumManufactureDate), "%d", (int)now);
+	snprintf((char *)mam.Barcode, sizeof(mam.Barcode), "%-31s", barcode);
+
+	mam_space_remaining(&mam);
+	return 0;
+}
+
+int raw_format(const char *devpath, const char *barcode, const char *density,
 	       const char *partspec, uint64_t min_record_size)
 {
 	int fd, nparts, rc = -1;
 	uint64_t dev_bytes = 0, usable, alignment, part_base, consumed = 0;
+	uint64_t mam_len = 0;
 	int sector = 0, psector = 0;
 	unsigned pct[MVTL_MAX_PARTITIONS];
 	void *zbuf = NULL;
+	uint8_t *mam_buf = NULL;
 	struct mhvtl_raw_superblock newsb;
 
 	if (min_record_size == 0) {
@@ -1113,6 +1228,20 @@ int raw_format(const char *devpath, const char *barcode,
 		}
 	}
 
+	/* A new cartridge carries a MAM saying what media it is and how much it
+	 * holds; without one the drive sees no capacity and reports end of
+	 * medium on the first write. */
+	if (raw_init_mam(&newsb, barcode, density) < 0 ||
+	    raw_serialize_mam(&mam_buf, &mam_len) < 0)
+		goto out;
+	if (pwrite(fd, mam_buf, (size_t)mam_len, (off_t)newsb.mam_off) !=
+	    (ssize_t)mam_len) {
+		MHVTL_ERR("raw_format: MAM region write failed: %s",
+			  strerror(errno));
+		goto out;
+	}
+	newsb.mam_len = mam_len;
+
 	/* Finalise and write both superblocks with a valid CRC. */
 	newsb.header_crc32c = crc32c(0, &newsb, MVTL_SB_CRC_LEN);
 	if (pwrite(fd, &newsb, sizeof(newsb), MVTL_SB_PRIMARY_OFF) !=
@@ -1137,6 +1266,7 @@ int raw_format(const char *devpath, const char *barcode,
 	rc = 0;
 
 out:
+	free(mam_buf);
 	free(zbuf);
 	close(fd);
 	return rc;
