@@ -118,7 +118,8 @@ static int match_bay(const struct bay_mon *mons, size_t n,
 
 /* Place the disk now sitting in this bay; record its barcode on success.
  * `log_skip` logs why a disk was not placed; a "change" probe passes 0, as
- * most changes of a disk that is not a cartridge are of no interest here. */
+ * most changes of a disk that is not a cartridge are of no interest here,
+ * and then only -v logs it. */
 static void handle_add(struct bay_mon *mon, int verbose_log, int log_skip)
 {
 	struct raw_bay_result res;
@@ -132,12 +133,8 @@ static void handle_add(struct bay_mon *mon, int verbose_log, int log_skip)
 	} else {
 		/* Non-MVTL / unreadable / duplicate / library refusal: a skip,
 		 * not an error. Report the reason and leave the bay unplaced. */
-		if (log_skip)
+		if (log_skip || verbose_log)
 			MHVTL_LOG("bay %s not placed: %s", mon->bay->by_path,
-				  res.skip_reason ? res.skip_reason
-						  : "not provisioned");
-		else
-			MHVTL_DBG(1, "bay %s not placed: %s", mon->bay->by_path,
 				  res.skip_reason ? res.skip_reason
 						  : "not provisioned");
 	}
