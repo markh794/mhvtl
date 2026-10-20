@@ -264,17 +264,24 @@ static void list_map(struct q_msg *msg) {
 	send_msg(buf, msg->snd_id);
 }
 
-/* Check existing MAP & Storage slots for existing barcode */
+/* Does a stored barcode, left justified and space padded, equal `want`? */
+static int barcode_is(const char *stored, const char *want, size_t len) {
+	return !strncmp(stored, want, len) &&
+		   (stored[len] == ' ' || stored[len] == '\0');
+}
+
+/* Check existing MAP & Storage slots for existing barcode. The match is
+ * exact: VOL001 is not VOL001L8. */
 int already_in_slot(char *barcode) {
 	struct list_head *slot_head = &smc_slots.slot_list;
 	struct s_info	 *sp		= NULL;
-	int				  len;
+	size_t			  len;
 
 	len = strlen(barcode);
 
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp)) {
-			if (!strncmp((char *)sp->media->barcode, barcode, len)) {
+			if (barcode_is(sp->media->barcode, barcode, len)) {
 				MHVTL_DBG(3, "Match: %s %s",
 						  sp->media->barcode, barcode);
 				return 1;
@@ -470,12 +477,6 @@ static void add_storage_slot(struct q_msg *msg) {
 	sprintf(message, "slot=%d", slt_no);
 	send_msg(message, msg->snd_id);
 	return;
-}
-
-/* Does a stored barcode, left justified and space padded, equal `want`? */
-static int barcode_is(const char *stored, const char *want, size_t len) {
-	return !strncmp(stored, want, len) &&
-		   (stored[len] == ' ' || stored[len] == '\0');
 }
 
 /*
