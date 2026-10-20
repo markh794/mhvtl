@@ -82,6 +82,7 @@ static int master_fd;
 static volatile int running = 1;
 static char target_wwn[128];
 static char nexus_wwn[128];
+static char device_conf[512];
 
 /* ---- Helpers ---- */
 
@@ -177,6 +178,70 @@ static void dev_removed(struct tcmu_device *dev)
 			devices[minor].tcmu_dev = NULL;
 		pthread_mutex_unlock(&devices[minor].lock);
 	}
+}
+
+/*
+ * LIO writes <dbroot>/pr/aptpl_<vpd_unit_serial> on every PR OUT
+ * REGISTER and fails the command if <dbroot>/pr is missing.
+ * targetcli creates it; we configure configfs ourselves.
+ * Read dbroot back instead of assuming /var/target: the kernel
+ * prefers /etc/target when that directory exists.
+ */
+static void create_pr_dir(void)
+{
+	char dbroot[256] = "/var/target";
+	char path[300];
+	int fd = open(CONFIGFS_TARGET "/dbroot", O_RDONLY);
+
+	if (fd >= 0) {
+		ssize_t n = read(fd, dbroot, sizeof(dbroot) - 1);
+		close(fd);
+		if (n > 0) {
+			dbroot[n] = '\0';
+			dbroot[strcspn(dbroot, "\n")] = '\0';
+		}
+		if (n <= 0 || !dbroot[0])
+			strcpy(dbroot, "/var/target");
+	}
+
+	if (mkdir(dbroot, 0700) < 0 && errno != EEXIST)
+		MHVTL_ERR("mkdir %s: %s", dbroot, strerror(errno));
+	snprintf(path, sizeof(path), "%s/pr", dbroot);
+	if (mkdir(path, 0700) < 0 && errno != EEXIST)
+		MHVTL_ERR("mkdir %s: %s -- SPC-3 PR OUT will fail with NOT READY",
+			  path, strerror(errno));
+	else
+		MHVTL_LOG("PR state directory %s", path);
+}
+
+/*
+ * Find the Unit serial number of the "Library:" (changer) or "Drive:"
+ * stanza numbered <minor> in device.conf.
+ */
+static int conf_unit_serial(unsigned minor, int dev_type, char *out, size_t len)
+{
+	const char *stanza = dev_type == 8 ? "Library:" : "Drive:";
+	char line[256], kw[16], *v;
+	unsigned n;
+	int in_dev = 0, ret = -1;
+	FILE *fp = fopen(device_conf, "r");
+
+	if (!fp)
+		return -1;
+	while (readline(line, sizeof(line), fp)) {
+		if (line[strspn(line, " \t\r\n")] == '\0')
+			in_dev = 0;
+		else if (sscanf(line, "%15s %u", kw, &n) == 2 &&
+			 (!strcmp(kw, "Library:") || !strcmp(kw, "Drive:")))
+			in_dev = (!strcmp(kw, stanza) && n == minor);
+		else if (in_dev && (v = conf_value(line, "Unit serial number"))) {
+			snprintf(out, len, "%s", v);
+			ret = 0;
+			break;
+		}
+	}
+	fclose(fp);
+	return ret;
 }
 
 /* ---- LUN mapping thread ---- */
@@ -495,6 +560,25 @@ static void *device_worker(void *arg)
 	snprintf(value, sizeof(value), "dev_type=%d", d->dev_type);
 	configfs_write(path, value);
 
+	/*
+	 * LIO names its PR state file aptpl_<vpd_unit_serial>. Set it
+	 * before the LUN is linked: LIO refuses changes once exported.
+	 * INQUIRY VPD pages still come from the daemon.
+	 */
+	snprintf(path, sizeof(path),
+		 CONFIGFS_TARGET "/core/user_0/%s/wwn/vpd_unit_serial",
+		 d->bs_name);
+	if (conf_unit_serial(d->minor, d->dev_type, value, sizeof(value)) < 0)
+		MHVTL_ERR("[%s] no unit serial for minor %u in %s",
+			  d->bs_name, d->minor, device_conf);
+	else if (strchr(value, '/'))
+		/* LIO builds "%s/pr/aptpl_%s" without sanitising the serial */
+		MHVTL_ERR("[%s] unit serial '%s' contains '/', not set",
+			  d->bs_name, value);
+	else if (configfs_write(path, value) < 0)
+		MHVTL_ERR("[%s] vpd_unit_serial '%s': %s",
+			  d->bs_name, value, strerror(errno));
+
 	MHVTL_LOG("[%s] Backstore configured", d->bs_name);
 
 	/*
@@ -684,6 +768,7 @@ static int create_infrastructure(const char *conf_path)
 	char line[256];
 
 	/* Parse first NAA from device.conf for target WWN */
+	snprintf(device_conf, sizeof(device_conf), "%s", conf_path);
 	fp = fopen(conf_path, "r");
 	if (!fp) {
 		MHVTL_ERR("Cannot open %s", conf_path);
@@ -788,6 +873,8 @@ int main(int argc, char *argv[])
 	/* Create shared infrastructure */
 	if (create_infrastructure(conf_path) < 0)
 		exit(1);
+
+	create_pr_dir();
 
 	/* Initialize libtcmu — ALL subtypes use name "mhvtl" */
 	struct tcmulib_handler handler = {
