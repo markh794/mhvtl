@@ -41,6 +41,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
 #include <inttypes.h>
@@ -89,25 +90,33 @@ static void usage(char *prog) {
 	fprintf(stderr, "   load map ID  -> Load media ID into map\n");
 }
 
-/* check if media (tape) exists in directory (/var/lib/mhvtl/..) */
+/*
+ * Check that media (tape) exists in the library's home directory
+ * (/var/lib/mhvtl/..): a directory for a file-backed cartridge, or a link to
+ * a block device for a raw cartridge. The cartridge's own files are not
+ * looked at, as their names vary: data.0, data.1, ... one per partition.
+ */
 int check_media(int libno, char *barcode) {
-	char currentMedia[1024];
-	int	 datafile;
-	int	 path_len;
+	char		currentMedia[1024];
+	struct stat st;
+	int			path_len;
 
 	find_media_home_directory(NULL, libno);
-	path_len = snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s/data", home_directory, barcode);
+	path_len = snprintf((char *)currentMedia, ARRAY_SIZE(currentMedia), "%s/%s", home_directory, barcode);
 	if (path_len >= ARRAY_SIZE(currentMedia)) {
-		fprintf(stderr, "Warning: path to %s/%s/data truncated to %" PRIu32 " bytes",
+		fprintf(stderr, "Warning: path to %s/%s truncated to %" PRIu32 " bytes",
 				home_directory, barcode, (uint32_t)ARRAY_SIZE(currentMedia));
 	}
-	datafile = open(currentMedia, O_RDWR | O_LARGEFILE);
-	if (datafile < 0) {
-		fprintf(stderr, "Could not open %s: %s\n",
+	if (stat(currentMedia, &st) < 0) {
+		fprintf(stderr, "Could not find %s: %s\n",
 				currentMedia, strerror(errno));
 		return 1;
 	}
-	close(datafile);
+	if (!S_ISDIR(st.st_mode) && !S_ISBLK(st.st_mode)) {
+		fprintf(stderr, "%s is neither a cartridge directory nor a "
+				"block device\n", currentMedia);
+		return 1;
+	}
 	return 0;
 }
 
