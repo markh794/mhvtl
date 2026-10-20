@@ -1996,34 +1996,27 @@ uint64_t count_filemarks(int64_t block) {
 	return (uint64_t)meta[c_pos->partition_id].filemark_count;
 }
 
-static void enc_key_to_string(char *dst, uint8_t *key, int len) {
-	char b[16];
-	int	 i;
+static void enc_key_to_string(char *dst, size_t dst_size, const uint8_t *key, size_t len) {
+	size_t i;
+
+	if (!dst_size)
+		return;
+	if (len > ENCR_KEY_MAX_LEN) /* length comes from disk, may be corrupt */
+		len = ENCR_KEY_MAX_LEN;
 
 	dst[0] = '\0';
-
-	for (i = 0; i < len; i++) {
-		sprintf(b, "%02x", key[i]);
-		strncat(dst, b, 16);
-	}
-	key[i] = '\0';
+	for (i = 0; i < len && i < (dst_size - 1) / 2; i++)
+		snprintf(&dst[i * 2], dst_size - (i * 2), "%02x", key[i]);
 }
 
 void print_raw_header(void) {
-	char *f	  = NULL;
-	char *enc = NULL;
+	char  enc[ENCR_KEY_MAX_LEN * 2 + 1];
+	char *f = NULL;
 
-	enc = malloc(256);
-	if (!enc) {
-		printf("Unable to malloc 256 bytes of memory to produce dump_tape report");
-		MHVTL_ERR("Unable to malloc 256 bytes of memory to produce dump_tape report");
-		return;
-	}
 	f = malloc(256);
 	if (!f) {
 		printf("Unable to malloc 256 bytes of memory to produce dump_tape report");
 		MHVTL_ERR("Unable to malloc 256 bytes of memory to produce dump_tape report");
-		free(enc);
 		return;
 	}
 
@@ -2082,21 +2075,21 @@ void print_raw_header(void) {
 			   c_pos->blk_encryption_info.ukad_length,
 			   c_pos->blk_encryption_info.akad_length);
 
-		if (c_pos->blk_encryption_info.key_length > 0) {
-			enc_key_to_string(enc, c_pos->blk_encryption_info.key, c_pos->blk_encryption_info.key_length);
-			printf("%12s : %32s\n", "Key", enc);
-		}
+		/* Never print the key: anyone with dump_tape output could read the data */
+		if (c_pos->blk_encryption_info.key_length > 0)
+			printf("%12s : %s\n", "Key", "(not shown)");
 		if (c_pos->blk_encryption_info.ukad_length > 0) {
-			enc_key_to_string(enc, c_pos->blk_encryption_info.ukad, c_pos->blk_encryption_info.ukad_length);
+			enc_key_to_string(enc, sizeof(enc), c_pos->blk_encryption_info.ukad,
+							  c_pos->blk_encryption_info.ukad_length);
 			printf("%12s : %32s\n", "Ukad", enc);
 		}
 		if (c_pos->blk_encryption_info.akad_length > 0) {
-			enc_key_to_string(enc, c_pos->blk_encryption_info.akad, c_pos->blk_encryption_info.akad_length);
+			enc_key_to_string(enc, sizeof(enc), c_pos->blk_encryption_info.akad,
+							  c_pos->blk_encryption_info.akad_length);
 			printf("%12s : %32s\n", "Akad", enc);
 		}
 	}
 
-	free(enc);
 	free(f);
 }
 
