@@ -10,7 +10,11 @@
  *   - a disk inserted in a configured bay is probed and, if it carries a valid
  *     MVTL cartridge, loaded into that bay's library MAP (place);
  *   - a disk pulled from a configured bay has its cartridge removed from the
- *     library MAP and its home_directory/<barcode> symlink dropped (remove).
+ *     library MAP and its home_directory/<barcode> symlink dropped (remove);
+ *   - a disk already in an empty bay is probed again when udev reports it
+ *     changed, which it does when a program that opened it for writing closes
+ *     it. A disk formatted with mhvtl-raw-format while in the bay is placed
+ *     that way, without being pulled and reinserted.
  *
  * The probe/symlink/load-map and remove logic lives in the reusable raw_bay_ops
  * module (compiled into libvtlscsi) and is shared verbatim with the Stage-A
@@ -112,8 +116,10 @@ static int match_bay(const struct bay_mon *mons, size_t n,
 	return -1;
 }
 
-/* Place the disk now sitting in this bay; record its barcode on success. */
-static void handle_add(struct bay_mon *mon, int verbose_log)
+/* Place the disk now sitting in this bay; record its barcode on success.
+ * `log_skip` logs why a disk was not placed; a "change" probe passes 0, as
+ * most changes of a disk that is not a cartridge are of no interest here. */
+static void handle_add(struct bay_mon *mon, int verbose_log, int log_skip)
 {
 	struct raw_bay_result res;
 
@@ -126,8 +132,14 @@ static void handle_add(struct bay_mon *mon, int verbose_log)
 	} else {
 		/* Non-MVTL / unreadable / duplicate / library refusal: a skip,
 		 * not an error. Report the reason and leave the bay unplaced. */
-		MHVTL_LOG("bay %s not placed: %s", mon->bay->by_path,
-			  res.skip_reason ? res.skip_reason : "not provisioned");
+		if (log_skip)
+			MHVTL_LOG("bay %s not placed: %s", mon->bay->by_path,
+				  res.skip_reason ? res.skip_reason
+						  : "not provisioned");
+		else
+			MHVTL_DBG(1, "bay %s not placed: %s", mon->bay->by_path,
+				  res.skip_reason ? res.skip_reason
+						  : "not provisioned");
 	}
 }
 
@@ -193,7 +205,7 @@ static void coldplug(struct udev *udev, struct bay_mon *mons, size_t n,
 		devnode = udev_device_get_devnode(dev);
 		idx = match_bay(mons, n, id_path, devnode);
 		if (idx >= 0)
-			handle_add(&mons[idx], verbose_log);
+			handle_add(&mons[idx], verbose_log, 1);
 
 		udev_device_unref(dev);
 	}
@@ -227,10 +239,14 @@ static void drain_events(struct udev_monitor *mon, struct bay_mon *mons,
 		}
 
 		if (strcmp(action, "add") == 0)
-			handle_add(&mons[idx], verbose_log);
+			handle_add(&mons[idx], verbose_log, 1);
 		else if (strcmp(action, "remove") == 0)
 			handle_remove(&mons[idx], verbose_log);
-		/* "change" and everything else: ignore. */
+		else if (strcmp(action, "change") == 0 && !mons[idx].has_placed)
+			/* A placed cartridge changes every time the drive
+			 * closes it; only an empty bay is worth a probe. */
+			handle_add(&mons[idx], verbose_log, 0);
+		/* everything else: ignore. */
 
 		udev_device_unref(dev);
 	}
