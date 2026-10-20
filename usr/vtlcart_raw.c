@@ -895,16 +895,16 @@ static void fill_cartridge_uuid(uint8_t uuid[16])
 }
 
 /* A two-character LTO media-type suffix the raw backend accepts: data L1-L9
- * and LA (LTO-10), the LTO-8 "M8" format written on LTO-7 media, and WORM
- * LT-LZ (U3-U9). Labels per IBM SG24-5946 / GA32-0928. */
+ * and LA (LTO-10), and WORM LT-LZ (U3-U9). Labels per IBM SG24-5946 /
+ * GA32-0928. M8, LTO-7 media written in the LTO-8 Type M format, is refused:
+ * mhVTL has no M8 media type yet, so the cartridge memory could only claim
+ * plain LTO-8 (density 0x5e) instead of Type M (0x5d, GA32-0928 p.142). */
 static int valid_lto_media_suffix(const char *s)
 {
 	if (s[0] == 'L' && ((s[1] >= '1' && s[1] <= '9') || s[1] == 'A'))
 		return 1;				/* data L1-L9, LA */
 	if (s[0] == 'L' && s[1] >= 'T' && s[1] <= 'Z')
 		return 1;				/* WORM LT-LZ (U3-U9) */
-	if (s[0] == 'M' && s[1] == '8')
-		return 1;				/* M8 (LTO-7 media as LTO-8) */
 	return 0;
 }
 
@@ -937,7 +937,7 @@ static int validate_raw_barcode(const char *barcode)
 	}
 	if (len == 8 && !valid_lto_media_suffix(barcode + 6)) {
 		MHVTL_ERR("raw_format: barcode '%s' has an invalid media suffix "
-			  "'%s' (expect data L1-L9/LA, M8, or WORM LT-LZ)",
+			  "'%s' (expect data L1-L9/LA or WORM LT-LZ; M8 is not supported)",
 			  barcode, barcode + 6);
 		errno = EINVAL;
 		return -1;
@@ -948,8 +948,7 @@ static int validate_raw_barcode(const char *barcode)
 /* The density a barcode's media suffix stands for, written to *density, and
  * whether the suffix names WORM media. The data suffixes L1-L9 and LA are
  * LTO-1 to LTO-10, and the WORM suffixes LT-LZ are LTO-3 to LTO-9 (IBM
- * SG24-5946). M8, LTO-7 media written in LTO-8 format, has no density of its
- * own here and is treated as LTO-8. Returns -1 for a barcode without a suffix.
+ * SG24-5946). Returns -1 for a barcode without a suffix.
  */
 static int raw_barcode_density(const char *barcode, char *density, size_t len,
 			       int *worm)
@@ -968,9 +967,7 @@ static int raw_barcode_density(const char *barcode, char *density, size_t len,
 	else if (sfx[0] == 'L' && sfx[1] >= 'T' && sfx[1] <= 'Z') {
 		snprintf(density, len, "LTO%d", sfx[1] - 'T' + 3);
 		*worm = 1;
-	} else if (sfx[0] == 'M' && sfx[1] == '8')
-		snprintf(density, len, "LTO8");
-	else
+	} else
 		return -1;
 	return 0;
 }

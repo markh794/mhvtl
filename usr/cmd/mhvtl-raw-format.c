@@ -117,6 +117,11 @@ int main(int argc, char **argv)
 		fprintf(stderr, "error: --barcode is required\n");
 		return 1;
 	}
+	if (strlen(barcode) == 8 && !strcmp(barcode + 6, "M8")) {
+		fprintf(stderr, "error: M8 (LTO-8 Type M) cartridges are not "
+			"supported yet\n");
+		return 1;
+	}
 	if (!density && strlen(barcode) != 8) {
 		fprintf(stderr, "error: --density is required for a barcode "
 			"without a media suffix (e.g. VOL001L8 is LTO-8)\n");

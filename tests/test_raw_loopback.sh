@@ -112,6 +112,16 @@ $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
 	--barcode TST002 --density LTO7 \
 	|| fail "mhvtl-raw-format --density failed"
 
+# M8 is refused, with or without --density: there is no M8 media type to
+# write into the cartridge memory, and plain LTO-8 would be the wrong density.
+echo "=== M8 barcode refused ==="
+for extra in "" "--density LTO8"; do
+	if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+		--barcode TST003M8 $extra >/tmp/raw_loop_m8.log 2>&1; then
+		fail "mhvtl-raw-format formatted an M8 barcode ($extra)"
+	fi
+done
+
 # mhvtl-raw-format opens the device O_EXCL, so the kernel refuses it with
 # EBUSY while the device is in use - here, a mounted filesystem.
 echo "=== format refused while the device is mounted ==="
