@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>		/* memfd_create */
-#include <linux/fs.h>		/* BLKGETSIZE64, BLKSSZGET, BLKPBSZGET, BLKFLSBUF */
+#include <linux/fs.h>		/* BLKGETSIZE64, BLKSSZGET, BLKPBSZGET */
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -473,28 +473,8 @@ static int raw_be_truncate(enum cart_stream s, int partition, off_t len)
 	return sb_persist(0);
 }
 
-/*
- * Force the drive's own write cache to stable media. fdatasync() in sb_persist()
- * already issues a cache-flush (REQ_OP_FLUSH) to the device, so data is durable
- * once sb_persist() returns; BLKFLSBUF is the explicit device-cache flush the
- * design mandates on SYNCHRONIZE CACHE / WRITE FILEMARKS / LOAD UNLOAD
- * (AGENTS.md §3.3) and additionally drops the block device's buffer cache.
- * Best-effort: durability is already guaranteed by the preceding fdatasync, so a
- * BLKFLSBUF failure (e.g. insufficient privilege) is logged, not fatal.
- */
-static void raw_dev_cache_flush(void)
-{
-	if (devfd < 0)
-		return;
-	if (ioctl(devfd, BLKFLSBUF) < 0)
-		MHVTL_DBG(1, "BLKFLSBUF (device cache flush) failed: %s",
-			  strerror(errno));
-}
-
 static int raw_be_sync(enum cart_stream s, int partition)
 {
-	int rc;
-
 	(void)s;
 	(void)partition;
 
@@ -503,11 +483,10 @@ static int raw_be_sync(enum cart_stream s, int partition)
 		return -1;
 	}
 	/* Single device: a durable commit flushes payload+index, then writes a
-	 * freshly-generationed superblock. sb_persist() does the ordering. */
-	rc = sb_persist(1);
-	if (rc == 0)
-		raw_dev_cache_flush();
-	return rc;
+	 * freshly-generationed superblock. sb_persist() does the ordering, and
+	 * its fdatasync() also flushes the disk's write cache: on a block device
+	 * it sends the device a cache flush. */
+	return sb_persist(1);
 }
 
 static int raw_be_fadvise_dontneed(enum cart_stream s, int partition)
@@ -587,12 +566,10 @@ static int raw_be_open_cartridge(const char *path, int create)
 static void raw_be_close_cartridge(void)
 {
 	/* UNLOAD commits the superblock (design §6): flush payload/index and
-	 * write the partition table so stream growth from writes is durable, force
-	 * the drive's write cache to media (AGENTS.md §3.3), then release it. */
-	if (sb_loaded && devfd >= 0) {
-		if (sb_persist(0) == 0)
-			raw_dev_cache_flush();
-	}
+	 * write the partition table so stream growth from writes is durable,
+	 * the disk's write cache included, then release it. */
+	if (sb_loaded && devfd >= 0)
+		sb_persist(0);
 	raw_close();
 }
 
