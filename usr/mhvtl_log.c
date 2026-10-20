@@ -540,6 +540,42 @@ static uint64_t volstat_megabytes(uint64_t bytes) {
 	return (bytes + 999999) / 1000000;
 }
 
+/* The compression ratio parameters, 0012h and 0013h, are the ratio multiplied
+ * by 100: 2.5:1 is reported as 250. Both are the initiator side over the media
+ * side, which is the same arithmetic in each direction -
+ *
+ *     write   bytes from the application client / bytes written to the medium
+ *     read    bytes returned to the application client / bytes read from the medium
+ *
+ * and both fields are two bytes, so the largest ratio that fits is 655.35:1.
+ * That is not a theoretical limit here: a cartridge full of zeroes compresses
+ * far past it, so the result is clamped rather than allowed to wrap. A wrapped
+ * ratio looks like a plausible small number and would be believed.
+ *
+ * With nothing written or read there is no ratio to report, and the parameter
+ * stays zero: a drive that has not been asked to compress anything has not
+ * achieved 1:1, it has no answer.
+ *
+ * Note for anyone checking this against IBM's LTO SCSI Reference: Table 283
+ * gives 0012h the read formula and 0013h the write formula, transposed against
+ * their own names. Table 284, for the data compression page at 1Bh, has the
+ * same two formulas the right way round. The names are what callers match on,
+ * so the names win.
+ */
+#define VOLSTAT_RATIO_MAX 0xFFFF
+
+static uint16_t volstat_compression_ratio(uint64_t initiator, uint64_t media) {
+	uint64_t ratio;
+
+	if (!media || !initiator)
+		return 0;
+
+	ratio = (initiator * 100) / media;
+	if (ratio > VOLSTAT_RATIO_MAX)
+		return VOLSTAT_RATIO_MAX;
+	return (uint16_t)ratio;
+}
+
 /* Rewriting the page with the real number of partitions.
  * Returns the total packed page size in bytes. */
 size_t update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
@@ -579,6 +615,17 @@ size_t update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ss
 					   &pg->LifetimeMBWritten);
 	put_unaligned_be64(volstat_megabytes(get_unaligned_be64(&mam.ReadInMediumLife) + lu_priv->bytesRead_I),
 					   &pg->LifetimeMBRead);
+
+	/* How well this load compressed, in each direction. These are per load,
+	 * not per lifetime, so they come from the drive's live counters only and
+	 * never from the MAM.
+	 */
+	put_unaligned_be16(volstat_compression_ratio(lu_priv->bytesWritten_I,
+												 lu_priv->bytesWritten_M),
+					   &pg->LastLoadWriteCompressionRatio);
+	put_unaligned_be16(volstat_compression_ratio(lu_priv->bytesRead_I,
+												 lu_priv->bytesRead_M),
+					   &pg->LastLoadReadCompressionRatio);
 
 	/* First partition dependant parameter */
 	memset(&pg->h_FirstEncryptedLogicalObj, 0,
