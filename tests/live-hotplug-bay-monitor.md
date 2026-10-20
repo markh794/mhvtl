@@ -104,6 +104,9 @@ The disk must already be formatted as a raw cartridge (here: barcode
   placed, then hot-remove it.
 - A disk whose barcode another bay has already placed is a duplicate and is
   not placed: `bay ... not placed: RAW099L8 is already placed from bay ...`.
+  After a monitor restart, a duplicate is still refused while the disk that
+  `home_directory/<barcode>` names is present:
+  `not placed: duplicate barcode: another present disk already provides it`.
 - Production deployment uses the installed unit
   `etc/mhvtl-bay-monitor.service` (generated from `.service.in`, started after
   `mhvtl.target`); the build-tree + `systemd-run` form above is only to test an

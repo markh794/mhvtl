@@ -91,7 +91,9 @@ int raw_bay_lib_cmd(long library_id, const char *cmd, char *reply, size_t rlen,
  * is in place afterwards, -1 (with *reason set) if a conflicting entry exists or
  * the symlink could not be created. Semantics preserved from the Stage-A
  * provisioner: keep a correct existing link, refresh a stale one, refuse a
- * non-symlink conflict.
+ * non-symlink conflict. A link naming another device that is still present
+ * and carries the same barcode is not stale: this disk is a duplicate, and
+ * repointing the link would make the library read that cartridge from it.
  */
 static int ensure_symlink(const char *barcode, const char *by_path,
 			  const char **reason)
@@ -100,6 +102,7 @@ static int ensure_symlink(const char *barcode, const char *by_path,
 	struct stat	st;
 	char		cur[RAW_BAY_PATH_MAX];
 	ssize_t		n;
+	struct mhvtl_raw_probe pr;
 
 	snprintf(link, sizeof(link), "%s/%s", home_directory, barcode);
 
@@ -114,6 +117,12 @@ static int ensure_symlink(const char *barcode, const char *by_path,
 			cur[n] = '\0';
 			if (strcmp(cur, by_path) == 0)
 				return 0;	/* already correct, leave it */
+			if (raw_probe(cur, &pr) == 0 &&
+			    strcmp(pr.barcode, barcode) == 0) {
+				*reason = "duplicate barcode: another present "
+					  "disk already provides it";
+				return -1;
+			}
 		}
 		/* Stale/incorrect symlink: refresh it to the current binding. */
 		if (unlink(link) < 0) {
