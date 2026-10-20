@@ -10,8 +10,10 @@
 struct mhvtl_ds;
 struct scsi_cmd;
 
-#define ENCR_C 1 /* Device supports Encryption */
-#define ENCR_E 4 /* Encryption is enabled */
+/* Mode page 24h (IBM vendor-specific) byte 7: IBM LTO SCSI Reference
+ * GA32-0928, MP 24h: Vendor-Specific. Bytes 4 to 6 are reserved. */
+#define ENCR_C 0x01 /* Device supports Encryption - Capable */
+#define ENCR_E 0x08 /* Device supports Encryption - Enabled */
 
 #define ENCR_IN_SUPPORT_PAGES	  0
 #define ENCR_OUT_SUPPORT_PAGES	  1
