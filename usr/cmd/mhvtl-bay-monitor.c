@@ -135,13 +135,21 @@ static void handle_add(struct bay_mon *mon, int verbose_log)
  * barcode — it can no longer be probed). */
 static void handle_remove(struct bay_mon *mon, int verbose_log)
 {
+	int rc;
+
 	if (!mon->has_placed)
 		return;
 
-	if (raw_bay_remove(mon->bay, mon->placed_barcode, verbose_log) == 0)
+	rc = raw_bay_remove(mon->bay, mon->placed_barcode, verbose_log);
+	if (rc == 0)
 		MHVTL_LOG("removed %s (library %d MAP, bay %s)",
 			  mon->placed_barcode, mon->bay->library_id,
 			  mon->bay->by_path);
+	else if (rc == 1)
+		MHVTL_LOG("bay %s: %s was not in the MAP of library %d, "
+			  "nothing to clear",
+			  mon->bay->by_path, mon->placed_barcode,
+			  mon->bay->library_id);
 	else
 		MHVTL_ERR("bay %s: library did not confirm removal of %s",
 			  mon->bay->by_path, mon->placed_barcode);

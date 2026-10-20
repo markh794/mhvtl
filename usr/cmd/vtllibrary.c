@@ -472,13 +472,24 @@ static void add_storage_slot(struct q_msg *msg) {
 	return;
 }
 
+/* Does a stored barcode, left justified and space padded, equal `want`? */
+static int barcode_is(const char *stored, const char *want, size_t len) {
+	return !strncmp(stored, want, len) &&
+		   (stored[len] == ' ' || stored[len] == '\0');
+}
+
 /*
  * Respond to messageQ 'empty map' by clearing 'ocuplied' status in map slots.
+ * 'empty map <barcode>' clears only the slot holding that cartridge, so one
+ * cartridge can be taken out of the MAP while others stay in it.
  * Return 0 on failure, non-zero - success.
  */
 static int empty_map(struct q_msg *msg) {
 	struct s_info	 *sp;
 	struct list_head *slot_head = &smc_slots.slot_list;
+	const char		 *barcode	= msg->text + strlen("empty map");
+	size_t			  len;
+	int				  emptied	= 0;
 
 	if (smc_slots.cap_closed) {
 		MHVTL_DBG(1, "MAP slot empty failed - CAP Not open");
@@ -486,13 +497,25 @@ static int empty_map(struct q_msg *msg) {
 		return 0;
 	}
 
+	while (*barcode == ' ')
+		barcode++;
+	len = strcspn(barcode, " ");
+
 	list_for_each_entry(sp, slot_head, siblings) {
 		if (slotOccupied(sp) && sp->element_type == MAP_ELEMENT) {
+			if (len && !barcode_is(sp->media->barcode, barcode, len))
+				continue;
 			setSlotEmpty(sp);
+			emptied++;
 			MHVTL_DBG(2, "MAP slot %d emptied",
 					  sp->slot_location -
 						  smc_slots.pm->start_map);
 		}
+	}
+
+	if (len && !emptied) {
+		send_msg("barcode not in map", msg->snd_id);
+		return 0;
 	}
 
 	send_msg("OK", msg->snd_id);

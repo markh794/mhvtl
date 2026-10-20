@@ -98,12 +98,15 @@ Valid for
 only.
 Logically 'closes' the Media Access Port (MAP). MAP needs to be 'closed'
 before the Medium Transport Element can move media to/from MAP.
-.IP "empty map"
+.IP "empty map [<media>]"
 Valid for
 .B library
 only.
 Clears media from Media Access Port (MAP). Only valid when MAP is
-in 'open' state
+in 'open' state. With
+.IR media ,
+clears only the MAP slot holding that cartridge, and fails with
+"barcode not in map" if no MAP slot holds it.
 .IP "load map <media>"
 Valid for
 .B library

@@ -69,10 +69,12 @@ The disk must already be formatted as a raw cartridge (here: barcode
 
    Expected:
 
-       library 10 reply to 'empty map': OK
+       library 10 reply to 'empty map RAW099L8': OK
        handle_remove(): removed RAW099L8 (library 10 MAP, bay .../scsi-0:0:0:1)
 
    Verify the `/opt/mhvtl/RAW099L8` symlink is gone and the MAP slot is `Empty`.
+   With two bays configured, only the removed disk's MAP slot is cleared; the
+   other bay's cartridge stays `Full`.
 
 5. **Teardown / restore:**
 
