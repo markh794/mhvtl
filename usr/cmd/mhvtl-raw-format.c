@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 			"supported yet\n");
 		return 1;
 	}
-	if (!density && strlen(barcode) != 8) {
+	if (!density && strlen(barcode) == 6) {
 		fprintf(stderr, "error: --density is required for a barcode "
 			"without a media suffix (e.g. VOL001L8 is LTO-8)\n");
 		return 1;
