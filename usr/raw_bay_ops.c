@@ -148,6 +148,7 @@ static int place_resolved(const struct raw_bay *bay, struct raw_bay_result *res,
 	int		 map_opened = 0;
 
 	res->placed = 0;
+	res->already_present = 0;
 	res->reply_msg[0] = '\0';
 
 	/* Resolve home_directory for this bay's library from device.conf
@@ -187,6 +188,10 @@ static int place_resolved(const struct raw_bay *bay, struct raw_bay_result *res,
 		snprintf(res->reply_msg, sizeof(res->reply_msg),
 			 "load map rejected: %.40s", reply);
 		res->skip_reason = res->reply_msg;
+		/* The symlink above now resolves the barcode to this bay, so
+		 * the cartridge the library already holds is this disk. */
+		res->already_present =
+			strcmp(reply, "barcode already in library") == 0;
 	} else {
 		res->placed = 1;
 	}
@@ -207,6 +212,7 @@ int raw_bay_place_one(const struct raw_bay *bay, struct raw_bay_result *res,
 	res->barcode[0] = '\0';
 	res->skip_reason = NULL;
 	res->reply_msg[0] = '\0';
+	res->already_present = 0;
 
 	if (raw_probe(bay->by_path, &pr) != 0) {
 		res->skip_reason = "no readable MVTL cartridge in bay";
@@ -237,6 +243,7 @@ int raw_bay_place_all(const struct raw_bay *bays, size_t count,
 		results[i].barcode[0] = '\0';
 		results[i].skip_reason = NULL;
 		results[i].reply_msg[0] = '\0';
+		results[i].already_present = 0;
 	}
 
 	valid = calloc(count, sizeof(*valid));

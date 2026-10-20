@@ -96,11 +96,14 @@ The disk must already be formatted as a raw cartridge (here: barcode
 
 ## Notes
 
-- A cartridge already placed by the static provisioner is **not** owned by the
-  monitor: coldplug logs `load map rejected: barcode already in library` and
-  removing that disk is a safe no-op, because the monitor only ejects barcodes
-  it placed itself. For the monitor to manage a bay across remove/add, let the
-  monitor place it (coldplug on a free MAP slot, or a hot-add).
+- A cartridge the library already holds when the monitor starts, placed by
+  the static provisioner or by the monitor before a restart, is taken over:
+  coldplug logs `RAW099L8 already in library 10, tracking it for bay ...`, and
+  pulling the disk afterwards removes it as in step 4. To check, restart the
+  monitor (`systemctl restart baymon` for the transient unit) with the disk
+  placed, then hot-remove it.
+- A disk whose barcode another bay has already placed is a duplicate and is
+  not placed: `bay ... not placed: RAW099L8 is already placed from bay ...`.
 - Production deployment uses the installed unit
   `etc/mhvtl-bay-monitor.service` (generated from `.service.in`, started after
   `mhvtl.target`); the build-tree + `systemd-run` form above is only to test an

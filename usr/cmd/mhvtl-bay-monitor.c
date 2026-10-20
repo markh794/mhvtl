@@ -14,7 +14,10 @@
  *   - a disk already in an empty bay is probed again when udev reports it
  *     changed, which it does when a program that opened it for writing closes
  *     it. A disk formatted with mhvtl-raw-format while in the bay is placed
- *     that way, without being pulled and reinserted.
+ *     that way, without being pulled and reinserted;
+ *   - a cartridge the library already holds when a bay's disk is first seen,
+ *     placed before the monitor (re)started, is tracked as if the monitor had
+ *     placed it, so pulling the disk still removes it.
  *
  * The probe/symlink/load-map and remove logic lives in the reusable raw_bay_ops
  * module (compiled into libvtlscsi) and is shared verbatim with the Stage-A
@@ -52,6 +55,7 @@
 
 #include "raw_bay_conf.h"
 #include "raw_bay_ops.h"
+#include "cart_backend_raw.h"
 #include "logging.h"
 
 /* Every mhvtl program that links libvtlscsi defines this (used by logging). */
@@ -116,13 +120,41 @@ static int match_bay(const struct bay_mon *mons, size_t n,
 	return -1;
 }
 
+/* The bay other than `self` that placed `barcode`, or NULL. */
+static const struct bay_mon *owner_of(const struct bay_mon *mons, size_t n,
+				      const struct bay_mon *self,
+				      const char *barcode)
+{
+	for (size_t i = 0; i < n; i++)
+		if (&mons[i] != self && mons[i].has_placed &&
+		    strcmp(mons[i].placed_barcode, barcode) == 0)
+			return &mons[i];
+	return NULL;
+}
+
 /* Place the disk now sitting in this bay; record its barcode on success.
  * `log_skip` logs why a disk was not placed; a "change" probe passes 0, as
  * most changes of a disk that is not a cartridge are of no interest here,
- * and then only -v logs it. */
-static void handle_add(struct bay_mon *mon, int verbose_log, int log_skip)
+ * and then only -v logs it.
+ *
+ * A cartridge the library already holds is taken over when this bay's disk
+ * carries its barcode: one placed before the monitor (re)started, by an
+ * earlier monitor or by mhvtl-raw-provision. Without that, pulling the disk
+ * would leave the cartridge in the library with nothing behind it. A barcode
+ * another bay placed is a duplicate disk and is left alone. */
+static void handle_add(struct bay_mon *mons, size_t n, struct bay_mon *mon,
+		       int verbose_log, int log_skip)
 {
 	struct raw_bay_result res;
+	struct mhvtl_raw_probe pr;
+	const struct bay_mon *owner;
+
+	if (raw_probe(mon->bay->by_path, &pr) == 0 &&
+	    (owner = owner_of(mons, n, mon, pr.barcode)) != NULL) {
+		MHVTL_LOG("bay %s not placed: %s is already placed from bay %s",
+			  mon->bay->by_path, pr.barcode, owner->bay->by_path);
+		return;
+	}
 
 	if (raw_bay_place_one(mon->bay, &res, verbose_log) == 0 && res.placed) {
 		snprintf(mon->placed_barcode, sizeof(mon->placed_barcode),
@@ -130,9 +162,15 @@ static void handle_add(struct bay_mon *mon, int verbose_log, int log_skip)
 		mon->has_placed = 1;
 		MHVTL_LOG("placed %s (library %d MAP, bay %s)",
 			  res.barcode, mon->bay->library_id, mon->bay->by_path);
+	} else if (res.already_present) {
+		snprintf(mon->placed_barcode, sizeof(mon->placed_barcode),
+			 "%s", res.barcode);
+		mon->has_placed = 1;
+		MHVTL_LOG("%s already in library %d, tracking it for bay %s",
+			  res.barcode, mon->bay->library_id, mon->bay->by_path);
 	} else {
-		/* Non-MVTL / unreadable / duplicate / library refusal: a skip,
-		 * not an error. Report the reason and leave the bay unplaced. */
+		/* Non-MVTL / unreadable / library refusal: a skip, not an
+		 * error. Report the reason and leave the bay unplaced. */
 		if (log_skip || verbose_log)
 			MHVTL_LOG("bay %s not placed: %s", mon->bay->by_path,
 				  res.skip_reason ? res.skip_reason
@@ -202,7 +240,7 @@ static void coldplug(struct udev *udev, struct bay_mon *mons, size_t n,
 		devnode = udev_device_get_devnode(dev);
 		idx = match_bay(mons, n, id_path, devnode);
 		if (idx >= 0)
-			handle_add(&mons[idx], verbose_log, 1);
+			handle_add(mons, n, &mons[idx], verbose_log, 1);
 
 		udev_device_unref(dev);
 	}
@@ -236,13 +274,13 @@ static void drain_events(struct udev_monitor *mon, struct bay_mon *mons,
 		}
 
 		if (strcmp(action, "add") == 0)
-			handle_add(&mons[idx], verbose_log, 1);
+			handle_add(mons, n, &mons[idx], verbose_log, 1);
 		else if (strcmp(action, "remove") == 0)
 			handle_remove(&mons[idx], verbose_log);
 		else if (strcmp(action, "change") == 0 && !mons[idx].has_placed)
 			/* A placed cartridge changes every time the drive
 			 * closes it; only an empty bay is worth a probe. */
-			handle_add(&mons[idx], verbose_log, 0);
+			handle_add(mons, n, &mons[idx], verbose_log, 0);
 		/* everything else: ignore. */
 
 		udev_device_unref(dev);
