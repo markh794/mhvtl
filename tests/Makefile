@@ -29,6 +29,8 @@ CRC_SRC  = ../usr/utils/crc32c.c
 # All test binaries
 TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo test_q_reply test_q_send test_media_home test_dump_tape_output
 
+TESTS += test_dump_tape_options
+
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
 SCRIPT_TESTS += make_vtl_media_home.sh
@@ -111,6 +113,11 @@ test_vtlcmd_parsing: test_vtlcmd_parsing.c acutest.h vtlcmd_testobj.o
 # find_media_home_directory() from libvtlscsi: per-library home lookup
 test_media_home: test_media_home.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_media_home.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
+# dump_tape / preload_tape option parsing against an empty cartridge
+test_dump_tape_options: test_dump_tape_options.c acutest.h helpers/device_conf_gen.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_dump_tape_options.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
 test_dump_tape_output: test_dump_tape_output.c acutest.h ../usr/libvtlscsi.so
