@@ -192,6 +192,12 @@ static size_t test_update_VolumeStatistics(struct VolumeStatistics_pg *pg, struc
 
 	/* Return total packed page size */
 	header += sizeof(struct pc_header) + ((struct pc_header *)header)->len;
+
+	/* The template carries PAGE LENGTH for MAX_PARTITIONS partitions; the
+	 * page is packed for fewer, so count what follows the page header.
+	 */
+	put_unaligned_be16((header - (uint8_t *)pg) - sizeof(struct log_pg_header),
+					   &pg->pcode_head.len);
 	return (size_t)(header - (uint8_t *)pg);
 }
 
@@ -424,6 +430,16 @@ void test_volstat_returned_size(void) {
 	TEST_CHECK(full_sz == sizeof(pg));
 	TEST_MSG("With MAX_PARTITIONS, returned size (%zu) == sizeof(pg) (%zu)",
 			 full_sz, sizeof(pg));
+
+	/* PAGE LENGTH counts everything after the 4-byte page header */
+	for (int npart = 0; npart <= MAX_PARTITIONS; npart++) {
+		memset(&pg, 0, sizeof(pg));
+		mam.num_partitions = npart;
+		size_t sz = test_update_VolumeStatistics(&pg, &priv);
+		TEST_CHECK(get_unaligned_be16(&pg.pcode_head.len) + 4u == sz);
+		TEST_MSG("npart=%d: PAGE LENGTH %u + 4 != returned size %zu",
+				 npart, get_unaligned_be16(&pg.pcode_head.len), sz);
+	}
 }
 
 /*
