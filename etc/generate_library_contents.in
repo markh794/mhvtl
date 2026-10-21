@@ -69,7 +69,7 @@ MAP 4:
 # Trailing "LT" - LTO 3 WORM, "LU" -  LTO 4 WORM, "LV" - LTO 5 WORM
 # Trailing "L6" - LTO 6, "LW" - LTO 6 WORM
 # Trailing "L7" - LTO 7, "LX" - LTO 7 WORM
-# Trailing "L8" - LTO 8, "LY" - LTO 8 WORM
+# Trailing "L8" - LTO 8, "LY" - LTO 8 WORM, "M8" - LTO 7 media in LTO 8 Type M format
 # Trailing "L9" - LTO 9, "LZ" - LTO 9 WORM
 # Trailing "LA" - LTO 10, "LH" - LTO 10 WORM, "PA" - LTO 10 Premium
 # Trailing "TA" - T10000+
