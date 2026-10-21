@@ -61,6 +61,19 @@ The disk must already be formatted as a raw cartridge (here: barcode
    Verify `/opt/mhvtl/RAW099L8 -> .../scsi-0:0:0:1` exists and the MAP slot is
    `Full :VolumeTag=RAW099L8`.
 
+   **Format in the bay** (optional): hot-add a blank disk instead. The
+   monitor logs nothing for it at add time beyond `not placed: no readable
+   MVTL cartridge in bay`. Format it where it sits:
+
+       mhvtl-raw-format /dev/disk/by-path/pci-0000:06:05.0-scsi-0:0:0:1 \
+           --barcode RAW099L8
+
+   Closing the device after the format makes udev report a `change`, and the
+   monitor probes the empty bay again and places the cartridge, with the same
+   `handle_add(): placed RAW099L8` line. A bay that already holds a placed
+   cartridge ignores `change`, which the drive causes every time it closes
+   the device.
+
 4. **Hot-remove** the disk and watch the monitor eject it (remove uses the
    barcode the monitor stored at placement — the gone device cannot be
    re-probed):
