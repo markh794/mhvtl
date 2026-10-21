@@ -26,6 +26,7 @@
 
 #include "mhvtl_scsi.h"		/* SAM_STAT_GOOD */
 #include "vtllib.h"		/* home_directory, mam, struct MAM */
+#include "be_byteshift.h"
 #include "vtlcart.h"		/* load_tape/unload_tape/write/read/rewind */
 #include "cart_backend.h"
 #include "cart_backend_raw.h"
@@ -78,6 +79,19 @@ int main(int argc, char **argv)
 	CHECK(rc == 0 && ss == SAM_STAT_GOOD, "load_tape() loads the raw cartridge");
 	CHECK(cart_be == &cart_backend_raw, "raw backend selected via S_ISBLK");
 	CHECK(mam.num_partitions >= 1, "partition count came from the superblock");
+
+	/* The format wrote a MAM: without a media type and a capacity the drive
+	 * reports end of medium on the first write. The harness formats an L8
+	 * barcode with a 92,8 split. */
+	uint64_t cap_sum = 0;
+	for (int p = 0; p < mam.num_partitions; p++)
+		cap_sum += get_unaligned_be64(&mam.partition_capacity[p]);
+	CHECK(mam.MediumType == MEDIA_TYPE_DATA && mam.MediaType == Media_LTO8,
+	      "MAM media type taken from the L8 barcode suffix");
+	CHECK(get_unaligned_be64(&mam.max_capacity) > 0 &&
+	      get_unaligned_be64(&mam.partition_capacity[1]) > 0 &&
+	      get_unaligned_be64(&mam.max_capacity) == cap_sum,
+	      "MAM capacity is the sum of the recorded partition capacities");
 
 	/* 2. Write a data block at BOT through the tape layer. */
 	rewind_tape(&ss);
