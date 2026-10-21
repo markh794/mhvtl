@@ -31,6 +31,8 @@ struct raw_bay_result {
 	char		 barcode[33];	/* probed barcode (placed/valid bays)     */
 	const char	*skip_reason;	/* why the bay was skipped, else NULL     */
 	char		 reply_msg[64];	/* storage for a library rejection reply  */
+	int		 already_present; /* library already holds this barcode, */
+					  /* which the symlink resolves to the bay */
 };
 
 /*
