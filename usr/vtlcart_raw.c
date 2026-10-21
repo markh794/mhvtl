@@ -711,50 +711,49 @@ out:
 	return ret;
 }
 
-static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
+/*
+ * Decode the MAM region of the cartridge described by superblock s, read
+ * through fd, into mamp. Shared by the loaded-cartridge path (load_mam) and
+ * raw_read_mam(), which has no loaded cartridge.
+ */
+static int raw_mam_from_region(int fd, const struct mhvtl_raw_superblock *s,
+			       struct MAM *mamp)
 {
 	int mfd = -1, hfd = -1, ret = -1;
 	uint32_t hdr[2];
 	uint8_t *buf = NULL;
 	uint64_t mlen, hlen;
 
-	(void)sam_stat;
-
-	if (!sb_loaded || devfd < 0) {
-		errno = EBADF;
-		return -1;
-	}
-
-	if (sb.mam_len == 0) {
+	if (s->mam_len == 0) {
 		/* Freshly formatted cartridge: no MAM yet. Present a current,
 		 * empty MAM so load proceeds without legacy-format migration. */
 		mamp->mam_fmt_version = MAM_VERSION;
 		mamp->tape_fmt_version = TAPE_FMT_VERSION;
 		return 0;
 	}
-	if (sb.mam_len < sizeof(hdr) || sb.mam_len > MVTL_MAM_RESERVE) {
-		MHVTL_ERR("raw load_mam: implausible mam_len %llu",
-			  (unsigned long long)sb.mam_len);
+	if (s->mam_len < sizeof(hdr) || s->mam_len > MVTL_MAM_RESERVE) {
+		MHVTL_ERR("raw MAM: implausible mam_len %llu",
+			  (unsigned long long)s->mam_len);
 		errno = EINVAL;
 		return -1;
 	}
 
-	buf = malloc((size_t)sb.mam_len);
+	buf = malloc((size_t)s->mam_len);
 	if (!buf) {
 		errno = ENOMEM;
 		return -1;
 	}
-	if (read_exact_at(devfd, buf, (size_t)sb.mam_len,
-			  (off_t)sb.mam_off) < 0) {
-		MHVTL_ERR("raw load_mam: MAM region read failed: %s",
+	if (read_exact_at(fd, buf, (size_t)s->mam_len,
+			  (off_t)s->mam_off) < 0) {
+		MHVTL_ERR("raw MAM: MAM region read failed: %s",
 			  strerror(errno));
 		goto out;
 	}
 	memcpy(hdr, buf, sizeof(hdr));
 	mlen = hdr[0];
 	hlen = hdr[1];
-	if (sizeof(hdr) + mlen + hlen > sb.mam_len) {
-		MHVTL_ERR("raw load_mam: MAM sub-stream lengths overflow region");
+	if (sizeof(hdr) + mlen + hlen > s->mam_len) {
+		MHVTL_ERR("raw MAM: MAM sub-stream lengths overflow region");
 		errno = EINVAL;
 		goto out;
 	}
@@ -762,12 +761,12 @@ static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
 	mfd = memfd_create("mhvtl-mam", 0);
 	hfd = memfd_create("mhvtl-mhvtl", 0);
 	if (mfd < 0 || hfd < 0) {
-		MHVTL_ERR("raw load_mam: memfd_create failed: %s", strerror(errno));
+		MHVTL_ERR("raw MAM: memfd_create failed: %s", strerror(errno));
 		goto out;
 	}
 	if (write_exact(mfd, buf + sizeof(hdr), (size_t)mlen) < 0 ||
 	    write_exact(hfd, buf + sizeof(hdr) + mlen, (size_t)hlen) < 0) {
-		MHVTL_ERR("raw load_mam: staging MAM sub-streams failed: %s",
+		MHVTL_ERR("raw MAM: staging MAM sub-streams failed: %s",
 			  strerror(errno));
 		goto out;
 	}
@@ -775,7 +774,7 @@ static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
 	lseek(hfd, 0, SEEK_SET);
 
 	if (read_mam(mfd, hfd, mamp) < 0) {
-		MHVTL_ERR("raw load_mam: read_mam failed");
+		MHVTL_ERR("raw MAM: read_mam failed");
 		goto out;
 	}
 	ret = 0;
@@ -785,6 +784,48 @@ out:
 		close(mfd);
 	if (hfd >= 0)
 		close(hfd);
+	return ret;
+}
+
+static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
+{
+	(void)sam_stat;
+
+	if (!sb_loaded || devfd < 0) {
+		errno = EBADF;
+		return -1;
+	}
+	return raw_mam_from_region(devfd, &sb, mamp);
+}
+
+/*
+ * Read the MAM of the raw cartridge on devpath without loading it. Opens the
+ * device O_RDONLY (no O_EXCL), so it works while a drive holds the cartridge,
+ * and leaves the backend state untouched. mamp must be init_mam()'d. Returns
+ * 0 on success, -1 on error.
+ */
+int raw_read_mam(const char *devpath, struct MAM *mamp)
+{
+	struct mhvtl_raw_superblock primary, mirror;
+	const struct mhvtl_raw_superblock *pick;
+	int fd, vp, vm, ret;
+
+	fd = open(devpath, O_RDONLY | O_LARGEFILE);
+	if (fd < 0)
+		return -1;
+
+	vp = sb_read_at(fd, MVTL_SB_PRIMARY_OFF, &primary);
+	vm = sb_read_at(fd, MVTL_SB_MIRROR_OFF, &mirror);
+	if (!vp && !vm) {
+		close(fd);
+		errno = EINVAL;
+		return -1;
+	}
+	pick = (vp && (!vm || primary.generation_id >= mirror.generation_id)) ?
+		&primary : &mirror;
+
+	ret = raw_mam_from_region(fd, pick, mamp);
+	close(fd);
 	return ret;
 }
 
