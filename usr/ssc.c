@@ -1968,7 +1968,8 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd) {
 	if (count) /* A count of zero is a buffer flush, not a change of content */
 		update_volume_change_reference(lu_priv, sam_stat);
 
-	write_filemarks(count, sam_stat);
+	if (write_filemarks(count, sam_stat))
+		return *sam_stat;	/* MEDIUM ERROR, already set */
 	if (count) {
 		if (current_tape_offset() >=
 			medium_partition_capacity(lu, c_pos->partition_id)) {
