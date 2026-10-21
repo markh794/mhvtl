@@ -1850,7 +1850,8 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	nwrite = cart_be->pwrite(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 					blk_number * sizeof(raw_pos));
 	if (nwrite != sizeof(raw_pos)) {
-		long indxsz = (blk_number - 1) * sizeof(raw_pos);
+		/* Back to the index as it was before this write. */
+		off_t indxsz = (off_t)blk_number * sizeof(raw_pos);
 
 		sam_medium_error(E_WRITE_ERROR, sam_stat);
 
@@ -1858,7 +1859,7 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 				  (uint64_t)blk_number * sizeof(raw_pos),
 				  strerror(errno));
 
-		MHVTL_DBG(1, "Truncating index file size to: %ld", indxsz);
+		MHVTL_DBG(1, "Truncating index file size to: %" PRId64, (int64_t)indxsz);
 		if (cart_be->truncate(CART_STREAM_INDX, c_pos->partition_id, indxsz) < 0) {
 			MHVTL_ERR("Error truncating indx: %s", strerror(errno));
 		}

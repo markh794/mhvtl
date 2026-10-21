@@ -28,6 +28,7 @@ CRC_SRC  = ../usr/utils/crc32c.c
 
 # All test binaries
 TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo test_q_reply test_q_send test_media_home test_dump_tape_output
+TESTS += test_indx_rollback
 
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
@@ -110,6 +111,11 @@ test_vtlcmd_parsing: test_vtlcmd_parsing.c acutest.h vtlcmd_testobj.o
 # find_media_home_directory() from libvtlscsi: per-library home lookup
 test_media_home: test_media_home.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_media_home.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
+# A failed index write in write_tape_block() rolls back to the prior index
+test_indx_rollback: test_indx_rollback.c acutest.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_indx_rollback.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
 test_dump_tape_output: test_dump_tape_output.c acutest.h ../usr/libvtlscsi.so
