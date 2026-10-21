@@ -113,7 +113,8 @@ test_media_home: test_media_home.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_media_home.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
-# A failed index write in write_tape_block() rolls back to the prior index
+# A failed index write in write_tape_block() or write_filemarks() rolls back
+# to the prior index
 test_indx_rollback: test_indx_rollback.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_indx_rollback.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'

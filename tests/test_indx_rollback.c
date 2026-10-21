@@ -1,7 +1,8 @@
 /*
- * A failed index write in write_tape_block() must roll the cartridge back to
- * exactly the state before that call: the index keeps every earlier entry
- * and EOD stays at the last good block.  It used to truncate the index to
+ * A failed index write in write_tape_block() or write_filemarks() must roll
+ * the cartridge back to exactly the state before that call: the index keeps
+ * every earlier entry, the filemark map is unchanged and EOD stays at the
+ * last good block.  write_tape_block() used to truncate the index to
  * (blk_number - 1) entries, dropping the last good block's entry as well.
  *
  * The failure is injected by wrapping the file backend's pwrite() so one
@@ -13,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include <ftw.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -32,12 +34,18 @@ static struct cart_backend *orig_be;
 static struct cart_backend real_be;
 static struct cart_backend fault_be;
 static int		   fail_indx_skip = -1;	/* index writes to pass first; -1 = off */
-static char		   dir[256];
+static int		   fail_meta_write;	/* fail the next meta pwrite, once */
+static char		   dir[PATH_MAX];
 
 static ssize_t fault_pwrite(enum cart_stream s, int partition, const void *buf,
 			    size_t len, off_t off)
 {
 	if (s == CART_STREAM_INDX && fail_indx_skip >= 0 && fail_indx_skip-- == 0) {
+		errno = ENOSPC;
+		return -1;
+	}
+	if (s == CART_STREAM_META && fail_meta_write) {
+		fail_meta_write = 0;
 		errno = ENOSPC;
 		return -1;
 	}
@@ -55,10 +63,17 @@ static void inject_indx_fault(int skip)
 	fail_indx_skip	= skip;
 }
 
+static void inject_meta_fault(void)
+{
+	inject_indx_fault(-1);
+	fail_meta_write = 1;
+}
+
 static void clear_indx_fault(void)
 {
 	cart_be		= orig_be;
 	fail_indx_skip	= -1;
+	fail_meta_write	= 0;
 }
 
 static int rm_entry(const char *path, const struct stat *sb, int type, struct FTW *ftw)
@@ -95,7 +110,7 @@ static void drop_tape(uint8_t *ss)
 
 static off_t indx_size(void)
 {
-	char	    path[512];
+	char	    path[PATH_MAX + 32];
 	struct stat st;
 
 	snprintf(path, sizeof(path), "%s/" PCL "/indx.0", dir);
@@ -192,7 +207,83 @@ static void test_failed_index_write_on_first_block(void)
 	check_failed_block_write(0);
 }
 
+static void test_failed_filemark_write_rolls_back_all(void)
+{
+	uint8_t ss = SAM_STAT_GOOD;
+	uint8_t buf[BLK];
+	off_t	unit;
+
+	new_tape(&ss);
+	TEST_ASSERT(write_blk('a', &ss) == 0);
+	unit = indx_size();
+	TEST_ASSERT(write_filemarks(1, &ss) == 0);	/* an earlier filemark survives */
+	TEST_CHECK(count_filemarks(-1) == 1);
+	TEST_CHECK(indx_size() == 2 * unit);
+
+	/* Three filemarks; the second index write fails. */
+	inject_indx_fault(1);
+	ss = SAM_STAT_GOOD;
+	TEST_CHECK(write_filemarks(3, &ss) != 0);
+	clear_indx_fault();
+	expect_medium_error_write(&ss);
+
+	TEST_CHECK(indx_size() == 2 * unit);
+	TEST_CHECK(count_filemarks(-1) == 1);
+	TEST_CHECK(current_tape_block() == 2);
+
+	unload_tape(&ss);
+	ss = SAM_STAT_GOOD;
+	TEST_ASSERT(load_tape(PCL, &ss) == 0);
+	TEST_CHECK(count_filemarks(-1) == 1);
+	TEST_CHECK(position_to_eod(&ss) == 0);
+	TEST_CHECK(current_tape_block() == 2);
+
+	/* The tape is still writable at EOD. */
+	TEST_CHECK(write_filemarks(2, &ss) == 0);
+	TEST_CHECK(count_filemarks(-1) == 3);
+	TEST_CHECK(indx_size() == 4 * unit);
+	TEST_CHECK(rewind_tape(&ss) == 1);
+	expect_read('a', &ss);
+	ss = SAM_STAT_GOOD;
+	TEST_CHECK(read_tape_block(buf, BLK, &ss) != BLK);	/* filemark */
+
+	drop_tape(&ss);
+}
+
+static void test_failed_meta_write_rolls_back_filemarks(void)
+{
+	uint8_t ss = SAM_STAT_GOOD;
+	off_t	unit;
+
+	new_tape(&ss);
+	TEST_ASSERT(write_blk('a', &ss) == 0);
+	unit = indx_size();
+	TEST_ASSERT(write_filemarks(1, &ss) == 0);
+
+	/* All index writes succeed; the meta file rewrite fails. */
+	inject_meta_fault();
+	ss = SAM_STAT_GOOD;
+	TEST_CHECK(write_filemarks(2, &ss) != 0);
+	clear_indx_fault();
+	expect_medium_error_write(&ss);
+
+	TEST_CHECK(indx_size() == 2 * unit);
+	TEST_CHECK(count_filemarks(-1) == 1);
+	TEST_CHECK(current_tape_block() == 2);
+
+	unload_tape(&ss);
+	ss = SAM_STAT_GOOD;
+	TEST_ASSERT(load_tape(PCL, &ss) == 0);
+	TEST_CHECK(count_filemarks(-1) == 1);
+	TEST_CHECK(position_to_eod(&ss) == 0);
+	TEST_CHECK(current_tape_block() == 2);
+
+	drop_tape(&ss);
+}
+
 TEST_LIST = {
 	{"failed_index_write_keeps_prior_entries", test_failed_index_write_keeps_prior_entries},
 	{"failed_index_write_on_first_block", test_failed_index_write_on_first_block},
+	{"failed_filemark_write_rolls_back_all", test_failed_filemark_write_rolls_back_all},
+	{"failed_meta_write_rolls_back_filemarks", test_failed_meta_write_rolls_back_filemarks},
 	{NULL, NULL}};

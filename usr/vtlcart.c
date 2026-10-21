@@ -1658,13 +1658,34 @@ int format_tape(uint8_t *sam_stat) {
 }
 
 /*
+ * Undo a partly written write_filemarks(): back to the index, the filemark
+ * map and EOD as they were before the call, and report MEDIUM ERROR.  Best
+ * effort: a failure here is logged and the caller still returns -1.  The
+ * meta file is rewritten first so that a crash before the index truncate
+ * leaves meta pointing only at blocks that exist.
+ */
+static void rollback_filemarks(uint32_t blk_number, uint32_t filemark_count,
+							   uint64_t data_offset, uint8_t *sam_stat) {
+	sam_medium_error(E_WRITE_ERROR, sam_stat);
+
+	meta[c_pos->partition_id].filemark_count = filemark_count;
+	if (rewrite_meta_file())
+		MHVTL_ERR("Error rewriting meta file during filemark rollback");
+
+	if (cart_be->truncate(CART_STREAM_INDX, c_pos->partition_id, (off_t)blk_number * sizeof(raw_pos)) < 0)
+		MHVTL_ERR("Error truncating indx: %s", strerror(errno));
+
+	mkEODHeader(blk_number, data_offset);
+}
+
+/*
  * Returns:
  * == 0, success
  * != 0, failure
  */
 
 int write_filemarks(uint32_t count, uint8_t *sam_stat) {
-	uint32_t blk_number;
+	uint32_t blk_number, start_blk, start_fm_count;
 	uint32_t partition_id;
 	uint64_t data_offset;
 	ssize_t	 nwrite;
@@ -1698,6 +1719,8 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	blk_number	 = c_pos->blk_number;
 	partition_id = c_pos->partition_id;
 	data_offset	 = raw_pos.data_offset;
+	start_blk	 = blk_number;
+	start_fm_count = meta[partition_id].filemark_count;
 
 	memset(&raw_pos, 0, sizeof(raw_pos));
 
@@ -1720,20 +1743,24 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 		nwrite = cart_be->pwrite(CART_STREAM_INDX, c_pos->partition_id, &raw_pos, sizeof(raw_pos),
 						blk_number * sizeof(raw_pos));
 		if (nwrite != sizeof(raw_pos)) {
-			sam_medium_error(E_WRITE_ERROR, sam_stat);
 			MHVTL_ERR("Index file write failure,"
 					  " pos: %" PRId64 ": %s",
 					  (uint64_t)blk_number * sizeof(raw_pos),
 					  strerror(errno));
+			rollback_filemarks(start_blk, start_fm_count, data_offset, sam_stat);
 			return -1;
 		}
-		if (add_filemark_locked(blk_number))
+		if (add_filemark_locked(blk_number)) {
+			rollback_filemarks(start_blk, start_fm_count, data_offset, sam_stat);
 			return -1;
+		}
 	}
 
 	/* One rewrite of the meta file covers every filemark just added. */
-	if (rewrite_meta_file())
+	if (rewrite_meta_file()) {
+		rollback_filemarks(start_blk, start_fm_count, data_offset, sam_stat);
 		return -1;
+	}
 
 	/* Provide the force-flush guarantee. */
 
