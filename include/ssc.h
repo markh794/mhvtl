@@ -71,7 +71,7 @@ struct ssc_personality_template {
 	int (*encryption_capabilities)(struct scsi_cmd *cmd);
 
 	/* SPOUT -> Validation KAD info is correct */
-	int (*kad_validation)(int encrypt_mode, int akad, int ukad);
+	int (*kad_validation)(int encrypt_mode, int ukad, int akad);
 
 	/* Update mode page for encryption capabilities */
 	uint8_t (*update_encryption_mode)(struct list_head *m, void *p, int mode);
@@ -182,6 +182,7 @@ struct priv_lu_ssc {
 	uint32_t		   KEY_INSTANCE_COUNTER;
 	uint32_t		   DECRYPT_MODE;
 	uint32_t		   ENCRYPT_MODE;
+	uint8_t			   encryption_ckod;
 	struct encryption *app_encr_info;
 
 	struct list_head supported_media_list;

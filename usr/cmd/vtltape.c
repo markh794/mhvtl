@@ -101,6 +101,24 @@ char mhvtl_driver_name[] = "vtltape";
 #include <zlib.h>
 #include "minilzo.h"
 
+#define ENCRYPTION_SCOPE_ALL_I_T_NEXUS 2
+
+static void clear_sensitive(void *ptr, size_t len) {
+	volatile uint8_t *p = ptr;
+
+	while (len--)
+		*p++ = 0;
+}
+
+static void clear_encryption_parameters(struct priv_lu_ssc *lu_priv) {
+	clear_sensitive(&app_encryption_state, sizeof(app_encryption_state));
+	lu_priv->KEY_INSTANCE_COUNTER++; /* parameters changed */
+	lu_priv->DECRYPT_MODE	 = 0;
+	lu_priv->ENCRYPT_MODE	 = 0;
+	lu_priv->encryption_ckod = 0;
+	lu_priv->app_encr_info	 = &app_encryption_state;
+}
+
 static uint8_t last_cmd;
 
 /* Suppress Incorrect Length Indicator */
@@ -884,25 +902,27 @@ static int resp_spin_page_20(struct scsi_cmd *cmd) {
 	case ENCR_KEY_MGT_CAPABILITIES:
 		put_unaligned_be16(ENCR_KEY_MGT_CAPABILITIES, &buf[0]);
 		put_unaligned_be16(0x0c, &buf[2]); /* List length */
-		buf[4] = 1;						   /* LOCK_C */
-		buf[5] = 7;						   /* CKOD_C, DKOPR_C, CKORL_C */
+		/* One daemon-wide state is shared by all I_T nexuses. */
+		buf[4] = 0;						   /* LOCK_C */
+		buf[5] = 0x04;					   /* CKOD_C */
 		buf[6] = 0;						   /* Reserved */
-		buf[7] = 7;						   /* AITN_C, LOCAL_C, PUBLIC_C */
+		buf[7] = 0x04;					   /* AITN_C */
 		/* buf 8 - 15 reserved */
 		ret = 16;
 		break;
 
 	case ENCR_DATA_ENCR_STATUS:
 		put_unaligned_be16(ENCR_DATA_ENCR_STATUS, &buf[0]);
-		put_unaligned_be16(0x20, &buf[2]); /* List length */
-		buf[4] = 0x21;					   /* I_T Nexus scope and Key Scope */
+		put_unaligned_be16(20, &buf[2]); /* List length */
+		buf[4] = (ENCRYPTION_SCOPE_ALL_I_T_NEXUS << 5) |
+				 ENCRYPTION_SCOPE_ALL_I_T_NEXUS;
 		buf[5] = lu_priv->ENCRYPT_MODE;
 		buf[6] = lu_priv->DECRYPT_MODE;
 		buf[7] = 0x01; /* Algorithm Index */
 		put_unaligned_be32(lu_priv->KEY_INSTANCE_COUNTER, &buf[8]);
 		ret = 24;
 		i	= 24;
-		if (UKAD_LENGTH) {
+		if ((lu_priv->ENCRYPT_MODE || lu_priv->DECRYPT_MODE) && UKAD_LENGTH) {
 			buf[3] += 4 + UKAD_LENGTH;
 			buf[i++] = 0x00;
 			buf[i++] = 0x00;
@@ -913,7 +933,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd) {
 
 			ret += 4 + UKAD_LENGTH;
 		}
-		if (AKAD_LENGTH) {
+		if ((lu_priv->ENCRYPT_MODE || lu_priv->DECRYPT_MODE) && AKAD_LENGTH) {
 			buf[3] += 4 + AKAD_LENGTH;
 			buf[i++] = 0x01;
 			buf[i++] = 0x00;
@@ -1045,8 +1065,14 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 	uint8_t			   *buf		 = (uint8_t *)cmd->dbuf_p->data;
 	struct lu_phy_attr *lu;
 	struct priv_lu_ssc *lu_priv;
-	unsigned int		count;
 	struct s_sd			sd;
+	struct encryption	new_encryption;
+	uint32_t			new_encrypt_mode;
+	uint32_t			new_decrypt_mode;
+	size_t				page_len;
+	size_t				offset;
+	uint8_t				seen_kad = 0;
+	uint8_t				ret		 = SAM_STAT_CHECK_CONDITION;
 #ifdef MHVTL_DEBUG
 	uint16_t sps	 = get_unaligned_be16(&cmd->scb[2]);
 	uint8_t	 inc_512 = (cmd->scb[4] & 0x80) ? 1 : 0;
@@ -1054,19 +1080,24 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 
 	lu		= cmd->lu;
 	lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+	memset(&new_encryption, 0, sizeof(new_encryption));
 
 	if (cmd->scb[1] != TAPE_DATA_ENCRYPTION) {
 		MHVTL_DBG(1, "Security protocol 0x%02x unknown", cmd->scb[1]);
 		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
 		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
+		goto out;
 	}
 	MHVTL_DBG(2, "Tape Data Encryption, %s, "
 				 " alloc len: 0x%02x, inc_512: %s",
 			  lookup_sp_specific(sps),
 			  cmd->dbuf_p->sz, (inc_512) ? "Set" : "Unset");
 
+	if (cmd->dbuf_p->sz < 20) {
+		sam_illegal_request(E_PARAMETER_LIST_LENGTH_ERR, NULL, sam_stat);
+		goto out;
+	}
 	/* check for a legal "set data encryption page" */
 	if ((buf[0] != 0x00) || (buf[1] != 0x10) ||
 		(buf[2] != 0x00) || (buf[3] < 16) ||
@@ -1086,81 +1117,133 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 		if (buf[0])
 			sd.field_pointer = 0;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
+		goto out;
+	}
+
+	page_len = get_unaligned_be16(&buf[2]) + 4;
+	if (page_len < 20 || page_len > cmd->dbuf_p->sz) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = 2;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
+	}
+	/* A process-wide key can only implement an all-I_T-nexus scope, and
+	 * LOCK, CKORP and CKORL are not advertised. CEEM, RDMC and SDK are
+	 * accepted and ignored as before (stenc always sends CEEM = 01b).
+	 */
+	if ((buf[4] >> 5) != ENCRYPTION_SCOPE_ALL_I_T_NEXUS || (buf[4] & 0x01)) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = 4;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
+	}
+	if ((buf[5] & 0x03) ||
+		((buf[5] & 0x04) && get_tape_load_status() != TAPE_LOADED)) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = 5;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
+	}
+	new_encrypt_mode = buf[6];
+	new_decrypt_mode = buf[7];
+	if (new_encrypt_mode > 2 || new_decrypt_mode > 3) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = new_encrypt_mode > 2 ? 6 : 7;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
 	}
 
 	/* LOGICAL BLOCK ENCRYPTION KEY LENGTH is 0000h or 0020h for key format
 	 * 00h; anything longer would run off the end of the key field.
 	 */
-	if (get_unaligned_be16(&buf[18]) > ENCR_KEY_MAX_LEN) {
+	new_encryption.key_length = get_unaligned_be16(&buf[18]);
+	if (new_encryption.key_length != 0 &&
+		new_encryption.key_length != ENCR_KEY_MAX_LEN) {
 		MHVTL_DBG(1, "Key length %d exceeds %d",
 				  get_unaligned_be16(&buf[18]), ENCR_KEY_MAX_LEN);
 		sd.byte0		 = SKSV;
 		sd.field_pointer = 18;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
+		goto out;
 	}
-
-	lu_ssc.KEY_INSTANCE_COUNTER++;
-	lu_ssc.ENCRYPT_MODE = buf[6];
-	lu_ssc.DECRYPT_MODE = buf[7];
-	UKAD_LENGTH			= 0;
-	AKAD_LENGTH			= 0;
-	KEY_LENGTH			= get_unaligned_be16(&buf[18]);
-	for (count = 0; count < KEY_LENGTH; ++count) {
-		KEY[count] = buf[20 + count];
+	if (20 + new_encryption.key_length > page_len) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = 18;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
 	}
+	/* GA32-0928-07 Table 418 (p.464): a key is mandatory to encrypt or decrypt */
+	if (!new_encryption.key_length &&
+		(new_encrypt_mode == 2 || new_decrypt_mode >= 2)) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = 18;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
+	}
+	memcpy(new_encryption.key, &buf[20], new_encryption.key_length);
 
 	MHVTL_DBG(2, "Encrypt mode: %d Decrypt mode: %d, "
 				 "ukad len: %d akad len: %d",
-			  lu_ssc.ENCRYPT_MODE, lu_ssc.DECRYPT_MODE,
-			  UKAD_LENGTH, AKAD_LENGTH);
+			  new_encrypt_mode, new_decrypt_mode,
+			  new_encryption.ukad_length, new_encryption.akad_length);
 
-	if (cmd->dbuf_p->sz > (19 + KEY_LENGTH + 4)) {
-		uint16_t kad_len = get_unaligned_be16(&buf[22 + KEY_LENGTH]);
+	offset = 20 + new_encryption.key_length;
+	while (offset < page_len) {
+		uint16_t kad_len;
+		uint8_t	 kad_type;
 
-		/* Key associated data goes into fixed size fields as well */
-		if (kad_len > ENCR_KEY_MAX_LEN) {
-			MHVTL_DBG(1, "KAD length %d exceeds %d", kad_len, ENCR_KEY_MAX_LEN);
+		if (page_len - offset < 4) {
 			sd.byte0		 = SKSV;
-			sd.field_pointer = 22 + KEY_LENGTH;
+			sd.field_pointer = offset;
 			sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
-			return SAM_STAT_CHECK_CONDITION;
+			goto out;
 		}
-
-		if (buf[20 + KEY_LENGTH] == 0x00) {
-			MHVTL_DBG(2, "Unauthenticated Key Associated Data (UKAD) provided");
-			UKAD_LENGTH = kad_len;
-			for (count = 0; count < UKAD_LENGTH; ++count) {
-				UKAD[count] = buf[24 + KEY_LENGTH + count];
-			}
-		} else if (buf[20 + KEY_LENGTH] == 0x01) {
-			MHVTL_DBG(2, "Authenticated Key Associated Data (AKAD) provided");
-			AKAD_LENGTH = kad_len;
-			for (count = 0; count < AKAD_LENGTH; ++count) {
-				AKAD[count] = buf[24 + KEY_LENGTH + count];
-			}
+		kad_type = buf[offset];
+		kad_len	 = get_unaligned_be16(&buf[offset + 2]);
+		if (buf[offset + 1] || kad_type > 1 || (seen_kad & (1 << kad_type)) ||
+			kad_len > ENCR_KEY_MAX_LEN || kad_len > page_len - offset - 4) {
+			sd.byte0 = SKSV;
+			if (kad_type > 1 || (seen_kad & (1 << kad_type)))
+				sd.field_pointer = offset;
+			else if (buf[offset + 1])
+				sd.field_pointer = offset + 1;
+			else
+				sd.field_pointer = offset + 2;
+			sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+			goto out;
 		}
+		seen_kad |= 1 << kad_type;
+		if (kad_type == 0) {
+			new_encryption.ukad_length = kad_len;
+			memcpy(new_encryption.ukad, &buf[offset + 4], kad_len);
+		} else {
+			new_encryption.akad_length = kad_len;
+			memcpy(new_encryption.akad, &buf[offset + 4], kad_len);
+		}
+		offset += 4 + kad_len;
 	}
-
-	count = lu_priv->pm->kad_validation(lu_ssc.ENCRYPT_MODE, UKAD_LENGTH, AKAD_LENGTH);
-
-	/* For some reason, this command needs to be failed */
-	if (count) {
-		lu_ssc.KEY_INSTANCE_COUNTER--;
-		lu_ssc.ENCRYPT_MODE = 0;
-		lu_ssc.DECRYPT_MODE = buf[7];
-		UKAD_LENGTH			= 0;
-		AKAD_LENGTH			= 0;
-		KEY_LENGTH			= 0;
-		sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
+	if (lu_priv->pm->kad_validation(new_encrypt_mode,
+									new_encryption.ukad_length,
+									new_encryption.akad_length)) {
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, NULL, sam_stat);
+		goto out;
 	}
-
+	clear_sensitive(&app_encryption_state, sizeof(app_encryption_state));
+	memcpy(&app_encryption_state, &new_encryption, sizeof(new_encryption));
+	lu_ssc.KEY_INSTANCE_COUNTER++;
+	lu_ssc.ENCRYPT_MODE	   = new_encrypt_mode;
+	lu_ssc.DECRYPT_MODE	   = new_decrypt_mode;
+	lu_ssc.encryption_ckod = (buf[5] & 0x04) != 0;
+	lu_ssc.app_encr_info   = &app_encryption_state;
 	if (lu_priv->pm->update_encryption_mode)
-		lu_priv->pm->update_encryption_mode(&lu->mode_pg, NULL, lu_ssc.ENCRYPT_MODE);
-
-	return SAM_STAT_GOOD;
+		lu_priv->pm->update_encryption_mode(&lu->mode_pg, NULL, new_encrypt_mode);
+	ret = SAM_STAT_GOOD;
+out:
+	clear_sensitive(&new_encryption, sizeof(new_encryption));
+	if (cmd->scb[1] == TAPE_DATA_ENCRYPTION)
+		clear_sensitive(buf, cmd->dbuf_p->sz);
+	cmd->dbuf_p->sz = 0; /* no data-in */
+	return ret;
 }
 
 /*
@@ -1621,6 +1704,11 @@ void unloadTape(int update_library, uint8_t *sam_stat) {
 	default:
 		MHVTL_DBG(2, "Tape not mounted");
 		break;
+	}
+	if (lu_ssc.encryption_ckod) {
+		clear_encryption_parameters(&lu_ssc);
+		if (lu_ssc.pm->update_encryption_mode)
+			lu_ssc.pm->update_encryption_mode(&lu->mode_pg, NULL, 0);
 	}
 	if (update_library && lu_ssc.inLibrary && library_id > 0) {
 		SEND_MSG_AND_LOG(msg_eject, (uint64_t)library_id);
@@ -2321,6 +2409,7 @@ static void process_cmd(int cdev, uint8_t *buf, struct mhvtl_header *mhvtl_cmd,
 }
 
 static void init_lu_ssc(struct priv_lu_ssc *lu_priv) {
+	clear_sensitive(&app_encryption_state, sizeof(app_encryption_state));
 	lu_priv->bufsize				 = 2 * 1024 * 1024;
 	lu_priv->load_status			 = TAPE_UNLOADED;
 	lu_priv->inLibrary				 = 0;
@@ -2336,6 +2425,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv) {
 	lu_priv->KEY_INSTANCE_COUNTER	 = 0;
 	lu_priv->DECRYPT_MODE			 = 0;
 	lu_priv->ENCRYPT_MODE			 = 0;
+	lu_priv->encryption_ckod		 = 0;
 	lu_priv->app_encr_info			 = &app_encryption_state;
 	lu_priv->OK_2_write				 = &OK_to_write;
 	lu_priv->barcode				 = NULL;
