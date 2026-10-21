@@ -172,6 +172,7 @@ void test_params_library_commands(void) {
 		{3, {"vtlcmd", "10", "offline"}},
 		{4, {"vtlcmd", "10", "list", "map"}},
 		{4, {"vtlcmd", "10", "empty", "map"}},
+		{5, {"vtlcmd", "10", "empty", "map", "TAPE001"}},
 		{4, {"vtlcmd", "10", "open", "map"}},
 		{4, {"vtlcmd", "10", "close", "map"}},
 	};
@@ -184,6 +185,12 @@ void test_params_library_commands(void) {
 				 cases[i].argc > 3 ? cases[i].argv[3] : "",
 				 err ? err : "(null)");
 	}
+}
+
+/* 'empty map' takes at most one barcode. */
+void test_params_empty_map_extra_args(void) {
+	char *argv[] = {"vtlcmd", "10", "empty", "map", "TAPE001", "TAPE002"};
+	TEST_CHECK(Check_Params(6, argv) != NULL);
 }
 
 void test_params_unknown_command(void) {
@@ -387,6 +394,7 @@ TEST_LIST = {
 	{"params_delay", test_params_delay},
 	{"params_append_only", test_params_append_only},
 	{"params_library_commands", test_params_library_commands},
+	{"params_empty_map_extra_args", test_params_empty_map_extra_args},
 	{"params_unknown_command", test_params_unknown_command},
 	{"params_tapealert_hex_validation", test_params_tapealert_hex_validation},
 	{"params_inquiry_data_change_case", test_params_inquiry_data_change_case},

@@ -352,6 +352,7 @@ int raw_bay_remove(const struct raw_bay *bay, const char *barcode, int verbose_l
 {
 	struct mhvtl_raw_probe	pr;
 	char			resolved[33];
+	char			cmd[MAXTEXTLEN + 1];
 	char			reply[MAXTEXTLEN + 1];
 	int			map_opened = 0;
 	int			rc = 0;
@@ -387,17 +388,22 @@ int raw_bay_remove(const struct raw_bay *bay, const char *barcode, int verbose_l
 	}
 
 	/*
-	 * Clear the MAP slot. "empty map" is rejected while the MAP is closed, so
-	 * open it, empty it, and close it again. Emptying an already-empty MAP is
-	 * a harmless no-op on the library side. If the cartridge is loaded in a
-	 * drive the library handles media-not-present; we never force-unload.
+	 * Clear this cartridge's MAP slot, and only that one: a plain "empty map"
+	 * would also drop the cartridges of the other bays. "empty map" is
+	 * rejected while the MAP is closed, so open it, empty the slot, and close
+	 * it again. If the cartridge is loaded in a drive the library handles
+	 * media-not-present; we never force-unload.
 	 */
 	if (raw_bay_lib_cmd(bay->library_id, "open map", reply, sizeof(reply),
 			    verbose_log) == 0 && raw_bay_reply_ok(reply)) {
 		map_opened = 1;
-		if (raw_bay_lib_cmd(bay->library_id, "empty map", reply,
-				    sizeof(reply), verbose_log) != 0 ||
-		    !raw_bay_reply_ok(reply))
+		snprintf(cmd, sizeof(cmd), "empty map %s", resolved);
+		if (raw_bay_lib_cmd(bay->library_id, cmd, reply,
+				    sizeof(reply), verbose_log) != 0)
+			rc = -1;
+		else if (!strcmp(reply, "barcode not in map"))
+			rc = 1;	/* moved to a slot or drive, or emptied already */
+		else if (!raw_bay_reply_ok(reply))
 			rc = -1;
 	} else {
 		rc = -1;

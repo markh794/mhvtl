@@ -102,11 +102,14 @@ int raw_bay_place_all(const struct raw_bay *bays, size_t count,
  * Remove a cartridge previously placed into a bay's library MAP. If `barcode`
  * is non-NULL and non-empty it names the cartridge directly; otherwise the disk
  * at bay->by_path is probed for its barcode. Drops the home_directory/<barcode>
- * symlink and sends "empty map" to bay->library_id so the MAP slot is cleared.
- * (If the cartridge is currently loaded in a drive, the library handles
- * media-not-present itself — this never force-unloads a drive.) Safe no-op if
- * no barcode can be determined and nothing is linked. Returns 0 on success/
- * no-op, -1 if the library did not confirm the MAP was cleared.
+ * symlink and sends "empty map <barcode>" to bay->library_id so the MAP slot
+ * holding it is cleared; other MAP slots are left alone. (If the cartridge is
+ * currently loaded in a drive, the library handles media-not-present itself —
+ * this never force-unloads a drive.) Safe no-op if no barcode can be
+ * determined and nothing is linked. Returns 0 on success/no-op, 1 if the
+ * cartridge was not in the MAP (moved to a storage slot or a drive, which is
+ * left alone, or emptied already), -1 if the library did not confirm the MAP
+ * was cleared.
  */
 int raw_bay_remove(const struct raw_bay *bay, const char *barcode, int verbose_log);
 
