@@ -28,6 +28,7 @@ CRC_SRC  = ../usr/utils/crc32c.c
 
 # All test binaries
 TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo test_q_reply test_q_send test_media_home test_dump_tape_output
+TESTS += test_dump_tape_loop
 TESTS += test_indx_rollback
 TESTS += test_m8_mam
 
@@ -129,6 +130,9 @@ test_dump_tape_output: test_dump_tape_output.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_dump_tape_output.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
+# dump_tape on a real cartridge: must terminate and print each block once
+test_dump_tape_loop: test_dump_tape_loop.c acutest.h helpers/device_conf_gen.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_dump_tape_loop.c \
 # M8 media MAM from set_media_params(), mktape and edit_tape (libvtlscsi,
 # usr/bin/mktape and usr/bin/edit_tape)
 test_m8_mam: test_m8_mam.c acutest.h ../usr/libvtlscsi.so
