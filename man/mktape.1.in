@@ -94,6 +94,7 @@ Can be one of
 .BR LTO6 ,
 .BR LTO7 ,
 .BR LTO8 ,
+.BR LTO8M8 ,
 .BR LTO9 ,
 .BR LTO10 ,
 .BR LTO10P ,
@@ -125,6 +126,15 @@ The
 and
 .B E06
 media densities refer to the IBM 03592 media types.
+.PP
+.B LTO8M8
+is LTO-7 media initialized in the LTO-8 Type M (M8) format. M8 exists only
+as a data cartridge, so
+.B mktape
+refuses it with any
+.I type
+other than
+.BR data .
 .SH AUTHOR
 Written by Mark Harvey
 .SH BUGS
