@@ -112,16 +112,6 @@ $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
 	--barcode TST002 --density LTO7 \
 	|| fail "mhvtl-raw-format --density failed"
 
-# M8 is refused, with or without --density: there is no M8 media type to
-# write into the cartridge memory, and plain LTO-8 would be the wrong density.
-echo "=== M8 barcode refused ==="
-for extra in "" "--density LTO8"; do
-	if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
-		--barcode TST003M8 $extra >/tmp/raw_loop_m8.log 2>&1; then
-		fail "mhvtl-raw-format formatted an M8 barcode ($extra)"
-	fi
-done
-
 # A density that contradicts the barcode suffix, and more partitions than the
 # media allows (LTO-4 has one), are refused before the device is written: the
 # TST002 cartridge formatted above must still be there afterwards.
@@ -136,6 +126,31 @@ if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
 fi
 $SUDO dd if="$LOOP" bs=1M skip=1 count=1 status=none | grep -aq TST002 \
 	|| fail "a refused format overwrote the existing superblock"
+
+# M8 is LTO-7 media in the LTO-8 Type M format, density 5Dh (GA32-0928-07
+# table 113, p.142): the suffix alone selects it, LTO8M8 agrees with it, and
+# plain LTO-8 contradicts it like any other density that differs from the
+# suffix, which leaves the TST002 cartridge in place. test_raw_load_tape then
+# checks the MAM the format wrote.
+echo "=== M8 barcode formats as LTO-8 Type M ==="
+if $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST003M8 --density LTO8 >/tmp/raw_loop_m8.log 2>&1; then
+	fail "mhvtl-raw-format accepted --density LTO8 for an M8 barcode"
+fi
+# The "density ... contradicts barcode" reason goes to syslog; stderr only
+# carries the EINVAL until markh794/mhvtl#299 prints the reason there too.
+grep -q "Invalid argument" /tmp/raw_loop_m8.log \
+	|| fail "expected EINVAL (see /tmp/raw_loop_m8.log)"
+$SUDO dd if="$LOOP" bs=1M skip=1 count=1 status=none | grep -aq TST002 \
+	|| fail "the refused M8 format overwrote the existing superblock"
+$SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST003M8 --density LTO8M8 \
+	|| fail "mhvtl-raw-format refused --density LTO8M8 for an M8 barcode"
+$SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
+	--barcode TST003M8 --partition-data 92,8 --min-record-size 64K \
+	|| fail "mhvtl-raw-format refused an M8 barcode"
+$SUDO env LD_LIBRARY_PATH="$HERE/usr" "$LOADBIN" "$LOOP" TST003M8 \
+	|| fail "test_raw_load_tape on M8 exited $?"
 
 # LH is the LTO-10 WORM label.
 echo "=== LTO-10 WORM barcode accepted ==="

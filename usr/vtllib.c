@@ -1766,6 +1766,7 @@ uint8_t media_max_partitions(uint8_t media_type) {
 		return 2;
 	case Media_LTO7:
 	case Media_LTO8:
+	case Media_LTO8_M8: /* GA32-0928-07 table 10, p.32 */
 	case Media_LTO9:
 	case Media_LTO10:
 	case Media_LTO10P:
@@ -1795,6 +1796,8 @@ uint64_t media_native_capacity(uint8_t media_type) {
 		return 6000 * GB;
 	case Media_LTO8:
 		return 12000 * GB;
+	case Media_LTO8_M8: /* LTO-7 media in Type M format, GA32-0928-07 table 5 */
+		return 9000 * GB;
 	case Media_LTO9:
 		return 18000 * GB;
 	case Media_LTO10:
@@ -1985,6 +1988,20 @@ unsigned int set_media_params(struct MAM *mamp, char *density) {
 		put_unaligned_be32(127, &mamp->MediumWidth);
 		memcpy(&mamp->media_info.description, "Ultrium 8/32T", 13);
 		memcpy(&mamp->media_info.density_name, "U-832  ", 6);
+		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
+		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
+		mamp->num_partitions = 2;
+	/* M8 is LTO-7 media written by an LTO-8 drive in the Type M format, so
+	 * the physical values are those of LTO-7 media. Density code, names and
+	 * bits/mm from the IBM LTO SCSI Reference GA32-0928-07 table 113, p.142.
+	 */
+	} else if (!(strcmp(density, "LTO8M8"))) {
+		mamp->MediumDensityCode = medium_density_code_lto8_m8;
+		mamp->MediaType			= Media_LTO8_M8;
+		put_unaligned_be32(960, &mamp->MediumLength);
+		put_unaligned_be32(127, &mamp->MediumWidth);
+		memcpy(&mamp->media_info.description, "Ultrium 8/32T Type M", 20);
+		memcpy(&mamp->media_info.density_name, "U-832M", 6);
 		memcpy(&mamp->AssigningOrganization_1, "LTO-CVE", 7);
 		put_unaligned_be32(19107, &mamp->media_info.bits_per_mm);
 		mamp->num_partitions = 2;

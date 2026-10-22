@@ -23,6 +23,7 @@
 #include "vtlcart.h"		/* TAPE_FMT_VERSION */
 #include "cart_backend_raw.h"
 #include "mhvtl_raw.h"
+#include "be_byteshift.h"
 
 char mhvtl_driver_name[] = "test_raw_backend";
 
@@ -171,6 +172,30 @@ int main(int argc, char **argv)
 		free(a);
 		free(b);
 		CHECK(ok, "MAM save/load/save round-trip byte-identical");
+	}
+
+	/* 8b. An M8 MAM (LTO-7 media in the LTO-8 Type M format, density 5Dh,
+	 *     GA32-0928-07 table 113, p.142) survives the superblock region. */
+	{
+		struct MAM mam2;
+		uint8_t ss = 0;
+
+		init_mam(&mam);
+		mam.mam_fmt_version = MAM_VERSION;
+		mam.tape_fmt_version = TAPE_FMT_VERSION;
+		mam.MediumType = MEDIA_TYPE_DATA;
+		CHECK(set_media_params(&mam, "LTO8M8") == 0,
+		      "set_media_params knows LTO8M8");
+		CHECK(cart_backend_raw.save_mam(&mam) == 0, "save_mam of an M8 MAM");
+		init_mam(&mam2);
+		CHECK(cart_backend_raw.load_mam(&mam2, &ss) == 0 &&
+		      mam2.MediaType == Media_LTO8_M8 &&
+		      mam2.MediumType == MEDIA_TYPE_DATA &&
+		      mam2.MediumDensityCode == medium_density_code_lto8_m8 &&
+		      mam2.max_partitions == 4 &&
+		      !strncmp(mam2.media_info.density_name, "U-832M", 6) &&
+		      get_unaligned_be64(&mam2.max_capacity) == 9000000000000ULL,
+		      "M8 media type, density, partitions and capacity reload");
 	}
 
 	/* 9. raw_probe reads the cartridge identity off the device without

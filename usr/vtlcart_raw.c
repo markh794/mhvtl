@@ -873,15 +873,16 @@ static void fill_cartridge_uuid(uint8_t uuid[16])
 }
 
 /* A two-character LTO media-type suffix the raw backend accepts: data L1-L9
- * and LA (LTO-10), and WORM LT-LZ (U3-U9) and LH (U10). Labels per IBM
- * SG24-5946 and the IBM bar code label table,
- * https://www.ibm.com/docs/en/STAKKZ/con_LTOdrive_cartridges_barcodelabel.html. M8, LTO-7 media written in the LTO-8 Type M format, is refused:
- * mhVTL has no M8 media type yet, so the cartridge memory could only claim
- * plain LTO-8 (density 0x5e) instead of Type M (0x5d, GA32-0928 p.142). */
+ * and LA (LTO-10), M8 (LTO-7 media written in the LTO-8 Type M format), and
+ * WORM LT-LZ (U3-U9) and LH (U10). Labels per IBM SG24-5946 and the IBM bar
+ * code label table,
+ * https://www.ibm.com/docs/en/STAKKZ/con_LTOdrive_cartridges_barcodelabel.html. */
 static int valid_lto_media_suffix(const char *s)
 {
 	if (s[0] == 'L' && ((s[1] >= '1' && s[1] <= '9') || s[1] == 'A'))
 		return 1;				/* data L1-L9, LA */
+	if (s[0] == 'M' && s[1] == '8')
+		return 1;				/* M8 (LTO-7 media as LTO-8 Type M) */
 	if (s[0] == 'L' && ((s[1] >= 'T' && s[1] <= 'Z') || s[1] == 'H'))
 		return 1;				/* WORM LT-LZ, LH (U3-U10) */
 	return 0;
@@ -916,7 +917,7 @@ static int validate_raw_barcode(const char *barcode)
 	}
 	if (len == 8 && !valid_lto_media_suffix(barcode + 6)) {
 		MHVTL_ERR("raw_format: barcode '%s' has an invalid media suffix "
-			  "'%s' (expect data L1-L9/LA or WORM LT-LZ/LH; M8 is not supported)",
+			  "'%s' (expect data L1-L9/LA, M8, or WORM LT-LZ/LH)",
 			  barcode, barcode + 6);
 		errno = EINVAL;
 		return -1;
@@ -927,7 +928,9 @@ static int validate_raw_barcode(const char *barcode)
 /* The density a barcode's media suffix stands for, written to *density, and
  * whether the suffix names WORM media. The data suffixes L1-L9 and LA are
  * LTO-1 to LTO-10, and the WORM suffixes LT-LZ and LH are LTO-3 to LTO-10
- * (IBM SG24-5946). Returns -1 for a barcode without a suffix.
+ * (IBM SG24-5946). M8 is the LTO-8 Type M data cartridge, density 5Dh (IBM
+ * LTO SCSI Reference GA32-0928-07 table 113, p.142). Returns -1 for a
+ * barcode without a suffix.
  */
 static int raw_barcode_density(const char *barcode, char *density, size_t len,
 			       int *worm)
@@ -943,6 +946,8 @@ static int raw_barcode_density(const char *barcode, char *density, size_t len,
 		snprintf(density, len, "LTO%c", sfx[1]);
 	else if (sfx[0] == 'L' && sfx[1] == 'A')
 		snprintf(density, len, "LTO10");
+	else if (sfx[0] == 'M' && sfx[1] == '8')
+		snprintf(density, len, "LTO8M8");
 	else if (sfx[0] == 'L' && sfx[1] >= 'T' && sfx[1] <= 'Z') {
 		snprintf(density, len, "LTO%d", sfx[1] - 'T' + 3);
 		*worm = 1;
