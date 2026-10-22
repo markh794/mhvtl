@@ -45,6 +45,9 @@ E01001L8  LTO8     data
 E01001L9  LTO9     data
 E01001LA  LTO10    data
 E01001PA  LTO10P   data
+# LTO-7 media in the LTO-8 Type M format
+E01001M8  LTO8M8   data
+E01001M7  UNKNOWN  data
 # LTO WORM cartridges (LT used to be UNKNOWN)
 E01001LT  LTO3     WORM
 E01001LU  LTO4     WORM

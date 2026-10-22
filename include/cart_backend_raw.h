@@ -53,11 +53,11 @@ int raw_probe(const char *devpath, struct mhvtl_raw_probe *out);
  *   devpath         block device to format (e.g. /dev/sdX, /dev/loopN)
  *   barcode         cartridge PCL/barcode (copied into the superblock)
  *   density         media density for the MAM, e.g. "LTO8"; NULL takes it
- *                   from the barcode's media suffix (L8 = LTO-8, LU = LTO-4
- *                   WORM), which an 8-character barcode must then carry.
- *                   A density that contradicts the suffix, more partitions
- *                   than the media supports, and an M8 barcode (no M8 media
- *                   type yet) are refused before the device is written
+ *                   from the barcode's media suffix (L8 = LTO-8, M8 = LTO-8
+ *                   Type M, LU = LTO-4 WORM), which an 8-character barcode
+ *                   must then carry. A density that contradicts the suffix
+ *                   and more partitions than the media supports are refused
+ *                   before the device is written
  *   partspec        comma-separated per-partition size percentages that must
  *                   total exactly 100, e.g. "92,8" or "85,5,5,5"
  *   min_record_size planning minimum record size; sizes the index region so it

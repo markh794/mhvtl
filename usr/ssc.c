@@ -568,6 +568,10 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 	uint8_t correct_key;
 	int		i;
 
+	/* The key the application loaded, even if this drive is not encrypting
+	 * writes (setup_crypto() clears app_encr_info then) */
+	encr = &app_encryption_state;
+
 	/* decryption logic */
 	correct_key = TRUE;
 
@@ -628,6 +632,14 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
 	MHVTL_DBG(1, "FORMAT MEDIUM (%ld) **", (long)dbuf_p->serialNo);
+
+	/* Not allowed on WORM, even blank (GA32-0928-07 5.2.3, p.82) */
+	if (get_tape_load_status() == TAPE_LOADED &&
+		mam.MediumType == MEDIA_TYPE_WORM) {
+		MHVTL_DBG(1, "FORMAT MEDIUM refused on WORM media");
+		sam_data_protect(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
@@ -1952,18 +1964,22 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "WRITE %d FILEMARKS (%ld) **",
 			  count, (long)cmd->dbuf_p->serialNo);
 
-	if (!lu_priv->pm->check_restrictions(cmd)) {
-		/* If restrictions & WORM media at block 0.. OK
-		 * Otherwise return CHECK_CONDITION.
-		 *	check_restrictions()
-		 *	was nice enough to set correct sense status for us.
-		 */
-		if ((mam.MediumType == MEDIA_TYPE_WORM) &&
-			(c_pos->blk_number == 0)) {
-			MHVTL_DBG(1, "Erasing WORM media");
-		} else
-			return SAM_STAT_CHECK_CONDITION;
+	/* A count of zero only flushes, so it returns GOOD on WORM media even
+	 * at a position that is not writable (GA32-0928-07 4.0.15 WRITE
+	 * FILEMARKS, p.181).
+	 */
+	if (!count && mam.MediumType == MEDIA_TYPE_WORM &&
+		get_tape_load_status() == TAPE_LOADED) {
+		write_filemarks(count, sam_stat);
+		return *sam_stat;
 	}
+
+	/* check_restrictions() sets the sense, including DATA PROTECT,
+	 * WORM MEDIUM - OVERWRITE ATTEMPTED when the WORM rules refuse the
+	 * write (GA32-0928-07 4.14.1, p.54 and Table B.8, p.483).
+	 */
+	if (!lu_priv->pm->check_restrictions(cmd))
+		return SAM_STAT_CHECK_CONDITION;
 
 	if (count) /* A count of zero is a buffer flush, not a change of content */
 		update_volume_change_reference(lu_priv, sam_stat);
@@ -2162,23 +2178,15 @@ uint8_t ssc_set_capacity(struct scsi_cmd *cmd) {
 	/* TODO : implement medium_for_use_proportion_value */
 	/* uint16_t medium_for_use_proportion_value = get_unaligned_be16(&cmd->scb[3]); */
 
+	/* SET CAPACITY loses all data, and is a write-type command
+	 * (GA32-0928-07 4.0.6, p.169 and Table 31, p.78), so media load
+	 * status, write protect and the WORM rules apply as for a write.
+	 */
+	if (!lu_priv->pm->check_restrictions(cmd))
+		return SAM_STAT_CHECK_CONDITION;
+
 	if (c_pos->blk_number != 0) { /* not at Beginnning Of Partition (BOP) */
 		sam_illegal_request(E_POSITION_PAST_BOM, NULL, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
-	/* Check that there is a piece of media loaded.. */
-	switch (get_tape_load_status(lu_priv)) {
-	case TAPE_LOADED:
-		break;
-	case TAPE_LOADING:
-		sam_not_ready(E_BECOMING_READY, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	case TAPE_UNLOADED:
-		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	default:
-		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 

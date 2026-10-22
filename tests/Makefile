@@ -29,6 +29,7 @@ CRC_SRC  = ../usr/utils/crc32c.c
 # All test binaries
 TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo test_q_reply test_q_send test_media_home test_dump_tape_output
 TESTS += test_indx_rollback
+TESTS += test_m8_mam
 
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
@@ -36,7 +37,12 @@ SCRIPT_TESTS += make_vtl_media_home.sh
 SCRIPT_TESTS += generator/run.sh
 
 # Integration tests via userland transport (no kernel modules or root needed)
-INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf test_encryption_state
+INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf test_encryption_state test_encryption_mode_page
+INTEGRATION_TESTS += test_ssc_worm
+INTEGRATION_TESTS += test_encryption_state
+INTEGRATION_TESTS += test_lto_m8
+INTEGRATION_TESTS += test_log_volstat_strings
+INTEGRATION_TESTS += test_encryption_read_key
 
 .PHONY: all test clean
 
@@ -123,6 +129,12 @@ test_dump_tape_output: test_dump_tape_output.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_dump_tape_output.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
+# M8 media MAM from set_media_params(), mktape and edit_tape (libvtlscsi,
+# usr/bin/mktape and usr/bin/edit_tape)
+test_m8_mam: test_m8_mam.c acutest.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_m8_mam.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
 test_q_reply: test_q_reply.c acutest.h ../usr/utils/q.c ../include/utils/q.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_q_reply.c ../usr/utils/q.c -lpthread
 
@@ -150,6 +162,9 @@ test_ssc_fixed_ew: test_ssc_fixed_ew.c acutest.h helpers/scsi_harness.h helpers/
 test_conf_sscanf: test_conf_sscanf.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
+test_encryption_mode_page: test_encryption_mode_page.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
 test_smc_load_failure: test_smc_load_failure.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
@@ -169,6 +184,20 @@ test_ssc_eom: test_ssc_eom.c acutest.h helpers/scsi_harness.h helpers/device_con
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_encryption_state: test_encryption_state.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_ssc_worm: test_ssc_worm.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_lto_m8: test_lto_m8.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+# Links libvtlscsi to set a cartridge's MAM density the way edit_tape does
+test_log_volstat_strings: test_log_volstat_strings.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $< \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+    
+test_encryption_read_key: test_encryption_read_key.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 integration: $(INTEGRATION_TESTS)
