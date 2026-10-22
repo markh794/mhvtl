@@ -117,7 +117,7 @@ set_density()
 	# There is.. Thanks to Gavin Barnard.
 	# The second character is every one a branch below handles: C is T10KC
 	# and E06 (JC), T is LTO-3 WORM (LT).
-	regex='[A-Z0-9]{6,8}([SLXTJDP])([123456789ABCHKTUVWXYZ])$'
+	regex='[A-Z0-9]{6,8}([SLXTJDPM])([123456789ABCHKTUVWXYZ])$'
 	#regex='[A-Z0-9]{4,6}([SLXTJ])([123456ABWX])[0-9]*$' # for bacula
 	DENSITY=UNKNOWN
 
@@ -137,6 +137,11 @@ set_density()
 			A|H)	DENSITY="LTO10" ;;
 			*)	DENSITY="LTO${BASH_REMATCH[2]}" ;;
 			esac
+		elif [ ${BASH_REMATCH[1]} = 'M' ]; then
+			# LTO-7 media initialized in the LTO-8 Type M format (M8)
+			if [ ${BASH_REMATCH[2]} = '8' ]; then
+				DENSITY="LTO8M8"
+			fi
 		elif [ ${BASH_REMATCH[1]} = 'P' ]; then
 			# Ultrium 10 Premium (40TB) data cartridge
 			if [ ${BASH_REMATCH[2]} = 'A' ]; then

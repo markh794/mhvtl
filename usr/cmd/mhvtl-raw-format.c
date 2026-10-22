@@ -7,7 +7,8 @@
  *
  *   --density          media density written to the MAM, e.g. LTO8. Defaults
  *                      to the one the barcode's media suffix names (VOL001L8 is
- *                      LTO-8); required for a 6-character barcode.
+ *                      LTO8, VOL001M8 is LTO8M8); required for a 6-character
+ *                      barcode.
  *   --partition-data   per-partition size percentages that total exactly 100
  *                      (default "100" = single partition). e.g. 92,8 or 85,5,5,5
  *   --min-record-size  index capacity-planning record size (default 64KiB).
@@ -22,6 +23,7 @@
 #include <getopt.h>
 #include <stdint.h>
 #include <errno.h>
+#include <syslog.h>
 
 #include "cart_backend_raw.h"
 
@@ -88,6 +90,10 @@ int main(int argc, char **argv)
 	};
 	int c, ok;
 
+	/* raw_format() reports why it refused a device through syslog; copy
+	 * those messages to stderr so the caller sees the reason as well. */
+	openlog(mhvtl_driver_name, LOG_PERROR, LOG_DAEMON);
+
 	while ((c = getopt_long(argc, argv, "b:d:p:m:n:h", opts, NULL)) != -1) {
 		switch (c) {
 		case 'b': barcode = optarg; break;
@@ -115,11 +121,6 @@ int main(int argc, char **argv)
 
 	if (!barcode || !barcode[0]) {
 		fprintf(stderr, "error: --barcode is required\n");
-		return 1;
-	}
-	if (strlen(barcode) == 8 && !strcmp(barcode + 6, "M8")) {
-		fprintf(stderr, "error: M8 (LTO-8 Type M) cartridges are not "
-			"supported yet\n");
 		return 1;
 	}
 	if (!density && strlen(barcode) == 6) {

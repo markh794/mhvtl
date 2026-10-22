@@ -568,6 +568,10 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 	uint8_t correct_key;
 	int		i;
 
+	/* The key the application loaded, even if this drive is not encrypting
+	 * writes (setup_crypto() clears app_encr_info then) */
+	encr = &app_encryption_state;
+
 	/* decryption logic */
 	correct_key = TRUE;
 
@@ -577,6 +581,7 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 			if (c_pos->blk_encryption_info.key_length != KEY_LENGTH) {
 				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;
+				return correct_key;
 			}
 			for (i = 0; i < c_pos->blk_encryption_info.key_length; ++i) {
 				if (c_pos->blk_encryption_info.key[i] != KEY[i]) {
@@ -940,9 +945,19 @@ uint8_t ssc_spout(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "SECURITY PROTOCOL OUT (%ld) **",
 			  (long)dbuf_p->serialNo);
 
-	dbuf_p->sz = get_unaligned_be32(&cdb[6]);
 	/* Check for '512 increment' bit & multiply sz by 512 if set */
-	dbuf_p->sz *= (cdb[4] & 0x80) ? 512 : 1;
+	uint64_t sz = (uint64_t)get_unaligned_be32(&cdb[6]) * ((cdb[4] & 0x80) ? 512 : 1);
+
+	/* resp_spout() reads and wipes dbuf_p->sz bytes of the data buffer */
+	if (sz > lu_priv->bufsize) {
+		struct s_sd sd = {.byte0 = SKSV | CD, .field_pointer = 6};
+
+		MHVTL_LOG("SPOUT transfer length %" PRIu64 " exceeds buffer size", sz);
+		dbuf_p->sz = 0;
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	dbuf_p->sz = sz;
 
 	retrieve_CDB_data(cmd->cdev, dbuf_p);
 

@@ -60,6 +60,11 @@ static struct density_info density_lto7 = {
 static struct density_info density_lto8 = {
 	20669, 127, 6656, 12000000, medium_density_code_lto8,
 	"LTO-CVE", "U-832", "Ultrium 8/32T"};
+/* LTO-7 media written in the 9 TB LTO-8 Type M ("M8") format, density 0x5d.
+ * IBM LTO SCSI Reference GA32-0928-07 table 113, p.142. */
+static struct density_info density_lto8_m8 = {
+	19107, 127, 5376, 9000000, medium_density_code_lto8_m8,
+	"LTO-CVE", "U-832M", "Ultrium 8/32T Type M"};
 
 static struct name_to_media_info media_info[] = {
 	{"LTO1", Media_LTO1,
@@ -106,6 +111,8 @@ static struct name_to_media_info media_info[] = {
 	 media_type_hp_lto_data, medium_density_code_lto8},
 	{"LTO8 WORM", Media_LTO8_WORM,
 	 media_type_hp_lto_worm, medium_density_code_lto8},
+	{"LTO8 M8", Media_LTO8_M8,
+	 media_type_hp_lto_data, medium_density_code_lto8_m8},
 	{"", 0, 0, 0},
 };
 
@@ -212,6 +219,7 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd) {
 			buf[24] |= 0x80; /* AVFMV */
 			break;
 		case Media_LTO8:
+		case Media_LTO8_M8:
 			MHVTL_DBG(1, "LTO8 Medium - Setting AVFMV");
 			buf[24] |= 0x80; /* AVFMV */
 			break;
@@ -938,4 +946,12 @@ void init_hp_ult_8(struct lu_phy_attr *lu) {
 	add_drive_media_list(lu, LOAD_RO, "LTO8 Clean");
 	add_drive_media_list(lu, LOAD_RW, "LTO8 WORM");
 	add_drive_media_list(lu, LOAD_RW, "LTO8 ENCR");
+
+	/* A stand-alone HP LTO-8 drive cannot initialize Type M media but reads
+	 * and writes M8 cartridges a library has initialized. HPE LTO-8 TRM
+	 * Vol 2, "LTO-7 Type M media for LTO-8 drives",
+	 * https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006913en_us&page=GUID-4C9DD188-67EC-4FAB-ADA5-38B207C443E3.html&docLocale=en_US
+	 */
+	add_density_support(&lu->den_list, &density_lto8_m8, 1);
+	add_drive_media_list(lu, LOAD_RW, "LTO8 M8");
 }
