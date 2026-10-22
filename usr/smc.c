@@ -148,7 +148,10 @@ static const char *const mount_state_replies[] = {msg_occupied, msg_not_occupied
 static const char *const load_replies[]		   = {msg_load_ok, msg_load_failed, NULL};
 static const char *const unload_replies[]	   = {msg_unload_ok, NULL};
 
-/* Query the drive to check if it thinks it is empty */
+/*
+ * Query the drive to check if it thinks it is empty.
+ * Returns 0 if empty, 1 if occupied, -1 if the drive did not answer.
+ */
 static int is_drive_empty(struct d_info *drv) {
 	int			   mlen, r_qid;
 	struct q_entry q;
@@ -167,11 +170,12 @@ static int is_drive_empty(struct d_info *drv) {
 	/* A failed receive leaves q untouched, so it must not be read */
 	memset(&q, 0, sizeof(q));
 
-	mlen = recv_reply_from(r_qid, drv->drv_id, mount_state_replies, &q);
+	mlen = recv_reply_within(r_qid, drv->drv_id, msg_mount_state,
+							 DRIVE_REPLY_GRACE, mount_state_replies, &q);
 	if (mlen <= 0) {
 		MHVTL_ERR("%ld: No reply from the drive: %s",
 				  my_id, strerror(errno));
-		return 1; /* Assume occupied rather than act on garbage */
+		return -1;
 	}
 
 	MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
@@ -179,8 +183,10 @@ static int is_drive_empty(struct d_info *drv) {
 			  q.msg.text,
 			  q.msg.snd_id);
 
-	/* string defined in q.h */
-	return strncmp(msg_not_occupied, q.msg.text, 12);
+	/* string defined in q.h. strncmp() is negative for "occupied", so
+	 * reduce it to 0/1: -1 means the drive did not answer.
+	 */
+	return strncmp(msg_not_occupied, q.msg.text, 12) != 0;
 }
 
 /* returns true if medium transport access to slot is OK */
@@ -193,17 +199,31 @@ int slotOccupied(struct s_info *s) {
 	return s->status & STATUS_Full;
 }
 
-/* Returns true if drive has media in it */
+/*
+ * Returns true if drive has media in it, -1 if the drive did not answer.
+ * The drive is asked only when the library thinks it is empty.
+ */
 static int driveOccupied(struct d_info *d) {
-	int ret;
-
-	ret = slotOccupied(d->slot);
-	ret |= is_drive_empty(d);
-
-	return ret;
+	if (slotOccupied(d->slot))
+		return 1;
+	return is_drive_empty(d);
 }
 
-static int check_tape_unload(long drv_id) {
+/*
+ * A drive that did not answer: its daemon is not running or has hung.
+ * HARDWARE ERROR, MEDIA LOAD OR EJECT FAILED, as for a failed load
+ * (IBM TS2900 SCSI Reference GC27-2211-00, Table 68, p.58).
+ */
+static int drive_not_answering(uint8_t *sam_stat) {
+	sam_hardware_error(E_MEDIA_LOAD_EJECT_ERROR, sam_stat);
+	return SAM_STAT_CHECK_CONDITION;
+}
+
+/*
+ * Wait for the drive to answer 'request', an unload or set_empty.
+ * Returns 0 on success, -1 if the drive did not answer, else 1.
+ */
+static int check_tape_unload(long drv_id, const char *request) {
 	int			   mlen, r_qid;
 	struct q_entry q;
 
@@ -217,11 +237,12 @@ static int check_tape_unload(long drv_id) {
 	/* A failed receive leaves q untouched, so it must not be read */
 	memset(&q, 0, sizeof(q));
 
-	mlen = recv_reply_from(r_qid, drv_id, unload_replies, &q);
+	mlen = recv_reply_within(r_qid, drv_id, request, DRIVE_REPLY_GRACE,
+							 unload_replies, &q);
 	if (mlen <= 0) {
 		MHVTL_ERR("%ld: No reply from the drive: %s",
 				  my_id, strerror(errno));
-		return 1; /* Treat as an unload failure */
+		return -1;
 	}
 
 	MHVTL_DBG(1, "%ld: Received \"%s\" from snd_id %ld",
@@ -230,7 +251,7 @@ static int check_tape_unload(long drv_id) {
 			  q.msg.snd_id);
 
 	/* msg defined in q.h */
-	return strncmp(msg_unload_ok, q.msg.text, 11);
+	return strncmp(msg_unload_ok, q.msg.text, 11) != 0;
 }
 
 /*
@@ -317,7 +338,7 @@ static void setDriveEmpty(struct d_info *d) {
 	setFullStatus(d->slot, 0);
 	send_msg(msg_set_empty, d->drv_id);
 	/* Wait for ack from drive */
-	check_tape_unload(d->drv_id);
+	check_tape_unload(d->drv_id, msg_set_empty);
 }
 
 void setSlotFull(struct s_info *s) {
@@ -1142,11 +1163,10 @@ uint8_t smc_read_element_status(struct scsi_cmd *cmd) {
 /* Expect a response from tape drive on load success/failure
  * Returns 0 on success
  * LOAD_INCOMPATIBLE_MEDIUM if the drive cannot use the medium
- * other non-zero on any other load failure
-
- * FIXME: I really need a timeout here..
+ * other non-zero on any other load failure, or if the drive did not take
+ * 'request', the load command, off the queue (see recv_reply_within())
  */
-static int check_tape_load(long drv_id) {
+static int check_tape_load(long drv_id, const char *request) {
 	int			   mlen, r_qid;
 	struct q_entry q;
 
@@ -1160,7 +1180,8 @@ static int check_tape_load(long drv_id) {
 	/* A failed receive leaves q untouched, so it must not be read */
 	memset(&q, 0, sizeof(q));
 
-	mlen = recv_reply_from(r_qid, drv_id, load_replies, &q);
+	mlen = recv_reply_within(r_qid, drv_id, request, DRIVE_REPLY_GRACE,
+							 load_replies, &q);
 	if (mlen <= 0) {
 		MHVTL_ERR("%ld: No reply from the drive: %s",
 				  my_id, strerror(errno));
@@ -1266,6 +1287,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 	struct s_info *src;
 	struct d_info *dest;
 	char		   cmd[MAX_BARCODE_LEN + 12];
+	char		   request[MAX_BARCODE_LEN + 12];
 	int			   retval;
 
 	current_state = MHVTL_STATE_MOVING_SLOT_2_DRIVE;
@@ -1277,7 +1299,10 @@ static int move_slot2drive(struct smc_priv *smc_p,
 		sam_illegal_request(E_MEDIUM_SRC_EMPTY, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	if (driveOccupied(dest)) {
+	retval = driveOccupied(dest);
+	if (retval < 0)
+		return drive_not_answering(sam_stat);
+	if (retval) {
 		sam_illegal_request(E_MEDIUM_DEST_FULL, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1307,6 +1332,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 			  cmd, slot_number(smc_p->pm, dest->slot));
 
 	send_msg(cmd, dest->drv_id);
+	strcpy(request, cmd); /* cmd[] is re-used below */
 
 	if (!smc_p->state_msg)
 		smc_p->state_msg = (char *)zalloc(DEF_SMC_PRIV_STATE_MSG_LENGTH);
@@ -1323,7 +1349,7 @@ static int move_slot2drive(struct smc_priv *smc_p,
 				 slot_number(smc_p->pm, dest->slot));
 	}
 
-	retval = check_tape_load(dest->drv_id);
+	retval = check_tape_load(dest->drv_id, request);
 	if (retval) {
 		MHVTL_ERR("Load of %s into drive %d failed",
 				  cmd, slot_number(smc_p->pm, dest->slot));
@@ -1449,7 +1475,10 @@ static int move_drive2slot(struct smc_priv *smc_p,
 	src	 = drive2struct(smc_p, src_addr);
 	dest = slot2struct(smc_p, dest_addr);
 
-	if (!driveOccupied(src)) {
+	retval = driveOccupied(src);
+	if (retval < 0)
+		return drive_not_answering(sam_stat);
+	if (!retval) {
 		sam_illegal_request(E_MEDIUM_SRC_EMPTY, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1475,7 +1504,10 @@ static int move_drive2slot(struct smc_priv *smc_p,
 		sprintf(cmd, "unload %s", src->slot->media->barcode);
 		send_msg(cmd, src->drv_id);
 		/* Now we wait for the tape device to respond with status of unload */
-		if (check_tape_unload(src->drv_id)) {
+		retval = check_tape_unload(src->drv_id, cmd);
+		if (retval < 0)
+			return drive_not_answering(sam_stat);
+		if (retval) {
 			MHVTL_ERR("Unload of %s from drive %d failed",
 					  cmd, slot_number(smc_p->pm, src->slot));
 			sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
@@ -1521,11 +1553,17 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		return SAM_STAT_GOOD;
 	}
 
-	if (!driveOccupied(src)) {
+	retval = driveOccupied(src);
+	if (retval < 0)
+		return drive_not_answering(sam_stat);
+	if (!retval) {
 		sam_illegal_request(E_MEDIUM_SRC_EMPTY, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
-	if (driveOccupied(dest)) {
+	retval = driveOccupied(dest);
+	if (retval < 0)
+		return drive_not_answering(sam_stat);
+	if (retval) {
 		sam_illegal_request(E_MEDIUM_DEST_FULL, NULL, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
@@ -1543,7 +1581,10 @@ static int move_drive2drive(struct smc_priv *smc_p,
 	sprintf(cmd, "unload %s", src->slot->media->barcode);
 	send_msg(cmd, src->drv_id);
 	/* Now we wait for the tape device to respond with status of unload */
-	if (check_tape_unload(src->drv_id)) {
+	retval = check_tape_unload(src->drv_id, cmd);
+	if (retval < 0)
+		return drive_not_answering(sam_stat);
+	if (retval) {
 		MHVTL_ERR("Failed to unload tape from drive %d",
 				  slot_number(smc_p->pm, src->slot));
 		sam_hardware_error(E_MANUAL_INTERVENTION_REQ, sam_stat);
@@ -1561,7 +1602,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 
 	send_msg(cmd, dest->drv_id);
 
-	retval = check_tape_load(dest->drv_id);
+	retval = check_tape_load(dest->drv_id, cmd);
 	if (retval) {
 		/* Failed, so put the tape back where it came from */
 		MHVTL_ERR("Failed to move to drive %d, "
@@ -1572,7 +1613,7 @@ static int move_drive2drive(struct smc_priv *smc_p,
 		sprintf(cmd, "lload %s", src->slot->media->barcode);
 		truncate_spaces(&cmd[6], MAX_BARCODE_LEN + 1);
 		send_msg(cmd, src->drv_id);
-		check_tape_load(src->drv_id);
+		check_tape_load(src->drv_id, cmd);
 		load_failed_sense(retval, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}

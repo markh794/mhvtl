@@ -50,6 +50,8 @@ INTEGRATION_TESTS += test_log_volstat_strings
 INTEGRATION_TESTS += test_encryption_read_key
 INTEGRATION_TESTS += test_ssc_load_unload
 
+INTEGRATION_TESTS += test_smc_drive_absent
+
 .PHONY: all test clean
 
 all: $(TESTS) $(INTEGRATION_TESTS)
@@ -185,6 +187,10 @@ test_encryption_mode_page: test_encryption_mode_page.c acutest.h helpers/scsi_ha
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_smc_load_failure: test_smc_load_failure.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+# MOVE MEDIUM with a drive whose daemon is not running
+test_smc_drive_absent: test_smc_drive_absent.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_mode_sense_saved: test_mode_sense_saved.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
