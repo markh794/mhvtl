@@ -34,6 +34,8 @@ TESTS += test_m8_mam
 
 TESTS += test_raw_read_mam
 
+TESTS += test_dump_tape_options
+
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
 SCRIPT_TESTS += make_vtl_media_home.sh
@@ -123,9 +125,16 @@ test_media_home: test_media_home.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_media_home.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
+# dump_tape / preload_tape option parsing against an empty cartridge
+test_dump_tape_options: test_dump_tape_options.c acutest.h helpers/device_conf_gen.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_dump_tape_options.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
 # raw_read_mam() from libvtlscsi plus get_cart_type() (vtllibrary helper)
 test_raw_read_mam: test_raw_read_mam.c acutest.h ../usr/vtl_cart_type.c ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_read_mam.c ../usr/vtl_cart_type.c \
+  -L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
 # A failed index write in write_tape_block() or write_filemarks() rolls back
 # to the prior index
 test_indx_rollback: test_indx_rollback.c acutest.h ../usr/libvtlscsi.so

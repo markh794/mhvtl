@@ -500,15 +500,19 @@ int main(int argc, char *argv[]) {
 				verbose = 9; /* If debug, make verbose... */
 				break;
 			case 'm':
-				if (argc > 1)
+				if (argc > 2) {
 					pcl = argv[2];
-				else
+					argv++;
+					argc--;
+				} else
 					usage("More args needed for -m");
 				break;
 			case 'l':
-				if (argc > 1)
-					libno = atoi(argv[1]);
-				else
+				if (argc > 2) {
+					libno = atoi(argv[2]);
+					argv++;
+					argc--;
+				} else
 					usage("More args needed for -l");
 				break;
 			case 'D':
@@ -519,8 +523,10 @@ int main(int argc, char *argv[]) {
 				break;
 			case 'b': /* block size */
 				if (dump_tape == 2) {
-					if (argc > 1) {
+					if (argc > 2) {
 						block_size = atoi(argv[2]);
+						argv++;
+						argc--;
 					} else {
 						usage("-b requires additional block size");
 					}
@@ -530,8 +536,10 @@ int main(int argc, char *argv[]) {
 				break;
 			case 'c': /* compression type (NONE/LZO/ZLIB) */
 				if (dump_tape == 2) {
-					if (argc > 1) {
+					if (argc > 2) {
 						compression = argv[2];
+						argv++;
+						argc--;
 					} else {
 						usage("-c requires additional compression type");
 					}
@@ -541,8 +549,10 @@ int main(int argc, char *argv[]) {
 				break;
 			case 'F': /* File to read from */
 				if (dump_tape == 2) {
-					if (argc > 1) {
+					if (argc > 2) {
 						source_file = argv[2];
+						argv++;
+						argc--;
 					} else {
 						usage("-F requires additional filename");
 					}
