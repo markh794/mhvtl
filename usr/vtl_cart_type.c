@@ -48,6 +48,7 @@
 #include "logging.h"
 #include "vtllib.h"
 #include "vtlcart.h"
+#include "cart_backend_raw.h"
 
 static char currentPCL[HOME_DIR_PATH_SZ + MAX_BARCODE_LEN + 3]; /* make room for home_dir plus some */
 
@@ -76,9 +77,11 @@ int get_cart_type(const char *barcode) {
 	char	   path[HOME_DIR_PATH_SZ + MAX_BARCODE_LEN + 4 + 10];
 	int		   rc	   = 0;
 	int		   mamfile = -1;
+	struct stat st;
 	struct MAM tmp_mam;
 
-	/* init tmp_mam */
+	/* init tmp_mam; zeroed so a raw cartridge with no MAM yet reads as data */
+	memset(&tmp_mam, 0, sizeof(tmp_mam));
 	init_mam(&tmp_mam);
 
 	/* copy barcode to &pcl and terminate at either ' ' or '\0' */
@@ -94,17 +97,27 @@ int get_cart_type(const char *barcode) {
 			 strlen(home_directory) ? home_directory : MHVTL_HOME_PATH,
 			 pcl);
 
-	/* Open mam file */
-	snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
-	mamfile = open(path, O_RDWR | O_LARGEFILE);
-	if (mamfile == -1) {
-		MHVTL_ERR("open of file %s failed: %s", path, strerror(errno));
-		rc = 0;
-		goto failed;
-	}
+	if (stat(currentPCL, &st) == 0 && S_ISBLK(st.st_mode)) {
+		/* Raw cartridge: <home>/<barcode> is a symlink to a block
+		 * device whose MAM sits in the device's MAM region */
+		if (raw_read_mam(currentPCL, &tmp_mam) < 0) {
+			MHVTL_ERR("read of raw MAM on %s failed: %s", currentPCL, strerror(errno));
+			rc = 0;
+			goto failed;
+		}
+	} else {
+		/* Open mam file */
+		snprintf(path, ARRAY_SIZE(path), "%s/mam", currentPCL);
+		mamfile = open(path, O_RDWR | O_LARGEFILE);
+		if (mamfile == -1) {
+			MHVTL_ERR("open of file %s failed: %s", path, strerror(errno));
+			rc = 0;
+			goto failed;
+		}
 
-	/* Read in the MAM */
-	read_mam(mamfile, -1, &tmp_mam);
+		/* Read in the MAM */
+		read_mam(mamfile, -1, &tmp_mam);
+	}
 
 	switch (tmp_mam.MediumType) {
 	case MEDIA_TYPE_NULL:

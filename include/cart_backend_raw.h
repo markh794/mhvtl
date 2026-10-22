@@ -47,6 +47,16 @@ struct mhvtl_raw_probe {
  */
 int raw_probe(const char *devpath, struct mhvtl_raw_probe *out);
 
+struct MAM;
+
+/*
+ * Read the MAM of the raw cartridge on devpath into mamp (init_mam()'d by the
+ * caller) WITHOUT making it the active cartridge. The device is opened
+ * read-only and not O_EXCL, so this works while a drive holds the cartridge.
+ * Returns 0 on success, -1 on error (errno set).
+ */
+int raw_read_mam(const char *devpath, struct MAM *mamp);
+
 /*
  * Format a block device with a static multi-partition raw cartridge layout.
  *

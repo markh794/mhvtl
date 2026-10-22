@@ -21,11 +21,14 @@ TESTBIN="$(mktemp /tmp/test_raw_backend-XXXXXX)"
 LOADBIN="$(mktemp /tmp/test_raw_load_tape-XXXXXX)"
 COMPBIN="$(mktemp /tmp/test_compression-XXXXXX)"
 SELBIN="$(mktemp /tmp/test_compression_select-XXXXXX)"
+CTBIN="$(mktemp /tmp/get_cart_type_blk-XXXXXX)"
+CTHOME="$(mktemp -d /tmp/mhvtl-raw-home-XXXXXX)"
 BARCODE="TST001L8"
 cleanup() {
 	[ -n "$MNT" ] && { $SUDO umount "$MNT" 2>/dev/null; rmdir "$MNT"; }
 	[ -n "$LOOP" ] && $SUDO losetup -d "$LOOP" 2>/dev/null
-	rm -f "$IMG" "$TESTBIN" "$LOADBIN" "$COMPBIN" "$SELBIN"
+	rm -f "$IMG" "$TESTBIN" "$LOADBIN" "$COMPBIN" "$SELBIN" "$CTBIN"
+	rm -rf "$CTHOME"
 }
 trap cleanup EXIT
 
@@ -156,6 +159,15 @@ $SUDO env LD_LIBRARY_PATH="$HERE/usr" "$LOADBIN" "$LOOP" TST003M8 \
 echo "=== LTO-10 WORM barcode accepted ==="
 $SUDO env LD_LIBRARY_PATH="$HERE/usr" ./usr/bin/mhvtl-raw-format "$LOOP" \
 	--barcode TST006LH || fail "mhvtl-raw-format refused an LH barcode"
+
+# vtllibrary types a raw cartridge through <home>/<barcode> -> block device.
+# The device now holds the WORM cartridge TST006LH: get_cart_type() must say 4.
+echo "=== get_cart_type() on a raw WORM cartridge ==="
+gcc -Wall -Wextra -std=gnu99 -D_GNU_SOURCE -D_LARGEFILE64_SOURCE $IFLAGS -o "$CTBIN" tests/get_cart_type_blk.c usr/vtl_cart_type.c \
+	-L usr -lvtlscsi >/tmp/raw_loop_cc5.log 2>&1 \
+	|| fail "get_cart_type_blk compile failed (see /tmp/raw_loop_cc5.log)"
+$SUDO env LD_LIBRARY_PATH="$HERE/usr" "$CTBIN" "$CTHOME" TST006LH "$LOOP" 4 \
+	|| fail "get_cart_type() did not report WORM (4) for a raw cartridge"
 
 # mhvtl-raw-format opens the device O_EXCL, so the kernel refuses it with
 # EBUSY while the device is in use - here, a mounted filesystem.
