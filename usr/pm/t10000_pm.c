@@ -92,7 +92,9 @@ uint8_t valid_encryption_blk_t10k(struct scsi_cmd *cmd) {
 	MHVTL_DBG(3, "+++ Trace +++");
 
 	lu_priv = lu->lu_private;
-	encr	= lu_priv->app_encr_info;
+	/* The key the application loaded, even if this drive is not encrypting
+	 * writes (setup_crypto() clears app_encr_info then) */
+	encr = &app_encryption_state;
 
 	/* decryption logic */
 	correct_key = TRUE;

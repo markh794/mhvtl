@@ -576,6 +576,81 @@ static uint16_t volstat_compression_ratio(uint64_t initiator, uint64_t media) {
 	return (uint16_t)ratio;
 }
 
+/* The string parameters, 0040h to 0045h, are SPC-4 ASCII data fields (IBM LTO
+ * SCSI Reference GA32-0928-07, 5.4.14.2.2, Table 281, p. 306), so they hold
+ * only 20h-7Eh. The MAM keeps its strings NUL terminated: copy up to the NUL,
+ * or the first byte outside that range, and pad the rest of the field with
+ * ASCII spaces. Left-aligned, as the reference has the MAM ASCII attributes
+ * they come from (5.5.1, Table 313, p. 347: "The ATTRIBUTE VALUE field
+ * contains left-aligned ASCII data"; MEDIUM MANUFACTURER, 5.5.2.3.1, p. 352).
+ * A source with nothing printable leaves the field as it is.
+ * https://www.ibm.com/support/pages/system/files/inline-files/%5BAPPROVED%5D%20LTO%20SCSI%20Reference%20GA32-0928-07%20%28EXTERNAL%29.pdf
+ */
+static void volstat_ascii(uint8_t *field, size_t field_len, const uint8_t *src, size_t src_len) {
+	size_t i;
+
+	for (i = 0; i < field_len && i < src_len && src[i] >= 0x20 && src[i] <= 0x7e; i++)
+		field[i] = src[i];
+	if (i)
+		memset(field + i, ' ', field_len - i);
+}
+
+/* Volume personality, 0045h: the medium type and the density it is formatted
+ * at, in the layout Table 279 (GA32-0928-07, p. 303) gives for each LTO
+ * generation:
+ *
+ *     LTO-5 to LTO-7   "Ultrium-" + generation               "Ultrium-5"
+ *     LTO-8 to LTO-9   "LTO" + cartridge type + "G" + gen    "LTOL8G8", "LTOM8G8"
+ *     LTO-10           "LTO" + cartridge type + density code "LTOLA62"
+ *
+ * The cartridge type is the VOLUME LABEL CARTRIDGE TYPE of the sense data
+ * (5.2.31.1, p. 164). It is chosen from the MAM density code rather than the
+ * media type: the reference maps each cartridge type to one density (MEDIUM
+ * DENSITY CODE, 5.5.2.3.6, Table 318, p. 352), so an LTO-7 cartridge
+ * formatted M8 (density 5Dh) reads "LTOM8G8".
+ *
+ * LTO-1 to LTO-4, the 40TB LTO-10 Premium cartridge (density 63h, which
+ * GA32-0928-07 has no cartridge type for), cleaning, firmware, diagnostic
+ * and NULL cartridges, and every non-LTO format have no documented value, and get none. HPE's Ultrium host
+ * interface guides list 0045h but give no values, so HP drives report the
+ * IBM ones.
+ */
+static void volstat_personality(uint8_t *field, size_t field_len) {
+	char s[16] = "";
+	int	 worm  = (mam.MediumType == MEDIA_TYPE_WORM);
+
+	if (mam.MediumType != MEDIA_TYPE_DATA && !worm)
+		return;
+
+	switch (mam.MediumDensityCode) {
+	case medium_density_code_lto5:
+		strcpy(s, "Ultrium-5");
+		break;
+	case medium_density_code_lto6:
+		strcpy(s, "Ultrium-6");
+		break;
+	case medium_density_code_lto7:
+		strcpy(s, "Ultrium-7");
+		break;
+	case medium_density_code_lto8_m8:
+		strcpy(s, "LTOM8G8");
+		break;
+	case medium_density_code_lto8:
+		strcpy(s, worm ? "LTOLYG8" : "LTOL8G8");
+		break;
+	case medium_density_code_lto9:
+		strcpy(s, worm ? "LTOLZG9" : "LTOL9G9");
+		break;
+	case medium_density_code_lto10:
+		snprintf(s, sizeof(s), "LTO%s%02X", worm ? "LH" : "LA",
+				 mam.MediumDensityCode);
+		break;
+	default:
+		return;
+	}
+	volstat_ascii(field, field_len, (uint8_t *)s, strlen(s));
+}
+
 /* Rewriting the page with the real number of partitions.
  * Returns the total packed page size in bytes. */
 size_t update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ssc *lu_priv) {
@@ -626,6 +701,23 @@ size_t update_VolumeStatistics(struct VolumeStatistics_pg *pg, struct priv_lu_ss
 	put_unaligned_be16(volstat_compression_ratio(lu_priv->bytesRead_I,
 												 lu_priv->bytesRead_M),
 					   &pg->LastLoadReadCompressionRatio);
+
+	/* What the loaded cartridge is: its serial number, barcode, maker and
+	 * personality. pg is a fresh copy of the template, where these are zero,
+	 * so with no cartridge loaded nothing is left over from the last one.
+	 *
+	 * 0041h (tape lot identifier) and 0044h (volume license code) have no
+	 * counterpart in the MAM and stay zero.
+	 */
+	if (get_tape_load_status() == TAPE_LOADED) {
+		volstat_ascii(pg->VolumeSerialNumber, sizeof(pg->VolumeSerialNumber),
+					  mam.MediumSerialNumber, sizeof(mam.MediumSerialNumber));
+		volstat_ascii(pg->VolumeBarcode, sizeof(pg->VolumeBarcode),
+					  mam.Barcode, sizeof(mam.Barcode));
+		volstat_ascii(pg->VolumeManufacturer, sizeof(pg->VolumeManufacturer),
+					  mam.MediumManufacturer, sizeof(mam.MediumManufacturer));
+		volstat_personality(pg->VolumePersonality, sizeof(pg->VolumePersonality));
+	}
 
 	/* First partition dependant parameter */
 	memset(&pg->h_FirstEncryptedLogicalObj, 0,
