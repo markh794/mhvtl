@@ -165,9 +165,9 @@ static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int valu
 	smp = lookup_mode_pg(m, MODE_VENDOR_SPECIFIC_24H, 0);
 	if (smp) {
 		if (value)
-			smp->pcodePointer[5] |= ENCR_E;
+			smp->pcodePointer[7] |= ENCR_E;
 		else
-			smp->pcodePointer[5] &= ~ENCR_E;
+			smp->pcodePointer[7] &= ~ENCR_E;
 	}
 	return SAM_STAT_GOOD;
 }
