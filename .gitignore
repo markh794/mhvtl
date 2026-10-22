@@ -18,6 +18,7 @@ mhvtl_kernel.tgz
 /usr/bin/
 tests/test_*
 !tests/test_*.c
+tests/get_cart_type_blk
 **/*.log
 **/*.swp
 

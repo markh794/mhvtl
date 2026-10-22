@@ -8,6 +8,7 @@
 # Usage:
 #   make          — build all tests
 #   make test     — build and run all tests
+#   make raw      — run the raw block-device tests on a loop device (sudo)
 #   make clean    — remove binaries
 #
 
@@ -41,6 +42,12 @@ SCRIPT_TESTS = check_make_vtl_media.sh
 SCRIPT_TESTS += make_vtl_media_home.sh
 SCRIPT_TESTS += generator/run.sh
 
+# Raw block-device tests. They need a cartridge formatted on a loop device,
+# so "make test" only builds them; "make raw" runs them through
+# test_raw_loopback.sh and test_raw_provision.sh, which use sudo for losetup.
+RAW_TESTS = test_raw_backend test_raw_load_tape test_raw_provision get_cart_type_blk
+RAW_SCRIPTS = test_raw_loopback.sh test_raw_provision.sh
+
 # Integration tests via userland transport (no kernel modules or root needed)
 INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf test_encryption_state test_encryption_mode_page
 INTEGRATION_TESTS += test_ssc_worm
@@ -52,9 +59,9 @@ INTEGRATION_TESTS += test_ssc_load_unload
 
 INTEGRATION_TESTS += test_smc_drive_absent
 
-.PHONY: all test clean
+.PHONY: all test clean raw
 
-all: $(TESTS) $(INTEGRATION_TESTS)
+all: $(TESTS) $(INTEGRATION_TESTS) $(RAW_TESTS)
 
 test_byteshift: test_byteshift.c acutest.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
@@ -228,6 +235,41 @@ test_log_volstat_strings: test_log_volstat_strings.c acutest.h helpers/scsi_harn
 test_encryption_read_key: test_encryption_read_key.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
+# cart_backend_raw round-trip on a formatted device (test_raw_loopback.sh)
+test_raw_backend: test_raw_backend.c ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_backend.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
+# load_tape() and the tape I/O path on a raw cartridge (test_raw_loopback.sh)
+test_raw_load_tape: test_raw_load_tape.c ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_load_tape.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
+# get_cart_type() through <home>/<barcode> -> block device (test_raw_loopback.sh)
+get_cart_type_blk: get_cart_type_blk.c ../usr/vtl_cart_type.c ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ get_cart_type_blk.c ../usr/vtl_cart_type.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
+# mhvtl-raw-provision against a running vtllibrary (test_raw_provision.sh)
+test_raw_provision: test_raw_provision.c helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+raw: $(RAW_TESTS)
+	@echo "=== Running raw block-device tests ==="
+	@failed=0; \
+	for s in $(RAW_SCRIPTS); do \
+		echo "--- $$s ---"; \
+		bash ./$$s; \
+		if [ $$? -ne 0 ]; then failed=$$((failed + 1)); fi; \
+	done; \
+	echo ""; \
+	if [ $$failed -eq 0 ]; then \
+		echo "=== All raw test suites passed ==="; \
+	else \
+		echo "=== $$failed raw test suite(s) FAILED ==="; \
+		exit 1; \
+	fi
+
 integration: $(INTEGRATION_TESTS)
 	@echo "=== Running integration tests (userland transport) ==="
 	@for t in $(INTEGRATION_TESTS); do \
@@ -257,4 +299,4 @@ test: $(TESTS)
 	fi
 
 clean:
-	rm -f $(TESTS) $(INTEGRATION_TESTS) bench_compression vtlcmd_testobj.o
+	rm -f $(TESTS) $(INTEGRATION_TESTS) $(RAW_TESTS) bench_compression vtlcmd_testobj.o
