@@ -141,6 +141,9 @@ struct priv_lu_ssc {
 
 	uint8_t sam_status;
 
+	/* Unit attention (ASC/ASCQ) a load leaves for the next command, or 0 */
+	uint16_t pending_ua;
+
 	uint8_t allow_overwrite;
 
 	/* Default value read from config file */

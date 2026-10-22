@@ -1912,7 +1912,7 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 		} else {
 			/*
 			 * Unloaded but still in the mouth of the drive: mount it again.
-			 * loadTape() reports NOT READY TO READY TRANSITION (6/28/00)
+			 * loadTape() posts NOT READY TO READY TRANSITION (6/28/00)
 			 * for a load. That unit attention belongs to other initiators
 			 * (GA32-0928-07 4.19.4 b), p.66: "LOAD command from another
 			 * initiator"), and mhVTL keeps no per-I_T-nexus unit attention
@@ -1933,7 +1933,8 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 				sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 				return SAM_STAT_CHECK_CONDITION;
 			}
-			/* loadTape() left 6/28/00 in the sense data: back to NO SENSE */
+			lu_priv->pending_ua = 0;
+			/* This LOAD ends GOOD: leave no earlier sense for REQUEST SENSE */
 			memset(sense_buf, 0, 18);
 			sense_buf[0] = SD_CURRENT_INFORMATION_FIXED;
 		}
