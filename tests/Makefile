@@ -37,6 +37,7 @@ SCRIPT_TESTS += generator/run.sh
 # Integration tests via userland transport (no kernel modules or root needed)
 INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf test_encryption_state
 INTEGRATION_TESTS += test_log_volstat_strings
+INTEGRATION_TESTS += test_encryption_read_key
 
 .PHONY: all test clean
 
@@ -169,6 +170,9 @@ test_encryption_state: test_encryption_state.c acutest.h helpers/scsi_harness.h 
 test_log_volstat_strings: test_log_volstat_strings.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $< \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+    
+test_encryption_read_key: test_encryption_read_key.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 integration: $(INTEGRATION_TESTS)
 	@echo "=== Running integration tests (userland transport) ==="
