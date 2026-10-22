@@ -633,6 +633,14 @@ uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
 
 	MHVTL_DBG(1, "FORMAT MEDIUM (%ld) **", (long)dbuf_p->serialNo);
 
+	/* Not allowed on WORM, even blank (GA32-0928-07 5.2.3, p.82) */
+	if (get_tape_load_status() == TAPE_LOADED &&
+		mam.MediumType == MEDIA_TYPE_WORM) {
+		MHVTL_DBG(1, "FORMAT MEDIUM refused on WORM media");
+		sam_data_protect(E_MEDIUM_OVERWRITE_ATTEMPT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
 	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
 
@@ -1872,7 +1880,6 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 
 	struct s_sd sd;
 	int			load_request = cdb[4] & 0x01;
-	int			media_state;
 
 	set_current_state((load_request) ? MHVTL_STATE_LOADING : MHVTL_STATE_UNLOADING);
 
@@ -1887,51 +1894,55 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "TAPE %s (%ld) **",
 			  (load_request) ? "LOADING" : "UNLOADING", (long)cmd->dbuf_p->serialNo);
 
-	change_partition(0);
-	media_state = rewind_tape(sam_stat);
+	/*
+	 * Nothing is mounted while TAPE_UNLOADED, so there is no partition to
+	 * change to or rewind: do that only once the medium is loaded.
+	 * LOAD with no cartridge in the drive is NOT READY, MEDIUM NOT PRESENT
+	 * (IBM LTO SCSI Reference GA32-0928-07, 5.2.6 LOAD/UNLOAD, p.91).
+	 */
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
-		if (load_request) {
-			int load_state;
-			/*
-			 * media_state = 0 - Load OK -> Nothing to do
-			 * media_state = 1 - Already loaded -> Nothing to do
-			 */
-			switch (media_state) {
-			case 0:
-				/*
-				 * lu_priv->barcode indicates there is a tape in mouth
-				 * media not mounted, and receive a mount request - attempt
-				 * to load media
-				 */
-				if (!lu_priv->barcode) {
-					sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-					return SAM_STAT_CHECK_CONDITION;
-				}
-				load_state = loadTape(lu_priv->barcode, sam_stat);
-				if (load_state == 2) {
-					sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-					return SAM_STAT_CHECK_CONDITION;
-				} else if (load_state == 3) {
-					sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-					return SAM_STAT_CHECK_CONDITION;
-				}
-				break;
-			case 1:
-				break;
-			default:
-				sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-				return SAM_STAT_CHECK_CONDITION;
-				break;
-			}
-		} else {
+		if (!lu_priv->barcode) {
 			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
+		}
+		if (!load_request) {
+			/* Cartridge present but already unloaded: GOOD (Table 50, p.92) */
+			return SAM_STAT_GOOD;
+		} else {
+			/*
+			 * Unloaded but still in the mouth of the drive: mount it again.
+			 * loadTape() reports NOT READY TO READY TRANSITION (6/28/00)
+			 * for a load. That unit attention belongs to other initiators
+			 * (GA32-0928-07 4.19.4 b), p.66: "LOAD command from another
+			 * initiator"), and mhVTL keeps no per-I_T-nexus unit attention
+			 * state, so it is dropped: this LOAD ends READY (Table 50, p.92).
+			 */
+			uint8_t	 load_stat	= SAM_STAT_GOOD;
+			uint8_t *sense_buf	= (uint8_t *)dbuf_p->sense_buf;
+			int		 load_state = loadTape(lu_priv->barcode, &load_stat);
+
+			if (load_state == 3) {
+				sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			} else if (load_state == LOAD_INCOMPATIBLE_MEDIUM) {
+				/* MEDIUM ERROR, INCOMPATIBLE MEDIUM INSTALLED (Table B.4, p.478) */
+				sam_medium_error(E_MEDIUM_INCOMPATIBLE, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			} else if (load_state) {
+				sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			}
+			/* loadTape() left 6/28/00 in the sense data: back to NO SENSE */
+			memset(sense_buf, 0, 18);
+			sense_buf[0] = SD_CURRENT_INFORMATION_FIXED;
 		}
 		set_lp11_medium_present(1);
 		break;
 
 	case TAPE_LOADED:
+		change_partition(0);
+		rewind_tape(sam_stat);
 		if (!load_request) {
 			/* Send library an update status 'true' */
 			unloadTape(TRUE, sam_stat);
@@ -1956,23 +1967,28 @@ uint8_t ssc_write_filemarks(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "WRITE %d FILEMARKS (%ld) **",
 			  count, (long)cmd->dbuf_p->serialNo);
 
-	if (!lu_priv->pm->check_restrictions(cmd)) {
-		/* If restrictions & WORM media at block 0.. OK
-		 * Otherwise return CHECK_CONDITION.
-		 *	check_restrictions()
-		 *	was nice enough to set correct sense status for us.
-		 */
-		if ((mam.MediumType == MEDIA_TYPE_WORM) &&
-			(c_pos->blk_number == 0)) {
-			MHVTL_DBG(1, "Erasing WORM media");
-		} else
-			return SAM_STAT_CHECK_CONDITION;
+	/* A count of zero only flushes, so it returns GOOD on WORM media even
+	 * at a position that is not writable (GA32-0928-07 4.0.15 WRITE
+	 * FILEMARKS, p.181).
+	 */
+	if (!count && mam.MediumType == MEDIA_TYPE_WORM &&
+		get_tape_load_status() == TAPE_LOADED) {
+		write_filemarks(count, sam_stat);
+		return *sam_stat;
 	}
+
+	/* check_restrictions() sets the sense, including DATA PROTECT,
+	 * WORM MEDIUM - OVERWRITE ATTEMPTED when the WORM rules refuse the
+	 * write (GA32-0928-07 4.14.1, p.54 and Table B.8, p.483).
+	 */
+	if (!lu_priv->pm->check_restrictions(cmd))
+		return SAM_STAT_CHECK_CONDITION;
 
 	if (count) /* A count of zero is a buffer flush, not a change of content */
 		update_volume_change_reference(lu_priv, sam_stat);
 
-	write_filemarks(count, sam_stat);
+	if (write_filemarks(count, sam_stat))
+		return *sam_stat;	/* MEDIUM ERROR, already set */
 	if (count) {
 		if (current_tape_offset() >=
 			medium_partition_capacity(lu, c_pos->partition_id)) {
@@ -2165,23 +2181,15 @@ uint8_t ssc_set_capacity(struct scsi_cmd *cmd) {
 	/* TODO : implement medium_for_use_proportion_value */
 	/* uint16_t medium_for_use_proportion_value = get_unaligned_be16(&cmd->scb[3]); */
 
+	/* SET CAPACITY loses all data, and is a write-type command
+	 * (GA32-0928-07 4.0.6, p.169 and Table 31, p.78), so media load
+	 * status, write protect and the WORM rules apply as for a write.
+	 */
+	if (!lu_priv->pm->check_restrictions(cmd))
+		return SAM_STAT_CHECK_CONDITION;
+
 	if (c_pos->blk_number != 0) { /* not at Beginnning Of Partition (BOP) */
 		sam_illegal_request(E_POSITION_PAST_BOM, NULL, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
-	/* Check that there is a piece of media loaded.. */
-	switch (get_tape_load_status(lu_priv)) {
-	case TAPE_LOADED:
-		break;
-	case TAPE_LOADING:
-		sam_not_ready(E_BECOMING_READY, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	case TAPE_UNLOADED:
-		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	default:
-		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 	}
 

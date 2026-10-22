@@ -63,7 +63,7 @@ static struct density_info density_lto8 = {
 	"LTO-CVE", "U-832", "Ultrium 8/32T"};
 /* An LTO-8 drive also writes LTO-7 media in the 9 TB "M8" format (density
  * 0x5d). Same bits/mm as LTO-7 (M8 is LTO-7 media); IBM LTO SCSI Reference
- * GA32-0928-08 table 114. */
+ * GA32-0928-07 table 113, p.142. */
 static struct density_info density_lto8_m8 = {
 	19107, 127, 5376, 9000000, medium_density_code_lto8_m8,
 	"LTO-CVE", "U-832M", "Ultrium 8/32T Type M"};
@@ -126,8 +126,10 @@ static struct name_to_media_info media_info[] = {
 	 media_type_lto8_data, medium_density_code_lto8},
 	{"LTO8 WORM", Media_LTO8_WORM,
 	 media_type_lto8_worm, medium_density_code_lto8},
-	{"LTO8 M8", Media_LTO8,
-	 media_type_lto8_data, medium_density_code_lto8_m8},
+	/* M8 reports the LTO-7 medium type: it is LTO-7 media, and only the
+	 * density (5Dh) tells it apart. markh794/mhvtl#71 (comment 941601643) */
+	{"LTO8 M8", Media_LTO8_M8,
+	 media_type_lto7_data, medium_density_code_lto8_m8},
 	{"LTO9", Media_LTO9,
 	 media_type_lto9_data, medium_density_code_lto9},
 	{"LTO9 Clean", Media_LTO9_CLEAN,
@@ -240,9 +242,9 @@ static uint8_t update_ult_encryption_mode(struct list_head *m, void *p, int valu
 	mp = lookup_mode_pg(m, MODE_VENDOR_SPECIFIC_24H, 0);
 	if (mp) {
 		if (value)
-			mp->pcodePointer[5] |= ENCR_E;
+			mp->pcodePointer[7] |= ENCR_E;
 		else
-			mp->pcodePointer[5] &= ~ENCR_E;
+			mp->pcodePointer[7] &= ~ENCR_E;
 	}
 	return SAM_STAT_GOOD;
 }
@@ -293,6 +295,7 @@ static int encr_capabilities_ult(struct scsi_cmd *cmd) {
 			buf[24] |= 0x80; /* AVFMV */
 			break;
 		case Media_LTO8:
+		case Media_LTO8_M8:
 			MHVTL_DBG(1, "LTO8 Medium - Setting AVFMV");
 			buf[24] |= 0x80; /* AVFMV */
 			break;
@@ -470,6 +473,7 @@ static uint8_t ult_media_load(struct lu_phy_attr *lu, int load) {
 			lu->mode_media_type = media_type_lto6_data;
 			break;
 		case Media_LTO7:
+		case Media_LTO8_M8: /* LTO-7 media, see media_info[] */
 			lu->mode_media_type = media_type_lto7_data;
 			break;
 		case Media_LTO8:
@@ -1036,7 +1040,8 @@ void init_ult3580_td8(struct lu_phy_attr *lu) {
 					 td8_media, ARRAY_SIZE(td8_media));
 	/* An LTO-8 drive also writes LTO-7 media in the 9 TB "M8" format
 	 * (density 0x5d): advertise it and accept "LTO8 M8" cartridges. LTO-7
-	 * drives cannot read M8, so this stays td8-only. GA32-0928-08 table 114. */
+	 * drives cannot read M8 and LTO-9 drives neither read nor write it, so
+	 * this stays td8-only. GA32-0928-07 table 5 and 3.4, p.21-22. */
 	add_density_support(&lu->den_list, &density_lto8_m8, 1);
 	add_drive_media_list(lu, LOAD_RW, "LTO8 M8");
 }
