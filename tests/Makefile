@@ -44,6 +44,7 @@ INTEGRATION_TESTS += test_encryption_state
 INTEGRATION_TESTS += test_lto_m8
 INTEGRATION_TESTS += test_log_volstat_strings
 INTEGRATION_TESTS += test_encryption_read_key
+INTEGRATION_TESTS += test_ssc_load_unload
 
 .PHONY: all test clean
 
@@ -175,6 +176,9 @@ test_smc_load_failure: test_smc_load_failure.c acutest.h helpers/scsi_harness.h 
 test_mode_sense_saved: test_mode_sense_saved.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
   
+test_ssc_load_unload: test_ssc_load_unload.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
 test_ssc_erase: test_ssc_erase.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
   

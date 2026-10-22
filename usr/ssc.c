@@ -1880,7 +1880,6 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 
 	struct s_sd sd;
 	int			load_request = cdb[4] & 0x01;
-	int			media_state;
 
 	set_current_state((load_request) ? MHVTL_STATE_LOADING : MHVTL_STATE_UNLOADING);
 
@@ -1895,51 +1894,55 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, "TAPE %s (%ld) **",
 			  (load_request) ? "LOADING" : "UNLOADING", (long)cmd->dbuf_p->serialNo);
 
-	change_partition(0);
-	media_state = rewind_tape(sam_stat);
+	/*
+	 * Nothing is mounted while TAPE_UNLOADED, so there is no partition to
+	 * change to or rewind: do that only once the medium is loaded.
+	 * LOAD with no cartridge in the drive is NOT READY, MEDIUM NOT PRESENT
+	 * (IBM LTO SCSI Reference GA32-0928-07, 5.2.6 LOAD/UNLOAD, p.91).
+	 */
 	switch (get_tape_load_status()) {
 	case TAPE_UNLOADED:
-		if (load_request) {
-			int load_state;
-			/*
-			 * media_state = 0 - Load OK -> Nothing to do
-			 * media_state = 1 - Already loaded -> Nothing to do
-			 */
-			switch (media_state) {
-			case 0:
-				/*
-				 * lu_priv->barcode indicates there is a tape in mouth
-				 * media not mounted, and receive a mount request - attempt
-				 * to load media
-				 */
-				if (!lu_priv->barcode) {
-					sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-					return SAM_STAT_CHECK_CONDITION;
-				}
-				load_state = loadTape(lu_priv->barcode, sam_stat);
-				if (load_state == 2) {
-					sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-					return SAM_STAT_CHECK_CONDITION;
-				} else if (load_state == 3) {
-					sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
-					return SAM_STAT_CHECK_CONDITION;
-				}
-				break;
-			case 1:
-				break;
-			default:
-				sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
-				return SAM_STAT_CHECK_CONDITION;
-				break;
-			}
-		} else {
+		if (!lu_priv->barcode) {
 			sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
 			return SAM_STAT_CHECK_CONDITION;
+		}
+		if (!load_request) {
+			/* Cartridge present but already unloaded: GOOD (Table 50, p.92) */
+			return SAM_STAT_GOOD;
+		} else {
+			/*
+			 * Unloaded but still in the mouth of the drive: mount it again.
+			 * loadTape() reports NOT READY TO READY TRANSITION (6/28/00)
+			 * for a load. That unit attention belongs to other initiators
+			 * (GA32-0928-07 4.19.4 b), p.66: "LOAD command from another
+			 * initiator"), and mhVTL keeps no per-I_T-nexus unit attention
+			 * state, so it is dropped: this LOAD ends READY (Table 50, p.92).
+			 */
+			uint8_t	 load_stat	= SAM_STAT_GOOD;
+			uint8_t *sense_buf	= (uint8_t *)dbuf_p->sense_buf;
+			int		 load_state = loadTape(lu_priv->barcode, &load_stat);
+
+			if (load_state == 3) {
+				sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			} else if (load_state == LOAD_INCOMPATIBLE_MEDIUM) {
+				/* MEDIUM ERROR, INCOMPATIBLE MEDIUM INSTALLED (Table B.4, p.478) */
+				sam_medium_error(E_MEDIUM_INCOMPATIBLE, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			} else if (load_state) {
+				sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
+				return SAM_STAT_CHECK_CONDITION;
+			}
+			/* loadTape() left 6/28/00 in the sense data: back to NO SENSE */
+			memset(sense_buf, 0, 18);
+			sense_buf[0] = SD_CURRENT_INFORMATION_FIXED;
 		}
 		set_lp11_medium_present(1);
 		break;
 
 	case TAPE_LOADED:
+		change_partition(0);
+		rewind_tape(sam_stat);
 		if (!load_request) {
 			/* Send library an update status 'true' */
 			unloadTape(TRUE, sam_stat);
