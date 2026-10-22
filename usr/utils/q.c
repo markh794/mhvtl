@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
+#include <time.h>
 #include <sys/msg.h>
 #include <errno.h>
 #include <string.h>
@@ -141,7 +142,90 @@ static int is_reply(const char *text, const char *const *replies) {
  */
 int recv_reply_from(int qid, long from, const char *const *replies,
 					struct q_entry *reply) {
-	struct pending_msg *p = NULL;
+	return recv_reply_within(qid, from, NULL, 0, replies, reply);
+}
+
+/*
+ * Take back 'request', a message this daemon sent to rcv_id, if rcv_id has
+ * not read it yet: every copy of it, so that none from an earlier attempt
+ * is left for a daemon that starts later. Every other message waiting for
+ * rcv_id is taken off with it and put back in the same order, without
+ * waiting for room on the queue: a full queue loses (and logs) a message
+ * rather than block this daemon in the middle of a SCSI command.
+ *
+ * Returns 1 if the request was withdrawn, 0 if it is no longer on the queue
+ * (rcv_id has read it), -1 on error.
+ */
+int withdraw_msg(int qid, long rcv_id, const char *request) {
+	struct q_entry *held = NULL;
+	size_t			n = 0, room = 0, i;
+	int				found = 0, rc = 0, mlen;
+
+	for (;;) {
+		if (n == room) {
+			struct q_entry *bigger = realloc(held, (room + 8) * sizeof(*held));
+
+			if (!bigger) {
+				MHVTL_ERR("Out of memory withdrawing a message for %ld", rcv_id);
+				rc = -1;
+				break;
+			}
+			held = bigger;
+			room += 8;
+		}
+		memset(&held[n], 0, sizeof(held[n]));
+		mlen = msgrcv(qid, &held[n], MAXOBN, rcv_id, IPC_NOWAIT | MSG_NOERROR);
+		if (mlen < 0) {
+			if (errno == EINTR)
+				continue;
+			if (errno != ENOMSG)
+				rc = -1;
+			break;
+		}
+		held[n].msg.text[MAXTEXTLEN] = '\0';
+		if (held[n].msg.snd_id == my_id && !strcmp(held[n].msg.text, request)) {
+			found = 1; /* dropped: not put back */
+			continue;
+		}
+		n++;
+	}
+
+	for (i = 0; i < n; i++) {
+		int len = offsetof(struct q_msg, text) + strlen(held[i].msg.text) + 1;
+
+		if (msgsnd(qid, &held[i], len, IPC_NOWAIT) == -1) {
+			MHVTL_ERR("Lost a message for %ld while withdrawing \"%s\": %s",
+					  rcv_id, request, strerror(errno));
+			rc = -1;
+		}
+	}
+	free(held);
+
+	return rc < 0 ? -1 : found;
+}
+
+static double now_secs(void) {
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
+/*
+ * recv_reply_from() for the reply to 'request', which this daemon has just
+ * sent to 'from'. A daemon reads its messages between SCSI commands, so one
+ * that is running takes the request off the queue within moments. If 'from'
+ * has not done so after 'grace' seconds, nothing is reading its messages (the
+ * daemon is not running, or has hung): the request is withdrawn, so that it
+ * is not acted on later, and -1 is returned with errno ETIMEDOUT. Once 'from'
+ * has taken the request, this waits for the reply as recv_reply_from() does.
+ * A grace of 0 waits without limit.
+ */
+int recv_reply_within(int qid, long from, const char *request,
+					  unsigned int grace, const char *const *replies,
+					  struct q_entry *reply) {
+	struct pending_msg *p		 = NULL;
+	double				deadline = (request && grace) ? now_secs() + grace : 0;
 	int					mlen;
 
 	for (;;) {
@@ -156,10 +240,31 @@ int recv_reply_from(int qid, long from, const char *const *replies,
 		}
 		/* msgrcv() writes only what was sent: start from a clean entry */
 		memset(&p->entry, 0, sizeof(p->entry));
-		mlen = msgrcv(qid, &p->entry, MAXOBN, my_id, MSG_NOERROR);
+		mlen = msgrcv(qid, &p->entry, MAXOBN, my_id,
+					  MSG_NOERROR | (deadline ? IPC_NOWAIT : 0));
 		if (mlen < 0) {
 			if (errno == EINTR)
 				continue;
+			if (errno == ENOMSG && deadline) {
+				if (now_secs() < deadline) {
+					usleep(10000);
+					continue;
+				}
+				switch (withdraw_msg(qid, from, request)) {
+				case 1:
+					MHVTL_ERR("%ld did not read \"%s\" within %u seconds",
+							  from, request, grace);
+					free(p);
+					errno = ETIMEDOUT;
+					return -1;
+				case 0: /* 'from' has it: wait for the reply */
+					deadline = 0;
+					continue;
+				default:
+					free(p);
+					return -1;
+				}
+			}
 			free(p);
 			return -1;
 		}

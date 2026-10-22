@@ -71,6 +71,10 @@ int serve(void);
 int init_queue(void);
 int recv_reply_from(int qid, long from, const char *const *replies,
 					struct q_entry *reply);
+int recv_reply_within(int qid, long from, const char *request,
+					  unsigned int grace, const char *const *replies,
+					  struct q_entry *reply);
+int withdraw_msg(int qid, long rcv_id, const char *request);
 int recv_msg(int qid, struct q_entry *e, int flags);
 
 extern long my_id;
@@ -84,6 +88,14 @@ extern long my_id;
 #define msg_mount_state	 "mount_state"
 #define msg_eject		 "eject"
 #define msg_set_empty	 "set_empty"
+
+/*
+ * Seconds a drive daemon has to take a request off the queue before the
+ * library decides that no daemon is reading it. An idle vtltape polls its
+ * queue at least once a second; a busy one after its current SCSI command,
+ * which on a slow raw disk can include an fdatasync() of many seconds.
+ */
+#define DRIVE_REPLY_GRACE 30
 
 /* A "Load failed" reply: the drive cannot use the medium */
 #define msg_load_failed_incompatible "Load failed - incompatible medium"

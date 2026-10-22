@@ -33,7 +33,10 @@
 
 /* ---- Socket I/O ---- */
 
+/* A test that expects a slow reply can define its own before the include */
+#ifndef HARNESS_IO_TIMEOUT_MS
 #define HARNESS_IO_TIMEOUT_MS 2000
+#endif
 #define HARNESS_READY_RETRIES 50
 
 static int harness_wait_fd(int fd, short events, int timeout_ms)

@@ -38,6 +38,8 @@ SCRIPT_TESTS += generator/run.sh
 INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf test_encryption_state
 INTEGRATION_TESTS += test_encryption_read_key
 
+INTEGRATION_TESTS += test_smc_drive_absent
+
 .PHONY: all test clean
 
 all: $(TESTS) $(INTEGRATION_TESTS)
@@ -145,6 +147,10 @@ test_conf_sscanf: test_conf_sscanf.c acutest.h helpers/scsi_harness.h helpers/de
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_smc_load_failure: test_smc_load_failure.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+# MOVE MEDIUM with a drive whose daemon is not running
+test_smc_drive_absent: test_smc_drive_absent.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_mode_sense_saved: test_mode_sense_saved.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h

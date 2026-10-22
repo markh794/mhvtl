@@ -240,7 +240,150 @@ static void test_max_length_message(void)
 	msgctl(qid, IPC_RMID, NULL);
 }
 
+/* Put a message from the library to drive 'drv' on qid, as send_msg() does */
+static void to_drive(int qid, long drv, const char *text)
+{
+	struct q_entry e;
+	int len;
+
+	memset(&e, 0, sizeof(e));
+	e.rcv_id = drv;
+	e.msg.snd_id = my_id;
+	strncpy(e.msg.text, text, MAXTEXTLEN);
+	len = offsetof(struct q_msg, text) + strlen(e.msg.text) + 1;
+	TEST_ASSERT(msgsnd(qid, &e, len, 0) == 0);
+}
+
+/* The next message waiting for drive 'drv', as the drive reads it */
+static int drive_next(int qid, long drv, struct q_entry *e)
+{
+	memset(e, 0, sizeof(*e));
+	return msgrcv(qid, e, MAXOBN, drv, IPC_NOWAIT | MSG_NOERROR);
+}
+
+static void expect_for_drive(int qid, long drv, const char *text)
+{
+	struct q_entry e;
+
+	TEST_CHECK(drive_next(qid, drv, &e) > 0);
+	TEST_CHECK(strcmp(e.msg.text, text) == 0);
+	TEST_MSG("drive %ld got \"%s\", want \"%s\"", drv, e.msg.text, text);
+}
+
+/* No daemon reads drive 11's messages: after the grace period the request
+ * is taken back and the wait fails with ETIMEDOUT. What else was waiting for
+ * the drive stays, in order, and the library's own messages are kept.
+ */
+static void test_no_reader_withdrawn(void)
+{
+	int qid = new_queue();
+	struct q_entry r;
+
+	to_drive(qid, 11, "Register");
+	to_drive(qid, 11, "lload E01001L8");
+	to_drive(qid, 11, "debug");
+	to_drive(qid, 11, "lload E01001L8"); /* left over from an earlier try */
+	put(qid, 32768, "open map");
+
+	TEST_CHECK(recv_reply_within(qid, 11, "lload E01001L8", 1,
+				     load_replies, &r) == -1);
+	TEST_CHECK(errno == ETIMEDOUT);
+
+	expect_for_drive(qid, 11, "Register");
+	expect_for_drive(qid, 11, "debug");
+	TEST_CHECK(drive_next(qid, 11, &r) < 0 && errno == ENOMSG);
+	expect(qid, 32768, "open map");
+	expect_empty(qid);
+
+	msgctl(qid, IPC_RMID, NULL);
+}
+
+struct slow_drive {
+	int qid;
+	useconds_t take_after, reply_after;
+};
+
+/* Drive 11: take the request off the queue, then reply some time later */
+static void *slow_drive(void *arg)
+{
+	struct slow_drive *d = arg;
+	struct q_entry e;
+
+	usleep(d->take_after);
+	TEST_CHECK(drive_next(d->qid, 11, &e) > 0);
+	usleep(d->reply_after);
+	put(d->qid, 11, "Loaded OK: E01001L8");
+	return NULL;
+}
+
+/* A drive that has taken the request may take longer than the grace period
+ * to reply: once it has the request, the wait goes on until the reply.
+ */
+static void test_slow_reply_after_take(void)
+{
+	struct slow_drive d = { new_queue(), 200 * 1000, 3500 * 1000 };
+	struct q_entry r;
+	pthread_t t;
+
+	to_drive(d.qid, 11, "lload E01001L8");
+	TEST_ASSERT(pthread_create(&t, NULL, slow_drive, &d) == 0);
+	TEST_CHECK(recv_reply_within(d.qid, 11, "lload E01001L8", 3,
+				     load_replies, &r) > 0);
+	pthread_join(t, NULL);
+	TEST_CHECK(strcmp(r.msg.text, "Loaded OK: E01001L8") == 0);
+	expect_empty(d.qid);
+
+	msgctl(d.qid, IPC_RMID, NULL);
+}
+
+/* A reply inside the grace period is returned at once */
+static void test_reply_within_grace(void)
+{
+	struct slow_drive d = { new_queue(), 50 * 1000, 50 * 1000 };
+	struct q_entry r;
+	pthread_t t;
+
+	to_drive(d.qid, 11, "lload E01001L8");
+	TEST_ASSERT(pthread_create(&t, NULL, slow_drive, &d) == 0);
+	TEST_CHECK(recv_reply_within(d.qid, 11, "lload E01001L8", 5,
+				     load_replies, &r) > 0);
+	pthread_join(t, NULL);
+	TEST_CHECK(strcmp(r.msg.text, "Loaded OK: E01001L8") == 0);
+
+	msgctl(d.qid, IPC_RMID, NULL);
+}
+
+/* withdraw_msg(): 0 once the drive has read the request, and only the
+ * library's own copy of the request is taken back
+ */
+static void test_withdraw_msg(void)
+{
+	int qid = new_queue();
+	struct q_entry e;
+
+	to_drive(qid, 11, "unload E01001L8");
+	TEST_CHECK(drive_next(qid, 11, &e) > 0);
+	TEST_CHECK(withdraw_msg(qid, 11, "unload E01001L8") == 0);
+
+	/* the same text from another sender is not ours */
+	memset(&e, 0, sizeof(e));
+	e.rcv_id = 11;
+	e.msg.snd_id = 32768;
+	strcpy(e.msg.text, "unload E01001L8");
+	TEST_ASSERT(msgsnd(qid, &e, offsetof(struct q_msg, text) + strlen(e.msg.text) + 1, 0) == 0);
+	to_drive(qid, 12, "unload E01001L8");
+	TEST_CHECK(withdraw_msg(qid, 11, "unload E01001L8") == 0);
+	TEST_CHECK(drive_next(qid, 11, &e) > 0 && e.msg.snd_id == 32768);
+	expect_for_drive(qid, 12, "unload E01001L8");
+
+	msgctl(qid, IPC_RMID, NULL);
+}
+
 TEST_LIST = {
+	{ "no_reader_withdrawn",       test_no_reader_withdrawn },
+	{ "slow_reply_after_take",     test_slow_reply_after_take },
+	{ "reply_within_grace",        test_reply_within_grace },
+	{ "withdraw_msg",              test_withdraw_msg },
 	{ "reply_first",               test_reply_first },
 	{ "others_held_in_order",      test_others_held_in_order },
 	{ "wait_spans_other_messages", test_wait_spans_other_messages },
