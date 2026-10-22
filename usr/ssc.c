@@ -568,6 +568,10 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 	uint8_t correct_key;
 	int		i;
 
+	/* The key the application loaded, even if this drive is not encrypting
+	 * writes (setup_crypto() clears app_encr_info then) */
+	encr = &app_encryption_state;
+
 	/* decryption logic */
 	correct_key = TRUE;
 
