@@ -47,17 +47,27 @@ struct mhvtl_raw_probe {
  */
 int raw_probe(const char *devpath, struct mhvtl_raw_probe *out);
 
+struct MAM;
+
+/*
+ * Read the MAM of the raw cartridge on devpath into mamp (init_mam()'d by the
+ * caller) WITHOUT making it the active cartridge. The device is opened
+ * read-only and not O_EXCL, so this works while a drive holds the cartridge.
+ * Returns 0 on success, -1 on error (errno set).
+ */
+int raw_read_mam(const char *devpath, struct MAM *mamp);
+
 /*
  * Format a block device with a static multi-partition raw cartridge layout.
  *
  *   devpath         block device to format (e.g. /dev/sdX, /dev/loopN)
  *   barcode         cartridge PCL/barcode (copied into the superblock)
  *   density         media density for the MAM, e.g. "LTO8"; NULL takes it
- *                   from the barcode's media suffix (L8 = LTO-8, LU = LTO-4
- *                   WORM), which an 8-character barcode must then carry.
- *                   A density that contradicts the suffix, more partitions
- *                   than the media supports, and an M8 barcode (no M8 media
- *                   type yet) are refused before the device is written
+ *                   from the barcode's media suffix (L8 = LTO-8, M8 = LTO-8
+ *                   Type M, LU = LTO-4 WORM), which an 8-character barcode
+ *                   must then carry. A density that contradicts the suffix
+ *                   and more partitions than the media supports are refused
+ *                   before the device is written
  *   partspec        comma-separated per-partition size percentages that must
  *                   total exactly 100, e.g. "92,8" or "85,5,5,5"
  *   min_record_size planning minimum record size; sizes the index region so it

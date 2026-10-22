@@ -711,50 +711,49 @@ out:
 	return ret;
 }
 
-static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
+/*
+ * Decode the MAM region of the cartridge described by superblock s, read
+ * through fd, into mamp. Shared by the loaded-cartridge path (load_mam) and
+ * raw_read_mam(), which has no loaded cartridge.
+ */
+static int raw_mam_from_region(int fd, const struct mhvtl_raw_superblock *s,
+			       struct MAM *mamp)
 {
 	int mfd = -1, hfd = -1, ret = -1;
 	uint32_t hdr[2];
 	uint8_t *buf = NULL;
 	uint64_t mlen, hlen;
 
-	(void)sam_stat;
-
-	if (!sb_loaded || devfd < 0) {
-		errno = EBADF;
-		return -1;
-	}
-
-	if (sb.mam_len == 0) {
+	if (s->mam_len == 0) {
 		/* Freshly formatted cartridge: no MAM yet. Present a current,
 		 * empty MAM so load proceeds without legacy-format migration. */
 		mamp->mam_fmt_version = MAM_VERSION;
 		mamp->tape_fmt_version = TAPE_FMT_VERSION;
 		return 0;
 	}
-	if (sb.mam_len < sizeof(hdr) || sb.mam_len > MVTL_MAM_RESERVE) {
-		MHVTL_ERR("raw load_mam: implausible mam_len %llu",
-			  (unsigned long long)sb.mam_len);
+	if (s->mam_len < sizeof(hdr) || s->mam_len > MVTL_MAM_RESERVE) {
+		MHVTL_ERR("raw MAM: implausible mam_len %llu",
+			  (unsigned long long)s->mam_len);
 		errno = EINVAL;
 		return -1;
 	}
 
-	buf = malloc((size_t)sb.mam_len);
+	buf = malloc((size_t)s->mam_len);
 	if (!buf) {
 		errno = ENOMEM;
 		return -1;
 	}
-	if (read_exact_at(devfd, buf, (size_t)sb.mam_len,
-			  (off_t)sb.mam_off) < 0) {
-		MHVTL_ERR("raw load_mam: MAM region read failed: %s",
+	if (read_exact_at(fd, buf, (size_t)s->mam_len,
+			  (off_t)s->mam_off) < 0) {
+		MHVTL_ERR("raw MAM: MAM region read failed: %s",
 			  strerror(errno));
 		goto out;
 	}
 	memcpy(hdr, buf, sizeof(hdr));
 	mlen = hdr[0];
 	hlen = hdr[1];
-	if (sizeof(hdr) + mlen + hlen > sb.mam_len) {
-		MHVTL_ERR("raw load_mam: MAM sub-stream lengths overflow region");
+	if (sizeof(hdr) + mlen + hlen > s->mam_len) {
+		MHVTL_ERR("raw MAM: MAM sub-stream lengths overflow region");
 		errno = EINVAL;
 		goto out;
 	}
@@ -762,12 +761,12 @@ static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
 	mfd = memfd_create("mhvtl-mam", 0);
 	hfd = memfd_create("mhvtl-mhvtl", 0);
 	if (mfd < 0 || hfd < 0) {
-		MHVTL_ERR("raw load_mam: memfd_create failed: %s", strerror(errno));
+		MHVTL_ERR("raw MAM: memfd_create failed: %s", strerror(errno));
 		goto out;
 	}
 	if (write_exact(mfd, buf + sizeof(hdr), (size_t)mlen) < 0 ||
 	    write_exact(hfd, buf + sizeof(hdr) + mlen, (size_t)hlen) < 0) {
-		MHVTL_ERR("raw load_mam: staging MAM sub-streams failed: %s",
+		MHVTL_ERR("raw MAM: staging MAM sub-streams failed: %s",
 			  strerror(errno));
 		goto out;
 	}
@@ -775,7 +774,7 @@ static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
 	lseek(hfd, 0, SEEK_SET);
 
 	if (read_mam(mfd, hfd, mamp) < 0) {
-		MHVTL_ERR("raw load_mam: read_mam failed");
+		MHVTL_ERR("raw MAM: read_mam failed");
 		goto out;
 	}
 	ret = 0;
@@ -785,6 +784,48 @@ out:
 		close(mfd);
 	if (hfd >= 0)
 		close(hfd);
+	return ret;
+}
+
+static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
+{
+	(void)sam_stat;
+
+	if (!sb_loaded || devfd < 0) {
+		errno = EBADF;
+		return -1;
+	}
+	return raw_mam_from_region(devfd, &sb, mamp);
+}
+
+/*
+ * Read the MAM of the raw cartridge on devpath without loading it. Opens the
+ * device O_RDONLY (no O_EXCL), so it works while a drive holds the cartridge,
+ * and leaves the backend state untouched. mamp must be init_mam()'d. Returns
+ * 0 on success, -1 on error.
+ */
+int raw_read_mam(const char *devpath, struct MAM *mamp)
+{
+	struct mhvtl_raw_superblock primary, mirror;
+	const struct mhvtl_raw_superblock *pick;
+	int fd, vp, vm, ret;
+
+	fd = open(devpath, O_RDONLY | O_LARGEFILE);
+	if (fd < 0)
+		return -1;
+
+	vp = sb_read_at(fd, MVTL_SB_PRIMARY_OFF, &primary);
+	vm = sb_read_at(fd, MVTL_SB_MIRROR_OFF, &mirror);
+	if (!vp && !vm) {
+		close(fd);
+		errno = EINVAL;
+		return -1;
+	}
+	pick = (vp && (!vm || primary.generation_id >= mirror.generation_id)) ?
+		&primary : &mirror;
+
+	ret = raw_mam_from_region(fd, pick, mamp);
+	close(fd);
 	return ret;
 }
 
@@ -873,15 +914,16 @@ static void fill_cartridge_uuid(uint8_t uuid[16])
 }
 
 /* A two-character LTO media-type suffix the raw backend accepts: data L1-L9
- * and LA (LTO-10), and WORM LT-LZ (U3-U9) and LH (U10). Labels per IBM
- * SG24-5946 and the IBM bar code label table,
- * https://www.ibm.com/docs/en/STAKKZ/con_LTOdrive_cartridges_barcodelabel.html. M8, LTO-7 media written in the LTO-8 Type M format, is refused:
- * mhVTL has no M8 media type yet, so the cartridge memory could only claim
- * plain LTO-8 (density 0x5e) instead of Type M (0x5d, GA32-0928 p.142). */
+ * and LA (LTO-10), M8 (LTO-7 media written in the LTO-8 Type M format), and
+ * WORM LT-LZ (U3-U9) and LH (U10). Labels per IBM SG24-5946 and the IBM bar
+ * code label table,
+ * https://www.ibm.com/docs/en/STAKKZ/con_LTOdrive_cartridges_barcodelabel.html. */
 static int valid_lto_media_suffix(const char *s)
 {
 	if (s[0] == 'L' && ((s[1] >= '1' && s[1] <= '9') || s[1] == 'A'))
 		return 1;				/* data L1-L9, LA */
+	if (s[0] == 'M' && s[1] == '8')
+		return 1;				/* M8 (LTO-7 media as LTO-8 Type M) */
 	if (s[0] == 'L' && ((s[1] >= 'T' && s[1] <= 'Z') || s[1] == 'H'))
 		return 1;				/* WORM LT-LZ, LH (U3-U10) */
 	return 0;
@@ -916,7 +958,7 @@ static int validate_raw_barcode(const char *barcode)
 	}
 	if (len == 8 && !valid_lto_media_suffix(barcode + 6)) {
 		MHVTL_ERR("raw_format: barcode '%s' has an invalid media suffix "
-			  "'%s' (expect data L1-L9/LA or WORM LT-LZ/LH; M8 is not supported)",
+			  "'%s' (expect data L1-L9/LA, M8, or WORM LT-LZ/LH)",
 			  barcode, barcode + 6);
 		errno = EINVAL;
 		return -1;
@@ -927,7 +969,9 @@ static int validate_raw_barcode(const char *barcode)
 /* The density a barcode's media suffix stands for, written to *density, and
  * whether the suffix names WORM media. The data suffixes L1-L9 and LA are
  * LTO-1 to LTO-10, and the WORM suffixes LT-LZ and LH are LTO-3 to LTO-10
- * (IBM SG24-5946). Returns -1 for a barcode without a suffix.
+ * (IBM SG24-5946). M8 is the LTO-8 Type M data cartridge, density 5Dh (IBM
+ * LTO SCSI Reference GA32-0928-07 table 113, p.142). Returns -1 for a
+ * barcode without a suffix.
  */
 static int raw_barcode_density(const char *barcode, char *density, size_t len,
 			       int *worm)
@@ -943,6 +987,8 @@ static int raw_barcode_density(const char *barcode, char *density, size_t len,
 		snprintf(density, len, "LTO%c", sfx[1]);
 	else if (sfx[0] == 'L' && sfx[1] == 'A')
 		snprintf(density, len, "LTO10");
+	else if (sfx[0] == 'M' && sfx[1] == '8')
+		snprintf(density, len, "LTO8M8");
 	else if (sfx[0] == 'L' && sfx[1] >= 'T' && sfx[1] <= 'Z') {
 		snprintf(density, len, "LTO%d", sfx[1] - 'T' + 3);
 		*worm = 1;

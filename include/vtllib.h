@@ -559,6 +559,7 @@ enum Media_Type_list {
 	Media_LTO10_CLEAN,
 	Media_LTO10_WORM,
 	Media_LTO10P,
+	Media_LTO8_M8, /* LTO-7 media written in the LTO-8 Type M format */
 	Media_UNKNOWN /* always last */
 };
 
@@ -723,7 +724,7 @@ struct density_info {
 	uint16_t density;
 	char	 assigning_org[9];
 	char	 density_name[9];
-	char	 description[20];
+	char	 description[21]; /* 20-byte DESCRIPTION field + NUL */
 };
 
 struct supported_density_list {

@@ -436,14 +436,25 @@ static void dump_tape_metadata(int dump_data, uint8_t *sam_stat) {
 	}
 
 	while (c_pos->blk_type != B_EOD) {
+		uint32_t blk = c_pos->blk_number;
+
 		print_raw_header();
-		if (dump_data) {
-			read_data(sam_stat);
-		}
-		while (c_pos->blk_type == B_FILEMARK) {
-			printf("Filemark at block : %u , skipping\n", c_pos->blk_number);
+		if (c_pos->blk_type == B_FILEMARK)
+			printf("Filemark at block : %u , skipping\n", blk);
+		else if (dump_data)
+			read_data(sam_stat); /* advances past the block it reads */
+
+		/* Step over the block unless reading it already did. Moving over a
+		 * filemark returns non-zero (FILEMARK sense) but does advance, so
+		 * judge progress by the position, not the return code. */
+		if (c_pos->blk_number == blk)
 			position_blocks_forw(1, sam_stat);
+		if (c_pos->blk_number <= blk) {
+			fprintf(stderr, "Unable to advance past block %u (now at %u), stopping\n", blk, c_pos->blk_number);
+			break;
 		}
+		if (c_pos->blk_number != blk + 1)
+			fprintf(stderr, "Warning: block %u is followed by block %u\n", blk, c_pos->blk_number);
 	}
 	print_raw_header();
 }

@@ -46,7 +46,7 @@ static void usage(char *progname) {
 	printf("           SDLT1    SDLT220  SDLT320  SDLT600\n");
 	printf("           LTO1     LTO2     LTO3     LTO4\n");
 	printf("           LTO5     LTO6     LTO7     LTO8\n");
-	printf("           LTO9     LTO10    LTO10P\n");
+	printf("           LTO8M8   LTO9     LTO10    LTO10P\n");
 	printf("           T10KA    T10KB    T10KC\n");
 	printf("           9840A    9840B    9840C    9840D\n");
 	printf("           9940A    9940B\n");
@@ -218,6 +218,12 @@ int main(int argc, char *argv[]) {
 	if (set_media_params(&mam, density)) {
 		fprintf(stderr, "error: '%s' is not a density this build knows\n",
 				density);
+		exit(1);
+	}
+	/* Type M is a data cartridge only: no WORM or cleaning M8 exists.
+	 * GA32-0928-07 table 5, p.21 */
+	if (mam.MediaType == Media_LTO8_M8 && mam.MediumType != MEDIA_TYPE_DATA) {
+		fprintf(stderr, "error: M8 media exists only as a data cartridge\n");
 		exit(1);
 	}
 

@@ -82,12 +82,30 @@ int main(int argc, char **argv)
 
 	/* The format wrote a MAM: without a media type and a capacity the drive
 	 * reports end of medium on the first write. The harness formats an L8
-	 * barcode with a 92,8 split. */
+	 * and an M8 barcode with a 92,8 split. */
 	uint64_t cap_sum = 0;
 	for (int p = 0; p < mam.num_partitions; p++)
 		cap_sum += get_unaligned_be64(&mam.partition_capacity[p]);
-	CHECK(mam.MediumType == MEDIA_TYPE_DATA && mam.MediaType == Media_LTO8,
-	      "MAM media type taken from the L8 barcode suffix");
+	if (strlen(barcode) == 8 && !strcmp(barcode + 6, "M8")) {
+		/* LTO-7 media in the LTO-8 Type M format: density 5Dh, "U-832M",
+		 * 9 TB native (IBM LTO SCSI Reference GA32-0928-07 table 113,
+		 * p.142), up to four partitions (table 10, p.32). The MAM capacity
+		 * is the disk's, so 9 TB is the media type's native size. */
+		CHECK(mam.MediumType == MEDIA_TYPE_DATA &&
+		      mam.MediaType == Media_LTO8_M8,
+		      "MAM media type taken from the M8 barcode suffix");
+		CHECK(mam.MediumDensityCode == medium_density_code_lto8_m8,
+		      "M8 density code 5Dh");
+		CHECK(!strncmp(mam.media_info.density_name, "U-832M", 6),
+		      "M8 density name U-832M");
+		CHECK(mam.max_partitions == 4, "M8 holds up to four partitions");
+		CHECK(media_native_capacity(mam.MediaType) == 9000000000000ULL,
+		      "M8 media type is 9 TB native");
+	} else {
+		CHECK(mam.MediumType == MEDIA_TYPE_DATA &&
+		      mam.MediaType == Media_LTO8,
+		      "MAM media type taken from the L8 barcode suffix");
+	}
 	CHECK(get_unaligned_be64(&mam.max_capacity) > 0 &&
 	      get_unaligned_be64(&mam.partition_capacity[1]) > 0 &&
 	      get_unaligned_be64(&mam.max_capacity) == cap_sum,

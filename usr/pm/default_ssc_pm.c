@@ -89,6 +89,8 @@ static struct name_to_media_info media_info[] = {
 	 media_type_lto8_data, medium_density_code_lto8},
 	{"LTO8 WORM", Media_LTO8_WORM,
 	 media_type_lto8_worm, medium_density_code_lto8},
+	{"LTO8 M8", Media_LTO8_M8,
+	 media_type_lto7_data, medium_density_code_lto8_m8},
 	{"LTO9", Media_LTO9,
 	 media_type_lto9_data, medium_density_code_lto9},
 	{"LTO9 Clean", Media_LTO9_CLEAN,
@@ -428,6 +430,7 @@ void init_default_ssc(struct lu_phy_attr *lu) {
 	add_drive_media_list(lu, LOAD_RW, "LTO6");
 	add_drive_media_list(lu, LOAD_RW, "LTO7");
 	add_drive_media_list(lu, LOAD_RW, "LTO8");
+	add_drive_media_list(lu, LOAD_RW, "LTO8 M8");
 	add_drive_media_list(lu, LOAD_RW, "LTO9");
 	add_drive_media_list(lu, LOAD_RW, "LTO10");
 	add_drive_media_list(lu, LOAD_RW, "LTO10P");
