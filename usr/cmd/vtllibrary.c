@@ -545,6 +545,24 @@ static int set_access_bit(struct q_msg *msg) {
 	return 0;
 }
 
+/* The library sends "Register" to each drive once, at startup. A drive
+ * daemon started after that (restarted, or started late) asks again.
+ */
+static void register_drive(struct q_msg *msg) {
+	struct s_info	 *sp;
+	struct list_head *slot_head = &smc_slots.slot_list;
+
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (sp->element_type == DATA_TRANSFER && sp->drive->drv_id == msg->snd_id) {
+			MHVTL_DBG(1, "Registering driveId: %ld", msg->snd_id);
+			send_msg("Register", msg->snd_id);
+			return;
+		}
+	}
+	MHVTL_LOG("Drive %ld asked to be registered, but it is not in this library",
+			  msg->snd_id);
+}
+
 /*
  * Return 1, exit program
  */
@@ -566,6 +584,8 @@ static int processMessageQ(struct q_msg *msg) {
 		empty_map(msg);
 	if (!strncmp(msg->text, msg_eject, strlen(msg_eject)))
 		set_access_bit(msg);
+	if (!strncmp(msg->text, msg_register_request, strlen(msg_register_request)))
+		register_drive(msg);
 	if (!strncmp(msg->text, "exit", 4))
 		return 1;
 	if (!strncmp(msg->text, "open map", 8))

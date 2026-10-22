@@ -2,7 +2,8 @@
  * Integration tests for a MOVE MEDIUM that involves a drive whose daemon is
  * not running: the library must fail the move instead of waiting forever for
  * a reply, and must not leave the request on the queue for a daemon that
- * starts later.
+ * starts later. A drive daemon restarted while the library runs must be
+ * registered again, or it refuses every load from the library.
  *
  * Starts vtllibrary (and vtltape only where a test says so) with
  * MHVTL_BACKEND=userland against a generated device.conf.
@@ -132,6 +133,22 @@ static int start_drive(void)
 	return 0;
 }
 
+/* Stop the drive daemon only. harness_stop() also removes the message
+ * queue, which a real restart of one daemon does not.
+ */
+static void stop_drive_only(void)
+{
+	if (tape_ctx.sock_fd >= 0)
+		close(tape_ctx.sock_fd);
+	if (tape_ctx.pid > 0) {
+		kill(tape_ctx.pid, SIGTERM);
+		usleep(500000);
+		kill(tape_ctx.pid, SIGKILL);
+		waitpid(tape_ctx.pid, NULL, 0);
+	}
+	memset(&tape_ctx, 0, sizeof(tape_ctx));
+}
+
 static void stop(void)
 {
 	harness_stop(&lib_ctx);
@@ -227,6 +244,56 @@ static void drive_queue(long drv, char *out, size_t len)
 	}
 }
 
+/* Put 'text' on the queue for 'to', as if sent by 'from' */
+static int post_msg(long to, long from, const char *text)
+{
+	struct q_entry e;
+	int qid = msgget(QKEY, 0);
+
+	if (qid < 0)
+		return -1;
+	memset(&e, 0, sizeof(e));
+	e.rcv_id = to;
+	e.msg.snd_id = from;
+	snprintf(e.msg.text, sizeof(e.msg.text), "%s", text);
+	return msgsnd(qid, &e, offsetof(struct q_msg, text) + strlen(e.msg.text) + 1, 0);
+}
+
+/* Take every message for 'to' off the queue; how many there were */
+static int drain(long to)
+{
+	struct q_entry e;
+	int qid = msgget(QKEY, 0);
+	int n = 0;
+
+	while (qid >= 0 && msgrcv(qid, &e, MAXOBN, to, IPC_NOWAIT | MSG_NOERROR) > 0)
+		n++;
+	return n;
+}
+
+/* Send 'text' to the drive as if from 'from' and wait up to 5 s for the
+ * reply on 'from'. 0 and the reply in 'reply', or -1.
+ */
+static int ask_drive(long from, const char *text, char *reply, size_t len)
+{
+	struct q_entry e;
+	int qid = msgget(QKEY, 0);
+
+	if (qid < 0 || post_msg(TAPE_MINOR, from, text) < 0)
+		return -1;
+	for (int i = 0; i < 500; i++) {
+		if (msgrcv(qid, &e, MAXOBN, from, IPC_NOWAIT | MSG_NOERROR) > 0) {
+			size_t n = strnlen(e.msg.text, len - 1);
+
+			memcpy(reply, e.msg.text, n);
+			reply[n] = '\0';
+			return 0;
+		}
+		usleep(10000);
+	}
+	return -1;
+}
+
 static void check_answered_in_grace(double secs)
 {
 	TEST_CHECK(secs >= DRIVE_REPLY_GRACE - 1 && secs < DRIVE_REPLY_GRACE + 5);
@@ -302,8 +369,138 @@ void test_move_from_stopped_drive(void)
 	stop();
 }
 
+/* The drive daemon restarts while the library keeps running: the new
+ * daemon never sees the library's startup "Register", and must still take
+ * cartridges from the library.
+ */
+void test_restarted_drive(void)
+{
+	struct scsi_result r;
+	double secs;
+
+	TEST_ASSERT(start_library() == 0);
+	TEST_ASSERT(start_drive() == 0);
+	TEST_ASSERT(move_medium(STORAGE_ADDR, DRIVE_ADDR, &r, &secs) == 0);
+	TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+	TEST_ASSERT(move_medium(DRIVE_ADDR, STORAGE_ADDR, &r, &secs) == 0);
+	TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+
+	stop_drive_only();
+	TEST_ASSERT(start_drive() == 0);
+
+	TEST_ASSERT(move_medium(STORAGE_ADDR, DRIVE_ADDR, &r, &secs) == 0);
+	TEST_CHECK(r.sam_stat == SAM_STAT_GOOD);
+	TEST_MSG("sam_stat 0x%02x, sense %02x/%02x/%02x", r.sam_stat,
+		 r.sense[2] & 0x0f, r.sense[12], r.sense[13]);
+	TEST_CHECK(secs < 5);
+	TEST_MSG("move to the restarted drive took %.1f s", secs);
+	TEST_CHECK(element_full(DRIVE_ADDR) == 1);
+
+	TEST_ASSERT(move_medium(DRIVE_ADDR, STORAGE_ADDR, &r, &secs) == 0);
+	TEST_CHECK(r.sam_stat == SAM_STAT_GOOD);
+	TEST_CHECK(element_full(STORAGE_ADDR) == 1);
+
+	stop();
+}
+
+/* With no library running, a new drive daemon asks its library for
+ * "Register", and takes a load from that library before the answer, but
+ * not from anyone else. Restarting it leaves one request, not two.
+ */
+void test_register_request(void)
+{
+	char q[256], reply[256];
+	struct q_entry e;
+	int got = 0;
+
+	gen_cleanup_env(&test_env);
+	TEST_ASSERT(prepare_env() == 0);
+	TEST_ASSERT(start_drive() == 0);
+	stop_drive_only();
+	TEST_ASSERT(start_drive() == 0);
+
+	/* The request waits on the library's queue, once */
+	for (int i = 0; i < 500 && !got; i++) {
+		if (msgrcv(msgget(QKEY, 0), &e, MAXOBN, LIB_MINOR,
+			   IPC_NOWAIT | MSG_NOERROR) > 0)
+			got = 1;
+		else
+			usleep(10000);
+	}
+	if (!TEST_CHECK(got))
+		goto out;
+	TEST_CHECK(strcmp(e.msg.text, msg_register_request) == 0);
+	TEST_CHECK(e.msg.snd_id == TAPE_MINOR);
+	TEST_MSG("library queue: \"%s\" from %ld", e.msg.text, e.msg.snd_id);
+	drive_queue(LIB_MINOR, q, sizeof(q));
+	TEST_CHECK(q[0] == '\0');
+	TEST_MSG("left on the library queue: \"%s\"", q);
+
+	/* A load from someone other than its library is still refused */
+	if (TEST_CHECK(ask_drive(99, "lload " BC_LTO8, reply, sizeof(reply)) == 0)) {
+		TEST_CHECK(strstr(reply, "not in a library") != NULL);
+		TEST_MSG("reply to 99: \"%s\"", reply);
+	}
+
+	if (TEST_CHECK(ask_drive(LIB_MINOR, "lload " BC_LTO8, reply, sizeof(reply)) == 0)) {
+		TEST_CHECK(strncmp(reply, msg_load_ok, strlen(msg_load_ok)) == 0);
+		TEST_MSG("reply to the library: \"%s\"", reply);
+	}
+
+out:
+	/* No library was started: stop only the drive */
+	harness_stop(&tape_ctx);
+	memset(&tape_ctx, 0, sizeof(tape_ctx));
+	gen_cleanup_env(&test_env);
+}
+
+/* The library answers a "Register request" from one of its drives with
+ * "Register", and ignores one from a drive it does not have.
+ */
+void test_library_answers_request(void)
+{
+	char q[256];
+	int n = 0;
+
+	TEST_ASSERT(start_library() == 0);
+	/* Its startup "Register" for the drive, which is not running */
+	for (int i = 0; i < 500 && !n; i++) {
+		n = drain(TAPE_MINOR);
+		if (!n)
+			usleep(10000);
+	}
+	TEST_CHECK(n == 1);
+	TEST_MSG("startup messages for drive %d: %d", TAPE_MINOR, n);
+
+	TEST_ASSERT(post_msg(LIB_MINOR, TAPE_MINOR, msg_register_request) == 0);
+	q[0] = '\0';
+	for (int i = 0; i < 500 && !q[0]; i++) {
+		drive_queue(TAPE_MINOR, q, sizeof(q));
+		if (!q[0])
+			usleep(10000);
+	}
+	TEST_CHECK(strcmp(q, "Register") == 0);
+	TEST_MSG("queue for drive %d: \"%s\"", TAPE_MINOR, q);
+	drain(TAPE_MINOR);
+
+	/* 12 is not a drive of this library */
+	TEST_ASSERT(post_msg(LIB_MINOR, 12, msg_register_request) == 0);
+	usleep(2500000); /* the library reads its queue at least once a second */
+	drive_queue(12, q, sizeof(q));
+	TEST_CHECK(q[0] == '\0');
+	TEST_MSG("queue for 12: \"%s\"", q);
+	drive_queue(LIB_MINOR, q, sizeof(q));
+	TEST_CHECK(q[0] == '\0');
+	TEST_MSG("left on the library queue: \"%s\"", q);
+
+	stop();
+}
+
 TEST_LIST = {
 	{ "move_to_absent_drive",    test_move_to_absent_drive },
 	{ "move_from_stopped_drive", test_move_from_stopped_drive },
+	{ "restarted_drive",         test_restarted_drive },
+	{ "register_request",        test_register_request },
+	{ "library_answers_request", test_library_answers_request },
 	{ NULL, NULL }
 };
