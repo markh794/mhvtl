@@ -42,7 +42,7 @@ SCRIPT_TESTS += make_vtl_media_home.sh
 SCRIPT_TESTS += generator/run.sh
 
 # Integration tests via userland transport (no kernel modules or root needed)
-INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved  test_smc_load_failure test_conf_sscanf test_encryption_state test_encryption_mode_page
+INTEGRATION_TESTS = test_userland_transport test_drive_types test_tape_io test_smc_dvcid test_queue_backoff test_ssc_fixed_ew test_ssc_erase test_read_sili test_ssc_space test_ssc_eom test_mode_sense_saved test_smc_load_failure test_conf_sscanf test_encryption_mode_page
 INTEGRATION_TESTS += test_ssc_worm
 INTEGRATION_TESTS += test_encryption_state
 INTEGRATION_TESTS += test_lto_m8
@@ -135,7 +135,7 @@ test_dump_tape_options: test_dump_tape_options.c acutest.h helpers/device_conf_g
 # raw_read_mam() from libvtlscsi plus get_cart_type() (vtllibrary helper)
 test_raw_read_mam: test_raw_read_mam.c acutest.h ../usr/vtl_cart_type.c ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_read_mam.c ../usr/vtl_cart_type.c \
-  -L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
 # A failed index write in write_tape_block() or write_filemarks() rolls back
 # to the prior index
@@ -150,6 +150,8 @@ test_dump_tape_output: test_dump_tape_output.c acutest.h ../usr/libvtlscsi.so
 # dump_tape on a real cartridge: must terminate and print each block once
 test_dump_tape_loop: test_dump_tape_loop.c acutest.h helpers/device_conf_gen.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_dump_tape_loop.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
 # M8 media MAM from set_media_params(), mktape and edit_tape (libvtlscsi,
 # usr/bin/mktape and usr/bin/edit_tape)
 test_m8_mam: test_m8_mam.c acutest.h ../usr/libvtlscsi.so
