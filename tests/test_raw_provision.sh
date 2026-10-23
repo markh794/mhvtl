@@ -22,31 +22,32 @@ SUDO=""
 
 IMG="$(mktemp /tmp/mhvtl-prov-XXXXXX.img)"
 LOOP=""
-DRVBIN="$(mktemp /tmp/test_raw_provision-XXXXXX)"
+DRVBIN="$HERE/tests/test_raw_provision"
 DEDUP_CONF="$(mktemp /tmp/mhvtl-dedup-XXXXXX.conf)"
 BARCODE="BAY001L8"
+# Logs go to a directory of our own: fixed names in /tmp left by an earlier
+# run as root could not be overwritten. It is kept when the script fails.
+LOGDIR="$(mktemp -d /tmp/mhvtl-raw-prov-XXXXXX)"
 cleanup() {
+	local rc=$?
 	[ -n "$LOOP" ] && $SUDO losetup -d "$LOOP" 2>/dev/null
-	rm -f "$IMG" "$DRVBIN" "$DEDUP_CONF"
+	rm -f "$IMG" "$DEDUP_CONF"
+	if [ "$rc" -eq 0 ]; then rm -rf "$LOGDIR"; else echo "logs kept in $LOGDIR" >&2; fi
 }
 trap cleanup EXIT
 
 fail() { echo "PROVISION TEST FAIL: $*" >&2; exit 1; }
 
-IFLAGS="-I tests -I include -I include/utils -I include/common -I ccan"
-
 echo "=== build libvtlscsi + tools + daemons ==="
 make -C usr libvtlscsi.so bin/mhvtl-raw-format bin/mhvtl-raw-provision \
-	bin/vtllibrary bin/vtltape bin/mktape >/tmp/prov_build.log 2>&1 \
-	|| fail "build failed (see /tmp/prov_build.log)"
+	bin/vtllibrary bin/vtltape bin/mktape >"$LOGDIR/build.log" 2>&1 \
+	|| fail "build failed (see $LOGDIR/build.log)"
 
-echo "=== compile tests/test_raw_provision ==="
-# Flags mirror tests/Makefile (the integration tests compile clean under these).
-cc -Wall -Wshadow -g -O2 -std=gnu99 -D_GNU_SOURCE -D_LARGEFILE64_SOURCE $IFLAGS \
-	tests/test_raw_provision.c -o "$DRVBIN" >/tmp/prov_cc.log 2>&1 \
-	|| fail "driver compile failed (see /tmp/prov_cc.log)"
-if [ -s /tmp/prov_cc.log ]; then
-	echo "compiler diagnostics:"; cat /tmp/prov_cc.log
+echo "=== build tests/test_raw_provision ==="
+make -C tests test_raw_provision >"$LOGDIR/cc.log" 2>&1 \
+	|| fail "driver build failed (see $LOGDIR/cc.log)"
+if grep -q 'warning\|error' "$LOGDIR/cc.log"; then
+	echo "compiler diagnostics:"; cat "$LOGDIR/cc.log"
 fi
 
 echo "=== create 512 MiB backing image + loopback device ==="
