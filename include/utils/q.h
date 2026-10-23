@@ -88,6 +88,8 @@ extern long my_id;
 #define msg_mount_state	 "mount_state"
 #define msg_eject		 "eject"
 #define msg_set_empty	 "set_empty"
+/* From a drive daemon that started without a queued "Register" from its library */
+#define msg_register_request "Register request"
 
 /*
  * Seconds a drive daemon has to take a request off the queue before the

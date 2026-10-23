@@ -1748,6 +1748,16 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 
 	/* Tape Load message from Library */
 	if (!strncmp(msg->text, "lload", 5)) {
+		/* Only the library sends "lload", and only to its own drives.
+		 * From the library this drive is configured in, it counts as
+		 * "Register": the load may come before the library has read
+		 * this daemon's "Register request".
+		 */
+		if (!lu_ssc.inLibrary && library_id > 0 && msg->snd_id == library_id) {
+			MHVTL_LOG("Load from library %d before \"Register\": "
+					  "registering", library_id);
+			lu_ssc.inLibrary = 1;
+		}
 		if (!lu_ssc.inLibrary) {
 			MHVTL_DBG(2, "lload & drive not in library");
 			/* The library waits for an answer: give it one */
@@ -1850,7 +1860,7 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	if (!strncmp(msg->text, "exit", 4))
 		return 1;
 
-	if (!strncmp(msg->text, "Register", 8)) {
+	if (!strcmp(msg->text, "Register")) {
 		lu_ssc.inLibrary = 1;
 		MHVTL_DBG(1, "Notice from Library controller : %s", msg->text);
 		/*		find_media_home_directory(NULL, library_id); */
@@ -2762,6 +2772,22 @@ int main(int argc, char *argv[]) {
 		for (size_t i = 0; i < n; i++)
 			processMessageQ(&pending[i], &lu_ssc.sam_status);
 		free(pending);
+	}
+
+	/* The library sends "Register" only when it starts, and the queue
+	 * holds it for a drive that starts later. A daemon that starts after
+	 * an earlier one on this id took it (a restart) has none: ask the
+	 * library for it, or every load from the library would be refused.
+	 * If the library is not running, it drops the request when it starts
+	 * and sends "Register" then.
+	 */
+	if (library_id > 0 && !lu_ssc.inLibrary) {
+		/* At most one request waits: a library that never starts does
+		 * not collect one from every restart of this daemon.
+		 */
+		withdraw_msg(r_qid, library_id, msg_register_request);
+		MHVTL_DBG(1, "%ld: Asking library %d for \"Register\"", my_id, library_id);
+		send_msg(msg_register_request, library_id);
 	}
 
 	for (;;) {
