@@ -51,6 +51,7 @@ INTEGRATION_TESTS += test_encryption_read_key
 INTEGRATION_TESTS += test_ssc_load_unload
 
 INTEGRATION_TESTS += test_smc_drive_absent
+INTEGRATION_TESTS += test_log_volstat_len
 
 .PHONY: all test clean
 
@@ -208,6 +209,9 @@ test_read_sili: test_read_sili.c acutest.h helpers/scsi_harness.h helpers/device
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
   
 test_ssc_space: test_ssc_space.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_log_volstat_len: test_log_volstat_len.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_ssc_eom: test_ssc_eom.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
