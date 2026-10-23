@@ -1312,6 +1312,31 @@ static void updateMAM(uint8_t *sam_stat, int load) {
 }
 
 /*
+ * Commands the drive does not report a unit attention to: the UAT column of
+ * Table 31 is '-' for them (IBM LTO SCSI Reference GA32-0928-07, 5.1.2,
+ * p.77-78). A3h/A4h with service action 1Eh are READ/WRITE DYNAMIC RUNTIME
+ * ATTRIBUTE, A3h with 1Fh READ END OF WRAP POSITION and READ LOGGED-IN HOST
+ * TABLE. The IBM table is used for every drive personality. REQUEST SENSE,
+ * also '-', is left out: it returns the unit attention as its sense data.
+ */
+static int ua_exempt(const uint8_t *cdb) {
+	switch (cdb[0]) {
+	case INQUIRY:
+	case LOG_SENSE:
+	case READ_BUFFER:
+	case REPORT_LUNS:
+	case 0xd1:
+	case 0xd2:
+		return 1;
+	case A3_SA:
+		return (cdb[1] & 0x1f) == 0x1e || (cdb[1] & 0x1f) == 0x1f;
+	case A4_SA:
+		return (cdb[1] & 0x1f) == 0x1e;
+	}
+	return 0;
+}
+
+/*
  *
  * Process the SCSI command
  *
@@ -1368,6 +1393,17 @@ static void processCommand(int cdev, uint8_t *cdb, struct mhvtl_ds *dbuf_p,
 			return;
 	}
 
+	/* The unit attention of a load ends the next command that reports unit
+	 * attentions without running it; REQUEST SENSE returns it as its sense
+	 * data (GA32-0928-07 4.19.4 b), p.66). Either way it is then cleared. */
+	if (lu_ssc.pending_ua && !ua_exempt(cdb)) {
+		sam_unit_attention(lu_ssc.pending_ua, &dbuf_p->sam_stat);
+		lu_ssc.pending_ua = 0;
+		if (cdb[0] != REQUEST_SENSE)
+			return;
+		dbuf_p->sam_stat = SAM_STAT_GOOD;
+	}
+
 	/* Skip main op code processing if pre-cmd returns non-zero */
 	if (cmd->lu->scsi_ops->ops[cdb[0]].pre_cmd_perform)
 		err = cmd->lu->scsi_ops->ops[cdb[0]].pre_cmd_perform(cmd, NULL);
@@ -1413,6 +1449,7 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 	int					  overflow;
 	struct media_details *m_detail;
 	struct lu_phy_attr	 *lu;
+	uint16_t			  ua = 0; /* unit attention to post once loaded */
 
 	lu_ssc.bytesWritten_I = 0; /* Global - Bytes written this load */
 	lu_ssc.bytesWritten_M = 0; /* Global - Bytes written this load */
@@ -1459,7 +1496,7 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 		OK_to_write = 1; /* Reset flag to OK. */
 		if (lu_ssc.pm->clear_WORM)
 			lu_ssc.pm->clear_WORM(&lu->mode_pg);
-		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
+		ua = E_NOT_READY_TO_TRANSITION;
 		break;
 	case MEDIA_TYPE_CLEAN:
 		set_current_state(MHVTL_STATE_LOADING_CLEAN);
@@ -1470,7 +1507,7 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 			lu_ssc.pm->cleaning_media(&lu_ssc);
 		fg |= TA_CLEANING_MEDIA;
 		MHVTL_DBG(1, "Cleaning media loaded");
-		sam_unit_attention(E_CLEANING_CART_INSTALLED, sam_stat);
+		ua = E_CLEANING_CART_INSTALLED;
 		break;
 	case MEDIA_TYPE_WORM:
 		set_current_state(MHVTL_STATE_LOADING_WORM);
@@ -1507,11 +1544,12 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 		}
 		lu_ssc.pm->set_WORM(&lu->mode_pg);
 		MHVTL_DBG(1, "Write Once Read Many (WORM) media loaded");
+		ua = E_NOT_READY_TO_TRANSITION;
 		break;
 	case MEDIA_TYPE_NULL: /* Special - don't save data, just metadata */
 		set_current_state(MHVTL_STATE_LOADING);
 		OK_to_write = 1; /* Reset flag to OK. */
-		sam_unit_attention(E_NOT_READY_TO_TRANSITION, sam_stat);
+		ua = E_NOT_READY_TO_TRANSITION;
 		break;
 	}
 
@@ -1629,6 +1667,7 @@ int loadTape(char *PCL, uint8_t *sam_stat) {
 	update_medium_partition_page(lu);
 
 	set_current_state(MHVTL_STATE_LOADED);
+	lu_ssc.pending_ua = ua;
 	return 0; /* Return successful load */
 
 mismatchmedia:
@@ -1687,6 +1726,9 @@ static char *strip_PCL(char *str, int start) {
 
 void unloadTape(int update_library, uint8_t *sam_stat) {
 	struct lu_phy_attr *lu = lu_ssc.pm->lu;
+
+	/* The cartridge a pending unit attention was about is gone */
+	lu_ssc.pending_ua = 0;
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADING:
@@ -2424,6 +2466,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv) {
 	lu_priv->load_status			 = TAPE_UNLOADED;
 	lu_priv->inLibrary				 = 0;
 	lu_priv->sam_status				 = SAM_STAT_GOOD;
+	lu_priv->pending_ua				 = 0;
 	lu_priv->MediaWriteProtect		 = MEDIA_WRITABLE;
 	lu_priv->capacity_unit			 = 1;
 	lu_priv->configCompressionFactor = Z_BEST_SPEED;
