@@ -91,7 +91,9 @@ Returns a list of media IDs in Media Access Port (MAP).
 Valid for
 .B library
 only.
-Logically 'opens' the Media Access Port (MAP).
+Logically 'opens' the Media Access Port (MAP). Fails with "MAP locked -
+medium removal prevented" while a host prevents medium removal (PREVENT
+ALLOW MEDIUM REMOVAL).
 .IP "close map"
 Valid for
 .B library
@@ -106,7 +108,8 @@ Clears media from Media Access Port (MAP). Only valid when MAP is
 in 'open' state. With
 .IR media ,
 clears only the MAP slot holding that cartridge, and fails with
-"barcode not in map" if no MAP slot holds it.
+"barcode not in map" if no MAP slot holds it. Fails with "Can't empty map
+- medium removal prevented" while a host prevents medium removal.
 .IP "load map <media>"
 Valid for
 .B library

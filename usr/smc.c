@@ -39,10 +39,21 @@
 #include "mhvtl_log.h"
 #include "subprocess.h"
 
+/*
+ * While removal is prevented the library inhibits removal of cartridges by an
+ * operator (IBM TS2900 SCSI Reference GC27-2211-00, p.41): vtllibrary refuses
+ * the operator's "open map" and "empty map". The host's own MOVE MEDIUM and
+ * OPEN/CLOSE IMPORT/EXPORT ELEMENT still work. As on the drive, the last
+ * command from any host decides, and a power-on reset (the daemon starting)
+ * allows removal.
+ */
 uint8_t smc_allow_removal(struct scsi_cmd *cmd) {
+	struct smc_priv *smc_p = cmd->lu->lu_private;
+
 	MHVTL_DBG(1, "%s MEDIUM REMOVAL (%ld) **",
-			  (cmd->scb[4]) ? "PREVENT" : "ALLOW",
+			  (cmd->scb[4] & 0x01) ? "PREVENT" : "ALLOW",
 			  (long)cmd->dbuf_p->serialNo);
+	smc_p->prevent_removal = cmd->scb[4] & 0x01;
 	return SAM_STAT_GOOD;
 }
 
