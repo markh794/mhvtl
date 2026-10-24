@@ -72,6 +72,9 @@ char mhvtl_driver_name[] = "vtllibrary";
 #define SMC_BUF_SIZE 1024 * 1024 /* Default size of buffer */
 
 static uint8_t sam_status = 0; /* Non-zero if Sense-data is valid */
+/* Unit attention (ASC/ASCQ) the operator's MAP access leaves for the next
+ * command, or 0 */
+static uint16_t pending_ua;
 static long	   backoff;		   /* Backoff value for polling char device */
 
 static struct smc_priv smc_slots;
@@ -226,6 +229,18 @@ static void processCommand(int cdev, uint8_t *cdb, struct mhvtl_ds *dbuf_p,
 		}
 		if (check_reset(&dbuf_p->sam_stat))
 			return;
+	}
+
+	/* A pending unit attention ends the next command that reports unit
+	 * attentions without running it; REQUEST SENSE returns it as its sense
+	 * data. Either way it is then cleared. INQUIRY (GC27-2211 INQUIRY, p.5)
+	 * and REPORT LUNS leave it pending. */
+	if (pending_ua && cdb[0] != INQUIRY && cdb[0] != REPORT_LUNS) {
+		sam_unit_attention(pending_ua, &dbuf_p->sam_stat);
+		pending_ua = 0;
+		if (cdb[0] != REQUEST_SENSE)
+			return;
+		dbuf_p->sam_stat = SAM_STAT_GOOD;
 	}
 
 	/* Skip main op code processing if pre-cmd returns non-zero */
@@ -433,6 +448,9 @@ static void open_map(struct q_msg *msg) {
 
 	current_state = MHVTL_STATE_OPENING_MAP;
 
+	/* The operator opening the import/export element changes its state */
+	if (smc_slots.cap_closed == CAP_CLOSED)
+		pending_ua = E_IMPORT_ELEMENT_ACCESSED;
 	smc_slots.cap_closed = CAP_OPEN;
 	send_msg("OK", msg->snd_id);
 }
@@ -442,6 +460,8 @@ static void close_map(struct q_msg *msg) {
 
 	current_state = MHVTL_STATE_CLOSING_MAP;
 
+	if (smc_slots.cap_closed == CAP_OPEN)
+		pending_ua = E_IMPORT_ELEMENT_ACCESSED;
 	smc_slots.cap_closed = CAP_CLOSED;
 	send_msg("OK", msg->snd_id);
 }
