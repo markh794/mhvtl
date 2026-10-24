@@ -128,6 +128,35 @@ void DisplayResponse(int msqid, char *s) {
 		printf("%s%s\n", s, r_entry.msg.text);
 }
 
+/*
+ * Display the drive's answer to 'request'. If the drive has not read it
+ * within DRIVE_REPLY_GRACE seconds, withdraw it, so it is not carried out
+ * later, and give up; once the drive has read it, the answer comes.
+ */
+int DisplayDriveResponse(int msqid, long drive, char *request) {
+	struct q_entry r_entry;
+
+	for (int i = 0; i < DRIVE_REPLY_GRACE * 10; i++) {
+		if (msgrcv(msqid, &r_entry, MAXOBN, mhvtl_reply_id(), IPC_NOWAIT) > 0) {
+			printf("%s\n", r_entry.msg.text);
+			return 0;
+		}
+		usleep(100000);
+	}
+	my_id = mhvtl_reply_id(); /* withdraw_msg() matches the sender */
+	switch (withdraw_msg(msqid, drive, request)) {
+	case 0: /* The drive has it: the answer comes */
+		DisplayResponse(msqid, "");
+		return 0;
+	case 1:
+		fprintf(stderr, "No answer from the drive: request withdrawn\n");
+		return 1;
+	default:
+		fprintf(stderr, "No answer from the drive\n");
+		return 1;
+	}
+}
+
 int ishex(char *str) {
 	while (*str) {
 		if (!isxdigit(*str))
@@ -601,6 +630,9 @@ int main(int argc, char **argv) {
 		if (!strcmp(argv[2], "load") && !strcmp(argv[3], "map"))
 			DisplayResponse(ReceiverQid, "");
 	}
+	/* The drive answers an unload, which it refuses while removal is prevented */
+	if (device_type == TYPE_DRIVE && !strcmp(argv[2], "unload"))
+		exit(DisplayDriveResponse(ReceiverQid, deviceNo, buf));
 
 	exit(0);
 }
