@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential meson ninja-build pkg-config \
-            zlib1g-dev liblzo2-dev liblz4-dev libzstd-dev libudev-dev
+            zlib1g-dev liblzo2-dev liblz4-dev libzstd-dev libssl-dev libudev-dev
 
       - name: Build (canonical Makefile)
         run: make
@@ -41,10 +41,16 @@ jobs:
             exit 1
           fi
 
-      - name: Verify lz4/zstd are linkable
+      - name: Verify lz4/zstd/libcrypto are linkable
         run: |
           pkg-config --exists liblz4 && pkg-config --modversion liblz4
           pkg-config --exists libzstd && pkg-config --modversion libzstd
+          pkg-config --exists libcrypto && pkg-config --modversion libcrypto
+
+      - name: Build without OpenSSL
+        run: |
+          meson setup builddir-nossl -Dopenssl=disabled
+          meson compile -C builddir-nossl
 
       - name: Kernel module (best effort)
         continue-on-error: true

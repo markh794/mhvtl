@@ -67,6 +67,7 @@ BuildRequires: pkgconfig
 BuildRequires: pkgconfig(libudev)
 BuildRequires: pkgconfig(liblz4)
 BuildRequires: pkgconfig(libzstd)
+BuildRequires: pkgconfig(libcrypto)
 %{?systemd_requires}
 %{?systemd_ordering}
 

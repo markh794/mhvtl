@@ -8,6 +8,7 @@ Build-Depends:
  zlib1g-dev,
  liblz4-dev,
  libzstd-dev,
+ libssl-dev,
  pkg-config,
  systemd-dev | systemd (<< 253-2~),
  libudev-dev

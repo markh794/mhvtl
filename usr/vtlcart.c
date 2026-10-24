@@ -242,6 +242,8 @@ static int mkEODHeader(uint32_t blk_number, uint64_t data_offset) {
  */
 
 static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
+	const struct encryption *e = &raw_pos.hdr.blk_encryption_info;
+	uint32_t partition = c_pos->partition_id;
 	loff_t nread;
 
 	MHVTL_DBG(3, "Reading header partition/block %d/%d", c_pos->partition_id, blk_number);
@@ -262,6 +264,19 @@ static int read_header(uint32_t blk_number, uint8_t *sam_stat) {
 			MHVTL_ERR("Failed to read next header");
 			sam_medium_error(E_END_OF_DATA, sam_stat);
 			return -1;
+		}
+		/* The KAD lengths size copies into fixed arrays */
+		if (e->key_length > ENCR_KEY_MAX_LEN || e->ukad_length > ENCR_KEY_MAX_LEN ||
+			e->akad_length > ENCR_KEY_MAX_LEN) {
+			MHVTL_ERR("Medium format corrupt: header of block %u/%u", partition, blk_number);
+			sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+			return -1;
+		}
+		/* An AES-GCM block is authenticated with the position it is read
+		 * from, not the one its header names: one copied elsewhere fails */
+		if (raw_pos.hdr.blk_flags & BLKHDR_FLG_GCM) {
+			raw_pos.hdr.blk_number	 = blk_number;
+			raw_pos.hdr.partition_id = partition;
 		}
 	}
 
@@ -1246,7 +1261,16 @@ static int file_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
 
 	read_mam(mamfile, mhvtlfile, mamp);
 
-	if (mamp->tape_fmt_version != TAPE_FMT_VERSION) { /* Check for Tape Format Update */
+	/* A newer format may hold blocks this release would get wrong, such as
+	 * key-in-header ones next to AES-GCM data */
+	if (mamp->tape_fmt_version > TAPE_FMT_VERSION_GCM) {
+		MHVTL_ERR("Tape format %u is newer than this release reads",
+				  mamp->tape_fmt_version);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		return 2;
+	}
+	if (mamp->tape_fmt_version != TAPE_FMT_VERSION &&
+		mamp->tape_fmt_version != TAPE_FMT_VERSION_GCM) { /* Check for Tape Format Update */
 		MHVTL_ERR("contains incorrect media format");
 		MHVTL_LOG("Trying to update tape format...");
 		if (try_update_tape(currentPCL)) {
@@ -1262,7 +1286,13 @@ static int file_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
 static int file_be_save_mam(struct MAM *mamp)
 {
 	(void)mamp;	/* write_mam serializes the global mam */
-	return write_mam(mamfile, mhvtlfile);
+	if (write_mam(mamfile, mhvtlfile))
+		return -1;
+	/* Durable, like the raw backend's: the AES-GCM nonce reservation
+	 * relies on it */
+	if (fsync(mamfile) || fsync(mhvtlfile))
+		return -1;
+	return 0;
 }
 
 static int file_be_num_partitions(void)
@@ -1581,8 +1611,10 @@ int load_tape(const char *pcl, uint8_t *sam_stat) {
 	if (rc == 3)
 		return 3;
 
+	/* A format newer than this release is refused whatever error_check
+	 * says: its blocks may mean something else here */
 	rc = cart_be->load_mam(&mam, sam_stat);
-	if (rc == 2 && error_check) {
+	if (rc == 2 && (error_check || mam.tape_fmt_version > TAPE_FMT_VERSION_GCM)) {
 		cart_be->close_cartridge();
 		return 2;
 	}
@@ -1774,6 +1806,44 @@ int write_filemarks(uint32_t count, uint8_t *sam_stat) {
 	return mkEODHeader(blk_number, data_offset);
 }
 
+/*
+ * Could the cartridge hold key-in-header blocks that survive this write?
+ * Raising it to format 7 would make them unreadable, so the first AES-GCM
+ * block needs a cartridge with none: blocks before blk_number in this
+ * partition are scanned once; other partitions holding data count as yes.
+ */
+static int keeps_key_in_header_blocks(uint32_t blk_number) {
+	struct raw_header rec[128];
+
+	for (uint32_t p = 0; p < mam.num_partitions && p < MAX_PARTITIONS; p++)
+		if (p != c_pos->partition_id && eod_blk_number[p]) {
+			MHVTL_ERR("Partition %u holds data written without AES-GCM", p);
+			return 1;
+		}
+
+	for (uint64_t n = 0; n < blk_number; n += ARRAY_SIZE(rec)) {
+		uint32_t count = min(blk_number - n, (uint64_t)ARRAY_SIZE(rec));
+		ssize_t	 len   = (ssize_t)count * sizeof(rec[0]);
+
+		if (cart_be->pread(CART_STREAM_INDX, c_pos->partition_id, rec, len,
+						   (off_t)n * sizeof(rec[0])) != len)
+			return 1;
+		for (uint32_t i = 0; i < count; i++)
+			if ((rec[i].hdr.blk_flags & BLKHDR_FLG_ENCRYPTED) &&
+				!(rec[i].hdr.blk_flags & BLKHDR_FLG_GCM)) {
+				MHVTL_ERR("Block %" PRIu64 " holds its key in the header", n + i);
+				return 1;
+			}
+	}
+	return 0;
+}
+
+const uint8_t *(*gcm_seal_hook)(const struct encryption *key,
+								struct blk_header *h,
+								const uint8_t *data, uint8_t *sam_stat);
+int (*gcm_open_hook)(const struct blk_header *h, uint8_t *data,
+					 uint8_t *sam_stat);
+
 int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 					 uint32_t comp_size, const struct encryption *encryptp,
 					 uint8_t comp_type, uint8_t null_media_type, uint32_t crc, uint8_t *sam_stat) {
@@ -1817,7 +1887,8 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	c_pos->uncomp_crc = crc;
 	c_pos->blk_flags |= BLKHDR_FLG_CRC; /* Logical Block Protection */
 
-	MHVTL_DBG(2, "CRC is 0x%08x", crc);
+	if (!encryptp)	/* nor in the log: it identifies the plain text */
+		MHVTL_DBG(2, "CRC is 0x%08x", crc);
 
 	if (comp_size) {
 		if (comp_type == LZO)
@@ -1832,8 +1903,46 @@ int write_tape_block(const uint8_t *buffer, uint32_t blk_size,
 	} else
 		c_pos->disk_blk_size = disk_blk_size = blk_size;
 
-	if (encryptp != NULL) {
+	if (encryptp != NULL && gcm_seal_hook) {
+		if (mam.tape_fmt_version < TAPE_FMT_VERSION_GCM &&
+			keeps_key_in_header_blocks(blk_number)) {
+			MHVTL_ERR("AES-GCM refused: the cartridge holds simulated-encryption "
+					  "blocks. Rewrite it from the beginning, or use a drive "
+					  "with 'Encryption: simulated'");
+			sam_data_protect(E_WRITE_PROTECT, sam_stat);
+			mkEODHeader(blk_number, data_offset);
+			return -1;
+		}
+
+		/* A CRC of the plain text would tell which blocks are equal and
+		 * confirm a guessed block; the tag covers the data instead, and
+		 * the read path recomputes the LBP CRC after decryption */
+		c_pos->blk_flags &= ~BLKHDR_FLG_CRC;
+		c_pos->uncomp_crc = 0;
+		c_pos->blk_flags |= BLKHDR_FLG_ENCRYPTED | BLKHDR_FLG_GCM;
+		c_pos->blk_encryption_info.ukad_length = encryptp->ukad_length;
+		memcpy(c_pos->blk_encryption_info.ukad, encryptp->ukad, encryptp->ukad_length);
+		c_pos->blk_encryption_info.akad_length = encryptp->akad_length;
+		memcpy(c_pos->blk_encryption_info.akad, encryptp->akad, encryptp->akad_length);
+		c_pos->blk_encryption_info.key_length = encryptp->key_length;
+
+		/* Fills in the key field */
+		buffer = gcm_seal_hook(encryptp, c_pos, buffer, sam_stat);
+		if (!buffer) {
+			mkEODHeader(blk_number, data_offset);
+			return -1;
+		}
+	} else if (encryptp != NULL) {
 		unsigned int i;
+
+		/* Key-in-header blocks next to GCM ones would let whoever reads
+		 * the key here decrypt the rest */
+		if (mam.tape_fmt_version >= TAPE_FMT_VERSION_GCM) {
+			MHVTL_ERR("Simulated encryption refused on a cartridge holding AES-GCM data");
+			sam_data_protect(E_WRITE_PROTECT, sam_stat);
+			mkEODHeader(blk_number, data_offset);
+			return -1;
+		}
 
 		c_pos->blk_flags |= BLKHDR_FLG_ENCRYPTED;
 		c_pos->blk_encryption_info.ukad_length = encryptp->ukad_length;
@@ -1958,9 +2067,29 @@ uint32_t read_tape_block(uint8_t *buf, uint32_t buf_size, uint8_t *sam_stat) {
 	if (iosize > buf_size)
 		iosize = buf_size;
 
+	/* Only a whole block can be authenticated; one flagged AES-GCM but not
+	 * encrypted got past the key checks and is decrypted all the same */
+	if (c_pos->blk_flags & BLKHDR_FLG_GCM) {
+		if (!(c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) ||
+			iosize != c_pos->disk_blk_size || !gcm_open_hook) {
+			MHVTL_ERR("Can't decrypt AES-GCM block %u", c_pos->blk_number);
+			return -1;
+		}
+	} else if ((c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) &&
+			   mam.tape_fmt_version >= TAPE_FMT_VERSION_GCM) {
+		MHVTL_ERR("Key-in-header block %u on a cartridge holding AES-GCM data",
+				  c_pos->blk_number);
+		return -1;
+	}
+
 	nread = cart_be->pread(CART_STREAM_DATA, c_pos->partition_id, buf, iosize, raw_pos.data_offset);
 	if (nread != iosize) {
 		MHVTL_ERR("Failed to read %d bytes", iosize);
+		return -1;
+	}
+
+	if ((c_pos->blk_flags & BLKHDR_FLG_GCM) && gcm_open_hook(c_pos, buf, sam_stat)) {
+		MHVTL_ERR("AES-GCM block %u failed authentication", c_pos->blk_number);
 		return -1;
 	}
 
@@ -2055,7 +2184,9 @@ void print_raw_header(void) {
 
 	switch (c_pos->blk_type) {
 	case B_DATA:
-		if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
+		if (c_pos->blk_flags & BLKHDR_FLG_GCM) {
+			strncat(f, "AES-GCM/", 9);
+		} else if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 			strncat(f, "Encrypt/", 9);
 		}
 		if (c_pos->blk_flags & BLKHDR_FLG_ZLIB_COMPRESSED) {
@@ -2107,7 +2238,9 @@ void print_raw_header(void) {
 			   c_pos->blk_encryption_info.akad_length);
 
 		/* Never print the key: anyone with dump_tape output could read the data */
-		if (c_pos->blk_encryption_info.key_length > 0)
+		if (c_pos->blk_flags & BLKHDR_FLG_GCM)
+			printf("%12s : %s\n", "Key", "not stored (nonce, tag and key check value)");
+		else if (c_pos->blk_encryption_info.key_length > 0)
 			printf("%12s : %s\n", "Key", "(not shown)");
 		if (c_pos->blk_encryption_info.ukad_length > 0) {
 			enc_key_to_string(enc, sizeof(enc), c_pos->blk_encryption_info.ukad,

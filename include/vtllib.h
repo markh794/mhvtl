@@ -297,6 +297,10 @@ enum MHVTL_attribute_idx {
 	MAM_MHVTL_MEDIAINFO_DENSITY_NAME,
 	MAM_MHVTL_MEDIAINFO_DESCRIPTION,
 
+	/* AES-256-GCM (mhvtl_crypto.h) */
+	MAM_MHVTL_GCM_SALT,
+	MAM_MHVTL_GCM_NONCE_LIMIT,
+
 	MAM_MHVTL_ATTRIBUTE_END,
 };
 
@@ -398,6 +402,12 @@ struct MAM {
 		char	 density_name[8];
 		char	 description[32];
 	} media_info;
+
+	/* AES-256-GCM: the salt of this cartridge's keys (all zero until the
+	 * first GCM block), and the first nonce counter value not yet
+	 * reserved. A drive takes counter values below it only. */
+	uint8_t	 gcm_salt[32];
+	uint64_t gcm_nonce_limit;
 };
 
 #define MAM_FLAGS_ENCRYPTION_FORMAT	  0x0001

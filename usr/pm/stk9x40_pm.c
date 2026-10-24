@@ -95,10 +95,8 @@ static struct name_to_media_info media_info[] = {
  */
 #define UKAD_LENGTH (encr->ukad_length)
 #define AKAD_LENGTH (encr->akad_length)
-#define KEY_LENGTH	(encr->key_length)
 #define UKAD		(encr->ukad)
 #define AKAD		(encr->akad)
-#define KEY			(encr->key)
 uint8_t valid_encryption_blk_9840(struct scsi_cmd *cmd) {
 	uint8_t				correct_key;
 	int					i;
@@ -119,19 +117,8 @@ uint8_t valid_encryption_blk_9840(struct scsi_cmd *cmd) {
 	if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 		/* compare the keys  - STK requires UKAD back to decrypt */
 		if (lu_priv->DECRYPT_MODE > 1) {
-			if (c_pos->blk_encryption_info.key_length != KEY_LENGTH) {
-				sam_data_protect(E_INCORRECT_KEY, sam_stat);
-				correct_key = FALSE;
-				return correct_key;
-			}
-			for (i = 0; i < c_pos->blk_encryption_info.key_length; ++i) {
-				if (c_pos->blk_encryption_info.key[i] != KEY[i]) {
-					sam_data_protect(E_INCORRECT_KEY,
-									 sam_stat);
-					correct_key = FALSE;
-					break;
-				}
-			}
+			if (!check_block_key(encr, sam_stat))
+				return FALSE;
 			if (c_pos->blk_encryption_info.ukad_length != UKAD_LENGTH) {
 				sam_data_protect(E_INCORRECT_KEY, sam_stat);
 				correct_key = FALSE;

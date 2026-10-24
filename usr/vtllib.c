@@ -184,6 +184,11 @@ void init_mam(struct MAM *mamp) {
 	mamp->vendor_attr_count = 0;
 	memset(mamp->vendor_attr, 0, sizeof(mamp->vendor_attr));
 
+	/* A cartridge without them (new, or older than AES-GCM) taking the salt
+	 * and nonce reservation of the last one would reuse its nonces */
+	memset(mamp->gcm_salt, 0, sizeof(mamp->gcm_salt));
+	mamp->gcm_nonce_limit = 0;
+
 	/* Device (0x0000 - 0x03ff) */
 	INIT_MAM_ATTR(0x000, 8, 1, 0, mamp->remaining_capacity, MAM_REMAINING_CAPACITY);
 	INIT_MAM_ATTR(0x001, 8, 1, 0, mamp->max_capacity, MAM_MAX_CAPACITY);
@@ -264,6 +269,9 @@ void init_mam(struct MAM *mamp) {
 	INIT_VTL_ATTR(0x07, 2, mamp->media_info.tracks, MAM_MHVTL_MEDIAINFO_TRACKS);
 	INIT_VTL_ATTR(0x08, 8, mamp->media_info.density_name, MAM_MHVTL_MEDIAINFO_DENSITY_NAME);
 	INIT_VTL_ATTR(0x09, 32, mamp->media_info.description, MAM_MHVTL_MEDIAINFO_DESCRIPTION);
+
+	INIT_VTL_ATTR(0x11, 32, mamp->gcm_salt, MAM_MHVTL_GCM_SALT);
+	INIT_VTL_ATTR(0x12, 8, mamp->gcm_nonce_limit, MAM_MHVTL_GCM_NONCE_LIMIT);
 }
 
 int get_config(char *buf, conf_file conf, long id) {

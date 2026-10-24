@@ -53,6 +53,7 @@ int		update_prog_early_warning(struct lu_phy_attr *lu);
 int		update_logical_block_protection(struct lu_phy_attr *lu, uint8_t *buf);
 uint8_t set_lbp(struct scsi_cmd *cmd, uint8_t *buf, int len);
 void	dealloc_all_mode_pages(struct lu_phy_attr *lu);
+void	dealloc_mode_page(struct lu_phy_attr *lu, uint8_t pcode, uint8_t subpcode);
 void	freeze_mode_page_defaults(struct lu_phy_attr *lu);
 int		add_smc_mode_page_drive_configuration(struct lu_phy_attr *lu);
 

@@ -374,6 +374,10 @@ static int read_data(uint8_t *sam_stat) {
 		printf("Data size: %d - skipping read\n", requested_blk_size);
 		return 0;
 	}
+	if (c_pos->blk_flags & BLKHDR_FLG_GCM) {
+		printf("AES-GCM block - no key here, skipping read\n");
+		return 0;
+	}
 	p = malloc(requested_blk_size);
 	if (!p) {
 		fprintf(stderr, "Unable to allocate %d bytes\n", requested_blk_size);

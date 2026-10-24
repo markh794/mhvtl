@@ -81,6 +81,7 @@
 #include "mhvtl_log.h"
 #include "mode.h"
 #include "transport.h"
+#include "mhvtl_crypto.h"
 
 char mhvtl_driver_name[] = "vtltape";
 
@@ -93,10 +94,8 @@ char mhvtl_driver_name[] = "vtltape";
 
 #define UKAD_LENGTH app_encryption_state.ukad_length
 #define AKAD_LENGTH app_encryption_state.akad_length
-#define KEY_LENGTH	app_encryption_state.key_length
 #define UKAD		app_encryption_state.ukad
 #define AKAD		app_encryption_state.akad
-#define KEY			app_encryption_state.key
 
 #include <zlib.h>
 #include "minilzo.h"
@@ -112,6 +111,7 @@ static void clear_sensitive(void *ptr, size_t len) {
 
 static void clear_encryption_parameters(struct priv_lu_ssc *lu_priv) {
 	clear_sensitive(&app_encryption_state, sizeof(app_encryption_state));
+	gcm_forget_keys();
 	lu_priv->KEY_INSTANCE_COUNTER++; /* parameters changed */
 	lu_priv->DECRYPT_MODE	 = 0;
 	lu_priv->ENCRYPT_MODE	 = 0;
@@ -988,17 +988,7 @@ static int resp_spin_page_20(struct scsi_cmd *cmd) {
 					buf[i++] = c_pos->blk_encryption_info.akad[count];
 				ret += 4 + c_pos->blk_encryption_info.akad_length;
 			}
-			/* compare the keys */
-			if (correct_key) {
-				if (c_pos->blk_encryption_info.key_length != KEY_LENGTH)
-					correct_key = FALSE;
-				for (count = 0; count < c_pos->blk_encryption_info.key_length; ++count) {
-					if (c_pos->blk_encryption_info.key[count] != KEY[count]) {
-						correct_key = FALSE;
-						break;
-					}
-				}
-			}
+			correct_key = block_key_matches(&app_encryption_state) > 0;
 			if (correct_key)
 				buf[12] = 0x5; /* encrypted, correct key */
 			else
@@ -1229,6 +1219,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 		goto out;
 	}
 	clear_sensitive(&app_encryption_state, sizeof(app_encryption_state));
+	gcm_forget_keys();
 	memcpy(&app_encryption_state, &new_encryption, sizeof(new_encryption));
 	lu_ssc.KEY_INSTANCE_COUNTER++;
 	lu_ssc.ENCRYPT_MODE	   = new_encrypt_mode;
@@ -2046,6 +2037,31 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 /*
  * A place to setup any customisations (WORM / Security handling)
  */
+/*
+ * 'Encryption: aes-gcm', the default, needs libcrypto. Built without it the
+ * drive offers no encryption at all rather than fall back to storing the
+ * key in every block header.
+ */
+static void setup_encryption(struct lu_phy_attr *lu) {
+	struct mode *m;
+
+	gcm_init(!lu_ssc.simulated_encryption);
+	if (lu_ssc.simulated_encryption || mhvtl_crypto_available() ||
+		!lu_ssc.pm->drive_supports_SP)
+		return;
+
+	MHVTL_LOG("%s: built without OpenSSL, no AES-GCM: encryption disabled. "
+			  "'Encryption: simulated' restores the key-in-header kind",
+			  lu_ssc.pm->name);
+	unregister_ops(lu, SECURITY_PROTOCOL_IN);
+	unregister_ops(lu, SECURITY_PROTOCOL_OUT);
+	lu_ssc.pm->drive_supports_SP = 0;
+	m = lookup_mode_pg(&lu->mode_pg, MODE_VENDOR_SPECIFIC_24H, 0);
+	if (m)
+		m->pcodePointer[7] &= ~ENCR_C;
+	dealloc_mode_page(lu, MODE_ENCRYPTION_MODE, 0x20);
+}
+
 static void config_lu(struct lu_phy_attr *lu) {
 	int i;
 
@@ -2071,6 +2087,8 @@ static void config_lu(struct lu_phy_attr *lu) {
 		lu_ssc.pm->clear_compression(&lu->mode_pg);
 		set_lp11_compression(0);
 	}
+
+	setup_encryption(lu);
 
 	/* Pages are fully built (including the compression override); snapshot
 	 * them as the default values returned for MODE SENSE PC=2. */
@@ -2355,6 +2373,17 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 					lu_ssc.compressionType = ZSTD;
 				MHVTL_DBG(2, "Compression set to %s",
 						  compression_name(lu_ssc.compressionType));
+			}
+			v = conf_value(b, "Encryption");
+			if (v) {
+				if (!strcasecmp(v, "simulated"))
+					lu_ssc.simulated_encryption = 1;
+				else if (!strcasecmp(v, "aes-gcm"))
+					lu_ssc.simulated_encryption = 0;
+				else
+					MHVTL_ERR("Line %d: Encryption: expects 'aes-gcm' or 'simulated'"
+							  " - ignored",
+							  linecount);
 			}
 			if (sscanf(b, " Compression: factor %d enabled %d",
 					   &i, &j) == 2) {
