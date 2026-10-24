@@ -144,6 +144,9 @@ struct priv_lu_ssc {
 	/* Unit attention (ASC/ASCQ) a load leaves for the next command, or 0 */
 	uint16_t pending_ua;
 
+	/* A host has prevented medium removal (PREVENT ALLOW MEDIUM REMOVAL) */
+	uint8_t prevent_removal;
+
 	uint8_t allow_overwrite;
 
 	/* Default value read from config file */

@@ -29,6 +29,7 @@ char home_directory[HOME_DIR_PATH_SZ + 1] = "/tmp";
 void find_media_home_directory(char *a, long b) { (void)a; (void)b; }
 int get_config(char *a, conf_file b, long c) { (void)a; (void)b; (void)c; return 0; }
 void syslog(int priority, const char *fmt, ...) { (void)priority; (void)fmt; }
+int withdraw_msg(int a, long b, const char *c) { (void)a; (void)b; (void)c; return 0; }
 
 /* Declarations for vtlcmd.c functions under test */
 extern const char *Check_Params(int argc, char **argv);

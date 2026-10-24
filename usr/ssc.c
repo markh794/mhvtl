@@ -620,12 +620,39 @@ uint8_t valid_encryption_media(struct scsi_cmd *cmd) {
 	return SAM_STAT_GOOD;
 }
 
+/*
+ * mhVTL keeps no per-I_T-nexus state, so the last PREVENT ALLOW MEDIUM
+ * REMOVAL from any host decides, rather than removal staying prevented until
+ * every host that prevented it allows it again (GA32-0928-07 5.2.14.1,
+ * p.107). A power-on reset (the daemon starting) allows removal.
+ */
 uint8_t ssc_allow_prevent_removal(struct scsi_cmd *cmd) {
-	/* FIXME: Currently does nothing... */
+	declare_ssc_vars;
+
 	MHVTL_DBG(1, "%s MEDIA REMOVAL (%ld) **",
-			  (cmd->scb[4]) ? "PREVENT" : "ALLOW",
-			  (long)cmd->dbuf_p->serialNo);
-	return SAM_STAT_GOOD;
+			  (cdb[4] & 0x01) ? "PREVENT" : "ALLOW",
+			  (long)dbuf_p->serialNo);
+
+	lu_priv->prevent_removal = cdb[4] & 0x01;
+	set_lp_11_pamr(lu_priv->prevent_removal);
+	return *sam_stat;
+}
+
+/* Table 51 "Medium removal prevented behavior" (GA32-0928-07 p.93) */
+static int removal_prevented(struct priv_lu_ssc *lu_priv, uint8_t cdb4) {
+	int load = cdb4 & 0x01;
+	int hold = cdb4 & 0x08;
+
+	if (!lu_priv->prevent_removal)
+		return 0;
+	switch (get_tape_load_status()) {
+	case TAPE_LOADED: /* Threaded */
+		return hold || !load;
+	case TAPE_UNLOADED: /* Mounted but not threaded, if a cartridge is present */
+		return lu_priv->barcode && !hold && !load;
+	default:
+		return 0;
+	}
 }
 
 uint8_t ssc_format_medium(struct scsi_cmd *cmd) {
@@ -1893,6 +1920,12 @@ uint8_t ssc_load_unload(struct scsi_cmd *cmd) {
 
 	MHVTL_DBG(1, "TAPE %s (%ld) **",
 			  (load_request) ? "LOADING" : "UNLOADING", (long)cmd->dbuf_p->serialNo);
+
+	if (removal_prevented(lu_priv, cdb[4])) {
+		MHVTL_DBG(1, "Medium removal prevented");
+		sam_illegal_request(E_MEDIUM_REMOVAL_PREVENTED, NULL, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	/*
 	 * Nothing is mounted while TAPE_UNLOADED, so there is no partition to

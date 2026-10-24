@@ -475,6 +475,12 @@ void set_lp_11_macc(int flag) {
 		lp->vhf.b4.MACC = flag;
 }
 
+void set_lp_11_pamr(int flag) {
+	struct DeviceStatus_pg *lp = lookup_device_status_pg();
+	if (lp)
+		lp->vhf.b4.PAMR = flag;
+}
+
 void set_lp11_compression(int flag) {
 	struct DeviceStatus_pg *lp = lookup_device_status_pg();
 	if (lp)
