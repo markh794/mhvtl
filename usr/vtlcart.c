@@ -547,7 +547,10 @@ int position_blocks_forw(uint64_t count, uint8_t *sam_stat) {
 		if (filemarks[c_pos->partition_id][i] >= blk_target)
 			return position_to_block(blk_target, sam_stat);
 
-		residual = blk_target - c_pos->blk_number + 1;
+		/* Count minus the blocks spaced over, not including the
+		   filemark (GA32-0928-07 SPACE, p.172)
+		*/
+		residual = blk_target - filemarks[c_pos->partition_id][i];
 		if (read_header(filemarks[c_pos->partition_id][i] + 1, sam_stat))
 			return -1;
 

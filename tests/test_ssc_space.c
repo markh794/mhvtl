@@ -1,5 +1,6 @@
 /*
- * Integration tests for SPACE (blocks) in the reverse direction.
+ * Integration tests for SPACE (blocks) stopped by BOP or a filemark, and for
+ * SPACE with a reserved CODE.
  *
  * Starts vtltape (LTO-8) with MHVTL_BACKEND=userland against a generated
  * device.conf and checks sense data and the logical position afterwards.
@@ -203,8 +204,112 @@ void test_space_back_stops_at_filemark(void)
 	stop();
 }
 
+/*
+ * 2 blocks, FM, 2 blocks, FM (FMs at objects 2 and 5). From BOP SPACE +10
+ * hits the FM at 2 and stops on its EOP side: 0/0001, FM set,
+ * INFORMATION = count - blocks spaced over not including the filemark
+ * (10 - 2 = 8). SPACE CODE 0h, p.172-173.
+ */
+void test_space_forw_stops_at_filemark(void)
+{
+	struct scsi_result r;
+	uint32_t pos;
+	int bop;
+
+	if (!TEST_CHECK(start() == 0)) {
+		stop();
+		return;
+	}
+
+	write_blocks(2);
+	harness_tape_write_fm(&daemon_ctx, 1, &r);
+	write_blocks(2);
+	harness_tape_write_fm(&daemon_ctx, 1, &r);
+	harness_tape_rewind(&daemon_ctx, &r);
+
+	space_blocks(10, &r);
+	TEST_CHECK_(r.sam_stat == SAM_STAT_CHECK_CONDITION,
+		    "SPACE +10 sam_stat=%d", r.sam_stat);
+	TEST_CHECK_((r.sense[2] & 0x0f) == 0x00 && r.sense[12] == 0x00 &&
+		    r.sense[13] == 0x01,
+		    "sense %x/%02x/%02x (expected 0/00/01)",
+		    r.sense[2] & 0x0f, r.sense[12], r.sense[13]);
+	TEST_CHECK_((r.sense[2] & 0xc0) == 0x80,
+		    "sense[2]=0x%02x (expected FM, no EOM)", r.sense[2]);
+	TEST_CHECK_(sense_info(&r) == 8, "INFORMATION=%u (expected 8)",
+		    sense_info(&r));
+	pos = read_position(&bop);
+	TEST_CHECK_(pos == 3, "position %u (expected 3)", pos);
+
+	/* From object 4 SPACE +3 spaces over one block: residual 3 - 1 = 2 */
+	space_blocks(1, &r);
+	space_blocks(3, &r);
+	TEST_CHECK_((r.sense[2] & 0x8f) == 0x80 && r.sense[13] == 0x01,
+		    "SPACE +3 sense[2]=0x%02x ascq=%02x (expected FM, 0/00/01)",
+		    r.sense[2], r.sense[13]);
+	TEST_CHECK_(sense_info(&r) == 2, "INFORMATION=%u (expected 2)",
+		    sense_info(&r));
+	pos = read_position(&bop);
+	TEST_CHECK_(pos == 6, "position %u (expected 6)", pos);
+
+	/* Starting on the filemark spaces over no block: residual = count */
+	harness_tape_rewind(&daemon_ctx, &r);
+	space_blocks(2, &r);
+	TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "SPACE +2 sam_stat=%d",
+		    r.sam_stat);
+	space_blocks(1, &r);
+	TEST_CHECK_((r.sense[2] & 0x8f) == 0x80 && r.sense[13] == 0x01,
+		    "SPACE +1 sense[2]=0x%02x ascq=%02x (expected FM, 0/00/01)",
+		    r.sense[2], r.sense[13]);
+	TEST_CHECK_(sense_info(&r) == 1, "INFORMATION=%u (expected 1)",
+		    sense_info(&r));
+	pos = read_position(&bop);
+	TEST_CHECK_(pos == 3, "position %u (expected 3)", pos);
+
+	stop();
+}
+
+/*
+ * CODE values other than 0h, 1h and 3h are reserved (p.173): ILLEGAL REQUEST,
+ * INVALID FIELD IN CDB, the field pointer on CDB byte 1.
+ */
+static void check_reserved_code(const struct scsi_result *r, const char *what)
+{
+	TEST_CHECK_(r->sam_stat == SAM_STAT_CHECK_CONDITION,
+		    "%s sam_stat=%d", what, r->sam_stat);
+	TEST_CHECK_((r->sense[2] & 0x0f) == ILLEGAL_REQUEST &&
+		    r->sense[12] == 0x24 && r->sense[13] == 0x00,
+		    "%s sense %x/%02x/%02x (expected 5/24/00)", what,
+		    r->sense[2] & 0x0f, r->sense[12], r->sense[13]);
+	TEST_CHECK_(r->sense[15] == 0xc0 && r->sense[16] == 0 &&
+		    r->sense[17] == 1,
+		    "%s sense key specific %02x %02x %02x (expected C/D, byte 1)",
+		    what, r->sense[15], r->sense[16], r->sense[17]);
+}
+
+void test_space_reserved_code(void)
+{
+	struct scsi_result r;
+	uint8_t space6[6] = { 0x11, 0x02, 0, 0, 1, 0 };
+	uint8_t space16[16] = { 0x91, 0x04, [11] = 1 };
+
+	if (!TEST_CHECK(start() == 0)) {
+		stop();
+		return;
+	}
+
+	harness_cdb(&daemon_ctx, space6, 6, &r);
+	check_reserved_code(&r, "SPACE(6) CODE 2h");
+	harness_cdb(&daemon_ctx, space16, 16, &r);
+	check_reserved_code(&r, "SPACE(16) CODE 4h");
+
+	stop();
+}
+
 TEST_LIST = {
 	{ "space_back_past_bop",          test_space_back_past_bop },
 	{ "space_back_stops_at_filemark", test_space_back_stops_at_filemark },
+	{ "space_forw_stops_at_filemark", test_space_forw_stops_at_filemark },
+	{ "space_reserved_code",          test_space_reserved_code },
 	{ NULL, NULL }
 };
