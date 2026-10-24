@@ -1823,9 +1823,9 @@ uint8_t ssc_space_6(struct scsi_cmd *cmd) {
 	default: /* Unsupported or reserved option */
 		MHVTL_DBG(1, "SPACE 6 (%ld) ** - Unsupported option %d",
 				  (long)dbuf_p->serialNo, code);
-		sd.byte0		 = SKSV | CD | BPV | code;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
-		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
@@ -1862,9 +1862,9 @@ uint8_t ssc_space_16(struct scsi_cmd *cmd) {
 	default: /* Unsupported or reserved option */
 		MHVTL_DBG(1, "SPACE 16 (%ld) ** - Unsupported option %d",
 				  (long)dbuf_p->serialNo, code);
-		sd.byte0		 = SKSV | CD | BPV | code;
+		sd.byte0		 = SKSV | CD;
 		sd.field_pointer = 1;
-		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	}
