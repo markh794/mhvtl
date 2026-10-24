@@ -61,6 +61,7 @@ INTEGRATION_TESTS += test_smc_drive_absent
 INTEGRATION_TESTS += test_log_volstat_len
 INTEGRATION_TESTS += test_load_unit_attention
 INTEGRATION_TESTS += test_smc_map_unit_attention
+INTEGRATION_TESTS += test_smc_prevent_removal
 
 .PHONY: all test clean raw
 
@@ -230,6 +231,9 @@ test_load_unit_attention: test_load_unit_attention.c acutest.h helpers/scsi_harn
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_smc_map_unit_attention: test_smc_map_unit_attention.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_smc_prevent_removal: test_smc_prevent_removal.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 test_encryption_state: test_encryption_state.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
