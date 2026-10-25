@@ -687,21 +687,51 @@ uint8_t ssc_locate(struct scsi_cmd *cmd) {
 
 	uint64_t blk_no;
 	uint8_t	 partition_no = c_pos->partition_id;
+	int		 change_part  = cdb[1] & 0b00000010; /* CP - Change Partition */
 
 	set_current_state(MHVTL_STATE_LOCATE);
 
 	MHVTL_DBG(1, "LOCATE %d (%ld) **", (cdb[0] == LOCATE_16) ? 16 : 10,
 			  (long)dbuf_p->serialNo);
 
+	/* A medium-access command on an empty drive is NOT READY. Check this
+	 * before touching any cartridge state: the position, filemark and EOD
+	 * tables are not valid without a loaded tape.
+	 */
+	switch (get_tape_load_status()) {
+	case TAPE_LOADED:
+		break;
+	case TAPE_LOADING:
+		sam_not_ready(E_BECOMING_READY, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	case TAPE_UNLOADED:
+		MHVTL_DBG(3, "No media loaded");
+		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	default:
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	/* The partition to work in: from the CDB when CP is set, else current. */
+	if (change_part)
+		partition_no = (cdb[0] == LOCATE_16) ? cdb[3] : cdb[8];
+
+	/* Partition numbers are zero based, so num_partitions is one past the
+	 * last valid partition. Validate before using partition_no to index the
+	 * filemark or EOD tables.
+	 */
+	if (change_part && (partition_no >= mam.num_partitions ||
+						partition_no >= MAX_PARTITIONS)) {
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, NULL, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
 	switch (cdb[0]) {
 	case LOCATE_10:
-		if (cdb[1] & 0b00000010) /* CP - Change Partition */
-			partition_no = cdb[8];
 		blk_no = (uint64_t)get_unaligned_be32(&cdb[3]);
 		break;
 	case LOCATE_16:
-		if (cdb[1] & 0b00000010)
-			partition_no = cdb[3];
 		switch ((cdb[1] >> 3) & 0b00000011) { /* Destination Type */
 		case 0b00:							  /* with logical object identifier */
 			blk_no = get_unaligned_be64(&cdb[4]);
@@ -722,21 +752,16 @@ uint8_t ssc_locate(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	/* Partition numbers are zero based, so num_partitions is one past the
-	 * last valid partition.
-	 */
-	if ((cdb[1] & 0b00000010) && partition_no >= mam.num_partitions) {
-		sam_illegal_request(E_INVALID_FIELD_IN_CDB,
-							NULL, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
-	}
-
 	/* If we want to seek closer to beginning of file than
 	 * we currently are, rewind and seek from there
 	 */
 	MHVTL_DBG(2, "Current partition/blk: %u/%u, seek: %u/%u",
 			  c_pos->partition_id, c_pos->blk_number, partition_no, (uint32_t)blk_no);
-	change_partition(partition_no);
+	if (change_partition(partition_no)) {
+		MHVTL_ERR("Could not change to partition %u", partition_no);
+		sam_not_ready(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 	position_to_block((uint32_t)blk_no, sam_stat);
 
 	return *sam_stat;
