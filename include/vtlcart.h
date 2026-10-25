@@ -268,7 +268,7 @@ uint64_t current_tape_offset(void);
 uint64_t partition_data_offset(int partition);
 uint64_t current_tape_block(void);
 uint64_t last_block(uint8_t partition_number);
-uint64_t block_from_filemark(uint8_t partition_number, uint32_t filemark);
+uint64_t block_from_filemark(uint8_t partition_number, uint64_t filemark);
 uint64_t count_filemarks(int64_t count);
 
 void print_raw_header(void);

@@ -2132,11 +2132,25 @@ uint64_t current_tape_block(void) {
 }
 
 uint64_t last_block(uint8_t partition_number) {
-	return eod_blk_number[c_pos->partition_id];
+	return eod_blk_number[partition_number];
 }
 
-uint64_t block_from_filemark(uint8_t partition_number, uint32_t filemark) {
-	return filemarks[partition_number][filemark];
+/*
+ * Resolve a LOCATE logical file identifier to a block number. SSC counts the
+ * identifier as the number of filemarks before the target position: file 0 is
+ * BOP (block 0), file n (1..filemark_count) is the block right after the
+ * (n-1)th filemark, and anything larger is past the last file. For a target
+ * past the end we return a block past EOD so position_to_block() raises
+ * BLANK CHECK / END-OF-DATA, the same as a logical object id past EOD. The
+ * caller validates partition_number before we index the per-partition tables.
+ */
+uint64_t block_from_filemark(uint8_t partition_number, uint64_t filemark) {
+	if (filemark == 0)
+		return 0;
+	if (filemarks[partition_number] == NULL ||
+		filemark > meta[partition_number].filemark_count)
+		return (uint64_t)eod_blk_number[partition_number] + 1;
+	return (uint64_t)filemarks[partition_number][filemark - 1] + 1;
 }
 
 /* Return number of filemarks up to 'block' : -1 for all */
