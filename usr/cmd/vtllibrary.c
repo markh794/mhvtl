@@ -446,6 +446,12 @@ static int load_map(struct q_msg *msg) {
 static void open_map(struct q_msg *msg) {
 	MHVTL_DBG(1, "Called");
 
+	if (smc_slots.prevent_removal && smc_slots.cap_closed == CAP_CLOSED) {
+		MHVTL_LOG("MAP not opened: medium removal prevented");
+		send_msg("MAP locked - medium removal prevented", msg->snd_id);
+		return;
+	}
+
 	current_state = MHVTL_STATE_OPENING_MAP;
 
 	/* The operator opening the import/export element changes its state */
@@ -518,6 +524,13 @@ static int empty_map(struct q_msg *msg) {
 		return 0;
 	}
 
+	/* The MAP was open when a host prevented removal */
+	if (smc_slots.prevent_removal) {
+		MHVTL_LOG("MAP not emptied: medium removal prevented");
+		send_msg("Can't empty map - medium removal prevented", msg->snd_id);
+		return 0;
+	}
+
 	/* The barcode is the rest of the message, which vtlcmd ends with a
 	 * space; a barcode may hold spaces itself. */
 	while (*barcode == ' ')
@@ -545,6 +558,45 @@ static int empty_map(struct q_msg *msg) {
 
 	send_msg("OK", msg->snd_id);
 	return 1;
+}
+
+/*
+ * Respond to messageQ 'media gone <barcode>': the cartridge was taken out of
+ * the MAP physically (mhvtl-bay-monitor: its disk was pulled from the bay).
+ * Unlike 'empty map' this reports a fact rather than asking, so it works
+ * whether the MAP is open or closed and while a host prevents medium removal.
+ * The import/export element changed, so the host gets 06/28/01.
+ * It is internal to mhvtl-bay-monitor and deliberately not a vtlcmd command,
+ * since it gets past the host's lock.
+ * Return 0 on failure, non-zero - success.
+ */
+static int media_gone(struct q_msg *msg) {
+	struct s_info	 *sp;
+	struct list_head *slot_head = &smc_slots.slot_list;
+	const char		 *barcode	= msg->text + strlen("media gone");
+	size_t			  len;
+
+	while (*barcode == ' ')
+		barcode++;
+	len = strlen(barcode);
+	while (len && barcode[len - 1] == ' ')
+		len--;
+
+	list_for_each_entry(sp, slot_head, siblings) {
+		if (len && slotOccupied(sp) && sp->element_type == MAP_ELEMENT &&
+			barcode_is(sp->media->barcode, barcode, len)) {
+			setSlotEmpty(sp);
+			pending_ua = E_IMPORT_ELEMENT_ACCESSED;
+			MHVTL_LOG("MAP slot %d emptied: %.*s is gone",
+					  sp->slot_location - smc_slots.pm->start_map,
+					  (int)len, barcode);
+			send_msg("OK", msg->snd_id);
+			return 1;
+		}
+	}
+
+	send_msg("barcode not in map", msg->snd_id);
+	return 0;
 }
 
 /* Extract the id of the tape sending notification a tape was ejected
@@ -602,6 +654,8 @@ static int processMessageQ(struct q_msg *msg) {
 		add_storage_slot(msg);
 	if (!strncmp(msg->text, "empty map", 9))
 		empty_map(msg);
+	if (!strncmp(msg->text, "media gone ", 11))
+		media_gone(msg);
 	if (!strncmp(msg->text, msg_eject, strlen(msg_eject)))
 		set_access_bit(msg);
 	if (!strncmp(msg->text, msg_register_request, strlen(msg_register_request)))
@@ -1475,8 +1529,9 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 	lu_vpd[PCODE_OFFSET(0x80)] = alloc_vpd(strlen(lu->lu_serial_no));
 	update_vpd_80(lu, lu->lu_serial_no);
 
-	lu->lu_private		 = &smc_slots;
-	smc_slots.cap_closed = CAP_CLOSED;
+	lu->lu_private			  = &smc_slots;
+	smc_slots.cap_closed	  = CAP_CLOSED;
+	smc_slots.prevent_removal = 0; /* A reset allows medium removal */
 	return found;
 }
 

@@ -701,6 +701,9 @@ struct smc_priv {
 	int				 num_map;
 	int				 num_storage;
 	char			 cap_closed;
+	/* A host has prevented medium removal: the operator cannot take
+	 * cartridges out of the MAP */
+	uint8_t			 prevent_removal;
 	char			*state_msg;	  /* Custom State message */
 	char			*movecommand; /* 3rd party command to call */
 

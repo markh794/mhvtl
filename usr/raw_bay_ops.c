@@ -180,9 +180,16 @@ static int place_resolved(const struct raw_bay *bay, struct raw_bay_result *res,
 	 * default. A library that will not open the MAP (no listener / error) has
 	 * its bay skipped, never falsely reported placed. */
 	if (raw_bay_lib_cmd(bay->library_id, "open map", reply, sizeof(reply),
-			    verbose_log) != 0 || !raw_bay_reply_ok(reply)) {
+			    verbose_log) != 0) {
 		res->skip_reason =
 			"library not responding or MAP could not be opened";
+		return -1;
+	}
+	if (!raw_bay_reply_ok(reply)) {
+		/* e.g. "MAP locked - medium removal prevented" */
+		snprintf(res->reply_msg, sizeof(res->reply_msg),
+			 "open map rejected: %.40s", reply);
+		res->skip_reason = res->reply_msg;
 		return -1;
 	}
 	map_opened = 1;
@@ -354,7 +361,6 @@ int raw_bay_remove(const struct raw_bay *bay, const char *barcode, int verbose_l
 	char			resolved[33];
 	char			cmd[MAXTEXTLEN + 1];
 	char			reply[MAXTEXTLEN + 1];
-	int			map_opened = 0;
 	int			rc = 0;
 
 	/* Determine the barcode: explicit if given, else probe the disk. */
@@ -389,29 +395,21 @@ int raw_bay_remove(const struct raw_bay *bay, const char *barcode, int verbose_l
 
 	/*
 	 * Clear this cartridge's MAP slot, and only that one: a plain "empty map"
-	 * would also drop the cartridges of the other bays. "empty map" is
-	 * rejected while the MAP is closed, so open it, empty the slot, and close
-	 * it again. If the cartridge is loaded in a drive the library handles
-	 * media-not-present; we never force-unload.
+	 * would also drop the cartridges of the other bays. The disk has been
+	 * pulled, so tell the library with "media gone", which clears the slot
+	 * whether the MAP is open or closed and even while a host prevents medium
+	 * removal (an operator's "empty map" is refused then). If the cartridge
+	 * is loaded in a drive the library handles media-not-present; we never
+	 * force-unload.
 	 */
-	if (raw_bay_lib_cmd(bay->library_id, "open map", reply, sizeof(reply),
-			    verbose_log) == 0 && raw_bay_reply_ok(reply)) {
-		map_opened = 1;
-		snprintf(cmd, sizeof(cmd), "empty map %s", resolved);
-		if (raw_bay_lib_cmd(bay->library_id, cmd, reply,
-				    sizeof(reply), verbose_log) != 0)
-			rc = -1;
-		else if (!strcmp(reply, "barcode not in map"))
-			rc = 1;	/* moved to a slot or drive, or emptied already */
-		else if (!raw_bay_reply_ok(reply))
-			rc = -1;
-	} else {
+	snprintf(cmd, sizeof(cmd), "media gone %s", resolved);
+	if (raw_bay_lib_cmd(bay->library_id, cmd, reply, sizeof(reply),
+			    verbose_log) != 0)
 		rc = -1;
-	}
-
-	if (map_opened)
-		raw_bay_lib_cmd(bay->library_id, "close map", reply,
-				sizeof(reply), verbose_log);
+	else if (!strcmp(reply, "barcode not in map"))
+		rc = 1;	/* moved to a slot or drive, or emptied already */
+	else if (!raw_bay_reply_ok(reply))
+		rc = -1;
 
 	return rc;
 }
