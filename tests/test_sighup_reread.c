@@ -137,6 +137,7 @@ static int storage_slot_full(int nth)
 	};
 	struct scsi_result r;
 	int total, dl, bc;
+	unsigned avail;
 	uint8_t *p, *end, *d;
 
 	memset(res_buf, 0, sizeof(res_buf));
@@ -146,7 +147,13 @@ static int storage_slot_full(int nth)
 		return -1;
 	if (r.data_len < 8)
 		return -1;
+	/* Walk no further than the bytes the harness actually put in res_buf:
+	 * clamp the reported byte count to what was received and to the buffer,
+	 * so a malformed length cannot drive the parse past res_buf[]. */
+	avail = r.data_len < sizeof(res_buf) ? r.data_len : sizeof(res_buf);
 	total = get_unaligned_be24(&res_buf[5]);
+	if (total < 0 || (unsigned)total + 8 > avail)
+		total = avail - 8;
 	p = &res_buf[8];
 	end = p + total;
 	while (p + 8 <= end) {
