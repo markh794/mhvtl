@@ -1050,6 +1050,7 @@ int change_partition(uint8_t partition_number) {
 	 * wrote through a null pointer.
 	 */
 	uint8_t sam_stat = SAM_STAT_GOOD;
+	uint8_t current	 = c_pos->partition_id;
 	int		rc		 = 0;
 
 	if (partition_number >= MAX_PARTITIONS) {
@@ -1057,9 +1058,23 @@ int change_partition(uint8_t partition_number) {
 		return 1;
 	}
 
-	cart_be->close_partition(c_pos->partition_id);
+	/* Open the requested partition before closing the current one, so a
+	 * failure to open (missing or unreadable files) leaves the drive on the
+	 * partition it was already on instead of half-open on a partition whose
+	 * files never opened (#331). Closing the target first keeps the reopen
+	 * idempotent for a refresh of the current partition and cannot leak a
+	 * descriptor.
+	 */
+	cart_be->close_partition(partition_number);
+	rc = cart_be->open_partition(partition_number);
+	if (rc) {
+		MHVTL_ERR("Could not open partition %d", partition_number);
+		cart_be->close_partition(partition_number);
+		return rc;
+	}
+	if (partition_number != current)
+		cart_be->close_partition(current);
 	c_pos->partition_id = partition_number;
-	rc					= cart_be->open_partition(partition_number);
 	if (read_header(0, &sam_stat))
 		MHVTL_ERR("Could not read the first header of partition %d",
 				  partition_number);
