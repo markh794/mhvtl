@@ -50,6 +50,7 @@ endif
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
 SCRIPT_TESTS += make_vtl_media_home.sh
+SCRIPT_TESTS += test_edit_tape_worm.sh
 SCRIPT_TESTS += generator/run.sh
 
 # Raw block-device tests. They need a cartridge formatted on a loop device,

@@ -40,6 +40,23 @@ only as a data cartridge, so edit_tape refuses to make a WORM or cleaning
 cartridge M8. edit_tape relabels any cartridge given to it, whatever it holds;
 a real library only initializes new, never written LTO-7 cartridges as M8.
 
+WORM is one-way. Real LTO, 3592 and T10000 WORM media carries its WORM
+identity in the factory servo pattern and the cartridge memory, and no drive
+command or administrative operation turns a WORM cartridge back into
+rewritable media. edit_tape enforces the same rule: it refuses to change a
+WORM cartridge to data, clean or null media. Recreate the cartridge with
+.BR mktape (1)
+to reclaim it. Size, density and write-protect edits on WORM media are still
+allowed.
+
+Note that, like encrypted media, WORM is emulated at the SCSI level only:
+mhVTL refuses overwrites, erases and the conversion above, but nothing
+protects the stored cartridge files from a process that writes them directly.
+mhVTL is right for testing how a backup application handles WORM media; it
+does not make a backup immutable against a compromised host. Immutability
+needs a separate trust boundary, such as removable media taken offline or
+storage snapshots the backup host cannot delete.
+
 .SH AUTHOR
 Written by Mark Harvey
 .SH BUGS
