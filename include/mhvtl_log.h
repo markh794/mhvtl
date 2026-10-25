@@ -588,6 +588,7 @@ int	 get_tape_load_status();
 void set_tape_load_status(int s);
 
 void set_lp_11_macc(int flag);
+void set_lp_11_pamr(int flag);
 void set_lp11_medium_present(int flag); /* Update LogPage 11 'Medium Present' bit */
 void set_lp11_compression(int flag);	/* Update LogPage 11 compression bit */
 void set_lp_11_wp(int flag);

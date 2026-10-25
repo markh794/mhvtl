@@ -6,6 +6,11 @@
  * LOAD/UNLOAD, p.91). A cartridge that was unloaded but is still in the
  * drive is mounted again by a LOAD.
  *
+ * While a host prevents medium removal, an unload by LOAD/UNLOAD or by the
+ * operator is refused with ILLEGAL REQUEST, MEDIUM REMOVAL PREVENTED,
+ * 5/53/02 (5.2.14.1, p.107, and Table 51, p.93), and LOG SENSE page 11h
+ * reports PAMR (p.269).
+ *
  * Runs vtltape with MHVTL_BACKEND=userland against a generated LTO-8
  * configuration; no kernel module or root needed.
  */
@@ -214,10 +219,132 @@ void test_load_when_loaded(void)
 	stop_drive();
 }
 
+/* PREVENT ALLOW MEDIUM REMOVAL with PREVENT = 01b (prevent) or 00b (allow) */
+static void prevent(int on)
+{
+	uint8_t cdb[6] = { 0x1e, 0, 0, 0, (uint8_t)on, 0 };
+	struct scsi_result r;
+
+	harness_cdb(&daemon_ctx, cdb, 6, &r);
+	TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "PREVENT ALLOW %d: stat=%d",
+		    on, r.sam_stat);
+}
+
+/* LOG SENSE page 11h (Device Status): PAMR, byte 4 bit 7 of parameter 0000h */
+static int pamr(void)
+{
+	uint8_t cdb[10] = { 0x4d, 0, 0x40 | 0x11, 0, 0, 0, 0, 0, 64, 0 };
+	uint8_t data[64];
+	struct scsi_result r;
+
+	memset(data, 0, sizeof(data));
+	harness_send_cdb(&daemon_ctx, cdb, 10, &r, data, sizeof(data));
+	TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "LOG SENSE 11h: stat=%d",
+		    r.sam_stat);
+	return !!(data[8] & 0x80);
+}
+
+#define CHECK_PREVENTED(r, what) \
+	TEST_CHECK_(sense_is(&(r), 0x05, 0x53, 0x02), \
+		    "%s: stat=%d sense %x/%02x/%02x (expected 5/53/02)", what, \
+		    (r).sam_stat, (r).sense[2] & 0x0f, (r).sense[12], (r).sense[13])
+
+#define CHECK_GOOD(r, what) \
+	TEST_CHECK_((r).sam_stat == SAM_STAT_GOOD, \
+		    "%s: stat=%d sense %x/%02x/%02x (expected GOOD)", what, \
+		    (r).sam_stat, (r).sense[2] & 0x0f, (r).sense[12], (r).sense[13])
+
+/* Threaded: UNLOAD and HOLD are prevented; LOAD without HOLD is not */
+void test_prevent_threaded(void)
+{
+	uint8_t tur[6] = { 0x00 };
+	uint8_t unload_hold[6] = { 0x1b, 0, 0, 0, 0x08, 0 };
+	uint8_t load_hold[6] = { 0x1b, 0, 0, 0, 0x09, 0 };
+	struct scsi_result r;
+
+	TEST_ASSERT(start_drive("LTO-8", 1) == 0);
+
+	TEST_CHECK_(!pamr(), "PAMR set before PREVENT");
+	prevent(1);
+	TEST_CHECK_(pamr(), "PAMR clear after PREVENT");
+
+	load_unload(0, &r);
+	CHECK_PREVENTED(r, "UNLOAD while prevented");
+	harness_cdb(&daemon_ctx, unload_hold, 6, &r);
+	CHECK_PREVENTED(r, "UNLOAD with HOLD while prevented");
+	harness_cdb(&daemon_ctx, load_hold, 6, &r);
+	CHECK_PREVENTED(r, "LOAD with HOLD while prevented");
+	harness_cdb(&daemon_ctx, tur, 6, &r);
+	CHECK_GOOD(r, "TEST UNIT READY after the refused UNLOADs");
+	load_unload(1, &r);
+	CHECK_GOOD(r, "LOAD while prevented");
+
+	prevent(0);
+	TEST_CHECK_(!pamr(), "PAMR set after ALLOW");
+	load_unload(0, &r);
+	CHECK_GOOD(r, "UNLOAD after ALLOW");
+
+	stop_drive();
+}
+
+/* Mounted but not threaded: UNLOAD (an eject) is prevented; HOLD and LOAD are not */
+void test_prevent_mounted_not_threaded(void)
+{
+	uint8_t tur[6] = { 0x00 };
+	uint8_t unload_hold[6] = { 0x1b, 0, 0, 0, 0x08, 0 };
+	struct scsi_result r;
+
+	TEST_ASSERT(start_drive("LTO-8", 1) == 0);
+
+	load_unload(0, &r);
+	CHECK_GOOD(r, "UNLOAD");
+	prevent(1);
+	load_unload(0, &r);
+	CHECK_PREVENTED(r, "UNLOAD of an unloaded cartridge while prevented");
+	harness_cdb(&daemon_ctx, unload_hold, 6, &r);
+	CHECK_GOOD(r, "UNLOAD with HOLD of an unloaded cartridge while prevented");
+	load_unload(1, &r);
+	CHECK_GOOD(r, "LOAD while prevented");
+	harness_cdb(&daemon_ctx, tur, 6, &r);
+	CHECK_GOOD(r, "TEST UNIT READY after LOAD");
+
+	stop_drive();
+}
+
+/* The operator's unload (vtlcmd) is refused while prevented */
+void test_prevent_operator_unload(void)
+{
+	uint8_t tur[6] = { 0x00 };
+	struct scsi_result r;
+	char resp[256] = "";
+
+	TEST_ASSERT(start_drive("LTO-8", 1) == 0);
+
+	prevent(1);
+	TEST_CHECK(harness_vtlcmd(TEST_MINOR_TAPE, "unload", resp, sizeof(resp)) == 0);
+	TEST_CHECK_(!strncmp(resp, "Unload failed", 13),
+		    "operator unload while prevented: reply '%s'", resp);
+	harness_cdb(&daemon_ctx, tur, 6, &r);
+	CHECK_GOOD(r, "TEST UNIT READY after the refused operator unload");
+
+	prevent(0);
+	memset(resp, 0, sizeof(resp));
+	TEST_CHECK(harness_vtlcmd(TEST_MINOR_TAPE, "unload", resp, sizeof(resp)) == 0);
+	TEST_CHECK_(!strncmp(resp, "Unloaded OK", 11),
+		    "operator unload after ALLOW: reply '%s'", resp);
+	harness_cdb(&daemon_ctx, tur, 6, &r);
+	CHECK_NOT_PRESENT(r, "TEST UNIT READY after the operator unload");
+
+	stop_drive();
+}
+
 TEST_LIST = {
 	{ "load_no_medium",         test_load_no_medium },
 	{ "reload_after_unload",    test_reload_after_unload },
 	{ "reload_incompatible_medium", test_reload_incompatible_medium },
 	{ "load_when_loaded",       test_load_when_loaded },
+	{ "prevent_threaded",       test_prevent_threaded },
+	{ "prevent_mounted_not_threaded", test_prevent_mounted_not_threaded },
+	{ "prevent_operator_unload", test_prevent_operator_unload },
 	{ NULL, NULL }
 };

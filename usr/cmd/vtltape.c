@@ -1852,6 +1852,11 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	if (!strncmp(msg->text, "load", 4)) {
 		pcl		= strip_PCL(msg->text, 5);
 		pcl_len = strlen(pcl) + 2;
+		if (lu_ssc.prevent_removal && lu_ssc.barcode) {
+			MHVTL_LOG("Load of %s refused: medium removal of %s is prevented",
+					  pcl, lu_ssc.barcode);
+			return 0;
+		}
 		if (lu_ssc.inLibrary)
 			MHVTL_ERR("Warn: Tape assigned to library - The library can't remove this tape !");
 		if (get_tape_load_status() == TAPE_LOADED) {
@@ -1892,6 +1897,15 @@ static int processMessageQ(struct q_msg *msg, uint8_t *sam_stat) {
 	}
 
 	if (!strncmp(msg->text, "unload", 6)) {
+		/* The library's unload is never prevented; an operator's is
+		 * (GA32-0928-07 5.2.14.1, p.107, and Table 51, p.93).
+		 */
+		if (lu_ssc.prevent_removal && lu_ssc.barcode &&
+			!(library_id > 0 && msg->snd_id == library_id)) {
+			SEND_MSG_AND_LOG("Unload failed - medium removal prevented",
+							 msg->snd_id);
+			return 0;
+		}
 		unloadTape(FALSE, sam_stat);
 		SEND_MSG_AND_LOG(msg_unload_ok, msg->snd_id);
 		free(lu_ssc.barcode);
@@ -2467,6 +2481,7 @@ static void init_lu_ssc(struct priv_lu_ssc *lu_priv) {
 	lu_priv->inLibrary				 = 0;
 	lu_priv->sam_status				 = SAM_STAT_GOOD;
 	lu_priv->pending_ua				 = 0;
+	lu_priv->prevent_removal		 = 0;
 	lu_priv->MediaWriteProtect		 = MEDIA_WRITABLE;
 	lu_priv->capacity_unit			 = 1;
 	lu_priv->configCompressionFactor = Z_BEST_SPEED;
