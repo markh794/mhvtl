@@ -39,8 +39,16 @@ struct MAM;
 #define BLKHDR_FLG_CRC			   0x08
 #define BLKHDR_FLG_LZ4_COMPRESSED  0x10
 #define BLKHDR_FLG_ZSTD_COMPRESSED 0x20
+/* With BLKHDR_FLG_ENCRYPTED: AES-256-GCM, the key field holds
+ * nonce || tag || key check value instead of the key (mhvtl_crypto.h) */
+#define BLKHDR_FLG_GCM			   0x40
 
-#define TAPE_FMT_VERSION 6
+/* Format 7 is format 6 that may hold GCM blocks. Only cartridges with GCM
+ * data are raised to it, so older releases keep reading the rest. They
+ * can't read GCM blocks and may still load a format 7 cartridge: see
+ * device.conf(5). */
+#define TAPE_FMT_VERSION	 6
+#define TAPE_FMT_VERSION_GCM 7
 
 #define ENCR_KEY_MAX_LEN 32
 struct encryption {
@@ -230,6 +238,21 @@ int position_filemarks_back(uint64_t count, uint8_t *sam_stat);
 int change_partition(uint8_t partition_number);
 
 uint32_t read_tape_block(uint8_t *buf, uint32_t size, uint8_t *sam_stat);
+
+/*
+ * AES-256-GCM, set by vtltape for drives that really encrypt, so that
+ * libvtlscsi needs no libcrypto.
+ * gcm_seal_hook: write_tape_block() calls it for an encrypted block once the
+ * header is filled in. Returns the sealed data to write (disk_blk_size
+ * bytes), or NULL with sense set.
+ * gcm_open_hook: read_tape_block() calls it for a GCM block, before moving
+ * to the next block. Decrypts in place; -1 if the block is not authentic.
+ */
+extern const uint8_t *(*gcm_seal_hook)(const struct encryption *key,
+									   struct blk_header *h,
+									   const uint8_t *data, uint8_t *sam_stat);
+extern int (*gcm_open_hook)(const struct blk_header *h, uint8_t *data,
+							uint8_t *sam_stat);
 
 int write_filemarks(uint32_t count, uint8_t *sam_stat);
 int write_tape_block(const uint8_t *buf, uint32_t uncomp_size,

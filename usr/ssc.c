@@ -558,15 +558,12 @@ uint8_t check_restrictions(struct scsi_cmd *cmd) {
  */
 #define UKAD_LENGTH (encr->ukad_length)
 #define AKAD_LENGTH (encr->akad_length)
-#define KEY_LENGTH	(encr->key_length)
 #define UKAD		(encr->ukad)
 #define AKAD		(encr->akad)
-#define KEY			(encr->key)
 uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
 	uint8_t correct_key;
-	int		i;
 
 	/* The key the application loaded, even if this drive is not encrypting
 	 * writes (setup_crypto() clears app_encr_info then) */
@@ -578,18 +575,7 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 	if (c_pos->blk_flags & BLKHDR_FLG_ENCRYPTED) {
 		/* compare the keys */
 		if (lu_priv->DECRYPT_MODE > 1) {
-			if (c_pos->blk_encryption_info.key_length != KEY_LENGTH) {
-				sam_data_protect(E_INCORRECT_KEY, sam_stat);
-				correct_key = FALSE;
-				return correct_key;
-			}
-			for (i = 0; i < c_pos->blk_encryption_info.key_length; ++i) {
-				if (c_pos->blk_encryption_info.key[i] != KEY[i]) {
-					sam_data_protect(E_INCORRECT_KEY, sam_stat);
-					correct_key = FALSE;
-					return correct_key;
-				}
-			}
+			correct_key = check_block_key(encr, sam_stat);
 		} else {
 			sam_data_protect(E_UNABLE_TO_DECRYPT, sam_stat);
 			correct_key = FALSE;

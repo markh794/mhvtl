@@ -26,6 +26,7 @@
 #include <lz4.h>
 #include <zstd.h>
 #include "mhvtl_compress.h"
+#include "mhvtl_crypto.h"
 
 uint32_t GenerateRSCRC(uint32_t crc, uint32_t size, const void *buf);
 uint32_t BlockVerifyRSCRC(const uint8_t *blkbuf, uint32_t blklen, int32_t bigendian);
@@ -529,15 +530,18 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 			sam_hardware_error(E_LOGICAL_BLOCK_GUARD_FAILED, sam_stat);
 			goto free_bounce_buf;
 		}
-		MHVTL_DBG(2, "READ block %d LBP RSCRC : 0x%02x 0x%02x 0x%02x 0x%02x", blk_number, bounce_buffer[rc - 4], bounce_buffer[rc - 3], bounce_buffer[rc - 2], bounce_buffer[rc - 1]);
+		if (!(blk_flags & BLKHDR_FLG_GCM)) /* no plain-text CRC in the log */
+			MHVTL_DBG(2, "READ block %d LBP RSCRC : 0x%02x 0x%02x 0x%02x 0x%02x", blk_number, bounce_buffer[rc - 4], bounce_buffer[rc - 3], bounce_buffer[rc - 2], bounce_buffer[rc - 1]);
 		break;
 	case 2:
 		/* If we don't have a LBP CRC32C format, re-calculate now */
 		lbp_crc = (blk_flags & BLKHDR_FLG_CRC) ? pre_crc : mhvtl_crc32c(bounce_buffer, rc);
 		/* Protection information is a big-endian field on the wire */
 		put_unaligned_be32(lbp_crc, &bounce_buffer[rc]);
-		MHVTL_DBG(2, "Logical Block Protection - CRC32C, rc: %d, request_sz: %d, lbp_size: %d, CRC32C: 0x%8x", rc, request_sz, lbp_sz, lbp_crc);
-		MHVTL_DBG(2, "READ block %d LBP CRC32C : 0x%02x 0x%02x 0x%02x 0x%02x", blk_number, bounce_buffer[rc], bounce_buffer[rc + 1], bounce_buffer[rc + 2], bounce_buffer[rc + 3]);
+		if (!(blk_flags & BLKHDR_FLG_GCM)) { /* as on writing: no plain-text CRC in the log */
+			MHVTL_DBG(2, "Logical Block Protection - CRC32C, rc: %d, request_sz: %d, lbp_size: %d, CRC32C: 0x%8x", rc, request_sz, lbp_sz, lbp_crc);
+			MHVTL_DBG(2, "READ block %d LBP CRC32C : 0x%02x 0x%02x 0x%02x 0x%02x", blk_number, bounce_buffer[rc], bounce_buffer[rc + 1], bounce_buffer[rc + 2], bounce_buffer[rc + 3]);
+		}
 		rc += 4; /* Account for LBP checksum */
 		break;
 	case 3:
@@ -612,6 +616,239 @@ free_bounce_buf:
 		free(bounce_buffer);
 
 	return 0;
+}
+
+/*
+ * AES-256-GCM (mhvtl_crypto.h)
+ *
+ * Nonce counter values are reserved in the cartridge MAM, durably, this many
+ * at a time, before any of them is used: after a crash, or in another drive,
+ * the counter resumes past every value that may have been handed out (NIST
+ * SP 800-38D, 8.2.1). The fixed field of the IV is random for each
+ * reservation, so a MAM put back to an older copy (a restored or cloned
+ * cartridge) does not hand out the IVs of the blocks written since.
+ */
+#define GCM_NONCE_RESERVE (1ULL << 16)
+
+static struct {
+	struct gcm_keys keys;		 /* derived from app_key and key_salt */
+	uint8_t			app_key[GCM_KEY_LEN];
+	uint8_t			key_salt[CART_SALT_LEN];
+	int				keys_valid;
+	uint8_t			ctr_salt[CART_SALT_LEN]; /* cartridge next/limit belong to */
+	uint64_t		next;					 /* next nonce counter value */
+	uint64_t		limit;					 /* reserved below this */
+	uint8_t			fixed[GCM_FIXED_LEN];	 /* IV fixed field of this reservation */
+	uint8_t		   *buf;					 /* sealed data */
+	size_t			buf_sz;
+} gcm;
+
+/* The keys of the loaded cartridge for 'key', derived once per key and salt */
+static int gcm_load_keys(const struct encryption *key) {
+	if (key->key_length != GCM_KEY_LEN)
+		return -1;
+	if (gcm.keys_valid && !memcmp(gcm.app_key, key->key, GCM_KEY_LEN) &&
+		!memcmp(gcm.key_salt, mam.gcm_salt, CART_SALT_LEN))
+		return 0;
+
+	gcm.keys_valid = 0;
+	if (gcm_derive_keys(key->key, mam.gcm_salt, &gcm.keys))
+		return -1;
+	memcpy(gcm.app_key, key->key, GCM_KEY_LEN);
+	memcpy(gcm.key_salt, mam.gcm_salt, CART_SALT_LEN);
+	gcm.keys_valid = 1;
+	return 0;
+}
+
+/* Persist a new salt and/or nonce reservation; on failure the MAM in memory
+ * goes back to what the cartridge holds */
+static int gcm_commit_mam(const uint8_t *old_salt, uint64_t old_limit,
+						  uint32_t old_fmt, uint8_t *sam_stat) {
+	if (!rewriteMAM(sam_stat))
+		return 0;
+	MHVTL_ERR("Can't record the AES-GCM nonce reservation in the MAM");
+	memcpy(mam.gcm_salt, old_salt, CART_SALT_LEN);
+	mam.gcm_nonce_limit	 = old_limit;
+	mam.tape_fmt_version = old_fmt;
+	return -1;
+}
+
+static int gcm_have_salt(void) {
+	static const uint8_t no_salt[CART_SALT_LEN];
+
+	return memcmp(mam.gcm_salt, no_salt, CART_SALT_LEN) != 0;
+}
+
+static int gcm_next_counter(uint64_t *counter, uint8_t *sam_stat) {
+	uint8_t				 old_salt[CART_SALT_LEN];
+	uint64_t			 old_limit = mam.gcm_nonce_limit;
+	uint32_t			 old_fmt   = mam.tape_fmt_version;
+
+	memcpy(old_salt, mam.gcm_salt, CART_SALT_LEN);
+
+	/* AES-GCM blocks but no salt: a release without AES-GCM rewrote the
+	 * MAM. Those blocks are lost; a new salt is only safe where the write
+	 * leaves none of them behind */
+	if (!gcm_have_salt() &&
+		mam.tape_fmt_version >= TAPE_FMT_VERSION_GCM &&
+		(c_pos->blk_number || mam.num_partitions > 1)) {
+		MHVTL_ERR("AES-GCM cartridge without its salt: "
+				  "rewrite it from the beginning of the tape");
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		return -1;
+	}
+
+	/* First GCM block on this cartridge: a salt on one still below format 7
+	 * never had a reservation recorded, so it isn't trusted either */
+	if (!gcm_have_salt() ||
+		mam.tape_fmt_version < TAPE_FMT_VERSION_GCM) {
+		if (gcm_random(mam.gcm_salt, CART_SALT_LEN)) {
+			MHVTL_ERR("No random bytes for the cartridge salt");
+			sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
+			return -1;
+		}
+		mam.gcm_nonce_limit = 0;
+	}
+
+	/* Another cartridge, or this one again: start past its reservation */
+	if (memcmp(gcm.ctr_salt, mam.gcm_salt, CART_SALT_LEN) ||
+		gcm.limit != mam.gcm_nonce_limit) {
+		memcpy(gcm.ctr_salt, mam.gcm_salt, CART_SALT_LEN);
+		gcm.next  = mam.gcm_nonce_limit;
+		gcm.limit = gcm.next;
+	}
+
+	if (gcm.next == gcm.limit) {
+		if (gcm.limit > UINT64_MAX - GCM_NONCE_RESERVE) {
+			MHVTL_ERR("AES-GCM nonce counter exhausted");
+			sam_data_protect(E_WRITE_PROTECT, sam_stat);
+			return -1;
+		}
+		if (gcm_random(gcm.fixed, GCM_FIXED_LEN)) {
+			MHVTL_ERR("No random bytes for the AES-GCM IV");
+			sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
+			memcpy(mam.gcm_salt, old_salt, CART_SALT_LEN);
+			mam.gcm_nonce_limit = old_limit;
+			memset(gcm.ctr_salt, 0, CART_SALT_LEN);
+			return -1;
+		}
+		mam.gcm_nonce_limit	 = gcm.limit + GCM_NONCE_RESERVE;
+		mam.tape_fmt_version = TAPE_FMT_VERSION_GCM;
+		if (gcm_commit_mam(old_salt, old_limit, old_fmt, sam_stat)) {
+			memset(gcm.ctr_salt, 0, CART_SALT_LEN);
+			return -1;
+		}
+		gcm.limit = mam.gcm_nonce_limit;
+	}
+
+	*counter = gcm.next++;
+	return 0;
+}
+
+/* gcm_seal_hook: compress first, then this */
+static const uint8_t *gcm_seal_block(const struct encryption *key,
+									 struct blk_header *h,
+									 const uint8_t *data, uint8_t *sam_stat) {
+	uint64_t counter;
+	size_t	 len = h->disk_blk_size;
+
+	if (gcm.buf_sz < len) {
+		uint8_t *p = realloc(gcm.buf, len);
+
+		if (!p) {
+			MHVTL_ERR("Out of memory for a %zu byte block", len);
+			sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
+			return NULL;
+		}
+		gcm.buf	   = p;
+		gcm.buf_sz = len;
+	}
+
+	if (gcm_next_counter(&counter, sam_stat))
+		return NULL;
+	if (gcm_load_keys(key)) {
+		MHVTL_ERR("Can't derive the AES-GCM keys of this cartridge");
+		sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
+		return NULL;
+	}
+	gcm_nonce(gcm.fixed, counter, h->blk_encryption_info.key + GCM_NONCE_OFF);
+	if (gcm_seal(&gcm.keys, h, data, gcm.buf, len)) {
+		MHVTL_ERR("AES-GCM encryption failed");
+		sam_hardware_error(E_INTERNAL_TARGET_FAILURE, sam_stat);
+		return NULL;
+	}
+	return gcm.buf;
+}
+
+/* gcm_open_hook; check_block_key() has accepted the application key */
+static int gcm_open_block(const struct blk_header *h, uint8_t *data,
+						  uint8_t *sam_stat) {
+	(void)sam_stat; /* the caller reports a medium error */
+
+	if (gcm_load_keys(&app_encryption_state))
+		return -1;
+	if (gcm_open(&gcm.keys, h, data, h->disk_blk_size)) {
+		/* decrypted in place before the tag was checked */
+		gcm_wipe(data, h->disk_blk_size);
+		return -1;
+	}
+	return 0;
+}
+
+/* The application key is cleared: so are the copies kept here */
+void gcm_forget_keys(void) {
+	if (gcm.keys_valid)
+		gcm_free_keys(&gcm.keys);
+	gcm.keys_valid = 0;
+	gcm_wipe(gcm.app_key, sizeof(gcm.app_key));
+}
+
+/*
+ * Reading AES-GCM blocks needs only libcrypto, so every drive built with it
+ * can; writing them only a drive set to 'Encryption: aes-gcm' ('encrypt').
+ */
+void gcm_init(int encrypt) {
+	if (!mhvtl_crypto_available())
+		return;
+	gcm_open_hook = gcm_open_block;
+	gcm_seal_hook = encrypt ? gcm_seal_block : NULL;
+}
+
+/*
+ * Is 'key' the one the encrypted block at c_pos was written with?
+ * 1 yes, 0 no, -1 the block can't be decrypted here: AES-GCM without
+ * libcrypto, or a key-in-header block on a cartridge holding AES-GCM data.
+ */
+int block_key_matches(const struct encryption *key) {
+	const struct encryption *blk = &c_pos->blk_encryption_info;
+
+	if (c_pos->blk_flags & BLKHDR_FLG_GCM) {
+		/* without the salt no key opens it (gcm_next_counter()) */
+		if (!mhvtl_crypto_available() || !gcm_have_salt())
+			return -1;
+		return !gcm_load_keys(key) && gcm_kcv_matches(&gcm.keys, c_pos);
+	}
+	if (mam.tape_fmt_version >= TAPE_FMT_VERSION_GCM)
+		return -1;
+	return blk->key_length == key->key_length &&
+		   !memcmp(blk->key, key->key, key->key_length);
+}
+
+/* block_key_matches() for READ: TRUE, or FALSE with sense set */
+uint8_t check_block_key(const struct encryption *key, uint8_t *sam_stat) {
+	switch (block_key_matches(key)) {
+	case 1:
+		return TRUE;
+	case 0:
+		sam_data_protect(E_INCORRECT_KEY, sam_stat);
+		return FALSE;
+	default:
+		if (c_pos->blk_flags & BLKHDR_FLG_GCM)
+			sam_data_protect(E_UNABLE_TO_DECRYPT, sam_stat);
+		else
+			sam_medium_error(E_UNRECOVERED_READ, sam_stat);
+		return FALSE;
+	}
 }
 
 static lzo_uint mhvtl_compressBound(lzo_uint src_sz) {

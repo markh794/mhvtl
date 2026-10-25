@@ -137,6 +137,19 @@ void dealloc_all_mode_pages(struct lu_phy_attr *lu) {
 	}
 }
 
+void dealloc_mode_page(struct lu_phy_attr *lu, uint8_t pcode, uint8_t subpcode) {
+	struct mode *mp = lookup_mode_pg(&lu->mode_pg, pcode, subpcode);
+
+	if (!mp)
+		return;
+	MHVTL_DBG(2, "Removing %s", mp->description);
+	free(mp->pcodePointer);
+	free(mp->pcodePointerBitMap);
+	free(mp->pcodePointerDefault);
+	list_del(&mp->siblings);
+	free(mp);
+}
+
 /*
  * Snapshot each mode page's current contents as its immutable "default"
  * values. MODE SENSE with page control 2 (default values) returns this

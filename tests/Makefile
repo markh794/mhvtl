@@ -37,6 +37,16 @@ TESTS += test_raw_read_mam
 
 TESTS += test_dump_tape_options
 
+# AES-256-GCM helpers; need libcrypto, like the drives that use them.
+# MHVTL_NO_OPENSSL=1 matches a usr/ build made with it.
+ifneq ($(MHVTL_NO_OPENSSL),1)
+CRYPTO_LIBS := $(shell pkg-config --libs libcrypto 2>/dev/null)
+endif
+ifneq ($(CRYPTO_LIBS),)
+TESTS += test_mhvtl_crypto
+CFLAGS += -DMHVTL_HAVE_OPENSSL
+endif
+
 # Shell checks of the helper scripts; nothing to build
 SCRIPT_TESTS = check_make_vtl_media.sh
 SCRIPT_TESTS += make_vtl_media_home.sh
@@ -55,6 +65,7 @@ INTEGRATION_TESTS += test_encryption_state
 INTEGRATION_TESTS += test_lto_m8
 INTEGRATION_TESTS += test_log_volstat_strings
 INTEGRATION_TESTS += test_encryption_read_key
+INTEGRATION_TESTS += test_encryption_gcm
 INTEGRATION_TESTS += test_ssc_load_unload
 
 INTEGRATION_TESTS += test_smc_drive_absent
@@ -94,6 +105,10 @@ test_raw_bay_conf: test_raw_bay_conf.c acutest.h ../usr/raw_bay_conf.c ../includ
 COMPRESS_SRC = ../usr/mhvtl_compress.c
 test_compression: test_compression.c ../include/mhvtl_compress.h $(COMPRESS_SRC)
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_compression.c $(COMPRESS_SRC) -llz4 -lzstd
+
+CRYPTO_SRC = ../usr/mhvtl_crypto.c
+test_mhvtl_crypto: test_mhvtl_crypto.c acutest.h ../include/mhvtl_crypto.h $(CRYPTO_SRC)
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_mhvtl_crypto.c $(CRYPTO_SRC) $(CRYPTO_LIBS)
 
 # Throughput benchmark (US-C3). Not a pass/fail test, so it is NOT in $(TESTS);
 # build + run it with `make bench` (optionally `make bench BENCH_ARGS="512 256 1"`
@@ -251,6 +266,9 @@ test_log_volstat_strings: test_log_volstat_strings.c acutest.h helpers/scsi_harn
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
     
 test_encryption_read_key: test_encryption_read_key.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+test_encryption_gcm: test_encryption_gcm.c acutest.h helpers/scsi_harness.h helpers/device_conf_gen.h ../include/mhvtl_crypto.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
 
 # cart_backend_raw round-trip on a formatted device (test_raw_loopback.sh)

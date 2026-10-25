@@ -155,6 +155,9 @@ struct priv_lu_ssc {
 
 	uint8_t compressionType; /* lzo or zlib compression */
 
+	/* 'Encryption: simulated': keys stored in block headers, not AES-GCM */
+	uint8_t simulated_encryption;
+
 	loff_t capacity_unit;
 	loff_t early_warning_sz;
 	loff_t prog_early_warning_sz;
@@ -296,6 +299,11 @@ void ssc_personality_module_register(struct ssc_personality_template *pm);
 
 int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp, uint8_t *sam_stat);
 int writeBlock(struct scsi_cmd *cmd, uint32_t request_sz, uint32_t src_offset);
+
+void	gcm_init(int encrypt);
+void	gcm_forget_keys(void);
+int		block_key_matches(const struct encryption *key);
+uint8_t check_block_key(const struct encryption *key, uint8_t *sam_stat);
 
 uint8_t ssc_a3_service_action(struct scsi_cmd *cmd);
 uint8_t ssc_a4_service_action(struct scsi_cmd *cmd);

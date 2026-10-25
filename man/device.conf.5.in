@@ -75,6 +75,43 @@ never expanded; all codecs are lossless and a cartridge may mix codecs (each
 block records its own).
 
 .PP
+.B Encryption:
+aes-gcm or simulated. Default is aes-gcm.
+.IP
+For drives that support encryption (SECURITY PROTOCOL IN/OUT), this sets what
+the drive does with the key an application sets.
+.IP
+.B aes-gcm
+encrypts each block with AES-256-GCM after compression. The keys of each
+cartridge are derived from that key and a random salt kept in the cartridge
+MAM, and the key itself is never written to the cartridge. Reading checks
+the authentication tag: a block that does not match it fails with MEDIUM
+ERROR, and so does a block moved to another position. The tag does not
+cover what is missing: a cartridge cut short at a block boundary, or put
+back to an older copy, reads without error. Block lengths stay readable, so
+the compressed size of each block shows.
+.IP
+The first AES-GCM block raises the cartridge to tape format 7. Releases
+before AES-GCM can't read those blocks, but they may still load the
+cartridge, so keep format 7 cartridges away from them. A simulated drive
+there would write the key next to the AES-GCM data, and any MAM update there
+drops the salt: no key reads the AES-GCM blocks after that, and this release
+refuses to append to them.
+.IP
+A drive refuses AES-GCM writes to a cartridge that still holds
+simulated-encryption blocks: rewrite it from the beginning of the tape
+first. aes-gcm needs mhVTL built with OpenSSL
+libcrypto. Built without it, the drive offers no encryption at all.
+.IP
+.B simulated
+is how mhVTL encrypted before AES-GCM. The data is written as plain text,
+and the key is stored in the header of every block. Anyone who can read the
+cartridge files has the key. That includes the AES-GCM cartridges written
+with the same key, so do not use a key on a simulated drive that is also
+used on aes-gcm drives. A simulated drive reads AES-GCM cartridges (when
+built with OpenSSL) but refuses encrypted writes to them.
+
+.PP
 .B Backoff:
 Value between 10 and 10000. Default is 1000.
 This value is added to existing 'usleep' time in between ioctl polls. If there is work to do, the usleep time is reset to 10.

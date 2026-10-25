@@ -50,6 +50,11 @@ zlib    = dependency('zlib')
 lz4  = dependency('liblz4')
 zstd = dependency('libzstd')
 
+# OpenSSL libcrypto for AES-256-GCM drive encryption (optional): without it
+# drives offer only simulated encryption.
+crypto = dependency('libcrypto', required : get_option('openssl'))
+crypto_args = crypto.found() ? ['-DMHVTL_HAVE_OPENSSL'] : []
+
 # Phase 2 (Stage B): libudev for the raw-disk hot-plug monitor only.
 udev = dependency('libudev')
 
@@ -82,6 +87,11 @@ libvtlscsi = shared_library('vtlscsi',
 # object group reused by vtltape and dump_tape
 io_srcs = files('mhvtl_io.c', 'mhvtl_compress.c', 'utils/minilzo.c', 'utils/crc32c.c', 'utils/reed-solomon.c')
 
+# AES-256-GCM, compiled with or without libcrypto
+crypto_lib = static_library('mhvtl_crypto', files('mhvtl_crypto.c'),
+  include_directories : inc, c_args : crypto_args, dependencies : [crypto],
+  install : false)
+
 # ---- daemons ----
 executable('vtltape',
   [files('cmd/vtltape.c', 'ssc.c',
@@ -89,8 +99,8 @@ executable('vtltape',
          'pm/stk9x40_pm.c', 'pm/quantum_dlt_pm.c', 'pm/ait_pm.c',
          'pm/t10000_pm.c', 'pm/ibm_03592_pm.c'), io_srcs],
   include_directories : inc,
-  link_with : libvtlscsi,
-  dependencies : [zlib, lz4, zstd],
+  link_with : [libvtlscsi, crypto_lib],
+  dependencies : [zlib, lz4, zstd, crypto],
   install : false,
 )
 
@@ -126,7 +136,7 @@ executable('tapeexerciser', files('cmd/tapeexerciser.c'),
   include_directories : inc, install : false)
 executable('dump_tape',
   [files('cmd/tape_util.c', 'pm/default_ssc_pm.c'), io_srcs],
-  include_directories : inc, link_with : libvtlscsi, dependencies : [zlib, lz4, zstd], install : false)
+  include_directories : inc, link_with : [libvtlscsi, crypto_lib], dependencies : [zlib, lz4, zstd, crypto], install : false)
 executable('validate_crc',
   files('utils/validate_crc.c', 'utils/crc32c.c', 'utils/reed-solomon.c'),
   include_directories : inc, install : false)

@@ -789,13 +789,20 @@ out:
 
 static int raw_be_load_mam(struct MAM *mamp, uint8_t *sam_stat)
 {
-	(void)sam_stat;
-
 	if (!sb_loaded || devfd < 0) {
 		errno = EBADF;
 		return -1;
 	}
-	return raw_mam_from_region(devfd, &sb, mamp);
+	if (raw_mam_from_region(devfd, &sb, mamp) < 0)
+		return -1;
+	/* Written by a newer release: its blocks may mean something else */
+	if (mamp->tape_fmt_version > TAPE_FMT_VERSION_GCM) {
+		MHVTL_ERR("raw cartridge has tape format %u, newer than %u",
+			  mamp->tape_fmt_version, TAPE_FMT_VERSION_GCM);
+		sam_medium_error(E_MEDIUM_FMT_CORRUPT, sam_stat);
+		return 2; /* like the file backend: load_tape() refuses it */
+	}
+	return 0;
 }
 
 /*

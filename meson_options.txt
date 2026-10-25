@@ -1,0 +1,2 @@
+option('openssl', type : 'feature', value : 'auto',
+  description : 'AES-256-GCM drive encryption with OpenSSL libcrypto')

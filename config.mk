@@ -41,6 +41,15 @@ LZ4_LIBS    ?= $(shell pkg-config --libs liblz4 2>/dev/null)
 ZSTD_CFLAGS ?= $(shell pkg-config --cflags libzstd 2>/dev/null)
 ZSTD_LIBS   ?= $(shell pkg-config --libs libzstd 2>/dev/null)
 
+# OpenSSL libcrypto for AES-256-GCM drive encryption (optional). Without it,
+# or with MHVTL_NO_OPENSSL=1, drives offer only simulated encryption.
+ifneq ($(MHVTL_NO_OPENSSL),1)
+CRYPTO_LIBS ?= $(shell pkg-config --libs libcrypto 2>/dev/null)
+ifneq ($(CRYPTO_LIBS),)
+CRYPTO_CFLAGS ?= $(shell pkg-config --cflags libcrypto 2>/dev/null) -DMHVTL_HAVE_OPENSSL
+endif
+endif
+
 ifeq ($(shell whoami),root)
 ROOTUID = YES
 endif

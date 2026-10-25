@@ -122,6 +122,14 @@ struct test_env {
 };
 #endif
 
+/* Built without OpenSSL, an 'Encryption: aes-gcm' drive (the default)
+ * offers no encryption, so the encryption tests use the simulated kind */
+#ifdef MHVTL_HAVE_OPENSSL
+#define GEN_DRIVE_ENCRYPTION ""
+#else
+#define GEN_DRIVE_ENCRYPTION " Encryption: simulated\n"
+#endif
+
 static int gen_test_env(struct test_env *env, const struct drive_type *dt)
 {
 	char path[512];
@@ -174,6 +182,7 @@ static int gen_test_env(struct test_env *env, const struct drive_type *dt)
 		" Product identification: %-16s\n"
 		" Product revision level: %s\n"
 		" Unit serial number: XYZZY_%02d\n"
+		GEN_DRIVE_ENCRYPTION
 		" NAA: 50:11:22:33:44:55:66:01\n"
 		"\n",
 		TEST_MINOR_LIBRARY,
