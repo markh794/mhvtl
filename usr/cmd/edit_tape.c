@@ -249,6 +249,25 @@ int main(int argc, char *argv[]) {
 			usage(progname);
 			exit(1);
 		}
+		/* WORM is one-way. Real LTO/3592/T10000 WORM media carries its
+		 * WORM identity in the factory servo pattern and the cartridge
+		 * memory, and no drive command or administrative operation turns
+		 * a WORM cartridge back into rewritable media (INCITS SSC-3/-5;
+		 * IBM LTO SCSI Reference GA32-0928; IBM 3592; Oracle T10000
+		 * VolSafe). Refuse to undo it here too, so a WORM cartridge
+		 * under test cannot be quietly relabelled as data media. Recreate
+		 * the cartridge with mktape to reclaim it. Changing size, density
+		 * or write-protect on WORM media is still allowed. */
+		if (mam.MediumType == MEDIA_TYPE_WORM &&
+			new_mam.MediumType != MEDIA_TYPE_WORM) {
+			fprintf(stderr,
+					"Refusing to convert WORM cartridge %s to %s media.\n"
+					"WORM media cannot be converted back to rewritable media; "
+					"recreate the\ncartridge with mktape to reclaim it.\n",
+					pcl, mediaType);
+			unload_tape(&sam_stat);
+			exit(1);
+		}
 	}
 	if (density) {
 		printf("Setting density to %s\n", density);

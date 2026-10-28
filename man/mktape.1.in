@@ -81,6 +81,15 @@ The
 is a special media type used primarily to test performance with disk
 writes kept to a minimum. Note: Metadata (512bytes per data block) is still
 written.
+.PP
+.B WORM
+media is one-way, as on real hardware:
+.BR edit_tape (1)
+will not convert a WORM cartridge back to data, clean or null media. To reclaim
+a WORM cartridge, create a new one with mktape. WORM, like encryption, is
+emulated at the SCSI level only and does not protect the stored cartridge files
+from a process that writes them directly; see
+.BR edit_tape (1).
 .TP
 \fB\-d\fR \fIdensity\fR
 Media
