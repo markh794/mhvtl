@@ -31,6 +31,7 @@ CRC_SRC  = ../usr/utils/crc32c.c
 TESTS = test_byteshift test_crc test_sense test_smc_slots test_vpd test_log_volstat test_vtlcmd_parsing test_raw_bay_conf test_compression test_compression_select test_open_fifo test_q_reply test_q_send test_media_home test_dump_tape_output
 TESTS += test_dump_tape_loop
 TESTS += test_indx_rollback
+TESTS += test_change_partition
 TESTS += test_m8_mam
 
 TESTS += test_raw_read_mam
@@ -168,6 +169,10 @@ test_raw_read_mam: test_raw_read_mam.c acutest.h ../usr/vtl_cart_type.c ../usr/l
 # to the prior index
 test_indx_rollback: test_indx_rollback.c acutest.h ../usr/libvtlscsi.so
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_indx_rollback.c \
+		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
+
+test_change_partition: test_change_partition.c acutest.h ../usr/libvtlscsi.so
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_change_partition.c \
 		-L ../usr -lvtlscsi -Wl,-rpath,'$$ORIGIN/../usr'
 
 test_dump_tape_output: test_dump_tape_output.c acutest.h ../usr/libvtlscsi.so
