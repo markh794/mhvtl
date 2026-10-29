@@ -247,7 +247,7 @@ VTLTAPE_OBJ = cmd/vtltape.o \
 		pm/t10000_pm.o \
 		pm/ibm_03592_pm.o
 bin/vtltape: $(VTLTAPE_OBJ) libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) -lz $(LZ4_LIBS) $(ZSTD_LIBS) $(CRYPTO_LIBS) -L. -lvtlscsi
+	$(CC) $(CFLAGS) -o $@ $(VTLTAPE_OBJ) libvtlscsi.so -lz $(LZ4_LIBS) $(ZSTD_LIBS) $(CRYPTO_LIBS)
 
 MHVTL_DEVICE_CONF_GENERATOR_OBJ = cmd/mhvtl-device-conf-generator.o
 bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.so
