@@ -330,6 +330,28 @@ static char *read_file(const char *fmt, const char *a, const char *b)
 	return v;
 }
 
+#define DATAOUT	"iscsi/%s/tpgt_1/acls/%s/attrib/dataout_timeout"
+
+/* Session parameters apply_tpg sets for tape on every target */
+static void check_tape_params(const char *wwn)
+{
+	static const struct {
+		const char *param, *val;
+	} want[] = {
+		{ "InitialR2T", "No" },
+		{ "ImmediateData", "Yes" },
+		{ "FirstBurstLength", "262144" },
+		{ "MaxBurstLength", "1048576" },
+		{ "MaxRecvDataSegmentLength", "262144" },
+	};
+	size_t	i;
+
+	for (i = 0; i < sizeof(want) / sizeof(want[0]); i++)
+		TEST_CHECK_(!strcmp(read_file("iscsi/%s/tpgt_1/param/%s", wwn,
+					      want[i].param), want[i].val),
+			    "%s %s", wwn, want[i].param);
+}
+
 #define I1  "iqn.2024-01.com.example:pbs1"
 #define I2  "iqn.2024-01.com.example:pbs2"
 
@@ -367,6 +389,10 @@ void test_apply_builds_tree(void)
 				     W10, I1), "abcdefghijkl"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/acls/%s/auth/userid_mutual",
 				     W10, I1), "NULL"));
+	check_tape_params(W10);
+	check_tape_params(W30);
+	TEST_CHECK(!strcmp(read_file(DATAOUT, W10, I1), "30"));
+	TEST_CHECK(!strcmp(read_file(DATAOUT, W10, I2), "30"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/authentication%s",
 				     W30, ""), "0"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/param/AuthMethod%s",
@@ -414,6 +440,9 @@ void test_apply_reconciles(void)
 				     W10, I1), "NULL"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/authentication%s",
 				     W10, ""), "0"));
+	/* A re-apply keeps the tape parameters and the Data-Out timeout */
+	check_tape_params(W10);
+	TEST_CHECK(!strcmp(read_file(DATAOUT, W10, I1), "30"));
 
 	/* remove with an empty configuration still uses the state file */
 	memset(&conf, 0, sizeof(conf));

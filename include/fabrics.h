@@ -122,11 +122,11 @@ struct fabric_ops {
 	/* Create configured endpoints under tpg and remove others */
 	int		(*apply_endpoints)(const char *tpg,
 					   const struct fab_conf *conf);
-	/* TPG attributes and parameters, before the TPG is enabled */
+	/* TPG attributes and parameters; on a re-run the TPG is enabled */
 	int		(*apply_tpg)(const char *tpg, const struct fab_target *t);
-	/* Per-ACL authentication */
-	int		(*apply_acl_auth)(const char *acl,
-					  const struct fab_target *t);
+	/* Per-ACL attributes and authentication */
+	int		(*apply_acl)(const char *acl,
+				     const struct fab_target *t);
 	/* Write the endpoints of tpg as a JSON array value */
 	void		(*status_endpoints)(FILE *out, const char *tpg);
 };

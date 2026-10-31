@@ -33,6 +33,15 @@ sessions to unchanged targets survive. Waits until every backstore it maps is
 enabled. Targets created by an earlier \fBapply\fR whose record was deleted
 are removed. Does nothing when \fBMHVTL_BACKEND\fR is set to anything but
 \fBtcmu\fR.
+.IP
+Each target gets iSCSI parameters suited to tape, which issues one command at
+a time: \fBInitialR2T=No\fR, \fBImmediateData=Yes\fR, \fBFirstBurstLength\fR
+262144, \fBMaxBurstLength\fR 1048576 and \fBMaxRecvDataSegmentLength\fR 262144.
+They take effect when an initiator logs in; initiators that offer less
+negotiate down. Each ACL gets a \fBdataout_timeout\fR of 30 seconds instead
+of LIO's 3, so a short network stall during a write does not close the
+connection and fail the tape job; this one also applies to sessions already
+logged in.
 .TP
 .B remove
 Remove every target this tool created. Run before the daemons stop, so

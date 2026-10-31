@@ -643,8 +643,9 @@ static int apply_target(const struct fabric_ops *ops, const struct fab_target *t
 			}
 		}
 		prune_luns(acl, t);
-		if (ops->apply_acl_auth && ops->apply_acl_auth(acl, t)) {
-			set_err(errbuf, errlen, "%s: cannot set CHAP for %s: %s",
+		if (ops->apply_acl && ops->apply_acl(acl, t)) {
+			set_err(errbuf, errlen,
+				"%s: cannot configure the ACL of %s: %s",
 				t->wwn, t->initiators[i], strerror(errno));
 			return -1;
 		}
@@ -885,6 +886,21 @@ static int iscsi_apply_tpg(const char *tpg, const struct fab_target *t)
 		{ "attrib/demo_mode_write_protect", "1" },
 		/* Unlisted initiators don't see the target in SendTargets */
 		{ "attrib/demo_mode_discovery", "0" },
+		/*
+		 * Tape runs one command at a time, so each round trip costs
+		 * throughput. With InitialR2T=No and a 256 KiB first burst, a
+		 * write of up to 256 KiB goes without waiting for an R2T; 1 MiB
+		 * writes gained most in the phase 4 measurements
+		 * (docs/design/iscsi-transport.md). Initiators that offer less
+		 * negotiate down. Copied into each session at login, so they
+		 * apply to new sessions; LIO checks FirstBurstLength against
+		 * MaxBurstLength then (iscsi_enforce_integrity_rules()).
+		 */
+		{ "param/MaxBurstLength", "1048576" },
+		{ "param/FirstBurstLength", "262144" },
+		{ "param/MaxRecvDataSegmentLength", "262144" },
+		{ "param/ImmediateData", "Yes" },
+		{ "param/InitialR2T", "No" },
 	};
 	char	p[PATHLEN];
 	size_t	i;
@@ -904,11 +920,21 @@ static int iscsi_apply_tpg(const char *tpg, const struct fab_target *t)
 	return 0;
 }
 
-static int iscsi_apply_acl_auth(const char *acl, const struct fab_target *t)
+static int iscsi_apply_acl(const char *acl, const struct fab_target *t)
 {
 	const struct {
 		const char *attr, *val;
-	} auth[] = {
+	} attrs[] = {
+		/*
+		 * LIO waits 3 s for write data (Data-Out PDUs), then at error
+		 * recovery level 0 closes the connection, which fails the tape
+		 * command in flight: a 4 s network stall ended a PBS backup.
+		 * 30 s (LIO allows 2-60, NA_DATAOUT_TIMEOUT_MAX in
+		 * iscsi_target_core.h) rides out short stalls; NOP-In and the
+		 * initiator's timers still detect a dead connection. Read each
+		 * time the timer starts, so it applies to live sessions too.
+		 */
+		{ "attrib/dataout_timeout", "30" },
 		/* "NULL" clears a value in LIO */
 		{ "auth/userid", t->auth.name[0] ? t->auth.name : "NULL" },
 		{ "auth/password", t->auth.secret[0] ? t->auth.secret : "NULL" },
@@ -920,9 +946,9 @@ static int iscsi_apply_acl_auth(const char *acl, const struct fab_target *t)
 	char	p[PATHLEN];
 	size_t	i;
 
-	for (i = 0; i < sizeof(auth) / sizeof(auth[0]); i++)
-		if (mkpath(p, "%s/%s", acl, auth[i].attr) ||
-		    cfs_write(p, auth[i].val))
+	for (i = 0; i < sizeof(attrs) / sizeof(attrs[0]); i++)
+		if (mkpath(p, "%s/%s", acl, attrs[i].attr) ||
+		    cfs_write(p, attrs[i].val))
 			return -1;
 	return 0;
 }
@@ -1001,6 +1027,6 @@ const struct fabric_ops fabric_iscsi = {
 	.name			= "iscsi",
 	.apply_endpoints	= iscsi_apply_endpoints,
 	.apply_tpg		= iscsi_apply_tpg,
-	.apply_acl_auth		= iscsi_apply_acl_auth,
+	.apply_acl		= iscsi_apply_acl,
 	.status_endpoints	= iscsi_status_endpoints,
 };
