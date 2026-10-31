@@ -151,6 +151,84 @@ When not using systemd, create it before using mtx to load tapes:
 
 Without media files, mtx load will fail with a hardware error sense.
 
+TCMU backend (experimental):
+============================
+Instead of the mhvtl kernel module, the daemons can present their devices
+through the kernel's LIO target (target_core_user), using the handler daemon
+mhvtl_tcmu_handler. No out-of-tree module is needed, and mhvtl-fabrics can
+export the devices to other hosts over iSCSI.
+
+Kernel modules (part of the distribution kernel):
+- target_core_user, tcm_loop and, for iSCSI, iscsi_target_mod
+  - EL8/EL9: in the kernel-modules package, not in kernel-core.
+  - openSUSE: use the full kernel-default, not kernel-default-base.
+
+From packages:
+--------------
+Install mhvtl-tcmu next to the main package (mhvtl-utils as an RPM, mhvtl
+as a .deb). It satisfies the main package's kernel module dependency, so
+mhvtl-dkms and its compiler and kernel headers are not needed.
+
+On EL, which ships no libtcmu, the package carries its own copy, linked
+into the handler.
+
+From source:
+------------
+The handler needs libtcmu from tcmu-runner
+(https://github.com/open-iscsi/tcmu-runner). Its headers are taken from
+libtcmu-devel when installed, else from the copy in include/libtcmu
+(tcmu-runner 1.5.4, which also builds against libtcmu 1.6.x).
+
+- Fedora: install libtcmu-devel.
+- Debian, Ubuntu, openSUSE: install libtcmu2 (library only; Leap 16's
+  libtcmu-devel adds just the libtcmu.so link).
+- EL: no packages. Build libtcmu from source, as
+  install_libtcmu_from_source() in vagrant/install.sh does (needs
+  glib2-devel and libnl3-devel), or link it statically as mhvtl-utils.spec
+  does.
+
+	sh> make TCMU=1
+	sh> sudo make TCMU=1 install
+
+TCMU_SRC=<absolute path to a tcmu-runner tree> uses that tree's headers
+instead of the bundled copy (installed libtcmu-devel headers still come
+first). TCMU_LIBS overrides how libtcmu is linked.
+Without the library, "make TCMU=1" stops at once and says what is missing.
+
+Using it:
+---------
+Set the backend in /etc/mhvtl/mhvtl.conf and restart:
+
+	MHVTL_BACKEND=tcmu
+
+	sh> sudo systemctl restart mhvtl.target
+
+From a source tree, scripts/switch_backend.sh tcmu does the same (and
+"mhvtl" switches back). The devices appear on this host through tcm_loop;
+MHVTL_TCMU_LOOPBACK=no in mhvtl.conf skips that on a host that only
+exports them.
+
+Export over iSCSI:
+------------------
+Copy /usr/share/mhvtl/fabrics.conf.sample to /etc/mhvtl/fabrics.conf, set
+the base name, the portal and the initiators allowed to log in (see
+fabrics.conf(5)), then restart mhvtl.target. mhvtl-fabrics.service creates
+one target per library (the changer is LUN 0, each drive the LUN of its
+slot in device.conf) and one per standalone drive (LUN 0). Check the result with:
+
+	sh> sudo mhvtl-fabrics status
+
+Allow the portal port (3260/tcp by default) through the firewall. Do not
+save these targets with "targetcli saveconfig": target.service would
+restore them at boot, before the handler has created the backstores.
+
+On the initiator (open-iscsi), a tape job fails on any transport error,
+since the position after a lost command is unknown. open-iscsi ends a
+session after 5 + 5 seconds without a NOP-Out answer; to ride out longer
+network stalls, raise node.conn[0].timeo.noop_out_interval and
+noop_out_timeout for this target (mhvtl-fabrics sets the target side's
+Data-Out timeout to 30 s).
+
 Test:
 Note: Make sure the 'mtx' & 'lsscsi' utilities are installed
 The virtual devices are attached to HBA #5 in this example.

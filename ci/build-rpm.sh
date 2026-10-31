@@ -53,6 +53,20 @@ printf '%s\n' "${BR[@]}"
 [ "${#BR[@]}" -gt 0 ] && $INSTALL "${BR[@]}"
 echo "::endgroup::"
 
+echo "::group::fetch remote sources"
+# Sources given as URLs (on EL, Source3: the tcmu-runner release libtcmu is
+# built from). Parsing the spec needs the kernel macros installed above. The
+# EL images ship curl-minimal, which installing curl would conflict with, so
+# only install curl where none is present.
+command -v curl >/dev/null || $INSTALL curl
+rpmspec --define "_topdir $TOPDIR" -P "$SPEC" |
+	awk '/^Source[0-9]*:[[:space:]]*[a-z]+:\/\//{print $2}' |
+	while read -r url; do
+		echo "fetch $url"
+		curl -fsSL --retry 3 -o "$TOPDIR/SOURCES/${url##*/}" "$url"
+	done
+echo "::endgroup::"
+
 echo "::group::rpmbuild"
 rpmbuild --define "_topdir $TOPDIR" -bb "$SPEC"
 echo "::endgroup::"

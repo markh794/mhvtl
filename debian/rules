@@ -47,7 +47,14 @@ MHVTL_MAKE_VARS = \
 	MHVTL_CONFIG_PATH=/etc/mhvtl \
 	SYSTEMD_SERVICE_DIR=$(SYSTEMD_UNITDIR) \
 	SYSTEMD_GENERATOR_DIR=$(SYSTEMD_GENERATORDIR) \
-	RPM_OPT_FLAGS='$(strip $(RPM_OPT_FLAGS))'
+	RPM_OPT_FLAGS='$(strip $(RPM_OPT_FLAGS))' \
+	TCMU=1
+
+# TCMU=1 builds mhvtl_tcmu_handler and mhvtl-fabrics (package mhvtl-tcmu) and
+# the TCMU transport in libvtlscsi.so. libtcmu2 ships no headers, so
+# usr/Makefile uses the copy in include/libtcmu and links libtcmu.so.2.
+TCMU_FILES = mhvtl_tcmu_handler mhvtl-tcmu-handler.service mhvtl-fabrics \
+	fabrics.conf
 
 %:
 	dh $@ --with dkms
@@ -75,8 +82,13 @@ override_dh_auto_install:
 
 # The upstream source directory is itself called usr/ and builds into usr/bin,
 # which dh_install would prefer over the staging tree. Pin it to debian/tmp.
+# mhvtl.install uses globs, so the files of mhvtl-tcmu are excluded there
+# (-X matches any part of the path: mhvtl-fabrics also covers its unit and
+# man page, fabrics.conf the sample and fabrics.conf.5).
 override_dh_install:
-	dh_install --sourcedir=debian/tmp
+	dh_install --sourcedir=debian/tmp -pmhvtl-tcmu
+	dh_install --sourcedir=debian/tmp -Nmhvtl-tcmu \
+		$(addprefix -X,$(TCMU_FILES))
 
 override_dh_dkms:
 	dh_dkms -p mhvtl-dkms -V $(DEB_VERSION_UPSTREAM) kernel/dkms.conf
@@ -92,10 +104,14 @@ override_dh_dkms:
 # vtllibrary@/vtltape@ units own mhVTL. --no-start matches the units' policy of
 # not launching daemons at install time.
 override_dh_installinit:
-	dh_installinit --only-scripts --no-start
+	dh_installinit -p mhvtl --only-scripts --no-start
 
 override_dh_installsystemd:
 	dh_installsystemd -p mhvtl --no-enable --no-start \
 		mhvtl-load-modules.service mhvtl-bay-monitor.service \
 		vtltape@.service vtllibrary@.service
 	dh_installsystemd -p mhvtl --no-start mhvtl.target
+	# vtltape@/vtllibrary@ and mhvtl.target pull these in with Wants=, so
+	# they need no enabling; both do nothing unless MHVTL_BACKEND=tcmu.
+	dh_installsystemd -p mhvtl-tcmu --no-enable --no-start \
+		mhvtl-tcmu-handler.service mhvtl-fabrics.service

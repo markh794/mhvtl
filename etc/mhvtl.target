@@ -1,6 +1,9 @@
 [Unit]
 Description=mhvtl service allowing to start/stop all vtltape@.service and vtllibrary@.service instances at once
 Documentation=man:vtltape(1) man:vtllibrary(1)
+# iSCSI export (mhvtl-tcmu). It does nothing without MHVTL_BACKEND=tcmu and
+# /etc/mhvtl/fabrics.conf, and systemd skips it when it is not installed.
+Wants=mhvtl-fabrics.service
 
 [Install]
 WantedBy=multi-user.target
