@@ -148,6 +148,26 @@ CFLAGS += -DMHVTL_USERLAND_BACKEND
 TRANSPORT_OBJ = transport.o transport_mhvtl.o transport_userland.o
 
 ifdef TCMU
+# libtcmu headers: installed ones (libtcmu-devel) first, then a tcmu-runner
+# source tree in TCMU_SRC, then the copy in include/libtcmu, since Debian,
+# Ubuntu and Tumbleweed ship none and EL ships no libtcmu at all.
+# -idirafter keeps all of them behind our own headers.
+ifdef TCMU_SRC
+TCMU_CPPFLAGS = -idirafter $(TCMU_SRC)
+endif
+TCMU_CPPFLAGS += -idirafter ../include/libtcmu
+# Link libtcmu.so when present, else its runtime soname: Debian's
+# libtcmu2 ships only libtcmu.so.2. A build that links libtcmu statically
+# (the EL packages) sets TCMU_LIBS itself.
+TCMU_LIBS = $(if $(filter /%,$(shell $(CC) -print-file-name=libtcmu.so)),-ltcmu,\
+	$(if $(filter /%,$(shell $(CC) -print-file-name=libtcmu.so.2)),-l:libtcmu.so.2))
+
+ifeq ($(filter clean distclean uninstall,$(MAKECMDGOALS)),)
+ifeq ($(strip $(TCMU_LIBS)),)
+$(error TCMU=1: libtcmu library not found. Install libtcmu (Debian: libtcmu2) or build it from tcmu-runner (see INSTALL, "TCMU backend"))
+endif
+endif
+
 CFLAGS += -DMHVTL_TCMU_BACKEND
 TRANSPORT_OBJ += transport_tcmu.o
 transport_tcmu.o: CFLAGS += -fpic
@@ -262,8 +282,9 @@ bin/mhvtl-fabrics: $(MHVTL_FABRICS_OBJ)
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_FABRICS_OBJ)
 
 MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o
+cmd/mhvtl_tcmu_handler.o: CFLAGS += $(TCMU_CPPFLAGS)
 bin/mhvtl_tcmu_handler: $(MHVTL_TCMU_HANDLER_OBJ) libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi -ltcmu -lpthread
+	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi $(TCMU_LIBS) -lpthread
 endif
 
 bin/make_vtl_media: cmd/make_vtl_media.in
