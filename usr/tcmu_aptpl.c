@@ -50,7 +50,8 @@ static int append(char *rec, size_t *len, const char *s, size_t n)
 	return 0;
 }
 
-int aptpl_replay(const char *buf, aptpl_record_fn fn, void *arg)
+/* With fn NULL, only check the format and count the registrations */
+static int parse(const char *buf, aptpl_record_fn fn, void *arg)
 {
 	char rec[APTPL_RECORD_MAX];
 	size_t len = 0;
@@ -82,7 +83,7 @@ int aptpl_replay(const char *buf, aptpl_record_fn fn, void *arg)
 			if (!in_rec)
 				return -1;
 			in_rec = 0;
-			if (fn(rec, arg) == 0)
+			if (!fn || fn(rec, arg) == 0)
 				applied++;
 		} else if (!in_rec || !memchr(line, '=', n)) {
 			return -1;
@@ -118,4 +119,12 @@ int aptpl_replay(const char *buf, aptpl_record_fn fn, void *arg)
 		}
 	}
 	return in_rec ? -1 : applied;
+}
+
+int aptpl_replay(const char *buf, aptpl_record_fn fn, void *arg)
+{
+	/* Nothing is applied from a file that is malformed anywhere */
+	if (parse(buf, NULL, NULL) < 0)
+		return -1;
+	return parse(buf, fn, arg);
 }

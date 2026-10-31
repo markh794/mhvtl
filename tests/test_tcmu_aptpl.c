@@ -22,6 +22,14 @@ static int collect(const char *record, void *arg)
 	return calls++ == fail_call ? -1 : 0;
 }
 
+static int count_only(const char *record, void *arg)
+{
+	(void)record;
+	(void)arg;
+	calls++;
+	return 0;
+}
+
 static int run(const char *buf)
 {
 	got[0] = '\0';
@@ -135,6 +143,40 @@ void test_malformed(void)
 	TEST_CHECK(calls == 0);
 }
 
+/* A bad record anywhere means nothing is applied, not the records before it */
+void test_malformed_late(void)
+{
+	char buf[sizeof(two_regs) + 64];
+
+	snprintf(buf, sizeof(buf), "%sPR_REG_START: 2\ngarbage\nPR_REG_END: 2\n",
+		 two_regs);
+	TEST_CHECK(run(buf) == -1);
+	TEST_CHECK(calls == 0);
+}
+
+/* LIO grows its buffer past 256 KiB when there are many registrations */
+void test_many_registrations(void)
+{
+	const size_t nrec = 1500;
+	size_t size = nrec * 300, len = 0;
+	char *buf = malloc(size);
+
+	TEST_ASSERT(buf != NULL);
+	for (size_t i = 0; i < nrec; i++)
+		len += snprintf(buf + len, size - len,
+				"PR_REG_START: %zu\ninitiator_fabric=iSCSI\n"
+				"initiator_node=iqn.2026-10.test:i%zu\nsa_res_key=%zu\n"
+				"res_holder=0\nres_all_tg_pt=0\nmapped_lun=1\n"
+				"target_fabric=iSCSI\ntarget_node=iqn.2026-10.test:t\n"
+				"tpgt=1\nport_rtpi=1\ntarget_lun=1\nPR_REG_END: %zu\n",
+				i, i, i + 1, i);
+	TEST_ASSERT(len > 262144 && len < size);
+	calls = 0;
+	TEST_CHECK(aptpl_replay(buf, count_only, NULL) == (int)nrec);
+	TEST_CHECK(calls == (int)nrec);
+	free(buf);
+}
+
 /* Longer than any record LIO writes */
 void test_record_too_long(void)
 {
@@ -155,6 +197,8 @@ TEST_LIST = {
 	{ "no_registrations",    test_no_registrations },
 	{ "refused_registration", test_refused_registration },
 	{ "malformed",           test_malformed },
+	{ "malformed_late",      test_malformed_late },
+	{ "many_registrations",  test_many_registrations },
 	{ "record_too_long",     test_record_too_long },
 	{ NULL, NULL }
 };
