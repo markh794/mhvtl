@@ -38,6 +38,8 @@ TESTS += test_raw_read_mam
 
 TESTS += test_dump_tape_options
 
+TESTS += test_tcmu_aptpl
+
 # AES-256-GCM helpers; need libcrypto, like the drives that use them.
 # MHVTL_NO_OPENSSL=1 matches a usr/ build made with it.
 ifneq ($(MHVTL_NO_OPENSSL),1)
@@ -100,6 +102,9 @@ test_log_volstat: test_log_volstat.c acutest.h
 
 test_raw_bay_conf: test_raw_bay_conf.c acutest.h ../usr/raw_bay_conf.c ../include/raw_bay_conf.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_bay_conf.c ../usr/raw_bay_conf.c
+
+test_tcmu_aptpl: test_tcmu_aptpl.c acutest.h ../usr/tcmu_aptpl.c ../include/tcmu_aptpl.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_tcmu_aptpl.c ../usr/tcmu_aptpl.c
 
 # Compression codec round-trip (file backend here; the raw block-device backend
 # is exercised by tests/test_raw_loopback.sh, which rebuilds this with

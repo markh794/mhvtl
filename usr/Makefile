@@ -254,7 +254,7 @@ bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.s
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) -L. -lvtlscsi
 
 ifdef TCMU
-MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o
+MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o tcmu_aptpl.o
 bin/mhvtl_tcmu_handler: $(MHVTL_TCMU_HANDLER_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi -ltcmu -lpthread
 endif

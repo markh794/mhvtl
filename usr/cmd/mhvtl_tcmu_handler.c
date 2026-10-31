@@ -50,6 +50,7 @@
 #include "logging.h"
 #include "vtllib.h"
 #include "tcmu_proto.h"
+#include "tcmu_aptpl.h"
 
 char mhvtl_driver_name[] = "mhvtl_tcmu_handler";
 extern uint8_t verbose;
@@ -187,10 +188,11 @@ static void dev_removed(struct tcmu_device *dev)
  * Read dbroot back instead of assuming /var/target: the kernel
  * prefers /etc/target when that directory exists.
  */
+static char pr_dir[300];
+
 static void create_pr_dir(void)
 {
 	char dbroot[256] = "/var/target";
-	char path[300];
 	int fd = open(CONFIGFS_TARGET "/dbroot", O_RDONLY);
 
 	if (fd >= 0) {
@@ -206,12 +208,77 @@ static void create_pr_dir(void)
 
 	if (mkdir(dbroot, 0700) < 0 && errno != EEXIST)
 		MHVTL_ERR("mkdir %s: %s", dbroot, strerror(errno));
-	snprintf(path, sizeof(path), "%s/pr", dbroot);
-	if (mkdir(path, 0700) < 0 && errno != EEXIST)
+	snprintf(pr_dir, sizeof(pr_dir), "%s/pr", dbroot);
+	if (mkdir(pr_dir, 0700) < 0 && errno != EEXIST)
 		MHVTL_ERR("mkdir %s: %s -- SPC-3 PR OUT will fail with NOT READY",
-			  path, strerror(errno));
+			  pr_dir, strerror(errno));
 	else
-		MHVTL_LOG("PR state directory %s", path);
+		MHVTL_LOG("PR state directory %s", pr_dir);
+}
+
+static int write_aptpl_record(const char *record, void *arg)
+{
+	const char *bs_name = arg;
+	char path[512];
+
+	snprintf(path, sizeof(path),
+		 CONFIGFS_TARGET "/core/user_0/%s/pr/res_aptpl_metadata",
+		 bs_name);
+	if (configfs_write(path, record) < 0) {
+		MHVTL_ERR("[%s] APTPL registration not restored: %s (%s)",
+			  bs_name, strerror(errno), record);
+		return -1;
+	}
+	return 0;
+}
+
+/*
+ * Restore the persistent reservations LIO saved for this unit serial
+ * (registrations made with APTPL). LIO writes the file but never reads it
+ * back, and accepts the state only while no fabric exports the backstore.
+ * Each registration comes back when its initiator's LUN is mapped again
+ * (core_scsi3_check_aptpl_registration()), so the initiator and target
+ * names, the TPG tag and both LUN numbers must be the same as when it was
+ * made. Only a new backstore is replayed: unmapping a LUN drops its
+ * registrations from memory without rewriting the file, so they stay lost
+ * until the backstore is created again (as with targetcli).
+ */
+static void replay_aptpl(const char *bs_name, const char *serial)
+{
+	char path[600], *buf;
+	ssize_t n;
+	int fd, ret;
+
+	snprintf(path, sizeof(path), "%s/aptpl_%s", pr_dir, serial);
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		if (errno != ENOENT)
+			MHVTL_ERR("[%s] open %s: %s", bs_name, path, strerror(errno));
+		return;
+	}
+	buf = malloc(APTPL_FILE_MAX + 1);
+	if (!buf) {
+		MHVTL_ERR("[%s] no memory to read %s", bs_name, path);
+		close(fd);
+		return;
+	}
+	n = read(fd, buf, APTPL_FILE_MAX);
+	close(fd);
+	if (n < 0) {
+		MHVTL_ERR("[%s] read %s: %s", bs_name, path, strerror(errno));
+		free(buf);
+		return;
+	}
+	buf[n] = '\0';
+
+	ret = aptpl_replay(buf, write_aptpl_record, (void *)bs_name);
+	if (ret < 0)
+		MHVTL_ERR("[%s] %s is not LIO APTPL state, ignored",
+			  bs_name, path);
+	else if (ret > 0)
+		MHVTL_LOG("[%s] Restored %d APTPL registration(s) from %s",
+			  bs_name, ret, path);
+	free(buf);
 }
 
 /*
@@ -521,7 +588,7 @@ static void *device_worker(void *arg)
 	struct handler_device *d = arg;
 	char path[512], value[128];
 	int dev_fd;
-	int reused = 0;
+	int reused = 0, existed;
 
 	MHVTL_LOG("[%s] Worker started", d->bs_name);
 
@@ -530,7 +597,8 @@ static void *device_worker(void *arg)
 	 */
 	snprintf(path, sizeof(path),
 		 CONFIGFS_TARGET "/core/user_0/%s", d->bs_name);
-	if (mkdir(path, 0755) < 0 && errno != EEXIST) {
+	existed = mkdir(path, 0755) < 0;
+	if (existed && errno != EEXIST) {
 		MHVTL_ERR("[%s] mkdir backstore: %s", d->bs_name, strerror(errno));
 		goto err;
 	}
@@ -548,6 +616,21 @@ static void *device_worker(void *arg)
 		MHVTL_LOG("[%s] Backstore already enabled, reusing it",
 			  d->bs_name);
 		goto wait_uio;
+	}
+
+	/*
+	 * One that was never enabled (a worker that failed or was killed
+	 * before step 2) may already hold the APTPL registrations: replaying
+	 * them again would register every initiator twice. Start afresh.
+	 */
+	if (existed) {
+		snprintf(path, sizeof(path),
+			 CONFIGFS_TARGET "/core/user_0/%s", d->bs_name);
+		if (rmdir(path) < 0 || mkdir(path, 0755) < 0) {
+			MHVTL_ERR("[%s] recreate backstore: %s",
+				  d->bs_name, strerror(errno));
+			goto err;
+		}
 	}
 
 	snprintf(path, sizeof(path),
@@ -578,6 +661,8 @@ static void *device_worker(void *arg)
 	else if (configfs_write(path, value) < 0)
 		MHVTL_ERR("[%s] vpd_unit_serial '%s': %s",
 			  d->bs_name, value, strerror(errno));
+	else
+		replay_aptpl(d->bs_name, value);
 
 	MHVTL_LOG("[%s] Backstore configured", d->bs_name);
 
