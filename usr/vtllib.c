@@ -542,9 +542,7 @@ void *zalloc(int sz) {
  * Sets 'sam status' to SAM_STAT_CHECK_CONDITION.
  */
 
-static void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
-						 uint8_t *sam_stat) {
-	char extended[32];
+static void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd, uint8_t *sam_stat) {
 
 	/* Clear Sense key status */
 	memset(sense, 0, SENSE_BUF_SIZE);
@@ -577,52 +575,62 @@ static void return_sense(uint8_t key, uint32_t asc_ascq, struct s_sd *sd,
 	if (sd) {
 		sense[15] = sd->byte0;
 		put_unaligned_be16(sd->field_pointer, &sense[16]);
-		sprintf(extended, " 0x%02x %04x", sd->byte0, sd->field_pointer);
 	}
-
-	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x %02x %02x]%s",
-			  sense[2], sense[12], sense[13],
-			  (sd) ? extended : "");
 }
 
 void sam_unit_attention(uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", UNIT_ATTENTION, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(UNIT_ATTENTION, ascq, NULL, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 void sam_not_ready(uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", NOT_READY, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(NOT_READY, ascq, NULL, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 void sam_illegal_request(uint16_t ascq, struct s_sd *sd, uint8_t *sam_stat) {
+	char extended[64] = "";
+	char bit_pointer[32] = "";
+
+	if (sd) {
+		if (sd->byte0 & SKSV) { /* C/D, BPV and Bit Pointer are valid */
+			if (sd->byte0 & 0x80) { /* BPV is valid */
+					sprintf(bit_pointer, ", Bit %d", sd->byte0 & 0x7);
+			}
+			sprintf(extended, ", Error in %s, Field Pointer: %d%s",
+							(sd->byte0 & CD) ? "CBD" : "Descriptor data",
+							sd->field_pointer,
+							bit_pointer);
+		}
+	}
+
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]%s", ILLEGAL_REQUEST, (ascq >> 8) & 0xff, ascq & 0xff, extended);
 	return_sense(ILLEGAL_REQUEST, ascq, sd, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 void sam_medium_error(uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", MEDIUM_ERROR, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(MEDIUM_ERROR, ascq, NULL, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 void sam_blank_check(uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", BLANK_CHECK, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(BLANK_CHECK, ascq, NULL, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 void sam_data_protect(uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", DATA_PROTECT, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(DATA_PROTECT, ascq, NULL, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", HARDWARE_ERROR, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(HARDWARE_ERROR, ascq, NULL, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", key, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(NO_SENSE | key, ascq, NULL, sam_stat);
-	MHVTL_DBG(1, "");
 }
 
 int check_reset(uint8_t *sam_stat) {
