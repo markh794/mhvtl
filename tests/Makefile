@@ -38,6 +38,9 @@ TESTS += test_raw_read_mam
 
 TESTS += test_dump_tape_options
 
+# mhvtl-fabrics: config parsing and the configfs engine on a fake tree
+TESTS += test_fabrics
+
 # AES-256-GCM helpers; need libcrypto, like the drives that use them.
 # MHVTL_NO_OPENSSL=1 matches a usr/ build made with it.
 ifneq ($(MHVTL_NO_OPENSSL),1)
@@ -97,6 +100,10 @@ test_vpd: test_vpd.c acutest.h
 
 test_log_volstat: test_log_volstat.c acutest.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ $<
+
+FABRICS_SRC = ../usr/fabrics_conf.c ../usr/fabrics_cfs.c
+test_fabrics: test_fabrics.c acutest.h $(FABRICS_SRC) ../include/fabrics.h
+	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_fabrics.c $(FABRICS_SRC)
 
 test_raw_bay_conf: test_raw_bay_conf.c acutest.h ../usr/raw_bay_conf.c ../include/raw_bay_conf.h
 	$(CC) $(CFLAGS) $(IFLAGS) -o $@ test_raw_bay_conf.c ../usr/raw_bay_conf.c
