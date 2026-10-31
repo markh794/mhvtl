@@ -216,20 +216,57 @@ static void create_pr_dir(void)
 		MHVTL_LOG("PR state directory %s", pr_dir);
 }
 
+struct aptpl_replay_ctx {
+	const char *bs_name;
+	int tried;
+};
+
 static int write_aptpl_record(const char *record, void *arg)
 {
-	const char *bs_name = arg;
+	struct aptpl_replay_ctx *ctx = arg;
 	char path[512];
 
+	ctx->tried++;
 	snprintf(path, sizeof(path),
 		 CONFIGFS_TARGET "/core/user_0/%s/pr/res_aptpl_metadata",
-		 bs_name);
+		 ctx->bs_name);
 	if (configfs_write(path, record) < 0) {
 		MHVTL_ERR("[%s] APTPL registration not restored: %s (%s)",
-			  bs_name, strerror(errno), record);
+			  ctx->bs_name, strerror(errno), record);
 		return -1;
 	}
 	return 0;
+}
+
+/* Read a whole file; LIO grows its buffer past PR_APTPL_BUF_LEN as needed */
+static char *read_file(int fd)
+{
+	size_t len = 0, size = 65536;
+	char *buf = malloc(size), *p;
+	ssize_t n;
+
+	while (buf) {
+		n = read(fd, buf + len, size - len - 1);
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n < 0) {
+			free(buf);
+			return NULL;
+		}
+		if (n == 0) {
+			buf[len] = '\0';
+			return buf;
+		}
+		len += n;
+		if (len + 1 == size) {
+			p = realloc(buf, size *= 2);
+			if (!p)
+				free(buf);
+			buf = p;
+		}
+	}
+	errno = ENOMEM;
+	return NULL;
 }
 
 /*
@@ -242,11 +279,13 @@ static int write_aptpl_record(const char *record, void *arg)
  * made. Only a new backstore is replayed: unmapping a LUN drops its
  * registrations from memory without rewriting the file, so they stay lost
  * until the backstore is created again (as with targetcli).
+ * A registration LIO refuses is logged and the device still comes up,
+ * without it, as it did before the replay existed.
  */
 static void replay_aptpl(const char *bs_name, const char *serial)
 {
+	struct aptpl_replay_ctx ctx = { .bs_name = bs_name };
 	char path[600], *buf;
-	ssize_t n;
 	int fd, ret;
 
 	snprintf(path, sizeof(path), "%s/aptpl_%s", pr_dir, serial);
@@ -256,25 +295,20 @@ static void replay_aptpl(const char *bs_name, const char *serial)
 			MHVTL_ERR("[%s] open %s: %s", bs_name, path, strerror(errno));
 		return;
 	}
-	buf = malloc(APTPL_FILE_MAX + 1);
-	if (!buf) {
-		MHVTL_ERR("[%s] no memory to read %s", bs_name, path);
-		close(fd);
-		return;
-	}
-	n = read(fd, buf, APTPL_FILE_MAX);
+	buf = read_file(fd);
 	close(fd);
-	if (n < 0) {
+	if (!buf) {
 		MHVTL_ERR("[%s] read %s: %s", bs_name, path, strerror(errno));
-		free(buf);
 		return;
 	}
-	buf[n] = '\0';
 
-	ret = aptpl_replay(buf, write_aptpl_record, (void *)bs_name);
+	ret = aptpl_replay(buf, write_aptpl_record, &ctx);
 	if (ret < 0)
-		MHVTL_ERR("[%s] %s is not LIO APTPL state, ignored",
+		MHVTL_ERR("[%s] %s is not LIO APTPL state, nothing restored",
 			  bs_name, path);
+	else if (ret < ctx.tried)
+		MHVTL_ERR("[%s] Restored only %d of %d APTPL registration(s) from %s",
+			  bs_name, ret, ctx.tried, path);
 	else if (ret > 0)
 		MHVTL_LOG("[%s] Restored %d APTPL registration(s) from %s",
 			  bs_name, ret, path);
@@ -611,7 +645,9 @@ static void *device_worker(void *arg)
 	 */
 	snprintf(path, sizeof(path),
 		 CONFIGFS_TARGET "/core/user_0/%s/enable", d->bs_name);
-	if (configfs_read(path, value, sizeof(value)) == 0 && value[0] == '1') {
+	if (configfs_read(path, value, sizeof(value)) < 0)
+		value[0] = '\0';
+	if (value[0] == '1') {
 		reused = 1;
 		MHVTL_LOG("[%s] Backstore already enabled, reusing it",
 			  d->bs_name);
@@ -621,8 +657,14 @@ static void *device_worker(void *arg)
 	/*
 	 * One that was never enabled (a worker that failed or was killed
 	 * before step 2) may already hold the APTPL registrations: replaying
-	 * them again would register every initiator twice. Start afresh.
+	 * them again would register every initiator twice. Start afresh, but
+	 * only when it reads back as disabled.
 	 */
+	if (existed && value[0] != '0') {
+		MHVTL_ERR("[%s] backstore exists but is neither enabled nor disabled",
+			  d->bs_name);
+		goto err;
+	}
 	if (existed) {
 		snprintf(path, sizeof(path),
 			 CONFIGFS_TARGET "/core/user_0/%s", d->bs_name);
