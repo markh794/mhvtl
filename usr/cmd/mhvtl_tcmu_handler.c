@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -766,16 +767,38 @@ static int create_infrastructure(const char *conf_path)
 	char path[512];
 	FILE *fp;
 	char line[256];
+	const char *loopback = getenv("MHVTL_TCMU_LOOPBACK");
+
+	snprintf(device_conf, sizeof(device_conf), "%s", conf_path);
+
+	/* Create HBA */
+	snprintf(path, sizeof(path), CONFIGFS_TARGET "/core/user_0");
+	mkdir(path, 0755);
+
+	/*
+	 * The loopback target presents the devices on this host. A host that
+	 * only exports them to remote initiators (mhvtl-fabrics) can turn it
+	 * off; target_wwn then stays empty and no LUN is mapped.
+	 */
+	target_wwn[0] = '\0';
+	if (loopback && (!strcasecmp(loopback, "no") || !strcmp(loopback, "0") ||
+			 !strcasecmp(loopback, "false") ||
+			 !strcasecmp(loopback, "off"))) {
+		MHVTL_LOG("Loopback disabled (MHVTL_TCMU_LOOPBACK=%s)", loopback);
+		return 0;
+	}
+	if (loopback && strcasecmp(loopback, "yes") && strcmp(loopback, "1") &&
+	    strcasecmp(loopback, "true") && strcasecmp(loopback, "on"))
+		MHVTL_ERR("MHVTL_TCMU_LOOPBACK=%s not understood; loopback stays on",
+			  loopback);
 
 	/* Parse first NAA from device.conf for target WWN */
-	snprintf(device_conf, sizeof(device_conf), "%s", conf_path);
 	fp = fopen(conf_path, "r");
 	if (!fp) {
 		MHVTL_ERR("Cannot open %s", conf_path);
 		return -1;
 	}
 
-	target_wwn[0] = '\0';
 	while (fgets(line, sizeof(line), fp)) {
 		char naa[64];
 		if (sscanf(line, " NAA: %63s", naa) == 1 && !target_wwn[0]) {
@@ -799,10 +822,6 @@ static int create_infrastructure(const char *conf_path)
 		MHVTL_ERR("No NAA found in %s", conf_path);
 		return -1;
 	}
-
-	/* Create HBA */
-	snprintf(path, sizeof(path), CONFIGFS_TARGET "/core/user_0");
-	mkdir(path, 0755);
 
 	/* Create loopback target + nexus */
 	snprintf(path, sizeof(path), CONFIGFS_TARGET "/loopback");

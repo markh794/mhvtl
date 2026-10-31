@@ -54,10 +54,12 @@ LZODEBUG =
 # files that need to be generated
 GENERATED_FILES = $(patsubst cmd/%.in,bin/%,$(wildcard cmd/*.in))
 
-# Exclude TCMU handler from default build (needs -ltcmu, built under ifdef TCMU)
-BINARIES = $(patsubst cmd/%.c,bin/%,$(filter-out cmd/mhvtl_tcmu_handler.c,$(wildcard cmd/*.c))) bin/dump_tape
+# Exclude the TCMU-only programs from the default build (built under ifdef TCMU)
+BINARIES = $(patsubst cmd/%.c,bin/%,$(filter-out cmd/mhvtl_tcmu_handler.c cmd/mhvtl-fabrics.c,$(wildcard cmd/*.c))) bin/dump_tape
 ifdef TCMU
 BINARIES += bin/mhvtl_tcmu_handler
+# Exports the TCMU backstores over LIO fabrics; useless without them
+BINARIES += bin/mhvtl-fabrics
 endif
 LIBRARIES = libvtlscsi.so
 
@@ -146,6 +148,26 @@ CFLAGS += -DMHVTL_USERLAND_BACKEND
 TRANSPORT_OBJ = transport.o transport_mhvtl.o transport_userland.o
 
 ifdef TCMU
+# libtcmu headers: installed ones (libtcmu-devel) first, then a tcmu-runner
+# source tree in TCMU_SRC, then the copy in include/libtcmu, since Debian,
+# Ubuntu and Tumbleweed ship none and EL ships no libtcmu at all.
+# -idirafter keeps all of them behind our own headers.
+ifdef TCMU_SRC
+TCMU_CPPFLAGS = -idirafter $(TCMU_SRC)
+endif
+TCMU_CPPFLAGS += -idirafter ../include/libtcmu
+# Link libtcmu.so when present, else its runtime soname: Debian's
+# libtcmu2 ships only libtcmu.so.2. A build that links libtcmu statically
+# (the EL packages) sets TCMU_LIBS itself.
+TCMU_LIBS = $(if $(filter /%,$(shell $(CC) -print-file-name=libtcmu.so)),-ltcmu,\
+	$(if $(filter /%,$(shell $(CC) -print-file-name=libtcmu.so.2)),-l:libtcmu.so.2))
+
+ifeq ($(filter clean distclean uninstall,$(MAKECMDGOALS)),)
+ifeq ($(strip $(TCMU_LIBS)),)
+$(error TCMU=1: libtcmu library not found. Install libtcmu (Debian: libtcmu2) or build it from tcmu-runner (see INSTALL, "TCMU backend"))
+endif
+endif
+
 CFLAGS += -DMHVTL_TCMU_BACKEND
 TRANSPORT_OBJ += transport_tcmu.o
 transport_tcmu.o: CFLAGS += -fpic
@@ -254,9 +276,15 @@ bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.s
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) -L. -lvtlscsi
 
 ifdef TCMU
+# Standalone: writes configfs directly, needs nothing from libvtlscsi
+MHVTL_FABRICS_OBJ = cmd/mhvtl-fabrics.o fabrics_conf.o fabrics_cfs.o
+bin/mhvtl-fabrics: $(MHVTL_FABRICS_OBJ)
+	$(CC) $(CFLAGS) -o $@ $(MHVTL_FABRICS_OBJ)
+
 MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o
+cmd/mhvtl_tcmu_handler.o: CFLAGS += $(TCMU_CPPFLAGS)
 bin/mhvtl_tcmu_handler: $(MHVTL_TCMU_HANDLER_OBJ) libvtlscsi.so
-	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi -ltcmu -lpthread
+	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi $(TCMU_LIBS) -lpthread
 endif
 
 bin/make_vtl_media: cmd/make_vtl_media.in

@@ -21,6 +21,17 @@
 %endif
 %global dkms_version %{version}
 
+# The TCMU backend (mhvtl-tcmu) needs libtcmu from tcmu-runner. Fedora and
+# openSUSE package it; EL has no libtcmu at all, so there it is built from
+# the tcmu-runner release below and linked into the handler statically.
+# Its headers come from libtcmu-devel on Fedora, else from the copy in
+# include/libtcmu (Leap's libtcmu-devel holds only the libtcmu.so link).
+%if 0%{?rhel}
+%global tcmu_static 1
+%global tcmu_runner_version 1.5.4
+%global tcmu_runner_sha256 2a41c5ded0b81f820b3deabbf8b7ec5102966e51615bec8e04f3a821d9a8753c
+%endif
+
 Summary: Virtual tape library. kernel pseudo HBA driver + userspace daemons
 %define real_name mhvtl
 Name: mhvtl-utils
@@ -44,6 +55,9 @@ URL: http://sites.google.com/site/linuxvtl2/
 Source: mhvtl-%{version}.tgz
 # Subpackage preamble for the openSUSE kernel module packages (KMP) below.
 Source2: mhvtl.preamble
+%if 0%{?tcmu_static}
+Source3: https://github.com/open-iscsi/tcmu-runner/archive/v%{tcmu_runner_version}/tcmu-runner-%{tcmu_runner_version}.tar.gz
+%endif
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-build-%(%{__id_u} -n)
 
 Recommends: lsscsi mtx mt-st
@@ -53,8 +67,10 @@ Requires: policycoreutils
 Requires: tar >= 1.28
 # The daemons and the kernel module share the vtl_common.h ioctl ABI, so the
 # module must come from the same release. mhvtl-dkms provides it; a prebuilt
-# kmod/KMP package can provide the same capability instead.
-Requires: mhvtl-kmod = %{version}
+# kmod/KMP package can provide the same capability instead. A host using the
+# TCMU backend needs no mhvtl kernel module, so mhvtl-tcmu also satisfies
+# this; the solver still picks the module when neither is requested.
+Requires: (mhvtl-kmod = %{version} or mhvtl-tcmu)
 %if 0%{?buildkmp}
 # Steer the solver to the prebuilt module over DKMS when both are available.
 Recommends: mhvtl-kmp
@@ -68,6 +84,19 @@ BuildRequires: pkgconfig(libudev)
 BuildRequires: pkgconfig(liblz4)
 BuildRequires: pkgconfig(libzstd)
 BuildRequires: pkgconfig(libcrypto)
+%if 0%{?tcmu_static}
+# libtcmu's own dependencies; the handler links them dynamically
+BuildRequires: cmake
+BuildRequires: pkgconfig(gio-unix-2.0)
+BuildRequires: pkgconfig(libnl-genl-3.0)
+%else
+%if 0%{?fedora} || 0%{?suse_version} == 1600
+BuildRequires: libtcmu-devel
+%else
+# Tumbleweed ships the library without headers (include/libtcmu is used)
+BuildRequires: libtcmu2
+%endif
+%endif
 %{?systemd_requires}
 %{?systemd_ordering}
 
@@ -116,8 +145,44 @@ module is built for the running kernel on installation and rebuilt whenever
 a new kernel is installed. Kernel headers (kernel-devel / kernel-default-devel)
 matching the running kernel must be installed for the build to succeed.
 
+%package -n mhvtl-tcmu
+Summary: Virtual tape library - TCMU backend and iSCSI export
+%if 0%{?tcmu_static}
+# The handler contains libtcmu, which tcmu-runner licenses as LGPL-2.1+ or
+# Apache-2.0; the source RPM carries it as Source3.
+License: GPL-2.0-or-later AND (LGPL-2.1-or-later OR Apache-2.0)
+Provides: bundled(libtcmu) = %{tcmu_runner_version}
+%endif
+Requires: %{name}%{?_isa} = %{?epoch:%{epoch}:}%{version}-%{release}
+%if 0%{?rhel} || 0%{?fedora}
+# target_core_user, tcm_loop and iscsi_target_mod are not in kernel-core
+Requires: kernel-modules
+%endif
+# mhvtl-fabrics writes configfs itself; targetcli only helps to inspect it
+Suggests: targetcli
+
+%description -n mhvtl-tcmu
+Presents the mhvtl libraries and drives through the kernel's LIO target
+(target_core_user) instead of the mhvtl kernel module, so no out-of-tree
+module is needed, and exports them to remote initiators over iSCSI.
+
+Contains mhvtl_tcmu_handler, which creates a LIO user backstore per device
+and serves it for the daemons, and mhvtl-fabrics, which builds iSCSI targets
+from /etc/mhvtl/fabrics.conf. Set MHVTL_BACKEND=tcmu in mhvtl.conf to use it.
+
 %prep
-%setup -n %{real_name}-%{version}
+%setup -n %{real_name}-%{version}%{?tcmu_static: -a 3}
+%if 0%{?tcmu_static}
+echo "%{tcmu_runner_sha256}  %{SOURCE3}" | sha256sum -c -
+# Only libtcmu is built from tcmu-runner. Its CMakeLists.txt requires libkmod
+# for the tcmu-runner daemon, which is not built; kmod-devel is in EL's CRB
+# repository, so drop the check rather than depend on it. Fail here, not in
+# a confusing CMake error, if a new release changed that line.
+grep -q '^pkg_check_modules(KMOD REQUIRED libkmod)' \
+	tcmu-runner-%{tcmu_runner_version}/CMakeLists.txt
+sed -i '/^pkg_check_modules(KMOD REQUIRED libkmod)/d' \
+	tcmu-runner-%{tcmu_runner_version}/CMakeLists.txt
+%endif
 
 %pre
 # SUSE's service_add_post applies presets only to the units service_add_pre
@@ -173,6 +238,32 @@ fi
 %service_del_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
 %else
 %systemd_preun mhvtl-load-modules.service mhvtl-bay-monitor.service mhvtl-media.service mhvtl.target
+%endif
+
+%pre -n mhvtl-tcmu
+%if 0%{?suse_version}
+%service_add_pre mhvtl-tcmu-handler.service mhvtl-fabrics.service
+%endif
+
+%post -n mhvtl-tcmu
+%if 0%{?suse_version}
+%service_add_post mhvtl-tcmu-handler.service mhvtl-fabrics.service
+%else
+%systemd_post mhvtl-tcmu-handler.service mhvtl-fabrics.service
+%endif
+
+%preun -n mhvtl-tcmu
+%if 0%{?suse_version}
+%service_del_preun mhvtl-tcmu-handler.service mhvtl-fabrics.service
+%else
+%systemd_preun mhvtl-tcmu-handler.service mhvtl-fabrics.service
+%endif
+
+%postun -n mhvtl-tcmu
+%if 0%{?suse_version}
+%service_del_postun mhvtl-tcmu-handler.service mhvtl-fabrics.service
+%else
+%systemd_postun mhvtl-tcmu-handler.service mhvtl-fabrics.service
 %endif
 
 %preun -n mhvtl-dkms
@@ -244,14 +335,33 @@ dkms install -m mhvtl -v %{dkms_version} -q --force || :
 ) || :
 
 %build
+%if 0%{?tcmu_static}
+(
+	cd tcmu-runner-%{tcmu_runner_version}
+	# tcmu_static has no STATIC keyword, so %%cmake's BUILD_SHARED_LIBS=ON
+	# would turn it into a shared library. tcmu-runner asks for CMake 2.8,
+	# which CMake 4 refuses without a policy minimum.
+	%cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+		-Dwith-glfs=false -Dwith-qcow=false \
+		-Dwith-rbd=false -Dwith-zbc=false -Dwith-fbo=false \
+		-Dwith-tcmalloc=false
+	%cmake_build --target tcmu_static
+)
+tcmu_archive=$(find $PWD/tcmu-runner-%{tcmu_runner_version} -name libtcmu_static.a)
+test -n "$tcmu_archive"
+tcmu_libs="$tcmu_archive $(pkg-config --libs gio-unix-2.0 libnl-genl-3.0)"
+%endif
 # LIBDIR and MHVTL_LIBEXECDIR must match the install section below: LIBDIR
 # is baked into the binaries as the RUNPATH to libvtlscsi.so (under
 # LIBDIR/mhvtl), and the daemons' unit ExecStart path is generated here from
 # MHVTL_LIBEXECDIR, where the daemons are installed below.
+# TCMU=1 also builds the TCMU transport into libvtlscsi.so, which needs no
+# libtcmu; only mhvtl_tcmu_handler (in mhvtl-tcmu) links it.
 make MHVTL_HOME_PATH=%{mhvtl_home_dir} LIBDIR=%{_libdir} \
 	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
-	SYSTEMD_SERVICE_DIR=%{_unitdir}
+	SYSTEMD_SERVICE_DIR=%{_unitdir} \
+	TCMU=1 %{?tcmu_static:TCMU_LIBS="$tcmu_libs"}
 %if 0%{?buildkmp}
 # Build the module once per kernel flavor, from the same flattened source tree
 # that mhvtl-dkms ships. KDIR is the flavor's /lib/modules/<release>/build, the
@@ -273,7 +383,9 @@ done
 	MHVTL_LIBEXECDIR=%{_libexecdir}/mhvtl MHVTL_DATADIR=%{_datadir}/mhvtl \
 	SYSTEMD_GENERATOR_DIR=%{_systemdgeneratordir} \
 	SYSTEMD_SERVICE_DIR=%{_unitdir} \
-	TMPFILES_DIR=%{_tmpfilesdir}
+	TMPFILES_DIR=%{_tmpfilesdir} \
+	TCMU=1 TCMU_LIBS=unused
+# (TCMU_LIBS only satisfies usr/Makefile's check; the handler is already linked.)
 # The kernel module is built out of band from mhvtl_kernel.tgz (DKMS, KMP);
 # discard the module the recursive install staged for the build host's kernel.
 %{__rm} -rf %{buildroot}/lib/modules
@@ -338,6 +450,7 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %config(noreplace) %{_sysconfdir}/mhvtl/library_contents.30
 %dir %{_datadir}/mhvtl
 %{_datadir}/mhvtl/*
+%exclude %{_datadir}/mhvtl/fabrics.conf.sample
 %{_systemdgeneratordir}/mhvtl-device-conf-generator
 %{_unitdir}/mhvtl-load-modules.service
 %{_unitdir}/mhvtl-bay-monitor.service
@@ -357,6 +470,21 @@ sed -i 's/^PACKAGE_VERSION=.*/PACKAGE_VERSION="%{dkms_version}"/' \
 %{_libexecdir}/mhvtl/vtltape
 %{_libexecdir}/mhvtl/vtllibrary
 %{_libexecdir}/mhvtl/mhvtl-bay-monitor
+
+%files -n mhvtl-tcmu
+%if 0%{?tcmu_static}
+%license tcmu-runner-%{tcmu_runner_version}/LICENSE.LGPLv2.1
+%license tcmu-runner-%{tcmu_runner_version}/LICENSE.Apache2
+%endif
+%doc %{_mandir}/man1/mhvtl-fabrics.1*
+%doc %{_mandir}/man5/fabrics.conf.5*
+%{_bindir}/mhvtl-fabrics
+%{_libexecdir}/mhvtl/mhvtl_tcmu_handler
+%{_unitdir}/mhvtl-tcmu-handler.service
+%{_unitdir}/mhvtl-fabrics.service
+# A sample only: mhvtl-fabrics.service does nothing until the administrator
+# writes /etc/mhvtl/fabrics.conf, which names the initiators allowed in.
+%{_datadir}/mhvtl/fabrics.conf.sample
 
 %files -n mhvtl-dkms
 %{_usrsrc}/mhvtl-%{dkms_version}

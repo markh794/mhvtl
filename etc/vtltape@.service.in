@@ -3,6 +3,9 @@ Documentation=man:vtltape(1) man:vtlcmd(1)
 Description=Tape Daemon for Virtual Tape & Robot Library
 Before=mhvtl.target
 Requires=mhvtl-load-modules.service
+# With MHVTL_BACKEND=tcmu the handler serves the device; it exits at once
+# otherwise, and systemd skips it when mhvtl-tcmu is not installed.
+Wants=mhvtl-tcmu-handler.service
 After=mhvtl-load-modules.service mhvtl-tcmu-handler.service
 PartOf=mhvtl.target
 
