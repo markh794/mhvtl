@@ -54,10 +54,12 @@ LZODEBUG =
 # files that need to be generated
 GENERATED_FILES = $(patsubst cmd/%.in,bin/%,$(wildcard cmd/*.in))
 
-# Exclude TCMU handler from default build (needs -ltcmu, built under ifdef TCMU)
-BINARIES = $(patsubst cmd/%.c,bin/%,$(filter-out cmd/mhvtl_tcmu_handler.c,$(wildcard cmd/*.c))) bin/dump_tape
+# Exclude the TCMU-only programs from the default build (built under ifdef TCMU)
+BINARIES = $(patsubst cmd/%.c,bin/%,$(filter-out cmd/mhvtl_tcmu_handler.c cmd/mhvtl-fabrics.c,$(wildcard cmd/*.c))) bin/dump_tape
 ifdef TCMU
 BINARIES += bin/mhvtl_tcmu_handler
+# Exports the TCMU backstores over LIO fabrics; useless without them
+BINARIES += bin/mhvtl-fabrics
 endif
 LIBRARIES = libvtlscsi.so
 
@@ -254,6 +256,11 @@ bin/mhvtl-device-conf-generator: $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) libvtlscsi.s
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_DEVICE_CONF_GENERATOR_OBJ) -L. -lvtlscsi
 
 ifdef TCMU
+# Standalone: writes configfs directly, needs nothing from libvtlscsi
+MHVTL_FABRICS_OBJ = cmd/mhvtl-fabrics.o fabrics_conf.o fabrics_cfs.o
+bin/mhvtl-fabrics: $(MHVTL_FABRICS_OBJ)
+	$(CC) $(CFLAGS) -o $@ $(MHVTL_FABRICS_OBJ)
+
 MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o
 bin/mhvtl_tcmu_handler: $(MHVTL_TCMU_HANDLER_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi -ltcmu -lpthread

@@ -1,0 +1,88 @@
+.TH fabrics.conf "5" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "File Formats"
+.SH NAME
+fabrics.conf \- which initiators may reach which mhvtl library
+.SH DESCRIPTION
+.B fabrics.conf
+is read by
+.BR mhvtl-fabrics (1).
+It uses the format of
+.BR device.conf (5):
+a record starts in column 1, its fields are indented \fBName: value\fR lines,
+and a \fB#\fR after a blank starts a comment. Field names ignore case.
+Unknown records and fields are errors.
+.PP
+Field names follow the iSCSI terms of RFC 7143.
+.SH RECORDS
+.TP
+.B VERSION: 1
+Optional; the format version.
+.TP
+.B iSCSI:
+Settings for every iSCSI target.
+.RS
+.TP
+.BI "Portal: " address [: port ]
+Address to listen on, repeatable. An IPv6 address goes in brackets, e.g.
+\fB[2001:db8::10]:3260\fR. The port defaults to 3260. Without any Portal the
+targets listen on \fB0.0.0.0:3260\fR. A wildcard address and a specific
+address of the same family cannot share a port.
+.TP
+.BI "Base name: " iqn
+Prefix of the target names. Required unless every \fBiSCSI target\fR record
+has a \fBTarget name\fR. There is no default: an iSCSI name's naming
+authority must be a domain its owner controls (RFC 7143 section 4.2.7.4).
+The sample configuration uses \fBiqn.2003-01.org.linux-iscsi.\fIhost\fB:mhvtl\fR,
+the prefix LIO's targetcli generates; put this host's name in place of
+\fIhost\fR so names stay unique, or use a domain you own.
+.RE
+.TP
+.BI "iSCSI target: " ID
+Exports the library (or standalone drive) with this ID in device.conf.
+A drive that belongs to a library is exported with its library. The target
+is named \fIBase name\fB.lib\fIID\fR (\fB.tape\fIID\fR for a standalone
+drive).
+.RS
+.TP
+.BI "Initiator name: " name
+iSCSI name allowed to log in, repeatable. A record without one is not
+exported.
+.TP
+.BI "Target name: " name
+Overrides the default target name.
+.TP
+.BI "CHAP name: " name ", CHAP secret: " secret
+Every initiator of this record must authenticate with CHAP.
+.TP
+.BI "Mutual CHAP name: " name ", Mutual CHAP secret: " secret
+The target authenticates to the initiator too. RFC 7143 section 9.2.1
+requires a secret different from the CHAP secret.
+.RE
+.PP
+Names must be lower case \fBiqn.\fR, \fBeui.\fR or \fBnaa.\fR names. CHAP
+names and secrets are printable characters without blanks. RFC 7143 section
+9.2.1 asks for secrets of at least 96 bits, 12 characters; some initiators
+require 12 to 16.
+.SH SECURITY
+An initiator name is an identity, not a credential: any host can claim it.
+Without CHAP, a listed name gets full read and write access to the tapes,
+so use CHAP unless the portals are on a trusted storage network.
+.PP
+The file must be owned by root (or the user running mhvtl-fabrics) and not
+writable by group or others. When it holds a secret it must be mode 0600.
+Otherwise it is refused.
+.SH EXAMPLE
+.nf
+VERSION: 1
+
+iSCSI:
+ Portal: 192.0.2.10:3260
+ Base name: iqn.2003-01.org.linux-iscsi.vtl1:mhvtl
+
+iSCSI target: 10
+ Initiator name: iqn.2024-01.com.example:pbs1
+ CHAP name: pbs1
+ CHAP secret: change-me-0123
+.fi
+.SH SEE ALSO
+.BR mhvtl-fabrics (1),
+.BR device.conf (5)

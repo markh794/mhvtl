@@ -25,6 +25,11 @@ YEAR = $(shell date -r ../ChangeLog +%Y)
 MAN_PATH = $(DESTDIR)$(PREFIX)$(MANDIR)
 MAN1_PAGES = $(patsubst %.1.in,%.1,$(wildcard *.1.in))
 MAN5_PAGES = $(patsubst %.5.in,%.5,$(wildcard *.5.in))
+# mhvtl-fabrics is only built with TCMU set (see usr/Makefile)
+ifndef TCMU
+MAN1_PAGES := $(filter-out mhvtl-fabrics.1,$(MAN1_PAGES))
+MAN5_PAGES := $(filter-out fabrics.conf.5,$(MAN5_PAGES))
+endif
 
 all: $(MAN1_PAGES) $(MAN5_PAGES)
 

@@ -12,6 +12,10 @@ CONFIGS = $(MHVTL_CONF_FILE) $(DEVICE_CONF_FILE) $(LIB_CONTENTS_FILES)
 
 # Static sample configs shipped as-is (no generation).
 SAMPLE_CONFIGS = mhvtl_raw_bays.conf.sample
+ifdef TCMU
+# mhvtl-fabrics, like the handler, is only built with TCMU set
+SAMPLE_CONFIGS += fabrics.conf.sample
+endif
 
 # tmpfiles.d snippet creating the runtime directories; installed as mhvtl.conf.
 TMPFILES_SRC = mhvtl.tmpfiles
@@ -24,7 +28,7 @@ SERVICES = $(patsubst %.in,%,$(wildcard *.service.in))
 # The TCMU handler is only built with TCMU set (see usr/Makefile), so its unit
 # would otherwise point at a daemon that was never installed.
 ifndef TCMU
-SERVICES := $(filter-out mhvtl-tcmu-handler.service,$(SERVICES))
+SERVICES := $(filter-out mhvtl-tcmu-handler.service mhvtl-fabrics.service,$(SERVICES))
 endif
 MHVTL_TARGET = mhvtl.target
 

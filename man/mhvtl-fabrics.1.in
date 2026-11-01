@@ -1,0 +1,88 @@
+.TH mhvtl-fabrics "1" "@MONTH@ @YEAR@" "mhvtl @VERSION@" "User Commands"
+.SH NAME
+mhvtl-fabrics \- export mhvtl devices to remote initiators over iSCSI
+.SH SYNOPSIS
+.B mhvtl-fabrics
+[\fB\-c\fR \fIfabrics.conf\fR] [\fB\-d\fR \fIdevice.conf\fR] [\fB\-w\fR \fIseconds\fR]
+\fBcheck\fR|\fBapply\fR|\fBremove\fR|\fBstatus\fR
+.SH DESCRIPTION
+With the TCMU backend, \fBmhvtl_tcmu_handler\fR creates a LIO user backstore
+for every library and drive (\fBcore/user_0/lib\fIID\fR and
+\fBcore/user_0/tape\fIID\fR under \fI/sys/kernel/config/target\fR).
+.B mhvtl-fabrics
+links those backstores into LIO iSCSI targets, as described in
+.BR fabrics.conf (5).
+It never creates or removes a backstore.
+.PP
+Each exported library gets its own target. The changer is LUN 0 and each
+drive is the LUN of its \fBSlot\fR in
+.BR device.conf (5),
+so LUN numbers do not change when daemons start in a different order.
+Only the initiators listed in fabrics.conf have an ACL; others can neither log
+in nor discover the target.
+.SH COMMANDS
+.TP
+.B check
+Read both files and print the targets, LUNs and initiators that \fBapply\fR
+would create. Touches nothing.
+.TP
+.B apply
+Create the targets, or bring existing ones in line with the files: LUNs,
+ACLs and portals no longer listed are removed, the rest is left alone, so
+sessions to unchanged targets survive. Waits until every backstore it maps is
+enabled. Targets created by an earlier \fBapply\fR whose record was deleted
+are removed. Does nothing when \fBMHVTL_BACKEND\fR is set to anything but
+\fBtcmu\fR.
+.IP
+Each target gets iSCSI parameters suited to tape, which issues one command at
+a time: \fBInitialR2T=No\fR, \fBImmediateData=Yes\fR, \fBFirstBurstLength\fR
+262144, \fBMaxBurstLength\fR 1048576 and \fBMaxRecvDataSegmentLength\fR 262144.
+They take effect when an initiator logs in; initiators that offer less
+negotiate down. Each ACL gets a \fBdataout_timeout\fR of 30 seconds instead
+of LIO's 3, so a short network stall during a write does not close the
+connection and fail the tape job; this one also applies to sessions already
+logged in.
+.TP
+.B remove
+Remove every target this tool created. Run before the daemons stop, so
+initiators see the target leave instead of failing I/O.
+.TP
+.B status
+Print the state of each configured target as one JSON object: whether it
+exists and is enabled, its portals with the MTU of the interface holding the
+address, its LUNs and their backstores, and for each initiator whether its ACL
+exists, whether CHAP is set, and whether it is logged in. Secrets are never
+printed.
+.SH OPTIONS
+.TP
+.BI \-c " file"
+Fabric configuration, default \fI@CONFIG_PATH@/fabrics.conf\fR.
+.TP
+.BI \-d " file"
+Device configuration, default \fI@CONFIG_PATH@/device.conf\fR.
+.TP
+.BI \-w " seconds"
+How long \fBapply\fR waits for the backstores, 0 to 3600. The default is
+3 seconds per LUN, at least 60.
+.SH FILES
+.TP
+.I /run/mhvtl/fabrics.state
+The targets created by the last \fBapply\fR, so \fBremove\fR finds them even
+after their record was deleted.
+.SH NOTES
+\fBmhvtl-fabrics.service\fR runs \fBapply\fR after \fBmhvtl.target\fR is up
+and \fBremove\fR before it stops. It is also part of
+\fBmhvtl-tcmu-handler.service\fR, so restarting the handler removes the
+targets first and applies them again afterwards. A host that only exports devices can turn
+off the local loopback presentation with \fBMHVTL_TCMU_LOOPBACK=no\fR in
+.BR mhvtl.conf (5).
+.PP
+Do not save these targets with \fBtargetcli saveconfig\fR: \fBtarget.service\fR
+would restore them at boot, before the handler has created the backstores.
+.PP
+Firewalls must allow the portal port, 3260/tcp by default.
+.SH SEE ALSO
+.BR fabrics.conf (5),
+.BR device.conf (5),
+.BR vtltape (1),
+.BR vtllibrary (1)

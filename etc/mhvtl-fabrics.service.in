@@ -1,0 +1,40 @@
+[Unit]
+Description=mhvtl fabric export (iSCSI) of the TCMU devices
+Documentation=man:mhvtl-fabrics(1) man:fabrics.conf(5)
+# After the daemons, which order themselves Before=mhvtl.target, so the
+# backstores exist; on stop this runs first, so initiators see the target
+# leave before the drives do.
+After=mhvtl.target mhvtl-tcmu-handler.service
+# The backstores belong to the handler: when it stops or restarts, the
+# targets linking to them must go first and come back after it.
+PartOf=mhvtl.target mhvtl-tcmu-handler.service
+ConditionPathExists=@CONF_PATH@/fabrics.conf
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=MHVTL_BACKEND=mhvtl
+EnvironmentFile=-@CONF_PATH@/mhvtl.conf
+ExecStart=@BIN_PATH@/mhvtl-fabrics apply
+# ExecStopPost also runs when apply fails, so a half-built target is removed
+ExecStopPost=@BIN_PATH@/mhvtl-fabrics remove
+# apply waits up to 3 s per LUN (at least 60 s) for the backstores
+TimeoutStartSec=300
+
+# Writes only configfs and its state in /run/mhvtl. ProtectKernelTunables
+# must stay off: it would make /sys, and so /sys/kernel/config, read-only.
+# CAP_SYS_ADMIN: LIO's ACL auth attributes check capable(CAP_SYS_ADMIN).
+RuntimeDirectory=mhvtl
+RuntimeDirectoryPreserve=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_OVERRIDE
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=mhvtl.target

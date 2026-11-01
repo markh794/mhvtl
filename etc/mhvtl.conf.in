@@ -16,3 +16,12 @@ VTL_DEBUG=0
 
 # vtltape and vtllibrary debugging [Blank or -d]
 #DAEMON_DEBUG=-d
+
+# Backend that delivers SCSI commands to the daemons [mhvtl|tcmu]
+# mhvtl: the mhvtl.ko kernel module; tcmu: LIO user backstores served by
+# mhvtl_tcmu_handler, which mhvtl-fabrics can export over iSCSI.
+#MHVTL_BACKEND=mhvtl
+
+# With tcmu, also present the devices on this host through tcm_loop [yes|no]
+# A host that only exports them to remote initiators can set no.
+#MHVTL_TCMU_LOOPBACK=yes

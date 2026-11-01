@@ -1,0 +1,53 @@
+# mhvtl-fabrics configuration: which initiators may reach which library, and
+# over which fabric. Install as /etc/mhvtl/fabrics.conf; see fabrics.conf(5).
+#
+# Only used with the TCMU backend (MHVTL_BACKEND=tcmu in mhvtl.conf). The
+# devices themselves are described in device.conf.
+#
+# The format follows device.conf: a record starts in column 1, its fields are
+# indented "Name: value" lines, and a '#' after a blank starts a comment.
+#
+# Keep this file mode 0600 when it holds a CHAP secret; mhvtl-fabrics refuses
+# to read secrets from a file others can read.
+
+VERSION: 1
+
+# Settings for every iSCSI target.
+#
+#   Portal:     address and port to listen on, repeatable. IPv6 in brackets,
+#               e.g. [2001:db8::10]:3260. Default 0.0.0.0:3260. A wildcard
+#               and a specific address can't share a port.
+#   Base name:  prefix of the target names: the target for library 10 is
+#               <Base name>.lib10. Required unless every target below sets
+#               its own Target name.
+#
+# An iSCSI name's naming authority is a domain its owner controls (RFC 7143
+# section 4.2.7.4). The prefix below is the one LIO's targetcli generates
+# for its own targets; replace "vtl1" with this host's name so target names
+# stay unique across hosts, or use your own domain, e.g.
+# iqn.2024-01.com.example:vtl1.
+iSCSI:
+ Portal: 192.0.2.10:3260
+ Base name: iqn.2003-01.org.linux-iscsi.vtl1:mhvtl
+
+# One record per exported library (or standalone drive), by its device.conf ID.
+# The changer is LUN 0 and each drive is the LUN of its Slot in device.conf.
+# A record without an Initiator name exports nothing.
+#
+#   Initiator name:      iSCSI name allowed to log in, repeatable.
+#   Target name:         overrides the default target name.
+#   CHAP name, CHAP secret:
+#                        the initiator must authenticate (one-way CHAP).
+#   Mutual CHAP name, Mutual CHAP secret:
+#                        the target authenticates too; the secret must
+#                        differ from the CHAP secret.
+#
+# An Initiator name is an identity, not a credential: any host on the network
+# can claim it. Without CHAP, a listed name gets full read and write access
+# to the tapes, so use CHAP unless the portal is on a trusted storage
+# network. CHAP applies to every initiator of the record. Use secrets of at
+# least 12 characters; some initiators require 12 to 16.
+iSCSI target: 10
+ Initiator name: iqn.2024-01.com.example:pbs1
+# CHAP name: pbs1
+# CHAP secret: change-me-0123
