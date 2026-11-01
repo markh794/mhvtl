@@ -1,0 +1,3 @@
+# Like the daemons in mhvtl, the handler and the iSCSI export are part of
+# mhvtl.target, which starts and stops the whole virtual library.
+mhvtl-tcmu: systemd-service-file-refers-to-unusual-wantedby-target mhvtl.target *

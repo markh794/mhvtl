@@ -11,7 +11,8 @@ Build-Depends:
  libssl-dev,
  pkg-config,
  systemd-dev | systemd (<< 253-2~),
- libudev-dev
+ libudev-dev,
+ libtcmu2
 Standards-Version: 4.7.2
 Homepage: https://github.com/markh794/mhvtl
 Vcs-Git: https://github.com/matejk/mhvtl.git
@@ -22,7 +23,7 @@ Package: mhvtl
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends}
 Depends:
- mhvtl-dkms (= ${binary:Version}),
+ mhvtl-dkms (= ${binary:Version}) | mhvtl-tcmu (= ${binary:Version}),
  sg3-utils,
  ${misc:Depends},
  ${shlibs:Depends}
@@ -38,7 +39,28 @@ Description: virtual tape library for Linux
  tape libraries from vendors such as IBM, HP, Quantum and Spectra Logic.
  .
  This package provides the user-space daemons, command line tools and
- systemd units. The kernel module is supplied by mhvtl-dkms.
+ systemd units. The kernel module is supplied by mhvtl-dkms; with
+ mhvtl-tcmu the devices are presented through the kernel's LIO target
+ instead, and no mhvtl kernel module is needed.
+
+Package: mhvtl-tcmu
+Architecture: any
+Depends:
+ mhvtl (= ${binary:Version}),
+ ${misc:Depends},
+ ${shlibs:Depends}
+Suggests: targetcli-fb
+Description: virtual tape library for Linux - TCMU backend and iSCSI export
+ mhvtl emulates a SCSI medium changer and SCSI tape drives entirely in
+ software, for testing backup and archival applications without physical
+ tape hardware.
+ .
+ This package presents the libraries and drives through the kernel's LIO
+ target (target_core_user) instead of the mhvtl kernel module, and exports
+ them to remote initiators over iSCSI. It contains mhvtl_tcmu_handler,
+ which creates a LIO user backstore per device, and mhvtl-fabrics, which
+ builds iSCSI targets from /etc/mhvtl/fabrics.conf. Set MHVTL_BACKEND=tcmu
+ in /etc/mhvtl/mhvtl.conf to use it.
 
 Package: mhvtl-dkms
 Section: kernel

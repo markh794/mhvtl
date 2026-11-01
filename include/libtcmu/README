@@ -1,0 +1,16 @@
+libtcmu.h and libtcmu_common.h from tcmu-runner v1.5.4, unchanged:
+https://github.com/open-iscsi/tcmu-runner/tree/v1.5.4
+
+Licensed under LGPL-2.1-or-later or Apache-2.0, at your choice (see the
+header of each file).
+
+Debian, Ubuntu and openSUSE Tumbleweed ship libtcmu without these headers,
+and EL ships no libtcmu at all, so "make TCMU=1" falls back to this copy.
+usr/Makefile adds it with -idirafter, after the system include path and
+after TCMU_SRC, so installed headers (libtcmu-devel) are used when present.
+
+The 1.6 headers only add declarations (tcmu_dev_set/get_write_protect_enabled
+and __tcmu_is_ework_thread) and an #include <pthread.h>; the types are the
+same, so this copy also builds against libtcmu 1.6.x, which keeps the
+libtcmu.so.2 soname. libtcmu_common.h 1.5.4 uses pthread_t without
+including pthread.h, so include it before libtcmu.h.

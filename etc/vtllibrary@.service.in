@@ -3,6 +3,9 @@ Documentation=man:vtllibrary(1) man:vtlcmd(1)
 Description=Robot Library Daemon for Virtual Tape & Robot Library
 Before=mhvtl.target
 Requires=mhvtl-load-modules.service
+# With MHVTL_BACKEND=tcmu the handler serves the device; it exits at once
+# otherwise, and systemd skips it when mhvtl-tcmu is not installed.
+Wants=mhvtl-tcmu-handler.service
 # Wants rather than Requires: a library whose media could not be created still
 # starts (with those slots empty), as it did before media creation moved here.
 Wants=mhvtl-media.service
