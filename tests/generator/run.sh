@@ -160,5 +160,32 @@ if [[ $rc -eq 0 && "$(links "$tmp/badid.out" | cut -d' ' -f1 | tr '\n' ' ')" == 
 	$(grep -c 'ignoring' "$tmp/log") -eq 3 ]]; then ok
 else fail "(d) id <= 0 rc=$rc"; links "$tmp/badid.out"; cat "$tmp/log"; fi
 
+# (e) TCMU backend: PartOf= drop-ins only when mhvtl.conf selects tcmu
+# dropins <out-dir>: the generated drop-in files, one per line
+dropins() { (cd "$1" && ls -d */*.conf 2>/dev/null | sort); }
+want_dropins=$(printf '%s\n' vtllibrary@.service.d/50-mhvtl-tcmu.conf vtltape@.service.d/50-mhvtl-tcmu.conf)
+# backend_case <name> <mhvtl.conf body> <expect: yes|no>
+backend_case() {
+	mkdir -p "$tmp/$1"
+	cp "$etc/device.conf" "$tmp/$1/device.conf"
+	printf '%b' "$2" >"$tmp/$1/mhvtl.conf"
+	run_gen "$tmp/$1" "$tmp/$1.out"
+	got=$(dropins "$tmp/$1.out")
+	if [[ $3 == yes ]]; then
+		if [[ $rc -eq 0 && "$got" == "$want_dropins" ]] &&
+			grep -qx 'PartOf=mhvtl-tcmu-handler.service' "$tmp/$1.out/vtltape@.service.d/50-mhvtl-tcmu.conf"; then ok
+		else fail "(e) $1 expected drop-ins rc=$rc"; echo "$got"; fi
+	else
+		if [[ $rc -eq 0 && -z $got ]]; then ok
+		else fail "(e) $1 expected no drop-ins rc=$rc"; echo "$got"; fi
+	fi
+}
+backend_case be_unset 'VERBOSE=1\n' no
+backend_case be_mhvtl 'MHVTL_BACKEND=mhvtl\n' no
+backend_case be_tcmu 'VERBOSE=1\nMHVTL_BACKEND=tcmu\n' yes
+backend_case be_quoted ' MHVTL_BACKEND = "tcmu" \r\n' yes
+backend_case be_last 'MHVTL_BACKEND=tcmu\nMHVTL_BACKEND=mhvtl\n' no
+backend_case be_comment '# MHVTL_BACKEND=tcmu\nMHVTL_BACKENDX=tcmu\n' no
+
 echo "generator: $((checked - failed))/$checked checks passed"
 [[ $failed -eq 0 ]]

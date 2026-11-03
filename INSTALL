@@ -197,11 +197,19 @@ Without the library, "make TCMU=1" stops at once and says what is missing.
 
 Using it:
 ---------
-Set the backend in /etc/mhvtl/mhvtl.conf and restart:
+Set the backend in /etc/mhvtl/mhvtl.conf, reload systemd and restart:
 
 	MHVTL_BACKEND=tcmu
 
+	sh> sudo systemctl daemon-reload
 	sh> sudo systemctl restart mhvtl.target
+
+The reload matters: the mhvtl systemd generator reads the backend and, for
+TCMU, ties vtltape@ and vtllibrary@ to mhvtl-tcmu-handler.service, so
+stopping or restarting the handler stops or restarts the daemons and the
+iSCSI export with it. If the handler dies, the daemons exit and systemd
+starts them again, which starts the handler. A restart returns any loaded
+cartridge to its slot, as a restart of mhvtl.target does.
 
 From a source tree, scripts/switch_backend.sh tcmu does the same (and
 "mhvtl" switches back). The devices appear on this host through tcm_loop;

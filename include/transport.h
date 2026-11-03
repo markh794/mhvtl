@@ -3,6 +3,15 @@
 
 #include "vtl_common.h"
 
+/*
+ * poll_cmd: the transport is gone for good (the TCMU handler closed its
+ * socket). The daemon exits with VTL_EXIT_TRANSPORT_LOST, which its
+ * systemd unit restarts (RestartForceExitStatus=), so it registers again
+ * once the handler is back.
+ */
+#define VTL_TRANSPORT_LOST	(-2)
+#define VTL_EXIT_TRANSPORT_LOST	75	/* EX_TEMPFAIL */
+
 struct vtl_transport {
 	const char *name;
 
@@ -22,7 +31,8 @@ struct vtl_transport {
 	 * poll_cmd: Check for a pending SCSI command.
 	 *   - handle: from open()
 	 *   - hdr: filled with CDB bytes + serial number on VTL_QUEUE_CMD
-	 * Returns VTL_QUEUE_CMD, VTL_IDLE, or < 0 on error.
+	 * Returns VTL_QUEUE_CMD, VTL_IDLE, VTL_TRANSPORT_LOST, or < 0 on
+	 * error.
 	 */
 	int  (*poll_cmd)(int handle, struct mhvtl_header *hdr);
 

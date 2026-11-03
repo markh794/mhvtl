@@ -1759,6 +1759,7 @@ int main(int argc, char *argv[]) {
 	int		 opt;
 	int		 foreground	  = 0;
 	int		 time_to_exit = 0;
+	int		 exit_status = 0;
 
 	int last_state = MHVTL_STATE_UNKNOWN;
 
@@ -1852,19 +1853,6 @@ int main(int argc, char *argv[]) {
 	/* Select and initialize the transport backend */
 	transport_select();
 
-	new_action.sa_handler = caught_signal;
-	new_action.sa_flags	  = 0;
-	sigemptyset(&new_action.sa_mask);
-	sigaction(SIGALRM, &new_action, &old_action);
-	sigaction(SIGINT, &new_action, &old_action);
-	sigaction(SIGPIPE, &new_action, &old_action);
-	sigaction(SIGTERM, &new_action, &old_action);
-	sigaction(SIGUSR1, &new_action, &old_action);
-	sigaction(SIGUSR2, &new_action, &old_action);
-
-	new_action.sa_handler = rereadconfig;
-	sigaction(SIGHUP, &new_action, &old_action);
-
 	/* Initialise message queue as necessary */
 	r_qid = init_queue();
 	if (r_qid == -1) {
@@ -1891,6 +1879,21 @@ int main(int argc, char *argv[]) {
 		fflush(NULL);
 		exit(1);
 	}
+
+	/* After open, as in vtltape: with the TCMU backend open() can wait up
+	 * to 30 s for the handler, and a stop must be able to end that wait */
+	new_action.sa_handler = caught_signal;
+	new_action.sa_flags	  = 0;
+	sigemptyset(&new_action.sa_mask);
+	sigaction(SIGALRM, &new_action, &old_action);
+	sigaction(SIGINT, &new_action, &old_action);
+	sigaction(SIGPIPE, &new_action, &old_action);
+	sigaction(SIGTERM, &new_action, &old_action);
+	sigaction(SIGUSR1, &new_action, &old_action);
+	sigaction(SIGUSR2, &new_action, &old_action);
+
+	new_action.sa_handler = rereadconfig;
+	sigaction(SIGHUP, &new_action, &old_action);
 
 	/* malloc a big enough buffer to fit worst case read element status */
 	buffer_size		  = smc_buffer_size(&smc_slots);
@@ -2019,6 +2022,10 @@ int main(int argc, char *argv[]) {
 		}
 
 		ret = vtl_transport->poll_cmd(cdev, &mhvtl_cmd);
+		if (ret == VTL_TRANSPORT_LOST) {
+			exit_status = VTL_EXIT_TRANSPORT_LOST;
+			goto exit;
+		}
 		if (ret < 0) {
 			MHVTL_LOG("poll_cmd: %d : %s", ret, strerror(errno));
 		} else {
@@ -2095,5 +2102,5 @@ exit:
 		free(lunit.fifoname);
 	}
 	free_lock(my_id);
-	exit(0);
+	exit(exit_status);
 }
