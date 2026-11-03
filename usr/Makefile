@@ -281,7 +281,7 @@ MHVTL_FABRICS_OBJ = cmd/mhvtl-fabrics.o fabrics_conf.o fabrics_cfs.o
 bin/mhvtl-fabrics: $(MHVTL_FABRICS_OBJ)
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_FABRICS_OBJ)
 
-MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o
+MHVTL_TCMU_HANDLER_OBJ = cmd/mhvtl_tcmu_handler.o tcmu_aptpl.o
 cmd/mhvtl_tcmu_handler.o: CFLAGS += $(TCMU_CPPFLAGS)
 bin/mhvtl_tcmu_handler: $(MHVTL_TCMU_HANDLER_OBJ) libvtlscsi.so
 	$(CC) $(CFLAGS) -o $@ $(MHVTL_TCMU_HANDLER_OBJ) -L. -lvtlscsi $(TCMU_LIBS) -lpthread
