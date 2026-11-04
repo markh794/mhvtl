@@ -2616,6 +2616,7 @@ int main(int argc, char *argv[]) {
 	int				 foreground	  = 0;
 	const pid_t		 not_started  = -2;
 	int				 time_to_exit = 0;
+	int				 exit_status = 0;
 
 	char	   *progname = argv[0];
 	char	   *fifoname = NULL;
@@ -2898,6 +2899,10 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		ret = vtl_transport->poll_cmd(cdev, &mhvtl_cmd);
+		if (ret == VTL_TRANSPORT_LOST) {
+			exit_status = VTL_EXIT_TRANSPORT_LOST;
+			goto exit;
+		}
 		if (ret < 0) {
 			MHVTL_DBG(2,
 					  "poll_cmd: %d : %s",
@@ -2984,5 +2989,5 @@ exit:
 		free(lunit.fifoname);
 	}
 	free_lock(minor);
-	exit(0);
+	exit(exit_status);
 }

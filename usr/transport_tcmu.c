@@ -16,7 +16,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/un.h>
 
 #include "vtl_common.h"
@@ -42,7 +44,10 @@ static int sock_send(int fd, const void *buf, size_t len)
 {
 	const uint8_t *p = buf;
 	while (len > 0) {
-		ssize_t n = write(fd, p, len);
+		/* MSG_NOSIGNAL: a handler that is going away must give EPIPE,
+		 * not a SIGPIPE that kills a daemon with no handler for it */
+		ssize_t n = send(fd, p, len, MSG_NOSIGNAL);
+		if (n < 0 && errno == EINTR) continue;
 		if (n <= 0) return -1;
 		p += n; len -= n;
 	}
@@ -54,10 +59,25 @@ static int sock_recv(int fd, void *buf, size_t len)
 	uint8_t *p = buf;
 	while (len > 0) {
 		ssize_t n = read(fd, p, len);
+		if (n < 0 && errno == EINTR) continue;
 		if (n <= 0) return -1;
 		p += n; len -= n;
 	}
 	return 0;
+}
+
+/*
+ * The handler went away (it exited, or the stream is out of step): close
+ * the socket so nothing else is read from it, and report it once.
+ */
+static int lost_handler(struct tcmu_dev_state *state, const char *why)
+{
+	MHVTL_ERR("%s: lost the TCMU handler (%s), exiting so the service "
+		  "restarts and registers again", state->bs_name, why);
+	close(state->sock_fd);
+	state->sock_fd = -1;
+	state->active = 0;
+	return VTL_TRANSPORT_LOST;
 }
 
 /*
@@ -68,7 +88,6 @@ static int tcmu_open(unsigned minor, struct mhvtl_ctl *ctl)
 	struct tcmu_dev_state *state;
 	struct sockaddr_un addr;
 	int fd, dev_type;
-	int waited;
 
 	if (minor >= MAX_TCMU_DEVICES) {
 		MHVTL_ERR("minor %u exceeds MAX_TCMU_DEVICES", minor);
@@ -91,36 +110,7 @@ static int tcmu_open(unsigned minor, struct mhvtl_ctl *ctl)
 		dev_type = 1;
 	}
 
-	/* Connect to handler daemon (retry for up to 30s) */
-	fd = -1;
-	for (waited = 0; waited < 30; waited++) {
-		fd = socket(AF_UNIX, SOCK_STREAM, 0);
-		if (fd < 0) {
-			MHVTL_ERR("socket: %s", strerror(errno));
-			return -1;
-		}
-
-		memset(&addr, 0, sizeof(addr));
-		addr.sun_family = AF_UNIX;
-		strncpy(addr.sun_path, TCMU_SOCK_PATH,
-			sizeof(addr.sun_path) - 1);
-
-		if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) == 0)
-			break;
-
-		close(fd);
-		fd = -1;
-		if (waited == 0)
-			MHVTL_DBG(1, "Waiting for TCMU handler daemon ...");
-		sleep(1);
-	}
-
-	if (fd < 0) {
-		MHVTL_ERR("Cannot connect to %s after 30s", TCMU_SOCK_PATH);
-		return -1;
-	}
-
-	/* Send registration */
+	/* Fill in the registration once; it is resent on each attempt */
 	struct tcmu_msg_register reg;
 	memset(&reg, 0, sizeof(reg));
 	reg.hdr.type = MSG_REGISTER;
@@ -132,23 +122,75 @@ static int tcmu_open(unsigned minor, struct mhvtl_ctl *ctl)
 	reg.lun = ctl->lun;
 	strncpy(reg.bs_name, state->bs_name, sizeof(reg.bs_name) - 1);
 
-	if (sock_send(fd, &reg, sizeof(reg)) < 0) {
-		MHVTL_ERR("Failed to send registration");
-		close(fd);
-		return -1;
+	/*
+	 * Connect and register, retrying for up to 30 s: the handler may
+	 * still be starting, or, after a handler restart, the old one may
+	 * close the connection without answering. Each answer is waited for
+	 * at most 60 s (a registration creates and enables the backstore),
+	 * so a handler that accepts and then hangs cannot block us for ever.
+	 */
+	struct timespec now, deadline;
+	const struct timeval reg_timeout = { .tv_sec = 60 };
+	const struct timeval no_timeout = { 0 };
+	int attempts = 0;
+
+	clock_gettime(CLOCK_MONOTONIC, &deadline);
+	deadline.tv_sec += 30;
+	fd = -1;
+	for (;;) {
+		struct tcmu_msg_hdr resp;
+
+		if (attempts++) {
+			clock_gettime(CLOCK_MONOTONIC, &now);
+			if (now.tv_sec >= deadline.tv_sec)
+				break;
+			sleep(1);
+		}
+
+		fd = socket(AF_UNIX, SOCK_STREAM, 0);
+		if (fd < 0) {
+			MHVTL_ERR("socket: %s", strerror(errno));
+			return -1;
+		}
+
+		memset(&addr, 0, sizeof(addr));
+		addr.sun_family = AF_UNIX;
+		strncpy(addr.sun_path, TCMU_SOCK_PATH,
+			sizeof(addr.sun_path) - 1);
+
+		if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+			if (attempts == 1) {
+				MHVTL_DBG(1, "Waiting for TCMU handler daemon ...");
+			}
+			close(fd);
+			fd = -1;
+			continue;
+		}
+
+		setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+			   &reg_timeout, sizeof(reg_timeout));
+		if (sock_send(fd, &reg, sizeof(reg)) < 0 ||
+		    sock_recv(fd, &resp, sizeof(resp)) < 0) {
+			MHVTL_DBG(1, "TCMU handler closed the connection or did "
+				  "not answer, retrying");
+			close(fd);
+			fd = -1;
+			continue;
+		}
+
+		if (resp.type != MSG_REGISTER_OK) {
+			MHVTL_ERR("Registration rejected for %s", state->bs_name);
+			close(fd);
+			return -1;
+		}
+		/* Commands are read only after select() says so: no timeout */
+		setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+			   &no_timeout, sizeof(no_timeout));
+		break;
 	}
 
-	/* Wait for response */
-	struct tcmu_msg_hdr resp;
-	if (sock_recv(fd, &resp, sizeof(resp)) < 0) {
-		MHVTL_ERR("Failed to receive registration response");
-		close(fd);
-		return -1;
-	}
-
-	if (resp.type != MSG_REGISTER_OK) {
-		MHVTL_ERR("Registration rejected for %s", state->bs_name);
-		close(fd);
+	if (fd < 0) {
+		MHVTL_ERR("Cannot register with %s after 30s", TCMU_SOCK_PATH);
 		return -1;
 	}
 
@@ -176,7 +218,7 @@ static int tcmu_poll_cmd(int handle, struct mhvtl_header *hdr)
 
 	state = &tcmu_devices[handle];
 	if (!state->active)
-		return -1;
+		return VTL_TRANSPORT_LOST;
 
 	/* Non-blocking check */
 	FD_ZERO(&rfds);
@@ -189,17 +231,16 @@ static int tcmu_poll_cmd(int handle, struct mhvtl_header *hdr)
 		return VTL_IDLE;
 
 	/* Read message header */
-	if (sock_recv(state->sock_fd, &msg, sizeof(msg)) < 0) {
-		MHVTL_ERR("socket read failed");
-		return -1;
-	}
+	/* EOF when the handler exits: select() keeps reporting it readable */
+	if (sock_recv(state->sock_fd, &msg, sizeof(msg)) < 0)
+		return lost_handler(state, "socket closed");
 
 	if (msg.hdr.type == MSG_SHUTDOWN)
-		return -1;
+		return lost_handler(state, "handler shutting down");
 
 	if (msg.hdr.type != MSG_CDB) {
 		MHVTL_ERR("unexpected message type %u", msg.hdr.type);
-		return -1;
+		return lost_handler(state, "protocol error");
 	}
 
 	memcpy(hdr->cdb, msg.cdb, MAX_COMMAND_SIZE);

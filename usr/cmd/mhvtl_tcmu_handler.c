@@ -1157,6 +1157,12 @@ int main(int argc, char *argv[])
 
 	MHVTL_LOG("Shutting down — waiting for workers ...");
 
+	/* Stop taking registrations: a daemon restarting now must wait for
+	 * the next handler, not register with this one while it tears the
+	 * backstores down. */
+	close(listen_fd);
+	unlink(TCMU_SOCK_PATH);
+
 	/* Shut the daemon sockets down so worker threads leave their relay
 	 * loops. They keep failing commands until the LUNs are removed
 	 * below. */

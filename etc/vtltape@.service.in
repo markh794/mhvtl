@@ -18,6 +18,14 @@ ExecStart=@LIBEXEC_PATH@/vtltape -F -q%i -v${VERBOSE} ${DAEMON_DEBUG}
 ExecStop=/usr/bin/vtlcmd %i exit
 KillMode=mixed
 TimeoutStopSec=10
+# With MHVTL_BACKEND=tcmu the daemon exits with 75 (EX_TEMPFAIL) when the
+# handler goes away without a stop or restart job, e.g. it crashed. Restart it
+# then, so it registers with the next handler (Wants= above starts one); it
+# waits up to 30 s for it. Other exits are not restarted, as before. A stop or
+# restart of the handler reaches the daemon through the PartOf= drop-in that
+# mhvtl-device-conf-generator writes for the TCMU backend.
+RestartForceExitStatus=75
+RestartSec=1
 # No lock-file cleanup is needed: the lock is a held flock() the kernel releases
 # when the daemon exits (including on a crash), so a leftover file never blocks
 # a restart.
