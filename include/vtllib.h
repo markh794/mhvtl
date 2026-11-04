@@ -817,6 +817,7 @@ void sam_medium_error(uint16_t ascq, uint8_t *sam_stat);
 void sam_blank_check(uint16_t ascq, uint8_t *sam_stat);
 void sam_data_protect(uint16_t ascq, uint8_t *sam_stat);
 void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat);
+void sam_aborted_command(uint16_t ascq, uint8_t *sam_stat);
 void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat);
 
 void		 resp_log_select(uint8_t *, uint8_t *);
@@ -851,6 +852,7 @@ void		cleanup_density_support(struct list_head *l);
 
 void completeSCSICommand(int, struct mhvtl_ds *ds);
 int	 retrieve_CDB_data(int cdev, struct mhvtl_ds *dbuf_p);
+int	 retrieve_CDB_data_all(int cdev, struct mhvtl_ds *dbuf_p);
 int	 check_for_running_daemons(unsigned minor);
 int	 free_lock(unsigned minor);
 
