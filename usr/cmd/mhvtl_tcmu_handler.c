@@ -498,7 +498,13 @@ static void relay_one_batch(struct handler_device *d)
 				MHVTL_ERR("[%s] no memory for DATA-OUT", d->bs_name);
 				goto lost;
 			}
-			tcmu_memcpy_from_iovec(buf, dlen, cmd->iovec, cmd->iov_cnt);
+			/* Send only what the initiator's data-out holds: when it
+			 * is shorter than the daemon asked for, the daemon must
+			 * see a short count (and refuse the command), not the
+			 * rest of an uninitialised buffer. */
+			dlen = (uint32_t)tcmu_memcpy_from_iovec(buf, dlen,
+								 cmd->iovec,
+								 cmd->iov_cnt);
 			struct tcmu_msg_data_out dout;
 			dout.hdr.type = MSG_DATA_OUT;
 			dout.hdr.data_len = sizeof(dout) - sizeof(dout.hdr) + dlen;

@@ -720,13 +720,13 @@ int retrieve_CDB_data(int cdev, struct mhvtl_ds *ds) {
  * nothing.
  */
 int retrieve_CDB_data_all(int cdev, struct mhvtl_ds *ds) {
-	int want = (int)ds->sz;
-	int got	 = retrieve_CDB_data(cdev, ds);
+	unsigned int want = ds->sz;
+	int			 got  = retrieve_CDB_data(cdev, ds);
 
-	if (got >= want)
+	if (got >= 0 && (unsigned int)got >= want)
 		return 0;
 
-	MHVTL_ERR("data-out transfer failed: %d of %d bytes", got, want);
+	MHVTL_ERR("data-out transfer failed: %d of %u bytes", got, want);
 	ds->sz = 0;
 	sam_aborted_command(E_DATA_PHASE_ERROR, &ds->sam_stat);
 	return -1;
