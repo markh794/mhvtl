@@ -424,9 +424,16 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
 
 	dbuf_p->sz = sz * count;
 
-	/* Retrieve data from kernel - unless media type is 'null' */
-	if (likely(mam.MediumType != MEDIA_TYPE_NULL))
-		retrieve_CDB_data(cmd->cdev, dbuf_p);
+	/* Retrieve data from kernel - unless media type is 'null'. If the
+	 * transfer fails, the buffer holds an earlier command's data: write
+	 * nothing. No block was written, so INFORMATION is the requested
+	 * transfer length in fixed and variable mode alike (GA32-0928-07
+	 * 4.12.2 Table 17, pp.50-51: every "no write" row). */
+	if (likely(mam.MediumType != MEDIA_TYPE_NULL) &&
+		retrieve_CDB_data_all(cmd->cdev, dbuf_p) < 0) {
+		put_unaligned_be32(get_unaligned_be24(&cdb[2]), &sense[3]);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	if (!lu_priv->pm->check_restrictions(cmd))
 		return SAM_STAT_CHECK_CONDITION;
@@ -790,7 +797,8 @@ uint8_t ssc_load_display(struct scsi_cmd *cmd) {
 			  (long)dbuf_p->serialNo);
 
 	dbuf_p->sz = cdb[4];
-	retrieve_CDB_data(cmd->cdev, dbuf_p);
+	if (retrieve_CDB_data_all(cmd->cdev, dbuf_p) < 0)
+		return SAM_STAT_CHECK_CONDITION;
 	memcpy(str1, &buf[1], 8);
 	str1[8] = 0;
 	memcpy(str2, &buf[9], 8);
@@ -912,7 +920,8 @@ static uint8_t configure_timestamp(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 	}
 
-	retrieve_CDB_data(cmd->cdev, cmd->dbuf_p);
+	if (retrieve_CDB_data_all(cmd->cdev, cmd->dbuf_p) < 0)
+		return SAM_STAT_CHECK_CONDITION;
 
 	if (buf[4] > 0xf0) { /* overflow - Illegal request */
 		dbuf_p->sz		 = 0;
@@ -1005,7 +1014,9 @@ uint8_t ssc_spout(struct scsi_cmd *cmd) {
 	}
 	dbuf_p->sz = sz;
 
-	retrieve_CDB_data(cmd->cdev, dbuf_p);
+	/* A stale buffer must not be parsed: it could set an encryption key */
+	if (retrieve_CDB_data_all(cmd->cdev, dbuf_p) < 0)
+		return SAM_STAT_CHECK_CONDITION;
 
 	return resp_spout(cmd);
 }
@@ -1028,7 +1039,8 @@ uint8_t ssc_pr_out(struct scsi_cmd *cmd) {
 		return SAM_STAT_RESERVATION_CONFLICT;
 	}
 	dbuf_p->sz = get_unaligned_be32(&cdb[5]);
-	retrieve_CDB_data(cmd->cdev, dbuf_p);
+	if (retrieve_CDB_data_all(cmd->cdev, dbuf_p) < 0)
+		return SAM_STAT_CHECK_CONDITION;
 	return resp_spc_pro(cdb, dbuf_p);
 }
 

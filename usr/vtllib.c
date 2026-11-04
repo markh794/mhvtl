@@ -628,6 +628,11 @@ void sam_hardware_error(uint16_t ascq, uint8_t *sam_stat) {
 	return_sense(HARDWARE_ERROR, ascq, NULL, sam_stat);
 }
 
+void sam_aborted_command(uint16_t ascq, uint8_t *sam_stat) {
+	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", ABORTED_COMMAND, (ascq >> 8) & 0xff, ascq & 0xff);
+	return_sense(ABORTED_COMMAND, ascq, NULL, sam_stat);
+}
+
 void sam_no_sense(uint8_t key, uint16_t ascq, uint8_t *sam_stat) {
 	MHVTL_DBG(1, "[Key/ASC/ASCQ] [%02x/%02x/%02x]", key, (ascq >> 8) & 0xff, ascq & 0xff);
 	return_sense(NO_SENSE | key, ascq, NULL, sam_stat);
@@ -704,6 +709,27 @@ void setTapeAlert(struct TapeAlert_pg *ta, uint64_t flg) {
  */
 int retrieve_CDB_data(int cdev, struct mhvtl_ds *ds) {
 	return vtl_transport->get_data(cdev, ds);
+}
+
+/*
+ * Fetch all ds->sz bytes of the command's data-out. Returns 0 when they
+ * arrived. Otherwise - the transfer failed or came up short, for example
+ * because the TCMU handler went away - the buffer holds stale bytes from an
+ * earlier command: set ABORTED COMMAND, DATA PHASE ERROR (GA32-0928-07
+ * Table B.10, p.484), report no data and return -1, so the caller changes
+ * nothing.
+ */
+int retrieve_CDB_data_all(int cdev, struct mhvtl_ds *ds) {
+	int want = (int)ds->sz;
+	int got	 = retrieve_CDB_data(cdev, ds);
+
+	if (got >= want)
+		return 0;
+
+	MHVTL_ERR("data-out transfer failed: %d of %d bytes", got, want);
+	ds->sz = 0;
+	sam_aborted_command(E_DATA_PHASE_ERROR, &ds->sam_stat);
+	return -1;
 }
 
 /*

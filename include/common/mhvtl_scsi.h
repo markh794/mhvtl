@@ -61,6 +61,7 @@
 #define UNIT_ATTENTION	0x06
 #define DATA_PROTECT	0x07
 #define BLANK_CHECK		0x08
+#define ABORTED_COMMAND	0x0b
 #define VOLUME_OVERFLOW 0x0d
 
 /*
@@ -193,6 +194,9 @@
 #define E_HARDWARE_FAILURE			 0x4000
 #define E_INTERNAL_TARGET_FAILURE	 0x4400
 #define E_ERASE_FAILURE				 0x5100
+
+/* Aborted Command */
+#define E_DATA_PHASE_ERROR			 0x4b00
 
 /* Illegal Request */
 #define E_PARAMETER_LIST_LENGTH_ERR		  0x1a00
