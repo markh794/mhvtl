@@ -196,6 +196,39 @@ void test_unsupported_controls_rejected(void) {
 	}
 }
 
+/* A page that turns encryption off is accepted with any SCOPE and LOCK */
+void test_encryption_off_any_scope_accepted(void) {
+	static const struct {
+		const char *name;
+		uint8_t		byte4;
+	} cases[] = {
+		{"public scope", 0x00},
+		{"local scope", 0x20},
+		{"lock", 0x41},
+	};
+	uint8_t			   page[20], key[52], status[64] = {0};
+	struct scsi_result r;
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		TEST_CASE(cases[i].name);
+		TEST_ASSERT(start_drive() == 0);
+		set_page(key, sizeof(key), 0);
+		TEST_ASSERT(spout(key, sizeof(key), &r) == 0);
+		TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+		set_page(page, sizeof(page), 0);
+		page[4]	 = cases[i].byte4;
+		page[6]	 = 0;
+		page[7]	 = 0;
+		page[19] = 0;
+		TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+		TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "sam_stat %u sense %02x/%02x fp %u",
+					r.sam_stat, r.sense[12], r.sense[13], r.sense[17]);
+		TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+		TEST_CHECK_(status[5] == 0 && status[6] == 0, "mode %u/%u", status[5], status[6]);
+		stop_drive();
+	}
+}
+
 /* Without CKOD the key survives a demount */
 void test_no_ckod_keeps_state_on_unload(void) {
 	uint8_t			   page[52], status[64] = {0};
@@ -315,6 +348,7 @@ TEST_LIST = {
 	{"ckod_clears_state_on_unload", test_ckod_clears_state_on_unload},
 	{"ceem_and_rdmc_accepted", test_ceem_and_rdmc_accepted},
 	{"unsupported_controls_rejected", test_unsupported_controls_rejected},
+	{"encryption_off_any_scope_accepted", test_encryption_off_any_scope_accepted},
 	{"no_ckod_keeps_state_on_unload", test_no_ckod_keeps_state_on_unload},
 	{"malformed_pages_rejected", test_malformed_pages_rejected},
 	{"oversized_transfer_length_rejected", test_oversized_transfer_length_rejected},
