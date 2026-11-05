@@ -108,12 +108,14 @@ static void stop_drive(void) {
 	gen_cleanup_env(&test_env);
 }
 
-/* SECURITY PROTOCOL OUT, Set Data Encryption page: 32-byte key, optional A-KAD */
+/* SECURITY PROTOCOL OUT, Set Data Encryption page: a 32-byte key when either
+ * mode uses one (GA32-0928-07 Table 418), optional A-KAD
+ */
 static int set_encryption(uint8_t encrypt_mode, uint8_t decrypt_mode, uint8_t key_base,
 						  const char *akad, struct scsi_result *r) {
 	uint8_t cdb[12] = {0xb5, 0x20, 0x00, 0x10};
 	uint8_t page[96];
-	size_t	len = 52;
+	size_t	len = 20;
 
 	memset(page, 0, sizeof(page));
 	page[1] = 0x10;
@@ -121,9 +123,12 @@ static int set_encryption(uint8_t encrypt_mode, uint8_t decrypt_mode, uint8_t ke
 	page[6] = encrypt_mode;
 	page[7] = decrypt_mode;
 	page[8] = 1;
-	page[19] = 32;
-	for (size_t i = 0; i < 32; i++)
-		page[20 + i] = key_base + i;
+	if (encrypt_mode == 2 || decrypt_mode >= 2) {
+		page[19] = 32;
+		for (size_t i = 0; i < 32; i++)
+			page[20 + i] = key_base + i;
+		len += 32;
+	}
 	if (akad) {
 		page[len] = 0x01; /* authenticated KAD */
 		page[len + 3] = strlen(akad);
@@ -343,6 +348,7 @@ void test_wrong_and_no_key(void) {
 	CHECK_SENSE(r, DATA_PROTECT, 0x74, 0x03, "wrong key");
 
 	TEST_ASSERT(set_encryption(0, 0, KEY_BASE, NULL, &r) == 0);
+	CHECK_GOOD(r, "SPOUT decryption off");
 	rewind_cart();
 	TEST_ASSERT(harness_tape_read(&daemon_ctx, buf, sizeof(buf), &r) == 0);
 	CHECK_SENSE(r, DATA_PROTECT, 0x74, 0x01, "decryption off");

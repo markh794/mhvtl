@@ -775,6 +775,7 @@ void init_ult3580_td5(struct lu_phy_attr *lu) {
 	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
 	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
 	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.drive_rejects_unused_key			 = TRUE;
 	ssc_pm.clear_WORM						 = clear_ult_WORM;
 	ssc_pm.set_WORM							 = set_ult_WORM;
 	ssc_pm.drive_supports_append_only_mode	 = TRUE;
@@ -851,6 +852,7 @@ void init_ult3580_td6(struct lu_phy_attr *lu) {
 	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
 	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
 	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.drive_rejects_unused_key			 = TRUE;
 	ssc_pm.clear_WORM						 = clear_ult_WORM;
 	ssc_pm.set_WORM							 = set_ult_WORM;
 	ssc_pm.drive_supports_append_only_mode	 = TRUE;
@@ -951,6 +953,7 @@ static void init_ult3580_lbp(struct lu_phy_attr *lu, char *name,
 	ssc_pm.update_encryption_mode			 = update_ult_encryption_mode;
 	ssc_pm.encryption_capabilities			 = encr_capabilities_ult;
 	ssc_pm.kad_validation					 = td4_kad_validation;
+	ssc_pm.drive_rejects_unused_key			 = TRUE;
 	ssc_pm.clear_WORM						 = clear_ult_WORM;
 	ssc_pm.set_WORM							 = set_ult_WORM;
 	ssc_pm.drive_supports_append_only_mode	 = TRUE;
