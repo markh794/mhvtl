@@ -192,6 +192,29 @@ uint8_t ssc_log_select(struct scsi_cmd *cmd) {
 	return SAM_STAT_GOOD;
 }
 
+/*
+ * A fixed-mode READ, VERIFY or WRITE moves count blocks of the block length
+ * through the command buffer at once, so the product must fit in it; with
+ * LBP the block length includes the protection information, and readBlock()
+ * never returns more than it. The limit is mhVTL's buffer, the same size as
+ * the MAXIMUM BLOCK LENGTH LIMIT reported by READ BLOCK LIMITS (GA32-0928-07
+ * §5.2.17.1, Table 78, p.113); the transports already cap a transfer at it.
+ * A larger transfer is refused with INVALID FIELD IN CDB on TRANSFER LENGTH,
+ * and nothing is read or written.
+ */
+static int transfer_fits(struct scsi_cmd *cmd, uint32_t block_bytes, int count) {
+	struct priv_lu_ssc *lu_priv = (struct priv_lu_ssc *)cmd->lu->lu_private;
+	struct s_sd			sd		= {.byte0 = SKSV | CD, .field_pointer = 2};
+
+	if ((uint64_t)block_bytes * (uint32_t)count <= (uint64_t)lu_priv->bufsize)
+		return 1;
+	MHVTL_DBG(1, "Transfer of %d blocks of %u bytes exceeds the %d byte buffer",
+			  count, block_bytes, lu_priv->bufsize);
+	cmd->dbuf_p->sz = 0;
+	sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, &cmd->dbuf_p->sam_stat);
+	return 0;
+}
+
 uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count) {
 	declare_ssc_vars;
 
@@ -199,6 +222,13 @@ uint8_t complete_read_6(struct scsi_cmd *cmd, int sz, int count) {
 	int k;
 	int retval = 0;
 	int fixed  = cdb[1] & FIXED_BLOCK;
+
+	/* Variable mode reads one block whatever the transfer length (GA32-0928-07
+	 * §4.11, p.48); readBlock() keeps it within the buffer. Fixed mode reads
+	 * count blocks one after another into it.
+	 */
+	if (fixed && !transfer_fits(cmd, (uint32_t)sz, count))
+		return SAM_STAT_CHECK_CONDITION;
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADING:
@@ -419,11 +449,8 @@ uint8_t ssc_write_6(struct scsi_cmd *cmd) {
 			  sz,
 			  (long)dbuf_p->serialNo);
 
-	/* FIXME: Should handle this instead of 'check & warn' */
-	if ((sz * count) > lu_priv->bufsize)
-		MHVTL_DBG(1,
-				  "Fatal: bufsize %d, requested write of %d bytes",
-				  lu_priv->bufsize, sz);
+	if (!transfer_fits(cmd, (uint32_t)sz, count))
+		return SAM_STAT_CHECK_CONDITION;
 
 	dbuf_p->sz = sz * count;
 
@@ -1091,7 +1118,78 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 	MHVTL_DBG(1, " Save Pages: %d, Page Format conforms to %s standard",
 			  save_pages, (page_format) ? "T10" : "Vendor uniq");
 
-	count = retrieve_CDB_data(cmd->cdev, dbuf_p);
+	/*
+	 * As per t10.org SPC4r31 (6.9)
+	 *
+	 * A save pages (SP) bit set to zero specifies that the device server
+	 * shall perform the specified MODE SELECT operation, and shall not
+	 * save any mode pages. If the logical unit implements no distinction
+	 * between current and saved mode pages and the SP bit is set to zero,
+	 * the command shall be terminated with CHECK CONDITION status,
+	 * with the sense key set to ILLEGAL REQUEST, and the additional
+	 * sense code set to INVALID FIELD IN CDB.
+	 * An SP bit set to one specifies that the device server shall perform
+	 * the specified MODE SELECT operation, and shall save to a nonvolatile
+	 * vendor specific location all the saveable mode pages including any
+	 * sent in the Data-Out Buffer.
+	 * Mode pages that are saved are specified by the parameter saveable
+	 * (PS) bit that is returned in the first byte of each mode page by
+	 * the MODE SENSE command (see 7.5). If the PS bit is set to one in
+	 * the MODE SENSE data, then the mode page shall be saveable by
+	 * issuing a MODE SELECT command with the SP bit set to one. If the
+	 * logical unit does not implement saved mode pages and the SP bit is
+	 * set to one, then the command shall be terminated with CHECK CONDITION
+	 * status, with the sense key set to ILLEGAL REQUEST, and the additional
+	 * sense code set to INVALID FIELD IN CDB.
+	 */
+	if (save_pages) {
+		MHVTL_DBG(1, " Save pages bit set. Not supported");
+		sd.byte0		 = SKSV | CD | BPV | 1; /* bit 1 is invalid */
+		sd.field_pointer = 1;
+		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+
+	/* A parameter list length of zero transfers nothing and is not an error
+	 * (GA32-0928-07 §5.2.10, p.97). Nothing is parsed: the buffer still holds
+	 * an earlier command's data.
+	 */
+	if (!dbuf_p->sz)
+		return SAM_STAT_GOOD;
+
+	if (retrieve_CDB_data_all(cmd->cdev, dbuf_p) < 0)
+		return SAM_STAT_CHECK_CONDITION;
+	count = dbuf_p->sz;
+
+	/* Check the header and block descriptor before anything is read from or
+	 * copied out of them, so these errors change nothing (p.97).
+	 * BLOCK DESCRIPTOR LENGTH is 0 or 8 (§5.6.1.1, Tables 330-331, pp.360-361),
+	 * a list that truncates the header or the descriptor is a PARAMETER LIST
+	 * LENGTH ERROR (p.97), and BLOCK LENGTH is 0 or within the READ BLOCK
+	 * LIMITS range, whose maximum is the command buffer (§5.6.1.2, p.362).
+	 */
+	if (count < mode_param_h_sz) {
+		sam_illegal_request(E_PARAMETER_LIST_LENGTH_ERR, NULL, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	mode_block_descriptor_len = mselect_6 ? buf[3] : get_unaligned_be16(&buf[6]);
+	if (mode_block_descriptor_len != 0 && mode_block_descriptor_len != 8) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = mselect_6 ? 3 : 6;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	if (count < mode_param_h_sz + mode_block_descriptor_len) {
+		sam_illegal_request(E_PARAMETER_LIST_LENGTH_ERR, NULL, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
+	if (mode_block_descriptor_len &&
+		get_unaligned_be24(&buf[mode_param_h_sz + 5]) > (uint32_t)lu_priv->bufsize) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = mode_param_h_sz + 5;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		return SAM_STAT_CHECK_CONDITION;
+	}
 
 	switch (cmd->scb[0]) {
 	case MODE_SELECT:
@@ -1177,38 +1275,6 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 				  buf[i],
 				  get_unaligned_be24(&buf[i + 1]),
 				  get_unaligned_be24(&buf[i + 5]));
-	}
-
-	/*
-	 * As per t10.org SPC4r31 (6.9)
-	 *
-	 * A save pages (SP) bit set to zero specifies that the device server
-	 * shall perform the specified MODE SELECT operation, and shall not
-	 * save any mode pages. If the logical unit implements no distinction
-	 * between current and saved mode pages and the SP bit is set to zero,
-	 * the command shall be terminated with CHECK CONDITION status,
-	 * with the sense key set to ILLEGAL REQUEST, and the additional
-	 * sense code set to INVALID FIELD IN CDB.
-	 * An SP bit set to one specifies that the device server shall perform
-	 * the specified MODE SELECT operation, and shall save to a nonvolatile
-	 * vendor specific location all the saveable mode pages including any
-	 * sent in the Data-Out Buffer.
-	 * Mode pages that are saved are specified by the parameter saveable
-	 * (PS) bit that is returned in the first byte of each mode page by
-	 * the MODE SENSE command (see 7.5). If the PS bit is set to one in
-	 * the MODE SENSE data, then the mode page shall be saveable by
-	 * issuing a MODE SELECT command with the SP bit set to one. If the
-	 * logical unit does not implement saved mode pages and the SP bit is
-	 * set to one, then the command shall be terminated with CHECK CONDITION
-	 * status, with the sense key set to ILLEGAL REQUEST, and the additional
-	 * sense code set to INVALID FIELD IN CDB.
-	 */
-	if (save_pages) {
-		MHVTL_DBG(1, " Save pages bit set. Not supported");
-		sd.byte0		 = SKSV | CD | BPV | 1; /* bit 1 is invalid */
-		sd.field_pointer = 1;
-		sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
-		return SAM_STAT_CHECK_CONDITION;
 	}
 
 	i += mode_block_descriptor_len;

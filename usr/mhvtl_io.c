@@ -471,7 +471,25 @@ int readBlock(uint8_t *buf, uint32_t request_sz, int sili, int lbp_method, uint8
 	pre_crc		  = c_pos->uncomp_crc;
 	blk_flags	  = c_pos->blk_flags;
 
-	if (blk_size > request_sz) {
+	/* The command buffer holds lu_ssc.bufsize bytes. A block that does not
+	 * fit there together with the 4 bytes of protection information LBP_R
+	 * appends (a 2 MiB block read with LBP_R, or a cartridge written
+	 * elsewhere) cannot be returned: copying it would overrun the buffer.
+	 */
+	if ((uint64_t)blk_size + (lbp_method ? 4 : 0) > lu_ssc.bufsize) {
+		MHVTL_ERR("Block %u: %u bytes%s do not fit the %u byte buffer",
+				  blk_number, blk_size, lbp_method ? " and protection information" : "",
+				  lu_ssc.bufsize);
+		sam_medium_error(E_UNRECOVERED_READ, sam_stat);
+		return 0;
+	}
+
+	/* With LBP the request includes the 4 bytes of protection information.
+	 * A block that does not fit the request together with them goes through
+	 * the bounce buffer, so that no more than request_sz bytes reach buf (a
+	 * fixed-mode READ places the next block right after them).
+	 */
+	if ((uint64_t)blk_size + (lbp_method ? 4 : 0) > request_sz) {
 		/* Add a fudge of 4 bytes in case LBP is calculated */
 		bounce_buffer = malloc(blk_size + 4);
 		if (!bounce_buffer) {
