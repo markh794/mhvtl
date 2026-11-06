@@ -1121,8 +1121,13 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 	/* A process-wide key can only implement an all-I_T-nexus scope, and
 	 * LOCK, CKORP and CKORL are not advertised. CEEM, RDMC and SDK are
 	 * accepted and ignored as before (stenc always sends CEEM = 01b).
+	 * A page that turns encryption and decryption off installs no key, so
+	 * SCOPE and LOCK are not checked for it: backup applications send one
+	 * with a narrower scope before they read the label of every cartridge
+	 * (Commvault), and refusing it fails each mount.
 	 */
-	if ((buf[4] >> 5) != ENCRYPTION_SCOPE_ALL_I_T_NEXUS || (buf[4] & 0x01)) {
+	if (((buf[4] >> 5) != ENCRYPTION_SCOPE_ALL_I_T_NEXUS || (buf[4] & 0x01)) &&
+		(buf[6] || buf[7])) {
 		sd.byte0		 = SKSV;
 		sd.field_pointer = 4;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
