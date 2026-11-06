@@ -67,10 +67,13 @@ static struct allow_overwrite_state {
 	uint8_t			   *sam_stat __attribute__((unused)) = &dbuf_p->sam_stat;       \
 	*sam_stat											 = SAM_STAT_GOOD;
 
+/* Clear the first alloc_len bytes of the command buffer, at most all of it.
+ * alloc_len comes from a 32-bit CDB field: compare it without narrowing.
+ */
 void memset_ssc_buf(struct scsi_cmd *cmd, uint64_t alloc_len) {
 	declare_ssc_vars;
 
-	memset(buf, 0, min((int)alloc_len, lu_priv->bufsize));
+	memset(buf, 0, (size_t)min(alloc_len, (uint64_t)lu_priv->bufsize));
 }
 
 /*
@@ -1351,7 +1354,8 @@ uint8_t ssc_mode_select(struct scsi_cmd *cmd) {
 uint8_t ssc_write_attributes(struct scsi_cmd *cmd) {
 	declare_ssc_vars;
 
-	int sz;
+	uint32_t	param_len;
+	struct s_sd sd;
 
 	MHVTL_DBG(1, "WRITE ATTRIBUTES (%ld) **", (long)dbuf_p->serialNo);
 
@@ -1361,11 +1365,31 @@ uint8_t ssc_write_attributes(struct scsi_cmd *cmd) {
 		return SAM_STAT_CHECK_CONDITION;
 		break;
 	case TAPE_LOADED:
-		dbuf_p->sz = get_unaligned_be32(&cdb[10]);
-		sz		   = retrieve_CDB_data(cmd->cdev, dbuf_p);
-		MHVTL_DBG(1, "  --> Expected to read %d bytes"
-					 ", read %d",
-				  dbuf_p->sz, sz);
+		/* GA32-0928-07 §4.0.12, Tables 150-151 (pp.176-177): a PARAMETER
+		 * LIST LENGTH of zero is not an error, and one that truncates an
+		 * attribute is a PARAMETER LIST LENGTH ERROR; resp_write_attribute()
+		 * walks the attributes within it. The list must fit the command
+		 * buffer, an mhVTL limit far above any MAM, or the walk would read
+		 * past it.
+		 */
+		param_len = get_unaligned_be32(&cdb[10]);
+		if (!param_len)
+			return SAM_STAT_GOOD;
+		if (param_len > (uint32_t)lu_priv->bufsize) {
+			MHVTL_DBG(1, "Parameter list of %u bytes exceeds the %d byte buffer",
+					  param_len, lu_priv->bufsize);
+			sd.byte0		 = SKSV | CD;
+			sd.field_pointer = 10;
+			sam_illegal_request(E_INVALID_FIELD_IN_CDB, &sd, sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
+		dbuf_p->sz = param_len;
+		if (retrieve_CDB_data_all(cmd->cdev, dbuf_p) < 0)
+			return SAM_STAT_CHECK_CONDITION;
+		if (param_len < 4) { /* truncated PARAMETER DATA LENGTH */
+			sam_illegal_request(E_PARAMETER_LIST_LENGTH_ERR, NULL, sam_stat);
+			return SAM_STAT_CHECK_CONDITION;
+		}
 		if (resp_write_attribute(cmd) > 0)
 			rewriteMAM(sam_stat);
 		break;
@@ -1587,9 +1611,10 @@ uint8_t ssc_read_media_sn(struct scsi_cmd *cmd) {
 
 	switch (get_tape_load_status()) {
 	case TAPE_LOADED:
-		dbuf_p->sz = resp_read_media_serial(lu_priv->mediaSerialNo,
-											buf,
-											sam_stat);
+		/* Return no more than the ALLOCATION LENGTH (SPC-4 r37 §4.2.5.6) */
+		dbuf_p->sz = min((uint32_t)resp_read_media_serial(lu_priv->mediaSerialNo,
+														  buf, sam_stat),
+						 alloc_len);
 		break;
 	case TAPE_UNLOADED:
 		sam_not_ready(E_MEDIUM_NOT_PRESENT, sam_stat);
