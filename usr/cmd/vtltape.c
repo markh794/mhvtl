@@ -1062,6 +1062,7 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 	size_t				page_len;
 	size_t				offset;
 	uint8_t				seen_kad = 0;
+	uint8_t				drop_key = 0;
 	uint8_t				ret		 = SAM_STAT_CHECK_CONDITION;
 #ifdef MHVTL_DEBUG
 	uint16_t sps	 = get_unaligned_be16(&cmd->scb[2]);
@@ -1120,8 +1121,13 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 	/* A process-wide key can only implement an all-I_T-nexus scope, and
 	 * LOCK, CKORP and CKORL are not advertised. CEEM, RDMC and SDK are
 	 * accepted and ignored as before (stenc always sends CEEM = 01b).
+	 * A page that turns encryption and decryption off installs no key, so
+	 * SCOPE and LOCK are not checked for it: backup applications send one
+	 * with a narrower scope before they read the label of every cartridge
+	 * (Commvault), and refusing it fails each mount.
 	 */
-	if ((buf[4] >> 5) != ENCRYPTION_SCOPE_ALL_I_T_NEXUS || (buf[4] & 0x01)) {
+	if (((buf[4] >> 5) != ENCRYPTION_SCOPE_ALL_I_T_NEXUS || (buf[4] & 0x01)) &&
+		(buf[6] || buf[7])) {
 		sd.byte0		 = SKSV;
 		sd.field_pointer = 4;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
@@ -1170,6 +1176,29 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		goto out;
 	}
+	/* ... and prohibited when neither mode uses one, e.g. Disable/Disable.
+	 * Other drives document only the mandatory case (HPE LTO-8 TRM Vol. 3,
+	 * Set Data Encryption page 0010h) and accept an unused key.
+	 *
+	 * One exception: stenc 1.x (scsiencrypt.cpp, SCSIWriteEncryptOptions)
+	 * and Bareos (scsi_crypto.cc, ClearScsiEncryptionKey) turn encryption
+	 * off with Disable/Disable and a 32-byte all-zero key. That page is
+	 * accepted and the key dropped, so neither stops working.
+	 */
+	if (lu_priv->pm->drive_rejects_unused_key && new_encryption.key_length &&
+		new_encrypt_mode != 2 && new_decrypt_mode < 2) {
+		static const uint8_t zero_key[ENCR_KEY_MAX_LEN];
+
+		if (new_encrypt_mode || new_decrypt_mode ||
+			new_encryption.key_length != ENCR_KEY_MAX_LEN ||
+			memcmp(&buf[20], zero_key, ENCR_KEY_MAX_LEN)) {
+			sd.byte0		 = SKSV;
+			sd.field_pointer = 18;
+			sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+			goto out;
+		}
+		drop_key = 1;
+	}
 	memcpy(new_encryption.key, &buf[20], new_encryption.key_length);
 
 	MHVTL_DBG(2, "Encrypt mode: %d Decrypt mode: %d, "
@@ -1212,11 +1241,26 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 		}
 		offset += 4 + kad_len;
 	}
+	/* GA32-0928-07 Table 418 (p.464): U-KAD and A-KAD descriptors are
+	 * prohibited unless ENCRYPTION MODE is Encrypt, even with no data
+	 */
+	if (lu_priv->pm->drive_rejects_unused_key && seen_kad &&
+		new_encrypt_mode != 2) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = 20 + new_encryption.key_length;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
+	}
 	if (lu_priv->pm->kad_validation(new_encrypt_mode,
 									new_encryption.ukad_length,
 									new_encryption.akad_length)) {
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, NULL, sam_stat);
 		goto out;
+	}
+	if (drop_key) {
+		MHVTL_DBG(1, "Ignoring the all-zero key sent with Disable/Disable");
+		clear_sensitive(new_encryption.key, sizeof(new_encryption.key));
+		new_encryption.key_length = 0;
 	}
 	clear_sensitive(&app_encryption_state, sizeof(app_encryption_state));
 	gcm_forget_keys();

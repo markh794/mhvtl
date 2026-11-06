@@ -14,15 +14,15 @@
 static struct harness_daemon daemon_ctx;
 static struct test_env		 test_env;
 
-static const struct drive_type *lto8(void) {
+static const struct drive_type *drive_named(const char *name) {
 	for (const struct drive_type *dt = ALL_DRIVES; dt->name; dt++)
-		if (strcmp(dt->name, "LTO-8") == 0)
+		if (strcmp(dt->name, name) == 0)
 			return dt;
 	return NULL;
 }
 
-static int start_drive(void) {
-	const struct drive_type *dt = lto8();
+static int start_drive_named(const char *name) {
+	const struct drive_type *dt = drive_named(name);
 	struct scsi_result		 r;
 	uint8_t					 tur[6] = {0x00};
 
@@ -39,6 +39,10 @@ static int start_drive(void) {
 		usleep(100000);
 	}
 	return -1;
+}
+
+static int start_drive(void) {
+	return start_drive_named("LTO-8");
 }
 
 static void stop_drive(void) {
@@ -196,6 +200,39 @@ void test_unsupported_controls_rejected(void) {
 	}
 }
 
+/* A page that turns encryption off is accepted with any SCOPE and LOCK */
+void test_encryption_off_any_scope_accepted(void) {
+	static const struct {
+		const char *name;
+		uint8_t		byte4;
+	} cases[] = {
+		{"public scope", 0x00},
+		{"local scope", 0x20},
+		{"lock", 0x41},
+	};
+	uint8_t			   page[20], key[52], status[64] = {0};
+	struct scsi_result r;
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		TEST_CASE(cases[i].name);
+		TEST_ASSERT(start_drive() == 0);
+		set_page(key, sizeof(key), 0);
+		TEST_ASSERT(spout(key, sizeof(key), &r) == 0);
+		TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+		set_page(page, sizeof(page), 0);
+		page[4]	 = cases[i].byte4;
+		page[6]	 = 0;
+		page[7]	 = 0;
+		page[19] = 0;
+		TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+		TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "sam_stat %u sense %02x/%02x fp %u",
+					r.sam_stat, r.sense[12], r.sense[13], r.sense[17]);
+		TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+		TEST_CHECK_(status[5] == 0 && status[6] == 0, "mode %u/%u", status[5], status[6]);
+		stop_drive();
+	}
+}
+
 /* Without CKOD the key survives a demount */
 void test_no_ckod_keeps_state_on_unload(void) {
 	uint8_t			   page[52], status[64] = {0};
@@ -290,6 +327,140 @@ void test_malformed_pages_rejected(void) {
 	stop_drive();
 }
 
+/* GA32-0928-07 Table 418 (p.464): a key is prohibited unless a mode uses it,
+ * and U-KAD/A-KAD descriptors unless ENCRYPTION MODE is Encrypt. The page is
+ * refused and the encryption state already installed is left alone. The one
+ * exception is the all-zero key stenc 1.x and Bareos send with Disable/Disable.
+ */
+void test_unused_key_and_kad_rejected(void) {
+	uint8_t			   page[64], status[64] = {0};
+	struct scsi_result r;
+	uint32_t		   kic;
+
+	TEST_ASSERT(start_drive() == 0);
+	set_page(page, 52, 0);
+	TEST_ASSERT(spout(page, 52, &r) == 0);
+	TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+	TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+	kic = get_unaligned_be32(&status[8]);
+
+	TEST_CASE("key with Disable/Disable");
+	set_page(page, 52, 0);
+	page[6] = 0;
+	page[7] = 0;
+	TEST_ASSERT(spout(page, 52, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 18);
+
+	TEST_CASE("key with Disable/Raw");
+	set_page(page, 52, 0);
+	page[6] = 0;
+	page[7] = 1;
+	TEST_ASSERT(spout(page, 52, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 18);
+
+	TEST_CASE("key with External/Disable");
+	set_page(page, 52, 0);
+	page[6] = 1;
+	page[7] = 0;
+	TEST_ASSERT(spout(page, 52, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 18);
+
+	TEST_CASE("A-KAD with External/Decrypt");
+	set_page(page, 60, 0);
+	page[6]	 = 1;
+	page[52] = 0x01, page[55] = 4; /* A-KAD, length 4 */
+	memcpy(&page[56], "ABCD", 4);
+	TEST_ASSERT(spout(page, 60, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 52);
+
+	TEST_CASE("empty U-KAD with Disable/Disable");
+	set_page(page, 24, 0);
+	page[6]	 = 0;
+	page[7]	 = 0;
+	page[19] = 0;
+	memset(&page[20], 0, 4); /* U-KAD, length 0 */
+	TEST_ASSERT(spout(page, 24, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 20);
+
+	TEST_CASE("A-KAD with Disable/Decrypt");
+	set_page(page, 60, 0);
+	page[6]	 = 0;
+	page[52] = 0x01, page[55] = 4; /* A-KAD, length 4 */
+	memcpy(&page[56], "ABCD", 4);
+	TEST_ASSERT(spout(page, 60, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 52);
+
+	TEST_CASE("zero key with Disable/Raw");
+	set_page(page, 52, 0);
+	memset(&page[20], 0, 32);
+	page[6] = 0;
+	page[7] = 1;
+	TEST_ASSERT(spout(page, 52, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 18);
+
+	TEST_CASE("zero key and U-KAD with Disable/Disable");
+	set_page(page, 56, 0);
+	memset(&page[20], 0, 36); /* zero key, then U-KAD of length 0 */
+	page[6] = 0;
+	page[7] = 0;
+	TEST_ASSERT(spout(page, 56, &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 52);
+
+	TEST_CASE("state kept");
+	TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+	TEST_CHECK_(status[5] == 2 && status[6] == 2, "mode %u/%u", status[5], status[6]);
+	TEST_CHECK_(get_unaligned_be32(&status[8]) == kic, "key instance counter %u, was %u",
+				get_unaligned_be32(&status[8]), kic);
+
+	/* stenc 1.x and Bareos turn encryption off with a 32-byte zero key */
+	TEST_CASE("zero key with Disable/Disable");
+	set_page(page, 52, 0);
+	memset(&page[20], 0, 32);
+	page[6] = 0;
+	page[7] = 0;
+	TEST_ASSERT(spout(page, 52, &r) == 0);
+	TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "sam_stat %u sense %02x/%02x fp %u", r.sam_stat,
+				r.sense[12], r.sense[13], field_pointer(&r));
+	TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+	TEST_CHECK_(status[5] == 0 && status[6] == 0, "mode %u/%u", status[5], status[6]);
+
+	TEST_CASE("Disable/Disable without key");
+	set_page(page, 20, 0);
+	page[6]	 = 0;
+	page[7]	 = 0;
+	page[19] = 0;
+	TEST_ASSERT(spout(page, 20, &r) == 0);
+	TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "sam_stat %u", r.sam_stat);
+	TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+	TEST_CHECK_(status[5] == 0 && status[6] == 0, "mode %u/%u", status[5], status[6]);
+	stop_drive();
+}
+
+/* HPE documents only that a key is required to encrypt or decrypt (LTO-8 TRM
+ * Vol. 3, Set Data Encryption page 0010h), and GA32-0928-07 covers IBM LTO-5
+ * and later, so an HP drive and an IBM LTO-4 still take a key with
+ * Disable/Disable.
+ */
+void test_unused_key_accepted_elsewhere(void) {
+	static const char *drives[] = {"HP-LTO6", "LTO-4"};
+	uint8_t			   page[52], status[64] = {0};
+	struct scsi_result r;
+
+	for (size_t i = 0; i < sizeof(drives) / sizeof(drives[0]); i++) {
+		TEST_CASE(drives[i]);
+		TEST_ASSERT(start_drive_named(drives[i]) == 0);
+		set_page(page, sizeof(page), 0);
+		page[6] = 0;
+		page[7] = 0;
+		TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+		TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "sam_stat %u sense %02x/%02x", r.sam_stat,
+					r.sense[12], r.sense[13]);
+		TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+		TEST_CHECK_(status[5] == 0 && status[6] == 0, "mode %u/%u", status[5], status[6]);
+		stop_drive();
+	}
+}
+
 /* A transfer length larger than the data buffer must not reach resp_spout() */
 void test_oversized_transfer_length_rejected(void) {
 	uint8_t			   cdb[12] = {0xb5, 0x20, 0x00, 0x10};
@@ -315,7 +486,10 @@ TEST_LIST = {
 	{"ckod_clears_state_on_unload", test_ckod_clears_state_on_unload},
 	{"ceem_and_rdmc_accepted", test_ceem_and_rdmc_accepted},
 	{"unsupported_controls_rejected", test_unsupported_controls_rejected},
+	{"encryption_off_any_scope_accepted", test_encryption_off_any_scope_accepted},
 	{"no_ckod_keeps_state_on_unload", test_no_ckod_keeps_state_on_unload},
 	{"malformed_pages_rejected", test_malformed_pages_rejected},
+	{"unused_key_and_kad_rejected", test_unused_key_and_kad_rejected},
+	{"unused_key_accepted_elsewhere", test_unused_key_accepted_elsewhere},
 	{"oversized_transfer_length_rejected", test_oversized_transfer_length_rejected},
 	{NULL, NULL}};
