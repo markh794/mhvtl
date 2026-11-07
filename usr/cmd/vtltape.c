@@ -100,6 +100,7 @@ char mhvtl_driver_name[] = "vtltape";
 #include <zlib.h>
 #include "minilzo.h"
 
+#define ENCRYPTION_SCOPE_PUBLIC		   0
 #define ENCRYPTION_SCOPE_ALL_I_T_NEXUS 2
 
 static void clear_sensitive(void *ptr, size_t len) {
@@ -902,11 +903,13 @@ static int resp_spin_page_20(struct scsi_cmd *cmd) {
 	case ENCR_KEY_MGT_CAPABILITIES:
 		put_unaligned_be16(ENCR_KEY_MGT_CAPABILITIES, &buf[0]);
 		put_unaligned_be16(0x0c, &buf[2]); /* List length */
-		/* One daemon-wide state is shared by all I_T nexuses. */
+		/* One daemon-wide state is shared by all I_T nexuses, so
+		 * PUBLIC is exact and LOCAL is not (see resp_spout()).
+		 */
 		buf[4] = 0;						   /* LOCK_C */
 		buf[5] = 0x04;					   /* CKOD_C */
 		buf[6] = 0;						   /* Reserved */
-		buf[7] = 0x04;					   /* AITN_C */
+		buf[7] = 0x05;					   /* AITN_C, PUBLIC_C */
 		/* buf 8 - 15 reserved */
 		ret = 16;
 		break;
@@ -1091,14 +1094,9 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 	}
 	/* check for a legal "set data encryption page" */
 	if ((buf[0] != 0x00) || (buf[1] != 0x10) ||
-		(buf[2] != 0x00) || (buf[3] < 16) ||
-		(buf[8] != 0x01) || (buf[9] != 0x00)) {
+		(buf[2] != 0x00) || (buf[3] < 16)) {
 		sd.byte0 = SKSV;
 		/* Make sure the 'byte closest to [0]' is the one reported */
-		if (buf[9])
-			sd.field_pointer = 9;
-		if (buf[8] != 1)
-			sd.field_pointer = 8;
 		if (buf[3] < 16)
 			sd.field_pointer = 3;
 		if (buf[2])
@@ -1118,13 +1116,51 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
 		goto out;
 	}
+	/* SCOPE values 3h-7h are reserved (GA32-0928-07 Table 417, p.462) */
+	if ((buf[4] >> 5) > ENCRYPTION_SCOPE_ALL_I_T_NEXUS) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = 4;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
+	}
+	/* SCOPE PUBLIC: the I_T nexus uses the parameters shared by the other
+	 * nexuses, and every field other than SCOPE and LOCK is ignored (HPE
+	 * LTO-8 TRM Vol. 3, Set Data Encryption page 0010h; scope codes in IBM
+	 * GA32-0928-07 Table 417, p.462). Every nexus already shares the one
+	 * daemon-wide state, so the page changes nothing. LOCK would bind the
+	 * nexus to those parameters, which needs per-nexus state: it is not
+	 * advertised (LOCK_C = 0) and is refused.
+	 */
+	if ((buf[4] >> 5) == ENCRYPTION_SCOPE_PUBLIC) {
+		if (buf[4] & 0x01) {
+			sd.byte0		 = SKSV;
+			sd.field_pointer = 4;
+			sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+			goto out;
+		}
+		MHVTL_DBG(1, "SCOPE PUBLIC: keeping the shared encryption parameters");
+		ret = SAM_STAT_GOOD;
+		goto out;
+	}
+	if ((buf[8] != 0x01) || (buf[9] != 0x00)) {
+		sd.byte0		 = SKSV;
+		sd.field_pointer = (buf[8] != 0x01) ? 8 : 9;
+		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
+		goto out;
+	}
 	/* A process-wide key can only implement an all-I_T-nexus scope, and
 	 * LOCK, CKORP and CKORL are not advertised. CEEM, RDMC and SDK are
 	 * accepted and ignored as before (stenc always sends CEEM = 01b).
-	 * A page that turns encryption and decryption off installs no key, so
-	 * SCOPE and LOCK are not checked for it: backup applications send one
-	 * with a narrower scope before they read the label of every cartridge
-	 * (Commvault), and refusing it fails each mount.
+	 *
+	 * One exception: a LOCAL page that turns encryption and decryption off
+	 * installs no key, so it is applied to the shared state. Commvault
+	 * sends one before it reads or writes the label of every cartridge,
+	 * under a reservation, and refusing it fails each mount. For the
+	 * sending nexus this is what a drive with LOCAL_C = 1 does (IBM LTO
+	 * drives report it, GA32-0928-07 Table 407, p.452); other nexuses lose
+	 * their ALL I_T NEXUS parameters, which a drive would keep. Telling
+	 * the nexuses apart needs the initiator identity, which neither the
+	 * kernel module nor TCMU passes to vtltape.
 	 */
 	if (((buf[4] >> 5) != ENCRYPTION_SCOPE_ALL_I_T_NEXUS || (buf[4] & 0x01)) &&
 		(buf[6] || buf[7])) {
