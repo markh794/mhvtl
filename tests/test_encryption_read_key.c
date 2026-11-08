@@ -1,6 +1,8 @@
 /*
  * Reading an encrypted block must use the key the application loaded,
  * even after an unencrypted write has cleared app_encr_info.
+ * With DECRYPTION MODE = DECRYPT, a filemark or end of data is reported as
+ * such, not as unencrypted data.
  */
 #include <stdio.h>
 #include <string.h>
@@ -111,7 +113,71 @@ void test_t10k_read_after_unencrypted_append(void) {
 	read_back_after_unencrypted_append("T10000C");
 }
 
+/* An encrypted tape with two files, read back with DECRYPTION MODE = DECRYPT */
+static void read_across_filemark_in_decrypt_mode(const char *name) {
+	uint8_t			   block[512], buf[512];
+	struct scsi_result r;
+
+	TEST_CASE(name);
+	TEST_ASSERT(start_drive(drive(name)) == 0);
+	TEST_ASSERT(set_encryption(2, 2, 1, &r) == 0 && r.sam_stat == SAM_STAT_GOOD);
+	for (int i = 0; i < 2; i++) {
+		memset(block, 0x30 + i, sizeof(block));
+		TEST_ASSERT(harness_tape_write(&daemon_ctx, block, sizeof(block), &r) == 0);
+		TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+		TEST_ASSERT(harness_tape_write_fm(&daemon_ctx, 1, &r) == 0);
+		TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+	}
+	TEST_ASSERT(harness_tape_rewind(&daemon_ctx, &r) == 0);
+
+	for (int i = 0; i < 2; i++) {
+		TEST_ASSERT(harness_tape_read(&daemon_ctx, buf, sizeof(buf), &r) == 0);
+		memset(block, 0x30 + i, sizeof(block));
+		TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD && memcmp(buf, block, sizeof(block)) == 0,
+					"file %d block: sam_stat %u sense %02x/%02x", i, r.sam_stat, r.sense[12],
+					r.sense[13]);
+		/* NO SENSE, FILEMARK, 00/01 */
+		TEST_ASSERT(harness_tape_read(&daemon_ctx, buf, sizeof(buf), &r) == 0);
+		TEST_CHECK_(r.sam_stat == SAM_STAT_CHECK_CONDITION && (r.sense[2] & 0x80) &&
+						(r.sense[2] & 0x0f) == NO_SENSE && r.sense[12] == 0x00 &&
+						r.sense[13] == 0x01,
+					"file %d filemark: sam_stat %u sense %02x %02x/%02x", i, r.sam_stat,
+					r.sense[2], r.sense[12], r.sense[13]);
+	}
+	/* BLANK CHECK, 00/05 end of data */
+	TEST_ASSERT(harness_tape_read(&daemon_ctx, buf, sizeof(buf), &r) == 0);
+	TEST_CHECK_(r.sam_stat == SAM_STAT_CHECK_CONDITION && (r.sense[2] & 0x0f) == BLANK_CHECK &&
+					r.sense[12] == 0x00 && r.sense[13] == 0x05,
+				"end of data: sam_stat %u sense %02x %02x/%02x", r.sam_stat, r.sense[2],
+				r.sense[12], r.sense[13]);
+
+	/* An unencrypted block is still refused in DECRYPT mode */
+	TEST_ASSERT(set_encryption(0, 3, 1, &r) == 0 && r.sam_stat == SAM_STAT_GOOD);
+	TEST_ASSERT(harness_tape_write(&daemon_ctx, block, sizeof(block), &r) == 0);
+	TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+	TEST_ASSERT(set_encryption(0, 2, 1, &r) == 0 && r.sam_stat == SAM_STAT_GOOD);
+	TEST_ASSERT(harness_tape_rewind(&daemon_ctx, &r) == 0);
+	for (int i = 0; i < 4; i++)
+		TEST_ASSERT(harness_tape_read(&daemon_ctx, buf, sizeof(buf), &r) == 0);
+	TEST_ASSERT(harness_tape_read(&daemon_ctx, buf, sizeof(buf), &r) == 0);
+	TEST_CHECK_(r.sam_stat == SAM_STAT_CHECK_CONDITION && (r.sense[2] & 0x0f) == DATA_PROTECT &&
+					r.sense[12] == 0x74 && r.sense[13] == 0x02,
+				"unencrypted block: sam_stat %u sense %02x %02x/%02x", r.sam_stat, r.sense[2],
+				r.sense[12], r.sense[13]);
+	stop_drive();
+}
+
+void test_lto_read_across_filemark(void) {
+	read_across_filemark_in_decrypt_mode("LTO-8");
+}
+
+void test_t10k_read_across_filemark(void) {
+	read_across_filemark_in_decrypt_mode("T10000C");
+}
+
 TEST_LIST = {
 	{"lto_read_after_unencrypted_append", test_lto_read_after_unencrypted_append},
 	{"t10k_read_after_unencrypted_append", test_t10k_read_after_unencrypted_append},
+	{"lto_read_across_filemark", test_lto_read_across_filemark},
+	{"t10k_read_across_filemark", test_t10k_read_across_filemark},
 	{NULL, NULL}};

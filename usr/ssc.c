@@ -617,7 +617,10 @@ uint8_t valid_encryption_blk(struct scsi_cmd *cmd) {
 			sam_data_protect(E_UNABLE_TO_DECRYPT, sam_stat);
 			correct_key = FALSE;
 		}
-	} else if (lu_priv->DECRYPT_MODE == 2) {
+	} else if (lu_priv->DECRYPT_MODE == 2 && c_pos->blk_type == B_DATA) {
+		/* Only a logical block can be unencrypted data; a filemark or
+		 * end of data is reported by readBlock() as on any other tape.
+		 */
 		sam_data_protect(E_UNENCRYPTED_DATA, sam_stat);
 		correct_key = FALSE;
 	}
