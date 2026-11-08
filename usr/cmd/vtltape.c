@@ -1142,7 +1142,13 @@ uint8_t resp_spout(struct scsi_cmd *cmd) {
 		ret = SAM_STAT_GOOD;
 		goto out;
 	}
-	if ((buf[8] != 0x01) || (buf[9] != 0x00)) {
+	/* ALGORITHM INDEX and KEY FORMAT are only checked when the page turns
+	 * encryption or decryption on: a page that turns both off uses no
+	 * algorithm and no key. IBM drives enforce this field only where it is
+	 * incompatible with the medium (GA32-0928-07 §5.8.3.1, p.463), and
+	 * stenc 1.x sends ALGORITHM INDEX 0 for "-e off" without "-a".
+	 */
+	if ((buf[6] || buf[7]) && ((buf[8] != 0x01) || (buf[9] != 0x00))) {
 		sd.byte0		 = SKSV;
 		sd.field_pointer = (buf[8] != 0x01) ? 8 : 9;
 		sam_illegal_request(E_INVALID_FIELD_IN_PARMS, &sd, sam_stat);
