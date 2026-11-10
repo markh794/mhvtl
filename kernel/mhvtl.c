@@ -1909,6 +1909,13 @@ static int mhvtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 	return ret;
 }
 
+/* One open file per minor. vtltape and vtllibrary already open their node
+ * with O_EXCL; enforcing it here means the file mhvtl_release() sees is the
+ * daemon's, so another process opening and closing the node can't remove the
+ * unit under it, or poll commands off it.
+ */
+static DECLARE_BITMAP(mhvtl_minor_open, DEF_MAX_MINOR_NO);
+
 static int mhvtl_release(struct inode *inode, struct file *filp) {
 	unsigned int		  minor = iminor(inode);
 	struct mhvtl_lu_info *lu;
@@ -1920,7 +1927,8 @@ static int mhvtl_release(struct inode *inode, struct file *filp) {
 	if (minor >= DEF_MAX_MINOR_NO)
 		return 0;
 
-	/* The daemon owns its logical unit for as long as it holds this file.
+	/* The daemon owns its logical unit for as long as it holds this file,
+	 * and the open is exclusive, so this is the daemon going away.
 	 * A daemon that exits without issuing VTL_REMOVE_LU - killed, crashed,
 	 * or left behind by a unit with KillMode=none - would otherwise strand
 	 * the scsi_device reference taken by __scsi_add_device(). That keeps
@@ -1947,12 +1955,21 @@ static int mhvtl_release(struct inode *inode, struct file *filp) {
 		scsi_device_put(sdev);
 	}
 
+	/* Only now, so a new daemon can't open the node and find the old
+	 * unit still registered while it is being removed.
+	 */
+	clear_bit_unlock(minor, mhvtl_minor_open);
 	return 0;
 }
 
 static int mhvtl_open(struct inode *inode, struct file *filp) {
 	unsigned int minor = iminor(inode);
 
+	if (minor < DEF_MAX_MINOR_NO &&
+		test_and_set_bit_lock(minor, mhvtl_minor_open)) {
+		pr_debug("mhvtl%u: already open\n", minor);
+		return -EBUSY;
+	}
 	pr_debug("mhvtl%u: opened\n", minor);
 	return 0;
 }
