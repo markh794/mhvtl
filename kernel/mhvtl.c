@@ -185,7 +185,7 @@ static int mhvtl_major = 0;
 
 #define DEF_MAX_MINOR_NO 1024 /* Max number of minor nos. this driver will handle */
 
-#define VTL_CANQUEUE	1 /* needs to be >= 1 */
+#define VTL_CANQUEUE	64 /* needs to be >= 1 */
 #define VTL_MAX_CMD_LEN 16
 
 static struct kmem_cache *dsp;
