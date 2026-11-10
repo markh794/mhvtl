@@ -306,7 +306,7 @@ static void mhvtl_timer_intr_handler(unsigned long indx);
 #endif
 static struct mhvtl_lu_info *devInfoReg(struct scsi_device *sdp);
 static void					 mk_sense_buffer(struct mhvtl_lu_info *lu, int key, int asc, int asq);
-static void					 mhvtl_stop_all_queued(void);
+static void					 mhvtl_stop_all_queued(int result);
 static int					 do_create_driverfs_files(void);
 static void					 do_remove_driverfs_files(void);
 
@@ -1051,7 +1051,7 @@ static int mhvtl_host_reset(struct scsi_cmnd *SCpnt) {
 			lu->reset = 1;
 	}
 	spin_unlock_irqrestore(&mhvtl_hba_list_lock, hba_iflags);
-	mhvtl_stop_all_queued();
+	mhvtl_stop_all_queued(DID_RESET << 16);
 	return SUCCESS;
 }
 
@@ -1157,12 +1157,32 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 	} while (busy);
 }
 
-/* Deletes (stops) timers of all queued commands.
+/* True if the midlayer has already timed the command out, so the error
+ * handler owns it. SCMD_STATE_COMPLETE exists since v5.0; on older kernels
+ * the block layer drops the extra completion, but the result is still
+ * overwritten.
+ */
+static int mhvtl_cmnd_timed_out(struct scsi_cmnd *sc) {
+#ifdef SCMD_STATE_COMPLETE
+	return test_bit(SCMD_STATE_COMPLETE, &sc->state);
+#else
+	return 0;
+#endif
+}
+
+/* Completes every queued command with 'result'.
+ *
+ * A host reset can come from the SCSI reset ioctl (sg_reset -H) while
+ * commands on other logical units are still in flight and not owned by the
+ * error handler. Freeing those without completing them leaves their
+ * submitters waiting until the command times out. Commands the error
+ * handler already owns are only freed: scsi_done() would ignore them, and
+ * writing their result would replace what the error handler reports.
  *
  * A command a daemon is copying data for is left to that ioctl, and this
  * waits for it before looking again, so nothing is freed under the copy.
  */
-static void mhvtl_stop_all_queued(void) {
+static void mhvtl_stop_all_queued(int result) {
 	unsigned long			 hba_iflags;
 	struct mhvtl_queued_cmd *sqcp, *n;
 	struct mhvtl_hba_info	*mhvtl_hba;
@@ -1182,8 +1202,7 @@ static void mhvtl_stop_all_queued(void) {
 						busy = 1;
 						continue;
 					}
-					sqcp->state	 = CMD_STATE_FREE;
-					sqcp->a_cmnd = NULL;
+					sqcp->state = CMD_STATE_FREE;
 					list_move(&sqcp->queued_sibling, &dead);
 				}
 				spin_unlock(&lu->cmd_list_lock);
@@ -1194,6 +1213,11 @@ static void mhvtl_stop_all_queued(void) {
 		/* Timers are drained with no lock held - the handler takes cmd_list_lock */
 		list_for_each_entry_safe(sqcp, n, &dead, queued_sibling) {
 			timer_delete_sync(&sqcp->cmnd_timer);
+			if (sqcp->done_funct && sqcp->a_cmnd &&
+				!mhvtl_cmnd_timed_out(sqcp->a_cmnd)) {
+				sqcp->a_cmnd->result = result;
+				sqcp->done_funct(sqcp->a_cmnd);
+			}
 			list_del(&sqcp->queued_sibling);
 			kfree(sqcp);
 		}
@@ -1509,7 +1533,7 @@ register_chrdev_error:
 static void __exit mhvtl_exit(void) {
 	int k;
 
-	mhvtl_stop_all_queued();
+	mhvtl_stop_all_queued(DID_NO_CONNECT << 16);
 
 	for (k = mhvtl_add_host; k; k--)
 		mhvtl_remove_adapter();
