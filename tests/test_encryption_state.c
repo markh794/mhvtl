@@ -83,6 +83,8 @@ static void set_page(uint8_t *data, size_t len, int ckod) {
 	data[6]	 = 2;
 	data[7]	 = 2;
 	data[8]	 = 1;
+	if (len < 52) /* no room for a key: the caller turns the modes off */
+		return;
 	data[18] = 0;
 	data[19] = 32;
 	for (size_t i = 0; i < 32; i++)
@@ -96,7 +98,7 @@ void test_capability_and_status_scope(void) {
 	TEST_ASSERT(start_drive() == 0);
 	TEST_ASSERT(spin(0x0012, buf, sizeof(buf), &r) == 0);
 	TEST_CHECK(r.sam_stat == SAM_STAT_GOOD);
-	TEST_CHECK_(buf[4] == 0 && buf[5] == 0x04 && buf[7] == 0x04,
+	TEST_CHECK_(buf[4] == 0 && buf[5] == 0x04 && buf[7] == 0x05,
 				"management capabilities %02x/%02x/%02x", buf[4], buf[5], buf[7]);
 	TEST_ASSERT(spin(0x0020, buf, sizeof(buf), &r) == 0);
 	TEST_CHECK(r.sam_stat == SAM_STAT_GOOD);
@@ -152,6 +154,10 @@ static int is_invalid_field_in_parms(const struct scsi_result *r) {
 		   r->sense[12] == 0x26 && r->sense[13] == 0x00;
 }
 
+static unsigned int field_pointer(const struct scsi_result *r) {
+	return (r->sense[15] & 0x80) ? (r->sense[16] << 8) | r->sense[17] : 0xffff;
+}
+
 /* stenc sends CEEM = 01b and may set RDMC; both must still be accepted */
 void test_ceem_and_rdmc_accepted(void) {
 	uint8_t			   page[52];
@@ -173,8 +179,8 @@ void test_unsupported_controls_rejected(void) {
 		uint8_t		byte5;
 		int			unload;
 	} cases[] = {
-		{"public scope", 0x00, 0x00, 0},
 		{"local scope", 0x20, 0x00, 0},
+		{"reserved scope", 0x60, 0x00, 0},
 		{"lock", 0x41, 0x00, 0},
 		{"ckorp", 0x40, 0x02, 0},
 		{"ckorl", 0x40, 0x01, 0},
@@ -200,13 +206,14 @@ void test_unsupported_controls_rejected(void) {
 	}
 }
 
-/* A page that turns encryption off is accepted with any SCOPE and LOCK */
+/* A page that turns encryption off is accepted with LOCAL scope and LOCK
+ * (PUBLIC is a no-op, see test_public_scope_keeps_state)
+ */
 void test_encryption_off_any_scope_accepted(void) {
 	static const struct {
 		const char *name;
 		uint8_t		byte4;
 	} cases[] = {
-		{"public scope", 0x00},
 		{"local scope", 0x20},
 		{"lock", 0x41},
 	};
@@ -233,6 +240,130 @@ void test_encryption_off_any_scope_accepted(void) {
 	}
 }
 
+/* SCOPE PUBLIC uses the shared parameters and ignores every other field,
+ * so whatever else the page says, the state set by another nexus is kept
+ */
+void test_public_scope_keeps_state(void) {
+	static const struct {
+		const char *name;
+		uint8_t		mode;	  /* ENCRYPTION and DECRYPTION MODE */
+		uint8_t		key_byte; /* fill for the 32-byte key */
+		uint8_t		alg;	  /* ALGORITHM INDEX */
+	} cases[] = {
+		{"off with zero key", 0, 0x00, 1},
+		{"off with unused key", 0, 0x5a, 1},
+		{"encrypt with another key", 2, 0x5a, 1},
+		{"unsupported algorithm index", 2, 0x5a, 0xff},
+	};
+	uint8_t			   page[52], before[64] = {0}, after[64] = {0};
+	struct scsi_result r;
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		TEST_CASE(cases[i].name);
+		TEST_ASSERT(start_drive() == 0);
+		set_page(page, sizeof(page), 0);
+		TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+		TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+		TEST_ASSERT(spin(0x0020, before, sizeof(before), &r) == 0);
+
+		set_page(page, sizeof(page), 0);
+		page[4] = 0x00; /* PUBLIC */
+		page[6] = cases[i].mode;
+		page[7] = cases[i].mode;
+		page[8] = cases[i].alg;
+		memset(&page[20], cases[i].key_byte, 32);
+		TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+		TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "sam_stat %u sense %02x/%02x fp %u",
+					r.sam_stat, r.sense[12], r.sense[13], r.sense[17]);
+		TEST_ASSERT(spin(0x0020, after, sizeof(after), &r) == 0);
+		/* modes, algorithm index and key instance counter unchanged */
+		TEST_CHECK_(memcmp(before, after, 24) == 0, "mode %u/%u -> %u/%u, counter %u -> %u",
+					before[5], before[6], after[5], after[6],
+					get_unaligned_be32(&before[8]), get_unaligned_be32(&after[8]));
+		stop_drive();
+	}
+
+	/* A PUBLIC page still has to be a Set Data Encryption page */
+	TEST_CASE("public page with a bad page length");
+	TEST_ASSERT(start_drive() == 0);
+	set_page(page, sizeof(page), 0);
+	page[4] = 0x00;
+	page[3] = 12;
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 3);
+	stop_drive();
+
+	/* LOCK would bind the nexus to the shared parameters; LOCK_C is 0 */
+	TEST_CASE("public page with LOCK");
+	TEST_ASSERT(start_drive() == 0);
+	set_page(page, sizeof(page), 0);
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+	TEST_ASSERT(spin(0x0020, before, sizeof(before), &r) == 0);
+	page[4] = 0x01;
+	page[6] = 0;
+	page[7] = 0;
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_CHECK_(is_invalid_field_in_parms(&r) && field_pointer(&r) == 4,
+				"sam_stat %u sense %02x/%02x fp %u", r.sam_stat, r.sense[12],
+				r.sense[13], field_pointer(&r));
+	TEST_ASSERT(spin(0x0020, after, sizeof(after), &r) == 0);
+	TEST_CHECK(memcmp(before, after, 24) == 0);
+	stop_drive();
+}
+
+/* A PUBLIC page does not touch CKOD: a key set with CKOD is still cleared
+ * at the next demount
+ */
+void test_public_scope_keeps_ckod(void) {
+	uint8_t			   page[52], status[64] = {0};
+	struct scsi_result r;
+
+	TEST_ASSERT(start_drive() == 0);
+	set_page(page, sizeof(page), 1);
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+	set_page(page, sizeof(page), 0);
+	page[4] = 0x00; /* PUBLIC, CKOD 0 */
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+	TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+	TEST_CHECK_(status[5] == 2 && status[6] == 2, "before unload: mode %u/%u",
+				status[5], status[6]);
+	TEST_ASSERT(harness_unload_tape(TEST_MINOR_TAPE) == 0);
+	TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+	TEST_CHECK_(status[5] == 0 && status[6] == 0, "after unload: mode %u/%u",
+				status[5], status[6]);
+	stop_drive();
+}
+
+/* A reserved SCOPE is refused even on a page that turns encryption off,
+ * and byte 4 is reported ahead of a bad ALGORITHM INDEX in byte 8
+ */
+void test_reserved_scope_off_page_rejected(void) {
+	uint8_t			   page[20];
+	struct scsi_result r;
+
+	TEST_CASE("off page");
+	TEST_ASSERT(start_drive() == 0);
+	set_page(page, sizeof(page), 0);
+	page[4]	 = 0x60;
+	page[6]	 = 0;
+	page[7]	 = 0;
+	page[19] = 0;
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 4);
+	stop_drive();
+
+	TEST_CASE("bad algorithm index as well");
+	TEST_ASSERT(start_drive() == 0);
+	page[8] = 0;
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_CHECK_(is_invalid_field_in_parms(&r) && field_pointer(&r) == 4, "fp %u",
+				field_pointer(&r));
+	stop_drive();
+}
+
 /* Without CKOD the key survives a demount */
 void test_no_ckod_keeps_state_on_unload(void) {
 	uint8_t			   page[52], status[64] = {0};
@@ -246,10 +377,6 @@ void test_no_ckod_keeps_state_on_unload(void) {
 	TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
 	TEST_CHECK_(status[5] == 2 && status[6] == 2, "mode %u/%u", status[5], status[6]);
 	stop_drive();
-}
-
-static unsigned int field_pointer(const struct scsi_result *r) {
-	return (r->sense[15] & 0x80) ? (r->sense[16] << 8) | r->sense[17] : 0xffff;
 }
 
 /* Malformed KAD lists and a missing key are refused with 26h/00h */
@@ -487,6 +614,9 @@ TEST_LIST = {
 	{"ceem_and_rdmc_accepted", test_ceem_and_rdmc_accepted},
 	{"unsupported_controls_rejected", test_unsupported_controls_rejected},
 	{"encryption_off_any_scope_accepted", test_encryption_off_any_scope_accepted},
+	{"public_scope_keeps_state", test_public_scope_keeps_state},
+	{"public_scope_keeps_ckod", test_public_scope_keeps_ckod},
+	{"reserved_scope_off_page_rejected", test_reserved_scope_off_page_rejected},
 	{"no_ckod_keeps_state_on_unload", test_no_ckod_keeps_state_on_unload},
 	{"malformed_pages_rejected", test_malformed_pages_rejected},
 	{"unused_key_and_kad_rejected", test_unused_key_and_kad_rejected},
