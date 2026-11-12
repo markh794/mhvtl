@@ -16,9 +16,13 @@ RemainAfterExit=yes
 Environment=MHVTL_BACKEND=mhvtl
 EnvironmentFile=-@CONF_PATH@/mhvtl.conf
 ExecStart=@BIN_PATH@/mhvtl-fabrics apply
+# reload applies an edited fabrics.conf without removing the targets first,
+# so sessions to targets it leaves unchanged survive (restart drops them all)
+ExecReload=@BIN_PATH@/mhvtl-fabrics apply
 # ExecStopPost also runs when apply fails, so a half-built target is removed
 ExecStopPost=@BIN_PATH@/mhvtl-fabrics remove
-# apply waits up to 3 s per LUN (at least 60 s) for the backstores
+# apply waits up to 3 s per LUN (at least 60 s) for the backstores; the start
+# timeout also bounds reload (systemd.service(5))
 TimeoutStartSec=300
 
 # Writes only configfs and its state in /run/mhvtl. ProtectKernelTunables

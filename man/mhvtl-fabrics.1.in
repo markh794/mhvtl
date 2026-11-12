@@ -73,7 +73,12 @@ after their record was deleted.
 \fBmhvtl-fabrics.service\fR runs \fBapply\fR after \fBmhvtl.target\fR is up
 and \fBremove\fR before it stops. It is also part of
 \fBmhvtl-tcmu-handler.service\fR, so restarting the handler removes the
-targets first and applies them again afterwards. A host that only exports devices can turn
+targets first and applies them again afterwards.
+After editing
+.BR fabrics.conf (5),
+run \fBsystemctl reload mhvtl-fabrics.service\fR: it runs \fBapply\fR, so
+sessions to targets the edit leaves unchanged survive. \fBsystemctl restart\fR
+removes every target first. A host that only exports devices can turn
 off the local loopback presentation with \fBMHVTL_TCMU_LOOPBACK=no\fR in
 .BR mhvtl.conf (5).
 .PP
