@@ -77,6 +77,25 @@ targets first and applies them again afterwards. A host that only exports device
 off the local loopback presentation with \fBMHVTL_TCMU_LOOPBACK=no\fR in
 .BR mhvtl.conf (5).
 .PP
+Persistent reservations made with APTPL survive a restart of
+\fBmhvtl.target\fR: the handler replays the saved reservation file when it
+creates a backstore. They do not survive re-provisioning while the backstores
+stay up, that is \fBremove\fR followed by \fBapply\fR, or an \fBapply\fR that
+moves a drive to another LUN because its \fBSlot\fR changed. Removing an
+initiator's mapped LUN makes the kernel drop that initiator's registrations,
+and the reservation if it holds one
+(\fBcore_scsi3_free_pr_reg_from_nacl\fR() in
+\fIdrivers/target/target_core_pr.c\fR), without updating the saved file, and
+the kernel takes the saved file back only while the backstore is not exported.
+After \fBremove\fR and \fBapply\fR with an unchanged mapping, restart
+\fBmhvtl.target\fR to restore them, before an initiator completes a
+PERSISTENT RESERVE OUT that changes the reservation state of that device: the
+kernel then rewrites the file from what it still holds, and the dropped
+registrations are lost for good. A restart does not help after a \fBSlot\fR
+change: the kernel restores a saved registration only on the same LUN it was
+made on. Restore the previous \fBSlot\fR and restart, or have the initiators
+register and reserve again.
+.PP
 Do not save these targets with \fBtargetcli saveconfig\fR: \fBtarget.service\fR
 would restore them at boot, before the handler has created the backstores.
 .PP
