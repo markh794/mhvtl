@@ -338,7 +338,8 @@ void test_public_scope_keeps_ckod(void) {
 }
 
 /* A reserved SCOPE is refused even on a page that turns encryption off,
- * and byte 4 is reported ahead of a bad ALGORITHM INDEX in byte 8
+ * and byte 4 is reported ahead of a bad ALGORITHM INDEX in byte 8 on a
+ * page that turns encryption on
  */
 void test_reserved_scope_off_page_rejected(void) {
 	uint8_t			   page[20];
@@ -357,10 +358,64 @@ void test_reserved_scope_off_page_rejected(void) {
 
 	TEST_CASE("bad algorithm index as well");
 	TEST_ASSERT(start_drive() == 0);
+	page[6] = 2;
+	page[7] = 2;
 	page[8] = 0;
 	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
 	TEST_CHECK_(is_invalid_field_in_parms(&r) && field_pointer(&r) == 4, "fp %u",
 				field_pointer(&r));
+	stop_drive();
+}
+
+/* A page that turns both modes off uses no algorithm: stenc 1.x "-e off"
+ * without "-a" sends ALGORITHM INDEX 0. A page that turns a mode on still
+ * needs a supported index and key format.
+ */
+void test_off_page_ignores_algorithm_index(void) {
+	static const struct {
+		const char *name;
+		uint8_t		byte8, byte9;
+	} cases[] = {
+		{"algorithm index 0", 0x00, 0x00},
+		{"algorithm index ff", 0xff, 0x00},
+		{"key format 2", 0x01, 0x02},
+	};
+	uint8_t			   page[20], key[52], status[64] = {0};
+	struct scsi_result r;
+
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+		TEST_CASE(cases[i].name);
+		TEST_ASSERT(start_drive() == 0);
+		set_page(key, sizeof(key), 0);
+		TEST_ASSERT(spout(key, sizeof(key), &r) == 0);
+		TEST_ASSERT(r.sam_stat == SAM_STAT_GOOD);
+		set_page(page, sizeof(page), 0);
+		page[6] = 0;
+		page[7] = 0;
+		page[8] = cases[i].byte8;
+		page[9] = cases[i].byte9;
+		TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+		TEST_CHECK_(r.sam_stat == SAM_STAT_GOOD, "sam_stat %u sense %02x/%02x fp %u",
+					r.sam_stat, r.sense[12], r.sense[13], r.sense[17]);
+		TEST_ASSERT(spin(0x0020, status, sizeof(status), &r) == 0);
+		TEST_CHECK_(status[5] == 0 && status[6] == 0, "mode %u/%u", status[5], status[6]);
+		stop_drive();
+	}
+
+	TEST_CASE("encrypt with algorithm index 0");
+	TEST_ASSERT(start_drive() == 0);
+	set_page(key, sizeof(key), 0);
+	key[8] = 0;
+	TEST_ASSERT(spout(key, sizeof(key), &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 8);
+
+	TEST_CASE("raw decrypt with key format 2");
+	set_page(page, sizeof(page), 0);
+	page[6] = 0;
+	page[7] = 1;
+	page[9] = 2;
+	TEST_ASSERT(spout(page, sizeof(page), &r) == 0);
+	TEST_CHECK(is_invalid_field_in_parms(&r) && field_pointer(&r) == 9);
 	stop_drive();
 }
 
@@ -614,6 +669,7 @@ TEST_LIST = {
 	{"ceem_and_rdmc_accepted", test_ceem_and_rdmc_accepted},
 	{"unsupported_controls_rejected", test_unsupported_controls_rejected},
 	{"encryption_off_any_scope_accepted", test_encryption_off_any_scope_accepted},
+	{"off_page_ignores_algorithm_index", test_off_page_ignores_algorithm_index},
 	{"public_scope_keeps_state", test_public_scope_keeps_state},
 	{"public_scope_keeps_ckod", test_public_scope_keeps_ckod},
 	{"reserved_scope_off_page_rejected", test_reserved_scope_off_page_rejected},
