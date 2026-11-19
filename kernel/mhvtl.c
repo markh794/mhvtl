@@ -1884,6 +1884,14 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 		ret = 1; /* report busy to mid level */
 		goto give_up;
 	}
+	/* The return value is deliberately not used as the command result.
+	 * It is only nonzero (DID_ERROR) for a command that is not a read but
+	 * has a data buffer, e.g. WRITE or MODE SELECT. The daemon completes
+	 * every command through here and does not always clear ds->sz, and
+	 * such a command has no read buffer to leave stale, so its result is
+	 * the daemon's status below. A short copy for a read is reported
+	 * through the residual count instead.
+	 */
 	ret = mhvtl_fill_from_user_buffer(sqcp->a_cmnd, ds->data, ds->sz);
 	if (ds->sam_stat) { /* Auto-sense */
 		sqcp->a_cmnd->result = ds->sam_stat;
