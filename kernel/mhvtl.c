@@ -915,15 +915,18 @@ static void mhvtl_timer_intr_handler(unsigned long data) {
 
 	/* The daemon never answered, so nothing was transferred or stored.
 	 * Completing with GOOD status would report e.g. a WRITE as done that
-	 * the daemon may never have written. DID_ERROR fails it instead; the
-	 * tape and passthrough paths don't retry data commands, so a write
-	 * the daemon is still processing is not issued a second time.
+	 * the daemon may never have written. The command must fail without
+	 * being retried, since the daemon may still be processing it: the
+	 * midlayer retries DID_ERROR whenever retries remain, and ch issues
+	 * MOVE MEDIUM with one, which would move a cartridge twice.
+	 * DID_NO_CONNECT is never retried, and is what the daemon-gone paths
+	 * already report.
 	 */
 	pr_warn("lu %llu: no response from daemon for serial %llu,"
 			" failing command\n",
 			(unsigned long long)lu->lun, sqcp->serial_number);
 	if (sqcp->done_funct) {
-		sqcp->a_cmnd->result = DID_ERROR << 16;
+		sqcp->a_cmnd->result = DID_NO_CONNECT << 16;
 		sqcp->done_funct(sqcp->a_cmnd); /* callback to mid level */
 	}
 	kfree(sqcp);
