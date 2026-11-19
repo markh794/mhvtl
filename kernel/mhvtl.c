@@ -1173,8 +1173,7 @@ static int mhvtl_cmnd_timed_out(struct scsi_cmnd *sc) {
  * A command a daemon is copying data for is left to that ioctl, and this
  * waits for the copy before looking again. Release can run while a daemon
  * is mid-copy, since any close of the device node calls it and it does not
- * take ioctl_mutex. VTL_REMOVE_LU calls this under mhvtl_hba_list_lock, but
- * it holds ioctl_mutex, so no copy can be running and it never waits.
+ * take ioctl_mutex. It may sleep, so callers must not hold a spinlock.
  */
 static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 	struct mhvtl_queued_cmd *sqcp, *n;
@@ -1964,6 +1963,7 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 	struct mhvtl_ctl	   ctl;
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info  *lu, *n;
+	struct mhvtl_lu_info  *rm_lu = NULL;
 	struct scsi_device	  *baksdev;
 	int					   ret = -ENODEV;
 
@@ -1995,11 +1995,16 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 		if ((lu->channel == ctl.channel) && (lu->target == ctl.id) &&
 			(lu->lun == ctl.lun)) {
 			pr_debug("line %d found matching lu\n", __LINE__);
-			/* Fail anything still outstanding while the unit is still
-			 * reachable, so scsi_remove_device() below has a queue that
-			 * can actually drain.
+			/* Its outstanding commands are failed below, once this
+			 * lock is dropped: that stops timers and calls into the
+			 * midlayer, neither of which may run under a spinlock
+			 * with interrupts off. The reference keeps the unit alive
+			 * until then.
 			 */
-			mhvtl_fail_queued_cmnds(lu);
+			if (!rm_lu) {
+				rm_lu = lu;
+				atomic_inc(&lu->refcnt);
+			}
 			/* _init so the later list_del_init() in sdev_destroy(),
 			 * reached through scsi_remove_device() below, does not walk
 			 * poisoned pointers.
@@ -2023,6 +2028,14 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 		}
 	}
 	spin_unlock_irqrestore(&mhvtl_hba_list_lock, hba_iflags);
+
+	/* Fail anything still outstanding before removing the device, so
+	 * scsi_remove_device() has a queue that can actually drain.
+	 */
+	if (rm_lu) {
+		mhvtl_fail_queued_cmnds(rm_lu);
+		mhvtl_lu_put(rm_lu);
+	}
 
 	if (baksdev) {
 		scsi_remove_device(baksdev);
