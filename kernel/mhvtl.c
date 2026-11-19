@@ -1121,6 +1121,19 @@ again:
 	return found;
 }
 
+/* True if the midlayer has already timed the command out, so the error
+ * handler owns it. SCMD_STATE_COMPLETE exists since v5.0; on older kernels
+ * the block layer drops the extra completion, but the result is still
+ * overwritten.
+ */
+static int mhvtl_cmnd_timed_out(struct scsi_cmnd *sc) {
+#ifdef SCMD_STATE_COMPLETE
+	return test_bit(SCMD_STATE_COMPLETE, &sc->state);
+#else
+	return 0;
+#endif
+}
+
 /* Complete every command still outstanding on this logical unit.
  *
  * A removal that simply unlinks the unit strands its commands: the daemon can
@@ -1156,7 +1169,11 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 
 		list_for_each_entry_safe(sqcp, n, &dead, queued_sibling) {
 			timer_delete_sync(&sqcp->cmnd_timer);
-			if (sqcp->done_funct && sqcp->a_cmnd) {
+			/* See mhvtl_stop_all_queued() for commands the error
+			 * handler already owns.
+			 */
+			if (sqcp->done_funct && sqcp->a_cmnd &&
+				!mhvtl_cmnd_timed_out(sqcp->a_cmnd)) {
 				sqcp->a_cmnd->result = DID_NO_CONNECT << 16;
 				sqcp->done_funct(sqcp->a_cmnd);
 			}
@@ -1168,19 +1185,6 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 		if (busy)
 			wait_event(mhvtl_busy_wq, !mhvtl_lu_busy(lu));
 	} while (busy);
-}
-
-/* True if the midlayer has already timed the command out, so the error
- * handler owns it. SCMD_STATE_COMPLETE exists since v5.0; on older kernels
- * the block layer drops the extra completion, but the result is still
- * overwritten.
- */
-static int mhvtl_cmnd_timed_out(struct scsi_cmnd *sc) {
-#ifdef SCMD_STATE_COMPLETE
-	return test_bit(SCMD_STATE_COMPLETE, &sc->state);
-#else
-	return 0;
-#endif
 }
 
 /* Completes every queued command with 'result'.
