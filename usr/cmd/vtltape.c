@@ -2447,15 +2447,15 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 				snprintf(&lu->inquiry[32], PRODUCT_REV_LEN + 1, "%-4s", v);
 			}
 			v = conf_value(b, "Library ID");
-			if (v && sscanf(v, "%d", &library_id)) {
+			if (v && 1 == sscanf(v, "%d", &library_id)) {
 				MHVTL_DBG(2, "Library ID: %d", library_id);
 			}
 			v = conf_value(b, "LBP RSCRC BE");
-			if (v && sscanf(v, "%d", &lbp_rscrc_be)) {
+			if (v && 1 == sscanf(v, "%d", &lbp_rscrc_be)) {
 				MHVTL_DBG(2, "Logical Block Protection RSCRC: %d", lbp_rscrc_be);
 			}
 			v = conf_value(b, "Backoff");
-			if (v && sscanf(v, "%d", &i)) {
+			if (v && 1 == sscanf(v, "%d", &i)) {
 				if ((i > 1) && (i < 10000)) {
 					MHVTL_DBG(1, "Backoff value: %d", i);
 					backoff = i;

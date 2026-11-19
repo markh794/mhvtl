@@ -1464,10 +1464,10 @@ static int init_lu(struct lu_phy_attr *lu, unsigned minor, struct mhvtl_ctl *ctl
 			if (v)
 				smc_slots.movecommand = strndup(v, MALLOC_SZ);
 			v = conf_value(b, "commandtimeout");
-			if (v && sscanf(v, "%d", &d))
+			if (v && 1 == sscanf(v, "%d", &d))
 				smc_slots.commandtimeout = d;
 			v = conf_value(b, "Backoff");
-			if (v && sscanf(v, "%d", &i)) {
+			if (v && 1 == sscanf(v, "%d", &i)) {
 				if ((i > 1) && (i < 10000)) {
 					MHVTL_DBG(1, "Backoff value: %d", i);
 					backoff = i;
