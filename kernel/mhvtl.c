@@ -215,6 +215,11 @@ struct mhvtl_lu_info {
 
 	struct list_head cmd_list; /* list of outstanding cmds for this lu */
 	spinlock_t		 cmd_list_lock;
+
+	/* This unit's share of mhvtl_busy_count; see the ownership rule */
+	atomic_t busy_count;
+	/* One for the unit itself plus one per busy_count; freed at zero */
+	atomic_t refcnt;
 };
 
 static struct mhvtl_lu_info *devp[DEF_MAX_MINOR_NO];
@@ -275,6 +280,14 @@ struct mhvtl_queued_cmd {
  * the same critical section that unlinks the entry. Abort and host
  * reset wait for it to drop, so they never return while a completion for
  * a command they could not find is still on its way to the midlayer.
+ *
+ * Each logical unit also counts its own share in lu->busy_count. Abort
+ * waits only for that, so it is not held up by copies and completions on
+ * every other unit. Host reset stops commands on every unit and waits for
+ * the global count. A completion still touches the unit after done_funct
+ * has returned, and that completion may be what let the device go away,
+ * so each count also holds a reference on the unit (lu->refcnt) and the
+ * last mhvtl_lu_put() frees it.
  */
 static atomic_t mhvtl_busy_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(mhvtl_busy_wq);
@@ -726,6 +739,18 @@ static int mhvtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 }
 #endif
 
+static void mhvtl_lu_put(struct mhvtl_lu_info *lu) {
+	if (atomic_dec_and_test(&lu->refcnt))
+		kfree(lu);
+}
+
+/* Starts a copy or a completion for a command on lu. */
+static void mhvtl_busy_get(struct mhvtl_lu_info *lu) {
+	atomic_inc(&lu->refcnt);
+	atomic_inc(&lu->busy_count);
+	atomic_inc(&mhvtl_busy_count);
+}
+
 /* Finds the command with this serial number and marks it busy, so the
  * timer, abort and reset paths leave it alone while the caller copies data
  * outside the lock. Returns NULL if the command is no longer queued, for
@@ -741,7 +766,7 @@ static struct mhvtl_queued_cmd *mhvtl_get_busy_sqcp(struct mhvtl_lu_info *lu,
 		if (sqcp->state && !sqcp->busy &&
 			sqcp->serial_number == serialNo) {
 			sqcp->busy = 1;
-			atomic_inc(&mhvtl_busy_count);
+			mhvtl_busy_get(lu);
 			spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 			return sqcp;
 		}
@@ -750,10 +775,12 @@ static struct mhvtl_queued_cmd *mhvtl_get_busy_sqcp(struct mhvtl_lu_info *lu,
 	return NULL;
 }
 
-/* Ends a copy or a completion counted in mhvtl_busy_count. */
-static void mhvtl_busy_done(void) {
+/* Ends a copy or a completion started with mhvtl_busy_get(). */
+static void mhvtl_busy_done(struct mhvtl_lu_info *lu) {
+	atomic_dec(&lu->busy_count);
 	atomic_dec(&mhvtl_busy_count);
 	wake_up_all(&mhvtl_busy_wq);
+	mhvtl_lu_put(lu);
 }
 
 /* Clears busy. With 'take' set, also unlinks the entry, which makes the
@@ -773,7 +800,7 @@ static void mhvtl_put_busy_sqcp(struct mhvtl_lu_info	 *lu,
 	}
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 	if (!take)
-		mhvtl_busy_done();
+		mhvtl_busy_done(lu);
 }
 
 /* True if the command for SCpnt is queued on lu and marked busy. */
@@ -883,7 +910,7 @@ static void mhvtl_timer_intr_handler(unsigned long data) {
 	}
 	list_del_init(&sqcp->queued_sibling);
 	sqcp->state = CMD_STATE_FREE;
-	atomic_inc(&mhvtl_busy_count); /* completion in progress */
+	mhvtl_busy_get(lu); /* completion in progress */
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 
 	/* The daemon never answered, so nothing was transferred or stored.
@@ -900,7 +927,7 @@ static void mhvtl_timer_intr_handler(unsigned long data) {
 		sqcp->done_funct(sqcp->a_cmnd); /* callback to mid level */
 	}
 	kfree(sqcp);
-	mhvtl_busy_done();
+	mhvtl_busy_done(lu);
 }
 
 static int mhvtl_sdev_alloc(struct scsi_device *sdp) {
@@ -976,8 +1003,9 @@ static void mhvtl_sdev_destroy(struct scsi_device *sdp) {
 		spin_lock_irqsave(&mhvtl_hba_list_lock, iflags);
 		list_del_init(&lu->lu_sibling);
 		spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
-		kfree(sdp->hostdata);
 		sdp->hostdata = NULL;
+		/* A completion still finishing holds its own reference */
+		mhvtl_lu_put(lu);
 	}
 }
 
@@ -1111,9 +1139,10 @@ again:
 	if (!found) {
 		/* VTL_PUT_DATA or the timer may have taken it and still be
 		 * completing it; returning SUCCESS now would let that completion
-		 * land on the retried command.
+		 * land on the retried command. Only this unit's copies and
+		 * completions can involve SCpnt, so wait for those alone.
 		 */
-		wait_event(mhvtl_busy_wq, atomic_read(&mhvtl_busy_count) == 0);
+		wait_event(mhvtl_busy_wq, atomic_read(&lu->busy_count) == 0);
 	} else {
 		timer_delete_sync(&sqcp->cmnd_timer);
 		kfree(sqcp);
@@ -1163,7 +1192,7 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 			}
 			sqcp->state = CMD_STATE_FREE;
 			list_move(&sqcp->queued_sibling, &dead);
-			atomic_inc(&mhvtl_busy_count); /* completion in progress */
+			mhvtl_busy_get(lu); /* completion in progress */
 		}
 		spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 
@@ -1179,7 +1208,7 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 			}
 			list_del(&sqcp->queued_sibling);
 			kfree(sqcp);
-			mhvtl_busy_done();
+			mhvtl_busy_done(lu);
 		}
 
 		if (busy)
@@ -1221,7 +1250,7 @@ static void mhvtl_stop_all_queued(int result) {
 					}
 					sqcp->state = CMD_STATE_FREE;
 					list_move(&sqcp->queued_sibling, &dead);
-					atomic_inc(&mhvtl_busy_count);
+					mhvtl_busy_get(lu);
 				}
 				spin_unlock(&lu->cmd_list_lock);
 			}
@@ -1236,9 +1265,10 @@ static void mhvtl_stop_all_queued(int result) {
 				sqcp->a_cmnd->result = result;
 				sqcp->done_funct(sqcp->a_cmnd);
 			}
+			lu = sqcp->lu;
 			list_del(&sqcp->queued_sibling);
 			kfree(sqcp);
-			mhvtl_busy_done();
+			mhvtl_busy_done(lu);
 		}
 
 		/* Also wait for completions VTL_PUT_DATA or the timer started */
@@ -1302,6 +1332,7 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 		return -ENOMEM;
 	}
 	memset(lu, 0, sizeof(*lu));
+	atomic_set(&lu->refcnt, 1);
 
 	lu->minor	  = minor;
 	lu->channel	  = ctl->channel;
@@ -1767,7 +1798,7 @@ static int mhvtl_driver_remove(struct device *dev) {
 		 */
 		if (lu->minor < DEF_MAX_MINOR_NO && devp[lu->minor] == lu)
 			devp[lu->minor] = NULL;
-		kfree(lu);
+		mhvtl_lu_put(lu);
 	}
 
 	scsi_host_put(mhvtl_hba->shost);
@@ -1878,7 +1909,7 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 	else
 		pr_err("FATAL, line %d: SCSI done_funct callback => NULL\n", __LINE__);
 	kfree(sqcp);
-	mhvtl_busy_done();
+	mhvtl_busy_done(lu);
 
 	ret = 0;
 
