@@ -1781,6 +1781,7 @@ static int mhvtl_driver_remove(struct device *dev) {
  *******************************************************************
  */
 static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
+	struct mhvtl_lu_info	*lu;
 	struct mhvtl_queued_cmd *sqcp = NULL;
 	struct mhvtl_ds			*ds;
 	int						 ret = 0;
@@ -1801,16 +1802,18 @@ static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
 	pr_debug(" data sz        : %d\n", ds->sz);
 	pr_debug(" SAM status     : %d (0x%02x)\n",
 			 ds->sam_stat, ds->sam_stat);
-	up	 = ds->data;
-	sz	 = ds->sz;
-	sqcp = mhvtl_get_busy_sqcp(devp[minor], ds->serialNo);
+	up = ds->data;
+	sz = ds->sz;
+	/* Read the slot once: get and put must pair on the same unit */
+	lu = READ_ONCE(devp[minor]);
+	sqcp = lu ? mhvtl_get_busy_sqcp(lu, ds->serialNo) : NULL;
 	if (!sqcp) {
 		ret = -ENOTTY;
 		goto ret_err;
 	}
 
 	ret = mhvtl_resp_write_to_user(sqcp->a_cmnd, up, sz);
-	mhvtl_put_busy_sqcp(devp[minor], sqcp, 0);
+	mhvtl_put_busy_sqcp(lu, sqcp, 0);
 
 ret_err:
 	kmem_cache_free(dsp, ds);
@@ -1818,6 +1821,7 @@ ret_err:
 }
 
 static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
+	struct mhvtl_lu_info	*lu;
 	struct mhvtl_queued_cmd *sqcp = NULL;
 	struct mhvtl_ds			*ds;
 	int						 ret = 0;
@@ -1840,7 +1844,9 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 	pr_debug(" data sz        : %d\n", ds->sz);
 	pr_debug(" SAM status     : %d (0x%02x)\n",
 			 ds->sam_stat, ds->sam_stat);
-	sqcp = mhvtl_get_busy_sqcp(devp[minor], ds->serialNo);
+	/* Read the slot once: get and put must pair on the same unit */
+	lu = READ_ONCE(devp[minor]);
+	sqcp = lu ? mhvtl_get_busy_sqcp(lu, ds->serialNo) : NULL;
 	if (!sqcp) {
 		pr_err("Callback function not found for SCSI cmd s/no. %lld, minor: %d\n",
 			   (unsigned long long)ds->serialNo,
@@ -1865,7 +1871,7 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 		sqcp->a_cmnd->result = DID_OK << 16;
 	}
 	/* Take ownership; from here no other path can reach the command */
-	mhvtl_put_busy_sqcp(devp[minor], sqcp, 1);
+	mhvtl_put_busy_sqcp(lu, sqcp, 1);
 	timer_delete_sync(&sqcp->cmnd_timer);
 	if (sqcp->done_funct)
 		sqcp->done_funct(sqcp->a_cmnd);
