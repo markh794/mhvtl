@@ -884,8 +884,17 @@ static void mhvtl_timer_intr_handler(unsigned long data) {
 	atomic_inc(&mhvtl_busy_count); /* completion in progress */
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 
+	/* The daemon never answered, so nothing was transferred or stored.
+	 * Completing with GOOD status would report e.g. a WRITE as done that
+	 * the daemon may never have written. DID_ERROR fails it instead; the
+	 * tape and passthrough paths don't retry data commands, so a write
+	 * the daemon is still processing is not issued a second time.
+	 */
+	pr_warn("lu %llu: no response from daemon for serial %llu,"
+			" failing command\n",
+			(unsigned long long)lu->lun, sqcp->serial_number);
 	if (sqcp->done_funct) {
-		sqcp->a_cmnd->result = sqcp->scsi_result;
+		sqcp->a_cmnd->result = DID_ERROR << 16;
 		sqcp->done_funct(sqcp->a_cmnd); /* callback to mid level */
 	}
 	kfree(sqcp);
