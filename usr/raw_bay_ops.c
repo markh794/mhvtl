@@ -10,6 +10,8 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <time.h>
 #include <sys/stat.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -99,45 +101,61 @@ static int ensure_symlink(const char *barcode, const char *by_path,
 			  const char **reason)
 {
 	char		link[HOME_DIR_PATH_SZ + 1 + 33];
-	struct stat	st;
 	char		cur[RAW_BAY_PATH_MAX];
+	char		tmpname[64];
 	ssize_t		n;
+	int		dirfd;
 	struct mhvtl_raw_probe pr;
 
 	snprintf(link, sizeof(link), "%s/%s", home_directory, barcode);
 
-	if (lstat(link, &st) == 0) {
-		if (!S_ISLNK(st.st_mode)) {
-			*reason = "a non-symlink file already occupies "
-				  "home_directory/<barcode>";
-			return -1;
-		}
-		n = readlink(link, cur, sizeof(cur) - 1);
-		if (n >= 0) {
-			cur[n] = '\0';
-			if (strcmp(cur, by_path) == 0)
-				return 0;	/* already correct, leave it */
-			if (raw_probe(cur, &pr) == 0 &&
-			    strcmp(pr.barcode, barcode) == 0) {
-				*reason = "duplicate barcode: another present "
-					  "disk already provides it";
-				return -1;
-			}
-		}
-		/* Stale/incorrect symlink: refresh it to the current binding. */
-		if (unlink(link) < 0) {
-			*reason = "cannot replace stale home_directory/<barcode> symlink";
-			return -1;
-		}
-	} else if (errno != ENOENT) {
-		*reason = "cannot stat home_directory/<barcode>";
+	dirfd = open(home_directory, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (dirfd < 0) {
+		*reason = "cannot open home_directory";
 		return -1;
 	}
 
-	if (symlink(by_path, link) < 0) {
+	n = readlinkat(dirfd, barcode, cur, sizeof(cur) - 1);
+	if (n >= 0) {
+		cur[n] = '\0';
+		if (strcmp(cur, by_path) == 0) {
+			close(dirfd);
+			return 0;	/* already correct, leave it */
+		}
+		if (raw_probe(cur, &pr) == 0 &&
+		    strcmp(pr.barcode, barcode) == 0) {
+			close(dirfd);
+			*reason = "duplicate barcode: another present "
+				  "disk already provides it";
+			return -1;
+		}
+	} else if (errno != ENOENT && errno != EINVAL) {
+		close(dirfd);
+		*reason = "cannot stat home_directory/<barcode>";
+		return -1;
+	} else if (errno == EINVAL) {
+		close(dirfd);
+		*reason = "a non-symlink file already occupies home_directory/<barcode>";
+		return -1;
+	}
+
+	snprintf(tmpname, sizeof(tmpname), ".%s.tmp.%ld.%ld",
+		 barcode, (long)getpid(), (long)time(NULL));
+
+	if (symlinkat(by_path, dirfd, tmpname) < 0) {
+		close(dirfd);
 		*reason = "cannot create home_directory/<barcode> symlink";
 		return -1;
 	}
+
+	if (renameat(dirfd, tmpname, dirfd, barcode) < 0) {
+		unlinkat(dirfd, tmpname, 0);
+		close(dirfd);
+		*reason = "cannot replace stale home_directory/<barcode> symlink";
+		return -1;
+	}
+
+	close(dirfd);
 	return 0;
 }
 
@@ -382,15 +400,12 @@ int raw_bay_remove(const struct raw_bay *bay, const char *barcode, int verbose_l
 	find_media_home_directory(NULL, bay->library_id);
 	if (home_directory[0] != '\0') {
 		char link[HOME_DIR_PATH_SZ + 1 + 33];
-		struct stat st;
 
 		snprintf(link, sizeof(link), "%s/%s", home_directory, resolved);
-		if (lstat(link, &st) == 0 && S_ISLNK(st.st_mode)) {
-			if (unlink(link) < 0 && verbose_log)
-				fprintf(stderr,
-					"bay %s: could not unlink %s: %s\n",
-					bay->by_path, link, strerror(errno));
-		}
+		if (unlink(link) < 0 && errno != ENOENT && verbose_log)
+			fprintf(stderr,
+				"bay %s: could not unlink %s: %s\n",
+				bay->by_path, link, strerror(errno));
 	}
 
 	/*
