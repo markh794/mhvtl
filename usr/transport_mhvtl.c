@@ -160,7 +160,12 @@ static int chrdev_open(const char *name, unsigned minor)
 		return -1;
 	}
 	snprintf(devname, sizeof(devname), "/dev/%s%u", name, minor);
-	ctlfd = open(devname, O_RDWR | O_NONBLOCK | O_EXCL);
+	/* O_CLOEXEC: the kernel allows one open file per minor and only frees
+	 * it on the last close. Without it, a command run via /bin/sh (e.g. a
+	 * library movecommand) that leaves a background process behind keeps
+	 * the node open after this daemon exits, and its restart gets EBUSY.
+	 */
+	ctlfd = open(devname, O_RDWR | O_NONBLOCK | O_EXCL | O_CLOEXEC);
 	if (ctlfd < 0) {
 		printf("Cannot open %s %s\n", devname, strerror(errno));
 		fflush(NULL);

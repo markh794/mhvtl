@@ -215,6 +215,11 @@ struct mhvtl_lu_info {
 
 	struct list_head cmd_list; /* list of outstanding cmds for this lu */
 	spinlock_t		 cmd_list_lock;
+
+	/* This unit's share of mhvtl_busy_count; see the ownership rule */
+	atomic_t busy_count;
+	/* One for the unit itself plus one per busy_count; freed at zero */
+	atomic_t refcnt;
 };
 
 static struct mhvtl_lu_info *devp[DEF_MAX_MINOR_NO];
@@ -250,7 +255,6 @@ struct mhvtl_queued_cmd {
 	struct timer_list	cmnd_timer;
 	done_funct_t		done_funct;
 	struct scsi_cmnd   *a_cmnd;
-	int					scsi_result;
 	struct mhvtl_header op_header;
 
 	struct list_head   queued_sibling;
@@ -270,9 +274,19 @@ struct mhvtl_queued_cmd {
  * unlinked by the ioctl that marked it.
  *
  * mhvtl_busy_count counts data copies in progress plus completions that
- * VTL_PUT_DATA or the timer have started but not finished. Abort and host
+ * VTL_PUT_DATA, the timer, mhvtl_fail_queued_cmnds() or
+ * mhvtl_stop_all_queued() have started but not finished: each raises it in
+ * the same critical section that unlinks the entry. Abort and host
  * reset wait for it to drop, so they never return while a completion for
  * a command they could not find is still on its way to the midlayer.
+ *
+ * Each logical unit also counts its own share in lu->busy_count. Abort
+ * waits only for that, so it is not held up by copies and completions on
+ * every other unit. Host reset stops commands on every unit and waits for
+ * the global count. A completion still touches the unit after done_funct
+ * has returned, and that completion may be what let the device go away,
+ * so each count also holds a reference on the unit (lu->refcnt) and the
+ * last mhvtl_lu_put() frees it.
  */
 static atomic_t mhvtl_busy_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(mhvtl_busy_wq);
@@ -490,15 +504,15 @@ static void mhvtl_debug_queued_list(struct mhvtl_lu_info *lu) {
 		if (sqcp->state) {
 			if (sqcp->a_cmnd) {
 				pr_info("%d entry in use "
-						"SCpnt: %p, SCSI result: %d, done: %p, "
+						"SCpnt: %p, done: %p, "
 						"Serial No: %lld\n",
-						k, sqcp->a_cmnd, sqcp->scsi_result,
+						k, sqcp->a_cmnd,
 						sqcp->done_funct,
 						sqcp->serial_number);
 			} else {
 				pr_info("%d entry in use "
-						"SCpnt: %p, SCSI result: %d, done: %p\n",
-						k, sqcp->a_cmnd, sqcp->scsi_result,
+						"SCpnt: %p, done: %p\n",
+						k, sqcp->a_cmnd,
 						sqcp->done_funct);
 			}
 		} else
@@ -571,7 +585,6 @@ static int mhvtl_q_cmd(struct scsi_cmnd		*scp,
 	sqcp->cmnd_timer.data	  = (unsigned long)sqcp;
 #endif
 	sqcp->a_cmnd			 = scp;
-	sqcp->scsi_result		 = 0;
 	sqcp->busy				 = 0;
 	sqcp->lu				 = lu;
 	INIT_LIST_HEAD(&sqcp->queued_sibling);
@@ -724,6 +737,35 @@ static int mhvtl_change_queue_depth(struct scsi_device *sdev, int qdepth,
 }
 #endif
 
+static void mhvtl_lu_put(struct mhvtl_lu_info *lu) {
+	if (atomic_dec_and_test(&lu->refcnt))
+		kfree(lu);
+}
+
+/* Returns the unit in devp[minor] with a reference held, or NULL. Every
+ * write to devp[] happens under mhvtl_hba_list_lock, and sdev_destroy
+ * clears the slot there before dropping the unit's own reference, so a
+ * unit found here cannot be freed until the caller's mhvtl_lu_put().
+ */
+static struct mhvtl_lu_info *mhvtl_lu_get_minor(unsigned int minor) {
+	struct mhvtl_lu_info *lu;
+	unsigned long		  iflags;
+
+	spin_lock_irqsave(&mhvtl_hba_list_lock, iflags);
+	lu = devp[minor];
+	if (lu)
+		atomic_inc(&lu->refcnt);
+	spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
+	return lu;
+}
+
+/* Starts a copy or a completion for a command on lu. */
+static void mhvtl_busy_get(struct mhvtl_lu_info *lu) {
+	atomic_inc(&lu->refcnt);
+	atomic_inc(&lu->busy_count);
+	atomic_inc(&mhvtl_busy_count);
+}
+
 /* Finds the command with this serial number and marks it busy, so the
  * timer, abort and reset paths leave it alone while the caller copies data
  * outside the lock. Returns NULL if the command is no longer queued, for
@@ -739,7 +781,7 @@ static struct mhvtl_queued_cmd *mhvtl_get_busy_sqcp(struct mhvtl_lu_info *lu,
 		if (sqcp->state && !sqcp->busy &&
 			sqcp->serial_number == serialNo) {
 			sqcp->busy = 1;
-			atomic_inc(&mhvtl_busy_count);
+			mhvtl_busy_get(lu);
 			spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 			return sqcp;
 		}
@@ -748,10 +790,12 @@ static struct mhvtl_queued_cmd *mhvtl_get_busy_sqcp(struct mhvtl_lu_info *lu,
 	return NULL;
 }
 
-/* Ends a copy or a completion counted in mhvtl_busy_count. */
-static void mhvtl_busy_done(void) {
+/* Ends a copy or a completion started with mhvtl_busy_get(). */
+static void mhvtl_busy_done(struct mhvtl_lu_info *lu) {
+	atomic_dec(&lu->busy_count);
 	atomic_dec(&mhvtl_busy_count);
 	wake_up_all(&mhvtl_busy_wq);
+	mhvtl_lu_put(lu);
 }
 
 /* Clears busy. With 'take' set, also unlinks the entry, which makes the
@@ -771,7 +815,7 @@ static void mhvtl_put_busy_sqcp(struct mhvtl_lu_info	 *lu,
 	}
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 	if (!take)
-		mhvtl_busy_done();
+		mhvtl_busy_done(lu);
 }
 
 /* True if the command for SCpnt is queued on lu and marked busy. */
@@ -881,15 +925,27 @@ static void mhvtl_timer_intr_handler(unsigned long data) {
 	}
 	list_del_init(&sqcp->queued_sibling);
 	sqcp->state = CMD_STATE_FREE;
-	atomic_inc(&mhvtl_busy_count); /* completion in progress */
+	mhvtl_busy_get(lu); /* completion in progress */
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 
+	/* The daemon never answered, so nothing was transferred or stored.
+	 * Completing with GOOD status would report e.g. a WRITE as done that
+	 * the daemon may never have written. The command must fail without
+	 * being retried, since the daemon may still be processing it: the
+	 * midlayer retries DID_ERROR whenever retries remain, and ch issues
+	 * MOVE MEDIUM with one, which would move a cartridge twice.
+	 * DID_NO_CONNECT is never retried, and is what the daemon-gone paths
+	 * already report.
+	 */
+	pr_warn("lu %llu: no response from daemon for serial %llu,"
+			" failing command\n",
+			(unsigned long long)lu->lun, sqcp->serial_number);
 	if (sqcp->done_funct) {
-		sqcp->a_cmnd->result = sqcp->scsi_result;
+		sqcp->a_cmnd->result = DID_NO_CONNECT << 16;
 		sqcp->done_funct(sqcp->a_cmnd); /* callback to mid level */
 	}
 	kfree(sqcp);
-	mhvtl_busy_done();
+	mhvtl_busy_done(lu);
 }
 
 static int mhvtl_sdev_alloc(struct scsi_device *sdp) {
@@ -954,19 +1010,23 @@ static void mhvtl_sdev_destroy(struct scsi_device *sdp) {
 			  (unsigned long long)sdp->lun);
 	if (lu) {
 		pr_debug("Removing lu structure, minor %d\n", lu->minor);
-		/* make this slot avaliable for re-use */
-		if (lu->minor < DEF_MAX_MINOR_NO)
-			devp[lu->minor] = NULL;
 		/* Unlink before freeing. mhvtl_driver_remove() walks this same
 		 * list after scsi_remove_host() has destroyed every device, so
 		 * leaving the entry linked makes it dereference and free memory
 		 * that is already gone.
 		 */
 		spin_lock_irqsave(&mhvtl_hba_list_lock, iflags);
+		/* Make this slot available for re-use. Under the lock, so
+		 * mhvtl_lu_get_minor() either sees the unit and pins it, or
+		 * doesn't see it at all.
+		 */
+		if (lu->minor < DEF_MAX_MINOR_NO && devp[lu->minor] == lu)
+			devp[lu->minor] = NULL;
 		list_del_init(&lu->lu_sibling);
 		spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
-		kfree(sdp->hostdata);
 		sdp->hostdata = NULL;
+		/* A completion still finishing holds its own reference */
+		mhvtl_lu_put(lu);
 	}
 }
 
@@ -1100,14 +1160,28 @@ again:
 	if (!found) {
 		/* VTL_PUT_DATA or the timer may have taken it and still be
 		 * completing it; returning SUCCESS now would let that completion
-		 * land on the retried command.
+		 * land on the retried command. Only this unit's copies and
+		 * completions can involve SCpnt, so wait for those alone.
 		 */
-		wait_event(mhvtl_busy_wq, atomic_read(&mhvtl_busy_count) == 0);
+		wait_event(mhvtl_busy_wq, atomic_read(&lu->busy_count) == 0);
 	} else {
 		timer_delete_sync(&sqcp->cmnd_timer);
 		kfree(sqcp);
 	}
 	return found;
+}
+
+/* True if the midlayer has already timed the command out, so the error
+ * handler owns it. SCMD_STATE_COMPLETE exists since v5.0; on older kernels
+ * the block layer drops the extra completion, but the result is still
+ * overwritten.
+ */
+static int mhvtl_cmnd_timed_out(struct scsi_cmnd *sc) {
+#ifdef SCMD_STATE_COMPLETE
+	return test_bit(SCMD_STATE_COMPLETE, &sc->state);
+#else
+	return 0;
+#endif
 }
 
 /* Complete every command still outstanding on this logical unit.
@@ -1120,8 +1194,7 @@ again:
  * A command a daemon is copying data for is left to that ioctl, and this
  * waits for the copy before looking again. Release can run while a daemon
  * is mid-copy, since any close of the device node calls it and it does not
- * take ioctl_mutex. VTL_REMOVE_LU calls this under mhvtl_hba_list_lock, but
- * it holds ioctl_mutex, so no copy can be running and it never waits.
+ * take ioctl_mutex. It may sleep, so callers must not hold a spinlock.
  */
 static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 	struct mhvtl_queued_cmd *sqcp, *n;
@@ -1139,35 +1212,28 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 			}
 			sqcp->state = CMD_STATE_FREE;
 			list_move(&sqcp->queued_sibling, &dead);
+			mhvtl_busy_get(lu); /* completion in progress */
 		}
 		spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 
 		list_for_each_entry_safe(sqcp, n, &dead, queued_sibling) {
 			timer_delete_sync(&sqcp->cmnd_timer);
-			if (sqcp->done_funct && sqcp->a_cmnd) {
+			/* See mhvtl_stop_all_queued() for commands the error
+			 * handler already owns.
+			 */
+			if (sqcp->done_funct && sqcp->a_cmnd &&
+				!mhvtl_cmnd_timed_out(sqcp->a_cmnd)) {
 				sqcp->a_cmnd->result = DID_NO_CONNECT << 16;
 				sqcp->done_funct(sqcp->a_cmnd);
 			}
 			list_del(&sqcp->queued_sibling);
 			kfree(sqcp);
+			mhvtl_busy_done(lu);
 		}
 
 		if (busy)
 			wait_event(mhvtl_busy_wq, !mhvtl_lu_busy(lu));
 	} while (busy);
-}
-
-/* True if the midlayer has already timed the command out, so the error
- * handler owns it. SCMD_STATE_COMPLETE exists since v5.0; on older kernels
- * the block layer drops the extra completion, but the result is still
- * overwritten.
- */
-static int mhvtl_cmnd_timed_out(struct scsi_cmnd *sc) {
-#ifdef SCMD_STATE_COMPLETE
-	return test_bit(SCMD_STATE_COMPLETE, &sc->state);
-#else
-	return 0;
-#endif
 }
 
 /* Completes every queued command with 'result'.
@@ -1204,6 +1270,7 @@ static void mhvtl_stop_all_queued(int result) {
 					}
 					sqcp->state = CMD_STATE_FREE;
 					list_move(&sqcp->queued_sibling, &dead);
+					mhvtl_busy_get(lu);
 				}
 				spin_unlock(&lu->cmd_list_lock);
 			}
@@ -1218,8 +1285,10 @@ static void mhvtl_stop_all_queued(int result) {
 				sqcp->a_cmnd->result = result;
 				sqcp->done_funct(sqcp->a_cmnd);
 			}
+			lu = sqcp->lu;
 			list_del(&sqcp->queued_sibling);
 			kfree(sqcp);
+			mhvtl_busy_done(lu);
 		}
 
 		/* Also wait for completions VTL_PUT_DATA or the timer started */
@@ -1283,6 +1352,7 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 		return -ENOMEM;
 	}
 	memset(lu, 0, sizeof(*lu));
+	atomic_set(&lu->refcnt, 1);
 
 	lu->minor	  = minor;
 	lu->channel	  = ctl->channel;
@@ -1303,9 +1373,9 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 
 	lu->sense_buff[0] = 0x70;
 	lu->sense_buff[7] = 0xa;
-	devp[minor]		  = lu;
 
 	spin_lock_irqsave(&mhvtl_hba_list_lock, hba_iflags);
+	devp[minor] = lu;
 	list_add_tail(&lu->lu_sibling, &mhvtl_hba->lu_list);
 	spin_unlock_irqrestore(&mhvtl_hba_list_lock, hba_iflags);
 
@@ -1719,6 +1789,7 @@ static int mhvtl_driver_remove(struct device *dev) {
 	struct list_head	  *lh, *lh_sf;
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info  *lu;
+	unsigned long		   iflags;
 
 	mhvtl_hba = to_mhvtl_hba(dev);
 
@@ -1746,9 +1817,11 @@ static int mhvtl_driver_remove(struct device *dev) {
 		/* Leaving the slot occupied would make this minor unusable for
 		 * the rest of the module's life.
 		 */
+		spin_lock_irqsave(&mhvtl_hba_list_lock, iflags);
 		if (lu->minor < DEF_MAX_MINOR_NO && devp[lu->minor] == lu)
 			devp[lu->minor] = NULL;
-		kfree(lu);
+		spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
+		mhvtl_lu_put(lu);
 	}
 
 	scsi_host_put(mhvtl_hba->shost);
@@ -1762,6 +1835,7 @@ static int mhvtl_driver_remove(struct device *dev) {
  *******************************************************************
  */
 static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
+	struct mhvtl_lu_info	*lu = NULL;
 	struct mhvtl_queued_cmd *sqcp = NULL;
 	struct mhvtl_ds			*ds;
 	int						 ret = 0;
@@ -1782,23 +1856,28 @@ static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
 	pr_debug(" data sz        : %d\n", ds->sz);
 	pr_debug(" SAM status     : %d (0x%02x)\n",
 			 ds->sam_stat, ds->sam_stat);
-	up	 = ds->data;
-	sz	 = ds->sz;
-	sqcp = mhvtl_get_busy_sqcp(devp[minor], ds->serialNo);
+	up = ds->data;
+	sz = ds->sz;
+	/* One pinned lookup: get and put must pair on the same unit */
+	lu	 = mhvtl_lu_get_minor(minor);
+	sqcp = lu ? mhvtl_get_busy_sqcp(lu, ds->serialNo) : NULL;
 	if (!sqcp) {
 		ret = -ENOTTY;
 		goto ret_err;
 	}
 
 	ret = mhvtl_resp_write_to_user(sqcp->a_cmnd, up, sz);
-	mhvtl_put_busy_sqcp(devp[minor], sqcp, 0);
+	mhvtl_put_busy_sqcp(lu, sqcp, 0);
 
 ret_err:
+	if (lu)
+		mhvtl_lu_put(lu);
 	kmem_cache_free(dsp, ds);
 	return ret;
 }
 
 static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
+	struct mhvtl_lu_info	*lu = NULL;
 	struct mhvtl_queued_cmd *sqcp = NULL;
 	struct mhvtl_ds			*ds;
 	int						 ret = 0;
@@ -1821,7 +1900,9 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 	pr_debug(" data sz        : %d\n", ds->sz);
 	pr_debug(" SAM status     : %d (0x%02x)\n",
 			 ds->sam_stat, ds->sam_stat);
-	sqcp = mhvtl_get_busy_sqcp(devp[minor], ds->serialNo);
+	/* One pinned lookup: get and put must pair on the same unit */
+	lu	 = mhvtl_lu_get_minor(minor);
+	sqcp = lu ? mhvtl_get_busy_sqcp(lu, ds->serialNo) : NULL;
 	if (!sqcp) {
 		pr_err("Callback function not found for SCSI cmd s/no. %lld, minor: %d\n",
 			   (unsigned long long)ds->serialNo,
@@ -1829,6 +1910,14 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 		ret = 1; /* report busy to mid level */
 		goto give_up;
 	}
+	/* The return value is deliberately not used as the command result.
+	 * It is only nonzero (DID_ERROR) for a command that is not a read but
+	 * has a data buffer, e.g. WRITE or MODE SELECT. The daemon completes
+	 * every command through here and does not always clear ds->sz, and
+	 * such a command has no read buffer to leave stale, so its result is
+	 * the daemon's status below. A short copy for a read is reported
+	 * through the residual count instead.
+	 */
 	ret = mhvtl_fill_from_user_buffer(sqcp->a_cmnd, ds->data, ds->sz);
 	if (ds->sam_stat) { /* Auto-sense */
 		sqcp->a_cmnd->result = ds->sam_stat;
@@ -1846,28 +1935,39 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 		sqcp->a_cmnd->result = DID_OK << 16;
 	}
 	/* Take ownership; from here no other path can reach the command */
-	mhvtl_put_busy_sqcp(devp[minor], sqcp, 1);
+	mhvtl_put_busy_sqcp(lu, sqcp, 1);
 	timer_delete_sync(&sqcp->cmnd_timer);
 	if (sqcp->done_funct)
 		sqcp->done_funct(sqcp->a_cmnd);
 	else
 		pr_err("FATAL, line %d: SCSI done_funct callback => NULL\n", __LINE__);
 	kfree(sqcp);
-	mhvtl_busy_done();
+	mhvtl_busy_done(lu);
 
 	ret = 0;
 
 give_up:
+	if (lu)
+		mhvtl_lu_put(lu);
 	kmem_cache_free(dsp, ds);
 	return ret;
 }
 
 static int send_mhvtl_header(unsigned int minor, char __user *arg) {
-	struct mhvtl_lu_info	*lu = devp[minor];
+	struct mhvtl_lu_info	*lu;
 	struct mhvtl_header		 hdr;
 	struct mhvtl_queued_cmd *sqcp, *n;
 	unsigned long			 iflags;
 	int						 ret = 0;
+
+	lu = mhvtl_lu_get_minor(minor);
+	if (!lu) {
+		/* No unit (yet, or any more): report an idle poll */
+		memset(&hdr, 0, sizeof(hdr));
+		if (copy_to_user((u8 *)arg, (u8 *)&hdr, sizeof(hdr)))
+			return -EFAULT;
+		return 0;
+	}
 
 	/* Claim one queued command under the lock and copy its header out, so
 	 * the list is not walked while the timer or abort path is unlinking
@@ -1885,6 +1985,7 @@ static int send_mhvtl_header(unsigned int minor, char __user *arg) {
 		}
 	}
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
+	mhvtl_lu_put(lu);
 
 	if (ret == VTL_QUEUE_CMD &&
 		copy_to_user((u8 *)arg, (u8 *)&hdr, sizeof(struct mhvtl_header)))
@@ -1908,6 +2009,7 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 	struct mhvtl_ctl	   ctl;
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info  *lu, *n;
+	struct mhvtl_lu_info  *rm_lu = NULL;
 	struct scsi_device	  *baksdev;
 	int					   ret = -ENODEV;
 
@@ -1939,11 +2041,16 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 		if ((lu->channel == ctl.channel) && (lu->target == ctl.id) &&
 			(lu->lun == ctl.lun)) {
 			pr_debug("line %d found matching lu\n", __LINE__);
-			/* Fail anything still outstanding while the unit is still
-			 * reachable, so scsi_remove_device() below has a queue that
-			 * can actually drain.
+			/* Its outstanding commands are failed below, once this
+			 * lock is dropped: that stops timers and calls into the
+			 * midlayer, neither of which may run under a spinlock
+			 * with interrupts off. The reference keeps the unit alive
+			 * until then.
 			 */
-			mhvtl_fail_queued_cmnds(lu);
+			if (!rm_lu) {
+				rm_lu = lu;
+				atomic_inc(&lu->refcnt);
+			}
 			/* _init so the later list_del_init() in sdev_destroy(),
 			 * reached through scsi_remove_device() below, does not walk
 			 * poisoned pointers.
@@ -1967,6 +2074,14 @@ static int mhvtl_remove_lu(unsigned int minor, char __user *arg) {
 		}
 	}
 	spin_unlock_irqrestore(&mhvtl_hba_list_lock, hba_iflags);
+
+	/* Fail anything still outstanding before removing the device, so
+	 * scsi_remove_device() has a queue that can actually drain.
+	 */
+	if (rm_lu) {
+		mhvtl_fail_queued_cmnds(rm_lu);
+		mhvtl_lu_put(rm_lu);
+	}
 
 	if (baksdev) {
 		scsi_remove_device(baksdev);
@@ -2026,14 +2141,6 @@ static int mhvtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 	switch (cmd) {
 
 	case VTL_POLL_AND_GET_HEADER:
-		if (!devp[minor]) {
-			struct mhvtl_header idle_hdr;
-
-			memset(&idle_hdr, 0, sizeof(idle_hdr));
-			if (copy_to_user((u8 *)arg, (u8 *)&idle_hdr, sizeof(idle_hdr)))
-				ret = -EFAULT;
-			break;
-		}
 		ret = send_mhvtl_header(minor, (char __user *)arg);
 		break;
 
@@ -2099,6 +2206,8 @@ static int mhvtl_release(struct inode *inode, struct file *filp) {
 	spin_lock_irqsave(&mhvtl_hba_list_lock, hba_iflags);
 	lu = devp[minor];
 	if (lu) {
+		/* Pin it: the lock is dropped before it is used below */
+		atomic_inc(&lu->refcnt);
 		spin_lock(&lu->sdev_lock);
 		sdev	 = lu->sdev;
 		lu->sdev = NULL;
@@ -2110,11 +2219,12 @@ static int mhvtl_release(struct inode *inode, struct file *filp) {
 		pr_debug("minor %u closed with its lu still registered"
 				 " - removing it\n",
 				 minor);
-		if (lu)
-			mhvtl_fail_queued_cmnds(lu);
+		mhvtl_fail_queued_cmnds(lu);
 		scsi_remove_device(sdev);
 		scsi_device_put(sdev);
 	}
+	if (lu)
+		mhvtl_lu_put(lu);
 
 	/* Only now, so a new daemon can't open the node and find the old
 	 * unit still registered while it is being removed.
