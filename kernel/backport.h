@@ -82,10 +82,3 @@ static int sysfs_emit(char *buf, const char *fmt, ...) {
 #if !defined(FROM_TIMER_NOW_TIMER_CONTAINER_OF)
 #define timer_container_of from_timer
 #endif
-
-/*
- * READ_ONCE() appeared in 3.19; older kernels only have ACCESS_ONCE().
- */
-#ifndef READ_ONCE
-#define READ_ONCE(x) (*(volatile typeof(x) *)&(x))
-#endif

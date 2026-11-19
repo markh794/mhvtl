@@ -742,6 +742,23 @@ static void mhvtl_lu_put(struct mhvtl_lu_info *lu) {
 		kfree(lu);
 }
 
+/* Returns the unit in devp[minor] with a reference held, or NULL. Every
+ * write to devp[] happens under mhvtl_hba_list_lock, and sdev_destroy
+ * clears the slot there before dropping the unit's own reference, so a
+ * unit found here cannot be freed until the caller's mhvtl_lu_put().
+ */
+static struct mhvtl_lu_info *mhvtl_lu_get_minor(unsigned int minor) {
+	struct mhvtl_lu_info *lu;
+	unsigned long		  iflags;
+
+	spin_lock_irqsave(&mhvtl_hba_list_lock, iflags);
+	lu = devp[minor];
+	if (lu)
+		atomic_inc(&lu->refcnt);
+	spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
+	return lu;
+}
+
 /* Starts a copy or a completion for a command on lu. */
 static void mhvtl_busy_get(struct mhvtl_lu_info *lu) {
 	atomic_inc(&lu->refcnt);
@@ -993,15 +1010,18 @@ static void mhvtl_sdev_destroy(struct scsi_device *sdp) {
 			  (unsigned long long)sdp->lun);
 	if (lu) {
 		pr_debug("Removing lu structure, minor %d\n", lu->minor);
-		/* make this slot avaliable for re-use */
-		if (lu->minor < DEF_MAX_MINOR_NO)
-			devp[lu->minor] = NULL;
 		/* Unlink before freeing. mhvtl_driver_remove() walks this same
 		 * list after scsi_remove_host() has destroyed every device, so
 		 * leaving the entry linked makes it dereference and free memory
 		 * that is already gone.
 		 */
 		spin_lock_irqsave(&mhvtl_hba_list_lock, iflags);
+		/* Make this slot available for re-use. Under the lock, so
+		 * mhvtl_lu_get_minor() either sees the unit and pins it, or
+		 * doesn't see it at all.
+		 */
+		if (lu->minor < DEF_MAX_MINOR_NO && devp[lu->minor] == lu)
+			devp[lu->minor] = NULL;
 		list_del_init(&lu->lu_sibling);
 		spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
 		sdp->hostdata = NULL;
@@ -1353,9 +1373,9 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 
 	lu->sense_buff[0] = 0x70;
 	lu->sense_buff[7] = 0xa;
-	devp[minor]		  = lu;
 
 	spin_lock_irqsave(&mhvtl_hba_list_lock, hba_iflags);
+	devp[minor] = lu;
 	list_add_tail(&lu->lu_sibling, &mhvtl_hba->lu_list);
 	spin_unlock_irqrestore(&mhvtl_hba_list_lock, hba_iflags);
 
@@ -1769,6 +1789,7 @@ static int mhvtl_driver_remove(struct device *dev) {
 	struct list_head	  *lh, *lh_sf;
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info  *lu;
+	unsigned long		   iflags;
 
 	mhvtl_hba = to_mhvtl_hba(dev);
 
@@ -1796,8 +1817,10 @@ static int mhvtl_driver_remove(struct device *dev) {
 		/* Leaving the slot occupied would make this minor unusable for
 		 * the rest of the module's life.
 		 */
+		spin_lock_irqsave(&mhvtl_hba_list_lock, iflags);
 		if (lu->minor < DEF_MAX_MINOR_NO && devp[lu->minor] == lu)
 			devp[lu->minor] = NULL;
+		spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
 		mhvtl_lu_put(lu);
 	}
 
@@ -1812,7 +1835,7 @@ static int mhvtl_driver_remove(struct device *dev) {
  *******************************************************************
  */
 static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
-	struct mhvtl_lu_info	*lu;
+	struct mhvtl_lu_info	*lu = NULL;
 	struct mhvtl_queued_cmd *sqcp = NULL;
 	struct mhvtl_ds			*ds;
 	int						 ret = 0;
@@ -1835,8 +1858,8 @@ static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
 			 ds->sam_stat, ds->sam_stat);
 	up = ds->data;
 	sz = ds->sz;
-	/* Read the slot once: get and put must pair on the same unit */
-	lu = READ_ONCE(devp[minor]);
+	/* One pinned lookup: get and put must pair on the same unit */
+	lu	 = mhvtl_lu_get_minor(minor);
 	sqcp = lu ? mhvtl_get_busy_sqcp(lu, ds->serialNo) : NULL;
 	if (!sqcp) {
 		ret = -ENOTTY;
@@ -1847,12 +1870,14 @@ static int mhvtl_get_user_data(unsigned int minor, char __user *arg) {
 	mhvtl_put_busy_sqcp(lu, sqcp, 0);
 
 ret_err:
+	if (lu)
+		mhvtl_lu_put(lu);
 	kmem_cache_free(dsp, ds);
 	return ret;
 }
 
 static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
-	struct mhvtl_lu_info	*lu;
+	struct mhvtl_lu_info	*lu = NULL;
 	struct mhvtl_queued_cmd *sqcp = NULL;
 	struct mhvtl_ds			*ds;
 	int						 ret = 0;
@@ -1875,8 +1900,8 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 	pr_debug(" data sz        : %d\n", ds->sz);
 	pr_debug(" SAM status     : %d (0x%02x)\n",
 			 ds->sam_stat, ds->sam_stat);
-	/* Read the slot once: get and put must pair on the same unit */
-	lu = READ_ONCE(devp[minor]);
+	/* One pinned lookup: get and put must pair on the same unit */
+	lu	 = mhvtl_lu_get_minor(minor);
 	sqcp = lu ? mhvtl_get_busy_sqcp(lu, ds->serialNo) : NULL;
 	if (!sqcp) {
 		pr_err("Callback function not found for SCSI cmd s/no. %lld, minor: %d\n",
@@ -1922,16 +1947,27 @@ static int mhvtl_put_user_data(unsigned int minor, char __user *arg) {
 	ret = 0;
 
 give_up:
+	if (lu)
+		mhvtl_lu_put(lu);
 	kmem_cache_free(dsp, ds);
 	return ret;
 }
 
 static int send_mhvtl_header(unsigned int minor, char __user *arg) {
-	struct mhvtl_lu_info	*lu = devp[minor];
+	struct mhvtl_lu_info	*lu;
 	struct mhvtl_header		 hdr;
 	struct mhvtl_queued_cmd *sqcp, *n;
 	unsigned long			 iflags;
 	int						 ret = 0;
+
+	lu = mhvtl_lu_get_minor(minor);
+	if (!lu) {
+		/* No unit (yet, or any more): report an idle poll */
+		memset(&hdr, 0, sizeof(hdr));
+		if (copy_to_user((u8 *)arg, (u8 *)&hdr, sizeof(hdr)))
+			return -EFAULT;
+		return 0;
+	}
 
 	/* Claim one queued command under the lock and copy its header out, so
 	 * the list is not walked while the timer or abort path is unlinking
@@ -1949,6 +1985,7 @@ static int send_mhvtl_header(unsigned int minor, char __user *arg) {
 		}
 	}
 	spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
+	mhvtl_lu_put(lu);
 
 	if (ret == VTL_QUEUE_CMD &&
 		copy_to_user((u8 *)arg, (u8 *)&hdr, sizeof(struct mhvtl_header)))
@@ -2104,14 +2141,6 @@ static int mhvtl_c_ioctl_bkl(struct inode *inode, struct file *file,
 	switch (cmd) {
 
 	case VTL_POLL_AND_GET_HEADER:
-		if (!devp[minor]) {
-			struct mhvtl_header idle_hdr;
-
-			memset(&idle_hdr, 0, sizeof(idle_hdr));
-			if (copy_to_user((u8 *)arg, (u8 *)&idle_hdr, sizeof(idle_hdr)))
-				ret = -EFAULT;
-			break;
-		}
 		ret = send_mhvtl_header(minor, (char __user *)arg);
 		break;
 
@@ -2177,6 +2206,8 @@ static int mhvtl_release(struct inode *inode, struct file *filp) {
 	spin_lock_irqsave(&mhvtl_hba_list_lock, hba_iflags);
 	lu = devp[minor];
 	if (lu) {
+		/* Pin it: the lock is dropped before it is used below */
+		atomic_inc(&lu->refcnt);
 		spin_lock(&lu->sdev_lock);
 		sdev	 = lu->sdev;
 		lu->sdev = NULL;
@@ -2188,11 +2219,12 @@ static int mhvtl_release(struct inode *inode, struct file *filp) {
 		pr_debug("minor %u closed with its lu still registered"
 				 " - removing it\n",
 				 minor);
-		if (lu)
-			mhvtl_fail_queued_cmnds(lu);
+		mhvtl_fail_queued_cmnds(lu);
 		scsi_remove_device(sdev);
 		scsi_device_put(sdev);
 	}
+	if (lu)
+		mhvtl_lu_put(lu);
 
 	/* Only now, so a new daemon can't open the node and find the old
 	 * unit still registered while it is being removed.
