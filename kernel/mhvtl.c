@@ -255,7 +255,6 @@ struct mhvtl_queued_cmd {
 	struct timer_list	cmnd_timer;
 	done_funct_t		done_funct;
 	struct scsi_cmnd   *a_cmnd;
-	int					scsi_result;
 	struct mhvtl_header op_header;
 
 	struct list_head   queued_sibling;
@@ -505,15 +504,15 @@ static void mhvtl_debug_queued_list(struct mhvtl_lu_info *lu) {
 		if (sqcp->state) {
 			if (sqcp->a_cmnd) {
 				pr_info("%d entry in use "
-						"SCpnt: %p, SCSI result: %d, done: %p, "
+						"SCpnt: %p, done: %p, "
 						"Serial No: %lld\n",
-						k, sqcp->a_cmnd, sqcp->scsi_result,
+						k, sqcp->a_cmnd,
 						sqcp->done_funct,
 						sqcp->serial_number);
 			} else {
 				pr_info("%d entry in use "
-						"SCpnt: %p, SCSI result: %d, done: %p\n",
-						k, sqcp->a_cmnd, sqcp->scsi_result,
+						"SCpnt: %p, done: %p\n",
+						k, sqcp->a_cmnd,
 						sqcp->done_funct);
 			}
 		} else
@@ -586,7 +585,6 @@ static int mhvtl_q_cmd(struct scsi_cmnd		*scp,
 	sqcp->cmnd_timer.data	  = (unsigned long)sqcp;
 #endif
 	sqcp->a_cmnd			 = scp;
-	sqcp->scsi_result		 = 0;
 	sqcp->busy				 = 0;
 	sqcp->lu				 = lu;
 	INIT_LIST_HEAD(&sqcp->queued_sibling);
