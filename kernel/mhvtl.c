@@ -270,7 +270,9 @@ struct mhvtl_queued_cmd {
  * unlinked by the ioctl that marked it.
  *
  * mhvtl_busy_count counts data copies in progress plus completions that
- * VTL_PUT_DATA or the timer have started but not finished. Abort and host
+ * VTL_PUT_DATA, the timer, mhvtl_fail_queued_cmnds() or
+ * mhvtl_stop_all_queued() have started but not finished: each raises it in
+ * the same critical section that unlinks the entry. Abort and host
  * reset wait for it to drop, so they never return while a completion for
  * a command they could not find is still on its way to the midlayer.
  */
@@ -1148,6 +1150,7 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 			}
 			sqcp->state = CMD_STATE_FREE;
 			list_move(&sqcp->queued_sibling, &dead);
+			atomic_inc(&mhvtl_busy_count); /* completion in progress */
 		}
 		spin_unlock_irqrestore(&lu->cmd_list_lock, iflags);
 
@@ -1159,6 +1162,7 @@ static void mhvtl_fail_queued_cmnds(struct mhvtl_lu_info *lu) {
 			}
 			list_del(&sqcp->queued_sibling);
 			kfree(sqcp);
+			mhvtl_busy_done();
 		}
 
 		if (busy)
@@ -1213,6 +1217,7 @@ static void mhvtl_stop_all_queued(int result) {
 					}
 					sqcp->state = CMD_STATE_FREE;
 					list_move(&sqcp->queued_sibling, &dead);
+					atomic_inc(&mhvtl_busy_count);
 				}
 				spin_unlock(&lu->cmd_list_lock);
 			}
@@ -1229,6 +1234,7 @@ static void mhvtl_stop_all_queued(int result) {
 			}
 			list_del(&sqcp->queued_sibling);
 			kfree(sqcp);
+			mhvtl_busy_done();
 		}
 
 		/* Also wait for completions VTL_PUT_DATA or the timer started */
