@@ -114,10 +114,13 @@ void test_parse_field_names_are_loose(void)
 		"\tportal:\t192.0.2.1\n"
 		"ISCSI   TARGET: 10\n"
 		"  initiator   NAME: iqn.2024-01.com.example:a\n"
+		"  initiator   NAME: ANY\n"
 		"  chap name: PBS\n"
 		"  chap secret: Secret123456\n";
 
 	TEST_ASSERT_(parse(s, &conf, err, sizeof(err)) == 0, "%s", err);
+	TEST_CHECK(conf.targets[0].demo_mode == 1);
+	TEST_CHECK(conf.targets[0].n_initiators == 1);
 	TEST_CHECK(!strcmp(conf.targets[0].auth.name, "PBS"));
 	TEST_CHECK(!strcmp(conf.targets[0].auth.secret, "Secret123456"));
 }

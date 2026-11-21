@@ -59,6 +59,7 @@ struct fab_target {
 	/* Filled by fab_plan() from device.conf */
 	int		n_luns;
 	struct fab_lun	luns[FAB_MAX_LUNS];
+	unsigned char demo_mode;
 };
 
 struct fab_conf {

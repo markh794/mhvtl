@@ -47,6 +47,9 @@ iSCSI:
 # to the tapes, so use CHAP unless the portal is on a trusted storage
 # network. CHAP applies to every initiator of the record. Use secrets of at
 # least 12 characters; some initiators require 12 to 16.
+# There is one special name. If the word ANY is used as initiator name, then
+# this switches the target into demo mode. That means: Any initiator can
+# discover and use the target. Authentication still applies, if configured.
 iSCSI target: 10
  Initiator name: iqn.2024-01.com.example:pbs1
 # CHAP name: pbs1

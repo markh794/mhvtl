@@ -271,6 +271,10 @@ static int target_field(struct fab_conf *conf, struct fab_target *t,
 	size_t i;
 
 	if (!strcmp(name, "initiator name")) {
+		if (!strcmp(value, "ANY")) {
+			t->demo_mode = 1;
+			return 0;
+		}
 		if (!fab_valid_iscsi_name(value)) {
 			set_err(errbuf, errlen, line,
 				"initiator name '%s' is not an iSCSI name (lower case iqn., eui. or naa.)",

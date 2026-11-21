@@ -128,7 +128,7 @@ static int load(const char *conf_path, const char *dev_path,
 				"%s: iSCSI target %ld: CHAP secret shorter than 12 characters; initiators may refuse it\n",
 				conf_path, conf->targets[i].id);
 
-		if (!conf->targets[i].n_initiators) {
+		if ((!conf->targets[i].n_initiators) && (!conf->targets[i].demo_mode)) {
 			if (!quiet)
 				fprintf(stderr,
 					"%s: iSCSI target %ld lists no Initiator name; not exported\n",
@@ -161,6 +161,9 @@ static void print_plan(const struct fab_conf *conf)
 		for (j = 0; j < t->n_luns; j++)
 			printf("  lun %u -> core/user_0/%s\n", t->luns[j].lun,
 			       t->luns[j].backstore);
+		if (t->demo_mode) {
+			printf("  initiator ANY\n");
+		}
 		for (j = 0; j < t->n_initiators; j++)
 			printf("  initiator %s\n", t->initiators[j]);
 	}
