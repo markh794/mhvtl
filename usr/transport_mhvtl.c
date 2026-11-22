@@ -80,7 +80,7 @@ static int chrdev_get_major(void)
 		return -ENOENT;
 	}
 	x = fscanf(f, "%d", &majno);
-	if (!x) {
+	if (1 != x) {
 		MHVTL_DBG(1, "Cant identify major number for mhvtl");
 		rc = -1;
 	} else
