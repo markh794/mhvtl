@@ -210,6 +210,8 @@ struct mhvtl_lu_info {
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct scsi_device	  *sdev;
 	spinlock_t			   sdev_lock;
+	/* Set by sdev_destroy under sdev_lock; see mhvtl_add_device() */
+	int					   destroyed;
 
 	char reset;
 
@@ -218,7 +220,10 @@ struct mhvtl_lu_info {
 
 	/* This unit's share of mhvtl_busy_count; see the ownership rule */
 	atomic_t busy_count;
-	/* One for the unit itself plus one per busy_count; freed at zero */
+	/* One for the unit itself, one per busy_count, plus any taken by
+	 * mhvtl_lu_get_minor() or held across setup and teardown; the last
+	 * mhvtl_lu_put() frees it.
+	 */
 	atomic_t refcnt;
 };
 
@@ -1003,6 +1008,7 @@ static int mhvtl_sdev_configure(struct scsi_device *sdp)
 
 static void mhvtl_sdev_destroy(struct scsi_device *sdp) {
 	struct mhvtl_lu_info *lu = (struct mhvtl_lu_info *)sdp->hostdata;
+	struct scsi_device	 *sdev;
 	unsigned long		  iflags;
 
 	pr_notice("<%u %u %u %llu>\n",
@@ -1024,6 +1030,29 @@ static void mhvtl_sdev_destroy(struct scsi_device *sdp) {
 			devp[lu->minor] = NULL;
 		list_del_init(&lu->lu_sibling);
 		spin_unlock_irqrestore(&mhvtl_hba_list_lock, iflags);
+
+		/* Ownership rule: whoever clears lu->sdev under sdev_lock owns
+		 * the scsi_device_put() for the reference __scsi_add_device()
+		 * returned. Release, VTL_REMOVE_LU and driver remove clear it
+		 * before removing the device, so this finds NULL for them. A
+		 * removal the driver didn't start - echo 1 > .../delete - finds
+		 * it still set, and once the unit is off devp[] and lu_list
+		 * nothing else can return it: the scsi_device, and the module
+		 * reference that comes with it, would leak and rmmod would
+		 * fail. 'destroyed' tells a mhvtl_add_device() that has not
+		 * stored lu->sdev yet to put the reference itself.
+		 */
+		spin_lock(&lu->sdev_lock);
+		sdev		  = lu->sdev;
+		lu->sdev	  = NULL;
+		lu->destroyed = 1;
+		spin_unlock(&lu->sdev_lock);
+		/* Not the last reference: whoever is removing the device holds
+		 * its own until scsi_remove_device() returns.
+		 */
+		if (sdev)
+			scsi_device_put(sdev);
+
 		sdp->hostdata = NULL;
 		/* A completion still finishing holds its own reference */
 		mhvtl_lu_put(lu);
@@ -1325,7 +1354,8 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 	struct mhvtl_hba_info *mhvtl_hba;
 	struct mhvtl_lu_info  *lu;
 	struct scsi_device	  *tmp_sdev;
-	int					   error = 0;
+	struct scsi_device	  *late_sdev = NULL;
+	int					   error	 = 0;
 
 	if (devp[minor]) {
 		pr_notice("device struct already in place\n");
@@ -1381,14 +1411,32 @@ static int mhvtl_add_device(unsigned int minor, struct mhvtl_ctl *ctl) {
 
 	pr_debug("Added lu: %p to devp[%d]\n", lu, minor);
 
+	/* The device can be deleted through sysfs as soon as
+	 * __scsi_add_device() has registered it, before lu->sdev is stored
+	 * below. sdev_destroy() then drops the unit's own reference, so
+	 * hold one across the call to keep the unit valid.
+	 */
+	atomic_inc(&lu->refcnt);
 	tmp_sdev = __scsi_add_device(hpnt, ctl->channel, ctl->id, ctl->lun, NULL);
 	if (IS_ERR(tmp_sdev)) {
 		tmp_sdev = NULL;
 		error	 = -ENODEV;
 	}
 	spin_lock(&lu->sdev_lock);
-	lu->sdev = tmp_sdev;
+	if (lu->destroyed) {
+		/* Already destroyed: it found no lu->sdev to put, so the
+		 * reference is still ours to return.
+		 */
+		late_sdev = tmp_sdev;
+	} else {
+		lu->sdev = tmp_sdev;
+	}
 	spin_unlock(&lu->sdev_lock);
+	if (late_sdev) {
+		scsi_device_put(late_sdev);
+		error = -ENODEV;
+	}
+	mhvtl_lu_put(lu);
 	return error;
 }
 
