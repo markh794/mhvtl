@@ -113,8 +113,13 @@ built with OpenSSL) but refuses encrypted writes to them.
 
 .PP
 .B Backoff:
-Value between 10 and 10000. Default is 1000.
-This value is added to existing 'usleep' time in between ioctl polls. If there is work to do, the usleep time is reset to 10.
+Value between 10 and 9999 for a drive, between 2 and 9999 for a library.
+Default is 400.
+A value outside that range is ignored and the default used.
+.IP
+Each poll of the kernel module that finds no work adds this many
+microseconds to the sleep before the next poll, until the sleep reaches
+one second. When there is work to do, the sleep is reset to 5 microseconds.
 
 .PP
 .B Home directory:
