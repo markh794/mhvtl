@@ -573,6 +573,29 @@ static void drop_mapped_lun(const char *tpg, unsigned lun)
 	closedir(d);
 }
 
+static int iscsi_apply_demomode(const char *tpg, const struct fab_target *t)
+{
+	const struct {
+		const char *attr, *val;
+	} attrs[] = {
+		/* "NULL" clears a value in LIO */
+		{ "auth/userid", t->auth.name[0] ? t->auth.name : "NULL" },
+		{ "auth/password", t->auth.secret[0] ? t->auth.secret : "NULL" },
+		{ "auth/userid_mutual",
+		  t->auth.mutual_name[0] ? t->auth.mutual_name : "NULL" },
+		{ "auth/password_mutual",
+		  t->auth.mutual_secret[0] ? t->auth.mutual_secret : "NULL" },
+	};
+	char	p[PATHLEN];
+	size_t	i;
+
+	for (i = 0; i < sizeof(attrs) / sizeof(attrs[0]); i++)
+		if (mkpath(p, "%s/%s", tpg, attrs[i].attr) ||
+		    cfs_write(p, attrs[i].val))
+			return -1;
+	return 0;
+}
+
 static int apply_target(const struct fabric_ops *ops, const struct fab_target *t,
 			const struct fab_conf *conf, char *errbuf, size_t errlen)
 {
@@ -651,9 +674,9 @@ static int apply_target(const struct fabric_ops *ops, const struct fab_target *t
 		}
 	}
 	if (t->demo_mode) {
-		if (ops->apply_acl && ops->apply_acl(tpg, t)) {
+		if (iscsi_apply_demomode(tpg, t)) {
 			set_err(errbuf, errlen,
-				"%s: cannot configure the target-level ACL of %s",
+				"%s: cannot configure demo mode of %s",
 				t->wwn, strerror(errno));
 			return -1;
 		}

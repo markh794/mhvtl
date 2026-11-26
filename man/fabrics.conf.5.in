@@ -45,9 +45,7 @@ drive).
 .TP
 .BI "Initiator name: " name
 iSCSI name allowed to log in, repeatable. A record without one is not
-exported. If the special value \fBANY\fR is specified, the target switches into
-\fBdemo mode\fR, where \fBany\fR initiator can discover and use that target.
-CHAP authentication still applies in demo mode, if configured.
+exported unless demo mode is enabled.
 .TP
 .BI "Target name: " name
 Overrides the default target name.
@@ -58,18 +56,26 @@ Every initiator of this record must authenticate with CHAP.
 .BI "Mutual CHAP name: " name ", Mutual CHAP secret: " secret
 The target authenticates to the initiator too. RFC 7143 section 9.2.1
 requires a secret different from the CHAP secret.
+.TP
+.BI "Demo mode: " yes|no
+An optional setting (default: \fIno\fR). If \fIyes\fR then the target switches
+into \fBdemo mode\fR, where \fBANY\fR initiator can discover and use that target.
+CHAP authentication still applies in demo mode, if configured.
 .RE
 .PP
 Names must be lower case \fBiqn.\fR, \fBeui.\fR or \fBnaa.\fR names. CHAP
 names and secrets are printable characters without blanks. RFC 7143 section
 9.2.1 asks for secrets of at least 96 bits, 12 characters; some initiators
-require 12 to 16. The \fBonly\fR exception is the special value \fBANY\fR,
-which serves as a flag, enabling \fBdemo mode\fR.
+require 12 to 16.
 .SH SECURITY
 An initiator name is an identity, not a credential: any host can claim it.
 Without CHAP, a listed name gets full read and write access to the tapes,
 so use CHAP unless the portals are on a trusted storage network.
 CHAP authentication still applies in \fBdemo mode\fR as well.
+In demo mode, \fBany\fR initiator can discover and use the target. Initiator
+records still are allowed but do not result in any special behavior. They gain
+relevance only, if demo mode is disabled.
+\fBWARNING:\fR Do \fBnot\fR enable demo mode in production environments!
 .PP
 The file must be owned by root (or the user running mhvtl-fabrics) and not
 writable by group or others. When it holds a secret it must be mode 0600.

@@ -270,11 +270,19 @@ static int target_field(struct fab_conf *conf, struct fab_target *t,
 	};
 	size_t i;
 
-	if (!strcmp(name, "initiator name")) {
-		if (!strcmp(value, "ANY")) {
+	if (!strcmp(name, "demo mode")) {
+		if (!strcasecmp(value, "yes")) {
 			t->demo_mode = 1;
-			return 0;
-		}
+            return 0;
+        }
+		if (!strcasecmp(value, "no")) {
+            return 0;
+        }
+        set_err(errbuf, errlen, line, "Demo mode must be 'yes' or 'no'");
+        return -1;
+    }
+
+	if (!strcmp(name, "initiator name")) {
 		if (!fab_valid_iscsi_name(value)) {
 			set_err(errbuf, errlen, line,
 				"initiator name '%s' is not an iSCSI name (lower case iqn., eui. or naa.)",

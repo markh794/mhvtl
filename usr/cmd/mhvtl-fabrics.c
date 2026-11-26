@@ -127,13 +127,23 @@ static int load(const char *conf_path, const char *dev_path,
 			fprintf(stderr,
 				"%s: iSCSI target %ld: CHAP secret shorter than 12 characters; initiators may refuse it\n",
 				conf_path, conf->targets[i].id);
-
 		if ((!conf->targets[i].n_initiators) && (!conf->targets[i].demo_mode)) {
 			if (!quiet)
 				fprintf(stderr,
 					"%s: iSCSI target %ld lists no Initiator name; not exported\n",
 					conf_path, conf->targets[i].id);
 			continue;
+		}
+		if (conf->targets[i].demo_mode) {
+			if (!quiet) {
+				int hasauth = (a->name[0] || a->mutual_name[0]);
+				fprintf(stderr,
+					"%s: iSCSI target %ld is in demo mode and is discoverable/usable by ANY initiator!%s",
+					conf_path, conf->targets[i].id, hasauth ? "\n" : "");
+				if (!hasauth) {
+					fprintf(stderr, ". Furthermore, NO AUTHENTICATION is configured\n");
+				}
+			}
 		}
 		if (n != i)
 			conf->targets[n] = conf->targets[i];
@@ -162,7 +172,7 @@ static void print_plan(const struct fab_conf *conf)
 			printf("  lun %u -> core/user_0/%s\n", t->luns[j].lun,
 			       t->luns[j].backstore);
 		if (t->demo_mode) {
-			printf("  initiator ANY\n");
+			printf("  Demo mode: yes\n");
 		}
 		for (j = 0; j < t->n_initiators; j++)
 			printf("  initiator %s\n", t->initiators[j]);

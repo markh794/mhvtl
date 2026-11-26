@@ -114,12 +114,10 @@ void test_parse_field_names_are_loose(void)
 		"\tportal:\t192.0.2.1\n"
 		"ISCSI   TARGET: 10\n"
 		"  initiator   NAME: iqn.2024-01.com.example:a\n"
-		"  initiator   NAME: ANY\n"
 		"  chap name: PBS\n"
 		"  chap secret: Secret123456\n";
 
 	TEST_ASSERT_(parse(s, &conf, err, sizeof(err)) == 0, "%s", err);
-	TEST_CHECK(conf.targets[0].demo_mode == 1);
 	TEST_CHECK(conf.targets[0].n_initiators == 1);
 	TEST_CHECK(!strcmp(conf.targets[0].auth.name, "PBS"));
 	TEST_CHECK(!strcmp(conf.targets[0].auth.secret, "Secret123456"));
@@ -386,6 +384,10 @@ void test_apply_builds_tree(void)
 				     W10, ""), "0"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/demo_mode_discovery%s",
 				     W10, ""), "0"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/demo_mode_write_protect%s",
+				     W10, ""), "1"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/cache_dynamic_acls%s",
+				     W10, ""), "0"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/authentication%s",
 				     W10, ""), "1"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/acls/%s/auth/password",
@@ -396,6 +398,80 @@ void test_apply_builds_tree(void)
 	check_tape_params(W30);
 	TEST_CHECK(!strcmp(read_file(DATAOUT, W10, I1), "30"));
 	TEST_CHECK(!strcmp(read_file(DATAOUT, W10, I2), "30"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/authentication%s",
+				     W30, ""), "0"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/param/AuthMethod%s",
+				     W30, ""), "None"));
+	TEST_CHECK(exists("iscsi/%s/tpgt_1/lun/lun_4/tape31%s", W30, ""));
+
+	/* Second apply changes nothing and succeeds */
+	TEST_CHECK_(fab_apply(&fabric_iscsi, &conf, err, sizeof(err)) == 0,
+		    "%s", err);
+	TEST_CHECK(exists("iscsi/%s/tpgt_1/acls/%s/lun_1/lun", W10, I2));
+
+	TEST_CHECK(fab_remove(&fabric_iscsi, &conf) == 0);
+	TEST_CHECK(!exists("iscsi/%s%s", W10, ""));
+	TEST_CHECK(!exists("iscsi/%s%s", W30, ""));
+	/* Backstores belong to the handler and stay */
+	TEST_CHECK(exists("core/user_0/lib10%s%s", "", ""));
+	TEST_CHECK(access(state, F_OK) != 0);
+	fake_teardown();
+}
+
+static const char CONF_TWO_DEMO[] =
+	"iSCSI:\n"
+	" Portal: 192.0.2.10:3260\n"
+	" Base name: " BASE "\n"
+	"iSCSI target: 10\n"
+    " Demo mode: yes\n"
+	" Initiator name: " I1 "\n"
+	" Initiator name: " I2 "\n"
+	" CHAP name: pbs\n"
+	" CHAP secret: abcdefghijkl\n"
+	"iSCSI target: 30\n"
+    " Demo mode: no\n"
+	" Initiator name: " I1 "\n";
+
+void test_apply_builds_tree_demo(void)
+{
+	fake_setup();
+	TEST_ASSERT_(plan(CONF_TWO_DEMO, &conf, err, sizeof(err)) == 0, "%s", err);
+	TEST_ASSERT_(fab_apply(&fabric_iscsi, &conf, err, sizeof(err)) == 0,
+		     "%s", err);
+
+	TEST_CHECK(exists("iscsi/%s/tpgt_1/lun/lun_0/lib10%s", W10, ""));
+	TEST_CHECK(exists("iscsi/%s/tpgt_1/lun/lun_2/tape12%s", W10, ""));
+	TEST_CHECK(exists("iscsi/%s/tpgt_1/acls/%s/lun_1/lun", W10, I2));
+	TEST_CHECK(exists("iscsi/%s/tpgt_1/np/192.0.2.10:3260%s", W10, ""));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/enable%s", W10, ""), "1"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/generate_node_acls%s",
+				     W10, ""), "1"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/demo_mode_discovery%s",
+				     W10, ""), "1"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/demo_mode_write_protect%s",
+				     W10, ""), "0"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/cache_dynamic_acls%s",
+				     W10, ""), "1"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/authentication%s",
+				     W10, ""), "1"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/auth/userid%s",
+				     W10, ""), "pbs"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/auth/password%s",
+				     W10, ""), "abcdefghijkl"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/auth/userid_mutual",
+				     W10, I1), "NULL"));
+	check_tape_params(W10);
+	check_tape_params(W30);
+	TEST_CHECK(!strcmp(read_file(DATAOUT, W10, I1), "30"));
+	TEST_CHECK(!strcmp(read_file(DATAOUT, W10, I2), "30"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/generate_node_acls%s",
+				     W30, ""), "0"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/demo_mode_discovery%s",
+				     W30, ""), "0"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/demo_mode_write_protect%s",
+				     W30, ""), "1"));
+	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/cache_dynamic_acls%s",
+				     W30, ""), "0"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/attrib/authentication%s",
 				     W30, ""), "0"));
 	TEST_CHECK(!strcmp(read_file("iscsi/%s/tpgt_1/param/AuthMethod%s",
@@ -613,6 +689,7 @@ TEST_LIST = {
 	{ "plan_errors", test_plan_errors },
 	{ "plan_base_name_required", test_plan_base_name_required },
 	{ "apply_builds_tree", test_apply_builds_tree },
+	{ "apply_builds_tree_demo", test_apply_builds_tree_demo },
 	{ "apply_reconciles", test_apply_reconciles },
 	{ "apply_prunes_lun", test_apply_prunes_lun },
 	{ "apply_lun_moves_backstore", test_apply_lun_moves_backstore },
