@@ -101,6 +101,11 @@ change: the kernel restores a saved registration only on the same LUN it was
 made on. Restore the previous \fBSlot\fR and restart, or have the initiators
 register and reserve again.
 .PP
+If demo mode changes from \fByes\fR to \fBno\fR, any session that has been
+established during active demo mode will continue to exist until either
+terminated by the initiator (logout) or the target is unexported due to no
+initiators configured for that target.
+.PP
 Do not save these targets with \fBtargetcli saveconfig\fR: \fBtarget.service\fR
 would restore them at boot, before the handler has created the backstores.
 .PP
